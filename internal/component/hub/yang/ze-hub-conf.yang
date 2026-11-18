@@ -43,6 +43,31 @@ module ze-hub-conf {
             }
         }
 
+        container backup {
+            description "Private working copies for uploaded backups and complete system backup downloads.
+                The directory is selected at startup; change it with a daemon restart. Existing workspaces
+                remain in their original private folder until the owning daemon closes them.";
+            ze:help "Backup workspace storage settings.";
+
+            leaf directory {
+                type string {
+                    length "1..4096";
+                    pattern '/.*' {
+                        error-message "Use an absolute backup directory path beginning with /.";
+                    }
+                }
+                description "Absolute parent folder for private backup workspaces and download snapshots.
+                    The ze.backup.directory environment override takes priority. With no explicit setting,
+                    use the platform data directory's backups folder: the Linux and appliance data paths
+                    are resolved by the shared platform policy. A development binary with no recognized
+                    data directory keeps its operating-system temporary folder. Ze creates a missing
+                    parent folder and private children; it does not change an existing parent's mode or
+                    remove unrelated files. The daemon user must be able to create files here.
+                    Changes take effect after restarting the daemon, not at configuration reload.";
+                ze:help "Absolute backup folder; restart after changing it.";
+            }
+        }
+
         container log {
             description "A name this container does not declare becomes a subsystem level: bgp.routes debug
                 sets the level of the bgp.routes subsystem alone. Ze reads a subsystem level from the

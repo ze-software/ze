@@ -10,6 +10,9 @@ environment {
         pid "/run/ze.pid";
         user "zeuser";
     }
+    backup {
+        directory "/srv/ze-backups";
+    }
     bgp {
         openwait 60;
         announce-delay 5s;
@@ -36,6 +39,16 @@ environment {
 ```
 
 Priority: **OS env > config block > YANG default**.
+
+`backup/directory` selects the absolute parent of private backup uploads,
+editor workspaces and download snapshots. The `ze.backup.directory` override
+wins. With no explicit setting, the owner uses the existing platform data
+directory's `backups` folder; an unresolved development layout retains its
+operating-system temporary directory. Like the other plumbed environment
+settings, a changed leaf takes effect after restarting the daemon. An existing
+workspace keeps its original root until its owner closes it.
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- backup, directory -->
+<!-- source: internal/component/config/apply_env.go -- envPlumbingTable, ApplyEnvConfig -->
 
 The config loader maps `environment/log/*` to env vars via
 `slogutil.ApplyLogConfig` and everything else via `config.ApplyEnvConfig`.

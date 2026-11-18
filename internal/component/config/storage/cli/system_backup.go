@@ -26,3 +26,17 @@ func BackupSystemTo(ctx context.Context, path string, limit int64) error {
 	_, err := storage.BackupBounded(ctx, target.Store, path, limit)
 	return err
 }
+
+// CheckBackupDirectory protects only the installed live store's namespace.
+// A standalone owner with no installed store has no live namespace to protect.
+// The daemon MUST retain its data target until admitted commands finish.
+func CheckBackupDirectory(parent string) error {
+	target := dataRPC.Load()
+	if target == nil {
+		return nil
+	}
+	if target.Store == nil {
+		return nil
+	}
+	return storage.CheckBackupDirectory(target.Store, parent)
+}

@@ -50,8 +50,11 @@ See `ai/rules/config.md` for the YANG vs env-only decision framework.
 | `ze.ready.file` | string | (unset) | ENV | Test infrastructure: signal file written when hub is ready |
 | `ze.config.dir` | string | (unset) | ENV | Override default config directory; when unset the directory is derived from the binary location |
 | `ze.data.dir` | string | (unset) | ENV | Override default data directory, where container images, layers and volumes are stored; when unset the directory is derived from the binary location, beside the config directory: `/perm/var/lib/ze` on the appliance, `/var/lib/ze` under a system prefix, `<prefix>/var/lib/ze` under another prefix. A binary in no known layout has no data directory, and the container store refuses every operation until this is set |
+| `ze.backup.directory` | string | platform data directory + `/backups` | YANG | Absolute parent folder for all private backup workspaces and download snapshots; `environment/backup/directory` supplies it at startup. Restart after changing it. An unconfigured development binary with no resolved data directory retains the OS temporary folder |
 <!-- source: internal/component/config/environment.go -- env var registrations -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir registration; DefaultConfigDir override-then-binary resolution; dataDirKey, DataDirFromBinary, DefaultDataDir -->
+<!-- source: internal/core/paths/backup.go -- BackupDirectoryKey -->
+<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
 <!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile -->
 
 When `ze.user` is not set, no privilege dropping occurs.

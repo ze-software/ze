@@ -21,7 +21,7 @@ func init() {
 // doctor recent-events check without retaining uploaded content or filenames.
 // One fixed source and subject bound events across every workspace and owner.
 func ReportStorageFailure() {
-	const fix = "Run ze show doctor, check free space and temporary-directory permissions, then retry /backups/"
+	const fix = "Run ze show doctor, check free space and backup-folder permissions, then retry /backups/"
 	const message = "A private backup workspace storage operation did not finish. Live configuration was not changed."
 	report.RaiseErrorFixOnce("backup-workspace", diagnostic.CodeDoctorBackupWorkspaceStorage, "private-artifact",
 		message, fix, time.Minute)

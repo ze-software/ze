@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/artifact"
+	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -68,6 +69,9 @@ func attachServerArtifactsLocked(server *pluginserver.Server, owner *artifact.Ow
 		if existing == owner {
 			return errors.New("this private artifact owner already belongs to another server; retain its original server's lifetime")
 		}
+	}
+	if err := owner.SetDirectoryGuard(storagecli.CheckBackupDirectory); err != nil {
+		return err
 	}
 	_, err := server.OnStop(func() error {
 		closeErr := owner.Close()

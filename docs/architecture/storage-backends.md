@@ -613,6 +613,23 @@ checks the saved salvage. It never reports a truncated list as complete.
 
 ### Editing an uploaded backup
 
+The private artifact owner's root is selected from
+`environment/backup/directory` or its `ze.backup.directory` override at startup.
+Its default appends `backups` to the existing platform data directory; unresolved
+unconfigured development layouts retain the OS temporary folder. An invalid
+explicit location refuses instead of falling back. Uploads and download
+snapshots share this policy. The configured parent remains user-owned: its mode
+and unrelated files survive, and the owner removes only its random private
+child at close. Changing the setting requires a daemon restart.
+The shared server binds a directory guard from its actual installed live store.
+It resolves existing link prefixes and reuses `StoreOwnedPath` to refuse the
+live tree and reserved entries before creating the configured parent. Ordinary
+sibling backup folders remain permitted; the guard does not infer a store from
+a default configuration path.
+<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/owner.go -- ensureRoot, Close -->
+<!-- source: internal/component/config/storage/backup_directory.go -- CheckBackupDirectory, resolveBackupDirectory -->
+
 `CheckArtifact` applies the same complete ZeFS integrity verdict to an uploaded
 artifact that a restore uses. Its retained source descriptor takes the import
 decoder's 256 MiB bound and the artifact's owner and permission checks.

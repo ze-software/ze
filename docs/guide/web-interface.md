@@ -96,6 +96,31 @@ Before opening the new download in the Ze CLI on Unix, run
 `chmod 600 system-backup.zefs`. Keep the backup private because it contains
 credentials. You can upload it here to inspect or edit its configuration.
 
+The server keeps its private backup working copies under the platform data
+directory's `backups` folder: `/var/lib/ze/backups` on an installed Linux system
+and `/perm/var/lib/ze/backups` on the appliance. To choose a different folder:
+
+```text
+environment {
+    backup {
+        directory "/srv/ze-backups";
+    }
+}
+```
+
+Use an absolute path the daemon user can create or write to, then restart Ze.
+The `ze.backup.directory` environment override takes priority over this leaf.
+Changing it takes effect at the next daemon start; active workspaces keep their
+current private folders until they close. Ze creates a missing parent and
+private subfolders, preserves an existing parent's permissions and unrelated
+files, and refuses an unusable explicit location. An unconfigured development
+binary whose platform data directory cannot be resolved keeps the operating
+system's temporary folder. Browser downloads go to the location chosen in the
+browser's download settings.
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment, backup, directory -->
+<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/owner.go -- ensureRoot -->
+
 The backup workspace also runs with `ze start --web-only`. It uses the same
 artifact commands as the configured daemon; opening it starts no routing
 protocol. Stop the web process only after downloading the changes you need.

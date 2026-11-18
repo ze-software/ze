@@ -35,6 +35,75 @@ the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
 
+### Configure the backup working directory (2026-11-18)
+
+Owner request, verbatim:
+
+> can we set the backup folder in the yang as it can not be the place on linux and the appliance
+
+This follow-up is the current authorized scope. It extends the completed C1
+system-backup feature; unrelated parent work remains stopped. The setting
+controls server-side temporary artifact/workspace files, not the browser's
+download destination or a new archive/scheduling policy.
+
+| Item | Decision or constraint |
+|------|------------------------|
+| Configuration | Add `environment/backup/directory` in the existing always-linked `ze-hub-conf.yang`; register `ze.backup.directory` and complete the environment extraction/plumbing |
+| Existing lifecycle | These environment leaves apply at daemon startup, with OS environment taking precedence; changing the configured directory requires restarting Ze, as the existing environment contract states |
+| Default | Reuse `paths.DefaultDataDir()` plus `backups`: installed Linux uses `/var/lib/ze/backups`, appliance uses `/perm/var/lib/ze/backups`; an unconfigured unknown developer layout retains the existing temporary-directory fallback |
+| Explicit path | Require an absolute directory; invalid or unwritable explicit values refuse with a useful error and never fall back to a different location |
+| Shared owner | All uploads, downloads and temporary artifact copies use the same configured parent and existing quotas/expiry/doctor reporting; a private random child remains owned by its original server |
+| Preservation | Never chmod or delete an existing parent or unrelated contents; server shutdown removes only its own private root, and active workspaces are not relocated |
+| Boundaries | No web-only setting, new module, new RPC, archiver, orphan sweep, whole-environment reload redesign or other parent implementation |
+
+| AC | Observable outcome | Permitted survivors and reason |
+|----|--------------------|-------------------------------|
+| D-AC-1 | A real nested YANG setting reaches environment extraction/plumbing and a shared owner's actual upload and system-backup files appear beneath that parent | Parent sentinels and all unrelated entries remain, because only the private child belongs to this owner |
+| D-AC-2 | An explicit OS value wins over the YANG value; absent settings resolve through the existing platform data policy | Existing unknown developer/test layouts retain their temporary behavior; no new production path mapping is copied into the artifact owner |
+| D-AC-3 | Relative and unusable explicit directories refuse before retaining artifact bytes, with no hidden temporary-directory fallback | The source store and existing parent contents survive every refusal |
+| D-AC-4 | Owned roots stay private and disappear on normal owner shutdown while their parent remains | Active owner roots keep their selected directory for their lifetime; a new daemon uses the new startup setting |
+
+Data flow: existing hub YANG → config parser → `ExtractEnvironment` and
+`ApplyEnvConfig` → the registered paths key → artifact `ensureRoot` → the
+existing bounded file operations and cleanup. The directory string is the only
+new configuration carrier; command responses and download formats are unchanged.
+
+| Phase | Files and evidence |
+|-------|--------------------|
+| D1 tests first | New `artifact/directory_config_test.go` parses actual YANG and exercises real owner/HTTP operations; its missing schema/ignored directory assertions are observed red before implementation |
+| D1 implementation | Existing hub YANG, config extraction/plumbing, core paths setting/resolver, artifact root selection; focused new platform/path/ownership tests |
+| D1 docs | Existing web guide, web-interface architecture and environment/path reference pages receive the actual setting, platform defaults and restart semantics |
+| D1 verification | Named directory tests, reached artifact/config/paths and backup regressions, scoped lint and affected schema checks; no whole-tree verification |
+
+Risks: a missing extraction row would leave a valid-looking leaf inert, so the
+test checks the real environment entries and file location. A writable default
+must come from the existing platform policy, and explicit failures must not
+silently select another folder. Directory preparation and cleanup must preserve
+unrelated contents; tests retain a sentinel and reopen actual artifacts.
+
+| D1 execution | Observed result |
+|--------------|-----------------|
+| Wiring RED | Native `test unit pkg path ./internal/component/config/artifact/ run '^TestBackupDirectory(YANGSelectsSharedArtifactRoot\|OSOverrideWins\|ExplicitRelativePathRefuses)$'` reached all three new tests: the two schema cases failed with `unknown field in environment: backup`, and the explicit relative directory was ignored instead of refused. No production implementation existed in that run. |
+| Implementation boundary | Source is written; Main's formatting, named green tests, reached regressions and lint remain pending. No pass is inferred from source alone. |
+
+D1 preservation addendum: the configured parent must be checked against the
+actual installed live store before creating directories. Generic uploads bypass
+the system-snapshot producer's output-name check, while every file beneath the
+live database is interpreted as a raw stored key. Reuse the storage owner's
+reserved-path policy through the existing shared server attachment; refuse the
+live tree and store-owned canonical/staging names, including descendants and
+resolved existing links. Ordinary sibling backup directories remain permitted.
+This enforces D-AC-3; it introduces no new storage or reload feature.
+
+| Additional D1 execution | Observed result |
+|-------------------------|-----------------|
+| Initial GREEN | Full verbose race tests of artifact, config and paths passed; all nine directory roots appeared by name in `job-backup-directory-green-728f713e.log`. This precedes the live-namespace guard. |
+| Live-namespace RED | `TestBackupDirectoryPreservesLiveStoreNamespace` reached the actual shared-server upload with the actual installed store. Live tree, descendant, absent canonical blob name and its descendant incorrectly returned 303 instead of refusing before creation; native `job-unit-pkg-6505335a.log` exited 1. |
+| Final feature GREEN | After preserving the existing injected-parent failure seam, full artifact race tests passed in `job-backup-directory-owner-final-5b42b201.log` (110.066s). All ten directory roots, all six live-namespace subcases, both existing doctor/error-path tests and the existing workspace regressions explicitly passed. No assertions were weakened. |
+| Reached regression evidence | Full config and paths passed in the initial GREEN; full storage (33.879s), full storage CLI (9.020s), owner attachment and both registered system-snapshot command roots passed in `job-backup-directory-final-c54585ce.log`. |
+| Broader CLI boundary | The full CLI package is not green: `TestRepositoryConfigsValidate` reported unrelated missing BGP process grants and reserved interface-name fixtures, and the cumulative package reached its eight-minute timeout while registering a running-config test server. Those sources are unchanged by D1; no parent completion or whole-tree verdict is claimed. Scoped lint remains pending. |
+| Final scoped lint | Native lint of config, artifact, config CLI, storage, storage CLI and core paths exited 0: host and Linux/integration analyses each reported zero issues in `job-backup-directory-lint-31139001.log`. D1 verification is complete within its feature scope; the broader CLI boundary and open parent remain as recorded above. |
+
 ### Create and download a system backup (2026-11-18)
 
 Owner request, verbatim, after identifying the missing browser creation action:

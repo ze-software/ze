@@ -128,6 +128,25 @@ No web listener is needed for command access to an artifact.
 <!-- source: internal/component/config/artifact/owner.go -- Owner, Close -->
 <!-- source: internal/component/config/cli/artifact_rpc.go -- serverArtifacts, AttachArtifactOwner, attachServerArtifactsLocked, artifactHandler -->
 
+All private artifact operations use the startup `environment/backup/directory`
+setting, with `ze.backup.directory` taking priority. An absent setting resolves
+through `paths.DefaultDataDir` to its `backups` folder, giving the installed
+Linux and appliance their existing distinct persistent-data roots. Only an
+unconfigured development layout with no resolved data directory retains the
+OS temporary-folder policy. Explicit relative or unusable folders refuse
+without selecting another location. The owner creates a missing parent with
+mode `0700`, leaves an existing parent unchanged, and creates its random private
+child with mode `0700`. Only that child belongs to its cleanup lifetime. The
+selected root stays fixed until close; configuration changes require a daemon
+restart under the existing environment plumbing policy.
+Before creating any parent, the shared server binds the actual live store's
+directory policy. The owner refuses its tree and reserved names, including a
+resolved link into that namespace, while allowing ordinary sibling folders.
+<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/owner.go -- ensureRoot, Close -->
+<!-- source: internal/core/paths/paths.go -- DefaultDataDir -->
+<!-- source: internal/component/config/storage/backup_directory.go -- CheckBackupDirectory, resolveBackupDirectory -->
+
 The initial page also posts **Create backup of this system** to
 `/backups/system-download`. This edit-authorized, same-origin POST requests
 `request config artifact system snapshot` and downloads `system-backup.zefs`.

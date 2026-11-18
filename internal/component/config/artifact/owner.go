@@ -34,24 +34,25 @@ const (
 // MUST seal admission, join the worker and remove owned files. Safe concurrently;
 // MUST NOT be copied. Its zero value is invalid; use New.
 type Owner struct {
-	mu            sync.Mutex
-	items         map[string]*workspace
-	uploads       map[string]*upload
-	sources       map[string]*source
-	views         map[string]*view
-	root          string
-	parentTemp    string
-	bytes         int64
-	closed        bool
-	now           func() time.Time
-	stop          chan struct{}
-	done          chan struct{}
-	worker        sync.WaitGroup
-	workerStarted bool
-	closeError    error
-	removeAll     func(string) error
-	cleanupDebt   string
-	debtBytes     int64
+	mu             sync.Mutex
+	items          map[string]*workspace
+	uploads        map[string]*upload
+	sources        map[string]*source
+	views          map[string]*view
+	root           string
+	parentTemp     string
+	directoryGuard func(string) error
+	bytes          int64
+	closed         bool
+	now            func() time.Time
+	stop           chan struct{}
+	done           chan struct{}
+	worker         sync.WaitGroup
+	workerStarted  bool
+	closeError     error
+	removeAll      func(string) error
+	cleanupDebt    string
+	debtBytes      int64
 }
 
 type workspace struct {
@@ -205,10 +206,36 @@ func (m *Owner) ensureRoot() error {
 	if m.root != "" {
 		return nil
 	}
-	root, err := os.MkdirTemp(m.parentTemp, "ze-backup-workspaces-")
-	if err != nil {
-		return err
+	parent := m.parentTemp
+	configured := parent == ""
+	if configured {
+		var err error
+		parent, err = configuredBackupParent()
+		if err != nil {
+			return err
+		}
 	}
+	if m.directoryGuard != nil {
+		checked := parent
+		if checked == "" {
+			checked = os.TempDir()
+		}
+		if err := m.directoryGuard(checked); err != nil {
+			return err
+		}
+	}
+	if configured {
+		if err := prepareBackupParent(parent); err != nil {
+			return err
+		}
+	}
+	root, err := os.MkdirTemp(parent, "ze-backup-workspaces-")
+	if err != nil {
+		return opererr.Wrap(err, "A private backup workspace could not be created.",
+			"The daemon cannot write to its selected backup folder; no workspace was opened.",
+			"Run ze show doctor, check the backup folder's permissions and free space, then retry")
+	}
+	m.parentTemp = parent
 	m.root = root
 	return nil
 }

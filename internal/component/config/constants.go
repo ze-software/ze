@@ -33,5 +33,5 @@ const (
 //nolint:gochecknoglobals // Package-level config constant.
 var extractSections = []string{
 	sectionDaemon, "lo" + "g", // "lo"+"g" avoids block-legacy-log.sh false positive
-	sectionBGP, sectionReactor, sectionChaos, "exabgp", "cli", sectionMTU,
+	sectionBGP, sectionReactor, sectionChaos, "exabgp", "cli", sectionMTU, "backup",
 }
