@@ -251,23 +251,32 @@ process ...` detail a plugin matches on), and `fix: add 'attach process <name>
 { send [ <type> ]; }' to each peer the process sends to`.
 <!-- source: internal/component/bgp/reactor/send_permission.go -- sendNotPermitted -->
 
-### Owner ruling: explicit, or refused at commit
+### Owner ruling: implied and shown, or written
 
-On 2026-11-16, Thomas ruled that this silence stays the rule for ze's own
-plugins too, and that a configuration which asks for a feature and lacks what
-the feature needs is refused at commit. The check finds a missing `attach
-process` block and a block that grants less than the feature needs alike, and
-the refusal gives the line that fixes it. The same holds for the `plugin`
-block: a plugin the configuration needs is declared there.
+On 2026-11-18, Thomas ruled how ze treats what a configuration needs and the
+operator did not write, replacing his ruling of 2026-11-16 that such a
+configuration is refused at commit. What the configuration implies, ze does
+without asking: the plugin that serves a block the operator wrote, and the
+binding a rule the operator wrote needs. One display option on the
+configuration, in the manner of Junos `display inheritance`, shows every
+implied item beside what was written, marked as implied, with what implies it.
+Where the operator has a choice, which program watches a peer and what it may
+send, the operator writes it, and silence stays the default.
 
-This is not implemented yet. Today ze derives the bindings listed under "The
-Two Bindings Ze Derives" below, and two more that section does not list: a
-FlowSpec family, and AIGP, each derive the Loc-RIB's receive binding on every
-peer. A redistribution rule whose process is granted too little on a peer
-loads and moves no route from that peer, with one log line. The work is owned
-by
-[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md),
-which also settles how far the ruling reaches into plugin loading.
+One part of the earlier ruling stands. A block the operator wrote that grants
+less than a feature the operator also configured needs is refused at commit,
+with the line that completes it. Ze never widens what was written.
+
+This is implemented in part. Today ze already implies the bindings listed
+under "The Two Bindings Ze Derives" below, and two more that section does not
+list: a FlowSpec family, and AIGP, each imply the Loc-RIB's receive binding on
+every peer. It also loads a plugin for a block, a family or a type the
+configuration holds. What is missing is the display: no option shows what is
+implied, so an operator reads a configuration that names neither the plugin
+nor the binding. A redistribution rule whose process is granted too little on
+a peer still loads and moves no route from that peer, with one log line. The
+work is owned by
+[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md).
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 <!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery -->

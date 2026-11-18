@@ -224,15 +224,17 @@ in the spec or commit it applies to.
   reaches the engine by registration. A design that has the engine or config
   code name a specific feature, plugin, field or path is wrong, however
   small, and is redone as a registration before it is built.
-- What Ze does for an operator is what the operator configured: explicit
-  configuration prevents surprises, and the friction it adds is the accepted
-  tradeoff. A design never removes that friction by deriving or implying
-  configuration the operator did not write. It removes it with tooling: a
-  message that names what is missing and the line that adds it, or a
-  generator. A configuration that asks for a feature and lacks what the
-  feature needs, a process attachment, a grant narrower than the feature
-  needs or a `plugin` declaration, is refused at commit with that line. It is
-  never completed silently, and never loaded to do nothing.
+- Nothing Ze does on an operator's behalf is hidden. Where the configuration
+  leaves the operator a choice, the operator writes it. Where it leaves none
+  (the plugin that serves a block the operator wrote, the flow a rule the
+  operator wrote needs), Ze does it without asking or correcting at commit,
+  and one display option on the configuration shows every such implied item
+  beside what the operator wrote, marked as implied, with what implies it. A
+  design that implies something it cannot show that way is wrong. A
+  capability that is merely on by default implies nothing. Where the operator
+  wrote two things that disagree, a feature and a grant narrower than the
+  feature needs, the commit is refused with the line that completes it: Ze
+  never widens what was written, and never loads it to do nothing.
 - A command path names the subject and stops; scope, presentation and format
   are pipe operations after it. A command may declare optional pipe operations
   of its own, such as `| count`, and the engine handles a declared operation
