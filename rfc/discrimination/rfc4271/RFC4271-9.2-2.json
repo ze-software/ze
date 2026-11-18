@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryOutputRequiresForwardableRoute",
+    "unit-sha": "a5e22af42e9b85f3",
+    "claim-sha": "5352eb1800d524b8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "34c1336294549f94",
+    "break": "line 1101: \"if !cidr {\" -\u003e \"if true /* MUTATION-APPLIED: omit ordinary CIDR mirroring only */ {\""
+  },
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryOutputRequiresForwardableRoute",
+    "unit-sha": "a5e22af42e9b85f3",
+    "claim-sha": "dc2c532fde44a7dd",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true /* MUTATION-APPLIED: bypass local CIDR next-hop admission */\""
+  }
+]
