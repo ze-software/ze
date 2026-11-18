@@ -11,17 +11,20 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	// The real BGP declaration judge must run before plugin startup.
+	// Real BGP declarations and command registrations complete startup and RS readiness.
 	_ "github.com/ze-software/ze/internal/component/bgp/config"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgprib "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -36,6 +39,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -83,9 +87,13 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	defer cancel()
 	lookup := make(chan struct{})
 	var ipcCommands atomic.Int32
+	var departedOwner atomic.Uint64
 	if mode == "ipc" {
 		restore, err := registry.WrapRunnerForTest("bgp-rib", func(conn net.Conn) net.Conn {
-			return &recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands, match: recoveryDepartureCommand}
+			return &recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands,
+				match: func(input rpc.ExecuteCommandInput) bool {
+					return recoveryDepartureCommand(input, departedOwner.Load())
+				}}
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -97,6 +105,23 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		})
 	}
 	r, srv, peers := recoveryDeliveryRouter(t, ctx)
+	adapter, ok := r.ReactorLifecycleAdapter().(plugin.ReactorLifecycle)
+	if !ok {
+		t.Fatal("recovery fixture has no peer inventory")
+	}
+	// Capture the original runtime owner before input or departure; the IPC
+	// reader starts during router setup and must not race this publication.
+	originalPeers := adapter.Peers()
+	for i := range originalPeers {
+		peer := &originalPeers[i]
+		if peer.Address == netip.MustParseAddr("127.0.0.2") {
+			departedOwner.Store(peer.PeerOwner)
+			break
+		}
+	}
+	if departedOwner.Load() == 0 {
+		t.Fatal("recovery fixture has no original departed peer owner")
+	}
 	owner := ribevents.RecoveryProvider()
 	if owner == nil {
 		t.Fatal("registered RIB did not publish its recovery producer")
@@ -116,7 +141,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		}
 		var queried sync.Once
 		observed := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-			if recoveryDepartureRequest(request) {
+			if recoveryDepartureRequest(request, departedOwner.Load()) {
 				queried.Do(func() { close(lookup) })
 			}
 			return owner.Lookup(request)
@@ -244,7 +269,8 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		// session of the source: this test is about delivery, not about which
 		// session the departure answers.
 		_, _, err := api.UpdateRouteWithMeta(ctx, "127.0.0.1", "update hex nlri ipv4/unicast del 18cb0072",
-			map[string]any{"recovery-source": "127.0.0.2", "recovery-generation": "18446744073709551615"})
+			map[string]any{"recovery-source": "127.0.0.2", "recovery-source-owner": strconv.FormatUint(departedOwner.Load(), 10),
+				"recovery-generation": "18446744073709551615"})
 		completed <- err
 	}()
 	joined := false
@@ -329,7 +355,10 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 
 // recoveryDepartureRequest distinguishes this destination's source-DOWN
 // election from ordinary announcement elections, which use the same producer.
-func recoveryDepartureRequest(request ribevents.RecoveryRequest) bool {
+func recoveryDepartureRequest(request ribevents.RecoveryRequest, departedOwner uint64) bool {
+	if departedOwner == 0 {
+		return false
+	}
 	if request.Destination != netip.MustParseAddr("127.0.0.1") {
 		return false
 	}
@@ -337,28 +366,56 @@ func recoveryDepartureRequest(request ribevents.RecoveryRequest) bool {
 		if !bytes.Equal(key.NLRI, []byte{24, 203, 0, 114}) {
 			continue
 		}
-		for _, excluded := range key.Excluded {
-			if excluded == netip.MustParseAddr("127.0.0.2") {
-				return true
-			}
+		if slices.Contains(key.Excluded, departedOwner) {
+			return true
 		}
 	}
 	return false
 }
 
-func recoveryDepartureCommand(input rpc.ExecuteCommandInput) bool {
-	if len(input.Args) < 5 || input.Args[0] != "127.0.0.1" {
+func recoveryDepartureCommand(input rpc.ExecuteCommandInput, departedOwner uint64) bool {
+	request, err := ribevents.ParseRecoveryArgs(input.Args)
+	if err != nil {
 		return false
 	}
-	request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr(input.Args[0])}
-	for _, encoded := range input.Args[4:] {
-		key, err := ribevents.ParseRecoveryKey(encoded)
-		if err != nil {
-			return false
-		}
-		request.Keys = append(request.Keys, key)
+	return recoveryDepartureRequest(request, departedOwner)
+}
+
+// TestRecoveryDepartureMatcherOriginalOwner checks both observation paths
+// recognize only the captured source owner and reject unrelated recovery.
+func TestRecoveryDepartureMatcherOriginalOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		owner       uint64
+		excluded    uint64
+		destination string
+		prefix      byte
+		want        bool
+	}{
+		{name: "original owner", owner: 71, excluded: 71, destination: "127.0.0.1", prefix: 114, want: true},
+		{name: "different owner", owner: 71, excluded: 72, destination: "127.0.0.1", prefix: 114},
+		{name: "unrecorded owner", excluded: 71, destination: "127.0.0.1", prefix: 114},
+		{name: "unrecorded exclusion", owner: 71, destination: "127.0.0.1", prefix: 114},
+		{name: "different destination", owner: 71, excluded: 71, destination: "127.0.0.4", prefix: 114},
+		{name: "different prefix", owner: 71, excluded: 71, destination: "127.0.0.1", prefix: 115},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr(tc.destination),
+				DestinationOwner: 31, Family: family.IPv4Unicast,
+				Keys: []ribevents.RecoveryKey{{NLRI: []byte{24, 203, 0, tc.prefix}, Excluded: []uint64{tc.excluded}}}}
+			if got := recoveryDepartureRequest(request, tc.owner); got != tc.want {
+				t.Fatalf("direct departure match = %v, want %v", got, tc.want)
+			}
+			input := rpc.ExecuteCommandInput{Command: "request bgp rib recovery",
+				Args: ribevents.AppendRecoveryArgs(nil, &request)}
+			if got := recoveryDepartureCommand(input, tc.owner); got != tc.want {
+				t.Fatalf("IPC departure match = %v, want %v", got, tc.want)
+			}
+		})
 	}
-	return recoveryDepartureRequest(request)
+	if recoveryDepartureCommand(rpc.ExecuteCommandInput{}, 71) {
+		t.Fatal("malformed command matched a departure")
+	}
 }
 
 // recoveryIPCConn deliberately hides rpc.Bridger. Read observes complete RPC
@@ -560,6 +617,9 @@ func recoverySentFrom(delivery process.EventDelivery, destination, source string
 	}
 	var envelope struct {
 		BGP struct {
+			Message struct {
+				Direction string `json:"direction"`
+			} `json:"message"`
 			Peer struct {
 				Remote struct {
 					Address string `json:"address"`
@@ -571,6 +631,9 @@ func recoverySentFrom(delivery process.EventDelivery, destination, source string
 		} `json:"bgp"`
 	}
 	if err := json.Unmarshal([]byte(delivery.Output), &envelope); err != nil {
+		return false
+	}
+	if envelope.BGP.Message.Direction != "sent" {
 		return false
 	}
 	return envelope.BGP.Peer.Remote.Address == destination && envelope.BGP.Meta.Source == source
@@ -603,7 +666,7 @@ func (f *recoveryListenerFactory) Listen(_ context.Context, _, address string) (
 	return listener, nil
 }
 
-func recoveryDeliveryRouter(t *testing.T, ctx context.Context) (*reactor.Reactor, *pluginserver.Server, []*recoveryTCPPeer) {
+func recoveryDeliveryRouter(t *testing.T, ctx context.Context, observers ...registry.PeerLifecycleCallback) (*reactor.Reactor, *pluginserver.Server, []*recoveryTCPPeer) {
 	t.Helper()
 	// Reserve the real socket until startup adopts it, avoiding a port-reuse race.
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", "127.0.0.1:0")
@@ -618,6 +681,9 @@ func recoveryDeliveryRouter(t *testing.T, ctx context.Context) (*reactor.Reactor
 		t.Fatal(err)
 	}
 	r := reactor.New(&reactor.Config{Port: int(local.Port())})
+	for _, observer := range observers {
+		r.AddPeerLifecycleCallback(observer)
+	}
 	r.SetListenerFactory(&recoveryListenerFactory{listener: listener})
 	for index := range 4 {
 		address := netip.AddrFrom4([4]byte{127, 0, 0, byte(index + 1)})

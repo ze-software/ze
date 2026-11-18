@@ -10,12 +10,14 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -24,6 +26,26 @@ import (
 // rsFastReceiptIPCConn hides only the optional DirectBridge interface. The real
 // route-server runner still owns every callback, parser and forwarding command.
 type rsFastReceiptIPCConn struct{ net.Conn }
+
+// rsReceiptSourceObserver retains the original source's published UP identity.
+// The public callback carries the same owner and generation as RS's real UP.
+type rsReceiptSourceObserver struct {
+	up   chan plugin.PeerInfo
+	once sync.Once
+}
+
+func (observer *rsReceiptSourceObserver) OnPeerEstablished(peer any) {
+	info, ok := peer.(*plugin.PeerInfo)
+	if !ok {
+		return
+	}
+	if info.AddrStr() != "127.0.0.2" {
+		return
+	}
+	observer.once.Do(func() { observer.up <- *info })
+}
+
+func (*rsReceiptSourceObserver) OnPeerClosed(any, string) {}
 
 // TestRSFastReceiptRecipientExactlyOnce drives the real reactor fast path and
 // route server on both transports, then counts actual recipient TCP NLRIs.
@@ -50,7 +72,23 @@ func TestRSFastReceiptRecipientExactlyOnce(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 			defer cancel()
-			router, server, peers := recoveryDeliveryRouter(t, ctx)
+			sourceUP := make(chan plugin.PeerInfo, 1)
+			router, server, peers := recoveryDeliveryRouter(t, ctx, &rsReceiptSourceObserver{up: sourceUP})
+			var originalSource plugin.PeerInfo
+			select {
+			case originalSource = <-sourceUP:
+			case <-ctx.Done():
+				t.Fatal("original source UP was not observed", ctx.Err())
+			}
+			if originalSource.PeerOwner == 0 {
+				t.Fatal("source UP did not carry its original owner")
+			}
+			if originalSource.SessionGeneration == 0 {
+				t.Fatal("source UP did not carry its published session generation")
+			}
+			if originalSource.ConnectionID == 0 {
+				t.Fatal("source UP did not carry its original physical connection")
+			}
 			forwarding, ok := router.ReactorLifecycleAdapter().(interface {
 				FlushForwardPool(context.Context) error
 			})
@@ -139,6 +177,12 @@ func TestRSFastReceiptRecipientExactlyOnce(t *testing.T) {
 			if len(received.FastPathSkipped) != 0 {
 				t.Fatalf("all ready native clients should be served: skipped %v", received.FastPathSkipped)
 			}
+			if received.SourceOwner != originalSource.PeerOwner {
+				t.Fatalf("subject source owner = %d, want original UP %d", received.SourceOwner, originalSource.PeerOwner)
+			}
+			if received.SourceConnectionID != originalSource.ConnectionID {
+				t.Fatalf("subject source connection = %d, want original UP %d", received.SourceConnectionID, originalSource.ConnectionID)
+			}
 			// Subscription enqueue order across processes is not promised.
 			// Observe the subject on RS's actual FIFO before draining it; a
 			// RIB receipt alone cannot prove that admission happened.
@@ -156,13 +200,13 @@ func TestRSFastReceiptRecipientExactlyOnce(t *testing.T) {
 			if err := rs.DrainEventsApplied(ctx); err != nil {
 				t.Fatal(err)
 			}
-			// Only prepare and target-zero abort run. These opaque identity
-			// components label the settle transaction; its epoch and frontier
-			// are the source's actual received receipt, and no policy changes.
+			// Only prepare and target-zero abort run. The original UP supplies
+			// the exact source owner and published session generation; its epoch
+			// and frontier are the actual received receipt, and no policy changes.
 			input := rpc.SourcePolicyInput{
 				TransactionID: "rs-fast-receipt-settle", Operation: rpc.SourcePolicyPrepare,
-				Source: rpc.SourcePolicyIdentity{Peer: "127.0.0.2", PeerOwner: 1,
-					SessionGeneration: 1, PolicyEpoch: received.SourcePolicyEpoch,
+				Source: rpc.SourcePolicyIdentity{Peer: originalSource.AddrStr(), PeerOwner: originalSource.PeerOwner,
+					SessionGeneration: originalSource.SessionGeneration, PolicyEpoch: received.SourcePolicyEpoch,
 					ReceiveFrontier: received.MessageID, TemplateGeneration: 1},
 				DeadlineMS: time.Now().Add(10 * time.Second).UnixMilli(),
 			}
