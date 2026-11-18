@@ -1585,6 +1585,23 @@ backend users must do the same.
 <!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
 <!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.close -->
 
+Native callers can create a link exclusively and receive a raw-counter reader
+bound to the original creation echo's index and generation. The backend validates
+the current namespace, owns the subscribed socket, and copies the request before
+taking its lock. Callers MUST keep the request immutable until creation returns
+and MUST retain the backend until their last reader call; the backend owner MUST
+then call `Close`. Readers own no separate socket. A renamed original remains
+readable, including from another caller namespace. Deletion, movement, reuse,
+lost notification history or backend closure permanently refuses that reader.
+A current reply without statistics can recover on a later confirmed reply.
+Returned totals are the current native raw values, without the display-reset
+baseline. Callers MUST preserve the attempted flag and any partial link receipt
+on failure: an uncertain send can have created a link without returning an echo,
+and an echo followed by failure returns the original link with a permanently
+refused reader. The backend does not delete that link on the caller's behalf.
+<!-- source: internal/plugins/iface/netlink/counter_create_linux.go -- netlinkBackend.CreateLinkCounterReader, counterSource.finishCreate, counterSource.boundCounters -->
+<!-- source: internal/plugins/iface/netlink/counter_create_request_linux.go -- newCounterCreateRequest, validateCounterCreatePayload -->
+
 Linux requires statistics to persist “across routine operations like bringing
 the interface down and up” ([networking statistics documentation](https://docs.kernel.org/networking/statistics.html)).
 Its generic statistics API provides no driver-reset epoch. A driver reset whose

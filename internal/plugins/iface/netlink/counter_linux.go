@@ -31,8 +31,9 @@ var counterGeneration atomic.Uint64
 
 // counterSource orders link notifications and counter reads on one socket.
 // A separate monitor socket cannot establish which incarnation a dump describes.
-// Safe for concurrent use through snapshot and close. The backend MUST call
-// close before it is discarded; close permanently prevents new socket opens.
+// Safe for concurrent use through backend creation, bound readers, snapshot and
+// close. The backend MUST call close before it is discarded; close permanently
+// prevents new socket opens and refuses every borrowed reader.
 type counterSource struct {
 	mu     sync.Mutex
 	socket *nl.NetlinkSocket
@@ -116,12 +117,23 @@ func (s *counterSource) open() error {
 }
 
 func (s *counterSource) dump(name string) (counterDump, error) {
+	return s.dumpLink(name, 0)
+}
+
+// dumpLink requires mu. A positive index selects a single link without a
+// reusable name; ordinary named snapshots and full dumps keep their semantics.
+func (s *counterSource) dumpLink(name string, index int) (counterDump, error) {
 	flags := unix.NLM_F_DUMP
 	if name != "" {
 		flags = unix.NLM_F_ACK
 	}
+	if index > 0 {
+		flags = unix.NLM_F_ACK
+	}
 	request := nl.NewNetlinkRequest(unix.RTM_GETLINK, flags)
-	request.AddData(nl.NewIfInfomsg(unix.AF_UNSPEC))
+	header := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	header.Index = int32(index)
+	request.AddData(header)
 	request.AddData(nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF)))
 	if name != "" {
 		request.AddData(nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name)))
@@ -134,6 +146,9 @@ func (s *counterSource) dump(name string) (counterDump, error) {
 		return counterDump{}, err
 	}
 	dump := counterDump{sequence: request.Seq, portID: portID, single: name != ""}
+	if index > 0 {
+		dump.single = true
+	}
 	deadline := time.Now().Add(counterDumpTimeout)
 	// NLMSG_DONE, the single-link ACK, or the absolute deadline ends the
 	// receive loop. Multicast traffic cannot extend that deadline.
