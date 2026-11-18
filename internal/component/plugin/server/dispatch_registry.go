@@ -124,8 +124,9 @@ var engineOps = []engineOp{
 		handle: (*Server).opUnsubscribeEvents,
 	},
 	{
-		method: rpc.MethodEmitEvent,
-		handle: (*Server).opEmitEvent,
+		method:            rpc.MethodEmitEvent,
+		handle:            (*Server).opEmitEvent,
+		cancellationScope: emitEventCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
 				return s.deliverEvent(proc, namespace, eventType, direction, peerAddress, event)
@@ -512,10 +513,10 @@ func (s *Server) opUnsubscribeEvents(ctx context.Context, proc *process.Process,
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 }
 
-// opEmitEvent is the shared handler for emit-event. s.emitEvent unmarshals its
-// own params and returns *rpc.RPCCallError on failure.
+// opEmitEvent selects queue admission or applied completion through the shared
+// emit-event handler.
 func (s *Server) opEmitEvent(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
-	return s.emitEvent(proc, params)
+	return s.emitEventApplied(ctx, proc, params)
 }
 
 // opInjectWireRoute is the JSON-codec fallback for inject-wire-route (AC-6): a

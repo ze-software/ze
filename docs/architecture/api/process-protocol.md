@@ -1866,6 +1866,23 @@ with the source's current policy epoch.
 
 All methods are prefixed with `ze-plugin-callback:`.
 
+`EmitEventApplied` uses the existing `emit-event` operation with `await-applied`
+and a positive absolute `deadline-ms`. Ordinary `EmitEvent` confirms queue
+admission and keeps its typed slot. Applied emission uses the shared RPC
+handler in both placements. A matching self subscription refuses before plugin
+delivery or engine callbacks. Existing namespace, direction and peer matching
+remain in force.
+<!-- source: internal/component/plugin/server/dispatch.go -- deliverEventCaptured -->
+
+The host captures matching Processes and connections, joins all handlers, then
+uses the event settlement contract below. It rechecks every captured lifetime
+before returning `applied` with the exact request deadline. Both placements use
+the existing cancellable request timeout. Callers MUST release recipient locks
+and avoid cyclic synchronous waits. Cancellation joins the outer request.
+Partial application is not rolled back, and an error cannot confirm downstream
+completion. Resolve the named failure before retrying the lifecycle operation.
+<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied, eventEmissionReceiver.liveError -->
+<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
 **Event delivery receipts:**
 
 An asynchronous observer registers `OnEventSettlement` before `Run`, which
@@ -2106,7 +2123,7 @@ filter-update answer").
 | `report-issue` | `ReportIssueInput` | - | Raise or clear one problem on the daemon's report bus under the plugin's own name (see "Plugin problems" below) |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
-| `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
+| `emit-event` | `EmitEventInput` | `EmitEventOutput` | Queue an event, or join captured application with `await-applied` |
 | `subscribe-events` | `SubscribeEventsInput` | - | Subscribe to events |
 | `unsubscribe-events` | - | - | Unsubscribe from events |
 | `decode-nlri` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI via registry |
@@ -3249,7 +3266,7 @@ of a whole-table batch must split its domain entries before `emit-event`.
 `EmitEventInput.CanonicalPayloadBudget` gives a conservative byte budget for
 HTML-escaped canonical JSON in both that request and a singleton enveloped
 `deliver-batch`, including string quoting and the widest correlation ID.
-The emit-event envelope carries no receipt metadata; the BGP receive producer's
+The emit-event envelope carries no event receipt metadata; the BGP receive producer's
 metadata has a separate ownership contract. The receive store's validation
 arrays and the forked BGP RIB's best-change, redistribution and validation
 batches use this budget. Each chunk keeps the original event shape and replay

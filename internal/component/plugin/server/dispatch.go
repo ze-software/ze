@@ -297,6 +297,12 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid emit-event params: ").Err(err).String()}
 	}
+	return s.emitEventInput(emitter, input)
+}
+
+// emitEventInput shares the decoded queue-only producer with applied admission.
+// It keeps the event body from being decoded and allocated twice.
+func (s *Server) emitEventInput(emitter *process.Process, input rpc.EmitEventInput) (*rpc.EmitEventOutput, error) {
 	delivered, err := s.deliverEvent(emitter, input.Namespace, input.EventType, input.Direction, input.PeerAddress, input.Event)
 	if err != nil {
 		return nil, err
@@ -317,9 +323,16 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 //     payload that does not decode refuses the emit, whoever subscribes, and
 //     reaches nobody (refuseUndecodedPayload).
 //
-// The emitting process is excluded from plugin-process delivery to prevent
-// self-delivery loops.
+// Ordinary emission excludes the emitting process to prevent self-delivery
+// loops. Applied emission refuses a matching self subscription before delivery.
 func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, direction, peerAddress string, payload any) (int, error) {
+	return s.deliverEventCaptured(context.Background(), emitter, namespace, eventType, direction, peerAddress, payload, nil)
+}
+
+// deliverEventCaptured is the same delivery producer. Applied emission captures
+// its exact process/connection and one buffered application result per receiver;
+// ordinary emission keeps the original queue-only behavior.
+func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Process, namespace, eventType, direction, peerAddress string, payload any, capture *eventEmissionCapture) (int, error) {
 	if namespace == "" || eventType == "" {
 		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace and event-type"}
 	}
@@ -376,9 +389,14 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// SubscriptionManager is initialized. They are a parallel registry.
 	// Deferred so engine handlers run AFTER plugin process delivery, and so
 	// they fire even if a plugin subscriber panics.
-	defer s.dispatchEngineEvent(nsID, etID, enginePayload)
+	if capture == nil {
+		defer s.dispatchEngineEvent(nsID, etID, enginePayload)
+	}
 
 	if s.subscriptions == nil {
+		if capture != nil {
+			s.dispatchEngineEvent(nsID, etID, enginePayload)
+		}
 		return 0, nil
 	}
 
@@ -403,6 +421,16 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		procs = s.subscriptions.getMatching(nsID, etID, dirID, "", "")
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
+	}
+	if capture != nil {
+		// A self subscriber is required work, not a subscriber silently omitted to
+		// avoid a deadlock. Refuse the whole applied operation before publication.
+		for _, proc := range procs {
+			if proc == emitter {
+				return 0, eventAppliedSelfRefusal()
+			}
+		}
+		defer s.dispatchEngineEvent(nsID, etID, enginePayload)
 	}
 	if len(procs) == 0 {
 		return 0, nil
@@ -442,6 +470,18 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 				envelopeBuilt = true
 			}
 			output = envelopeJSON
+		}
+		if capture != nil {
+			receiver, err := capture.receiver(p)
+			if err != nil {
+				return delivered, err
+			}
+			if !p.DeliverContext(ctx, process.EventDelivery{Output: output, Result: receiver.result}) {
+				return delivered, eventAppliedRefusal(p.Name(), "the captured subscriber refused queue admission", ctx.Err())
+			}
+			capture.receivers = append(capture.receivers, receiver)
+			delivered++
+			continue
 		}
 		if p.Deliver(process.EventDelivery{Output: output}) {
 			delivered++

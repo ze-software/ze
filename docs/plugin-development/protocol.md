@@ -1188,7 +1188,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:report-issue` | `RaiseIssue`, `ClearIssue` | `ReportIssueInput` | None | Raise or clear a problem on the daemon's report bus, where `show doctor` reads it (`docs/architecture/api/process-protocol.md`, "Plugin problems") |
 | `ze-plugin-engine:dispatch-command` | `DispatchCommand` | `DispatchCommandInput` | `DispatchCommandOutput` | Dispatch a command string |
 | `ze-plugin-engine:dispatch-command-args` | `DispatchCommandArgs` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Dispatch a command and pre-tokenized arguments |
-| `ze-plugin-engine:emit-event` | `EmitEvent` | `EmitEventInput` | `EmitEventOutput` | Emit an event |
+| `ze-plugin-engine:emit-event` | `EmitEvent`, `EmitEventApplied` | `EmitEventInput` | `EmitEventOutput` | Queue an event or join captured subscribers |
 | `ze-plugin-engine:subscribe-events` | `SubscribeEvents` | `SubscribeEventsInput` | None | Subscribe to events |
 | `ze-plugin-engine:unsubscribe-events` | `UnsubscribeEvents` | None | None | Unsubscribe from events |
 | `ze-plugin-engine:decode-nlri` | `DecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI through the registry |
@@ -1197,6 +1197,20 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
 | `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
 
+### Applied event completion
+
+Use `EmitEventApplied` for lifecycle coordination that requires subscriber
+application and declared deferred work. Supply a context deadline and release
+locks the recipients need. A matching subscription on the emitter refuses the
+operation before publication. Ordinary `EmitEvent` retains queue-only behavior.
+<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
+
+The same `emit-event` RPC carries `await-applied: true` and `deadline-ms`.
+Success requires `applied: true` and the exact request deadline. A failed or
+canceled call can leave partial application. It cannot authorize source cleanup
+or confirm downstream output. Resolve the named failure before retrying.
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- emit-event -->
+<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied -->
 ### Selected output receipts
 
 <!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->

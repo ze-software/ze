@@ -28,7 +28,7 @@ var eventFramesFixed = eventFramesFixedSize()
 func eventFramesFixedSize() int {
 	// Unkeyed, nonempty probes deliberately fail compilation when either
 	// schema grows. A new field MUST join the bound before this compiles.
-	requestProbe := EmitEventInput{"x", "x", "x", "x", "null"}
+	requestProbe := EmitEventInput{true, math.MaxInt64, "x", "x", "x", "x", "null"}
 	request, err := json.Marshal(&requestProbe)
 	if err != nil {
 		panic("BUG: measuring emit-event syntax failed")
@@ -62,7 +62,8 @@ func (size *eventFrameCounter) Write(data []byte) (int, error) {
 // brackets and commas MUST fit this budget. A larger indivisible value is not
 // proved unencodable: the actual writer, with its actual ID, decides it.
 //
-// input MUST be non-nil. EmitEventInput carries no receipt metadata, so the
+// input MUST be non-nil. Applied mode and deadline affect request sizing only.
+// EmitEventInput carries no event receipt metadata, so the
 // engine builds its EventEnvelope with Metadata nil. The nonempty metadata
 // probe includes its syntax conservatively, not another producer's receipt.
 // Safe for concurrent use; the returned budget borrows nothing.

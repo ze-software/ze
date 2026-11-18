@@ -410,6 +410,11 @@ type DeclareRegistrationInput struct {
 	// picking a side.
 	FailurePolicy FailurePolicy `json:"failure-policy,omitempty"`
 
+	// ExitConfirmsCleanup declares that exit zero follows confirmed cleanup of
+	// this engine's resources. The original process owns the declaration.
+	// A new process or a diagnostic log cannot confirm an earlier cleanup.
+	ExitConfirmsCleanup bool `json:"exit-confirms-cleanup,omitempty"`
+
 	// DrainBudget is the longest time, in seconds, this plugin's drain handler
 	// may take before it answers the stop drain (MethodDrain). A plugin
 	// declares it only with a drain handler (DrainHandler), and the engine
@@ -1434,6 +1439,12 @@ func (o *DispatchCommandOutput) TransportComplete() {
 // Plugins use this to push events into the engine's delivery pipeline,
 // enabling plugin-to-plugin event communication (e.g., RPKI validation events).
 type EmitEventInput struct {
+	// AwaitApplied opts into captured-subscriber application/deferred settlement.
+	// False preserves ordinary enqueue-only EmitEvent behavior.
+	AwaitApplied bool `json:"await-applied,omitempty"`
+	// DeadlineMS bounds opt-in work at its recipient. No deadline is inferred
+	// from the event payload, process name, or another request.
+	DeadlineMS  int64  `json:"deadline-ms,omitempty"`
 	Namespace   string `json:"namespace"`    // Event namespace (e.g., "bgp")
 	EventType   string `json:"event-type"`   // Event type (e.g., "rpki")
 	Direction   string `json:"direction"`    // Direction for subscriber matching (e.g., "received")
@@ -1443,7 +1454,11 @@ type EmitEventInput struct {
 
 // EmitEventOutput is the output for ze-plugin-engine:emit-event.
 type EmitEventOutput struct {
-	Delivered int `json:"delivered"` // Number of subscribers that received the event
+	// Applied and DeadlineMS are explicit completion evidence for the opt-in
+	// operation. An older enqueue-only host cannot satisfy this receipt.
+	Applied    bool  `json:"applied,omitempty"`
+	DeadlineMS int64 `json:"deadline-ms,omitempty"`
+	Delivered  int   `json:"delivered"` // Number of subscribers that received the event
 }
 
 // SubscribeEventsInput is the input for ze-plugin-engine:subscribe-events.

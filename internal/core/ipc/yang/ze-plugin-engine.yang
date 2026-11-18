@@ -1386,6 +1386,27 @@ Returns ze-bgp JSON format (same structure as deliver-event).";
 matching namespace and event-type.";
         ze:help "Plugin emits a custom event to subscribers.";
         input {
+            leaf await-applied {
+                type boolean;
+                default false;
+                must ". = 'false' or ../deadline-ms > 0" {
+                    error-message "Applied emission requires a positive absolute deadline-ms.";
+                }
+                description
+                    "True waits for captured subscriber application and declared deferred work.
+                     A matching subscription on the emitter refuses before publication.
+                     False preserves queue admission without application settlement.";
+                ze:help "Wait for captured subscriber completion.";
+            }
+            leaf deadline-ms {
+                type int64;
+                default 0;
+                description
+                    "The absolute Unix deadline in milliseconds for applied emission.
+                     Applied mode requires a positive value. Queue-only mode ignores it.
+                     Both transports cap the work at the existing cancellable request timeout.";
+                ze:help "Absolute applied-emission work deadline.";
+            }
             leaf namespace {
                 type string;
                 mandatory true;
@@ -1431,6 +1452,24 @@ matching namespace and event-type.";
             }
         }
         output {
+            leaf applied {
+                type boolean;
+                default false;
+                must ". = 'false' or ../deadline-ms > 0" {
+                    error-message "Applied completion requires its positive request deadline-ms.";
+                }
+                description
+                    "True confirms application and deferred settlement for the captured population.
+                     A false or absent value confirms no application completion.";
+                ze:help "Captured subscribers completed their work.";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                description
+                    "Applied completion echoes the request deadline exactly.
+                     A missing or different deadline cannot acknowledge that request.";
+                ze:help "Exact applied request deadline.";
+            }
             leaf delivered {
                 type uint32;
                 description
