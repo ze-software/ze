@@ -86,12 +86,11 @@ type goSurface struct {
 	// cannot read (a constant, a buffer). Their flags are checked by nothing,
 	// so the count is published rather than dropped.
 	UnresolvedSetNames int
-	// UnresolvedFlagNames counts flag declarations whose name is not a literal,
-	// and FlagSpec names that are neither a literal nor a string constant of
-	// their own package.
+	// UnresolvedFlagNames counts parser and FlagSpec names that are neither a
+	// literal nor a string constant of their own package.
 	UnresolvedFlagNames int
 	// constants caches each directory's package-level string constants, parsed
-	// on the first FlagSpec whose Name is an identifier rather than a literal.
+	// on the first parser or FlagSpec name that is an identifier rather than a literal.
 	constants map[string]*packageConstants
 	// UnattributedFlags counts flag declarations on a set the enclosing
 	// function did not build, whose command this scan cannot decide.
@@ -166,7 +165,7 @@ func scanGoFile(path, rel string, surface *goSurface) error {
 		case *ast.CallExpr:
 			registryCall(typed, specSets, constants, surface)
 		case *ast.FuncDecl:
-			functionFlagSets(typed, fset, rel, surface)
+			functionFlagSets(typed, fset, rel, constants, surface)
 		case *ast.BasicLit:
 			if typed.Kind != token.STRING {
 				return true
@@ -383,7 +382,8 @@ func collectStringConstants(file *ast.File, values map[string]string) {
 }
 
 // functionFlagSets records every flag set one function builds, with the flags
-// it declares on each.
+// it declares on each. Names use the same package constant resolver as FlagSpec
+// declarations, so a shared constant does not hide the parser from F4.
 //
 // Resolution is by identifier within the function, which is what a flag set is:
 // built on one line and given its flags on the next few.
@@ -394,7 +394,7 @@ func collectStringConstants(file *ast.File, values map[string]string) {
 // *flag.FlagSet)`, internal/component/bgp/plugins/nlri/*/register.go), and the
 // command those flags belong to is decided by the caller, which a static scan
 // of one function cannot follow.
-func functionFlagSets(function *ast.FuncDecl, fset *token.FileSet, rel string, surface *goSurface) {
+func functionFlagSets(function *ast.FuncDecl, fset *token.FileSet, rel string, constants *packageConstants, surface *goSurface) {
 	if function.Body == nil {
 		return
 	}
@@ -443,13 +443,13 @@ func functionFlagSets(function *ast.FuncDecl, fset *token.FileSet, rel string, s
 			return true
 		}
 		position, known := index[receiver.Name]
-		name, isLiteral := literalString(call.Args[at])
+		name, resolved := parserFlagName(call.Args[at], constants)
 		switch {
-		case !known && isLiteral:
+		case !known && resolved:
 			surface.UnattributedFlags++
 		case !known:
 			return true
-		case !isLiteral:
+		case !resolved:
 			surface.UnresolvedFlagNames++
 		default:
 			sets[position].Flags = append(sets[position].Flags, name)
@@ -457,6 +457,38 @@ func functionFlagSets(function *ast.FuncDecl, fset *token.FileSet, rel string, s
 		return true
 	})
 	surface.FlagSets = append(surface.FlagSets, sets...)
+}
+
+// parserFlagName respects a local binding before consulting constants from
+// sibling files. Variables and nonliteral constants remain unresolved rather
+// than borrowing an outer constant with the same name.
+func parserFlagName(expression ast.Expr, constants *packageConstants) (string, bool) {
+	if name, ok := literalString(expression); ok {
+		return name, true
+	}
+	ident, ok := expression.(*ast.Ident)
+	if !ok {
+		return "", false
+	}
+	if ident.Obj == nil {
+		return constants.lookup(ident.Name)
+	}
+	if ident.Obj.Kind != ast.Con {
+		return "", false
+	}
+	spec, ok := ident.Obj.Decl.(*ast.ValueSpec)
+	if !ok {
+		return "", false
+	}
+	if len(spec.Names) != len(spec.Values) {
+		return "", false
+	}
+	for index, name := range spec.Names {
+		if name.Name == ident.Name {
+			return literalString(spec.Values[index])
+		}
+	}
+	return "", false
 }
 
 // isSelector reports whether an expression is `<pkg>.<name>`.

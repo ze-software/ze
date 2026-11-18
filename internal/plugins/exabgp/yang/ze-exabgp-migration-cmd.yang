@@ -58,7 +58,8 @@ migration and serializer. The default diagnostic name is supplied.conf.";
                     leaf dry-run {
                         type empty;
                         description "Run the conversion and retain its warnings and process
-information, but answer no converted bytes, as ze exabgp migrate --dry-run does.";
+information, but answer no converted bytes, matching a standalone configuration
+conversion preview.";
                         ze:help "Preview conversion diagnostics without returning converted bytes.";
                     }
                 }
@@ -72,8 +73,9 @@ The default diagnostic name is supplied.env.";
                     uses migration-source;
                     leaf dry-run {
                         type empty;
-                        description "Retain the standalone --env behavior: report that dry-run
-is not supported for environment conversion and still return the converted bytes.";
+                        description "Retain the standalone environment conversion behavior: report
+that dry-run is not supported for environment conversion and still return the
+converted bytes.";
                         ze:help "Report the unsupported dry-run choice and return the conversion.";
                     }
                 }

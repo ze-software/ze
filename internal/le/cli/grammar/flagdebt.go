@@ -121,33 +121,13 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_completion.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--context", "--ghost", "--input"},
 	},
-	"config dump": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_dump.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--strip-private"},
-	},
-	"config edit": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_edit.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--insecure-web", "--user", "--web", "-f", "-u"},
-	},
 	"config fix": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_fix.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--plan"},
 	},
-	"config fmt": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_fmt.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--check", "--diff", "-w"},
-	},
 	"config migrate": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_migrate.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--dry-run", "--list", "-o"},
-	},
-	"config set": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_set.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--dry-run", "--reload", "--user", "-u"},
-	},
-	"config validate": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_validate.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--limit", "--pending", "-q", "-v"},
 	},
 	"env list": {
 		Reason: "the flags are parsed in internal/plugins/env/env.go and no RegisterCommandFlags call declares them",
@@ -196,10 +176,6 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	"yang doc": {
 		Reason: "the flags are parsed in internal/component/config/yang/cli/main.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--list"},
-	},
-	"yang tree": {
-		Reason: "the flags are parsed in internal/component/config/yang/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--config"},
 	},
 }
 
