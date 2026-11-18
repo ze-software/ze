@@ -25,19 +25,18 @@ An implementation commit does not close an acceptance criterion by itself.
 | Work | Current state | Evidence and remaining work |
 |------|---------------|-----------------------------|
 | Original kernel PPP unit creation and counters | Committed in `1bd37283ed` | The reached kernel package passed with race detection; all 15 creation roots passed on Ze Linux 7.3, with no skips. The original file and creation-bound counter reader survive rename and refuse foreign or reused resources. Real session constructors and callers still require migration. |
-| Counter guard discrimination | Partially verified | C03/C04/C05 and C01 have executed semantic failures and restored passes. C02 produced the intended native failures; its restored run and C06 remain owed. Compiler overlays leave the canonical files unchanged. |
-| Shared kernel CoS cleanup and diagnostics | Implemented in the main checkout | All 94 CoS package roots pass with race detection; the registered cleanup YANG tests pass. Native VLAN, functional, RFC proof, discrimination and lint obligations remain open. |
+| Counter guard discrimination | Verified for the creation library | C01–C06 each produced its intended semantic failure and a restored pass. C02's two restored native roots passed. Suppressing the original reader error in C06 failed the backend-closure assertion; after removing the overlay, all 15 creation roots passed again on Ze Linux 7.3 with no skips. Canonical files stayed unchanged and the overlays were removed. |
+| Shared kernel CoS cleanup and diagnostics | Committed in `a8101579b4` | All 94 CoS package roots pass with race detection; the registered cleanup YANG tests pass. Four RFC fixture judgments are recorded. Native VLAN, functional, RFC proof, discrimination and lint obligations remain open. |
 | VPP process, socket and statistics ownership | Foundation implemented | Earlier reached race and Linux runs passed. Subsequent coordinated cleanup changes require their own current evidence; those earlier runs do not validate the newer changes. |
-| Captured channel and session ownership | Private source reviewed; not integrated | The typed channel/unit proposal and its review corrections preserve original files, namespace pairing and constructor cleanup. Worker, factory, client and relay callers must form one coherent integration before activation. |
+| Captured channel and session ownership | Private proposals; integration repairs in progress | The typed channel/unit and setup proposals passed source review. Independent actor and factory reviews found constructor-fixture, cleanup-oracle and panic-propagation proof gaps; repairs remain private. Worker, factory, client and relay callers must form one coherent integration before activation. |
 | Atomic original-unit attachment | Required fix identified | Selected Linux 7.3 removes a unit from its numeric registry while its old file can remain open; channel connection looks up the unit number. A prior liveness check alone cannot prevent attachment to a replacement. The atomic attachment fix and native proof remain owed. |
 | Full VPP subscriber service | Open | Forwarding, IPv6, policing, restart recovery, final accounting samples, release ordering, interoperability and scale acceptance are not complete. |
 
-Concurrent BGP assembly interrupted the C02 restored run before admission.
-The named development launcher has since rebuilt, but that restored run is
-still owed. No stale binary or separate source copy substitutes for a run.
-Commits record existing evidence and outstanding checks without claiming full
-support. The native CoS fixture retains its prior expected-device assertion
-at the original-target capture boundary; its native rerun remains owed.
+The creation-library results do not prove its pending session-constructor or
+subscriber integration. Commits record existing evidence and outstanding
+checks without claiming full support. The native CoS fixture retains its
+prior expected-device assertion at the original-target capture boundary;
+its native rerun remains owed.
 
 ## Task
 
