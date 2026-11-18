@@ -241,17 +241,27 @@ retained original object; numeric labels never authorize a replacement.
 +	to->ppp_control_tx = from->ppp_control_tx;
 +#endif
  	skb_copy_secmark(to, from);
-@@ -1206,6 +1206,10 @@
- 	err = (*dst)->error;
- 	if (err)
- 		goto out_err_release;
+@@ -1271,9 +1271,19 @@
+ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
+ 			       struct dst_entry **dst, struct flowi6 *fl6)
+ {
+-	return ip6_dst_lookup_tail_params(net, dst, fl6,
++	int err;
++
++	err = ip6_dst_lookup_tail_params(net, dst, fl6,
+ 					 sk && READ_ONCE(sk->sk_bound_dev_if),
+ 					 sk ? READ_ONCE(inet6_sk(sk)->srcprefs) : 0);
++	if (err)
++		return err;
 +	if (unlikely(!ppp_control_sock_dst(sk, *dst))) {
-+		err = -ESTALE;
-+		goto out_err_release;
++		dst_release(*dst);
++		*dst = NULL;
++		return -ESTALE;
 +	}
++	return 0;
+ }
  
- #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
- 	/*
+ /* Like ip6_dst_lookup, but the caller supplies captured route authority.
 @@ -1299,1 +1317,6 @@
 -	return xfrm_lookup_route(net, dst, flowi6_to_flowi(fl6), sk, 0);
 +	dst = xfrm_lookup_route(net, dst, flowi6_to_flowi(fl6), sk, 0);
