@@ -6,16 +6,16 @@ Check if this box is ready to run Ze\.
 
 - Registry path: `show doctor`
 - Usage: `show doctor [config <config>] [kernel-capabilities]`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-doctor:show-doctor`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -32,7 +32,7 @@ Verifies runtime dependencies\: required files\, sockets\, ports\, and kernel mo
 
 ## Mapping intents
 
-### CPU, memory, platform, and host health
+### CPU\, memory\, platform\, and host health
 
 Category: System
 
@@ -51,7 +51,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show hardware cpu` (verified, vyos-cli)
-  - Intent: CPU, memory, platform, and host health
-- `show system memory` (verified, vyos-cli)
-  - Intent: CPU, memory, platform, and host health
+- `show hardware cpu` (verified, vyos\-cli)
+  - Intent: CPU\, memory\, platform\, and host health
+- `show system memory` (verified, vyos\-cli)
+  - Intent: CPU\, memory\, platform\, and host health

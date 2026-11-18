@@ -6,15 +6,15 @@ Measure the path MTU and size the IPsec tunnels from it\.
 
 - Registry path: `show mtu`
 - Usage: `show mtu [host <host>] [search <exhaustive>] [view <detail>]`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-mtu:show-mtu`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

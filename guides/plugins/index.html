@@ -1936,11 +1936,20 @@ certificate. A plugin validates the hub's chain against that root and dials no
 hub without it. The Go SDK in <code>pkg/plugin/sdk</code> is the reference implementation. A
 plugin written in another language implements the same documented wire
 protocol; no first-party Python launcher or helper is required.</p>
+<p>An external plugin brings its own YANG modules in its Stage 1 declaration, as
+a compiled-in plugin registers its own: a <code>-conf</code> module for its config
+section, a <code>-cmd</code> module for its commands and their arguments, and an <code>-api</code>
+module for the parameters MCP, REST and gRPC publish. Ze joins them when
+<code>ze start</code> runs the plugin, and checks a command's arguments against the
+module before it asks the plugin.</p>
 <p>See <a href="../../developers/plugins/protocol/">plugin-development/protocol.md</a> for the
-protocol and <a href="https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/go" target="_blank" rel="noopener"><code>examples/plugin/go</code></a> for a complete
-plugin.</p>
+protocol, <a href="../../developers/plugins/commands/">plugin-development/commands.md</a>
+for defining a command in YANG, and <a href="https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/go" target="_blank" rel="noopener"><code>examples/plugin/go</code></a>
+(Go SDK) or <a href="https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/python" target="_blank" rel="noopener"><code>examples/plugin/python</code></a> (no SDK)
+for a complete plugin.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
-<!-- source: examples/plugin/go/main.go -- main -->
+<!-- source: examples/plugin/go/main.go -- declaration, main -->
+<!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts -->
 <h3 id="answering-a-command-with-rows">Answering a command with rows</h3>
 <p>A command handler returns <code>(status string, data any, error)</code>. When <code>data</code> is a
 built value, the operator gets that value. When the command walks a large
@@ -2287,7 +2296,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

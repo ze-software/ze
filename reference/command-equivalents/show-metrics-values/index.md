@@ -6,16 +6,16 @@ Dump all metrics in Prometheus text format\.
 
 - Registry path: `show metrics values`
 - Usage: `show metrics values`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-cmd:bgp-metrics-values`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -33,7 +33,7 @@ No command-specific arguments listed.
 
 Category: Operations
 
-Ze exposes Prometheus-style metric names and values directly; vendor telemetry is usually a separate subsystem.
+Ze exposes Prometheus\-style metric names and values directly\; vendor telemetry is usually a separate subsystem\.
 
 ## Vendor equivalents
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7950 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 50 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7950 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 50 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7950 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 50 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -131,14 +131,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>36</strong><b>of 91 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 91 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 91 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>149</strong><b>149 of 156 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>150</strong><b>150 of 158 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>3</strong><b>of 91 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>51</strong><b>of 91 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>39</strong><b>of 91 mandatory requirements reviewed</b><p>11 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>4</strong><b>of 91 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>50</strong><b>of 91 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>40</strong><b>of 91 mandatory requirements reviewed</b><p>12 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -239,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>51</td>
+<td>50</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -251,16 +251,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>156</td>
+<td>158</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>156</td>
+<td>158</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>39</td>
+<td>40</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>150</td>
+<td>152</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7950.md</code></td>
@@ -307,7 +307,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -324,7 +324,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (36):</strong> <a href="#rfc7950-9.6-1"><code>RFC7950-9.6-1</code></a>, <a href="#rfc7950-9.12-1"><code>RFC7950-9.12-1</code></a>, <a href="#rfc7950-7.6.5-2"><code>RFC7950-7.6.5-2</code></a>, <a href="#rfc7950-7.6.5-3"><code>RFC7950-7.6.5-3</code></a>, <a href="#rfc7950-6.1.3-1"><code>RFC7950-6.1.3-1</code></a>, <a href="#rfc7950-6.5-1"><code>RFC7950-6.5-1</code></a>, <a href="#rfc7950-7.3.4-1"><code>RFC7950-7.3.4-1</code></a>, <a href="#rfc7950-7.6.1-1"><code>RFC7950-7.6.1-1</code></a>, <a href="#rfc7950-7.6.1-2"><code>RFC7950-7.6.1-2</code></a>, <a href="#rfc7950-7.6.1-3"><code>RFC7950-7.6.1-3</code></a>, <a href="#rfc7950-7.6.3-1"><code>RFC7950-7.6.3-1</code></a>, <a href="#rfc7950-7.6.4-2"><code>RFC7950-7.6.4-2</code></a>, <a href="#rfc7950-7.7.4-1"><code>RFC7950-7.7.4-1</code></a>, <a href="#rfc7950-7.7.5-1"><code>RFC7950-7.7.5-1</code></a>, <a href="#rfc7950-7.19-1"><code>RFC7950-7.19-1</code></a>, <a href="#rfc7950-8.1-3"><code>RFC7950-8.1-3</code></a>, <a href="#rfc7950-8.1-2"><code>RFC7950-8.1-2</code></a>, <a href="#rfc7950-8.3-1"><code>RFC7950-8.3-1</code></a>, <a href="#rfc7950-8.3.3-1"><code>RFC7950-8.3.3-1</code></a>, <a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a>, <a href="#rfc7950-9.3.1-1"><code>RFC7950-9.3.1-1</code></a>, <a href="#rfc7950-9.3.4-1"><code>RFC7950-9.3.4-1</code></a>, <a href="#rfc7950-9.4.4-1"><code>RFC7950-9.4.4-1</code></a>, <a href="#rfc7950-9.5.1-1"><code>RFC7950-9.5.1-1</code></a>, <a href="#rfc7950-9.6.4-2"><code>RFC7950-9.6.4-2</code></a>, <a href="#rfc7950-9.6.4.2-1"><code>RFC7950-9.6.4.2-1</code></a>, <a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a>, <a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a>, <a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a>, <a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a>, <a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a>, <a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a>, <a href="#rfc7950-7.3.2-1"><code>RFC7950-7.3.2-1</code></a>, <a href="#rfc7950-7.9.2-2"><code>RFC7950-7.9.2-2</code></a>, <a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a>, <a href="#rfc7950-9.4.4-2"><code>RFC7950-9.4.4-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (55):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.5.3-1"><code>RFC7950-7.5.3-1</code></a>, <a href="#rfc7950-9.2.4-1"><code>RFC7950-9.2.4-1</code></a>, <a href="#rfc7950-9.4.5-1"><code>RFC7950-9.4.5-1</code></a>, <a href="#rfc7950-x-1"><code>RFC7950-x-1</code></a>, <a href="#rfc7950-x-2"><code>RFC7950-x-2</code></a>, <a href="#rfc7950-5.1-1"><code>RFC7950-5.1-1</code></a>, <a href="#rfc7950-5.3-1"><code>RFC7950-5.3-1</code></a>, <a href="#rfc7950-5.5-1"><code>RFC7950-5.5-1</code></a>, <a href="#rfc7950-5.6.5-1"><code>RFC7950-5.6.5-1</code></a>, <a href="#rfc7950-6.2-1"><code>RFC7950-6.2-1</code></a>, <a href="#rfc7950-6.2.1-1"><code>RFC7950-6.2.1-1</code></a>, <a href="#rfc7950-6.3.1-1"><code>RFC7950-6.3.1-1</code></a>, <a href="#rfc7950-6.4-1"><code>RFC7950-6.4-1</code></a>, <a href="#rfc7950-6.4-2"><code>RFC7950-6.4-2</code></a>, <a href="#rfc7950-7.1.4-1"><code>RFC7950-7.1.4-1</code></a>, <a href="#rfc7950-7.3-1"><code>RFC7950-7.3-1</code></a>, <a href="#rfc7950-7.6.1-4"><code>RFC7950-7.6.1-4</code></a>, <a href="#rfc7950-7.7-1"><code>RFC7950-7.7-1</code></a>, <a href="#rfc7950-7.7.2-1"><code>RFC7950-7.7.2-1</code></a>, <a href="#rfc7950-7.8.2-1"><code>RFC7950-7.8.2-1</code></a>, <a href="#rfc7950-7.8.3-1"><code>RFC7950-7.8.3-1</code></a>, <a href="#rfc7950-7.9.2-1"><code>RFC7950-7.9.2-1</code></a>, <a href="#rfc7950-7.9.3-1"><code>RFC7950-7.9.3-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-7.12-1"><code>RFC7950-7.12-1</code></a>, <a href="#rfc7950-7.14.2-1"><code>RFC7950-7.14.2-1</code></a>, <a href="#rfc7950-7.14.3-1"><code>RFC7950-7.14.3-1</code></a>, <a href="#rfc7950-7.15-1"><code>RFC7950-7.15-1</code></a>, <a href="#rfc7950-7.16-1"><code>RFC7950-7.16-1</code></a>, <a href="#rfc7950-7.17-1"><code>RFC7950-7.17-1</code></a>, <a href="#rfc7950-7.18.2-1"><code>RFC7950-7.18.2-1</code></a>, <a href="#rfc7950-7.20.1-1"><code>RFC7950-7.20.1-1</code></a>, <a href="#rfc7950-7.20.2-1"><code>RFC7950-7.20.2-1</code></a>, <a href="#rfc7950-7.20.3-1"><code>RFC7950-7.20.3-1</code></a>, <a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a>, <a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a>, <a href="#rfc7950-7.21.5-1"><code>RFC7950-7.21.5-1</code></a>, <a href="#rfc7950-8.1-1"><code>RFC7950-8.1-1</code></a>, <a href="#rfc7950-8.1-4"><code>RFC7950-8.1-4</code></a>, <a href="#rfc7950-8.3.1-2"><code>RFC7950-8.3.1-2</code></a>, <a href="#rfc7950-8.3.2-1"><code>RFC7950-8.3.2-1</code></a>, <a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a>, <a href="#rfc7950-9.2.4-2"><code>RFC7950-9.2.4-2</code></a>, <a href="#rfc7950-9.6.4-1"><code>RFC7950-9.6.4-1</code></a>, <a href="#rfc7950-9.7-1"><code>RFC7950-9.7-1</code></a>, <a href="#rfc7950-9.7.4-1"><code>RFC7950-9.7.4-1</code></a>, <a href="#rfc7950-9.7.4.2-1"><code>RFC7950-9.7.4.2-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a>, <a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a>, <a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a>, <a href="#rfc7950-11-2"><code>RFC7950-11-2</code></a>, <a href="#rfc7950-11-3"><code>RFC7950-11-3</code></a>, <a href="#rfc7950-7.21.5-2"><code>RFC7950-7.21.5-2</code></a>, <a href="#rfc7950-12-1"><code>RFC7950-12-1</code></a></p>
-<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (3):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (4):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
@@ -912,16 +912,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-7.20.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze reads no deviation; plan/spec-config-yang-deviation.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Loader.Resolve calls goyang Modules.Process and Entry.ApplyDeviate, so deviations are applied; complete schema validity after every supported deviation ordering is not established; plan/post-release/features/spec-config-yang-deviation.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.20.3.2-1">RFC7950-7.20.3.2-1</code></td><td colspan="3"><span class="rfc-subject">The argument &#34;add&#34; adds properties to the target node. The properties to add are identified by substatements to the &#34;deviate&#34; statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument &#34;replace&#34; replaces properties of the target node. The properties to replace are identified by substatements to the &#34;deviate&#34; statement. The properties to replace MUST exist in the target node. The argument &#34;delete&#34; deletes properties from the target node. The properties to delete are identified by substatements to the &#34;delete&#34; statement. The substatement&#39;s keyword MUST match a corresponding keyword in the target node, and the argument&#39;s string MUST be equal to the corresponding keyword&#39;s argument string in the target node. (§7.20.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.20.3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-7.20.3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze reads no deviation; plan/spec-config-yang-deviation.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_uses_deviation_test.go#L208" title="internal/component/config/yang/rfc7950_uses_deviation_test.go" target="_blank" rel="noopener"><code>TestLoaderDeviateAddMissingSingletonProperty</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_uses_deviation_test.go#L189" title="internal/component/config/yang/rfc7950_uses_deviation_test.go" target="_blank" rel="noopener"><code>TestLoaderDeviateAddExistingSingletonProperty</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;If a property can only appear once, the property MUST NOT exist in the target node.&#34;; gap &#34;The properties to replace MUST exist in the target node.&#34;; vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate is the boundary reached by Loader.Resolve: the tagged tests exercise add of built-in singleton config, mandatory, units, leaf default and list bounds, with explicit false, empty, zero and unbounded values. The remaining replace-presence and delete keyword/value matching clauses, and extension-defined deviations, are not claimed; plan/post-release/features/spec-config-yang-deviation.md</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested: &#34;If a property can only appear once, the property MUST NOT exist in the target node.&#34; Gap: &#34;The properties to replace MUST exist in the target node.&#34; Producer: vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate. The tagged negative test requires Loader.Resolve to refuse an explicitly present built-in config, mandatory, units, leaf default, min-elements or max-elements property, including explicit false, empty, zero and unbounded values. The tagged positive test requires acceptance of the corresponding absent property and its exact specified effective value. The hand-written negative break bypasses only checkDeviationAdd while retaining assignments; its config, mandatory, units and bound cases must fail on erroneous acceptance, while the separate existing-default guard may still refuse defaults. The hand-written positive break omits deviation application and must fail on the exact missing effective values. Neither break adds a parsing error or a test-only failure. This is bounded singleton-add evidence, not whole-row enforcement: replace-presence, delete keyword/value matching, extension-defined deviations and complete deviation-order validity remain unmet or unproven.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.21.2-1">RFC7950-7.21.2-1</code></td><td colspan="3"><span class="rfc-subject">If a definition is &#34;current&#34;, it MUST NOT reference a &#34;deprecated&#34; or &#34;obsolete&#34; definition within the same module. If a definition is &#34;deprecated&#34;, it MUST NOT reference an &#34;obsolete&#34; definition within the same module. (§7.21.2)</span></td></tr>
 <tr><td></td>
@@ -1469,11 +1469,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc7950-7.20.3-1"><code>RFC7950-7.20.3-1</code></a> This means that deviations MUST never be part of a published standard, since they are the mechanism for learning how implementations vary from the standards. Server deviations are strongly discouraged and MUST only be used as a last resort. Telling the application how a server fails to follow a standard is no substitute for implementing the standard correctly. A server that deviates from a module is not fully compliant with the module. However, in some cases, a particular device may not have the hardware or software ability to support parts of a standard module. When this occurs, the server makes a choice to either treat attempts to configure unsupported parts of the module as an error that is reported back to the unsuspecting application or ignore those incoming requests. Neither choice is acceptable. Instead, YANG allows servers to document portions of a base module that are not supported, or that are supported but with different syntax, by using the &#34;deviation&#34; statement. After applying all deviations announced by a server, in any order, the resulting data model MUST still be valid. (§7.20.3)</td>
 <td>{gap}, no test</td>
-<td>Ze reads no deviation; plan/spec-config-yang-deviation.md</td>
+<td>Loader.Resolve calls goyang Modules.Process and Entry.ApplyDeviate, so deviations are applied; complete schema validity after every supported deviation ordering is not established; plan/post-release/features/spec-config-yang-deviation.md</td>
 </tr>
 <tr><td><a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a> The argument &#34;add&#34; adds properties to the target node. The properties to add are identified by substatements to the &#34;deviate&#34; statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument &#34;replace&#34; replaces properties of the target node. The properties to replace are identified by substatements to the &#34;deviate&#34; statement. The properties to replace MUST exist in the target node. The argument &#34;delete&#34; deletes properties from the target node. The properties to delete are identified by substatements to the &#34;delete&#34; statement. The substatement&#39;s keyword MUST match a corresponding keyword in the target node, and the argument&#39;s string MUST be equal to the corresponding keyword&#39;s argument string in the target node. (§7.20.3.2)</td>
-<td>{gap}, no test</td>
-<td>Ze reads no deviation; plan/spec-config-yang-deviation.md</td>
+<td>{partial}, Partial test coverage</td>
+<td>tested &#34;If a property can only appear once, the property MUST NOT exist in the target node.&#34;; gap &#34;The properties to replace MUST exist in the target node.&#34;; vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate is the boundary reached by Loader.Resolve: the tagged tests exercise add of built-in singleton config, mandatory, units, leaf default and list bounds, with explicit false, empty, zero and unbounded values. The remaining replace-presence and delete keyword/value matching clauses, and extension-defined deviations, are not claimed; plan/post-release/features/spec-config-yang-deviation.md</td>
 </tr>
 <tr><td><a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a> If a definition is &#34;current&#34;, it MUST NOT reference a &#34;deprecated&#34; or &#34;obsolete&#34; definition within the same module. If a definition is &#34;deprecated&#34;, it MUST NOT reference an &#34;obsolete&#34; definition within the same module. (§7.21.2)</td>
 <td>{gap}, no test</td>
@@ -1868,7 +1868,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go#L41" title="internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950DerivedTypeInheritsOrReplacesTheDefault</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_defaults_test.go#L33" title="internal/component/config/rfc7950_yang_schema_defaults_test.go" target="_blank" rel="noopener"><code>TestRFC7950DefaultValidForType</code></a></td>
@@ -2214,8 +2214,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7950-7.20.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a></h3>
 <p>The argument &#34;add&#34; adds properties to the target node. The properties to add are identified by substatements to the &#34;deviate&#34; statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument &#34;replace&#34; replaces properties of the target node. The properties to replace are identified by substatements to the &#34;deviate&#34; statement. The properties to replace MUST exist in the target node. The argument &#34;delete&#34; deletes properties from the target node. The properties to delete are identified by substatements to the &#34;delete&#34; statement. The substatement&#39;s keyword MUST match a corresponding keyword in the target node, and the argument&#39;s string MUST be equal to the corresponding keyword&#39;s argument string in the target node. (§7.20.3.2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7950-7.20.3.2-1, so there is no linked test.</p>
+<p>Records cover only part of this requirement: tested &#34;If a property can only appear once, the property MUST NOT exist in the target node.&#34;; gap &#34;The properties to replace MUST exist in the target node.&#34;; vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate is the boundary reached by Loader.Resolve: the tagged tests exercise add of built-in singleton config, mandatory, units, leaf default and list bounds, with explicit false, empty, zero and unbounded values. The remaining replace-presence and delete keyword/value matching clauses, and extension-defined deviations, are not claimed; plan/post-release/features/spec-config-yang-deviation.md; they do not verify the whole requirement.</p>
+<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested: &#34;If a property can only appear once, the property MUST NOT exist in the target node.&#34; Gap: &#34;The properties to replace MUST exist in the target node.&#34; Producer: vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate. The tagged negative test requires Loader.Resolve to refuse an explicitly present built-in config, mandatory, units, leaf default, min-elements or max-elements property, including explicit false, empty, zero and unbounded values. The tagged positive test requires acceptance of the corresponding absent property and its exact specified effective value. The hand-written negative break bypasses only checkDeviationAdd while retaining assignments; its config, mandatory, units and bound cases must fail on erroneous acceptance, while the separate existing-default guard may still refuse defaults. The hand-written positive break omits deviation application and must fail on the exact missing effective values. Neither break adds a parsing error or a test-only failure. This is bounded singleton-add evidence, not whole-row enforcement: replace-presence, delete keyword/value matching, extension-defined deviations and complete deviation-order validity remain unmet or unproven.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_uses_deviation_test.go#L189" title="internal/component/config/yang/rfc7950_uses_deviation_test.go" target="_blank" rel="noopener"><code>TestLoaderDeviateAddExistingSingletonProperty</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_uses_deviation_test.go#L208" title="internal/component/config/yang/rfc7950_uses_deviation_test.go" target="_blank" rel="noopener"><code>TestLoaderDeviateAddMissingSingletonProperty</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a></h3>
 <p>If a definition is &#34;current&#34;, it MUST NOT reference a &#34;deprecated&#34; or &#34;obsolete&#34; definition within the same module. If a definition is &#34;deprecated&#34;, it MUST NOT reference an &#34;obsolete&#34; definition within the same module. (§7.21.2)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -5144,7 +5161,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

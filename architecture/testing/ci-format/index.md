@@ -419,7 +419,8 @@ file is judged in the parsed workflow's load composition, using the browser
 daemon's own baseline, including parsed authentication/profile declarations,
 and the shared editor's merge or replace operation. A default web case that
 needs multiple users or a reader shares the runner's daemon-selection rule.
-Declared logins are checked against the generated fixture credentials; their
+
+Declared logins are checked against the generated fixture credentials. Their
 resolved profiles gate editor mutations before a physical input is consumed.
 The same authenticated candidate survives CLI and graphical page navigation.
 Native import controls provide the selected token path, root or selected-item
@@ -427,7 +428,8 @@ scope, and merge or replace operation. Repeated login remains an explicit
 unsupported composition: the browser runner cannot fill a second login form
 on an authenticated page. Failed authentication, denied mutation and unknown
 composition retain the physical file's standalone validation.
-An accepted editor draft is counted separately; its submitted commit snapshot uses
+
+An accepted editor draft is counted separately. Its submitted commit snapshot uses
 the full configuration validator. Standalone and applied config oracles remain
 unchanged. The fragment is
 not made standalone by adding settings that the running daemon already supplies.
@@ -538,6 +540,7 @@ option=<type>:key=value[:key=value...]
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
 | `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, `sys-time` and `sys-admin`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
+| `needs-build-tag` | `value=<feature-tag>:state=present\|absent` | Run when the selected DUT has the declared feature state. Repeat for a conjunction over distinct tags. Names come from this CI checkout's `feature-gates.txt`. A known mismatch reports SKIP; unreadable, missing, empty, duplicate or malformed Go build-tag metadata reports FAIL. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
@@ -549,6 +552,16 @@ option=<type>:key=value[:key=value...]
 <!-- source: internal/test/runner/display.go -- Display.TestFinished, the SKIP line carries the SkipReason -->
 <!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
+
+`needs-build-tag` is supported by the generic `.ci` and parse runners. It reads
+the final selected DUT's embedded Go `-tags` setting once per run, only when a
+selected case with valid declarations has passed its existing host admission.
+Declare each feature once; an unknown feature name, state, key or repeated
+declaration is a parse error. Ordinary cases do not read DUT metadata. The
+shared resource-only reader used by editor and web tests refuses this option
+because those consumers do not supply a selected DUT to this admission path.
+<!-- source: internal/test/runner/build_tags.go -- parseOptionNeedsBuildTag, dutBuildTags.admit, explicitDUTBuildTags -->
+<!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
 
 #### Configuration inputs for peer AS derivation
 
@@ -650,7 +663,7 @@ the context check, so an unfinished frame cannot prevent teardown.
 
 | The `.ci` test ... | Use |
 |--------------------|-----|
-| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env`, without asserting acceptance of a Linux-only host default | Nothing. It runs natively on every OS |
+| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env`, and does not assert acceptance of a Linux-only host default | Nothing. It runs natively on every OS |
 | Validates acceptance with an omitted backend whose host default exists only on Linux | `option=needs-linux`, without `caps=` |
 | Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel) | `option=needs-linux` |
 | The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
@@ -1374,7 +1387,7 @@ a key inside it.
 | `expect=stdout:contains=`, `expect=stdout:pattern=` |
 | `expect=stderr:contains=`, `expect=stderr:pattern=` |
 | `reject=stdout:contains=`, `reject=stdout:pattern=`, `reject=stderr:pattern=` |
-| `option=skip-os:value=`, `option=env:`, `option=needs-linux` |
+| `option=skip-os:value=`, `option=env:`, `option=needs-linux`, `option=needs-build-tag` |
 <!-- source: internal/test/runner/parsing.go -- ciDirectives -->
 
 The parse suite uses the shared Linux admission reader for `needs-linux`, with

@@ -6,15 +6,15 @@ Generate command reference docs from YANG schemas\.
 
 - Registry path: `show yang doc`
 - Usage: `show yang doc [list] [command <command>]`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-config-yang:show-yang-doc`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

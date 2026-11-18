@@ -1,51 +1,279 @@
 # Adding Commands
 
-Plugins can expose commands for runtime interaction via the ze API.
+A plugin's commands are defined in YANG, the way the commands compiled into
+`ze` are. Ze builds the command and the check of its arguments from the
+module, and asks your plugin only with values that check accepts. An external plugin and a compiled-in plugin define a command the same
+way; they differ only in how they reach Ze (`docs/architecture/plugin/plugin-system.md`,
+"One plugin, two ways to reach the bus").
 
-## Declaring Commands
+A command takes three things:
 
-Commands are declared in the `Registration` struct passed to `Run`. The engine learns about them during Stage 1 (declare-registration).
-<!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
+| What | Where | What it gives |
+|------|-------|---------------|
+| The command path, its help and its arguments | A `-cmd` module | The command in the tree, its help text, and the check of each argument |
+| The parameters the API surfaces publish | The `input` of an rpc, in an `-api` module, named by the command's `ze:rpc` | The parameter list MCP, REST and gRPC publish for the command |
+| The route to your plugin | An entry in the Stage 1 `commands` list, and a handler | Ze asks your plugin when an operator runs the command |
+
+<!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts, refuseRPCLinks -->
+<!-- source: internal/component/plugin/server/startup.go -- the Stage 1 commands registered for the process -->
+
+## Defining a Command in YANG
+
+This is the command module of the example plugin
+([`examples/plugin/python/acme_monitor.py`](../../examples/plugin/python/acme_monitor.py),
+and its Go twin [`examples/plugin/go/main.go`](../../examples/plugin/go/main.go)).
+It defines `show acme-monitor status` and `show acme-monitor target <name>`:
+
+```yang
+module acme-monitor-cmd {
+    namespace "urn:acme:monitor:cmd";
+    prefix acmecmd;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+
+        container acme-monitor {
+            config false;
+            ze:help "Inspect the acme monitor.";
+
+            container status {
+                config false;
+                ze:command "acme-monitor:show-status";
+                ze:help "Show the target and the probe interval.";
+            }
+
+            container target {
+                config false;
+                ze:command "acme-monitor:show-target";
+                ze:rpc "acme-monitor-api:show-target";
+                ze:help "Show the configured target of the acme monitor.";
+
+                leaf name {
+                    type string {
+                        length "1..16";
+                    }
+                    mandatory true;
+                    ze:help "Name of the target.";
+                }
+            }
+        }
+    }
+}
+```
+
+And the rpc that describes the argument of `target`:
+
+```yang
+module acme-monitor-api {
+    namespace "urn:acme:monitor:api";
+    prefix acmeapi;
+    import ze-extensions { prefix ze; }
+
+    rpc show-target {
+        ze:help "Show the configured target of the acme monitor.";
+        input {
+            leaf name {
+                type string {
+                    length "1..16";
+                }
+                mandatory true;
+                ze:help "Name of the target.";
+            }
+        }
+    }
+}
+```
+<!-- source: internal/test/externalyang/externalyang.go -- commandsText, apiText -->
+
+How Ze reads the module:
+
+- **The name ends in `-cmd`.** Ze takes commands only from a module with that
+  suffix.
+- **A command is a `config false` container that holds `ze:command`.** Every
+  container on the way to it is `config false` too, and the first one is a
+  verb (`show`, `request`, `clear`, ...). The path of the container is the
+  command: `show acme-monitor target`.
+- **The containers on the way are shared.** `show` is the verb container every
+  module uses, and `acme-monitor` can hold commands from other modules too. A
+  command path is yours alone: a path another module declares refuses the
+  start.
+- **`ze:command` names the command's wire method**, `<word>:<word>`, which no
+  other module may declare.
+- **Each leaf is an argument.** Its type, `length`, `range`, pattern or
+  enumeration is what Ze checks the value against, and `mandatory true`
+  makes it required.
+- **`ze:help` is the one-line summary** shown in listings and completion, and
+  `description` is the longer text, as for a config leaf
+  ([schema.md](../schema/index.md), "Best Practices").
+- **`ze:rpc "<module>:<rpc>"` names the rpc whose `input` describes the
+  command's parameters**, in a module your plugin brings. Ze publishes the
+  command with the parameters of that rpc. Give the input the same leaves as
+  the command container, with the same types.
+
+<!-- source: internal/component/config/yang/join.go -- refuseIdleModules, idleModuleRefusal -->
+<!-- source: internal/component/config/yang/join_command.go -- claimCommand, refuseRPCLinks -->
+<!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
+
+Your plugin sends every module in its Stage 1 `schemas` list, one entry for
+each, beside its config module ([schema.md](../schema/index.md), "Registering a
+Schema"). In Python, call `plugin.schema()` once for each module.
+
+## Declaring and Handling Commands
+
+Ze asks your plugin only for a command its Stage 1 `commands` list names.
+List each command your `-cmd` module defines, by its path, and register a
+handler. The entry needs no help text when the module carries it.
+
+Every `ze:command` node your modules bring must be reached by a command your
+Stage 1 `commands` list declares: the declared command is the node's path, or
+a prefix of it that ends at a word boundary (`show acme-monitor` reaches
+`show acme-monitor status`). Ze sends a typed command to the longest
+registered command it starts with, whichever plugin registered it, so a node
+no declared command reaches could never be answered, and the start is refused:
+
+```
+plugin "acme-monitor" brings command "show acme-monitor target" in module "acme-monitor-cmd", and declares no command at Stage 1 that reaches it
+```
+
+Only a name Ze registers counts: a name with leading or trailing spaces, in
+upper case, or that breaks the command grammar, and a name a command of `ze`
+already holds, reach nothing. In the daemon, a longer command another plugin
+registered before yours takes the node from your shorter one.
+`ze show plugin conformance run "<run string>"` reports a node no declared
+command reaches in its `command-nodes-served` row, before the plugin is ever
+started ([testing.md](../testing/index.md)).
+
+A declared command with no `ze:command` node of its own is accepted, as it is
+for a plugin compiled into `ze`.
+<!-- source: internal/component/plugin/server/stage1_commands.go -- refuseUnservedCommandNodes, commandServed, unservedCommandRefusal -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.dispatchPlugin, longestReach, ErrUnknownCommand -->
+<!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
+
+In Go:
 
 ```go
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+    switch command {
+    case "show acme-monitor status":
+        return "done", map[string]string{"target": cfg.Target, "interval": cfg.intervalText()}, nil
+    case "show acme-monitor target":
+        // Ze checked the value against the leaf `name`: args holds it.
+        if args[0] != cfg.Target {
+            return "", nil, fmt.Errorf("acme-monitor has no target %s\nfix: show acme-monitor status", args[0])
+        }
+        return "done", map[string]string{"target": args[0], "interval": cfg.intervalText()}, nil
+    }
+    return "", nil, fmt.Errorf("acme-monitor does not serve %q", command)
+})
+
 err := p.Run(ctx, &sdk.Registration{
+    Schemas: []sdk.SchemaDecl{
+        {Module: "acme-monitor-conf", Namespace: "urn:acme:monitor:conf", YANGText: confYANG},
+        {Module: "acme-monitor-cmd", Namespace: "urn:acme:monitor:cmd", YANGText: cmdYANG},
+        {Module: "acme-monitor-api", Namespace: "urn:acme:monitor:api", YANGText: apiYANG},
+    },
+    WantsConfig: []string{"acme-monitor"},
     Commands: []sdk.CommandDecl{
-        {Name: "show my-plugin status", ShortHelp: "Show current status"},
-        {Name: "request my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
+        {Name: "show acme-monitor status"},
+        {Name: "show acme-monitor target"},
     },
 })
 ```
-<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
-<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, CommandDecl -->
-
-## Handling Commands
-
-Register a handler with `OnExecuteCommand` before calling `Run`. The handler receives the command serial, command name, arguments, and peer selector.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, CommandDecl, SchemaDecl -->
+<!-- source: examples/plugin/go/main.go -- declaration, monitor.command -->
 
-```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
-    switch command {
-    case "show my-plugin status":
-        return "done", map[string]any{
-            "status": "running",
-            "uptime": 3600,
-        }, nil
-    case "request my-plugin check":
-        if len(args) < 1 {
-            return "error", map[string]string{
-                "error": "usage: request my-plugin check <target>",
-            }, nil
-        }
-        result := performCheck(args[0])
-        return "done", result, nil
-    default:
-        return "error", map[string]string{
-            "error": "unknown command: " + command,
-        }, nil
-    }
-})
+In Python, one decorator both lists the command at Stage 1 and serves it:
+
+```python
+@plugin.command("show acme-monitor target")
+def target(args):
+    name = args[0]
+    if name != state["target"]:
+        raise CommandError("acme-monitor has no target %s" % name, fix="show acme-monitor status")
+    return {"target": name, "interval": _interval_text()}
 ```
+<!-- source: examples/plugin/python/ze_plugin.py -- Plugin.command, CommandError -->
+
+The handler gets the values in `args`, as the operator typed them, and only
+after Ze accepted them. It does not check the type again, and it writes no
+usage message: Ze refuses a bad line before the handler runs. It still answers
+for what only it knows, such as a name the config does not hold, with an
+error whose last line is `fix: ` and the command that clears it.
+
+## What the Operator Gets
+
+Typed in a `ze cli` session, sent over SSH or with `ze cli -c`, the command
+runs in the running Ze, which asks your plugin:
+
+```
+$ ze cli -c "show acme-monitor target web.example.net"
+```
+
+A value the leaf's type refuses is refused by Ze, your plugin is not asked,
+and the command exits 1:
+
+```
+$ ze cli -c "show acme-monitor target this-name-is-far-too-long"
+error: show acme-monitor target name: "this-name-is-far-too-long" is outside the accepted length (25 characters)
+name accepts 1..16 characters
+fix: show acme-monitor target <1..16 characters>
+```
+
+A line with the mandatory leaf missing is refused before the plugin is asked,
+with the whole command as its correction:
+
+```
+error: required argument missing: name
+This command needs name: The target name, from 1 to 16 characters.
+fix: show acme-monitor target name <name>
+```
+<!-- source: test/plugin/external-yang-command-argument.ci -- the refusals and the value the plugin receives -->
+
+MCP, REST and gRPC list the command with the parameters of the rpc its
+`ze:rpc` names, and send it to the same dispatcher, so the same check runs
+before your plugin is asked. Each parameter carries the leaf's `ze:help` as
+its summary, its `description`, and whether it is mandatory, as a compiled-in
+command's parameters do; the leaf's length or range is not published.
+<!-- source: internal/component/config/yang/join_command.go -- refuseRPCLinks, the publication rule -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta, the parameters of a command only a plugin serves -->
+
+`ze show acme-monitor target web.example.net` typed in the shell, with no `cli -c`, asks
+the running Ze and gets the answer `ze cli -c` gives. With no Ze running it is
+reported as not available, with the fix `ze start`
+([commands.md](../../../architecture/api/commands/index.md#a-path-the-ze-binary-does-not-hold-an-external-plugins-command),
+"A path the `ze` binary does not hold").
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer, refuseNotAvailable -->
+
+## Refusals at Startup
+
+Ze judges your modules when `ze start` runs your plugin, before it parses the
+config, by the rules the modules compiled into `ze` obey. A refusal stops the
+start, names your plugin and module and the change that fixes it, and carries
+the doctor code `doctor-plugin-schema-refused` ([schema.md](../schema/index.md)). The
+first line of each refusal:
+
+| You wrote | The refusal starts |
+|-----------|--------------------|
+| A command path another module declares | `Module "acme-monitor-cmd" of plugin "acme-monitor" declares command "<path>", which module "<other>" ... already declares` |
+| A `ze:command` wire method another module declares | `Module "acme-monitor-cmd" of plugin "acme-monitor" declares wire method "<method>" at "<path>", which module "<other>" ... already declares` |
+| A `ze:rpc` that names an rpc its module does not define, a `ze:rpc` on a container with no `ze:command`, or a malformed wire method | `The commands that the YANG modules of plugin "acme-monitor" declare do not match their rpcs` |
+| A `ze:rpc` that names a module neither your plugin nor `ze` brings | `A command that plugin "acme-monitor" declares names an rpc in a module ze does not hold: ...` |
+| A module that holds definitions ze reads nowhere: no config, no command, no rpc, and no other module imports it (a `-cmd` module with neither a `ze:command` nor a `ze:help`, or commands in a module whose name does not end in `-cmd`). A module that declares nothing at all is accepted | `Module "<module>" of plugin "acme-monitor" adds nothing to the config schema, the commands or the rpcs` |
+
+<!-- source: internal/component/config/yang/join_command.go -- claimCommand, refuseRPCLinks -->
+<!-- source: internal/component/config/yang/join.go -- idleModuleRefusal -->
+
+## At Restart
+
+Your modules change only when `ze` restarts. When Ze starts your plugin again
+(`request plugin restart <name>`, or `failure-policy restart` after it ended),
+the plugin MUST declare the same modules, each with the same name, namespace
+and text. A changed command module is refused like a changed config module:
+Ze does not run the plugin, and raises `doctor-plugin-schema-changed`, whose
+fix is the restart of `ze` ([schema.md](../schema/index.md), "What works today").
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference -->
 
 ## Wire Format
 
@@ -237,60 +465,36 @@ The engine sends these fields in the `execute-command` RPC:
 |-------|------|---------|
 | `serial` | string | Correlation ID for the request |
 | `command` | string | Command name (e.g., `"show my-plugin status"`) |
-| `args` | []string | Additional arguments (may be empty) |
+| `args` | []string | The words after the command path, as the operator typed them, once Ze accepted them (may be empty) |
 | `peer` | string | Peer selector (may be empty) |
 
 ## Naming Conventions
 
 | Pattern | Example | Purpose |
 |---------|---------|---------|
-| `<plugin> status` | `acme-monitor status` | Get current state |
-| `<plugin> stats` | `acme-monitor stats` | Get metrics |
-| `<plugin> <action>` | `acme-monitor check` | Perform action |
-| `<plugin> list` | `acme-monitor list` | List items |
+| `show <plugin> status` | `show acme-monitor status` | Get current state |
+| `show <plugin> <item> <name>` | `show acme-monitor target web` | Get one item, named by an argument leaf |
+| `request <plugin> <action>` | `request acme-monitor probe` | Perform an action |
+| `clear <plugin> <counters>` | `clear acme-monitor statistics` | Reset counters |
 
 **Rules:**
-- Start with plugin name to avoid conflicts
+- Start with a verb, then the plugin name, to avoid conflicts
 - Use kebab-case for multi-word commands
 - Keep commands short and memorable
 
-## Command Arguments
-
-Arguments arrive in the `args` parameter of the handler:
-
-```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    if command == "show my-plugin get" {
-        if len(args) < 1 {
-            return "error", map[string]string{
-                "error": "usage: show my-plugin get <key>",
-            }, nil
-        }
-        key := args[0]
-        value := getValue(key)
-        return "done", map[string]any{"key": key, "value": value}, nil
-    }
-    return "error", map[string]string{"error": "unknown command"}, nil
-})
-```
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
-Invocation:
-```
-ze cli -c "show my-plugin get config.timeout"
-```
-
 ## CommandDecl Fields
 
-Commands are declared with these fields:
+Each entry of the Stage 1 `commands` list has these fields. For a command
+your `-cmd` module defines, `Name` is all it needs: the module carries the
+help and the arguments.
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
-| `Name` | string | Yes | Command name (for example, `"show my-plugin status"`). The first word MUST be one of the canonical verbs (`show`, `request`, `clear`, ...): the engine refuses any other name at registration |
+| `Name` | string | Yes | Command path (for example, `"show acme-monitor status"`). The first word MUST be one of the canonical verbs (`show`, `request`, `clear`, ...): the engine refuses any other name at registration |
 | `ShortHelp` | string | No | The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes |
 | `Description` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
-| `Args` | []string | No | Expected argument names (for help/completion) |
+| `Args` | []string | No | Argument names, for the help and completion of a command no module defines. Ze checks no value against them |
 | `Completable` | bool | No | Whether the command supports tab completion |
 | `Shape` | string | No | What the answer holds: `doc`, `map`, `tab` or `blob` |
 | `Columns` | []string | No | The answer's keys, in the order a person reads them. Needs a `Shape` that has rows |
@@ -451,24 +655,24 @@ p.OnStarted(func(ctx context.Context) error {
 The engine routes the command by longest-match registry lookup and returns the full `{status, data}` response from the target handler.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
 
+Use `DispatchCommandResult` or `DispatchCommandArgsResult` to retain warning
+lines and the optional original `RecordAnswer` counts. A partial or failed
+record answer returns a Go error and keeps its completed data and refused
+records in `result.Data`. Check that data even when the command failed. Counts
+come from the original terminator, rather than from the document's keys.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchResult, DispatchCommandResult, DispatchCommandArgsResult -->
+
 ## Help Text
 
-Provide usage information via a dedicated command:
-
-```go
-// In Registration:
-sdk.CommandDecl{Name: "show my-plugin help", ShortHelp: "Show available commands"},
-
-// In handler:
-if command == "show my-plugin help" {
-    return "done", map[string]any{
-        "commands": []string{
-            "show my-plugin status - Show current status",
-            "request my-plugin check <target> - Trigger immediate check",
-            "show my-plugin metrics - Show performance metrics",
-        },
-    }, nil
-}
-```
-<!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+Write the help in the `-cmd` module: `ze:help` for the one-line summary and
+`description` for the longer text, on each command container and each
+argument leaf. The usage of a refused line is derived from the leaves: its
+`fix:` line names each argument by what its type accepts, as above. A plugin
+writes no help command of its own. `ShortHelp` and `Description` on the
+Stage 1 entry are the help of a command no module defines. Where the module
+and the Stage 1 entry both give a text, every surface shows the module's: the
+session menu and its explanation, `system command help`, and the MCP, REST and
+gRPC command lists. A text the module leaves empty is filled from the entry.
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/doctor_delivery.go -- commandModelHelp.texts -->
+<!-- source: internal/test/externalyang/externalyang.go -- commandsText -->

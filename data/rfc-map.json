@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "9c61683c31dffcf1c1fc09db1078d8111fb88b297235c0966e5478ecf890876c"
+      "sha256": "492956599e113208d7c236d7cb2222789a8bb37173ac3d8addd52eb411fb98e6"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "efc8526d66e15d5b6c8511f9daeb8ca1e1422d87224a36377b58f2af295729ff",
-      "revision": "4f1ed0223dec283018b995bc9a6bfca6c484df0f"
+      "sha256": "d1b8dc6c050b1f9786c276eed05589a83509691d0ea715834ef44f7e92067aa0",
+      "revision": "54032bbfd90cdc75789684ed225a4c87c9a2ff5b"
     },
     {
       "label": "Proposed release layers",
@@ -27474,7 +27474,7 @@
         "annotation": {
           "kind": "single-polarity",
           "polarity": "positive",
-          "reason": "the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/testing.md). The consequence the same paragraph asks for, treating the UPDATE as though WITHDRAWN did not contain the prefix, is RFC4271-4.3-7 and is proven by the same test"
+          "reason": "the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/testing.md). The separate recommendation to treat the UPDATE as though WITHDRAWN did not contain the prefix is RFC4271-4.3-7; this MUST does not prescribe the RIB winner"
         }
       },
       {
@@ -28134,8 +28134,11 @@
         "text": "A route SHALL NOT be installed in the Adj-Rib-Out unless the destination, and NEXT_HOP described by this route, may be forwarded appropriately by the Routing Table. (§9.1.3)",
         "section": "9.1.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "nothing gates Adj-RIB-Out installation on the destination and NEXT_HOP being forwardable. QueueAnnounce records the route unconditionally (internal/component/bgp/rib/outgoing.go:65-101), and the forwarding rails decide only on filters, family negotiation and the route-reflection rules (internal/component/bgp/reactor/forward_rs.go:295-333)"
+          "kind": "partial",
+          "reason": "tested \"may be forwarded appropriately by the Routing Table\"; gap \"installed in the Adj-Rib-Out\"; the ordinary IPv4 internal-plugin witness checks sampled destination and emitted NEXT_HOP resolvability at stable successful recipient writes, initial unresolved-route exclusion, and reachability loss/recovery while the recipient remains connected. Competing received-route replay previously advertised retained unresolved input to a replacement Session. The ordinary-replay-owned advisory now stands that automatic replay down in internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState and AdjRIBInManager.handleState; the unchanged replacement-session witness passed one actual baseline rerun. Recorded replay discrimination proof remains pending. The corresponding ordinary-output behavior across remote prospective-resolution, routing-revision and publication boundaries also remains unproven. Section 9.1.3's explicit local-policy exception remains supported and is not exercised here.",
+          "tested": "may be forwarded appropriately by the Routing Table",
+          "gap": "installed in the Adj-Rib-Out",
+          "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState"
         }
       },
       {
@@ -28712,7 +28715,7 @@
         "section": "5.2",
         "annotation": {
           "kind": "partial",
-          "reason": "tested \"match the packet against the inbound selectors identified by the SAD entry\"; gap \"verify that the received packet is appropriate for the SA via which it was received\"; internal/component/ike/engine/child.go::installChildDataplane now constructs both complete directional scopes before publishing either state, through internal/component/ike/engine/child_scope.go::childStateScope and dataplane.NewSAStateScope. Native positive and negative records prove single-pair whole and outer-fragmented bare ESP on an ESP-in-UDP state under the production SPD, including the state's selector rejection and a separate explicit SPD DISCARD. Those records do not establish general multi-pair or overlapping per-SA isolation. checkXFRMStateScopeCapabilities retains the full feature-bits 0-3 admission guard; the carried K3 fragment guard is enrolled, and the combined native kernel has compiled and booted with the complete 0xf receipt. Bounded scope, fragment and port-policy packet runs have passed, including a private whole-packet sibling-port cut that triggered the selected test's four own assertions. These observations do not complete the general isolation proof or renew its RFC records: the private K2 fault-kernel run and constrained fragment-context fixture remain unresolved. General isolation remains owned by plan/release/fixes/spec-rfc4301-architecture-gaps.md; plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md AC-4 requires proof of the full obligation before this annotation is removed",
+          "reason": "tested \"match the packet against the inbound selectors identified by the SAD entry\"; gap \"verify that the received packet is appropriate for the SA via which it was received\"; internal/component/ike/engine/child.go::installChildDataplane now constructs both complete directional scopes before publishing either state, through internal/component/ike/engine/child_scope.go::childStateScope and dataplane.NewSAStateScope. Native positive and negative records prove single-pair whole and outer-fragmented bare ESP on an ESP-in-UDP state under the production SPD, including the state's selector rejection and a separate explicit SPD DISCARD. Those records do not establish general multi-pair or overlapping per-SA isolation. checkXFRMStateScopeCapabilities retains the full feature-bits 0-3 admission guard; the carried K3 fragment guard is enrolled, and the combined native kernel has compiled and booted with the complete 0xf receipt. Bounded scope, fragment and port-policy packet runs have passed, including a private whole-packet sibling-port cut that triggered the selected test's four own assertions. These observations do not complete the general isolation proof or renew its RFC records: the constrained permitted fragment and context cases now pass on the normal Ze kernel (eight selected packet/helper tests, including all 16 context rows), while separate broader RFC kernel-discrimination debt remains, with no private fault authorization or new C-enforcement credit. General isolation remains owned by plan/release/fixes/spec-rfc4301-architecture-gaps.md; ipsec-dual-form-receive-spd-bypass AC-4 now accepts the required normal Ze-kernel positive, negative and control packet tests for product closure. That acceptance does not remove this partial annotation or grant whole-requirement proof; the remaining RFC discrimination debt stays separate under the existing evidence rules",
           "tested": "match the packet against the inbound selectors identified by the SAD entry",
           "gap": "verify that the received packet is appropriate for the SA via which it was received",
           "producer": "internal/component/ike/engine/child.go::installChildDataplane"
@@ -59271,7 +59274,7 @@
         "section": "7.20.3",
         "annotation": {
           "kind": "gap",
-          "reason": "Ze reads no deviation; plan/spec-config-yang-deviation.md"
+          "reason": "Loader.Resolve calls goyang Modules.Process and Entry.ApplyDeviate, so deviations are applied; complete schema validity after every supported deviation ordering is not established; plan/post-release/features/spec-config-yang-deviation.md"
         }
       },
       {
@@ -59281,8 +59284,11 @@
         "text": "The argument \"add\" adds properties to the target node. The properties to add are identified by substatements to the \"deviate\" statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument \"replace\" replaces properties of the target node. The properties to replace are identified by substatements to the \"deviate\" statement. The properties to replace MUST exist in the target node. The argument \"delete\" deletes properties from the target node. The properties to delete are identified by substatements to the \"delete\" statement. The substatement's keyword MUST match a corresponding keyword in the target node, and the argument's string MUST be equal to the corresponding keyword's argument string in the target node. (§7.20.3.2)",
         "section": "7.20.3.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "Ze reads no deviation; plan/spec-config-yang-deviation.md"
+          "kind": "partial",
+          "reason": "tested \"If a property can only appear once, the property MUST NOT exist in the target node.\"; gap \"The properties to replace MUST exist in the target node.\"; vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate is the boundary reached by Loader.Resolve: the tagged tests exercise add of built-in singleton config, mandatory, units, leaf default and list bounds, with explicit false, empty, zero and unbounded values. The remaining replace-presence and delete keyword/value matching clauses, and extension-defined deviations, are not claimed; plan/post-release/features/spec-config-yang-deviation.md",
+          "tested": "If a property can only appear once, the property MUST NOT exist in the target node.",
+          "gap": "The properties to replace MUST exist in the target node.",
+          "producer": "vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate"
         }
       },
       {
@@ -76027,13 +76033,6 @@
   },
   "relations": [
     {
-      "spec": "ipsec-dual-form-receive-spd-bypass",
-      "stem": "rfc4301",
-      "rid": "RFC4301-5.2-2",
-      "kind": "declared-requirement",
-      "source": "plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md"
-    },
-    {
       "spec": "bgp-refresh-reapplies-export-policy",
       "stem": "rfc2918",
       "kind": "declared-rfc",
@@ -78113,14 +78112,6 @@
       "note": "Named as plan/release/fixes/spec-rfc4301-architecture-gaps.md; this citation does not establish sole implementation ownership."
     },
     {
-      "spec": "ipsec-dual-form-receive-spd-bypass",
-      "stem": "rfc4301",
-      "rid": "RFC4301-5.2-2",
-      "kind": "summary-partial-citation",
-      "source": "rfc/short/rfc4301.md",
-      "note": "Named as plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md; this citation does not establish sole implementation ownership."
-    },
-    {
       "spec": "ipsec-spd-final-discard-vpp-ospf",
       "stem": "rfc4301",
       "rid": "RFC4301-4.4.1-3",
@@ -79206,15 +79197,15 @@
       "rid": "RFC7950-7.20.3-1",
       "kind": "summary-gap-citation",
       "source": "rfc/short/rfc7950.md",
-      "note": "Named as plan/spec-config-yang-deviation.md; this citation does not establish sole implementation ownership."
+      "note": "Named as plan/post-release/features/spec-config-yang-deviation.md; this citation does not establish sole implementation ownership."
     },
     {
       "spec": "config-yang-deviation",
       "stem": "rfc7950",
       "rid": "RFC7950-7.20.3.2-1",
-      "kind": "summary-gap-citation",
+      "kind": "summary-partial-citation",
       "source": "rfc/short/rfc7950.md",
-      "note": "Named as plan/spec-config-yang-deviation.md; this citation does not establish sole implementation ownership."
+      "note": "Named as plan/post-release/features/spec-config-yang-deviation.md; this citation does not establish sole implementation ownership."
     },
     {
       "spec": "config-yang-loader-structural-checks",
@@ -80596,5 +80587,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "4f1ed0223dec283018b995bc9a6bfca6c484df0f"
+  "roadmap-revision": "54032bbfd90cdc75789684ed225a4c87c9a2ff5b"
 }

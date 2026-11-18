@@ -6,15 +6,15 @@ Query the routes one protocol feeds into the RIB\.
 
 - Registry path: `show bgp rib protocol`
 - Usage: `show bgp rib protocol <protocol>`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:rib-protocol`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
-- Address fields: peer, next-hop
-- Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Address fields: peer\, next\-hop
+- Column order: peer\, direction\, family\, prefix\, next\-hop\, path\-id\, as\-path\, origin\, local\-pref\, med\, communities
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

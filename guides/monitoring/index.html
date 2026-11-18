@@ -110,6 +110,17 @@ account for its reads and detail requests.</p>
 <h2 id="event-streaming">Event Streaming</h2>
 <pre><code>ze cli -c "monitor event"
 </code></pre>
+<p>In an interactive CLI session, command output and log-style monitors retain the
+most recent 512 KiB of display text. When older output is removed, the view starts
+with <code>[earlier output omitted]</code>. The limit includes that notice and the text
+produced by terminal sanitization. <code>clear</code> empties the scrollback and removes the
+notice. Ping and traceroute log views use the same allowance.</p>
+<p>This limits the interactive display. Streaming output from <code>ze cli -c</code> and the
+bytes written by a supported <code>| save</code> pipe keep their existing complete-output
+behavior. Save the output when you need a record longer than the visible tail.</p>
+<!-- source: internal/component/cli/model_output.go -- outputBuffer -->
+<!-- source: internal/component/cli/model_ping.go -- handlePingPipedPoll -->
+<!-- source: internal/component/cli/model_traceroute.go -- handleTraceroutePipedPoll -->
 <h3 id="filters">Filters</h3>
 <table>
 <thead>
@@ -1457,7 +1468,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

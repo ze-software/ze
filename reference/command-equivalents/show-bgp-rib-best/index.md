@@ -6,15 +6,15 @@ Show the winning route for each prefix\.
 
 - Registry path: `show bgp rib best`
 - Usage: `show bgp rib best`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:rib-best`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `status`
 - Answer shape: tab
-- Address fields: best-peer, next-hop
-- Column order: family, prefix, best-peer, multipath-peers, attributes
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Address fields: best\-peer\, next\-hop
+- Column order: family\, prefix\, best\-peer\, multipath\-peers\, attributes
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -37,20 +37,20 @@ Category: BGP
 
 Category: BGP
 
-Ze narrows the best RIB with command-specific pipe filters.
+Ze narrows the best RIB with command\-specific pipe filters\.
 
 ## Vendor equivalents
 
 ### Junos MX
-- `show route <prefix> protocol bgp` (verified, junos-route)
+- `show route <prefix> protocol bgp` (verified, junos\-route)
   - Intent: BGP route for a prefix
-- `show route protocol bgp` (verified, junos-route)
+- `show route protocol bgp` (verified, junos\-route)
   - Intent: Best BGP routes
 
 ### IOS XR
-- `show bgp ipv4 unicast` (verified, iosxr-bgp-commands)
+- `show bgp ipv4 unicast` (verified, iosxr\-bgp\-commands)
   - Intent: Best BGP routes
-- `show bgp ipv4 unicast <prefix>` (verified, iosxr-bgp-commands)
+- `show bgp ipv4 unicast <prefix>` (verified, iosxr\-bgp\-commands)
   - Intent: BGP route for a prefix
 
 ### SR OS
@@ -58,5 +58,5 @@ Ze narrows the best RIB with command-specific pipe filters.
 No equivalent listed.
 
 ### VyOS
-- `show ip bgp <prefix>` (legacy, vyos-bgp)
+- `show ip bgp <prefix>` (legacy, vyos\-bgp)
   - Intent: BGP route for a prefix

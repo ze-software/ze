@@ -6,15 +6,15 @@ List the plugins compiled into this binary\.
 
 - Registry path: `show plugin list`
 - Usage: `show plugin list`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-plugin:show-list`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: name, description, outcome, families, rfcs, capabilities, config-roots, dependencies, optional-dependencies, start-after, features, yang, nlri-decoder, nlri-encoder, reason
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: name\, description\, outcome\, families\, rfcs\, capabilities\, config\-roots\, dependencies\, optional\-dependencies\, start\-after\, features\, yang\, nlri\-decoder\, nlri\-encoder\, reason
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

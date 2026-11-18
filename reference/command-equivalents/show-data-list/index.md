@@ -5,16 +5,16 @@ List the keys in the selected store\.
 ## Ze command
 
 - Registry path: `show data list`
-- Usage: `show data list`
-- Mode: read-only, offline
+- Usage: `show data list [prefix <prefix>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-config-storage:show-data-list`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
 - Column order: key
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -25,7 +25,9 @@ Lists the keys in the selected store\. Use \'show data cat \<key\>\' to read one
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `prefix` | string | no | any value of this type | Storage key prefix | Return only keys beginning with this prefix\. Omit it to list every key\. |
 
 ## Mapping intents
 

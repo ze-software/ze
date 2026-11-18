@@ -5,16 +5,16 @@ Decode each OSPFv3 Router\-LSA body\.
 ## Ze command
 
 - Registry path: `show ospf ipv6 database router detail`
-- Usage: `show ospf ipv6 database router detail [address-family <ipv6-unicast\|ipv6-multicast\|ipv4-unicast\|ipv4-multicast>]`
-- Mode: Read-only
+- Usage: `show ospf ipv6 database router detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]`
+- Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database-router-detail`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: address-family, instance-id
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: address\-family\, instance\-id
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -6,15 +6,15 @@ Show one environment variable in detail\.
 
 - Registry path: `show env get`
 - Usage: `show env get <name>`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-env:show-get`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: key, type, default, current, description
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: key\, type\, default\, current\, description
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

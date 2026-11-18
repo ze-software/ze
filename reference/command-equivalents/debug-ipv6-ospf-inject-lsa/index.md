@@ -5,17 +5,17 @@ Inject a crafted OSPFv3 LSA into the local LSDB \(RFC 5340\)\.
 ## Ze command
 
 - Registry path: `debug ipv6 ospf inject lsa`
-- Usage: `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link\|area\|as>] [hex <body> ...] [withdraw] [address-family <ipv6-unicast\|ipv6-multicast\|ipv4-unicast\|ipv4-multicast>]`
+- Usage: `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>] [hex <body> ...] [withdraw] [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]`
 - Mode: Daemon
 - Wire method: `ze-ospf:debug-ospfv3-inject`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `address-family`, `hex`, `id`, `scope`, `type`, `withdraw`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

@@ -6,15 +6,15 @@ Read the plugin blocks of a config file as well\.
 
 - Registry path: `show plugin declarations config`
 - Usage: `show plugin declarations config <path>`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-plugin:show-declarations-config`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: name, kind, state, commands, pipes, reason
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: name\, kind\, state\, commands\, pipes\, reason
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -57,6 +57,7 @@
 <li><a href="#choosing-an-interface">Choosing an Interface</a></li>
 <li><a href="#configuration">Configuration</a></li>
 </ol></li>
+<li><a href="#offline-backup-workspace">Offline backup workspace</a></li>
 <li><a href="#authentication">Authentication</a>
 <ol>
 <li><a href="#browser-sessions">Browser Sessions</a></li>
@@ -163,6 +164,168 @@ default) and <code>workbench</code>. The equivalent environment key is <code>ze.
 }
 </code></pre>
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
+<h2 id="offline-backup-workspace">Offline backup workspace</h2>
+<p>Choose <strong>Services → Backup workspace</strong>, or open <code>/backups/</code>, to edit a <code>.zefs</code>
+backup independently of the running configuration. This page uses a full-text
+configuration editor. It requires an account with configuration edit access,
+because the artifact can contain credentials.</p>
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+<p>The backup workspace also runs with <code>ze start --web-only</code>. It uses the same
+artifact commands as the configured daemon; opening it starts no routing
+protocol. Stop the web process only after downloading the changes you need.</p>
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, webOnlyDispatcher -->
+<p>Full-store restore also uses the normal recovery lifecycle in web-only mode.
+It waits for web requests and the original store owner to finish before
+replacing the store. A cleanup failure prevents replacement and returns a
+failure with the recovery instructions. Applying only the running configuration
+requires a loaded daemon; web-only mode refuses that operation before staging
+any configuration candidate.</p>
+<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
+<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
+<ol>
+<li>Select a backup file and choose <strong>Open backup</strong>.</li>
+<li>Choose its <strong>Configuration</strong>, then <strong>Open configuration</strong>. The editor starts
+with the committed configuration. Existing saved drafts and pending
+candidates remain in the artifact and are not resumed.</li>
+<li>Edit the text and choose <strong>Validate</strong>. A refused edit keeps your text available
+for correction. Validation covers the checks available in this Ze process;
+it does not prove acceptance on the target host or running system.</li>
+<li>Choose <strong>Review changes</strong>, then <strong>Save into backup</strong>. Changing the text after
+review requires another review. A form opened before another tab saved the
+same configuration must be reviewed against the newer saved configuration.</li>
+<li>Choose <strong>Download saved backup</strong>. The download is a complete artifact with
+the edited configuration, its history and the original backup's other keys.
+Unsaved text is not included.</li>
+</ol>
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+<!-- source: internal/component/config/artifact/edit.go -- Edit, prepare, publish -->
+<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
+<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
+<ol start="6">
+<li>
+<p>Before opening the downloaded backup in the Ze CLI on Unix, restrict access to your account:</p>
+<pre><code class="language-sh">chmod 600 updated-backup.zefs
+</code></pre>
+</li>
+</ol>
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+<!-- source: internal/component/config/storage/tree.go -- secureNode, openNode -->
+<ol start="7">
+<li>Choose <strong>Close workspace</strong> when finished.</li>
+</ol>
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+<p>Each workspace has its own URL and is available only to the account that
+uploaded it. Uploaded copies are private temporary files; the original file on
+your computer is unchanged. An artifact can be at most 64 MiB, and configuration
+text can be at most 4 MiB. The server retains at most 32 workspaces, eight per
+account, with a shared 256 MiB artifact allowance. Workspaces expire after one
+hour without use and are removed when the daemon stops. Download the edited
+backup before closing the workspace or stopping the daemon.</p>
+<p>The same private artifact can be used from the command surface. The artifact
+identity comes from upload completion and belongs to your authenticated account.
+The browser's <strong>Admin Commands</strong> forms derive these commands and their fields
+from the command model:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stored configurations</td>
+<td><code>show config artifact config list artifact &lt;id&gt;</code></td>
+</tr>
+<tr>
+<td>Masked committed source</td>
+<td><code>show config artifact source artifact &lt;id&gt; name &lt;config&gt;</code></td>
+</tr>
+<tr>
+<td>Resolved comparison</td>
+<td><code>show config artifact diff artifact &lt;id&gt; name &lt;config&gt; other &lt;config&gt;</code></td>
+</tr>
+<tr>
+<td>Compare a revision</td>
+<td><code>show config artifact diff artifact &lt;id&gt; name &lt;config&gt; revision &lt;number&gt;</code></td>
+</tr>
+<tr>
+<td>Stored history and draft state</td>
+<td><code>show config artifact history artifact &lt;id&gt; name &lt;config&gt;</code></td>
+</tr>
+<tr>
+<td>Set, activate or deactivate</td>
+<td><code>request config artifact &lt;operation&gt; artifact &lt;id&gt; name &lt;config&gt; text &lt;transfer&gt;</code></td>
+</tr>
+<tr>
+<td>Complete replacement</td>
+<td><code>request config artifact replace artifact &lt;id&gt; name &lt;config&gt; text &lt;transfer&gt;</code></td>
+</tr>
+<tr>
+<td>Publish a history revision</td>
+<td><code>request config artifact rollback artifact &lt;id&gt; name &lt;config&gt; revision &lt;number&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>For a statement or replacement, upload the text with <code>request config artifact text begin</code>, the declared upload append operation and upload finish. Keep the
+returned text-transfer identity until the operation ends, then abort it. A set
+transfer contains one complete <code>set</code> statement; activation transfers similarly
+contain one <code>activate</code> or <code>deactivate</code> statement. A replacement contains the
+configuration. Adding <code>dry-run</code> returns a masked preview without changing the
+retained artifact. These operations preserve saved drafts and unrelated keys.</p>
+<!-- source: internal/component/config/cli/artifact_config.go -- artifactConfigMutation, artifactReplace, artifactRollback -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- native-change, revision -->
+<p>To check a damaged backup in the browser, open <strong>Check or repair a data file</strong>
+on <code>/backups/</code>. Select the file, or expand <strong>Paste base64 data instead</strong>, then
+open the source. Both forms accept up to 64 MiB after decoding. The data need
+not be a valid ZeFS container to upload.</p>
+<p>Choose <strong>Check source</strong> to see the native integrity result. A failed check keeps
+its finding report and the complete uploaded source available. <strong>Create separate
+salvage</strong> produces an independent artifact; skipped keys or history entries stay
+visible as warnings, and an unresolved failure remains a failure even when a
+salvage can be downloaded. Inspect the report before using that download.
+<strong>Download original source</strong> preserves the uploaded bytes, including after
+repair. <strong>Close source</strong> removes only the uploaded copy. Sources expire after
+two minutes without use, so download what you need before closing or leaving.</p>
+<!-- source: internal/component/web/backup_source.go -- uploadSource, source, downloadSource -->
+<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
+<p>For raw maintenance from a command surface, <code>show config artifact key list artifact &lt;id&gt;</code> lists keys.
+<code>request config artifact key read artifact &lt;id&gt; key &lt;key&gt;</code> returns a private
+download transfer; read its chunks and abort it afterward. To write a key, begin
+a <code>request config artifact bytes begin name &lt;label&gt;</code> transfer, append and finish
+its bytes, then use <code>request config artifact key write artifact &lt;id&gt; key &lt;key&gt; transfer &lt;source&gt;</code>. Binary and empty values are retained without text conversion.
+Explicit <code>request config artifact key delete artifact &lt;id&gt; key &lt;key&gt;</code> removes
+only that key.</p>
+<p><code>show config artifact check transfer &lt;source&gt;</code> checks complete source bytes,
+including a corrupt backup. <code>request config artifact repair transfer &lt;source&gt;</code>
+returns a separate downloadable salvage. Keep the source until you have checked
+the salvage: skipped or dropped keys produce warnings, and unresolved history
+is a failed repair even though recovered keys remain available. A normal
+workspace can be checked with <code>show config artifact check artifact &lt;id&gt;</code>.</p>
+<!-- source: internal/component/config/cli/artifact_raw.go -- artifactCheck, artifactRepair -->
+<p>To reopen saved offline CLI edits deliberately, use <code>request config artifact session resume artifact &lt;id&gt; name &lt;config&gt;</code>. This resumes your account's saved
+<code>local</code> editing origin and keeps other accounts' pending work separate. The
+<code>session set</code>, <code>activate</code>, <code>deactivate</code> and <code>delete</code> operations take a text
+transfer containing one matching editing statement. <code>session replace</code> and
+<code>merge</code> take configuration text. <code>session save</code> retains your draft; <code>session diff</code>, <code>changes</code> and <code>history</code> inspect it. <code>session commit</code> validates and
+publishes your changes; <code>session discard</code> removes your pending intent. The
+ordinary configuration page continues to open committed content.</p>
+<!-- source: internal/component/config/cli/artifact_session.go -- artifactSessionOperation -->
+<p><code>request config artifact restore full artifact &lt;id&gt;</code> requests a complete device
+store recovery. An accepted response confirms that independent recovery bytes
+are retained; the running configuration remains in place through the response.
+The daemon then restarts, and its outer owner imports the source only after a
+successful shutdown and store close. Download the backup before the restart if
+you also need to retain your own copy.</p>
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreFull -->
+<p>Saving and downloading also need temporary disk space for a complete working
+copy. If private-file cleanup fails, new uploads, saves and downloads wait until that
+cleanup succeeds; existing workspace inspection remains available.</p>
+<!-- source: internal/component/config/artifact/owner.go -- Owner, expire, Close -->
+<!-- source: internal/component/config/artifact/transfer.go -- Begin, Append, Finish, Snapshot, Abort -->
 <h2 id="authentication">Authentication</h2>
 <p>The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.</p>
 <!-- source: internal/component/web/auth.go -- authMiddleware, loginHandler, parseBasicAuth -->
@@ -442,8 +605,10 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <li><strong>Edit:</strong> Click an entry name to see its full config. Edit leaf values through inline fields.</li>
 <li><strong>Review:</strong> The commit bar at the bottom shows pending change count. Click "Review &amp; Commit" to see a diff.</li>
 <li><strong>Commit:</strong> Apply changes. Conflicts with other users are detected and reported.</li>
-<li><strong>Discard:</strong> Click "Discard" to abandon all pending changes.</li>
+<li><strong>Discard:</strong> Click "Discard" to abandon your browser's pending changes. Separate SSH edits under the same username remain pending.</li>
 </ol>
+<!-- source: internal/component/web/editor.go -- Discard -->
+<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
 <h3 id="collections-and-configuration-actions">Collections and Configuration Actions</h3>
 <p>Multi-word settings and leaf-lists show editable rows with Add, Remove, Move up,
 Move down, Save and Clear controls. The schema decides which values and repeated
@@ -603,6 +768,12 @@ the field, and the separate commit step applies the candidate configuration.</p>
 <h3 id="session-limits">Session Limits</h3>
 <p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
 <!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
+<p>Reopening an evicted editor or reconnecting after a daemon restart restores
+your saved and unsaved web changes. Review, pending counts, save and commit
+refer to those resumed changes. Other users' changes and your SSH sessions
+remain separate. If the stored intent cannot be read or recovery cannot finish,
+the page refuses to open; repair the reported problem, then reload <code>/show/</code>.</p>
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
 <h2 id="browser-cli">Browser CLI</h2>
 <p>The <strong>CLI</strong> link opens the dedicated <code>/cli</code> page. Its prompt shows the current
 configuration position, for example <code>ze[bgp peer london]#</code>. Commands execute in
@@ -831,8 +1002,25 @@ data: &lt;html-fragment&gt;
 <!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
-<p><strong>Corrupt change files:</strong> If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (<code>discard</code>) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.</p>
+<p><strong>Corrupt change files:</strong> An unknown path, malformed command or invalid
+structural syntax in a stored per-user change file prevents the browser from
+reopening that candidate. The error names the file, which remains unchanged.
+Normal web discard also stops when it cannot read the audit snapshot. Open
+<code>/config/recover</code> with an account authorized to discard configuration changes.
+Review the warning, select the confirmation checkbox, and press <strong>Discard
+unreadable pending change file</strong> to discard that account's corrupt change file.
+This also discards SSH or console changes in the same file: their ownership
+cannot be read. The file can retain structural instructions after <strong>Save draft</strong>;
+those instructions are lost too. The separate saved draft file, other accounts
+and running configuration are kept. Cancel leaves the corrupt file intact. If the file changes
+after the form opens, recovery refuses; open the form again to review it.
+An invalid leaf value or leaf-list member
+in an otherwise readable API candidate remains editable: commit refuses the
+value, and the operator can apply its proposed correction while preserving
+other changes.</p>
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
+<!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
+<!-- source: internal/component/web/component_config_recovery.templ -- recovery confirmation -->
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
 <!-- source: internal/component/web/render.go -- AssetHandler -->
 </div>
@@ -884,7 +1072,7 @@ data: &lt;html-fragment&gt;
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

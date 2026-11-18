@@ -6,16 +6,16 @@ Show RSVP\-TE label\-switched paths\.
 
 - Registry path: `show rsvp-te lsp`
 - Usage: `show rsvp-te lsp`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-rsvpte:show-rsvp-te-lsp`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### MPLS, LDP, and RSVP-TE state
+### MPLS\, LDP\, and RSVP\-TE state
 
 Category: Routing protocols
 

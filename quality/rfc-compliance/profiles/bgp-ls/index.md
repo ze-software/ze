@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-ls.json](../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 82, Tests awaiting verification 10, Not built 32
-- **Overview bar**: Ze MUST verified 82, SHOULD verified 4, Not owed 1, Tests awaiting verification 10, Not assessed 67, Not built 34
+- **MUST bar**: Ze verified 81, Tests awaiting verification 11, Not built 32
+- **Overview bar**: Ze MUST verified 81, SHOULD verified 4, Not owed 1, Tests awaiting verification 11, Not assessed 67, Not built 34
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-ls.json](../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 125 |
 | MUST rows kept (the MUST bar) | 124 |
-| Ze verified | 82 |
+| Ze verified | 81 |
 | OS verified | 0 |
-| Tests awaiting verification | 10 |
+| Tests awaiting verification | 11 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -58,7 +58,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Ze verified 7, Tests awaiting verification 3, Not built 16 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 25, Not built 17 |
+| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Ze verified 6, Tests awaiting verification 4, Not built 16 | Ze MUST verified 6, Tests awaiting verification 4, Not assessed 25, Not built 17 |
 | [RFC 8571](../../rfc8571/) | BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions | no rows | no rows |
 
 ### Level 14

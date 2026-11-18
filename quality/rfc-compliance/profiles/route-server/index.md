@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 251, Tests awaiting verification 74, Not assessed 16, Not built 53
-- **Overview bar**: Ze MUST verified 251, SHOULD verified 17, Not owed 3, Tests awaiting verification 78, Not assessed 214, Not built 55
+- **MUST bar**: Ze verified 268, Tests awaiting verification 57, Not assessed 16, Not built 53
+- **Overview bar**: Ze MUST verified 268, SHOULD verified 17, Not owed 3, Tests awaiting verification 61, Not assessed 214, Not built 55
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 397 |
 | MUST rows kept (the MUST bar) | 394 |
-| Ze verified | 251 |
+| Ze verified | 268 |
 | OS verified | 0 |
-| Tests awaiting verification | 74 |
+| Tests awaiting verification | 57 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 16 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 108, Tests awaiting verification 12, Not built 13 | Ze MUST verified 108, SHOULD verified 3, Tests awaiting verification 13, Not assessed 30, Not built 13 | route-server: required by rfc/short/rfc4271.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not assessed 16 | Not assessed 22 | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4

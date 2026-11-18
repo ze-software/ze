@@ -278,15 +278,32 @@ For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 <h4 id="plugin-transport-fixtures">Plugin transport fixtures</h4>
-<!-- source: internal/test/pluginengine/pluginengine.go -- IssueSource, sourceLeaseAnswer -->
 <p>Plugin transport fixtures use <code>internal/test/pluginengine</code> to run a plugin's
 actual entry point and SDK callbacks over the framed connection and bridge.
-A received route that requires a source lease must carry a receipt the fixture
+<code>Start</code> returns only after the SDK's ordinary runtime-ready callback answers.
+That receipt joins <code>OnStarted</code> and entry into the callback loop on both
+transports. Stage 5 acknowledgement and bridge activation happen earlier and
+do not by themselves prove initialization finished. A fixture can run its first
+command immediately after <code>Start</code> returns. The wire fixture keeps serving
+ordinary engine requests while it waits, so an initializer can emit its startup
+events without waiting on the caller of <code>Start</code>.</p>
+<!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
+<!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
+<p>Use <code>ExecutePeer</code> when a command needs an explicit peer address. It forwards
+that value to the actual SDK callback on both transports; <code>Execute</code> keeps its
+empty-peer default. The fixture supplies context, not authentication or native
+authority, which the feature's own tests must establish.</p>
+<!-- source: internal/test/pluginengine/pluginengine.go -- Execute, ExecutePeer -->
+<!-- test: internal/test/pluginengine/execute_peer_test.go TestExecutePeerReachesActualSDKAndPreservesEmptyControl -->
+<p>A received route that requires a source lease must carry a receipt the fixture
 engine issued with <code>IssueSource(peer)</code>. Reuse it for that source Session's
-UPDATEs; a successor Session receives a new one. The fake engine refuses an
-unissued receipt and retention or release before acquisition. These checks
-exercise transport and ownership lifecycle; the real engine's grant and
+UPDATEs; a successor Session receives a new one. The fake engine refuses
+acquisition or retention of an unissued receipt and retention before
+acquisition. Release settles absent authority without issuing or retaining
+a source grant. These checks exercise transport and ownership lifecycle;
+the real engine's grant and
 original-Session authorization are proved by its own tests.</p>
+<!-- source: internal/test/pluginengine/pluginengine.go -- IssueSource, sourceLeaseAnswer -->
 <h4 id="kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</h4>
 <p>A unit test that needs kernel privilege (links, routes, XFRM, nftables,
 conntrack, raw or AF_PACKET sockets, a low port, a named network namespace)
@@ -1279,7 +1296,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

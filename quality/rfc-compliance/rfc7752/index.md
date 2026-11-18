@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 9 | of 26 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 26 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 26 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 21 | 21 of 36 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 17 | 17 of 36 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial test coverage | 1 | of 26 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 15 | of 26 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 12 | of 26 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 12 | of 26 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -94,9 +94,9 @@ Included in automatic checks: North-Bound Distribution of Link-State and TE Info
 
 **Area:** BGP-LS
 
-**Test verification:** 7 of 26 MUST proven
+**Test verification:** 6 of 26 MUST proven
 
-**Evidence:** unit 7
+**Evidence:** unit 6
 
 **Unmet:** RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-3.4-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1
 
@@ -122,8 +122,8 @@ Included in automatic checks: North-Bound Distribution of Link-State and TE Info
 
 ## Figures
 
-- **MUST bar**: Ze verified 7, Tests awaiting verification 3, Not built 16
-- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 3, Not assessed 25, Not built 17
+- **MUST bar**: Ze verified 6, Tests awaiting verification 4, Not built 16
+- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 4, Not assessed 25, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +132,9 @@ Included in automatic checks: North-Bound Distribution of Link-State and TE Info
 | Mandatory requirements complete | not complete |
 | MUST rows | 26 |
 | MUST rows kept (the MUST bar) | 26 |
-| Ze verified | 7 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -283,15 +283,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. reju
 
 In order for two BGP speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI. (Section 3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 7752 Section 3.2's complete capability paragraph and RFC 9552 Section 5.2's restatement against the current summary/derived row. The superseded/restated RFC9552-5.2-7 annotation remains accurate and unchanged. TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated checks encoded length, literal AFI/reserved/SAFI and both-sided BGP-LS intersection; its code comparison alone shares the implementation constant. TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent excludes BGP-LS from SupportsFamily and Families while retaining unicast, and distinguishes VPN SAFI 72 from SAFI 71. The reactor positive submits a real Node NLRI, requires one UPDATE and literal MP_REACH prefix 40 04 47; the reactor negative submits that same NLRI against unicast-only negotiated families and requires exact ErrNoPeersAcceptedFamily and no UPDATE bodies. Their shared fixture publishes the same family/encoding choices to Session and preserves all original checks. Together these retain both-sided capability-gated exchange; no receive-side validation or additional NLRI-type support is credited. The configured OPEN fixture's test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main's final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/multiprotocol_application_code_test.go::TestMultiprotocolApplicationsAdvertiseLiteralCodeOne, internal/component/bgp/reactor/multiprotocol_application_code_test.go::TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode, internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch, internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate, internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer, internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer, internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot, internal/core/bgp/capability/capability.go::Multiprotocol.WriteTo, internal/core/bgp/capability/capability.go::parseCapability, internal/core/bgp/capability/negotiated.go::Negotiate, internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated, internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent moved. Re-read RFC 7752 Section 3.2's complete capability paragraph and RFC 9552 Section 5.2's restatement against the current summary/derived row. The superseded/restated RFC9552-5.2-7 annotation remains accurate and unchanged. TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated checks encoded length, literal AFI/reserved/SAFI and both-sided BGP-LS intersection; its code comparison alone shares the implementation constant. TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent excludes BGP-LS from SupportsFamily and Families while retaining unicast, and distinguishes VPN SAFI 72 from SAFI 71. The reactor positive submits a real Node NLRI, requires one UPDATE and literal MP_REACH prefix 40 04 47; the reactor negative submits that same NLRI against unicast-only negotiated families and requires exact ErrNoPeersAcceptedFamily and no UPDATE bodies. Their shared fixture publishes the same family/encoding choices to Session and preserves all original checks. Together these retain both-sided capability-gated exchange; no receive-side validation or additional NLRI-type support is credited. The configured OPEN fixture's test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main's final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L108) | unit/verify | mutant, verified |
-| negative | [`TestRFC9552LinkStateNeverSentToIncapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L79) | unit/verify | revert, verified |
+| negative | [`TestRFC9552LinkStateNeverSentToIncapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L79) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
 | negative | [`TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestMultiprotocolApplicationsAdvertiseLiteralCodeOne`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L29) | unit/verify | mutant, verified |
-| positive | [`TestRFC9552LinkStateSentToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC9552LinkStateSentToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L56) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
 | positive | [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L28) | unit/verify | not verified |
 
 ### [`RFC7752-3.2-2`](#rfc7752-3.2-2)
@@ -482,9 +482,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7752NativeNLRINeverAnnouncedAsVPN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go#L71) | unit/verify | revert, verified |
+| negative | [`TestRFC7752NativeNLRINeverAnnouncedAsVPN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go#L71) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L267) | unit/verify | not verified |
-| positive | [`TestRFC7752NativeNLRIAnnouncedAsSAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestRFC7752NativeNLRIAnnouncedAsSAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7752NonVPNFamilyIsAFI16388SAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L231) | unit/verify | not verified |
 
 ### [`RFC7752-3.2-6`](#rfc7752-3.2-6)

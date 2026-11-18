@@ -8,6 +8,11 @@ This page explains the command model. For a live list of every command, run
 `ze help command`. `./le cli catalog update file <destination>` writes the
 Markdown catalog from the same live registries.
 
+`ze help` lists each top-level command name once. A command registered as a
+root keeps its owner's section and summary when the YANG tree also declares
+that name. Other YANG verbs appear under Operations.
+<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
+
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 [Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
@@ -39,12 +44,33 @@ on-disk revision history that a pipe does not have.
 
 When the input is on another machine, the daemon can inspect supplied bytes
 without reading a caller-named path. Use `show config supplied dump`,
-`validation`, `fmt` or `graph` with `content <base64>` and an optional
+`validation`, `fmt`, `graph`, `migrate`, `fix-plan` or `source` with `content <base64>` and an optional
 `name <filename>` diagnostic label. Dump also accepts `strip-private`; fmt
 accepts `check` or `diff`. These read-only commands use the same producers as
 the file commands and do not stage or apply configuration.
 <!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
 <!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+
+Supplied `migrate` accepts `format set|hierarchical`; `fix-plan` returns repair
+candidates without applying them. Supplied `source` accepts an optional quoted
+`path`, such as `path "bgp peer edge"`, and shows the masked source subtree
+before inheritance is resolved. These three also have daemon-host file forms
+under `show config <operation> file <path>`; remote filenames are confined to
+the daemon's configuration directories. Supplied input is at most 195,840
+decoded bytes, and produced remote text is at most 8 MiB; larger conversions
+remain available through the local command on the host holding the file.
+<!-- source: internal/component/config/cli/config_supplied_tools.go -- fileToolAnswer, suppliedMigrate, suppliedFixPlan, sourceBytesAnswer -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedAnswer -->
+
+Daemon-host file commands that return complete configuration bytes or resolved
+values require edit authorization: `show config dump`, `fmt`, `migrate`, `set`,
+`activate`, `deactivate` and `replace`. They can return credentials, including
+reversible `$9$` values. Permission is checked before the file is read, even
+when the requested form is a preview or strips private values. Caller-supplied
+forms remain read-authorized because their input belongs to the caller.
+`show config source` provides the read-authorized, masked view of a host file;
+an unparseable host file is refused because its secrets cannot be masked.
+<!-- source: internal/component/config/cli/register.go -- init, registerSuppliedCommands -->
 
 `show config supplied diff content <base64>` compares one encoded JSON object
 with `before` and `after` fields containing the two native configuration
@@ -54,6 +80,20 @@ content is masked in command records.
 <!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, show config supplied diff -->
 <!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair -->
 <!-- source: internal/core/redact/redact.go -- Command -->
+
+To change a detached source without changing the router, use `show config
+supplied set`, `activate`, `deactivate` or `replace`. Encode one JSON object
+containing `before` and `after` strings as `content`. For the editing verbs,
+`before` is the source configuration and `after` is one matching command, for
+example `set bgp router-id 192.0.2.1`. For `replace`, both are complete
+configuration sources. The result is configuration text to download or pass
+to another tool. `dry-run` returns the masked diff instead. Replacement
+validation warnings remain visible with either result. Invalid values,
+paths, replacement configurations and multiple commands are refused without
+changing a file or the live candidate. The registered browser forms accept
+the two inputs directly and compose the encoded request.
+<!-- source: internal/component/config/cli/config_detached.go -- detachedStatement, detachedMutationAnswer, detachedReplaceAnswer, detachedEditorAnswer -->
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
 
 MRT analysis (`le mrt show`, `density`, and content filters) derives mixed-family
 ADD-PATH decoding from both actual directional OPEN messages in the same input.
@@ -74,6 +114,18 @@ Run directly from the terminal. No daemon required (except `ze signal`, `ze stat
 `ze cli`, and daemon-targeted `ze show` subcommands).
 Some `ze show` subcommands run locally: `version`, `bgp decode`, `bgp encode`,
 `env`, `schema`, `yang`, `completion`.
+
+An external plugin's command is typed in the shell as any other command:
+`ze show acme-monitor status`. The `ze` binary does not hold it, because the
+plugin brings it in its own YANG, so `ze` asks the running ze, whose answer,
+exit code and format keyword (`ze show acme-monitor status json`) are those of
+`ze cli -c "show acme-monitor status"`. A path the running ze does not know
+either is refused as an unknown command. With no ze running, `ze` starts no
+plugin: when the stored config declares an external plugin, the command is
+reported as not available, naming the plugin, why no ze answered, and the fix
+(`ze start` when none runs); otherwise it is an unknown command. Help and shell
+completion of such a command need the running ze: use `ze cli`.
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer -->
 
 ### ze
 
@@ -256,10 +308,15 @@ ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
 ze config import --yes <file>...  # Replace existing configs without asking
 ze config rename <old> <new>     # Rename a config in the database
-ze config list [prefix]          # List files in database
+ze config list                   # List stored and nearby configuration files
 ze config list --backup <artifact>  # List the configs inside a backup
 ze config cat <key>              # Print database entry
 ```
+
+Configuration listing fails if the store or a searched directory cannot be
+read; it reports the cause and returns no partial list. A missing optional
+configuration directory is allowed, as is a genuinely empty store. The backup
+form lists only stored records and does not scan nearby host directories.
 
 While ze runs and owns the store, `ze config import` sends each input to the
 daemon as `update data config name <name> content <base64>` after the same
@@ -285,6 +342,13 @@ ze config show --backup <artifact> <name> [path...]  # Read a config inside a ba
 ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
 
+For a config that declares an external plugin, `validate`, `dump`, `diff`,
+`fmt` and `graph` ask the running Ze first, since only it holds that plugin's
+schema, and print its answer as a local one; `--user <name>` names the account
+that asks. With no Ze running they answer from the schema compiled into `ze`,
+and refuse a section of the plugin with the reason and one fix
+(`docs/plugin-development/schema.md`, "What works today").
+
 From a daemon surface (SSH, the web, MCP, REST, gRPC) the daemon runs
 `show config dump`, `validation`, `diff`, `history`, `graph` and `fmt` only on a
 file inside the configuration directories `show config list` searches, never
@@ -293,6 +357,26 @@ names the local `ze` command to run where the file is. The secret mask is the
 keyword `strip-private` there: `show config dump strip-private <file>`, and
 `fmt --check` and `--diff` are the keywords `check` and `diff`:
 `show config fmt diff <file>`. The diff arrives as the answer's warnings.
+
+`show config validation file <file> pending` checks the saved `<file>.draft`,
+as `ze config validate --pending <file>` does locally. The daemon checks that
+the draft itself stays inside the allowed directories before reading it.
+`show config history file <file>` lists the selected file's stored revisions;
+the positional file spelling also remains available.
+<!-- source: internal/component/config/cli/config_validation_source.go -- readValidationSource -->
+<!-- source: internal/component/config/cli/config_data.go -- dataValidate, dataHistory -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- show config validation pending, show config history file -->
+
+`ze config rename <old-name> <new-name>` moves the complete stored configuration,
+including its versions, pointers and saved editor work. If a daemon owns the
+store, it sends `request data config rename old <name> new <name>` to that
+daemon. The daemon refuses its running configuration and configured managed
+client identities. Destination collisions and unfinished publication intents
+also refuse the operation. A successful daemon answer must identify both
+requested names before the local tool reports success.
+<!-- source: internal/component/config/storage/rename_config.go -- RenameConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rename.go -- handleDataConfigRename -->
+<!-- source: internal/component/config/cli/config_rename_daemon.go -- renameConfigThroughDaemon -->
 
 `--backup <artifact>` points `edit`, `show`, `diff`, `set` and `list` at the
 configs inside a backup artifact instead of the live store, with no daemon. A
@@ -328,8 +412,23 @@ one candidate never reads as two.
 ```
 ze config history <file>         # List rollback revisions
 ze config rollback <N> <file>    # Restore revision N
-ze config archive <name> <file>  # Archive config (see config-archive.md)
+ze config archive <name>         # Trigger the daemon's named config archive
 ```
+
+Rollback uses the one-based revision order shown by `history`, including the
+active version when recorded. A stored rollback publishes a new active version
+and retains the previous active version as rollback. If a daemon owns the store,
+the local command sends `request data config rollback name <name> revision <N>`
+to that owner and requires a complete matching response before reporting
+success.
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
+<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon, configRollbackDaemonAnswer.selectedTime -->
+
+The daemon stages and reloads its running source. Other stored names
+commit without a reload. A loose file restores directly from its folder's
+history when that store has no daemon owner.
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig -->
 
 **Form conversion:**
 
@@ -355,7 +454,10 @@ Decode a `$9$` secret to its plaintext, or encode a plaintext. A `ze:sensitive`
 leaf (a BGP MD5 password, an API token, a pre-shared key) is stored in the
 reversible `$9$` form, and every display path masks it. `ze secret decode`
 gives the operator the actual key from a config. It works offline, reads no
-config and reaches no daemon.
+config. The daemon forms below convert caller-supplied values with the same
+codecs.
+<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret -->
+<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
 
 ```
 ze secret decode '$9$...'        # Print the plaintext behind a $9$ value
@@ -375,6 +477,18 @@ forms `$1$`, `$5$`, `$6$`). A hash keeps no copy of the password, so
 `ze secret decode` refuses it and names `ze config set` to set a new password.
 `ze secret encode` refuses a value that already starts with `$9$`, because the
 config reads such a value as encoded.
+
+The corresponding daemon commands are `show secret encode content <base64>`
+and `show secret decode content <base64>`. They convert only the caller's
+supplied bytes with the same codecs; they read no daemon configuration or key.
+Their file and paste controls accept the value directly. API callers encode
+the operand as padded base64. Literal bytes are preserved unless
+`trim-line-ending` is selected, which drops the one trailing line ending that
+the standalone stdin form drops. The answer has the same final newline as the
+standalone command. Supplied operands are masked in command records; decoded
+plaintext is deliberately returned to the requesting caller.
+<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
+<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedSecret -->
 
 | Exit code | Meaning |
 |-----------|---------|
@@ -930,7 +1044,7 @@ running: stopped and started again` (the `was-running` field says which).
 
 | Refusal | When |
 |---------|------|
-| `required argument missing: name` | no name was given. The daemon refuses the line against the command's schema, before the command runs |
+| `required argument missing: name` | no name was given. The daemon refuses the line against the command's schema, explains why it needs the name, and gives the full corrected command on its `fix:` line, before the command runs |
 | `request plugin restart needs exactly one plugin name` | more than one name was given |
 | `plugin <name> is not a configured plugin` | neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed |
 | `plugin <name> cannot restart itself` | the plugin sent the command for its own name. The restart waits until the plugin's calls into ze have ended, and this request is one of them, so it is refused before anything stops; type the command at the CLI |
@@ -1529,10 +1643,12 @@ IS-IS protocol tools that run without a daemon, mirroring `ze bgp decode`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `isis decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
+| `isis decode [--pretty] [<path> \| -]` | offline | Decode an IS-IS PDU from a file or stdin and emit JSON on stdout |
 
-`ze isis decode` runs without a daemon. Input is ASCII hex (whitespace and
-newlines allowed); raw PDU bytes piped straight from a capture also work (an
+`ze isis decode` runs without a daemon. Supply a file path or `-` for stdin.
+With no input operand, a pipe is accepted and a terminal prints usage without
+waiting. Both file and stdin input are limited to 256 KiB. Input is ASCII hex
+(whitespace and newlines allowed); raw PDU bytes piped straight from a capture also work (an
 IS-IS PDU starts with the protocol discriminator `0x83`, which is not an ASCII
 hex digit, so the two encodings are never confused). Output is the JSON view of
 the decoded PDU (common header, body, and decoded TLVs). Use `--pretty` for
@@ -1543,6 +1659,7 @@ Example:
 
 ```
 echo 831b0100... | ze isis decode --pretty
+ze isis decode --pretty capture.hex
 ```
 
 Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
@@ -1550,6 +1667,27 @@ a malformed PDU; stderr carries the reason.
 
 <!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
 <!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
+
+### OSPF (Offline Tools)
+
+`ze ospf decode [--pretty] [--opaque | --v3] [<path> | -]` reads an OSPFv2
+packet from a file or stdin and emits JSON without a daemon. Use `--opaque`
+for an IPv4 opaque LSA, or `--v3` for an OSPFv3 LSA. ASCII hex and raw packet
+bytes are accepted. Flags precede the input operand.
+
+Use `-` for stdin. Omitting the input accepts a pipe; at a terminal it prints
+usage without waiting. Both sources are limited to 256 KiB. Unreadable,
+oversized or malformed input exits 1 with the reason on stderr; a successful
+decode exits 0. A file literally named `-` is addressed as `./-`.
+
+```
+ze ospf decode --pretty capture.hex
+ze ospf decode --opaque opaque-lsa.hex
+cat router-lsa.hex | ze ospf decode --v3 -
+```
+
+<!-- source: internal/plugins/ospf/cli/decode.go -- cmdDecode, readWire -->
+<!-- source: internal/plugins/ospf/cli/run.go -- usage -->
 
 ### show pki
 
@@ -2283,14 +2421,26 @@ family is the last token the command reads, so a token after it is refused the
 same way: `show bgp ipv4 rubbish` names no command and answers no summary.
 
 The two aliases and the column order are declared on `show bgp`, and a command
-inherits a declaration from its own path or an ancestor of it. Each branch under
-`show bgp` declares no alias and no column order at its own root, which covers
-every command in that branch: `show bgp peer` covers `show bgp peer 192.0.2.1
-detail`, and `show bgp rib` covers `show bgp rib best`. So no command under
-`show bgp` inherits `| summary` or `| peers`.
+inherits a declaration from its own path or an ancestor of it. The BGP owner
+confines the parent's metadata with an inheritance boundary. The first keyword
+under `show bgp` supplies an empty floor: `show bgp peer` covers
+`show bgp peer 192.0.2.1 detail`, including selector spellings and newly
+registered branches. So no child command under `show bgp` inherits the parent's
+`| summary` or `| peers`.
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init, registerAliases -->
 
-That empty declaration at a branch root is a floor rather than a claim. A
-command deeper in the branch declares its own order and keeps it. Twenty
+A single accepted family token remains an argument of `show bgp`, so
+`show bgp ipv4 | peers` keeps the summary's aliases, columns, shape and address
+fields. The boundary uses the same family predicate as the overview handler;
+a token after the family still meets the child floor. A child's own declaration
+on an equal or longer path takes precedence.
+<!-- source: internal/component/command/column_order.go -- lookupPath -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpOverview, isFamilyArg -->
+
+That empty floor is not a claim about a child's answer. A command on the branch
+root or deeper declares its own order and keeps it. Twenty
 commands under `show bgp` declare one, and each of the twenty also declares
 whether its answer holds rows. `ze help command "<path>" --json` answers what one
 of them declares.
@@ -2515,6 +2665,16 @@ ze exabgp migrate --env <file>   # Convert ExaBGP env file to ze config
 
 **migrate flags:**
 
+The same byte converters are registered as `show exabgp migration config
+content <base64> [name <filename>] [dry-run]` and `show exabgp migration
+environment content <base64> [name <filename>] [dry-run]`. Browser file/paste
+controls discover both registrations. Names are diagnostic labels, never
+daemon filenames. Config dry-run returns diagnostics without converted text;
+environment dry-run preserves the local warning and still returns converted
+text. Neither command stages or applies the result.
+<!-- source: internal/plugins/exabgp/register_migration.go -- init -->
+<!-- source: internal/plugins/exabgp/migration_bytes.go -- migrationConfigBytes, migrationEnvironmentBytes -->
+
 | Flag | Purpose |
 |------|---------|
 | `--dry-run` | Show what would be done without output |
@@ -2640,6 +2800,12 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
 | `--from <source>` | Import a blob from a local path or an `http`, `https` or `tftp` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
 | `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
+
+`--web-cert` and `--web-cert-name` consume text values in shell completion.
+After the value, completion offers the other `init` flags. Both separate values
+and `--web-cert=<address>` forms retain that flag inventory.
+<!-- source: internal/plugins/init/register.go -- init -->
+<!-- source: internal/plugins/completion/flags.go -- flagContext, writeFlags -->
 
 Every `--from` source is checked whole (`zefs.Check`) before a key is written.
 A digest mismatch, a body that is not a blob, or a corrupt entry imports
@@ -3030,6 +3196,23 @@ ze data restore <file> full        # Replace the whole tree with the artifact's 
 ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
+`show data list prefix <prefix>` selects the same key prefix as the local list
+command. `show data registered pattern <exact-pattern>` selects one registered
+key description; an unknown pattern is a refusal on both routes, rather than
+an empty success. Omitting either selector retains the complete inventory.
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataList, dataRegistered -->
+<!-- source: internal/component/config/storage/cli/registered.go -- registeredAnswer -->
+<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data list, show data registered -->
+
+`show data encode content <base64> [part full|header|crc] [capacity <bytes>]`
+uses the local encoder and returns its exact frame, header or CRC bytes.
+`part` defaults to `full`; capacity defaults to input length plus ten percent.
+The declared capacity must hold the input and is at most 8,388,480 bytes, so
+the frame fits one daemon answer. The registered input descriptor supplies a
+native browser file/paste control; no live store is opened or changed.
+<!-- source: internal/component/config/storage/cli/encode.go -- dataEncode, encodeNetcap, netcapCapacityMax -->
+<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data encode -->
+
 `--path <store>` selects the exact tree directory or `.zefs` artifact.
 Without it, commands use `database/` under the configured directory.
 Data commands never initialize a missing live store.
@@ -3174,7 +3357,9 @@ when at least one file was imported and `2` when none was. With ze stopped, a
 file whose config has a confirmed commit a stopped daemon left open is refused
 with that window's refusal, naming `ze start <config>`, because that daemon's
 next start reverts the commit and would undo the import.
-<!-- source: internal/component/config/storage/cli/main.go -- cmdImport, importConfigs, importConfig, importConfigsThroughDaemon -->
+An unfinished file-commit record also refuses an offline import before its
+active bytes or history change. Recover that publication before importing again.
+<!-- source: internal/component/config/storage/cli/main.go -- cmdImport, importConfigs, ImportConfig, importConfigsThroughDaemon -->
 <!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
 
 The daemon answers these store commands on every surface (SSH, REST, gRPC,
@@ -3191,13 +3376,36 @@ update data config name <name> content <base64>
 show data check
 ```
 
+Caller-owned artifacts use private transfer tokens instead of daemon-host paths:
+
+```
+request config artifact import artifact <id> name <config-name> transfer <token>
+request config artifact restore config artifact <id> [name <source-name>] [client <name>]
+```
+
+Import accepts complete raw input under one basename, including unvalidated
+configuration bytes. Existing configurations gain a native active version;
+new names gain their active file key. Restore checks and selects the artifact's
+active configuration, then uses the current daemon's ordinary candidate and
+reload. An unserved managed client, ambiguous source, pending candidate, open
+confirmed-commit window or missing reload owner refuses the affected restore.
+Both commands require edit authorization and retain their source unchanged.
+Abort completed source transfers after use and delete artifacts when finished.
+<!-- source: internal/component/config/cli/artifact_import.go -- artifactImport -->
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- RestoreConfigFromSource -->
+
 `request data repair path <absolute-output>` writes the salvage `ze data
 repair --output` writes, from the store the daemon owns, while it runs. The
 daemon holds its own writes for the walk, so a key it would write or remove
 meanwhile waits, and the copy is one moment of the store. The history of the
 copy is then repaired as `ze data repair` repairs it. It answers `path`,
-`recovered`, `skipped`, a row per skipped entry and per history finding, and a
-warning when an entry did not read or a history key was dropped. It also
+`recovered`, `recovered-keys`, `skipped`, a row per skipped entry and per history
+finding, and a warning when an entry did not read or a history key was dropped.
+Each history row retains its `severity` and its `action` (`reported` or
+`dropped`). Unresolved history errors fail the command while retaining the
+salvage result and the command that checks it. The local repair shares that
+verdict and exits 1 for unresolved errors. It also
 answers `vanished` and one `vanished-keys` row per key removed during the walk,
 which the held writes keep at zero on the daemon. A relative
 path, a `..` element, a symlink, an existing path, a name the store owns in
@@ -3205,7 +3413,15 @@ its folder and a path inside the live tree are refused, each naming the rule.
 The live store is not changed; check the copy with
 `ze data --path <output> check`. The built-in read-only profile is denied it.
 <!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair, repairAnswer -->
+<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, exitCode -->
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
+
+If the complete repair report exceeds the 8 MiB response limit, the command
+fails with its path, counts, `salvage-written: true` and `details-omitted: true`.
+The saved salvage remains available. The answer names the command that checks
+it, instead of presenting a partial list as the complete report.
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusal -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 
 `show data check` answers the store's integrity verdict: `entries`,
 `corrupt-entries`, `vanished-entries`, `history-checked` and one `findings` row

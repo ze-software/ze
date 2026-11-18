@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 98 registry entries: 98 runtime plugins. Among runtime plugins, 77 declare configuration roots, 57 declare dependencies, and 81 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 98 registry entries: 98 runtime plugins. Among runtime plugins, 77 declare configuration roots, 57 declare dependencies, and 79 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -215,14 +215,14 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-adj-rib-in" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-adj-rib-in Adj-RIB-In storage (raw hex replay) Adj-RIB-In storage (raw hex replay) internal/component/bgp/plugins/adj_rib_in BGP       internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-adj-rib-in" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-adj-rib-in Adj-RIB-In storage (raw hex replay) Adj-RIB-In storage (raw hex replay) internal/component/bgp/plugins/adj_rib_in BGP       ">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-adj-rib-in/"><code>bgp-adj-rib-in</code></a></h3>
                         <p class="plugin-desc">Adj-RIB-In storage (raw hex replay)</p>
                         <div class="chips">
-                            <span class="chip">YANG:1</span>
+                            <span class="chip">no config</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-aigp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-aigp Accumulated IGP Metric (RFC 7311) Accumulated IGP Metric (RFC 7311) internal/component/bgp/plugins/aigp BGP       ">
@@ -358,16 +358,16 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-route-refresh" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-route-refresh Route Refresh capability decoding Route Refresh capability decoding internal/component/bgp/plugins/route_refresh BGP   bgp bgp   internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-route-refresh" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-route-refresh Route Refresh capability decoding Route Refresh capability decoding internal/component/bgp/plugins/route_refresh BGP   bgp bgp   internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-route-refresh/"><code>bgp-route-refresh</code></a></h3>
                         <p class="plugin-desc">Route Refresh capability decoding</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
-                            <span class="chip">YANG:3</span>
+                            <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>3 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-rpki" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rpki RPKI origin validation via RTR protocol RPKI origin validation via RTR protocol internal/component/bgp/plugins/rpki BGP   bgp bgp bgp-adj-rib-in   internal/component/bgp/plugins/rpki/yang/ze-rpki.yang">
@@ -383,16 +383,15 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-adj-rib-in</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-rpki-decorator" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rpki-decorator Correlates UPDATE + RPKI events into merged update-rpki events Correlates UPDATE + RPKI events into merged update-rpki events internal/component/bgp/plugins/rpki_decorator BGP    bgp bgp-rpki   internal/component/bgp/plugins/rpki_decorator/yang/ze-rpki-decorator.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-rpki-decorator" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rpki-decorator Correlates UPDATE + RPKI events into merged update-rpki events Correlates UPDATE + RPKI events into merged update-rpki events internal/component/bgp/plugins/rpki_decorator BGP    bgp bgp-rpki   ">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-rpki-decorator/"><code>bgp-rpki-decorator</code></a></h3>
                         <p class="plugin-desc">Correlates UPDATE + RPKI events into merged update-rpki events</p>
                         <div class="chips">
                             <span class="chip">needs:bgp</span>
                             <span class="chip">needs:bgp-rpki</span>
-                            <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rpki</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rpki</code></dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-rr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rr Route Reflector Route Reflector internal/component/bgp/plugins/rr BGP    bgp-adj-rib-in bgp-rib   internal/component/bgp/plugins/rr/yang/ze-rr-cmd.yang">
@@ -754,16 +753,17 @@
                     <p>Generated group for registry entries mapped to the Container area. Config roots: <code>container</code>. Source area: <code>internal/plugins/container</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-meta" id="plugin-container" data-plugin-card data-family="container" data-category="system" data-search="container OCI containers run by ze: confined, limited, supervised and removed without a trace OCI containers run by ze: confined, limited, supervised and removed without a trace internal/plugins/container Container   container sysctl   internal/plugins/container/yang/ze-container-cmd.yang internal/plugins/container/yang/ze-container-conf.yang">
+                    <article class="card plugin-card cat-meta" id="plugin-container" data-plugin-card data-family="container" data-category="system" data-search="container OCI containers run by ze: confined, limited, supervised and removed without a trace OCI containers run by ze: confined, limited, supervised and removed without a trace internal/plugins/container Container   container sysctl  interface firewall internal/plugins/container/yang/ze-container-cmd.yang internal/plugins/container/yang/ze-container-conf.yang">
                         <span class="cat">Container</span>
                         <h3><a href="container/"><code>container</code></a></h3>
                         <p class="plugin-desc">OCI containers run by ze: confined, limited, supervised and removed without a trace</p>
                         <div class="chips">
                             <span class="chip mode">config:container</span>
                             <span class="chip">needs:sysctl</span>
+                            <span class="chip">Start after:interface</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>container</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>container</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>Start after</dt><dd><code>interface</code>, <code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1764,7 +1764,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

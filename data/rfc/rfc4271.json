@@ -8,10 +8,10 @@
   "must": {
     "total": 133,
     "kept": 133,
-    "ze-proven": 91,
+    "ze-proven": 108,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 29,
+    "proof-pending": 12,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 13,
@@ -31,9 +31,9 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 10,
+    "functional": 11,
     "interop": 4,
-    "unit": 77
+    "unit": 93
   },
   "unmet": [
     "RFC4271-5.1.6-1",

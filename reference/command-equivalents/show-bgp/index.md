@@ -6,15 +6,15 @@ BGP peers\, sessions\, RIB\, and protocol tools\.
 
 - Registry path: `show bgp`
 - Usage: `show bgp`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:overview`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `decode`, `encode`, `health`, `irr`, `peer`, `reject-asn`, `rib`, `update-delay`
 - Answer shape: tab
 - Address fields: address
-- Column order: address, name, description, remote-as, peer-type, state, uptime, state-changed, last-error, routes-received, routes-accepted, routes-sent, updates-received, updates-sent, keepalives-received, keepalives-sent, eor-received, eor-sent, connections-dropped; router-id, local-as, uptime, peers-configured, peers-established, family, peers-in-family, peers
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Column order: address\, name\, description\, remote\-as\, peer\-type\, state\, uptime\, state\-changed\, last\-error\, routes\-received\, routes\-accepted\, routes\-sent\, updates\-received\, updates\-sent\, keepalives\-received\, keepalives\-sent\, eor\-received\, eor\-sent\, connections\-dropped\; router\-id\, local\-as\, uptime\, peers\-configured\, peers\-established\, family\, peers\-in\-family\, peers
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -36,21 +36,21 @@ Category: BGP
 ## Vendor equivalents
 
 ### Junos MX
-- `show bgp summary` (verified, junos-bgp-summary)
+- `show bgp summary` (verified, junos\-bgp\-summary)
   - Intent: BGP session summary
 
 ### IOS XR
-- `show bgp ipv4 unicast summary` (verified, iosxr-bgp-commands)
+- `show bgp ipv4 unicast summary` (verified, iosxr\-bgp\-commands)
   - Intent: BGP session summary
-- `show bgp summary` (verified, iosxr-bgp-commands)
+- `show bgp summary` (verified, iosxr\-bgp\-commands)
   - Intent: BGP session summary
 
 ### SR OS
-- `show router bgp summary` (verified, nokia-bgp-show)
+- `show router bgp summary` (verified, nokia\-bgp\-show)
   - Intent: BGP session summary
 
 ### VyOS
-- `show bgp ipv4 summary` (verified, vyos-bgp)
+- `show bgp ipv4 summary` (verified, vyos\-bgp)
   - Intent: BGP session summary
-- `show ip bgp summary` (legacy, vyos-bgp)
+- `show ip bgp summary` (legacy, vyos\-bgp)
   - Intent: BGP session summary

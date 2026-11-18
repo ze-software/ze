@@ -6,15 +6,15 @@ Check whether best\-path computation is still running\.
 
 - Registry path: `show bgp rib best status`
 - Usage: `show bgp rib best status`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:rib-best-status`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: running, peers-with-rib, total-routes
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Column order: running\, peers\-with\-rib\, total\-routes
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

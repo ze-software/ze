@@ -1884,6 +1884,11 @@ subsystem's RouteObserver emits a <code>(l2tp, route-change)</code> batch on the
 EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
 prefix. Session-down emits matching remove batches, one per address
 family that was up.</p>
+<p>The live record belongs to the full tunnel and session pair. Two tunnels can
+use the same session number and keep separate address and framed routes.
+Removing one pair leaves the other pair's
+routes available for replay. A Down for an unknown pair removes nothing.</p>
+<!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
 <p>The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers
 (BGP) when a matching import rule is configured:</p>
@@ -2164,7 +2169,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

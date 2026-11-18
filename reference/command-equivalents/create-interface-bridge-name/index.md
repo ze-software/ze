@@ -9,13 +9,13 @@ Create a Linux bridge for L2 forwarding\.
 - Mode: Daemon
 - Wire method: `ze-iface:interface-create-bridge`
 - Backends: `netlink`
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `address`, `unit`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

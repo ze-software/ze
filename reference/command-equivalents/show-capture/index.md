@@ -5,17 +5,17 @@ Show captured control\-plane messages\.
 ## Ze command
 
 - Registry path: `show capture`
-- Usage: `show capture [protocol <l2tp\|bgp>] [tunnel-id <tunnel-id>] [count <count>] [peer <peer>]`
-- Mode: Read-only
+- Usage: `show capture [protocol <l2tp|bgp>] [tunnel-id <tunnel-id>] [count <count>] [peer <peer>]`
+- Mode: Read\-only
 - Wire method: `ze-diag:show-capture`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `interface`, `raw`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

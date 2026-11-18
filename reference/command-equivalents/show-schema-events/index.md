@@ -6,15 +6,15 @@ List all notification types defined in YANG API modules\.
 
 - Registry path: `show schema events`
 - Usage: `show schema events`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-config-schema:show-schema-events`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: method, module, description
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: method\, module\, description
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

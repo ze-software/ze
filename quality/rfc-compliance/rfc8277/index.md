@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 35 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 35 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 35 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 54 | 54 of 69 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 56 | 56 of 69 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -94,9 +94,9 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 **Area:** BGP Labeled Unicast
 
-**Test verification:** 10 of 35 MUST proven
+**Test verification:** 11 of 35 MUST proven
 
-**Evidence:** unit 10
+**Evidence:** unit 11
 
 **Unmet:** RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3
 
@@ -120,8 +120,8 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 ## Figures
 
-- **MUST bar**: Ze verified 10, Tests awaiting verification 1, Not built 24
-- **Overview bar**: Ze MUST verified 10, SHOULD verified 1, Tests awaiting verification 1, Not assessed 6, Not built 24
+- **MUST bar**: Ze verified 11, Not built 24
+- **Overview bar**: Ze MUST verified 11, SHOULD verified 1, Not assessed 6, Not built 24
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 | Mandatory requirements complete | not complete |
 | MUST rows | 35 |
 | MUST rows kept (the MUST bar) | 35 |
-| Ze verified | 10 |
+| Ze verified | 11 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -544,8 +544,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestLabeledPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_test.go#L34) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestLabeledVPNPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go#L30) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLabeledPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_test.go#L34) | unit/verify | mutant, verified |
+| positive | [`TestLabeledVPNPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go#L30) | unit/verify | mutant, verified |
 
 ### [`RFC8277-3.2.1-2`](#rfc8277-3.2.1-2)
 

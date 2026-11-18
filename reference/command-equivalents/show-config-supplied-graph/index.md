@@ -6,15 +6,15 @@ Show dependencies from supplied configuration bytes\.
 
 - Registry path: `show config supplied graph`
 - Usage: `show config supplied graph <content> [name <name>]`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-supplied-graph`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

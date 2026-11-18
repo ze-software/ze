@@ -6,16 +6,16 @@ Show active warnings across all subsystems\.
 
 - Registry path: `show warnings`
 - Usage: `show warnings`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-cmd:show-warnings`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Logs, warnings, and errors
+### Logs\, warnings\, and errors
 
 Category: Operations
 
@@ -48,5 +48,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show log` (verified, vyos-cli)
-  - Intent: Logs, warnings, and errors
+- `show log` (verified, vyos\-cli)
+  - Intent: Logs\, warnings\, and errors

@@ -6,15 +6,15 @@ Pretty\-print the configuration with consistent formatting\.
 
 - Registry path: `show config fmt`
 - Usage: `show config fmt [check] [diff]`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-fmt`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -32,7 +32,7 @@ Normalizes indentation and ordering\. Output goes to stdout \(read\-only\)\. To 
 
 ## Mapping intents
 
-### Show running, candidate, and diffed configuration
+### Show running\, candidate\, and diffed configuration
 
 Category: Configuration
 
@@ -51,7 +51,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `compare` (verified, vyos-cli)
-  - Intent: Show running, candidate, and diffed configuration
-- `show configuration` (verified, vyos-cli)
-  - Intent: Show running, candidate, and diffed configuration
+- `compare` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration
+- `show configuration` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration

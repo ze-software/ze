@@ -6,16 +6,16 @@ Show traffic counters for a subscriber\'s PPP interface\.
 
 - Registry path: `show l2tp session traffic`
 - Usage: `show l2tp session traffic`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-l2tp:session-traffic`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

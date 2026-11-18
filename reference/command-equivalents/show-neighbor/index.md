@@ -5,17 +5,17 @@ Show the ARP and neighbor discovery table\.
 ## Ze command
 
 - Registry path: `show neighbor`
-- Usage: `show neighbor [family <ipv4\|ipv6\|any\|all>]`
-- Mode: Read-only
+- Usage: `show neighbor [family <ipv4|ipv6|any|all>]`
+- Mode: Read\-only
 - Wire method: `ze-iface:show-neighbor`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -50,5 +50,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show arp` (verified, vyos-cli)
+- `show arp` (verified, vyos\-cli)
   - Intent: ARP and neighbor cache

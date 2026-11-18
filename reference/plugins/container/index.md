@@ -25,6 +25,13 @@ OCI containers run by ze: confined, limited, supervised and removed without a tr
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`interface`](../interface/index.md), [`firewall`](../firewall/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/container`

@@ -5,16 +5,16 @@ Live mtr\-style traceroute that updates continuously\.
 ## Ze command
 
 - Registry path: `monitor traceroute`
-- Usage: `monitor traceroute <destination> [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache\|bypass-cache>]`
-- Mode: read-only, offline
+- Usage: `monitor traceroute <destination> [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache|bypass-cache>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-traceroute:monitor-traceroute`
 - Backends: any backend
-- Task support: required: the MCP server always answers with a task handle
+- Task support: required\: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: addr
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

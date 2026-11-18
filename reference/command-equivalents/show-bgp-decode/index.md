@@ -5,17 +5,17 @@ Decode a hex\-encoded BGP message into readable JSON\.
 ## Ze command
 
 - Registry path: `show bgp decode`
-- Usage: `show bgp decode [type <open\|update\|notification\|keepalive>] [nlri <nlri>] [family <family>] [pcap <pcap>] [plugin <plugin>] [message <message>]`
-- Mode: read-only, offline
+- Usage: `show bgp decode [type <open|update|notification|keepalive>] [nlri <nlri>] [family <family>] [pcap <pcap>] [plugin <plugin>] [message <message>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-bgp:show-decode`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

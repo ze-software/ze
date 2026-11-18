@@ -6,20 +6,20 @@ Show one reject\-asn list\.
 
 - Registry path: `show bgp reject-asn name`
 - Usage: `show bgp reject-asn name <name>`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-reject-asn-name`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: name, import-peers, export-peers, entries, patterns; asn, positions, network
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Column order: name\, import\-peers\, export\-peers\, entries\, patterns\; asn\, positions\, network
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `peers`: The peer rows\, without the aggregate fields (`display peers`); `summary`: The aggregate fields\, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
+- Pipe aliases: none
 
 The same answer for a single list\, for a config that holds many\.
 

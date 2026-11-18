@@ -578,6 +578,10 @@ source session's <code>source-llgr-advertised</code> fact.</p>
 </tr>
 </tbody>
 </table>
+<p>Adding NO_EXPORT to a received COMMUNITY preserves its Partial bit, along with
+the retained community values. The community rebuild uses an Extended Length
+header for both complete and partial attributes.</p>
+<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- emitCommunity -->
 <p>The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
 <p>Only a route at the LLGR stale level takes this treatment: one Ze marked LLGR
@@ -750,7 +754,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

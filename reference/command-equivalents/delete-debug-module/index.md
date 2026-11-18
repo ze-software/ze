@@ -6,16 +6,16 @@ Disable debug for a subsystem\, or remove one of its flags or scopes\.
 
 - Registry path: `delete debug module`
 - Usage: `delete debug module <module-name> [flag <flag>] [scope <kind> <value>]`
-- Mode: daemon, offline
+- Mode: daemon\, offline
 - Wire method: `ze-debug:delete-module`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `scope`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

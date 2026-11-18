@@ -6,16 +6,16 @@ Show IS\-IS\-computed IPv6 routes \(RFC 5308\)\.
 
 - Registry path: `show isis route ipv6`
 - Usage: `show isis route ipv6`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-isis:show-route-ipv6`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

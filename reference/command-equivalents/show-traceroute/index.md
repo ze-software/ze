@@ -5,17 +5,17 @@ Trace the network path from this router to a target\.
 ## Ze command
 
 - Registry path: `show traceroute`
-- Usage: `show traceroute [dest <dest>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache\|bypass-cache>]`
-- Mode: read-only, offline
+- Usage: `show traceroute [dest <dest>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache|bypass-cache>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-traceroute:show-traceroute`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -50,11 +50,11 @@ No equivalent listed.
 No equivalent listed.
 
 ### SR OS
-- `ping <target>` (verified, nokia-mdcli)
+- `ping <target>` (verified, nokia\-mdcli)
   - Intent: Ping and traceroute diagnostics
 
 ### VyOS
-- `ping <target>` (verified, vyos-cli)
+- `ping <target>` (verified, vyos\-cli)
   - Intent: Ping and traceroute diagnostics
-- `traceroute <target>` (verified, vyos-cli)
+- `traceroute <target>` (verified, vyos\-cli)
   - Intent: Ping and traceroute diagnostics

@@ -9,7 +9,7 @@ Route Refresh capability decoding
 | Registry area | BGP |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/route_refresh` |
-| YANG modules | 3 |
+| YANG modules | 2 |
 
 ## Configuration
 
@@ -29,5 +29,5 @@ Route Refresh capability decoding
 
 Package: `internal/component/bgp/plugins/route_refresh`
 
-YANG files: `internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang`, `internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang`, `internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang`
+YANG files: `internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang`, `internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang`
 Metadata source: `Registration`

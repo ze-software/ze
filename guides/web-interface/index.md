@@ -69,6 +69,151 @@ environment {
 ```
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
 
+## Offline backup workspace
+
+Choose **Services → Backup workspace**, or open `/backups/`, to edit a `.zefs`
+backup independently of the running configuration. This page uses a full-text
+configuration editor. It requires an account with configuration edit access,
+because the artifact can contain credentials.
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+
+The backup workspace also runs with `ze start --web-only`. It uses the same
+artifact commands as the configured daemon; opening it starts no routing
+protocol. Stop the web process only after downloading the changes you need.
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, webOnlyDispatcher -->
+
+Full-store restore also uses the normal recovery lifecycle in web-only mode.
+It waits for web requests and the original store owner to finish before
+replacing the store. A cleanup failure prevents replacement and returns a
+failure with the recovery instructions. Applying only the running configuration
+requires a loaded daemon; web-only mode refuses that operation before staging
+any configuration candidate.
+<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
+<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
+
+1. Select a backup file and choose **Open backup**.
+2. Choose its **Configuration**, then **Open configuration**. The editor starts
+   with the committed configuration. Existing saved drafts and pending
+   candidates remain in the artifact and are not resumed.
+3. Edit the text and choose **Validate**. A refused edit keeps your text available
+   for correction. Validation covers the checks available in this Ze process;
+   it does not prove acceptance on the target host or running system.
+4. Choose **Review changes**, then **Save into backup**. Changing the text after
+   review requires another review. A form opened before another tab saved the
+   same configuration must be reviewed against the newer saved configuration.
+5. Choose **Download saved backup**. The download is a complete artifact with
+   the edited configuration, its history and the original backup's other keys.
+   Unsaved text is not included.
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+<!-- source: internal/component/config/artifact/edit.go -- Edit, prepare, publish -->
+<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
+<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
+
+6. Before opening the downloaded backup in the Ze CLI on Unix, restrict access to your account:
+
+   ```sh
+   chmod 600 updated-backup.zefs
+   ```
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+<!-- source: internal/component/config/storage/tree.go -- secureNode, openNode -->
+
+7. Choose **Close workspace** when finished.
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+
+Each workspace has its own URL and is available only to the account that
+uploaded it. Uploaded copies are private temporary files; the original file on
+your computer is unchanged. An artifact can be at most 64 MiB, and configuration
+text can be at most 4 MiB. The server retains at most 32 workspaces, eight per
+account, with a shared 256 MiB artifact allowance. Workspaces expire after one
+hour without use and are removed when the daemon stops. Download the edited
+backup before closing the workspace or stopping the daemon.
+
+The same private artifact can be used from the command surface. The artifact
+identity comes from upload completion and belongs to your authenticated account.
+The browser's **Admin Commands** forms derive these commands and their fields
+from the command model:
+
+| Operation | Command |
+|-----------|---------|
+| Stored configurations | `show config artifact config list artifact <id>` |
+| Masked committed source | `show config artifact source artifact <id> name <config>` |
+| Resolved comparison | `show config artifact diff artifact <id> name <config> other <config>` |
+| Compare a revision | `show config artifact diff artifact <id> name <config> revision <number>` |
+| Stored history and draft state | `show config artifact history artifact <id> name <config>` |
+| Set, activate or deactivate | `request config artifact <operation> artifact <id> name <config> text <transfer>` |
+| Complete replacement | `request config artifact replace artifact <id> name <config> text <transfer>` |
+| Publish a history revision | `request config artifact rollback artifact <id> name <config> revision <number>` |
+
+For a statement or replacement, upload the text with `request config artifact
+text begin`, the declared upload append operation and upload finish. Keep the
+returned text-transfer identity until the operation ends, then abort it. A set
+transfer contains one complete `set` statement; activation transfers similarly
+contain one `activate` or `deactivate` statement. A replacement contains the
+configuration. Adding `dry-run` returns a masked preview without changing the
+retained artifact. These operations preserve saved drafts and unrelated keys.
+<!-- source: internal/component/config/cli/artifact_config.go -- artifactConfigMutation, artifactReplace, artifactRollback -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- native-change, revision -->
+
+To check a damaged backup in the browser, open **Check or repair a data file**
+on `/backups/`. Select the file, or expand **Paste base64 data instead**, then
+open the source. Both forms accept up to 64 MiB after decoding. The data need
+not be a valid ZeFS container to upload.
+
+Choose **Check source** to see the native integrity result. A failed check keeps
+its finding report and the complete uploaded source available. **Create separate
+salvage** produces an independent artifact; skipped keys or history entries stay
+visible as warnings, and an unresolved failure remains a failure even when a
+salvage can be downloaded. Inspect the report before using that download.
+**Download original source** preserves the uploaded bytes, including after
+repair. **Close source** removes only the uploaded copy. Sources expire after
+two minutes without use, so download what you need before closing or leaving.
+<!-- source: internal/component/web/backup_source.go -- uploadSource, source, downloadSource -->
+<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
+
+For raw maintenance from a command surface, `show config artifact key list artifact <id>` lists keys.
+`request config artifact key read artifact <id> key <key>` returns a private
+download transfer; read its chunks and abort it afterward. To write a key, begin
+a `request config artifact bytes begin name <label>` transfer, append and finish
+its bytes, then use `request config artifact key write artifact <id> key <key>
+transfer <source>`. Binary and empty values are retained without text conversion.
+Explicit `request config artifact key delete artifact <id> key <key>` removes
+only that key.
+
+`show config artifact check transfer <source>` checks complete source bytes,
+including a corrupt backup. `request config artifact repair transfer <source>`
+returns a separate downloadable salvage. Keep the source until you have checked
+the salvage: skipped or dropped keys produce warnings, and unresolved history
+is a failed repair even though recovered keys remain available. A normal
+workspace can be checked with `show config artifact check artifact <id>`.
+<!-- source: internal/component/config/cli/artifact_raw.go -- artifactCheck, artifactRepair -->
+
+To reopen saved offline CLI edits deliberately, use `request config artifact
+session resume artifact <id> name <config>`. This resumes your account's saved
+`local` editing origin and keeps other accounts' pending work separate. The
+`session set`, `activate`, `deactivate` and `delete` operations take a text
+transfer containing one matching editing statement. `session replace` and
+`merge` take configuration text. `session save` retains your draft; `session
+diff`, `changes` and `history` inspect it. `session commit` validates and
+publishes your changes; `session discard` removes your pending intent. The
+ordinary configuration page continues to open committed content.
+<!-- source: internal/component/config/cli/artifact_session.go -- artifactSessionOperation -->
+
+`request config artifact restore full artifact <id>` requests a complete device
+store recovery. An accepted response confirms that independent recovery bytes
+are retained; the running configuration remains in place through the response.
+The daemon then restarts, and its outer owner imports the source only after a
+successful shutdown and store close. Download the backup before the restart if
+you also need to retain your own copy.
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreFull -->
+Saving and downloading also need temporary disk space for a complete working
+copy. If private-file cleanup fails, new uploads, saves and downloads wait until that
+cleanup succeeds; existing workspace inspection remains available.
+<!-- source: internal/component/config/artifact/owner.go -- Owner, expire, Close -->
+<!-- source: internal/component/config/artifact/transfer.go -- Begin, Append, Finish, Snapshot, Abort -->
+
 ## Authentication
 
 The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.
@@ -251,7 +396,9 @@ Each authenticated user gets an independent editor session with its own working 
 4. **Edit:** Click an entry name to see its full config. Edit leaf values through inline fields.
 5. **Review:** The commit bar at the bottom shows pending change count. Click "Review & Commit" to see a diff.
 6. **Commit:** Apply changes. Conflicts with other users are detected and reported.
-7. **Discard:** Click "Discard" to abandon all pending changes.
+7. **Discard:** Click "Discard" to abandon your browser's pending changes. Separate SSH edits under the same username remain pending.
+<!-- source: internal/component/web/editor.go -- Discard -->
+<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
 
 ### Collections and Configuration Actions
 
@@ -420,6 +567,13 @@ When two users edit the same leaf concurrently, the commit reports which paths c
 
 The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.
 <!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
+
+Reopening an evicted editor or reconnecting after a daemon restart restores
+your saved and unsaved web changes. Review, pending counts, save and commit
+refer to those resumed changes. Other users' changes and your SSH sessions
+remain separate. If the stored intent cannot be read or recovery cannot finish,
+the page refuses to open; repair the reported problem, then reload `/show/`.
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
 
 ## Browser CLI
 
@@ -628,8 +782,25 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.
+**Corrupt change files:** An unknown path, malformed command or invalid
+structural syntax in a stored per-user change file prevents the browser from
+reopening that candidate. The error names the file, which remains unchanged.
+Normal web discard also stops when it cannot read the audit snapshot. Open
+`/config/recover` with an account authorized to discard configuration changes.
+Review the warning, select the confirmation checkbox, and press **Discard
+unreadable pending change file** to discard that account's corrupt change file.
+This also discards SSH or console changes in the same file: their ownership
+cannot be read. The file can retain structural instructions after **Save draft**;
+those instructions are lost too. The separate saved draft file, other accounts
+and running configuration are kept. Cancel leaves the corrupt file intact. If the file changes
+after the form opens, recovery refuses; open the form again to review it.
+An invalid leaf value or leaf-list member
+in an otherwise readable API candidate remains editable: commit refuses the
+value, and the operator can apply its proposed correction while preserving
+other changes.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
+<!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
+<!-- source: internal/component/web/component_config_recovery.templ -- recovery confirmation -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.
 <!-- source: internal/component/web/render.go -- AssetHandler -->

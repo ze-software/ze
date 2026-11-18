@@ -62,7 +62,9 @@ the answer names it. A daemon runs one update server at a time: a second
 daemon reaches the daemon, not its server, so `update serve pause` takes the
 place of `SIGUSR1` there. The server lives no longer than the daemon: stopping
 the daemon stops its update server, and the daemon finishes stopping only once
-the server has ended.
+the server has ended. A failed graceful shutdown or forced connection close is
+returned to `update serve stop`. During daemon shutdown, the same failure is
+retained in `StopFailure` and makes the daemon exit with failure.
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.status -->
 <!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->

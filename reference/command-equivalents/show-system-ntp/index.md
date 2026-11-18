@@ -6,15 +6,15 @@ NTP clock synchronization status\.
 
 - Registry path: `show system ntp`
 - Usage: `show system ntp`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-ntp:show-system-ntp`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `peers`
 - Answer shape: doc
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -48,7 +48,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show date` (verified, vyos-cli)
+- `show date` (verified, vyos\-cli)
   - Intent: System time and NTP state
-- `show ntp` (verified, vyos-cli)
+- `show ntp` (verified, vyos\-cli)
   - Intent: System time and NTP state

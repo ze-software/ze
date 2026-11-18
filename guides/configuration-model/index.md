@@ -3887,8 +3887,13 @@ daemon owns the editor, `docs/guide/config-editor.md`), so the file is on the
 daemon host, one per session, named `transcript-<stamp>-<pid>-<n>.log`; the
 client, for `ze cli -c <command>` and for a loose-file `ze config edit`, named
 `transcript-<stamp>-<pid>.log`. Transcripts include a header with timestamp,
-username, and remote host. Transcript writes are best-effort and never block
-CLI operation. Default is `disabled`.
+username, and remote host. A locally served `ze cli -c` command also records its
+command with its pipe operators and the rendered answer, without loading SSH
+credentials or contacting a daemon. Its transcript host is `local`.
+<!-- source: internal/component/cli/client/main.go -- runBGP, openOneShotTranscript, emitLocalResult -->
+
+Transcript writes are best-effort and never block CLI operation. Default is
+`disabled`.
 
 A credential typed at the prompt is not written. The command line goes through
 the same redaction the SSH command log uses, so a bcrypt-shaped token, the
@@ -5053,6 +5058,7 @@ entry is one container that Ze itself runs from an OCI image:
 ```
 container {
     instance web {
+        image redis:7
         enabled false
     }
 }
@@ -5061,16 +5067,63 @@ container {
 | Statement | Meaning |
 |-----------|---------|
 | `instance <name>` | One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen |
+| `image <reference>` | The image the container runs, mandatory. A short name is a repository on Docker Hub (one word is under `library`), a name with a registry host is taken as written, and `@sha256:` pins a digest. No tag means `latest`. A reference that cannot be completed is refused at the commit |
 | `enabled` | Whether the container runs. The default is `true`. `false` keeps the container's statements and keeps it stopped |
 | `stop-timeout <seconds>` | Time between the stop signal and the kill, 1 to 30. The default is 10. A container still running then is killed, and `ze doctor` reports `doctor-container-stop-killed` |
 | `stop-signal <signal>` | The signal a stop sends: `term`, `int`, `quit`, `hup`, `usr1` or `usr2`. Absent, the signal the image declares is sent, or `term` when it declares none |
 
 An enabled container is accepted, and the daemon tries to start it once the
-configuration is applied: the commit never waits for the start. The container
-runtime is not complete. No shipped build holds an image store yet, so the
-start is refused there and the container takes the `failed` state. The image,
-the limits, the networks and every other statement of a container are not in
-the schema yet.
+configuration is applied: the commit never waits for the start. A container
+runs an image the store holds. `ze create container image reference
+<reference>` fetches one, and a container whose image is not in the store yet
+waits for it and starts when the fetch ends. A container keeps the digest of
+its first start: fetching the same tag again does not change what it runs.
+The container runtime is not complete: the storage of a container is not
+capped yet, and the limits, the volumes and the statements that replace what
+the image declares are not in the schema yet. The networks and the published
+ports of a container are described in `docs/architecture/container/network.md`.
+<!-- source: internal/plugins/container/config.go -- parseImage -->
+<!-- source: internal/plugins/container/imagestore/resolve.go -- Resolve -->
+<!-- source: internal/plugins/container/supervise.go -- ImagePresent -->
+
+A registry needs no statement: Ze reaches it over HTTPS, checks its
+certificate against the system roots, and sends no credentials. One
+`registry` entry changes how one registry is reached:
+
+```
+container {
+    registry docker.io {
+        mirror {
+            address mirror.example.net
+            port 5000
+        }
+        authentication {
+            username operator
+            password hub-secret
+        }
+    }
+    registry registry.lab.example:5000 {
+        transport http
+    }
+}
+```
+
+| Statement | Meaning |
+|-----------|---------|
+| `registry <host>` | Settings for one image registry. The name is the registry host, with its port when it has one, exactly as the image references write it. Docker Hub is `docker.io`, the registry a short name such as `redis` completes to. A name no reference can name is refused at the commit |
+| `transport <protocol>` | Protocol Ze speaks to the registry and to its mirror: `https` or `http`. The default is `https`. Over `https` the certificate is always checked |
+| `mirror` | Server Ze asks first; the registry is asked when it fails. `address` is mandatory: an IP address or a host name in lower case, and a loopback address is accepted. `port` is 1 to 65535 and defaults to 443 whatever the transport. `path` starts with a slash, defaults to `/`, and is placed before the `/v2/` path of every request to the mirror. The mirror is asked with no credentials, and what it serves passes the same digest and size checks |
+| `authentication` | Credentials Ze presents to the registry: `username` (1 to 255 characters) and `password` (1 to 4096 characters), both mandatory. They are sent to the registry or to the token service it names, never to the mirror. `show config` masks the password |
+| `description <text>` | Free text shown with the registry, 1 to 255 characters |
+
+A change to a registry entry applies to the next fetch; nothing is restarted
+and a fetch in flight is not interrupted. A registry signed by a private
+authority cannot be reached yet: the schema has no statement that names its
+certificate authority.
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- list registry -->
+<!-- source: internal/plugins/container/imagestore/registry_list.go -- parseRegistrySections, checkRegistryName, parseMirror, parseAuthentication, listedClientConfig -->
+<!-- source: internal/plugins/container/registry/client.go -- New, mirrorPrefix -->
+<!-- test: internal/plugins/container/imagestore/registry_list_test.go TestRegistryListIsParsed, TestRegistryListRefusals, TestSchemaAcceptsRegistryEntry -->
 
 When the daemon stops, it stops every container together: each gets its stop
 signal, and each still running after its `stop-timeout` is killed. A daemon

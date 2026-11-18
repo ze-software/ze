@@ -6,16 +6,16 @@ Stream per\-second traffic rates for your interfaces\.
 
 - Registry path: `monitor interface rate`
 - Usage: `monitor interface rate`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-iface:monitor-interface-rate`
 - Backends: any backend
-- Task support: required: the MCP server always answers with a task handle
+- Task support: required\: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

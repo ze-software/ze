@@ -1,6 +1,6 @@
 # Command Equivalents
 
-534 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+604 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -132,6 +132,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | --- | --- | --- | --- | --- | --- | --- |
 | `delete agent skill` | daemon, offline | - | - | - | - | [details](delete-agent-skill/) |
 | `delete bgp peer` | Daemon | - | - | - | - | [details](delete-bgp-peer/) |
+| `delete config artifact` | Daemon | - | - | - | - | [details](delete-config-artifact/) |
 | `delete container image` | Daemon | - | - | - | - | [details](delete-container-image/) |
 | `delete container image all` | Daemon | - | - | - | - | [details](delete-container-image-all/) |
 | `delete container image digest` | Daemon | - | - | - | - | [details](delete-container-image-digest/) |
@@ -219,9 +220,47 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request config archive` | Daemon | - | - | - | - | [details](request-config-archive/) |
+| `request config artifact activate` | Daemon | - | - | - | - | [details](request-config-artifact-activate/) |
+| `request config artifact bytes begin` | Daemon | - | - | - | - | [details](request-config-artifact-bytes-begin/) |
+| `request config artifact deactivate` | Daemon | - | - | - | - | [details](request-config-artifact-deactivate/) |
+| `request config artifact download begin` | Daemon | - | - | - | - | [details](request-config-artifact-download-begin/) |
+| `request config artifact import` | Daemon | - | - | - | - | [details](request-config-artifact-import/) |
+| `request config artifact key delete` | Daemon | - | - | - | - | [details](request-config-artifact-key-delete/) |
+| `request config artifact key read` | Daemon | - | - | - | - | [details](request-config-artifact-key-read/) |
+| `request config artifact key write` | Daemon | - | - | - | - | [details](request-config-artifact-key-write/) |
+| `request config artifact repair` | Daemon | - | - | - | - | [details](request-config-artifact-repair/) |
+| `request config artifact replace` | Daemon | - | - | - | - | [details](request-config-artifact-replace/) |
+| `request config artifact restore config` | Daemon | - | - | - | - | [details](request-config-artifact-restore-config/) |
+| `request config artifact restore full` | Daemon | - | - | - | - | [details](request-config-artifact-restore-full/) |
+| `request config artifact review` | Daemon | - | - | - | - | [details](request-config-artifact-review/) |
+| `request config artifact rollback` | Daemon | - | - | - | - | [details](request-config-artifact-rollback/) |
+| `request config artifact save` | Daemon | - | - | - | - | [details](request-config-artifact-save/) |
+| `request config artifact session activate` | Daemon | - | - | - | - | [details](request-config-artifact-session-activate/) |
+| `request config artifact session changes` | Daemon | - | - | - | - | [details](request-config-artifact-session-changes/) |
+| `request config artifact session commit` | Daemon | - | - | - | - | [details](request-config-artifact-session-commit/) |
+| `request config artifact session deactivate` | Daemon | - | - | - | - | [details](request-config-artifact-session-deactivate/) |
+| `request config artifact session delete` | Daemon | - | - | - | - | [details](request-config-artifact-session-delete/) |
+| `request config artifact session diff` | Daemon | - | - | - | - | [details](request-config-artifact-session-diff/) |
+| `request config artifact session discard` | Daemon | - | - | - | - | [details](request-config-artifact-session-discard/) |
+| `request config artifact session history` | Daemon | - | - | - | - | [details](request-config-artifact-session-history/) |
+| `request config artifact session merge` | Daemon | - | - | - | - | [details](request-config-artifact-session-merge/) |
+| `request config artifact session replace` | Daemon | - | - | - | - | [details](request-config-artifact-session-replace/) |
+| `request config artifact session resume` | Daemon | - | - | - | - | [details](request-config-artifact-session-resume/) |
+| `request config artifact session save` | Daemon | - | - | - | - | [details](request-config-artifact-session-save/) |
+| `request config artifact session set` | Daemon | - | - | - | - | [details](request-config-artifact-session-set/) |
+| `request config artifact set` | Daemon | - | - | - | - | [details](request-config-artifact-set/) |
+| `request config artifact source begin` | Daemon | - | - | - | - | [details](request-config-artifact-source-begin/) |
+| `request config artifact text begin` | Daemon | - | - | - | - | [details](request-config-artifact-text-begin/) |
+| `request config artifact upload abort` | Daemon | - | - | - | - | [details](request-config-artifact-upload-abort/) |
+| `request config artifact upload append` | Daemon | - | - | - | - | [details](request-config-artifact-upload-append/) |
+| `request config artifact upload begin` | Daemon | - | - | - | - | [details](request-config-artifact-upload-begin/) |
+| `request config artifact upload finish` | Daemon | - | - | - | - | [details](request-config-artifact-upload-finish/) |
+| `request config artifact validate` | Daemon | - | - | - | - | [details](request-config-artifact-validate/) |
 | `request container restart` | Daemon | - | - | - | - | [details](request-container-restart/) |
 | `request container restart name` | Daemon | - | - | - | - | [details](request-container-restart-name/) |
 | `request data backup` | Daemon | - | - | - | - | [details](request-data-backup/) |
+| `request data config rename` | Daemon | - | - | - | - | [details](request-data-config-rename/) |
+| `request data config rollback` | Daemon | - | - | - | - | [details](request-data-config-rollback/) |
 | `request data repair` | Daemon | - | - | - | - | [details](request-data-repair/) |
 | `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
@@ -368,26 +407,53 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show command help` | Read-only | - | - | - | - | [details](show-command-help/) |
 | `show command list` | Read-only | - | - | - | - | [details](show-command-list/) |
 | `show command reference` | Read-only | - | - | - | - | [details](show-command-reference/) |
+| `show config activate` | read-only, offline | - | - | - | - | [details](show-config-activate/) |
+| `show config artifact check` | Read-only | - | - | - | - | [details](show-config-artifact-check/) |
+| `show config artifact config list` | Read-only | - | - | - | - | [details](show-config-artifact-config-list/) |
+| `show config artifact diff` | Read-only | - | - | - | - | [details](show-config-artifact-diff/) |
+| `show config artifact history` | Read-only | - | - | - | - | [details](show-config-artifact-history/) |
+| `show config artifact info` | Read-only | - | - | - | - | [details](show-config-artifact-info/) |
+| `show config artifact key list` | Read-only | - | - | - | - | [details](show-config-artifact-key-list/) |
+| `show config artifact list` | Read-only | - | - | - | - | [details](show-config-artifact-list/) |
+| `show config artifact source` | Read-only | - | - | - | - | [details](show-config-artifact-source/) |
+| `show config artifact transfer read` | Read-only | - | - | - | - | [details](show-config-artifact-transfer-read/) |
 | `show config cat` | read-only, offline | - | - | - | - | [details](show-config-cat/) |
+| `show config deactivate` | read-only, offline | - | - | - | - | [details](show-config-deactivate/) |
 | `show config diff` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
 | `show config dump` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
+| `show config environment-validation` | read-only, offline | - | - | - | - | [details](show-config-environment-validation/) |
+| `show config fix-plan` | read-only, offline | - | - | - | - | [details](show-config-fix-plan/) |
 | `show config fmt` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
 | `show config graph` | read-only, offline | - | - | - | - | [details](show-config-graph/) |
 | `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | read-only, offline | - | - | - | - | [details](show-config-list/) |
+| `show config migrate` | read-only, offline | - | - | - | - | [details](show-config-migrate/) |
+| `show config replace` | read-only, offline | - | - | - | - | [details](show-config-replace/) |
 | `show config running` | Read-only | - | - | - | - | [details](show-config-running/) |
+| `show config set` | read-only, offline | - | - | - | - | [details](show-config-set/) |
+| `show config source` | read-only, offline | - | - | - | - | [details](show-config-source/) |
+| `show config supplied activate` | read-only, offline | - | - | - | - | [details](show-config-supplied-activate/) |
+| `show config supplied completion` | read-only, offline | - | - | - | - | [details](show-config-supplied-completion/) |
+| `show config supplied deactivate` | read-only, offline | - | - | - | - | [details](show-config-supplied-deactivate/) |
 | `show config supplied diff` | read-only, offline | - | - | - | - | [details](show-config-supplied-diff/) |
 | `show config supplied dump` | read-only, offline | - | - | - | - | [details](show-config-supplied-dump/) |
+| `show config supplied fix-plan` | read-only, offline | - | - | - | - | [details](show-config-supplied-fix-plan/) |
 | `show config supplied fmt` | read-only, offline | - | - | - | - | [details](show-config-supplied-fmt/) |
 | `show config supplied graph` | read-only, offline | - | - | - | - | [details](show-config-supplied-graph/) |
+| `show config supplied migrate` | read-only, offline | - | - | - | - | [details](show-config-supplied-migrate/) |
+| `show config supplied replace` | read-only, offline | - | - | - | - | [details](show-config-supplied-replace/) |
+| `show config supplied set` | read-only, offline | - | - | - | - | [details](show-config-supplied-set/) |
+| `show config supplied source` | read-only, offline | - | - | - | - | [details](show-config-supplied-source/) |
 | `show config supplied validation` | read-only, offline | - | - | - | - | [details](show-config-supplied-validation/) |
 | `show config validation` | read-only, offline | - | - | - | - | [details](show-config-validation/) |
 | `show container image list` | Read-only | - | - | - | - | [details](show-container-image-list/) |
+| `show container list` | Read-only | - | - | - | - | [details](show-container-list/) |
 | `show container store` | Read-only | - | - | - | - | [details](show-container-store/) |
 | `show container volume list` | Read-only | - | - | - | - | [details](show-container-volume-list/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
 | `show data cat` | read-only, offline | - | - | - | - | [details](show-data-cat/) |
 | `show data check` | read-only, offline | - | - | - | - | [details](show-data-check/) |
+| `show data encode` | read-only, offline | - | - | - | - | [details](show-data-encode/) |
 | `show data list` | read-only, offline | - | - | - | - | [details](show-data-list/) |
 | `show data registered` | read-only, offline | - | - | - | - | [details](show-data-registered/) |
 | `show ddos flowspec` | Read-only | - | - | - | - | [details](show-ddos-flowspec/) |
@@ -412,6 +478,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show event list` | Read-only | - | - | - | - | [details](show-event-list/) |
 | `show event namespaces` | Read-only | - | - | - | - | [details](show-event-namespaces/) |
 | `show event recent` | Read-only | - | - | - | - | [details](show-event-recent/) |
+| `show exabgp migration config` | read-only, offline | - | - | - | - | [details](show-exabgp-migration-config/) |
+| `show exabgp migration environment` | read-only, offline | - | - | - | - | [details](show-exabgp-migration-environment/) |
 | `show fib kernel` | Read-only | - | - | - | - | [details](show-fib-kernel/) |
 | `show fib p4` | Read-only | - | - | - | - | [details](show-fib-p4/) |
 | `show fib vpp` | Read-only | - | - | - | - | [details](show-fib-vpp/) |
@@ -574,6 +642,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show schema list` | read-only, offline | - | - | - | - | [details](show-schema-list/) |
 | `show schema methods` | read-only, offline | - | - | - | - | [details](show-schema-methods/) |
 | `show schema protocol` | read-only, offline | - | - | - | - | [details](show-schema-protocol/) |
+| `show secret decode` | read-only, offline | - | - | - | - | [details](show-secret-decode/) |
+| `show secret encode` | read-only, offline | - | - | - | - | [details](show-secret-encode/) |
 | `show skill` | read-only, offline | - | - | - | - | [details](show-skill/) |
 | `show skills` | read-only, offline | - | - | - | - | [details](show-skills/) |
 | `show static` | Read-only | - | - | - | - | [details](show-static/) |

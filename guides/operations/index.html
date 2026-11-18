@@ -282,6 +282,10 @@ commands expose decoded values, never the tree's framing bytes.</p>
 <td>On a hub: restore the config it serves to managed client <code>&lt;name&gt;</code>; the hub pushes <code>config-changed</code> and does not reload</td>
 </tr>
 <tr>
+<td><code>request data restore path &lt;absolute-file&gt; full</code></td>
+<td>Accept a verified complete copy for recovery after clean shutdown and successful store close; response delivery triggers the existing restart, and acceptance is distinct from completion</td>
+</tr>
+<tr>
 <td><code>delete data key &lt;key&gt;</code></td>
 <td>Live removal of one runtime-state key (under <code>meta/</code> outside) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused. <span class="ev-src"><span class="ev-ref"><code>meta/config/</code></span></span></td>
 </tr>
@@ -311,6 +315,20 @@ commands expose decoded values, never the tree's framing bytes.</p>
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
 <!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair -->
 <!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck -->
+<!-- source: internal/component/config/storage/cli/data_rpc_full_restore.go -- acceptFullRestore, fullRestoreLifecycleUnavailable -->
+<p>A full daemon restore requires the outer live-tree lifetime installed by
+<code>ze start</code>. It first makes an independent verified source. After its accepted
+response is delivered, the daemon drains and stops normally. The store is
+replaced only after all runtime borrowers return and the original writer closes
+successfully. An unclean result prevents replacement. Exit 75 keeps the existing
+supervisor restart contract; a foreground caller must start Ze again. A failed
+recovery retains its private source and names the command that finishes it.
+<code>config</code>, <code>name</code> and <code>client</code> cannot be combined with <code>full</code>.</p>
+<p>When a daemon owns the selected store, local <code>ze data restore &lt;file&gt; full</code>
+sends that same request to its owner. The local command confirms the source,
+digest, byte count and restart status in the acceptance receipt before reporting
+success. This confirms acceptance; completion still follows clean teardown.</p>
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreFullThroughDaemon, fullRestoreAnswer.matches -->
 <h3 id="connection">Connection</h3>
 <pre><code class="language-bash">ze cli                         # interactive CLI
 ze cli -c "show bgp peer list"  # single command
@@ -1128,7 +1146,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

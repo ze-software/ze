@@ -9,13 +9,13 @@ Pause reading from a peer\'s TCP socket\.
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-pause`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -35,7 +35,7 @@ Ze stops reading the peer\'s socket and the session stays up\, so nothing is wit
 
 Category: BGP
 
-Ze exposes explicit runtime flow control; most vendors use config disable or administrative tools.
+Ze exposes explicit runtime flow control\; most vendors use config disable or administrative tools\.
 
 ## Vendor equivalents
 

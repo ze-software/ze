@@ -452,6 +452,21 @@ discovery capabilities alongside the generated tools.
 
 <!-- source: internal/component/mcp/tools.go -- handcraftedTools, toolHandlers -->
 
+Command results keep completed data even when evaluation fails. The first text
+item contains that data, followed by warning text and the failure explanation.
+The result still sets `isError` to `true`. A failure without completed data
+keeps its error-only result. Generated tools and `ze_execute` use the same
+progress and warning behavior.
+
+<!-- source: internal/component/mcp/tools.go -- failedAnswerResult, run, toolHandlers -->
+
+Successful command warnings keep the original data in the first text item.
+The second item contains `Warning: ` and the original diagnostic lines. When
+the command reports a warning without diagnostic lines, the second item is
+`Warning`. A warning does not set `isError` or add original warning diagnostics.
+
+<!-- source: internal/component/mcp/tools.go -- answerResult -->
+
 ### ze_execute
 
 Run any command the CLI supports. Use `ze_reference` to discover available commands.

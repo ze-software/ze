@@ -6,15 +6,15 @@ Show full detail for one or more peers\.
 
 - Registry path: `show bgp peer detail`
 - Usage: `show bgp peer <selector> detail`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:peer-detail`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
-- Address fields: local-ip, next-hop-address
-- Column order: name, group, remote-as, local-as, peer-type, router-id, state, uptime, last-notification, local-ip, next-hop, next-hop-address, timer, capabilities
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Address fields: local\-ip\, next\-hop\-address
+- Column order: name\, group\, remote\-as\, local\-as\, peer\-type\, router\-id\, state\, uptime\, last\-notification\, local\-ip\, next\-hop\, next\-hop\-address\, timer\, capabilities
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -6,16 +6,16 @@ Show IS\-IS\-computed routes\.
 
 - Registry path: `show isis route`
 - Usage: `show isis route`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-isis:show-route`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `ipv6`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### IS-IS neighbors, database, routes, and interfaces
+### IS\-IS neighbors\, database\, routes\, and interfaces
 
 Category: Routing protocols
 

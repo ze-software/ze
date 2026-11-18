@@ -6,15 +6,15 @@ Show RTR cache server sessions with protocol details
 
 - Registry path: `show bgp rpki cache`
 - Usage: `show bgp rpki cache`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address
-- Column order: address, port, preference, state, synced, version, session-id, serial, refresh-interval, retry-interval, expire-interval
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Column order: address\, port\, preference\, state\, synced\, version\, session\-id\, serial\, refresh\-interval\, retry\-interval\, expire\-interval
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -553,6 +553,17 @@ configuration directories, and stdin cannot be named
 <p>Two handcrafted tools (<code>ze_execute</code>, <code>ze_reference</code>) provide escape-hatch and
 discovery capabilities alongside the generated tools.</p>
 <!-- source: internal/component/mcp/tools.go -- handcraftedTools, toolHandlers -->
+<p>Command results keep completed data even when evaluation fails. The first text
+item contains that data, followed by warning text and the failure explanation.
+The result still sets <code>isError</code> to <code>true</code>. A failure without completed data
+keeps its error-only result. Generated tools and <code>ze_execute</code> use the same
+progress and warning behavior.</p>
+<!-- source: internal/component/mcp/tools.go -- failedAnswerResult, run, toolHandlers -->
+<p>Successful command warnings keep the original data in the first text item.
+The second item contains <code>Warning: </code> and the original diagnostic lines. When
+the command reports a warning without diagnostic lines, the second item is
+<code>Warning</code>. A warning does not set <code>isError</code> or add original warning diagnostics.</p>
+<!-- source: internal/component/mcp/tools.go -- answerResult -->
 <h3 id="ze-execute">ze_execute</h3>
 <p>Run any command the CLI supports. Use <code>ze_reference</code> to discover available commands.</p>
 <table>
@@ -921,7 +932,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

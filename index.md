@@ -58,7 +58,7 @@ A frame from the published terminal recording. Explore the recordings in the dem
 **Planned release** Initial version
 Q4 2026
 
- [**1.77 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.13 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.80 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.17 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
@@ -108,6 +108,50 @@ r2 receives 192.0.2.0/24. Show me the results.
 Stop only the lab processes you started.
 Keep the logs if a check fails.
 ```
+
+## Choose how to try Ze.
+
+Run Ze on Linux, in Docker or as an appliance, and use containerlab to explore a test network. Linux and Docker are also options for replacing an existing ExaBGP setup.
+
+### Build Ze to fit your needs.
+
+Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.
+
+ Linux
+
+### Run Ze on your Linux host.
+
+Run Ze as a Linux service to use your host as a router or replace an existing ExaBGP setup. For migration, convert your configuration and use the compatibility bridge for process scripts, checking the documented differences before switching.
+
+**Success check**Check your sessions and routes. If migrating from ExaBGP, verify your process scripts before switching.
+
+ [Install on Linux →](https://ze-software.net/guides/ubuntu-build-install/)[Replace ExaBGP →](https://ze-software.net/use-cases/exabgp-migration/) Docker
+
+### Run Ze in Docker.
+
+Run Ze's routing daemon in a container, with persistent configuration and the host managing its network interfaces. Docker is also an option for replacing ExaBGP, using the same migration tools and compatibility bridge.
+
+**Success check**Check your sessions and routes, then verify that your configuration survives container recreation.
+
+ [Run with Docker →](https://ze-software.net/guides/docker/)[Replace ExaBGP →](https://ze-software.net/use-cases/exabgp-migration/) Appliance
+
+### Give Ze its own system.
+
+Build a dedicated router on hardware or a VM with Ze's immutable operating system. Ze manages the network configuration, while the guide covers installation, authenticated SSH, updates and previous-slot recovery.
+
+**Availability**Source builds produce disk images and installer ISOs. No public image release is available yet.
+
+ [Build an appliance](https://ze-software.net/guides/appliance/) Containerlab
+
+### Test a network topology.
+
+Use netlab with containerlab to run Ze in a test network. Start with the supplied topology to explore routing and check how Ze behaves before using it in your own network.
+
+**Success check**Check BGP sessions, kernel routes and traffic between the lab nodes.
+
+ [Start a test network →](https://ze-software.net/guides/netlab/)[Explore the topology →](https://ze-software.net/labs/netlab/) **Other ways to evaluate** [Two-peer quickstart](https://ze-software.net/guides/quickstart/) [netlab and containerlab](https://ze-software.net/guides/netlab/) [Explore a supplied topology](https://ze-software.net/labs/netlab/) [BGP interoperability labs](https://ze-software.net/labs/bgp-interop/) [Test with an AI agent](https://ze-software.net/guides/ai-agent/) [Explore the CLI](https://ze-software.net/reference/cli/) [Publish a looking glass](https://ze-software.net/guides/public-looking-glass/) [Compare all deployment paths →](https://ze-software.net/guides/ze-install/#choose-a-deployment-path)
+
+The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.
 
 ## Why Ze?
 
@@ -172,9 +216,9 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 ### Mandatory RFC requirements proven
 
-46.5%
+46.9%
 
-2,210 of 4,752 requirements for Ze or the OS.
+2,227 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -235,7 +279,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
 ### Go tests
 
-48,500+
+49,300+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -243,7 +287,7 @@ Check encoded bytes and parsed values. Verify configuration, state transitions a
 
 ### End-to-end tests
 
-3,000+
+3,100+
 
 Start sessions and exchange route updates. Run editor commands, commits and reloads. Check output, errors and saved state.
 
@@ -272,7 +316,7 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**534 CLI commands** Syntax, arguments and pipe operators →
+**604 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**
@@ -322,50 +366,6 @@ The configuration and command references come from the definitions used by Ze it
 The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.
 
  [Open documentation →](https://ze-software.net/docs/) [Browse the feature catalogue →](https://ze-software.net/features/)
-
-## Choose how to try Ze.
-
-A local BGP lab is the simplest starting point. If you already run ExaBGP or want a different deployment, follow the path that matches your setup.
-
-### Build Ze to fit your needs.
-
-Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.
-
- Local labStart here
-
-### Exchange your first routes.
-
-Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.
-
-**Success check**Both sessions establish and each peer receives the other peer’s advertised prefix.
-
- [Open the two-peer quickstart](https://ze-software.net/guides/quickstart/) ExaBGP migration
-
-### Try an existing configuration.
-
-Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.
-
-**Success check**Validate the converted configuration and verify your sessions and script behavior in a lab.
-
- [Explore migration](https://ze-software.net/use-cases/exabgp-migration/) Linux or Docker
-
-### Keep your existing host.
-
-Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.
-
-**Success check**Connect to authenticated management and check that your configuration survives the documented restart or container recreation.
-
- [Linux service →](https://ze-software.net/guides/ubuntu-build-install/)[Docker →](https://ze-software.net/guides/docker/) VM or appliance
-
-### Give Ze its own system.
-
-Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.
-
-**Availability**Source builds produce disk images and installer ISOs. No public image release is available yet.
-
- [Explore the appliance](https://ze-software.net/guides/appliance/) **Other ways to evaluate** [netlab and containerlab](https://ze-software.net/guides/netlab/) [Explore a supplied topology](https://ze-software.net/labs/netlab/) [BGP interoperability labs](https://ze-software.net/labs/bgp-interop/) [Test with an AI agent](https://ze-software.net/guides/ai-agent/) [Explore the CLI](https://ze-software.net/reference/cli/) [Publish a looking glass](https://ze-software.net/guides/public-looking-glass/) [Compare all deployment paths →](https://ze-software.net/guides/ze-install/#choose-a-deployment-path)
-
-The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.
 
 ## Recent engineering notes.
 

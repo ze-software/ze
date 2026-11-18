@@ -6,16 +6,16 @@ Show the OSPFv3 \(IPv6\) address\-family instances \(RFC 5838\)\.
 
 - Registry path: `show ospf ipv6`
 - Usage: `show ospf ipv6`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-ospf:show-ipv6`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `database`, `graceful-restart`, `instance`, `interface`, `neighbor`, `route`, `segment-routing`, `spf`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -33,7 +33,7 @@ No command-specific arguments listed.
 
 Category: Routing protocols
 
-Ze keeps OSPFv2 and OSPFv3 under one object-rooted OSPF command tree; IPv6 is a family selector.
+Ze keeps OSPFv2 and OSPFv3 under one object\-rooted OSPF command tree\; IPv6 is a family selector\.
 
 ## Vendor equivalents
 

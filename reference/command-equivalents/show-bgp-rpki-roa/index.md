@@ -6,15 +6,15 @@ Show ROA table entries or lookup covering VRPs for a prefix
 
 - Registry path: `show bgp rpki roa`
 - Usage: `show bgp rpki roa`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: prefix
-- Column order: prefix, max-length, asn
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Column order: prefix\, max\-length\, asn
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

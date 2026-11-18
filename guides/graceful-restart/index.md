@@ -488,6 +488,11 @@ RFC 9494 Section 4.3 governs a route at the LLGR stale level (2), whether Ze mar
 | Internal, LLGR not received | Advertise with NO_EXPORT and LOCAL_PREF 0 (Section 4.6) |
 | External, LLGR not received | Withdraw the route (Section 4.3) |
 
+Adding NO_EXPORT to a received COMMUNITY preserves its Partial bit, along with
+the retained community values. The community rebuild uses an Extended Length
+header for both complete and partial attributes.
+<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- emitCommunity -->
+
 The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
 

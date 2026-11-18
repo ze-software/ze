@@ -6,15 +6,15 @@ Show IRR filter status per ASN\.
 
 - Registry path: `show bgp irr`
 - Usage: `show bgp irr`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-irr-status`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `check`, `prefix`
 - Answer shape: tab
 - Address fields: none
-- Column order: asn, as-set, status, error, ipv4-count, ipv6-count, server, generation, checked-at, refreshed-at, peers
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: asn\, as\-set\, status\, error\, ipv4\-count\, ipv6\-count\, server\, generation\, checked\-at\, refreshed\-at\, peers
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -33,7 +33,7 @@ No command-specific arguments listed.
 
 Category: BGP
 
-Current Ze commands are IRR-focused. RPKI-specific show paths can be added to this entry when present in the live command catalog.
+Current Ze commands are IRR\-focused\. RPKI\-specific show paths can be added to this entry when present in the live command catalog\.
 
 ## Vendor equivalents
 

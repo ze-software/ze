@@ -1,6 +1,6 @@
 # Plugin catalog
 
-98 runtime plugins generated from `data/plugin-registry.json`. 77 runtime plugins declare configuration roots and 81 ship YANG modules.
+98 runtime plugins generated from `data/plugin-registry.json`. 77 runtime plugins declare configuration roots and 79 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -113,6 +113,7 @@ Generated group for registry entries mapped to the Container area. Config roots:
 |--------|----------|--------|------------|-------------|
 | [`container`](container/index.md) | OCI containers run by ze: confined, limited, supervised and removed without a trace | `container` | `sysctl` | `internal/plugins/container` |
 
+- [`container`](container/index.md): Start after `interface`, `firewall` (order only).
 ## Control Plane Protection
 
 Generated group for registry entries mapped to the Control Plane Protection area. Config roots: `control-plane-protection`. Source area: `internal/plugins/copp`.

@@ -98,17 +98,7 @@
 <li><a href="#10-step-protocol">10-Step Protocol</a></li>
 <li><a href="#5-stage-protocol-per-plugin">5-Stage Protocol (Per Plugin)</a></li>
 </ol></li>
-<li><a href="#config-notification-to-plugins">Config Notification to Plugins</a>
-<ol>
-<li><a href="#pull-model-hub-never-pushes">Pull Model (Hub Never Pushes)</a></li>
-<li><a href="#on-demand-query">On-Demand Query</a></li>
-</ol></li>
-<li><a href="#liveedit-configuration-vyos-style">Live/Edit Configuration (VyOS-style)</a>
-<ol>
-<li><a href="#commit-workflow">Commit Workflow</a></li>
-<li><a href="#plugin-diff-responsibility">Plugin Diff Responsibility</a></li>
-<li><a href="#shared-diff-library">Shared Diff Library</a></li>
-</ol></li>
+<li><a href="#config-notification-to-plugins">Config Notification to Plugins</a></li>
 <li><a href="#yang-schema">YANG Schema</a>
 <ol>
 <li><a href="#what-yang-provides">What YANG Provides</a></li>
@@ -268,6 +258,11 @@ while the non-default <code>ze_le</code> build companion imports <code>internal/
 and exposes its inventory under <code>ze le</code>. Shipped builds do not enable <code>ze_le</code>.</p>
 <!-- source: cmd/ze/ze_le_register.go -->
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
+<p>Root help combines registered root commands with the YANG command tree. Each
+top-level name appears once: a registered root keeps its declared section and
+summary, and YANG verbs without a root declaration appear under Operations
+with their generated summaries.</p>
+<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
 <hr>
 <h2 id="overview">Overview</h2>
 <p>Ze supports two operating modes:</p>
@@ -647,146 +642,23 @@ event bgp.peer.up peer=192.0.2.1 asn=65002
 9. Plugins: Stage 3-4              → Capability declarations, registry sharing
 10. Plugins: Stage 5               → Ready, start operating
 </code></pre>
-<p>After startup, GR and other plugins use commands to configure BGP:</p>
-<ul>
-<li><code>capability hex &lt;code&gt; &lt;value&gt; peer &lt;addr&gt;</code> → inject capabilities</li>
-<li>Plugins subscribe to events for runtime coordination</li>
-</ul>
+<p>Plugins subscribe to events for runtime coordination after startup.</p>
 <h3 id="5-stage-protocol-per-plugin">5-Stage Protocol (Per Plugin)</h3>
-<p>Each plugin follows this protocol with the hub:</p>
-<table>
-<thead>
-<tr>
-<th>Stage</th>
-<th>Direction</th>
-<th>Content</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>Plugin → Hub</td>
-<td><code>declare schema yang &lt;module&gt;</code>, <code>declare schema handler &lt;path&gt;</code>, <code>declare priority &lt;num&gt;</code>, <code>declare cmd &lt;name&gt;</code>, <code>declare done</code></td>
-</tr>
-<tr>
-<td>2</td>
-<td>Hub → Plugin</td>
-<td>Initial commit: <code>config verify</code> → plugin queries live/edit → <code>config apply</code> → <code>config done</code></td>
-</tr>
-<tr>
-<td>3</td>
-<td>Plugin → Hub</td>
-<td><code>capability hex ...</code>, <code>capability done</code></td>
-</tr>
-<tr>
-<td>4</td>
-<td>Hub → Plugin</td>
-<td><code>registry cmd ...</code>, <code>registry done</code></td>
-</tr>
-<tr>
-<td>5</td>
-<td>Plugin → Hub</td>
-<td><code>ready</code> <!-- source: internal/component/plugin/registration.go -- 5-stage protocol parsing --> <!-- source: internal/component/plugin/startup_coordinator.go -- startup coordination --></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Priority:</strong> Determines verify/apply order. Lower = first. Example: BGP=100, RIB=200, GR=300.</p>
+<p>Each plugin runs the five-stage startup with the hub, every stage a YANG RPC
+over the plugin's one connection: registration, config, capability, registry,
+ready. The RPC of each stage, its input and its answer are in
+<code>docs/architecture/api/process-protocol.md</code>, "5-Stage Startup Protocol".
+An earlier text-line form of these stages (<code>declare schema ...</code>,
+<code>config verify</code>, <code>config done</code>, <code>capability hex ...</code>, <code>registry cmd ...</code>,
+<code>ready</code>) is retired, and the daemon reads none of it.</p>
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
 <hr>
 <h2 id="config-notification-to-plugins">Config Notification to Plugins</h2>
-<h3 id="pull-model-hub-never-pushes">Pull Model (Hub Never Pushes)</h3>
-<p><strong>Hub notifies plugins of config changes, plugins query for config data.</strong></p>
-<p>On commit (startup, SIGHUP, or <code>ze config commit</code>), hub sends <code>config verify</code> / <code>config apply</code> notifications. Plugins query hub for config.</p>
-<p>Based on handler registration, plugins query for their JSON config:</p>
-<table>
-<thead>
-<tr>
-<th>Handler</th>
-<th>Plugin receives</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>bgp</code> (root)</td>
-<td>Entire <code>bgp { }</code> block as JSON</td>
-</tr>
-<tr>
-<td><code>bgp.peer.capability.graceful-restart</code> (sub-root)</td>
-<td>Just that subtree as JSON</td>
-</tr>
-</tbody>
-</table>
-<h3 id="on-demand-query">On-Demand Query</h3>
-<p>Plugins query hub for specific config paths using text protocol:</p>
-<pre><code># Query live (running) config:
-#1 query config live path "bgp.peer[address=192.0.2.1]"
-@1 done data '{"address": "192.0.2.1", "peer-as": 65002, "timers": {...}}'
-
-# Query edit (candidate) config:
-#2 query config edit path "bgp.peer[address=192.0.2.1]"
-@2 done data '{"address": "192.0.2.1", "peer-as": 65003, "timers": {...}}'
-</code></pre>
-<p>Hub stores config as map-of-maps internally, provides JSON in <code>data</code> field.</p>
-<hr>
-<h2 id="liveedit-configuration-vyos-style">Live/Edit Configuration (VyOS-style)</h2>
-<p>Hub maintains two configuration states:</p>
-<table>
-<thead>
-<tr>
-<th>State</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Live</strong></td>
-<td>Running configuration (what plugins are currently using)</td>
-</tr>
-<tr>
-<td><strong>Edit</strong></td>
-<td>Candidate configuration (being modified, not yet applied)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="commit-workflow">Commit Workflow</h3>
-<pre><code>1. User modifies edit config (via CLI or file)
-2. User requests commit
-3. For each plugin (by priority, lower first):
-   a. Hub sends: config verify
-   b. Plugin queries hub for live and edit config (its section)
-   c. Plugin computes diff using shared library
-   d. Plugin validates changes are acceptable
-   e. Plugin responds: done or error
-4. If all plugins verify ok:
-   a. For each plugin (by priority):
-      - Hub sends: config apply
-      - Plugin applies changes
-      - Plugin responds: done
-   b. Edit becomes new live
-5. If any verify fails:
-   a. Hub aborts commit
-   b. Edit unchanged, live unchanged
-</code></pre>
-<p><strong>Priority examples:</strong> BGP=100 (first), RIB=200, GR=300 (last).</p>
-<h3 id="plugin-diff-responsibility">Plugin Diff Responsibility</h3>
-<p><strong>Hub provides:</strong> Raw config states (live and edit) on request.</p>
-<p><strong>Plugin is responsible for:</strong></p>
-<ol>
-<li>Query the config sections it needs</li>
-<li>Compute diff using shared library code</li>
-<li>Validate and apply changes</li>
-</ol>
-<h3 id="shared-diff-library">Shared Diff Library</h3>
-<p>Plugins use shared library code (not reimplemented per plugin) to compute differences:</p>
-<pre><code>Location: internal/component/config/diff/
-
-Usage (Go):
-  // Send query, receive JSON in data field
-  live := sendQuery("query config live path \"bgp.peer\"")
-  edit := sendQuery("query config edit path \"bgp.peer\"")
-  changes := diff.Compare(live, edit)
-  // changes = []Change{{Action: "create", Path: "bgp.peer[addr=X]", Data: {...}}, ...}
-</code></pre>
-<p>This library is part of the Ze codebase, available to all plugins.</p>
+<p>A plugin receives only the config roots it declares. At start they arrive in
+the Stage 2 <code>configure</code> callback, and a later change arrives as a transaction:
+verify, apply and rollback callbacks, each plugin answering for its own roots
+(<code>docs/architecture/config/transaction-protocol.md</code>). The hub does not answer
+config queries from plugins, and no shared diff library exists.</p>
 <hr>
 <h2 id="yang-schema">YANG Schema</h2>
 <p>See <a href="../command-ownership/">Command Ownership</a> for how command YANG schemas use
@@ -802,12 +674,12 @@ checks</li>
 <li>Schema-driven config routing</li>
 </ul>
 <h3 id="schema-registration">Schema Registration</h3>
-<p>During Stage 1, plugins declare their YANG schema:</p>
-<pre><code>declare schema yang ze-bgp
-declare schema handler bgp
-declare schema handler bgp.peer
-declare done
-</code></pre>
+<p>During Stage 1, a plugin brings its YANG modules in the <code>schemas</code> field of
+<code>declare-registration</code>, one <code>SchemaDecl</code> per module text
+(<code>docs/plugin-development/schema.md</code>). A compiled-in plugin sends none: its
+yang package embeds its modules and registers them from <code>init()</code>
+(<code>docs/architecture/config/yang-config-design.md</code>, "Module Loading").</p>
+<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
 <h3 id="existing-yang-modules">Existing YANG Modules</h3>
 <table>
 <thead>
@@ -1105,7 +977,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

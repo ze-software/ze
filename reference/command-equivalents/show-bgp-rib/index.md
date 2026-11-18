@@ -6,15 +6,15 @@ Query routes in the BGP RIB\.
 
 - Registry path: `show bgp rib`
 - Usage: `show bgp rib`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:rib-routes`
 - Backends: any backend
-- Task support: required: the MCP server always answers with a task handle
+- Task support: required\: the MCP server always answers with a task handle
 - Subcommands: `best`, `protocol`, `rpf`, `status`
 - Answer shape: tab
-- Address fields: peer, next-hop
-- Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Address fields: peer\, next\-hop
+- Column order: peer\, direction\, family\, prefix\, next\-hop\, path\-id\, as\-path\, origin\, local\-pref\, med\, communities
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

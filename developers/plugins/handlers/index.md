@@ -728,6 +728,13 @@ Every plugin receives those lines, whatever protocol version it declared: the
 engine writes them in the `wrn` terminator to each plugin
 (`docs/architecture/api/ipc_protocol.md`, "Answer Protocol").
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
+
+A partial or failed record answer also retains its data and warning lines in
+the result, together with a Go error. `result.RecordAnswer` holds the original
+produced and refused counts when a completed terminator is available. An
+interrupted answer has no completed metadata; its result still retains the
+progress already read.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- answerValue, dispatchCommandResult -->
 <!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 
 ### EmitEvent

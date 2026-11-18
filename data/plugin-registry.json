@@ -108,9 +108,7 @@
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugins/adj_rib_in",
-    "yang_files": [
-      "internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang"
-    ]
+    "yang_files": []
   },
   {
     "name": "bgp-aigp",
@@ -572,8 +570,7 @@
     "source_dir": "internal/component/bgp/plugins/route_refresh",
     "yang_files": [
       "internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang",
-      "internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang",
-      "internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang"
+      "internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang"
     ]
   },
   {
@@ -604,9 +601,7 @@
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rpki_decorator",
-    "yang_files": [
-      "internal/component/bgp/plugins/rpki_decorator/yang/ze-rpki-decorator.yang"
-    ]
+    "yang_files": []
   },
   {
     "name": "bgp-rr",
@@ -701,7 +696,10 @@
       "sysctl"
     ],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "interface",
+      "firewall"
+    ],
     "source_dir": "internal/plugins/container",
     "yang_files": [
       "internal/plugins/container/yang/ze-container-cmd.yang",

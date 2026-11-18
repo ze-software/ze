@@ -49,7 +49,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 4271 | BGP-4 base protocol | 91 of 133 MUST proven | interop 4, functional 10, unit 77 | RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5 |
+| RFC 4271 | BGP-4 base protocol | 108 of 133 MUST proven | interop 4, functional 11, unit 93 | RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5 |
 | RFC 2545 | IPv6 next-hop handling | 3 of 5 MUST proven | interop 1, functional 2 | RFC2545-3-3, RFC2545-3-6 |
 | RFC 5492 | BGP capability advertisement | 8 of 9 MUST proven | unit 8 | RFC5492-4-3 |
 | RFC 6608 | BGP FSM Error subcodes | 3 of 3 MUST proven | unit 3 | - |
@@ -85,7 +85,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
 | RFC 9552 | BGP-LS (obsoletes RFC 7752) | 44 of 59 MUST proven | functional 1, unit 43 | RFC9552-5.1-7, RFC9552-5.2-5, RFC9552-5.3-1, RFC9552-5.3-2, RFC9552-5.3.2.7-1, RFC9552-5.4-2, RFC9552-5.5-1, RFC9552-8.2.6-2 |
-| RFC 7752 | BGP-LS | 7 of 26 MUST proven | unit 7 | RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-3.4-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1 |
+| RFC 7752 | BGP-LS | 6 of 26 MUST proven | unit 6 | RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-3.4-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1 |
 | RFC 9085 | BGP-LS Segment Routing extensions | 9 of 9 MUST proven | unit 9 | - |
 | RFC 9086 | BGP-LS Egress Peer Engineering SIDs | 7 of 11 MUST proven | unit 7 | RFC9086-5-2, RFC9086-5.2-1, RFC9086-7-1, RFC9086-7-2 |
 | RFC 9514 | BGP-LS SRv6 extensions | 15 of 20 MUST proven | unit 15 | RFC9514-7.2-1, RFC9514-7.2-2, RFC9514-7.2-3, RFC9514-7.2-5, RFC9514-7.2-6 |
@@ -137,7 +137,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 |-----|------|-------|----------|-------|
 | RFC 4364 | BGP/MPLS IP VPNs | 0 of 8 MUST proven | - | RFC4364-13.1-1, RFC4364-13.1-2, RFC4364-4.3.1-1, RFC4364-4.3.1-2, RFC4364-4.3.2-1, RFC4364-4.3.2-2, RFC4364-4.3.2-3, RFC4364-6-1 |
 | RFC 4659 | VPNv6 | 3 of 18 MUST proven | interop 1, unit 2 | RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5 |
-| RFC 8277 | BGP Labeled Unicast | 10 of 35 MUST proven | unit 10 | RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3 |
+| RFC 8277 | BGP Labeled Unicast | 11 of 35 MUST proven | unit 11 | RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3 |
 | RFC 4684 | Route Target Constraint | 2 of 6 MUST proven | unit 2 | RFC4684-3.2-1, RFC4684-3.2-2, RFC4684-3.2-3, RFC4684-6-1 |
 | RFC 4761 | VPLS NLRI | 0 of 18 MUST proven | - | RFC4761-2.3-1, RFC4761-3.2.3-1, RFC4761-3.2.3-2, RFC4761-3.2.4-1, RFC4761-3.2.4-2, RFC4761-3.2.4-3, RFC4761-3.2.4-4, RFC4761-3.2.4-5, RFC4761-3.2.4-6, RFC4761-3.3-1, RFC4761-3.4.2-1, RFC4761-3.5-1, RFC4761-3.5-2, RFC4761-4.2.1-1, RFC4761-4.2.2-1, RFC4761-4.2.5-1, RFC4761-6-1, RFC4761-6-2 |
 | RFC 6514 | MVPN and PMSI Tunnel | not walked | - | - |

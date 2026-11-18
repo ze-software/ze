@@ -5,17 +5,17 @@ Turn a route announcement into wire\-format hex\.
 ## Ze command
 
 - Registry path: `show bgp encode`
-- Usage: `show bgp encode [family <family>] [local-as <local-as>] [peer-as <peer-as>] [path-id <include\|omit>] [part <message\|body\|nlri>] [asn-width <two-octet\|four-octet>] [announcement <announcement>]`
-- Mode: read-only, offline
+- Usage: `show bgp encode [family <family>] [local-as <local-as>] [peer-as <peer-as>] [path-id <include|omit>] [part <message|body|nlri>] [asn-width <two-octet|four-octet>] [announcement <announcement>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-bgp:show-encode`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

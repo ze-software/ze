@@ -1633,6 +1633,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/delete-bgp-peer/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-config-artifact/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/delete-container-image-all/</loc>
   </url>
   <url>
@@ -1819,6 +1822,114 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-config-archive/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-activate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-bytes-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-deactivate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-download-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-import/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-key-delete/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-key-read/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-key-write/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-repair/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-replace/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-restore-config/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-restore-full/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-review/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-rollback/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-save/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-activate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-changes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-commit/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-deactivate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-delete/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-diff/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-discard/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-history/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-merge/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-replace/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-resume/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-save/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-session-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-source-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-text-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-upload-abort/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-upload-append/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-upload-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-upload-finish/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-validate/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-container-restart-name/</loc>
   </url>
   <url>
@@ -1826,6 +1937,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-data-backup/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-data-config-rename/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-data-config-rollback/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-data-repair/</loc>
@@ -2206,13 +2323,52 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-command-reference/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-activate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-check/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-config-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-diff/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-history/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-info/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-key-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-source/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-artifact-transfer-read/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-cat/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-deactivate/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-diff/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-dump/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-environment-validation/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-fix-plan/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-fmt/</loc>
@@ -2227,7 +2383,28 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-config-list/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-migrate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-replace/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-running/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-source/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-activate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-completion/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-deactivate/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-diff/</loc>
@@ -2236,10 +2413,25 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-dump/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-fix-plan/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-fmt/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-graph/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-migrate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-replace/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-source/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-supplied-validation/</loc>
@@ -2249,6 +2441,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-container-image-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-container-list/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-container-store/</loc>
@@ -2264,6 +2459,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-data-check/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-data-encode/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-data-list/</loc>
@@ -2336,6 +2534,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-event-recent/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-exabgp-migration-config/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-exabgp-migration-environment/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-fib-kernel/</loc>
@@ -2822,6 +3026,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-schema-protocol/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-secret-decode/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-secret-encode/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-skill/</loc>

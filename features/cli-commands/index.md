@@ -78,7 +78,17 @@ fix: create bgp peer <selector> asn <asn>
 
 Every route gives the same fix: a plugin's command, a subsystem's, and a
 command answered in the `ze` process itself (`ze <verb>` writes the command
-with its `ze` prefix). A line with a fault in a word it typed keeps the
+with its `ze` prefix). A single missing mandatory argument follows the same
+correction path, without a count of faults:
+
+```
+required argument missing: asn
+This command needs asn: The value is 1 to 4294967295, in asplain or asdot notation. Ze stores the
+decimal form whichever notation you typed. AS 0 is refused, because RFC 7607 reserves it.
+fix: create bgp peer 192.0.2.7 asn <asn>
+```
+
+A line with a fault in a word it typed keeps the
 general fix:
 
 ```
@@ -183,7 +193,7 @@ the sequence too; adding or removing the whole list uses `added` or `removed`.
 This does not add general non-BGP value comparison. Files, stored sources and
 rollback revisions use the same comparison, and changed secret values remain
 masked in both output shapes.
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders, maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders, maskDiffSecrets -->
 
 Interactive `ze config edit` and `ze cli` run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored

@@ -174,15 +174,25 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
+| `optional-dependencies` | `[]string` | Plugins this one starts after when both run. It loads nothing |
+| `start-after` | `[]string` | Plugins this one starts after when both run, as an ordering edge alone. It loads nothing |
 | `wants-config` | `[]string` | Config roots the plugin wants to receive |
 | `config-operations` | `[]ConfigOperationDecl` | Config operation callbacks the plugin supports, and the operation labels it emits for each root. The labels are the plugin's own: the engine keeps no list of them |
+| `config-completion` | `bool` | Whether the plugin answers `config-complete`, the acknowledged cleanup after a whole reload was published or restored. The Go SDK sets it from `OnConfigComplete` |
+| `source-policy-owner` | `bool` | Whether the plugin retains source state, declared apart from `source-policy` |
+| `source-policy` | `bool` | Whether the plugin answers the acknowledged source-policy lifecycle callbacks |
+| `origin-intake` | `bool` | Declares the scoped-origin mutation callback and joined cancellation. The SDK derives this flag from `OnOriginIntake`. |
+| `current-selection` | `bool` | Whether the plugin answers the desired-selection snapshot callback |
+| `origin-admission-lookup` | `bool` | Whether the plugin answers read-only original accepted-record lookup |
+| `event-settlement` | `bool` | Whether the plugin acknowledges when its asynchronous work on an event is complete |
 | `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
 | `apply-budget` | `int` | Estimated apply time in seconds (`0` means trivial) |
-| `schema` | `*SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |
+| `schemas` | `[]SchemaDecl` | The YANG modules the plugin brings, one entry for each module: a config module, a `-cmd` command module, an `-api` rpc module. Ze joins an external plugin's modules when it starts (`schema.md`) |
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`, and whether an export filter also runs on two extra occasions, `readvertise` and `judges-final` ("Filter Run Occasions"); Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
+| `filter-insertions` | `[]FilterInsertion` | Members the plugin asks the config loader to insert into a peer's filter list where the peer's config needs them (`docs/architecture/api/process-protocol.md`, "Filter Insertion") |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides, each with a `phase`: `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. Declare `runtime` (`sdk.DoctorPhaseRuntime`) for a check that reads your plugin's live state: only `show doctor` on the running daemon runs it, never a local `ze doctor` process, which holds no live state. A `runtime` check only reads; it changes nothing |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
@@ -190,8 +200,27 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
-| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+| `drain-budget` | `int` | The longest time, in seconds, the plugin's drain handler takes to answer the stop drain. Declared only with `drain-handler`; a budget above the ceiling `rpc.DrainCeilingSeconds`, or one with no handler, fails Stage 1 |
+| `drain-handler` | `bool` | Whether the plugin answers the stop drain. The Go SDK sets it from `OnDrain` |
 | `started-handler` | `bool` | You initialize local resources after ready; answer runtime-ready only after that initialization succeeds. The Go SDK derives it from OnStarted |
+| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+
+**Ze reads every key of a declaration, and refuses one it does not know.** A
+key ze skipped would start your plugin without what the key declares, so a key
+outside the tables of this section, at the top of the declaration or inside
+any entry the tables define, fails Stage 1 with an error that names your
+plugin and this section. The daemon, `show plugin declarations` and the
+conformance check read a declaration the same way. A declaration that carries
+no `protocol-version` gets the version refusal instead, the one that names its
+real problem ("The protocol version", below).
+
+The modules were once one object under `schema`. Ze reads no value under that
+key, and a declaration that carries it is refused with the fix: send
+`"schemas":[{"module":...,"namespace":...,"yang-text":...}]` in place of
+`"schema":{...}`.
+<!-- source: pkg/plugin/rpc/declaration.go -- DecodeDeclaration, retiredSchemaRefusal -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- readEarlyDeclaration -->
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -261,9 +290,9 @@ Each `CommandDecl` has these fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Command path the plugin serves |
-| `description` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
+| `short-help` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
 | `description` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
-| `args` | `[]string` | Expected argument names, for help and completion |
+| `args` | `[]string` | Argument names, for the help and completion of a command no module defines. A command a `-cmd` module defines takes its arguments from the module's leaves ([commands.md](../commands/index.md)) |
 | `completable` | `bool` | Whether the command supports tab completion |
 | `hidden` | `bool` | Whether the command is left out of help and completion |
 | `deprecated-names` | `[]string` | Older spellings that still reach this command |
@@ -277,8 +306,10 @@ fails Stage 1 and does not start.
 
 `short-help` and `description` are two texts and neither is derived from the
 other. The key is `description` and not `help`, because `help` already names the
-SUMMARY in a completion row on this same protocol. A plugin that sends
-`description` and no `description` renders with its summary and an empty
+SUMMARY in a completion row on this same protocol. A command entry that
+still carries `help`, the summary's spelling before `short-help`, fails Stage
+1 with an error that names `short-help`. A plugin that sends
+`short-help` and no `description` renders with its summary and an empty
 explanation. That is what every plugin written before `description` existed
 sends. An empty `description` NEVER renders as an empty summary.
 
@@ -319,6 +350,79 @@ Each `FamilyDecl` has these fields:
 | `safi` | `uint8` | RFC 4760 Subsequent Address Family Identifier |
 
 Set `afi` and `safi` for a custom family. A built-in family can omit both numeric fields.
+
+Each `SchemaDecl` is one YANG module. A plugin that brings several modules
+sends one entry for each (`schema.md`):
+<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `module` | `string` | The module's name, as its text states it |
+| `namespace` | `string` | The module's namespace, as its text states it |
+| `yang-text` | `string` | The text of the module, which holds that one module |
+| `handlers` | `[]string` | Handler prefixes, read only by the subsystem handler |
+
+Each `ConfigOperationDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- ConfigOperationDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `root` | `string` | The config root the entry is about |
+| `decompose` | `bool` | Whether the plugin answers `config-operation-decompose` for the root (`OnConfigOperationDecompose` in the Go SDK) |
+| `operations` | `[]string` | The operation labels the plugin emits for the root |
+
+Each `FilterDecl` has these fields (`docs/architecture/api/process-protocol.md`,
+"Filter Declaration"):
+<!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | The filter's name; config refers to it as `<plugin>:<name>` |
+| `name-pattern` | `string` | An RE2 expression a whole filter name matches, in place of `name` |
+| `direction` | `string` | `import`, `export` or `both` |
+| `reads` | `[]string` | The route fields the filter reads; `raw` for the UPDATE body |
+| `sets` | `[]string` | The route fields the filter may set |
+| `on-error` | `string` | `reject` (fail closed) or `accept` (fail open) |
+| `overrides` | `[]string` | The default filters this filter replaces |
+| `readvertise` | `bool` | An export filter also runs when a graceful-restart retention re-advertises its stale routes ("Filter Run Occasions") |
+| `judges-final` | `bool` | An export filter runs again over the body the export chain rewrote, so a member behind it cannot undo what it owes the route ("Filter Run Occasions") |
+
+Each `FilterInsertion` has these fields (`docs/architecture/api/process-protocol.md`,
+"Filter Insertion"):
+<!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterSessionFact -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filter` | `string` | The chain reference the plugin serves: `<plugin>:<filter>` or `<type>:<instance>` |
+| `direction` | `string` | `import` or `export`, exactly one |
+| `priority` | `int` | 0 to 9999: a lower one runs first among inserted members |
+| `config` | `[]string` | The path words under the peer's entry whose leaf places the member |
+| `values` | `[]string` | The leaf equals one of these; empty means present |
+| `session` | `[]FilterSessionFact` | Session facts that all hold, in place of `config`. Each has a `fact` and `values`, which the fact equals one of; empty means present |
+| `scope` | `string` | Whose condition places the member: empty for the peer itself, `any-peer` for any peer |
+| `required` | `bool` | The operator cannot name, move or deactivate the member |
+| `reason` | `string` | Why the member is required; owed with `required` |
+
+Each `DoctorCheckDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | The check's name, in kebab-case |
+| `phase` | `string` | When it runs: `pre-config`, `missing-config`, `parsed-config`, `post-config` or `runtime` |
+| `order` | `int` | Its order within the phase, 0 to 9999 |
+| `dependencies` | `[]string` | The checks that run before it |
+| `platforms` | `[]string` | The platforms it runs on; empty means any |
+| `codes` | `[]string` | The diagnostic codes it reports, each starting `doctor-` |
+
+Each `EnricherDecl` has a `command`, the show command path it enriches, and a
+`key`, its kebab-case key, unique within that command.
+<!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
+
+Each `DisseminationDecl` has a `namespace` and a `role`, and the grants the
+role needs: `source-receive`, `destination-receive` and `destination-send`,
+each a `[]string`.
+<!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
 
 **Wire example:**
 
@@ -474,6 +578,12 @@ loop. If Stage 1 declared `started-handler`, the engine sends the empty
 `ze-plugin-callback:runtime-ready` callback and waits for its answer before
 starting a dependent tier. The ordinary callback queue can answer only after
 initialization succeeds, including when the bridge already reports activated.
+
+For an internal bridge, the engine also joins this answer when no initializer
+was declared. The SDK default answers through its active bridge loop.
+The final ready response alone does not prove that the SDK activated its typed
+slots. This receipt joins activation before startup succeeds.
+
 An initializer may make ordinary engine calls during that wait; socket startup
 serves them through the same operation registry as the runtime connection.
 Cross-plugin commands still belong in `OnAllPluginsReady`.
@@ -499,7 +609,7 @@ arguments and returns the exit code:
 // socket, no goroutine.
 func declaration() *sdk.Registration {
     return &sdk.Registration{
-        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
+        Commands: []sdk.CommandDecl{{Name: "show acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
 
@@ -600,7 +710,9 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
+| `ze-plugin-callback:origin-intake` | `OnOriginIntake` | `rpc.OriginIntakeInput` | `rpc.UpdateRouteOutput` | Retain or remove one exact engine-authorized local contribution, joining cancellation and output barriers |
 | `ze-plugin-callback:event-settlement` | `OnEventSettlement` | `rpc.EventSettlementInput` | `rpc.EventSettlementOutput` | Await asynchronous work after prior events were applied |
+| `ze-plugin-callback:origin-admission-lookup` | `OnOriginAdmissionLookup` | `rpc.OriginAdmissionLookupInput` | `rpc.OriginAdmissionLookupOutput` | Read the exact original accepted redistribution record |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
@@ -611,6 +723,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete, operation callback registration -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigCompleteInput, ConfigCompleteOutput -->
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup -->
 
 An `OnConfigComplete` handler automatically declares `config-completion` in
 Stage 1. Its context carries the absolute `deadline-ms` work bound. Complete
@@ -1038,6 +1151,13 @@ on a route it already changed:
 
 ## Runtime RPCs (Plugin to Engine)
 
+Full update-route result methods preserve explicit retained/suppressed admission
+with zero announced routes, warning reasons and partial failure counts. The
+legacy count methods keep their count/error answer. A missing receipt cannot
+be inferred from zero counts; direct origination and control commands may
+return explicit count-only results. See [Update-route results](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#update-route-command-and-admission-results)
+for the numeric result fields and the separation from selected-output authority.
+
 Plugins call the engine during runtime through these SDK methods:
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
 <!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->
@@ -1050,6 +1170,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:release-cached` | `ReleaseCached` | `ReleaseCachedInput` | None | Release cached UPDATEs |
 | `ze-plugin-engine:relay-stored-route` | `RelayStoredRoute` | `RelayStoredRouteInput` | None | Relay stored routes |
 | `ze-plugin-engine:select-routes` | `SelectRoutes` | `SelectRoutesInput` | `SelectRoutesOutput` | Join final selected-output writes for one captured destination session |
+| `ze-plugin-engine:select-refresh` | `SelectRefresh` | `SelectRefreshInput` | `SelectRefreshOutput` | Join one enhanced marker on the same captured selected-output destination |
 | `ze-plugin-engine:cancel-request` | Used by `SelectRoutes` cancellation | `CancelRequestInput` | `CancelRequestOutput` | Join an opt-in request on this connection |
 | `ze-plugin-engine:route-install` | `RouteInstall` | `RouteInstallInput` | `RouteInstallOutput` | Install routes in the Loc-RIB |
 | `ze-plugin-engine:route-remove` | `RouteRemove` | `RouteRemoveInput` | `RouteRemoveOutput` | Remove routes from the Loc-RIB |
@@ -1099,6 +1220,18 @@ previous selected output's retirement. Success must follow final writer
 completion. Never wait for a sent-event callback to finish the RPC: a lifecycle
 callback may already hold that plugin delivery loop. An unsupported reactor
 returns an error.
+
+Use `SelectRefresh` to bracket a selected replay on that same owner's stream.
+Preserve the captured address, `peer-owner` and `destination-session`, and name
+one negotiated family. Action `1` begins and action `2` ends the replay. Await
+Begin, every final route receipt, then End. Its complete receipt echoes those
+identities and action; outcome `1` means the marker was written, while `2`
+means enhanced markers were not negotiated. A zero or missing receipt fails.
+This uses the effective selecting role and its existing update send grant;
+it grants no right to send a normal refresh request. If our own OPEN advertised GR, Begin
+requires this connection's actual completed EOR for that family.
+<!-- source: pkg/plugin/sdk/sdk_selected_refresh.go -- SelectRefresh -->
+<!-- source: pkg/plugin/rpc/selected_refresh.go -- SelectRefreshInput, SelectRefreshOutput -->
 
 The SDK sets the absolute `deadline-ms` from the caller's context, capped at
 thirty seconds per batch. When that context ends, the socket form sends
@@ -1278,12 +1411,20 @@ namespace with its name, hardware address and MTU, then given its addresses,
 set up, and given one default route per gateway. A refused bridge set or link
 changes nothing: the previous bridge set stays in place, and a link that fails
 part way is deleted. When the plugin's process ends, the bridges and links it
-declared are withdrawn and their devices deleted. `FirewallTablesReplace` is
-still refused for every accepted caller as not implemented in this build, and
-no table is created (`docs/architecture/api/process-protocol.md`, "Owned
-interface devices and firewall table contribution").
+declared are withdrawn and their devices deleted.
+
+`FirewallTablesReplace` also answers with the kernel's outcome: the tables are
+validated as an operator's firewall config is, registered under the plugin's
+name and reconciled with every other owner's tables, the operator's included,
+before the call returns. The answer names the kernel tables the plugin now
+contributes. A refused set changes nothing, because the previous set is
+registered and reconciled again. A config commit leaves contributed tables in
+place, the tables of a plugin process that ended are withdrawn, and the
+firewall's orderly stop removes them with every other Ze table
+(`docs/architecture/api/process-protocol.md`, "Owned interface devices and
+firewall table contribution").
 <!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, WithdrawOwnedDevices -->
-<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
+<!-- source: internal/component/firewall/contribution.go -- replaceContributedTables, withdrawContributedTables -->
 
 ## Message Flow Example
 
@@ -1379,3 +1520,86 @@ channel entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler dir
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
+
+### Original accepted redistribution records
+
+`OnOriginAdmissionLookup` registers a read-only handler before `Run`. Stage 1
+derives its support bit. The callback works through the typed bridge and the
+same framed public RPC, independently of an ordinary command that awaits it.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup, startOriginAdmissionLookupWorker -->
+
+Answer only from the original published accepted record. Echo the requested
+ID, canonical family and prefix, concrete peer and owner, and operation.
+Missing or stale records return an error. A retiring record answers only its
+exact withdrawal. Explicit peer scope, BGP class and distance presence prevent
+missing values from acquiring a different meaning.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionLookupOutput, OriginAdmissionSnapshot, Validate -->
+
+The original source metric differs from optional transformed wire MED. Zero
+distance and initial rule generation are valid explicit facts. Transfer output
+ownership to the SDK, including communities. The handler MUST honor its context,
+perform no engine call or I/O, and read no election state under a blocking lock.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionSnapshot -->
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OriginAdmissionLookupHandler -->
+
+A read deadline ends work, not the healthy connection. The SDK sends a refusal
+within a fresh bounded process budget. Stop still cancels replies, and a real
+writer failure still closes the connection. A snapshot permits at most 65535
+communities, as declared by both Go validation and YANG.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- answer -->
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionCommunityMax, Validate -->
+<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- origin-admission-snapshot -->
+
+A successful lookup grants no origination or send authority. The engine caller
+keeps the original process connection and separately verifies publisher,
+accepted lifetime, actual grants and route build. The complete value contract
+is in [the process protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#original-redistribution-admission-lookup).
+<!-- source: internal/component/plugin/ipc/origin_admission_lookup.go -- SendOriginAdmissionLookup -->
+
+### Scoped origin intake
+
+`OnOriginIntake` registers an optional mutation handler for a deciding plugin
+before `Run`. Each call carries owned original local-build data and an
+engine-issued receipt for one concrete peer.
+<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
+
+An accepted loser returns the full update-route result with an explicit
+retained receipt and zero `Announced`. A missing result or bare zero is not
+acceptance. A removal returns its completed command count.
+<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
+
+The handler MUST serialize exact source/key/scope mutations and refuse older
+generations. It MUST honor cancellation and join every mutation and writer
+barrier before it returns. The SDK provides a separate bounded worker.
+`CurrentSelection` remains read-only and can run during engine calls from intake.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- OnOriginIntake and joined worker -->
+
+The callback has both a typed slot and the same framed public RPC. Cancellation
+joins the handler and response attempt before settlement. The complete value,
+authority boundaries and activation dependencies are documented in
+[the process protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#mutating-local-origin-intake).
+<!-- source: internal/component/plugin/ipc/origin_intake.go -- SendOriginIntake -->
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- answer, runCancellations -->
+
+The original `source-context` belongs to the engine. A reader decodes original
+AS-path bytes only when `as-path-known` is true and uses `as-path-asn4` for their
+width. A reader keeps bytes with unknown encoding opaque.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originIntakeValue -->
+
+If a configured owner has not completed registration and startup, the engine
+refuses origination. A known live legacy owner keeps direct origination, as
+does a peer without an ordinary deciding owner.
+<!-- source: internal/component/plugin/server/origin_intake.go -- OriginIntakeOwner -->
+
+The selected-origin writer reconstructs the issued build and uses the existing
+export and socket writer.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
+
+No in-tree provider currently enables this optional callback. Runtime activation
+still requires the origin domain and its lifecycle barriers, plus a RIB candidate
+provider. Configured and redistributed producers must preserve their original
+source provenance before Ze can advertise origin arbitration.
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.originReceipts -->
+<!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->

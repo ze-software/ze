@@ -5,16 +5,16 @@ List available configuration rollback points\.
 ## Ze command
 
 - Registry path: `show config history`
-- Usage: `show config history`
-- Mode: read-only, offline
+- Usage: `show config history <file>`
+- Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-history`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: revision, timestamp, path, state
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: revision\, timestamp\, path\, state
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -25,11 +25,13 @@ Shows revisions with timestamps and commit metadata\. Pair with \'show config di
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `file` | string | yes | any value of this type | Configuration file whose revisions are listed\. | The configuration whose stored revision history is listed\. Standard input has no revision history\. |
 
 ## Mapping intents
 
-### Show running, candidate, and diffed configuration
+### Show running\, candidate\, and diffed configuration
 
 Category: Configuration
 
@@ -48,7 +50,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `compare` (verified, vyos-cli)
-  - Intent: Show running, candidate, and diffed configuration
-- `show configuration` (verified, vyos-cli)
-  - Intent: Show running, candidate, and diffed configuration
+- `compare` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration
+- `show configuration` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration

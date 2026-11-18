@@ -54,6 +54,7 @@
 <li><a href="#usage">Usage</a>
 <ol>
 <li><a href="#modes">Modes</a></li>
+<li><a href="#ssh-idle-timeout">SSH idle timeout</a></li>
 <li><a href="#the-attached-console">The attached console</a></li>
 </ol></li>
 <li><a href="#peer-commands">Peer Commands</a></li>
@@ -110,6 +111,17 @@ ze start --cli                              # Start the daemon and attach a cons
 </tr>
 </tbody>
 </table>
+<p>With <code>ze.cli.transcript</code> enabled, <code>ze cli -c</code> records the command and its rendered
+answer under <code>$XDG_DATA_HOME/ze/transcripts/</code>. This includes commands served
+locally, which need no SSH credentials or running daemon. See
+<a href="../configuration-model/#environment-block">transcript recording</a> for file ownership and defaults.</p>
+<!-- source: internal/component/cli/client/main.go -- runBGP, runOne, openOneShotTranscript -->
+<h3 id="ssh-idle-timeout">SSH idle timeout</h3>
+<p><code>environment ssh idle-timeout</code> sets how many seconds an SSH connection can stay
+silent. The default is 600 seconds. Receiving or sending data restarts the idle
+period, so an active terminal or monitor can stay connected beyond that duration.</p>
+<!-- source: internal/component/ssh/ssh.go -- Server.Start -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment/ssh/idle-timeout -->
 <h3 id="the-attached-console">The attached console</h3>
 <p><code>ze start --cli</code> starts the daemon and attaches an interactive console to it.
 The console dispatches each command in the daemon process, so it needs no SSH
@@ -612,7 +624,7 @@ none says so.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

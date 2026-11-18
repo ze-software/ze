@@ -9,13 +9,13 @@ Start receiving events of one or more types\.
 - Mode: Daemon
 - Wire method: `ze-cmd:bgp-subscribe`
 - Backends: any backend
-- Task support: required: the MCP server always answers with a task handle
+- Task support: required\: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

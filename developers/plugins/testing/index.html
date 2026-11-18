@@ -167,7 +167,7 @@ rows to learn what is still unproven.</p>
 </tr>
 <tr>
 <td><code>declaration-decodes</code></td>
-<td>The JSON of that line decodes as a Stage 1 declaration</td>
+<td>The JSON of that line decodes as a Stage 1 declaration, read as the daemon reads it: a key ze does not know, the retired <code>schema</code> key among them, fails the row with the daemon's own refusal, and the Stage 1 rows after it are not judged</td>
 </tr>
 </tbody>
 </table>
@@ -176,11 +176,24 @@ rows to learn what is still unproven.</p>
 <p>The next rows are the daemon's own Stage 1 checks, run over the declaration the
 program wrote. The checker and the daemon read one table, so a row that fails
 here is a declaration the daemon refuses, with the daemon's own reason. These
-rows carry stage <code>1</code>: <code>protocol-version</code>, <code>filter-declarations</code>,
-<code>filter-insertions</code>, <code>filter-insertion-paths</code>, <code>drain</code>, <code>resolver-caches</code>,
-<code>doctor-checks</code>, <code>enrichers</code>, <code>pipe-aliases</code>, <code>answer-shapes</code> and <code>help-texts</code>.
-The row <code>command-names</code> carries stage <code>5</code>. The daemon applies that rule at
-Stage 5, where a bad name refuses the command and keeps the plugin.</p>
+rows carry stage <code>1</code>: <code>protocol-version</code>, <code>dissemination</code>,
+<code>filter-declarations</code>, <code>filter-insertions</code>, <code>filter-insertion-paths</code>, <code>drain</code>,
+<code>resolver-caches</code>, <code>doctor-checks</code>, <code>enrichers</code>, <code>pipe-aliases</code>,
+<code>answer-shapes</code>, <code>help-texts</code> and <code>command-nodes-served</code>. The row
+<code>command-names</code> carries stage <code>5</code>. The daemon applies that rule at Stage 5,
+where a bad name refuses the command and keeps the plugin.</p>
+<p><code>command-nodes-served</code> joins the YANG modules of the declaration to ze's own,
+as the daemon does at <code>ze start</code>, and fails when a <code>ze:command</code> node of those
+modules is not routed to a command the plugin declares: no declared command
+reaches it on a word boundary, or the only one that does is a name the daemon
+refuses at Stage 5. A module the join refuses fails the row with the join's
+own refusal. The daemon also counts the commands other plugins registered
+before this one, because the longest command that reaches a node takes it; the
+checker runs one program, so it judges the declaration alone.</p>
+<!-- source: internal/component/plugin/server/stage1_commands.go -- refuseUnservedCommandNodes, commandModules, commandServed -->
+<!-- source: internal/component/plugin/server/command.go -- longestReach, commandReaches -->
+<!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- programAlone -->
 <p>When the program did not start, every later row is <code>not-judged</code>. When no
 declaration was read, every Stage 1 row is <code>not-judged</code>. A row is never passed
 for a declaration that nobody read.</p>
@@ -217,7 +230,7 @@ start ze.</p>
 <tr>
 <td><code>schema-unchanged</code></td>
 <td><code>1</code></td>
-<td>The check compares the declared config schema with the one the daemon read from the plugin when it started</td>
+<td>The check compares the declared YANG modules with the ones the daemon read from the plugin when it started</td>
 </tr>
 <tr>
 <td><code>dependencies</code></td>
@@ -272,7 +285,7 @@ start ze.</p>
 <tr>
 <td><code>schema</code></td>
 <td><code>schema</code></td>
-<td>The checker does not compile the YANG module in the <code>schema</code> field of the declaration</td>
+<td>The checker joins the YANG modules in the <code>schemas</code> list of the declaration only for <code>command-nodes-served</code>, which fails with the join's refusal; it parses no config against them</td>
 </tr>
 </tbody>
 </table>
@@ -312,6 +325,7 @@ exits-clean                  declare    pass
 declaration-line             declare    pass
 declaration-decodes          declare    pass
 protocol-version             1          pass
+dissemination                1          pass
 filter-declarations          1          pass
 filter-insertions            1          pass
 filter-insertion-paths       1          pass
@@ -322,6 +336,7 @@ enrichers                    1          pass
 pipe-aliases                 1          pass
 answer-shapes                1          pass
 help-texts                   1          pass
+command-nodes-served         1          pass
 command-names                5          pass
 ambiguous-registration       1          not-judged
 doctor-check-declared-twice  1          not-judged
@@ -728,7 +743,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

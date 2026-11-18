@@ -74,6 +74,7 @@
 </ol></li>
 <li><a href="#mandatory-and-default">Mandatory and Default</a></li>
 <li><a href="#references">References</a></li>
+<li><a href="#extensions-that-name-a-registration">Extensions that name a registration</a></li>
 <li><a href="#best-practices">Best Practices</a></li>
 <li><a href="#example-complete-plugin-with-schema">Example: Complete Plugin with Schema</a>
 <ol>
@@ -97,19 +98,19 @@
 </tr>
 <tr>
 <td>External plugin (a separate process, SDK or any language)</td>
-<td>Joined to the schema at <code>ze start</code>, from the <code>YANGText</code> of its Stage 1 declaration; the operator writes config under its roots. With no daemon running Ze starts no plugin, so <code>ze config validate</code> and the other commands that parse a config then cannot check a section under those roots</td>
+<td>Joined to the schema at <code>ze start</code>, from the modules its Stage 1 declaration lists under <code>schemas</code> (config, command and rpc modules); the operator writes config under its roots. With no daemon running Ze starts no plugin, so <code>ze config validate</code> and the other commands that parse a config then cannot check a section under those roots</td>
 <td>The roots it declares, its own included</td>
 </tr>
 </tbody>
 </table>
 <p>At <code>ze start</code> the daemon reads the plugin declarations first (the <code>plugin</code>
 block and the plugins named on the command line), runs each declared external
-plugin, reads its Stage 1 declaration, joins the module it carries and only
+plugin, reads its Stage 1 declaration, joins every module it lists and only
 then parses the full config. The plugin waits for its Stage 1 answer in the
 meantime, so a plugin MUST NOT time out between sending its declaration and
 receiving the answer. A module that does not compile, or that clashes with a
 module Ze holds, refuses the start and names the plugin. A plugin and its
-module change only when <code>ze</code> restarts.</p>
+modules change only when <code>ze</code> restarts.</p>
 <p>Ze enforces that rule while it runs:</p>
 <ul>
 <li>A reload whose config adds or removes an external plugin, or changes the
@@ -118,12 +119,15 @@ message names each plugin and what changed, and its fix is <code>restart ze</cod
 The rest of the config reloads without a restart, your own section
 included.</li>
 <li>When Ze starts your plugin again (it ended and declared <code>failure-policy restart</code>, or the operator ran <code>request plugin restart &lt;name&gt;</code>), the plugin
-MUST declare the same module: the same name, namespace and text, or none if
-it declared none. Another schema refuses the plugin at Stage 1. Ze does not
-run it, keeps the config under its root, and raises the warning
-<code>doctor-plugin-schema-changed</code>, which <code>ze show doctor</code> reports with what
-differs. To ship a new schema, install the new program and restart <code>ze</code>.</li>
+MUST declare the same modules: each with the same name, namespace and text,
+none missing and none added, or none if it declared none. This holds for a
+command or rpc module as for a config module. Another schema refuses the
+plugin at Stage 1. Ze does not run it, keeps the config under its root, and
+raises the warning <code>doctor-plugin-schema-changed</code>, which <code>ze show doctor</code>
+reports with the first module that differs. To ship a new schema, install
+the new program and restart <code>ze</code>.</li>
 </ul>
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference -->
 <p>A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
 refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
@@ -148,17 +152,17 @@ and a section written for it is refused with a message that says so.</p>
 </tr>
 <tr>
 <td><code>doctor-plugin-schema-refused</code></td>
-<td>Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a validator Ze does not hold, or it adds nothing</td>
+<td>Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a <code>ze:validate</code> validator or a <code>ze:reference</code> source Ze does not hold, it declares a command or a wire method another module declares, a <code>ze:rpc</code> names an rpc no module defines, or it adds nothing</td>
 <td>On the refusal and in the log. Ze does not start, and <code>ze doctor</code> reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-schema-changed</code></td>
-<td>Your plugin was started again with another schema</td>
+<td>Your plugin was started again with other YANG modules (a config, command or rpc module)</td>
 <td>In <code>ze show doctor</code></td>
 </tr>
 </tbody>
 </table>
-<p>In a running Ze your module is part of the schema every surface reads: the
+<p>In a running Ze your config module is part of the schema every surface reads: the
 session editor parses and completes under your root, <code>show config running</code>
 answers your section, <code>show yang tree config</code> shows your nodes with their
 types and descriptions, and <code>show schema list</code> lists your module with the
@@ -169,6 +173,19 @@ prints the YANG text of one module; <code>ze schema show &lt;module&gt;</code> p
 module compiled into <code>ze</code> only. The doctor check for config that reaches no plugin counts the roots
 your running plugin declared, so your section is not reported as having no
 effect.</p>
+<p>A change to your section that an operator commits in the session editor
+reaches your plugin as verify then apply, and Ze saves it: the next <code>ze start</code>
+on the same config directory runs your plugin, reads your modules again and
+configures your plugin with the committed value.</p>
+<!-- source: test/ui/external-yang-session-save.ci -- a commit under an external root survives a restart -->
+<p>Your plugin's process reads the settings of the config's <code>environment</code> block
+in its own environment, although Ze starts it before it has parsed the whole
+config and applied that block to itself. A variable set in the environment Ze
+was started from wins over the block, as it does for Ze. A plugin Ze starts
+again later inherits Ze's environment, which holds the block by then.</p>
+<!-- source: internal/component/config/apply_env.go -- EnvironmentEntries -->
+<!-- source: internal/component/plugin/process/process.go -- SetConfigEnvironment -->
+<!-- source: internal/core/env/env.go -- WithDefaults -->
 <p>With no daemon, <code>ze schema</code> shows the modules compiled into <code>ze</code> only. A
 <code>--plugin</code> that names your program does not start it: the answer is followed
 by a warning that your module is not available with no running Ze, whose fix
@@ -190,8 +207,15 @@ verdict. With no Ze running it answers:</p>
 the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze that started with these plugins checks a section that such a plugin defines, and none answered: no ze listens at 127.0.0.1:2222 (...). Run the command below, then `ze config validate ze.conf` again. What the parser refused: line 8: unknown top-level keyword: acme-monitor
 fix: ze start
 </code></pre>
-<p>The other commands ask no running Ze yet. Their message says so, and its fix
-is <code>ze config validate &lt;file&gt;</code>.</p>
+<p><code>ze config fmt</code>, <code>dump</code>, <code>diff</code> and <code>graph</code>, and their <code>ze show config</code>
+spellings, ask the running Ze the same way: the answer is printed as a local
+answer is, <code>fmt -w</code> rewrites your file with the text the running Ze formatted,
+and with no Ze running the message above names the command you ran in place of
+<code>ze config validate</code>. <code>ze config diff</code> compares the resolved <code>bgp</code> block and
+the order of ordered lists, so a leaf that differs in your plugin's own section
+is not reported as a difference.</p>
+<p>The other commands ask no running Ze. Their message says so, and its fix is
+<code>ze config validate &lt;file&gt;</code>.</p>
 <table>
 <thead>
 <tr>
@@ -205,7 +229,11 @@ is <code>ze config validate &lt;file&gt;</code>.</p>
 <td>Judged by the running Ze; with none running, refused with the message above</td>
 </tr>
 <tr>
-<td><code>ze config fmt</code>, <code>dump</code>, <code>diff</code>, <code>migrate</code>, <code>completion</code>, <code>show config graph</code>, with no daemon</td>
+<td><code>ze config fmt</code>, <code>dump</code>, <code>diff</code>, <code>graph</code></td>
+<td>Answered by the running Ze; with none running, refused with the message above, naming the command to run again</td>
+</tr>
+<tr>
+<td><code>ze config migrate</code>, <code>completion</code>, with no daemon</td>
 <td>Refused, naming <code>ze config validate &lt;file&gt;</code> as the fix</td>
 </tr>
 <tr>
@@ -246,19 +274,30 @@ running Ze starts your program in declare mode when <code>show plugin declaratio
 <!-- source: internal/component/config/first_pass.go -- FirstPass -->
 <!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 <h2 id="registering-a-schema">Registering a Schema</h2>
-<p>Schemas are declared via the <code>Schema</code> field of <code>sdk.Registration</code>, which is passed to
-<code>p.Run()</code>. The <code>Schema</code> field is a pointer to <code>sdk.SchemaDecl</code>.</p>
+<p>Schemas are declared via the <code>Schemas</code> field of <code>sdk.Registration</code>, which is passed to
+<code>p.Run()</code>. It lists one <code>sdk.SchemaDecl</code> for each module the plugin brings: a
+module whose name ends in <code>-conf</code> adds config roots, one that augments another
+module extends it, one whose name ends in <code>-cmd</code> adds the commands its
+<code>ze:command</code> nodes declare, and the rpc statements of a module (an <code>-api</code>
+module, as compiled-in plugins pair them) describe the parameters of the
+commands whose <code>ze:rpc</code> names them. Ze judges each module by the rules the
+modules compiled into <code>ze</code> obey; it also refuses a command path or a wire
+method that another module already declares, and a <code>ze:rpc</code> that names an rpc
+no module defines. A plugin that answers a command also declares it in
+<code>Commands</code>, and Ze refuses the start when a <code>ze:command</code> node of its modules
+is reached by no command it declares there. Defining a command in a <code>-cmd</code> module, with a worked example and
+the refusals, is <a href="../commands/">commands.md</a>, "Defining a Command in YANG".</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
 <pre><code class="language-go">p := sdk.NewWithConn("my-plugin", conn)
 
 p.Run(ctx, &amp;sdk.Registration{
-    Schema: &amp;sdk.SchemaDecl{
-        Module:    "ze-my-plugin",
+    Schemas: []sdk.SchemaDecl{{
+        Module:    "ze-my-plugin-conf",
         Namespace: "urn:ze:my-plugin",
         YANGText:  myPluginYANG,        // YANG module text (string)
         Handlers:  []string{"my-plugin"},
-    },
+    }},
     WantsConfig: []string{"my-plugin"},
 })
 </code></pre>
@@ -276,7 +315,7 @@ p.Run(ctx, &amp;sdk.Registration{
 <tr>
 <td><code>Module</code></td>
 <td><code>string</code></td>
-<td>YANG module name</td>
+<td>YANG module name, as the text states it</td>
 </tr>
 <tr>
 <td><code>Namespace</code></td>
@@ -291,7 +330,7 @@ p.Run(ctx, &amp;sdk.Registration{
 <tr>
 <td><code>Handlers</code></td>
 <td><code>[]string</code></td>
-<td>Config path prefixes this plugin handles</td>
+<td>Config path prefixes; read only by the subsystem handler</td>
 </tr>
 </tbody>
 </table>
@@ -459,6 +498,57 @@ stays a string checked by a <code>ze:validate</code> function.</p>
 <!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
+<h2 id="extensions-that-name-a-registration">Extensions that name a registration</h2>
+<p>Four <code>ze:</code> extensions name something registered inside Ze rather than
+something your module defines. A name is held only when the component that
+registers it is compiled into the <code>ze</code> you run. When <code>ze start</code> joins your
+module, Ze checks the names of two of them:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>What it names</th>
+<th>A name Ze does not hold</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze:validate</code></td>
+<td>A validator function</td>
+<td>Ze refuses the start, naming your plugin, your module, the extension, the name and the schema path, with the code <code>doctor-plugin-schema-refused</code></td>
+</tr>
+<tr>
+<td><code>ze:reference</code></td>
+<td>A source of names that a component registered</td>
+<td>The same refusal</td>
+</tr>
+<tr>
+<td><code>ze:decorate</code></td>
+<td>A display decorator of the web UI</td>
+<td>Ze accepts the module. The web UI shows the value with no decoration and no message</td>
+</tr>
+<tr>
+<td><code>ze:backend</code></td>
+<td>The backends that support a node</td>
+<td>Ze accepts the module. At commit, the components of <code>interface</code>, <code>firewall</code> and <code>traffic control</code> compare the list with the backend the config selects, and a name no backend answers to never matches: a node under those roots that lists only such names is refused whenever a config uses it, and completion does not offer it. Under any other root Ze does not read the extension</td>
+</tr>
+</tbody>
+</table>
+<p>To check a value with logic Ze does not hold, check it in the config verify
+step of your plugin: the refusal names that fix.</p>
+<p>For <code>ze:validate</code> and <code>ze:reference</code> the rule is the same for a module
+compiled into <code>ze</code>: a name that <code>ze</code> does not hold refuses the start. Your
+module's refusal names your plugin. A compiled-in module's refusal says that
+this <code>ze</code> was built wrong and that the config is not at fault. It names the
+module, the extension, the name and the schema path, with the code
+<code>doctor-build-registration-unheld</code>. A test over the shipped module set keeps
+such a build from shipping.</p>
+<!-- source: internal/component/config/yang/join.go -- refuseUnheldRegistrations, unheldRegistration, unheldRegistrationRefusal -->
+<!-- source: internal/component/config/yang/registration_held.go -- unheldName, RefuseUnheldCompiledRegistrations -->
+<!-- source: cmd/ze/hub/build_registrations.go -- refuseWronglyBuilt -->
+<!-- source: internal/component/web/decorator.go -- DecoratorRegistry.Get -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
+<!-- source: internal/component/cli/completer.go -- backendAllowed -->
 <h2 id="best-practices">Best Practices</h2>
 <ol>
 <li><strong>Use meaningful namespaces</strong> -- include your organization</li>
@@ -555,12 +645,12 @@ func main() {
     defer cancel()
 
     if err := p.Run(ctx, &amp;sdk.Registration{
-        Schema: &amp;sdk.SchemaDecl{
-            Module:    "acme-monitor",
+        Schemas: []sdk.SchemaDecl{{
+            Module:    "acme-monitor-conf",
             Namespace: "urn:acme:monitor",
             YANGText:  acmeMonitorYANG,
             Handlers:  []string{"acme-monitor"},
-        },
+        }},
         WantsConfig: []string{"acme-monitor"},
     }); err != nil {
         log.Fatal(err)
@@ -572,7 +662,7 @@ func main() {
 <!-- source: pkg/plugin/sdk/config_tx.go -- NewConfigTx, ConfigTx.Register, ConfigParser, ConfigInstaller -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
 <h3 id="example-yang-schema">Example YANG Schema</h3>
-<pre><code class="language-yang">module acme-monitor {
+<pre><code class="language-yang">module acme-monitor-conf {
     namespace "urn:acme:monitor";
     prefix acme;
     import ze-extensions { prefix ze; }
@@ -630,7 +720,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

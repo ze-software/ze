@@ -6,15 +6,15 @@ Print the agent reference this binary builds from its own registries\.
 
 - Registry path: `show command reference`
 - Usage: `show command reference [cli] [api] [mcp] [dispatch] [all]`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-help:show-command-reference`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

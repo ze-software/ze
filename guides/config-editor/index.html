@@ -155,6 +155,18 @@ configured entry count, and deduplicate consecutive displayed commands.</p>
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
 <h2 id="editor-commands">Editor Commands</h2>
+<p>In an SSH session, <code>load file</code> reads only a regular configuration file inside
+the daemon's configured configuration directories. Paths through symlinks are
+checked against the same directories; the configuration store's private files
+are excluded. The opened file must remain regular, and opening refuses any
+path component replaced by a symlink after validation. Remote file imports
+accept up to 4 MiB. To import a file held elsewhere, use
+<code>load terminal absolute merge</code> and paste its configuration, or choose the file
+in the browser. Local loose-file editors retain the local
+operator's filesystem permissions.
+Relative SSH import paths are resolved beside the active configuration; a
+stored configuration name uses the configured store directory as its base.</p>
+<!-- source: internal/component/cli/model_load_path.go -- loadFile -->
 <p>The graphical web editor's <strong>Import into candidate</strong> forms use the same load
 producer as these editor commands. A local file or pasted text can merge into
 or replace the root or selected subtree. Import stages changes for your account;
@@ -289,6 +301,12 @@ keeps the line as you typed it, and completion after <code>top </code> offers wh
 root offers. This form runs in the SSH editor and <code>ze config edit</code>.</p>
 <!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
+<p>Session discard removes only the current session's assignments and structural
+operations, even when several sessions share an account's change file. Browser
+discard includes preserved browser work reopened for that account; separate
+SSH edits remain pending.</p>
+<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
 <p>In an editing session a bare <code>discard</code> is refused and names both forms above.
 Without an editing session, a bare
 <code>discard</code> drops every change, and <code>discard &lt;path&gt;</code> puts back the committed
@@ -400,6 +418,9 @@ and select <strong>Load candidate</strong>. For a file, type a <code>load file</
 the file from your computer. Its path does not read the router's filesystem.
 Both forms accept up to 4 MiB, use the same atomic loader, and leave committing
 as a separate action. Commands run in their entered order, including navigation.</p>
+<p>Display limits use only the rows or lines already available. Asking <code>tail</code>,
+<code>first</code> or <code>last</code> for more results keeps the available results without
+reserving memory for the requested count.</p>
 <!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
 <!-- source: internal/component/web/editor.go -- ConfigCommand -->
 <p>Inline validation hints follow the highlighted configuration line; they never
@@ -506,7 +527,7 @@ apply here without becoming operational pipe operators.</p>
 <!-- source: internal/component/cli/model_load.go -- dispatchWithPipe, ClassifyShowPipes -->
 <!-- source: internal/component/cli/completer.go -- showPipeFilters, completePipeFilter -->
 <h3 id="structural-operations-appear-in-the-diff">Structural operations appear in the diff</h3>
-<p><code>show | changes</code> and <code>show | compare</code> include the draft's structural operations,
+<p><code>show | changes</code> and the default <code>show | compare</code> include the session's structural operations,
 not only its leaf values. A deleted list entry, a deleted container, a deleted
 list, a <code>rename</code>, an <code>insert</code> at a position, and a <code>deactivate</code> or <code>activate</code> are
 recorded in the per-user change file rather than in the value tree. The tree
@@ -514,6 +535,19 @@ store exposes those change files to both display surfaces, so the reviewed diff
 includes the operations that commit will apply.</p>
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
+<p>In an active editing session, bare <code>show | compare</code> prints path-qualified
+pending changes, using the same masked renderer as the browser's graphical
+review. A changed leaf has separate removed and added rows, each naming its
+complete configuration path. Equal text in another entry cannot hide it.
+The removed value comes from the current committed configuration; the review
+does not change the candidate or the original metadata used to detect conflicts.
+Renames, copies, creation and activation retain their recorded operation kinds.
+At an editing context, review includes only operations overlapping that path.</p>
+<!-- source: internal/component/cli/editor_pending_diff.go -- PendingReview, RenderPendingChanges -->
+<p>An explicit comparison target, an alternate <code>show</code> source or an explicit
+<code>format tree</code> or <code>format config</code> pipe selects the tree comparison described
+below. Without an active session, comparison also uses that tree view.</p>
+<!-- source: internal/component/cli/model_load.go -- cmdShowPipe, ClassifyShowPipes -->
 <p><code>show</code> follows the working configuration's recorded list-entry order.
 <code>show | compare saved</code> reports <code>(no saved draft)</code> when that baseline does not exist.
 An unchanged scoped comparison produces empty output. Tree comparisons can show
@@ -523,7 +557,7 @@ indentation alone cannot prove that two flat statements address the same item,
 and must not hide a deleted setting when another setting changes.</p>
 <!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
 <!-- source: internal/component/cli/diff.go -- detectModifications, diffRunHasFlatStatements -->
-<p><code>show | compare</code> omits unchanged entries, except for the context retained within
+<p>Tree comparison omits unchanged entries, except for the context retained within
 a reordered <code>ordered-by user</code> list. Reordering a plain list alone creates no
 change marker. For a list declared <code>ordered-by user</code> in YANG, order is part of
 the configuration: a moved entry is shown removed at its old position and added
@@ -632,6 +666,15 @@ answer of does not change the draft.</p>
 </tbody>
 </table>
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
+<p>Completion for caller-held configuration is also available through
+<code>show config supplied completion</code>. Its generated controls take configuration
+and editing input as separate file or paste inputs, with optional slash-separated
+<code>context</code> and <code>ghost</code>. API callers put <code>configuration</code> and <code>input</code> strings in
+one JSON object and pass its padded base64 as <code>content</code>. The same completion
+engine answers both forms. The standalone <code>--input</code> adapter treats <code>+</code> as a
+space; the supplied form preserves the literal editing input, including <code>+</code>.</p>
+<!-- source: internal/component/config/cli/cmd_completion.go -- completerForBytes -->
+<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion -->
 <p>Every <code>&lt;file&gt;</code> above accepts <code>-</code> for <strong>stdin</strong>. The read-modify commands
 <code>ze config set</code>, <code>ze config deactivate</code>, and <code>ze config activate</code> become
 pipeline stages when given <code>-</code>: they read the config from stdin, apply the
@@ -648,10 +691,14 @@ inputs. An offline <code>set</code> writes the supplied file and records its pre
 content only when that folder already holds a store. Without one it prints
 <code>no version recorded</code>; it does not create a store. <code>history</code>, numbered <code>diff</code>,
 and <code>rollback</code> require the folder's history and name <code>ze init</code> when it is absent.
-An offline writer refuses while the daemon owns that store, except
-<code>ze config import</code>, which then sends its inputs to that daemon (below).</p>
+An offline writer refuses while the daemon owns that store. Import, stored
+rename and indexed rollback instead send their operations to that store's
+owning daemon.</p>
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportThroughDaemon -->
+<!-- source: internal/component/config/cli/config_rename_daemon.go -- renameConfigThroughDaemon -->
+<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon -->
 <p>An offline <code>ze config set</code> refuses an invalid value or a new list key before
 it writes the file. It exits with code 2 and prints the
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">value refusal</a>
@@ -713,6 +760,24 @@ without <code>-f</code> to serve the web editor from the owning daemon.</p>
 owning daemon gives each session an identity (<code>user@origin%timestamp</code>) and a
 per-user change file. Commit applies the session's changes with conflict
 detection. The same store holds draft recovery and history for every surface.</p>
+<p>The session CLI retains its shared saved-draft view, including other sessions'
+saved values and annotations. Commit still publishes only the committing
+session's changes. The browser instead keeps its candidate view isolated.</p>
+<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage, NewIsolatedEditorWithStorage -->
+<!-- source: internal/component/cli/editor_view.go -- workingViewMetadata -->
+<p>The browser automatically resumes pending changes from your earlier web
+sessions. It keeps your SSH intent separate. Saving publishes your assignments
+into the shared draft while retaining your own live candidate; it does not
+import another session's draft values into your view or the candidate text
+used for validation.</p>
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession, workingSessionMetadata -->
+<!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
+<p>After a commit applies, cleanup can still fail. The warning names the cause.
+The configuration is already in use; do not repeat the commit. Keep the session
+files and use <code>show | changes all</code> to review the retained changes before repairing
+the reported failure. Avoid removing the shared change file: it can still hold
+another session's pending work.</p>
+<!-- source: internal/component/cli/editor_session_cleanup.go -- sessionCleanupWarning -->
 <p><strong>Backup mode</strong> (<code>ze config edit --backup &lt;artifact&gt; [config-name]</code>): the
 editor opens a config inside a backup artifact (a <code>.zefs</code> file that <code>ze data backup</code> or <code>request data backup</code> wrote) with no daemon. No SSH credentials are
 read, no daemon is probed or started, and <code>run</code> commands have nothing to reach.
@@ -730,8 +795,35 @@ edit of about the same size stays in place; <code>ze data backup</code> writes
 exact-fit artifacts because nothing edits them. <code>--backup</code> cannot be combined
 with <code>-f</code>, <code>--web</code> or <code>--insecure-web</code>, and the refusal names both flags.
 Without a config name the editor uses the artifact's <code>&lt;instance&gt;.conf</code> and
-otherwise asks which config to edit.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
+otherwise asks which <code>.conf</code> config to edit. Discovery includes active pointers,
+so opening an existing pointer-only default does not create a replacement
+mirror. The same discovery is used before attaching to a daemon editor.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup, cmdEditWithStorage, doSelectConfig -->
+<p>For browser editing, open the separate
+<a href="../web-interface/#offline-backup-workspace">offline backup workspace</a>.
+Upload a <code>.zefs</code> artifact there, edit its selected configuration, and download
+the updated artifact. This workspace changes the uploaded copy independently
+of the live configuration. The CLI flag restrictions above still apply.
+The same private artifact commands are available through native command forms.
+Use <code>request config artifact import artifact &lt;id&gt; name &lt;name&gt; transfer &lt;token&gt;</code>
+to import complete source bytes under a new or existing configuration basename.
+Import retains raw input, including input that is not yet valid configuration;
+use the editor's validation and replacement operations when validation is needed.
+To apply a selected configuration through the device's normal reload, use
+<code>request config artifact restore config artifact &lt;id&gt; name &lt;source-name&gt;</code>.
+Omitting <code>name</code> uses ordinary restore selection and refuses an ambiguous source.
+An optional <code>client &lt;client-name&gt;</code> selects a managed client this hub serves.</p>
+<!-- source: internal/component/config/cli/artifact_import.go -- artifactImport -->
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
+<p>The same page's <strong>Check or repair a data file</strong> form opens damaged or arbitrary
+binary input for native integrity checks and a separate salvage download;
+it does not require the source to pass the editor's normal backup admission.</p>
+<!-- source: internal/component/web/backup_source.go -- uploadSource, source -->
+<p>The picker lists committed configurations. Saved drafts and per-account pending
+changes stay in the artifact, and opening a configuration starts from its
+committed content. The downloaded artifact preserves those saved sessions.</p>
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace -->
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
 <p>When the editor takes the config name from the store, it reads the store's
 instance name. If that key exists but cannot be read (a CRC mismatch, an I/O
 error), <code>ze config edit</code> exits with an error that names <code>ze doctor</code> and
@@ -745,7 +837,27 @@ error), <code>ze config edit</code> exits with an error that names <code>ze doct
 flag and work on the configs inside it: <code>show</code> and <code>diff</code> read under a shared
 lock, <code>set</code> publishes the way an editor commit does, and <code>list</code> names only
 the artifact's configs. <code>set --backup</code> refuses <code>--reload</code>, because an artifact
-has no daemon.</p>
+has no daemon. Local backup changes and daemon-owned artifact changes share
+<code>PublishArtifactConfig</code>; publishing committed content preserves a separate
+pending candidate, its identity and saved draft bytes.</p>
+<p>Backup show, diff and editing read the active version, so a missing or stale
+<code>file/active</code> mirror cannot select a different configuration. A broken active
+pointer refuses the operation instead of opening that mirror. Explicit saved
+sessions use the same committed version when they resume and commit; saved
+drafts and other accounts' changes stay separate.</p>
+<!-- source: internal/component/config/cli/cmd_show.go -- openBackupShowEditor -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource -->
+<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage -->
+<!-- source: internal/component/cli/editor_resume.go -- resumeSession -->
+<!-- source: internal/component/cli/editor_commit.go -- commitSessionCandidate -->
+<p>A stored editor's direct <code>Save</code> needs its owning publication callback when the
+configuration has an active version. Without that owner, it refuses before
+creating history or writing the mirror, and keeps the edit unsaved. Daemon
+sessions and backup sessions already supply their respective publication paths;
+explicit loose-file saves keep their filesystem behavior.</p>
+<!-- source: internal/component/cli/editor_commands.go -- Save -->
+<!-- source: internal/component/cli/editor_file.go -- checkSaveAuthority -->
+<!-- source: internal/component/cli/editor.go -- SetCommitWriter -->
 <p>When the daemon was started with an explicit file, every start reads that
 file, and daemon commits update it together with stored history. An external
 edit must be reconciled before a competing daemon commit can succeed. Bare
@@ -1208,6 +1320,20 @@ be the configuration already in use. To undo a commit, select and review an
 earlier version rather than assuming the first entry is the previous state.</p>
 <!-- source: internal/component/config/storage/store.go -- ListVersions -->
 <!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersionWithGuard, promoteCandidateLocked -->
+<p>Shell rollback of a stored configuration publishes the selected revision as a
+new active version and keeps the previous active version as rollback. While a
+daemon owns that store, <code>ze config rollback &lt;N&gt; &lt;file&gt;</code> sends
+<code>request data config rollback name &lt;name&gt; revision &lt;N&gt;</code> to its owner. The daemon
+stages and reloads its running source. It commits another stored name without
+reloading. An open confirmed commit, unfinished file publication or existing
+candidate refuses the operation. The shell reports success only after the
+owner confirms the requested name, revision and published version.</p>
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
+<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon, configRollbackDaemonAnswer.selectedTime -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig -->
+<p>A loose file still restores directly from its folder's history when no daemon
+owns that store.</p>
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough -->
 <p>In a session editor, rollback restores the saved configuration to that
 session's candidate. Review the changes and commit them to publish and apply
 the restoration. A malformed saved configuration is refused without replacing
@@ -1294,7 +1420,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

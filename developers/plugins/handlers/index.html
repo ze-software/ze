@@ -903,6 +903,12 @@ for _, line := range result.Warnings {
 engine writes them in the <code>wrn</code> terminator to each plugin
 (<code>docs/architecture/api/ipc_protocol.md</code>, "Answer Protocol").</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
+<p>A partial or failed record answer also retains its data and warning lines in
+the result, together with a Go error. <code>result.RecordAnswer</code> holds the original
+produced and refused counts when a completed terminator is available. An
+interrupted answer has no completed metadata; its result still retains the
+progress already read.</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- answerValue, dispatchCommandResult -->
 <!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 <h3 id="emitevent">EmitEvent</h3>
 <p>Pushes an event into the engine's delivery pipeline for plugin-to-plugin communication.</p>
@@ -980,7 +986,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

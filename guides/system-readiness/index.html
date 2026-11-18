@@ -148,7 +148,11 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-plugin-schema-refused</code>, <code>doctor-plugin-schema-undeclared</code></td>
-<td>The last start of ze was refused for an external plugin's config schema: a YANG module ze refused, or a configuration section of a plugin that gave ze no schema. The row names the time, the plugin and the cause, read from the same record, and its fix is the one the refusal named <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- schemaRefusedRow --></td>
+<td>The last start of ze was refused for an external plugin's YANG: a module it declared that ze refused (config, command or rpc), or a configuration section of a plugin that gave ze no schema. The row names the time, the plugin and the cause, read from the same record, and its fix is the one the refusal named <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- schemaRefusedRow --></td>
+</tr>
+<tr>
+<td><code>doctor-build-registration-unheld</code></td>
+<td>The last start of ze was refused because this ze was built wrong: a YANG module compiled into it names a validator or a reference source no package in it registers. The row names the time, the module and the name, read from the same record; the config is not at fault <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- buildRegistrationUnheldRow --></td>
 </tr>
 <tr>
 <td><code>doctor-plugin-stop-cleanup-late</code></td>
@@ -565,7 +569,7 @@ show warnings source bgp
 <td><code>doctor-plugin-schema-changed</code></td>
 <td>plugin-server</td>
 <td>warning</td>
-<td>An external plugin was started again while ze ran (it ended, or the operator ran <code>request plugin restart</code>) and declared another config schema than the one ze read from it at start: another module text, name or namespace, a module where it declared none, or none where it declared one. ze refused the plugin at its first startup stage and does not run it; the running configuration, the schema ze holds and every other plugin are unchanged. The message says what differs. The fix is <code>restart ze</code>, which loads the new schema; a later start of the plugin with the schema ze started with clears the warning</td>
+<td>An external plugin was started again while ze ran (it ended, or the operator ran <code>request plugin restart</code>) and declared other YANG modules (config, command or rpc modules) than the ones ze read from it at start: another module text, name or namespace, a module where it declared none, or none where it declared one. ze refused the plugin at its first startup stage and does not run it; the running configuration, the modules ze holds and every other plugin are unchanged. The message says what differs. The fix is <code>restart ze</code>, which loads the new modules; a later start of the plugin with the modules ze started with clears the warning</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-schema-undeclared</code></td>
@@ -578,6 +582,12 @@ show warnings source bgp
 <td>plugin-server</td>
 <td>error</td>
 <td>At start ze refused the YANG module an external plugin declared: it does not compile, its name or namespace is held by another module, it defines a top-level node another module defines, it names a validator ze does not hold, or it adds nothing to the configuration schema. ze does not start with a refused module, so no daemon runs to answer <code>ze show doctor</code>. The refusal, on the terminal and in the log, names the plugin, the module, the cause and the fix; ze records it before it exits, and <code>ze doctor</code> reports it from that record until ze next starts cleanly</td>
+</tr>
+<tr>
+<td><code>doctor-build-registration-unheld</code></td>
+<td>plugin-server</td>
+<td>error</td>
+<td>This ze was built wrong: a YANG module compiled into it names a <code>ze:validate</code> function or a <code>ze:reference</code> source that no package in it registers, so that leaf would be checked by nothing or refuse every value. ze refuses to start before it reads the configuration, which is not at fault. The refusal names the module, the extension, the name and the schema path; ze records it before it exits, and <code>ze doctor</code> reports it from that record until ze next starts cleanly. The fix is a ze built with the package that registers the name</td>
 </tr>
 <tr>
 <td><code>iface-errors</code></td>
@@ -741,7 +751,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

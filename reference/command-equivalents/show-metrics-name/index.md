@@ -6,16 +6,16 @@ Show one Prometheus metric by name\.
 
 - Registry path: `show metrics name`
 - Usage: `show metrics name <name> [label <key> <value> ...]`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-cmd:show-metrics-query`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `label`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -35,7 +35,7 @@ Returns matching time series from the internal registry\. Multiple label filters
 
 Category: Operations
 
-Ze exposes Prometheus-style metric names and values directly; vendor telemetry is usually a separate subsystem.
+Ze exposes Prometheus\-style metric names and values directly\; vendor telemetry is usually a separate subsystem\.
 
 ## Vendor equivalents
 

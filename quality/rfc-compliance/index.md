@@ -38,19 +38,19 @@ If you are evaluating Ze for one role, start with Coverage by profile. To check 
 
 Ze's automatic checks cover the mandatory requirements of the RFCs it implements. For RFCs whose requirement lists have been reviewed, the bars and Total row group those requirements by status: verified by Ze's tests, verified in the operating system, not applicable, or awaiting implementation or tests. The cards below show how many tests have been shown to detect a deliberate fault and whether the checks pass.
 
-Failed. 414 unresolved check findings. Check results below lists them, up to the 25 shown on this page. Contributors reproduce it with `./le rfc check`. The check's original output reads `rfc-requirements: 414 violation(s)`.
+Failed. 423 unresolved check findings. Check results below lists them, up to the 25 shown on this page. Contributors reproduce it with `./le rfc check`. The check's original output reads `rfc-requirements: 423 violation(s)`.
 
 ### Status of the RFC requirements included in automatic checks
 
-- **MUST bar**: Ze verified 2,229, Tests awaiting verification 782, OS testing gap 235, Exclusion unchecked 28, Not built 1,510
-- **Overview bar**: Ze MUST verified 2,229, SHOULD verified 115, Not owed 18, Tests awaiting verification 799, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,544
+- **MUST bar**: Ze verified 2,246, Tests awaiting verification 765, OS testing gap 235, Exclusion unchecked 28, Not built 1,510
+- **Overview bar**: Ze MUST verified 2,246, SHOULD verified 115, Not owed 18, Tests awaiting verification 782, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,544
 
 
 | Total | Ze verified | OS verified | Tests awaiting verification | OS testing gap | Exclusion unchecked | Not assessed | Not built | Not owed | MUST rows |
 |---|---|---|---|---|---|---|---|---|---|
-| Total | 2,229 | 0 | 782 | 235 | 28 | 0 | 1,510 | 18 | 4,802 |
+| Total | 2,246 | 0 | 765 | 235 | 28 | 0 | 1,510 | 18 | 4,802 |
 
-Check: 2,229 + 0 + 782 + 235 + 28 + 0 + 1,510 + 18 = 4,802 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
+Check: 2,246 + 0 + 765 + 235 + 28 + 0 + 1,510 + 18 = 4,802 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
 
 Of the 204 RFCs included in automatic checks, 0 have not had their requirement lists reviewed, so their requirements are excluded from the figures above. Ze implements 196 of these RFCs, each with a public support entry. The rfc/short/ directory holds 242 summary files, including RFCs excluded from automatic checks and summaries that list no requirements. They list 7,834 requirements across all levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of mandatory requirements, including requirements with explanatory annotations, and showed the percentage of that total verified by tests. The sections above replace those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section.
 
@@ -60,7 +60,7 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tests shown to detect a fault | 6,710 | 6,710 of 9,602 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 240 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6,749 | 6,749 of 9,608 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 249 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -68,7 +68,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Compliance check result | Failed | 414 unresolved check findings | whether ./le rfc check passes over this tree |
+| Compliance check result | Failed | 423 unresolved check findings | whether ./le rfc check passes over this tree |
 
 ### Neutral
 
@@ -76,7 +76,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Current test reviews | 2,132 | 133 shifted, 46 stale, 2,491 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Current test reviews | 2,148 | 123 shifted, 50 stale, 2,481 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 No card above is a part of a population, so there is nothing to add up.
 
@@ -90,13 +90,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 414 |
-| Resolved test tags | 9,921 |
-| Declared gaps | 1,478 |
+| Gate issues | 423 |
+| Resolved test tags | 9,927 |
+| Declared gaps | 1,476 |
 | RFCs with declared gaps | 130 |
-| Fresh semantic audit verdicts | 2,132 |
-| Shifted semantic audit verdicts | 133 |
-| Stale semantic audit verdicts | 46 |
+| Fresh semantic audit verdicts | 2,148 |
+| Shifted semantic audit verdicts | 123 |
+| Stale semantic audit verdicts | 50 |
 | Mandatory requirements of reviewed RFCs included in automatic checks | 4,802 |
 | RFCs included in automatic checks | 204 |
 
@@ -137,7 +137,7 @@ A gap is a requirement Ze does not meet yet and says so in public. This section 
 
 | Declared gaps | Count |
 |---|---:|
-| Requirements declared as gaps | 1,478 |
+| Requirements declared as gaps | 1,476 |
 | RFCs declaring a gap | 130 |
 
 ## Exclusion disclosure
@@ -191,7 +191,7 @@ The RFCs that declare the most gaps. If one of them matters to your deployment, 
 | `RFC 4035` | 94 |
 | `RFC 7432` | 90 |
 | `RFC 5036` | 59 |
-| `RFC 7950` | 51 |
+| `RFC 7950` | 50 |
 | `RFC 9012` | 50 |
 | `RFC 4577` | 45 |
 | `RFC 2205` | 44 |
@@ -212,9 +212,9 @@ This compliance check runs during verification: ./le rfc check is 1 stage of the
 | Reproduce it | `./le rfc check` | 1 of 61 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,802 mandatory requirements in reviewed RFCs included in automatic checks |
 | Automatic checks | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 204 RFCs included in automatic checks |
-| Test tags | `internal/`, `pkg/`, `test/` | 9,921 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 9,927 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 130 RFCs with gaps |
-| Semantic audits | `rfc/audit/*/*.json` | 2,132 fresh, 133 shifted, 46 stale, 2,491 missing |
+| Semantic audits | `rfc/audit/*/*.json` | 2,148 fresh, 123 shifted, 50 stale, 2,481 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 61 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -223,26 +223,32 @@ This compliance check runs during verification: ./le rfc check is 1 stage of the
 Compliance is checked in several groups. Each line below says what one group verifies and whether it passed, and for a group that failed, what that means for the figures. The raw findings, written for Ze's contributors, are in the collapsed block after the list.
 
 - **Requirement lists:** Passed. Each RFC's requirement list is readable and consistent: requirement identifiers are not reused or lost, each requirement quotes the RFC text it cites, and the links it declares between RFCs and profiles agree with the RFC texts.
-- **Test evidence:** Failed, 4 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.
+- **Test evidence:** Failed, 7 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.
 - **Requirement annotations:** Passed. Every annotation that excuses a requirement from Ze's own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.
 - **Published ledger rows:** Passed. Every enrolled RFC with an unmet requirement renders a public row that discloses it, a public row never disappears while its summary remains, and each summary's enrolment disposition gives a reason a reviewer can check.
-- **Reviewer verdicts:** Failed, 202 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
-- **Recorded breaks:** Failed, 208 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
+- **Reviewer verdicts:** Failed, 200 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
+- **Recorded breaks:** Failed, 216 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
 - **Reviews of RFC text:** Passed. Each sign-off of a sentence-by-sentence review of an RFC's text is valid and current.
 
 ### For contributors: the raw findings and the commands that fix them
 
 | RFC | Requirement | Level | What is wrong | The requirement |
 |---|---|---|---|---|
+| RFC 4271 | [`RFC4271-5-3`](rfc4271/index.md#rfc4271-5-3) | MUST | has no negative test, only positive | If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1. (§5) |
+| RFC 4271 | [`RFC4271-5-4`](rfc4271/index.md#rfc4271-5-4) | MUST NOT | has no negative test, only positive | If a path with a recognized, transitive optional attribute is accepted and passed along to other BGP peers and the Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back to 0 by the current AS. (§5) |
 | RFC 7752 | [`RFC7752-3.4-1`](rfc7752/index.md#rfc7752-3.4-1) | MUST | partial scope lacks negative test | The next-hop address MUST be encoded as described in [RFC4760]. (Section 3.4) |
 | RFC 9552 | [`RFC9552-5.5-1`](rfc9552/index.md#rfc9552-5.5-1) | MUST | partial scope lacks negative test | The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) |
+| - | `-` | - | internal/component/bgp/reactor/ordinary_flowspec_replay_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker | - |
 | - | `-` | - | internal/component/ike/dataplane/rfc4301_complete_scope_integration_linux_test.go: test file name: it is named for rfc4301 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- <reason>`, or name it after what it covers: ./le rfc move from internal/component/ike/dataplane/rfc4301_complete_scope_integration_linux_test.go to internal/component/ike/dataplane/complete_scope_integration_linux_test.go | - |
 | - | `-` | - | internal/component/ike/engine/rfc4301_transport_fragment_boundary_integration_linux_test.go: test file name: it is named for rfc4301 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- <reason>`, or name it after what it covers: ./le rfc move from internal/component/ike/engine/rfc4301_transport_fragment_boundary_integration_linux_test.go to internal/component/ike/engine/transport_fragment_boundary_integration_linux_test.go | - |
+| - | `-` | - | rfc/audit/rfc4271/RFC4271-9.2-2.json: RFC4271-9.2-2 is 'partial' without its gap-context producer in the code map | - |
+| - | `-` | - | rfc/audit/rfc4271/RFC4271-9.2-2.json: RFC4271-9.2-2 partial note must identify tested and missing behavior and boundary: internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6PolicyPairJointSubnet | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet | - |
+| - | `-` | - | RFC4271-9.2-2 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute | - |
 | - | `-` | - | RFC4271-9.2-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced | - |
 | - | `-` | - | RFC4271-9.2-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute | - |
 | - | `-` | - | RFC8955-4-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop | - |
@@ -251,16 +257,10 @@ Compliance is checked in several groups. Each line below says what one group ver
 | - | `-` | - | RFC8955-4-3 partial scope needs a current verified mutant/revert for positive test/encode/flow-encode.ci | - |
 | - | `-` | - | RFC9252-3.3-2 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs | - |
 | - | `-` | - | RFC9252-3.3-2 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop | - |
+| - | `-` | - | RFC9252-3.3-2 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange | - |
 | - | `-` | - | RFC9252-3.3-2 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs | - |
-| - | `-` | - | RFC9252-3.3-2 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop | - |
-| - | `-` | - | rfc/short/draft-ietf-bess-mup-safi.md:409: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw, internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-bess-mup-safi | - |
-| - | `-` | - | rfc/short/draft-ietf-bess-mup-safi.md:410: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-bess-mup-safi | - |
-| - | `-` | - | rfc/short/draft-ietf-bess-mup-safi.md:412: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-bess-mup-safi | - |
-| - | `-` | - | rfc/short/draft-ietf-idr-linklocal-capability.md:108: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/draft-ietf-idr-linklocal-capability.md:126: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::originatedNextHopIsPeerOwn (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/draft-ietf-sidrops-aspa-verification.md:356: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery, internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-sidrops-aspa-verification | - |
 
-389 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+398 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## RFCs included in automatic checks
 
@@ -268,15 +268,15 @@ Every RFC included in Ze's automatic checks, with its own figures. Open an RFC t
 
 ### Every RFC listed
 
-- **MUST bar**: Ze verified 2,283, Tests awaiting verification 796, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,620
-- **Overview bar**: Ze MUST verified 2,283, SHOULD verified 120, Not owed 18, Tests awaiting verification 813, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,654
+- **MUST bar**: Ze verified 2,300, Tests awaiting verification 779, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,620
+- **Overview bar**: Ze MUST verified 2,300, SHOULD verified 120, Not owed 18, Tests awaiting verification 796, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,654
 
 
 | Total | Ze verified | OS verified | Tests awaiting verification | OS testing gap | Exclusion unchecked | Not assessed | Not built | Not owed | MUST rows |
 |---|---|---|---|---|---|---|---|---|---|
-| Total | 2,283 | 0 | 796 | 235 | 28 | 191 | 1,620 | 18 | 5,171 |
+| Total | 2,300 | 0 | 779 | 235 | 28 | 191 | 1,620 | 18 | 5,171 |
 
-Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
+Check: 2,300 + 0 + 779 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
 
 242 RFCs, of which 13 have not had their requirement lists reviewed and are excluded from the figures.
 
@@ -348,7 +348,7 @@ Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requireme
 | [`RFC 4090`](rfc4090/index.md) Fast Reroute Extensions to RSVP-TE for LSP Tunnels | RSVP-TE Fast Reroute | Ze verified 29, Tests awaiting verification 3, Not built 1 | Ze MUST verified 29, SHOULD verified 6, Tests awaiting verification 3, Not assessed 1, Not built 2 | 33 | 2 | 0 | 0 |
 | [`RFC 4106`](rfc4106/index.md) The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | ESP | Ze verified 5, OS testing gap 3 | Ze MUST verified 5, OS testing gap 3, Not assessed 5 | 8 | 0 | 0 | 0 |
 | [`RFC 4213`](rfc4213/index.md) Basic Transition Mechanisms for IPv6 Hosts and Routers | IPv6 over IPv4 configured tunnels (6in4, sit) | Ze verified 1, OS testing gap 17, Not built 5 | Ze MUST verified 1, OS testing gap 17, Not assessed 24, Not built 5 | 23 | 5 | 0 | 0 |
-| [`RFC 4271`](rfc4271/index.md) A Border Gateway Protocol 4 (BGP-4) | BGP-4 base protocol | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | 133 | 10 | 0 | 0 |
+| [`RFC 4271`](rfc4271/index.md) A Border Gateway Protocol 4 (BGP-4) | BGP-4 base protocol | Ze verified 108, Tests awaiting verification 12, Not built 13 | Ze MUST verified 108, SHOULD verified 3, Tests awaiting verification 13, Not assessed 30, Not built 13 | 133 | 9 | 0 | 0 |
 | [`RFC 4301`](rfc4301/index.md) Security Architecture for the Internet Protocol | IPsec architecture | Ze verified 61, Tests awaiting verification 6, OS testing gap 3, Not built 31 | Ze MUST verified 61, Tests awaiting verification 6, OS testing gap 4, Not assessed 1, Not built 32 | 101 | 25 | 0 | 0 |
 | [`RFC 4302`](rfc4302/index.md) IP Authentication Header | Authentication Header | Ze verified 9, OS testing gap 19, Not built 4 | Ze MUST verified 9, OS testing gap 19, Not assessed 10, Not built 4 | 32 | 4 | 0 | 0 |
 | [`RFC 4303`](rfc4303/index.md) IP Encapsulating Security Payload (ESP) | ESP | Ze verified 7, Tests awaiting verification 2, Not built 14 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15 | 23 | 15 | 0 | 0 |
@@ -437,7 +437,7 @@ Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requireme
 | [`RFC 7634`](rfc7634/index.md) ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec | ESP | Ze verified 1, OS testing gap 1 | Ze MUST verified 1, OS testing gap 1, Not assessed 3 | 2 | 0 | 0 | 0 |
 | [`RFC 7684`](rfc7684/index.md) OSPFv2 Prefix/Link Attribute Advertisement | OSPF Extended Prefix and Link LSAs | Ze verified 4, Tests awaiting verification 2, Not built 3 | Ze MUST verified 4, Tests awaiting verification 2, Not assessed 11, Not built 3 | 9 | 3 | 0 | 0 |
 | [`RFC 7705`](rfc7705/index.md) Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | AS migration: Local AS, No Prepend Inbound, Replace Old AS, Internal BGP AS Migration | Ze verified 9 | Ze MUST verified 9, Not assessed 8 | 9 | 0 | 0 | 0 |
-| [`RFC 7752`](rfc7752/index.md) North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | BGP-LS | Ze verified 7, Tests awaiting verification 3, Not built 16 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 25, Not built 17 | 26 | 16 | 0 | 0 |
+| [`RFC 7752`](rfc7752/index.md) North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | BGP-LS | Ze verified 6, Tests awaiting verification 4, Not built 16 | Ze MUST verified 6, Tests awaiting verification 4, Not assessed 25, Not built 17 | 26 | 16 | 0 | 0 |
 | [`RFC 7770`](rfc7770/index.md) Extensions to OSPF for Advertising Optional Router Capabilities | OSPF Router Information LSA | Ze verified 1, Tests awaiting verification 3, Not built 6 | Ze MUST verified 1, SHOULD verified 1, Not owed 1, Tests awaiting verification 3, Not assessed 13, Not built 6 | 11 | 6 | 0 | 0 |
 | [`RFC 7854`](rfc7854/index.md) BGP Monitoring Protocol (BMP) | BMP v3 | Ze verified 25, Tests awaiting verification 14 | Ze MUST verified 25, SHOULD verified 3, Tests awaiting verification 15, Not assessed 5 | 39 | 0 | 0 | 0 |
 | [`RFC 7858`](rfc7858/index.md) Specification for DNS over Transport Layer Security (TLS) | DNS over TLS (DoT) | Ze verified 3, Tests awaiting verification 4, Not built 12 | Ze MUST verified 3, Tests awaiting verification 4, Not assessed 19, Not built 12 | 19 | 12 | 0 | 0 |
@@ -445,7 +445,7 @@ Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requireme
 | [`RFC 7911`](rfc7911/index.md) Advertisement of Multiple Paths in BGP | ADD-PATH | Ze verified 9 | Ze MUST verified 9, Not assessed 4 | 9 | 0 | 0 | 0 |
 | [`RFC 792`](rfc792/index.md) Internet Control Message Protocol | No public row declared | Ze verified 6, Tests awaiting verification 4 | Ze MUST verified 6, Tests awaiting verification 4, Not assessed 4 | 10 | 0 | 0 | 0 |
 | [`RFC 7947`](rfc7947/index.md) Internet Exchange BGP Route Server | BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 2, Tests awaiting verification 3, Not built 1 | 3 | 1 | 0 | 0 |
-| [`RFC 7950`](rfc7950/index.md) The YANG 1.1 Data Modeling Language | YANG 1.1 data modeling | Ze verified 37, Not built 54 | Ze MUST verified 37, Not built 54 | 91 | 51 | 0 | 0 |
+| [`RFC 7950`](rfc7950/index.md) The YANG 1.1 Data Modeling Language | YANG 1.1 data modeling | Ze verified 37, Not built 54 | Ze MUST verified 37, Not built 54 | 91 | 50 | 0 | 0 |
 | [`RFC 7999`](rfc7999/index.md) BLACKHOLE Community | BLACKHOLE community | Ze verified 4 | Ze MUST verified 4, SHOULD verified 3, Not assessed 9 | 4 | 0 | 0 | 0 |
 | [`RFC 8050`](rfc8050/index.md) Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions | MRT ADD-PATH | Ze verified 5, Not built 1 | Ze MUST verified 5, Not built 1 | 6 | 0 | 0 | 0 |
 | [`RFC 8092`](rfc8092/index.md) BGP Large Communities Attribute | Large communities | Ze verified 7 | Ze MUST verified 7, Not assessed 4 | 7 | 0 | 0 | 0 |
@@ -456,7 +456,7 @@ Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requireme
 | [`RFC 8212`](rfc8212/index.md) Default External BGP (EBGP) Route Propagation Behavior without Policies | EBGP default reject without policy | Ze verified 2 | Ze MUST verified 2, Not assessed 1 | 2 | 0 | 0 | 0 |
 | [`RFC 8221`](rfc8221/index.md) Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH) | ESP algorithms | Ze verified 16 | Ze MUST verified 16, Not assessed 3 | 16 | 0 | 0 | 0 |
 | [`RFC 8247`](rfc8247/index.md) Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | IKEv2 algorithms | Ze verified 17, Not built 3 | Ze MUST verified 17, SHOULD verified 1, Not assessed 5, Not built 3 | 20 | 3 | 0 | 0 |
-| [`RFC 8277`](rfc8277/index.md) Using BGP to Bind MPLS Labels to Address Prefixes | BGP Labeled Unicast | Ze verified 10, Tests awaiting verification 1, Not built 24 | Ze MUST verified 10, SHOULD verified 1, Tests awaiting verification 1, Not assessed 6, Not built 24 | 35 | 24 | 0 | 0 |
+| [`RFC 8277`](rfc8277/index.md) Using BGP to Bind MPLS Labels to Address Prefixes | BGP Labeled Unicast | Ze verified 11, Not built 24 | Ze MUST verified 11, SHOULD verified 1, Not assessed 6, Not built 24 | 35 | 24 | 0 | 0 |
 | [`RFC 8414`](rfc8414/index.md) OAuth 2.0 Authorization Server Metadata | OAuth 2.0 Authorization Server Metadata (MCP resource server) | Ze verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not built 3 | Ze MUST verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not assessed 2, Not built 3 | 31 | 3 | 0 | 0 |
 | [`RFC 8484`](rfc8484/index.md) DNS Queries over HTTPS (DoH) | DNS Queries over HTTPS (DoH) | Ze verified 1, Tests awaiting verification 8, Not built 6 | Ze MUST verified 1, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 6 | 16 | 6 | 0 | 0 |
 | [`RFC 8522`](rfc8522/index.md) Looking Glass Command Set | Looking Glass command set API | Not built 18 | Not assessed 5, Not built 18 | 18 | 18 | 0 | 0 |

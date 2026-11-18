@@ -440,8 +440,73 @@ Rule 2.</p>
 <td>Mark value/mask</td>
 <td><code>connection-mark 0x10/0xff;</code></td>
 </tr>
+<tr>
+<td><code>mark</code></td>
+<td>Packet mark value/mask</td>
+<td><code>mark 0x10/0xff;</code></td>
+</tr>
+<tr>
+<td><code>dscp</code></td>
+<td>DSCP value (name or number)</td>
+<td><code>dscp ef;</code></td>
+</tr>
+<tr>
+<td><code>tcp-flags</code></td>
+<td>TCP header flags</td>
+<td><code>tcp-flags syn;</code></td>
+</tr>
+<tr>
+<td><code>source-address @set</code></td>
+<td>Named set lookup</td>
+<td><code>source-address @blocked;</code></td>
+</tr>
+<tr>
+<td><code>destination-local</code></td>
+<td>The destination is an address this router holds (no value)</td>
+<td><code>destination-local;</code></td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
+<p><code>destination-local</code> matches a packet addressed to the router itself: its
+destination is an address the kernel holds on one of the router's interfaces
+when the packet is seen, so an address added later, such as one a DHCP client
+learns, matches with no commit. A packet the router forwards to another host
+does not match. A destination translation that carries it publishes a port of
+the router without capturing transit traffic to the same port:</p>
+<pre><code>firewall {
+    backend nft;
+    table publish {
+        family ip;
+        chain prerouting {
+            type nat;
+            hook prerouting;
+            priority -100;
+            policy accept;
+            term publish-web {
+                from {
+                    protocol tcp;
+                    destination-port 8080;
+                    destination-local;
+                }
+                then {
+                    dnat { to "192.168.10.5:80"; }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>The nft backend lowers it to <code>fib daddr type local</code>. It is valid in a table of
+family <code>ip</code> or <code>ip6</code>, and verify refuses it in <code>inet</code>, <code>arp</code>, <code>bridge</code> and
+<code>netdev</code>. The kernel provides the lookup per family, and Ze's kernel is built
+with the <code>ip</code> and <code>ip6</code> ones, so a dual-stack port is published by one term in
+an <code>ip</code> table and one in an <code>ip6</code> table. The <code>vpp</code> backend refuses it at commit, because a VPP ACL has no
+lookup of the router's own addresses.</p>
+<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
+<!-- source: internal/component/firewall/validate.go -- validateMatch -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerDestinationLocalMatch -->
+<!-- source: internal/plugins/firewall/vpp/verify.go -- verifyMatch -->
 <p>Literal source and destination prefixes must use the network address. For
 example, <code>source-address 10.10.10.1/30</code> is refused because it matches the network
 <code>10.10.10.0/30</code>. The error identifies the term and gives the corrected statement,
@@ -539,10 +604,6 @@ counted, and logged with the protocol number and the route key. Ze does not
 enforce a version of the rule with the protocol condition removed, because that
 rule is wider than the one that was asked for.</p>
 <!-- source: internal/component/firewall/protocol.go -- ianaProtocolNumbers, ProtocolName -->
-<p>| <code>mark</code> | Packet mark value/mask | <code>mark 0x10/0xff;</code> |
-| <code>dscp</code> | DSCP value (name or number) | <code>dscp ef;</code> |
-| <code>tcp-flags</code> | TCP header flags | <code>tcp-flags syn;</code> |
-| <code>source-address @set</code> | Named set lookup | <code>source-address @blocked;</code> |</p>
 <h3 id="icmp-type-names">ICMP Type Names</h3>
 <p>Symbolic names for <code>icmp-type</code>: <code>echo-reply</code>, <code>destination-unreachable</code>,
 <code>source-quench</code>, <code>redirect</code>, <code>echo-request</code>, <code>router-advertisement</code>,
@@ -1424,7 +1485,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

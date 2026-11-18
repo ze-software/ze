@@ -641,3 +641,16 @@ ze doctor
 | `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer, to a consumer that registered late, or to every consumer after a reload changed the import rules |
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
+
+### BGP delivery failures
+
+If BGP cannot announce or withdraw a redistributed route, the log and the
+orchestrator's report bus record `doctor-bgp-redistribution`. `ze show errors`
+and the recent-events doctor check retain the failed operation, exact route,
+peer selector and original cause. Run `ze show bgp peers`, restore the named
+session, negotiated family or `send [ update ]` grant, then retry the source
+change or its replay. These are bounded incident records; later success does
+not rewrite an earlier failed operation. An accepted retained loser with zero
+announcements is not reported as a delivery failure.
+<!-- source: internal/component/bgp/redistribute/consumer_diagnostic.go -- reportFailure -->
+<!-- source: internal/component/bgp/redistribute/register.go -- redistribution event-code ownership -->

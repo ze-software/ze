@@ -73,18 +73,33 @@ The first four rows judge the declare-mode run itself:
 | `program-starts` | The run string starts a program. A shell exit of 126 or 127 means that no program started |
 | `exits-clean` | The program exits 0 inside the budget and leaves no process holding its standard output |
 | `declaration-line` | Standard output holds exactly one line: `#1 ze-plugin-engine:declare-registration` and the declaration as compact JSON, ended by one line feed |
-| `declaration-decodes` | The JSON of that line decodes as a Stage 1 declaration |
+| `declaration-decodes` | The JSON of that line decodes as a Stage 1 declaration, read as the daemon reads it: a key ze does not know, the retired `schema` key among them, fails the row with the daemon's own refusal, and the Stage 1 rows after it are not judged |
 <!-- source: internal/component/plugin/conformance/checks.go -- programStarts, exitsClean, declarationLine, strictLine, declarationDecodes -->
 <!-- source: internal/component/plugin/declarations.go -- queryExitOf -->
 
 The next rows are the daemon's own Stage 1 checks, run over the declaration the
 program wrote. The checker and the daemon read one table, so a row that fails
 here is a declaration the daemon refuses, with the daemon's own reason. These
-rows carry stage `1`: `protocol-version`, `filter-declarations`,
-`filter-insertions`, `filter-insertion-paths`, `drain`, `resolver-caches`,
-`doctor-checks`, `enrichers`, `pipe-aliases`, `answer-shapes` and `help-texts`.
-The row `command-names` carries stage `5`. The daemon applies that rule at
-Stage 5, where a bad name refuses the command and keeps the plugin.
+rows carry stage `1`: `protocol-version`, `dissemination`,
+`filter-declarations`, `filter-insertions`, `filter-insertion-paths`, `drain`,
+`resolver-caches`, `doctor-checks`, `enrichers`, `pipe-aliases`,
+`answer-shapes`, `help-texts` and `command-nodes-served`. The row
+`command-names` carries stage `5`. The daemon applies that rule at Stage 5,
+where a bad name refuses the command and keeps the plugin.
+
+`command-nodes-served` joins the YANG modules of the declaration to ze's own,
+as the daemon does at `ze start`, and fails when a `ze:command` node of those
+modules is not routed to a command the plugin declares: no declared command
+reaches it on a word boundary, or the only one that does is a name the daemon
+refuses at Stage 5. A module the join refuses fails the row with the join's
+own refusal. The daemon also counts the commands other plugins registered
+before this one, because the longest command that reaches a node takes it; the
+checker runs one program, so it judges the declaration alone.
+<!-- source: internal/component/plugin/server/stage1_commands.go -- refuseUnservedCommandNodes, commandModules, commandServed -->
+<!-- source: internal/component/plugin/server/command.go -- longestReach, commandReaches -->
+<!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- programAlone -->
+
 
 When the program did not start, every later row is `not-judged`. When no
 declaration was read, every Stage 1 row is `not-judged`. A row is never passed
@@ -103,7 +118,7 @@ start ze.
 | `ambiguous-registration` | `1` | The check compares the declaration with the other plugins the daemon runs |
 | `doctor-check-declared-twice` | `1` | The check compares the declared doctor checks with the registry row of the operator's block |
 | `respawn-agreement` | `1` | The check compares the declared failure policy with the `respawn` leaf of the operator's config |
-| `schema-unchanged` | `1` | The check compares the declared config schema with the one the daemon read from the plugin when it started |
+| `schema-unchanged` | `1` | The check compares the declared YANG modules with the ones the daemon read from the plugin when it started |
 | `dependencies` | `1` | The check looks for each declared dependency among the plugins the daemon configured or loaded |
 | `registration-conflicts` | `1` | The check writes the plugin's names into the daemon's registries, where another plugin can hold the same name |
 | `tls-connect-back` | `transport` | The checker starts no hub, so the TLS connect-back and the `#0 auth` exchange do not run |
@@ -114,7 +129,7 @@ start ze.
 | `config-callbacks` | `runtime` | The checker opens no config transaction, so it calls no verify, apply, rollback or committed callback |
 | `execute-command-framing` | `runtime` | The checker sends no execute-command, so it reads no answer line |
 | `bye-and-exit` | `shutdown` | The checker sends no bye |
-| `schema` | `schema` | The checker does not compile the YANG module in the `schema` field of the declaration |
+| `schema` | `schema` | The checker joins the YANG modules in the `schemas` list of the declaration only for `command-nodes-served`, which fails with the join's refusal; it parses no config against them |
 <!-- source: internal/component/plugin/conformance/register.go -- init, the notJudged registrations -->
 <!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, the entries with daemonState -->
 <!-- source: internal/component/plugin/conformance/checks.go -- daemonStateRows, notJudged -->
@@ -140,6 +155,7 @@ exits-clean                  declare    pass
 declaration-line             declare    pass
 declaration-decodes          declare    pass
 protocol-version             1          pass
+dissemination                1          pass
 filter-declarations          1          pass
 filter-insertions            1          pass
 filter-insertion-paths       1          pass
@@ -150,6 +166,7 @@ enrichers                    1          pass
 pipe-aliases                 1          pass
 answer-shapes                1          pass
 help-texts                   1          pass
+command-nodes-served         1          pass
 command-names                5          pass
 ambiguous-registration       1          not-judged
 doctor-check-declared-twice  1          not-judged

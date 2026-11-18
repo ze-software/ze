@@ -6,15 +6,15 @@ Show what each plugin declares about its command surface\.
 
 - Registry path: `show plugin declarations`
 - Usage: `show plugin declarations`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-plugin:show-declarations`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `config`
 - Answer shape: tab
 - Address fields: none
-- Column order: name, kind, state, commands, pipes, reason
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: name\, kind\, state\, commands\, pipes\, reason
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

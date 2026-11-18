@@ -30,7 +30,7 @@ Packet filter and NAT rules (nftables on Linux)
 Order only when both plugins are selected; never auto-loads a plugin.
 
 - Start after: None
-- Starts before: [`vrrp`](../vrrp/index.md)
+- Starts before: [`container`](../container/index.md), [`vrrp`](../vrrp/index.md)
 
 ## Repository artifacts
 

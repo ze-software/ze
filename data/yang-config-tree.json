@@ -8366,6 +8366,88 @@
             "type": "boolean"
           },
           {
+            "description": "The image the container runs: a short name, which completes on the\npublic hub with the library prefix for a one-word name, a whole\nreference with its registry host, or a reference by sha256 digest.\nA reference with no tag and no digest takes the tag latest. The\nimage store must hold the image: create container image reference\nfetches it, and a container whose image is absent waits for it.",
+            "kind": "leaf",
+            "name": "image",
+            "short-help": "Image name; a short name is looked up on Docker Hub, and no tag means latest.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "children": [
+              {
+                "description": "At most one address per address family, inside the network's\nprefix, and not its network, broadcast or gateway address. A\nfamily with no address set is assigned the lowest free one, and\nthe assignment stays the same across restarts.",
+                "kind": "leaf-list",
+                "name": "address",
+                "short-help": "Address of the container on the network.",
+                "source": "config",
+                "type": "ip-address"
+              },
+              {
+                "description": "When absent, a locally administered address is derived from the\nnetwork and container names, so it is the same at every start.",
+                "kind": "leaf",
+                "name": "mac-address",
+                "short-help": "Hardware address of the container's end of the link.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "One entry attaches the container to one container network. The\ncontainer gets one link per entry, named eth0, eth1 and on in\nthe order the entries are written. An absent address is assigned\nand an absent mac-address is derived; neither is written to the\nconfiguration.",
+            "kind": "list[name]",
+            "name": "network",
+            "short-help": "Attachment to a container network.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "One port, or a first-last range, of the same length as the\npublic port. A range is published onto the same range.",
+                "kind": "leaf",
+                "name": "container-port",
+                "short-help": "Port of the container the connection reaches.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The transport protocol the port is published for.",
+                "kind": "leaf",
+                "name": "protocol",
+                "short-help": "Transport protocol of the published port.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "tcp"
+                  },
+                  {
+                    "name": "udp"
+                  }
+                ]
+              },
+              {
+                "description": "The addresses of the router the port is published on. When\nnone is set, every address of the router is, in each family\nthe container has an address of on its first network.",
+                "kind": "leaf-list",
+                "name": "public-address",
+                "short-help": "Address of the router the port is published on.",
+                "source": "config",
+                "type": "ip-address"
+              },
+              {
+                "description": "One port, or a first-last range, from 1 to 65535.",
+                "kind": "leaf",
+                "name": "public-port",
+                "short-help": "Port of the router that is published.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "One entry publishes a port of the container on the router: a\nconnection to an address of the router on the public port is\ntranslated to the container's address on its first network and\nthe container port. Only traffic addressed to the router is\ntranslated, never traffic the router forwards. The operator's\nfirewall policy must also allow the translated traffic.",
+            "kind": "list[name]",
+            "name": "port",
+            "short-help": "Port of the router that reaches a port of the container.",
+            "source": "config"
+          },
+          {
             "description": "The signal a stop sends to the container's first process. When the\nleaf is absent, the signal the image declares is sent, or the\ntermination signal when the image declares none.",
             "kind": "leaf",
             "name": "stop-signal",
@@ -8406,6 +8488,138 @@
         "kind": "list[name]",
         "name": "instance",
         "short-help": "A container Ze runs from an image.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "At most one per prefix, a host address of it. When absent, the\ngateway of a prefix is its first host address.",
+            "kind": "leaf-list",
+            "name": "gateway",
+            "short-help": "Address of the router on the network.",
+            "source": "config",
+            "type": "ip-address"
+          },
+          {
+            "description": "True translates traffic leaving the network through another\ninterface to the router's address on that interface. Traffic\nbetween two containers of the network keeps its source.",
+            "kind": "leaf",
+            "name": "masquerade",
+            "short-help": "Translate outbound traffic to the router's address.",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Set on the bridge and on both ends of every link. A network with an\nIPv6 prefix needs at least 1280.",
+            "kind": "leaf",
+            "name": "mtu",
+            "short-help": "Largest packet the network carries.",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "At most one prefix per address family. An IPv4 prefix has a length\nof 1 to 30 and an IPv6 prefix 1 to 126, and two networks must not\noverlap.",
+            "kind": "leaf-list",
+            "name": "prefix",
+            "short-help": "Address range of the network, one per address family.",
+            "source": "config",
+            "type": "ip-prefix"
+          }
+        ],
+        "description": "One entry is one container network: a bridge device named zcn- plus\nthe name, holding the gateway address of each prefix. Each attached\ncontainer has one link whose host end is a member of the bridge.",
+        "kind": "list[name]",
+        "name": "network",
+        "short-help": "A network that containers attach to.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "The password or access token of the account. Every display\nof the configuration masks it.",
+                "kind": "leaf",
+                "name": "password",
+                "short-help": "Password or access token on the registry.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The user name of the account on the registry.",
+                "kind": "leaf",
+                "name": "username",
+                "short-help": "User name on the registry.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "The credentials are sent to the registry or to the token realm\nit names, and never to the mirror. Both leaves are mandatory.",
+            "kind": "container",
+            "name": "authentication",
+            "short-help": "Credentials Ze presents to the registry.",
+            "source": "config"
+          },
+          {
+            "description": "Free text for the operator. Ze does not interpret it.",
+            "kind": "leaf",
+            "name": "description",
+            "short-help": "Free text shown with the registry.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "children": [
+              {
+                "description": "An IP address or a host name in lower case. A loopback\naddress is accepted.",
+                "kind": "leaf",
+                "name": "address",
+                "short-help": "IP address or host name of the mirror.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The path the mirror serves the registry protocol under. It\nstarts with a slash and is placed before the /v2/ path of\nevery request to the mirror.",
+                "kind": "leaf",
+                "name": "path",
+                "short-help": "Path prefix of the mirror, starting with a slash.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The default is 443 whatever the transport, so a mirror\nreached over http names its port.",
+                "kind": "leaf",
+                "name": "port",
+                "short-help": "Port of the mirror.",
+                "source": "config",
+                "type": "port"
+              }
+            ],
+            "description": "One mirror for the registry. Every manifest and blob is asked of\nthe mirror first, once and with no credentials, and of the\nregistry when the mirror fails in any way. What the mirror\nserves passes the same digest and size checks.",
+            "kind": "container",
+            "name": "mirror",
+            "short-help": "Server Ze asks first; the registry is asked when it fails.",
+            "source": "config"
+          },
+          {
+            "description": "The protocol applies to the registry and to its mirror. Over\nhttps the server's certificate is always verified: there is no\nunverified form.",
+            "kind": "leaf",
+            "name": "transport",
+            "short-help": "Protocol Ze speaks to the registry and to its mirror.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "http"
+              },
+              {
+                "name": "https"
+              }
+            ]
+          }
+        ],
+        "description": "One entry holds the settings of one image registry. A registry with\nno entry is reached over HTTPS, verified through the system roots,\nwith no credentials and no mirror. The public hub needs no entry;\nan entry named docker.io gives it a mirror or credentials like any\nother registry. A change applies to the next fetch.",
+        "kind": "list[name]",
+        "name": "registry",
+        "short-help": "Settings for one image registry.",
         "source": "config"
       }
     ],
@@ -9973,7 +10187,7 @@
             "type": "string"
           },
           {
-            "description": "Ze passes the value to the SSH server as the maximum\nduration of one session. The default is 600 seconds.",
+            "description": "Ze closes an SSH connection after this many seconds\nwithout traffic. Receiving or sending data restarts the\nidle period, so an active session can stay connected.\nThe default is 600 seconds.",
             "kind": "leaf",
             "name": "idle-timeout",
             "short-help": "Idle timeout in seconds. The default is 600.",
@@ -10712,6 +10926,14 @@
                         "short-help": "Match the destination address against the addresses of this domain group.",
                         "source": "config",
                         "type": "string"
+                      },
+                      {
+                        "description": "The term matches a packet whose destination address is one this router holds on any\nof its interfaces, as the kernel's local routing table answers when the packet is seen, so an\naddress added after the commit matches too. A packet routed through the router to another\nhost does not match. A destination translation that carries this match captures only traffic\naddressed to the router, never transit traffic to the same port. Ze reads the leaf as a\npresence flag, so it takes no value. The nft backend lowers it to fib daddr type local.\nIt is valid in a table of family ip or ip6. Verify refuses it in a table of family inet,\narp, bridge or netdev, and the vpp backend refuses it.",
+                        "kind": "leaf",
+                        "name": "destination-local",
+                        "short-help": "Match a destination address this router holds",
+                        "source": "config",
+                        "type": "empty"
                       },
                       {
                         "description": "The value takes the same four forms the source-port leaf takes. The match reads the\ntransport header at a fixed offset and carries no protocol guard of its own. Name the\nprotocol leaf in the same from block, or the term reads those two bytes out of any\nprotocol the chain sees.",

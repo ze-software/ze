@@ -5,17 +5,17 @@ Test what your policy does to a specific UPDATE\.
 ## Ze command
 
 - Registry path: `show policy test peer`
-- Usage: `show policy test peer <selector> <import\|export> [filter <name>] update <hex> [route-kind <learned\|local>] [source-asn4 <true\|false>]`
-- Mode: Read-only
+- Usage: `show policy test peer <selector> <import|export> [filter <name>] update <hex> [route-kind <learned|local>] [source-asn4 <true|false>]`
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-policy-test`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `filter`, `route-kind`, `source-asn4`, `update`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

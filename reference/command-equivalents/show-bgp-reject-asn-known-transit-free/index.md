@@ -6,20 +6,20 @@ Print the curated transit\-free ASNs as a config block\.
 
 - Registry path: `show bgp reject-asn known transit-free`
 - Usage: `show bgp reject-asn known transit-free`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-reject-asn-known-transit-free`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: curated, sources, networks, block; asn, name, contested
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Column order: curated\, sources\, networks\, block\; asn\, name\, contested
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `peers`: The peer rows\, without the aggregate fields (`display peers`); `summary`: The aggregate fields\, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
+- Pipe aliases: none
 
 Prints the well\-known transit\-free ASNs as one \`indirect \[ \.\.\. \]\;\` line to paste directly under \`reject\-asn NAME \{ \}\`\, with the sources and the curated date as comments\. Ze acts on no ASN it was not configured with\, so this command is how the set reaches a config\. After the paste the config holds the numbers\, and a later change to the curated table cannot alter it\.
 

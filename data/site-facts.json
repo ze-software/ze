@@ -59,7 +59,7 @@
   },
   "blog_articles": 6,
   "changes": 46,
-  "cli_commands": 534,
+  "cli_commands": 604,
   "cli_group_commands": {
     "clear-bgp": 4,
     "clear-dns": 4,
@@ -68,14 +68,16 @@
     "clear-other": 18,
     "create": 13,
     "debug": 4,
-    "delete": 13,
+    "delete": 14,
     "doctor": 1,
     "help": 3,
     "monitor": 8,
     "plugin": 10,
     "request-bgp": 23,
+    "request-config": 37,
+    "request-data": 5,
     "request-interface": 5,
-    "request-other": 27,
+    "request-other": 23,
     "request-peer": 12,
     "resolve": 11,
     "send": 9,
@@ -84,8 +86,9 @@
     "show-bgp": 37,
     "show-bmp": 4,
     "show-command": 5,
-    "show-config": 14,
-    "show-data": 4,
+    "show-config": 39,
+    "show-container": 4,
+    "show-data": 5,
     "show-ddos": 4,
     "show-dns": 5,
     "show-event": 4,
@@ -96,7 +99,7 @@
     "show-l2tp": 18,
     "show-metrics": 4,
     "show-ospf": 50,
-    "show-other": 71,
+    "show-other": 72,
     "show-pki": 6,
     "show-plugin": 4,
     "show-policy": 4,
@@ -115,7 +118,7 @@
     "update-serve": 4,
     "update-system": 5
   },
-  "cli_groups": 53,
+  "cli_groups": 56,
   "config_sections": 39,
   "dependencies": 64,
   "equivalents": {
@@ -138,7 +141,7 @@
       "delete": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 13
+        "total": 14
       },
       "doctor": {
         "equivalent": 0,
@@ -163,7 +166,7 @@
       "request": {
         "equivalent": 7,
         "reviewed": 9,
-        "total": 67
+        "total": 105
       },
       "resolve": {
         "equivalent": 5,
@@ -183,7 +186,7 @@
       "show": {
         "equivalent": 32,
         "reviewed": 76,
-        "total": 325
+        "total": 356
       },
       "system": {
         "equivalent": 0,
@@ -232,7 +235,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-17",
+  "generated_at": "2026-11-18",
   "github_stars": 60,
   "health": {
     "adoption": {
@@ -244,9 +247,9 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "780",
+          "packages": "785",
           "with_ci": "38",
-          "with_fuzz": "50",
+          "with_fuzz": "51",
           "with_rfc_tag": "143"
         }
       },
@@ -256,13 +259,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "48475",
+        "denominator": "49311",
         "numerator": "111",
         "percent": "0.2"
       },
       "value": {
         "1": "111",
-        "2": "48475",
+        "2": "49311",
         "3": "108"
       }
     },
@@ -277,14 +280,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "9869",
-        "2": "115",
+        "1": "10142",
+        "2": "116",
         "3": "160",
-        "4": "3051",
+        "4": "3101",
         "5": "207"
       },
       "value": {
-        "1": "48518"
+        "1": "49354"
       }
     },
     "known-failures": {
@@ -297,13 +300,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "9869",
-        "numerator": "3947",
-        "percent": "40.0"
+        "denominator": "10142",
+        "numerator": "4083",
+        "percent": "40.3"
       },
       "value": {
-        "1": "3947",
-        "2": "9869"
+        "1": "4083",
+        "2": "10142"
       },
       "worst": {
         "1": {
@@ -317,12 +320,12 @@
           "percent": "7.4"
         },
         "2": {
-          "files": "5",
+          "files": "6",
           "negative": "0",
           "percent": "0.0"
         },
         "3": {
-          "files": "5",
+          "files": "6",
           "negative": "0",
           "percent": "0.0"
         },
@@ -347,20 +350,20 @@
           "percent": "6.2"
         },
         "8": {
+          "files": "16",
+          "negative": "1",
+          "percent": "6.2"
+        },
+        "9": {
           "files": "47",
           "negative": "3",
           "percent": "6.4"
-        },
-        "9": {
-          "files": "14",
-          "negative": "1",
-          "percent": "7.1"
         }
       }
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "46.5",
+        "1": "46.9",
         "10": "1510",
         "11": "18",
         "12": "2026",
@@ -374,31 +377,31 @@
         "2": "4752",
         "20": "4802",
         "21": "204",
-        "22": "2290",
+        "22": "2292",
         "23": "46",
-        "24": "1478",
-        "25": "32",
+        "24": "1476",
+        "25": "34",
         "26": "499",
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2210",
+        "3": "2227",
         "30": "0",
         "31": "14",
         "4": "0",
         "5": "235",
-        "6": "2307",
-        "7": "776",
+        "6": "2290",
+        "7": "759",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2210",
-        "percent": "46.5"
+        "numerator": "2227",
+        "percent": "46.9"
       },
       "value": {
-        "1": "2210",
+        "1": "2227",
         "2": "4752"
       },
       "worst": {
@@ -505,20 +508,20 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-17T08:38:04Z",
+  "published_at": "2026-11-18T04:25:24Z",
   "release": null,
   "repo": {
-    "design_comments": 11427,
-    "design_comments_display": "11,400+",
-    "detail_comments": 11739,
-    "detail_comments_display": "11,700+",
-    "go_packages": 1046,
+    "design_comments": 11791,
+    "design_comments_display": "11,700+",
+    "detail_comments": 12095,
+    "detail_comments_display": "12,000+",
+    "go_packages": 1047,
     "go_packages_display": "1,000+",
-    "go_source_lines": 1768348,
-    "go_source_lines_display": "1.77 million",
-    "go_test_lines": 2126125,
-    "go_test_lines_display": "2.13 million",
-    "go_vendor_lines": 2063007,
+    "go_source_lines": 1799288,
+    "go_source_lines_display": "1.80 million",
+    "go_test_lines": 2169536,
+    "go_test_lines_display": "2.17 million",
+    "go_vendor_lines": 2063142,
     "go_vendor_lines_display": "2.06 million"
   },
   "rfc": {
@@ -536,22 +539,22 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2210,
-    "proven_display": "2,210",
-    "proven_percent": "46.5",
+    "proven": 2227,
+    "proven_display": "2,227",
+    "proven_percent": "46.9",
     "requirements": 7834,
     "requirements_display": "7,834",
     "summaries": 231,
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 3051,
-    "e2e_display": "3,000+",
+    "e2e": 3101,
+    "e2e_display": "3,100+",
     "editor": 207,
     "editor_display": "200+",
-    "fuzz": 115,
+    "fuzz": 116,
     "fuzz_display": "110+",
-    "unit": 48518,
-    "unit_display": "48,500+"
+    "unit": 49354,
+    "unit_display": "49,300+"
   }
 }

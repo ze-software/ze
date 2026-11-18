@@ -6,16 +6,16 @@ One\-line summary per interface\: name\, state\, IP\, and MTU\.
 
 - Registry path: `show interface brief`
 - Usage: `show interface brief`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-iface:show-interface-brief`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -48,5 +48,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show interfaces` (verified, vyos-cli)
+- `show interfaces` (verified, vyos\-cli)
   - Intent: Interface list and brief status

@@ -124,7 +124,14 @@ fix: create bgp peer &lt;selector&gt; asn &lt;asn&gt;
 </code></pre>
 <p>Every route gives the same fix: a plugin's command, a subsystem's, and a
 command answered in the <code>ze</code> process itself (<code>ze &lt;verb&gt;</code> writes the command
-with its <code>ze</code> prefix). A line with a fault in a word it typed keeps the
+with its <code>ze</code> prefix). A single missing mandatory argument follows the same
+correction path, without a count of faults:</p>
+<pre><code>required argument missing: asn
+This command needs asn: The value is 1 to 4294967295, in asplain or asdot notation. Ze stores the
+decimal form whichever notation you typed. AS 0 is refused, because RFC 7607 reserves it.
+fix: create bgp peer 192.0.2.7 asn &lt;asn&gt;
+</code></pre>
+<p>A line with a fault in a word it typed keeps the
 general fix:</p>
 <pre><code>this command has 2 faults, so Ze did not run it
 Ze runs a command only when every word of it is valid, and each line below is one fault:
@@ -269,7 +276,7 @@ the sequence too; adding or removing the whole list uses <code>added</code> or <
 This does not add general non-BGP value comparison. Files, stored sources and
 rollback revisions use the same comparison, and changed secret values remain
 masked in both output shapes.</p>
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders, maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders, maskDiffSecrets -->
 <p>Interactive <code>ze config edit</code> and <code>ze cli</code> run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored
 config selects that config, not another config with the daemon's active path.
@@ -533,7 +540,7 @@ owners keep the documented whole-snapshot overwrite behavior.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
                 </div>
             </div>
         </footer>

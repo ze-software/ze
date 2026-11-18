@@ -257,6 +257,56 @@ Rule 2.
 | `icmpv6-type` | ICMPv6 type (name or number) | `icmpv6-type nd-neighbor-solicit;` |
 | `connection-state` | Conntrack states | `connection-state established,related;` |
 | `connection-mark` | Mark value/mask | `connection-mark 0x10/0xff;` |
+| `mark` | Packet mark value/mask | `mark 0x10/0xff;` |
+| `dscp` | DSCP value (name or number) | `dscp ef;` |
+| `tcp-flags` | TCP header flags | `tcp-flags syn;` |
+| `source-address @set` | Named set lookup | `source-address @blocked;` |
+| `destination-local` | The destination is an address this router holds (no value) | `destination-local;` |
+
+<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
+
+`destination-local` matches a packet addressed to the router itself: its
+destination is an address the kernel holds on one of the router's interfaces
+when the packet is seen, so an address added later, such as one a DHCP client
+learns, matches with no commit. A packet the router forwards to another host
+does not match. A destination translation that carries it publishes a port of
+the router without capturing transit traffic to the same port:
+
+```
+firewall {
+    backend nft;
+    table publish {
+        family ip;
+        chain prerouting {
+            type nat;
+            hook prerouting;
+            priority -100;
+            policy accept;
+            term publish-web {
+                from {
+                    protocol tcp;
+                    destination-port 8080;
+                    destination-local;
+                }
+                then {
+                    dnat { to "192.168.10.5:80"; }
+                }
+            }
+        }
+    }
+}
+```
+
+The nft backend lowers it to `fib daddr type local`. It is valid in a table of
+family `ip` or `ip6`, and verify refuses it in `inet`, `arp`, `bridge` and
+`netdev`. The kernel provides the lookup per family, and Ze's kernel is built
+with the `ip` and `ip6` ones, so a dual-stack port is published by one term in
+an `ip` table and one in an `ip6` table. The `vpp` backend refuses it at commit, because a VPP ACL has no
+lookup of the router's own addresses.
+<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
+<!-- source: internal/component/firewall/validate.go -- validateMatch -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerDestinationLocalMatch -->
+<!-- source: internal/plugins/firewall/vpp/verify.go -- verifyMatch -->
 
 Literal source and destination prefixes must use the network address. For
 example, `source-address 10.10.10.1/30` is refused because it matches the network
@@ -325,10 +375,6 @@ enforce a version of the rule with the protocol condition removed, because that
 rule is wider than the one that was asked for.
 
 <!-- source: internal/component/firewall/protocol.go -- ianaProtocolNumbers, ProtocolName -->
-| `mark` | Packet mark value/mask | `mark 0x10/0xff;` |
-| `dscp` | DSCP value (name or number) | `dscp ef;` |
-| `tcp-flags` | TCP header flags | `tcp-flags syn;` |
-| `source-address @set` | Named set lookup | `source-address @blocked;` |
 
 ### ICMP Type Names
 

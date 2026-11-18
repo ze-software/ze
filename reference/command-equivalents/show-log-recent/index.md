@@ -5,17 +5,17 @@ Show recent log entries from the in\-memory ring\.
 ## Ze command
 
 - Registry path: `show log recent`
-- Usage: `show log recent [level <disabled\|debug\|info\|warn\|err>] [component <component>] [count <count>]`
-- Mode: Read-only
+- Usage: `show log recent [level <disabled|debug|info|warn|err>] [component <component>] [count <count>]`
+- Mode: Read\-only
 - Wire method: `ze-log:bgp-log-recent`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -33,7 +33,7 @@ Filters \(all optional\)\: level \<lvl\>\, component \<name\>\, count \<N\>\. Ne
 
 ## Mapping intents
 
-### Logs, warnings, and errors
+### Logs\, warnings\, and errors
 
 Category: Operations
 
@@ -52,5 +52,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show log` (verified, vyos-cli)
-  - Intent: Logs, warnings, and errors
+- `show log` (verified, vyos\-cli)
+  - Intent: Logs\, warnings\, and errors

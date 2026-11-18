@@ -6,15 +6,15 @@ List every command this binary carries with its summary\.
 
 - Registry path: `show command catalog`
 - Usage: `show command catalog [filter <filter>]`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-help:show-command-catalog`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: map
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -6,15 +6,15 @@ Show RIB subcommands
 
 - Registry path: `show bgp rib help`
 - Usage: `show bgp rib help`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: map
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

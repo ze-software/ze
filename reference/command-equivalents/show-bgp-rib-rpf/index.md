@@ -6,15 +6,15 @@ Reverse\-path forwarding lookup in the Loc\-RIB\.
 
 - Registry path: `show bgp rib rpf`
 - Usage: `show bgp rib rpf`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:rib-rpf`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
-- Address fields: source, next-hop
-- Column order: source, family, found, matched-prefix, next-hop, distance, metric
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Address fields: source\, next\-hop
+- Column order: source\, family\, found\, matched\-prefix\, next\-hop\, distance\, metric
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

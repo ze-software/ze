@@ -6,15 +6,15 @@ Check if a prefix is accepted by the IRR filter\.
 
 - Registry path: `show bgp irr check`
 - Usage: `show bgp irr check <peer> <prefix>`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-irr-check`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: prefix, asn, accepted, matched-entry
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Column order: prefix\, asn\, accepted\, matched\-entry
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -36,7 +36,7 @@ Reports whether the prefix would be accepted or rejected\, and which entry match
 
 Category: BGP
 
-Current Ze commands are IRR-focused. RPKI-specific show paths can be added to this entry when present in the live command catalog.
+Current Ze commands are IRR\-focused\. RPKI\-specific show paths can be added to this entry when present in the live command catalog\.
 
 ## Vendor equivalents
 

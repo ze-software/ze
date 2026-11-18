@@ -167,11 +167,11 @@
                             <div class="hero-project-metrics" aria-label="Project size and scope">
                                 <div class="hero-metrics-grid">
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.77 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.80 million</span></strong>
                                         <span>lines of Go source code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.13 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.17 million</span></strong>
                                         <span>lines of Go test code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
@@ -257,6 +257,64 @@ Keep the logs if a check fails.</pre>
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section class="home-section-panel home-section-panel-run index4-try" aria-labelledby="run-title">
+                <div class="section-head reveal cat-platform">
+                    <h2 id="run-title">Choose how to try Ze.</h2>
+                    <p>
+                        Run Ze on Linux, in Docker or as an appliance, and use
+                        containerlab to explore a test network. Linux and Docker
+                        are also options for replacing an existing ExaBGP setup.
+                    </p>
+                </div>
+                <aside class="build-size" aria-labelledby="build-size-title">
+                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
+                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
+                </aside>
+                <div class="index4-choice-grid reveal">
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Linux</span></div>
+                        <h3>Run Ze on your Linux host.</h3>
+                        <p>Run Ze as a Linux service to use your host as a router or replace an existing ExaBGP setup. For migration, convert your configuration and use the compatibility bridge for process scripts, checking the documented differences before switching.</p>
+                        <p class="index4-success"><strong>Success check</strong>Check your sessions and routes. If migrating from ExaBGP, verify your process scripts before switching.</p>
+                        <div class="index4-choice-links"><a href="guides/ubuntu-build-install/">Install on Linux →</a><a href="use-cases/exabgp-migration/">Replace ExaBGP →</a></div>
+                    </article>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Docker</span></div>
+                        <h3>Run Ze in Docker.</h3>
+                        <p>Run Ze&#39;s routing daemon in a container, with persistent configuration and the host managing its network interfaces. Docker is also an option for replacing ExaBGP, using the same migration tools and compatibility bridge.</p>
+                        <p class="index4-success"><strong>Success check</strong>Check your sessions and routes, then verify that your configuration survives container recreation.</p>
+                        <div class="index4-choice-links"><a href="guides/docker/">Run with Docker →</a><a href="use-cases/exabgp-migration/">Replace ExaBGP →</a></div>
+                    </article>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Appliance</span></div>
+                        <h3>Give Ze its own system.</h3>
+                        <p>Build a dedicated router on hardware or a VM with Ze&#39;s immutable operating system. Ze manages the network configuration, while the guide covers installation, authenticated SSH, updates and previous-slot recovery.</p>
+                        <p class="index4-success"><strong>Availability</strong>Source builds produce disk images and installer ISOs. No public image release is available yet.</p>
+                        <a class="index4-choice-link" href="guides/appliance/">Build an appliance <span aria-hidden="true">→</span></a>
+                    </article>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Containerlab</span></div>
+                        <h3>Test a network topology.</h3>
+                        <p>Use netlab with containerlab to run Ze in a test network. Start with the supplied topology to explore routing and check how Ze behaves before using it in your own network.</p>
+                        <p class="index4-success"><strong>Success check</strong>Check BGP sessions, kernel routes and traffic between the lab nodes.</p>
+                        <div class="index4-choice-links"><a href="guides/netlab/">Start a test network →</a><a href="labs/netlab/">Explore the topology →</a></div>
+                    </article>
+
+                </div>
+                <div class="index4-other-paths">
+                    <strong>Other ways to evaluate</strong>
+                    <a href="guides/quickstart/">Two-peer quickstart</a>
+                    <a href="guides/netlab/">netlab and containerlab</a>
+                    <a href="labs/netlab/">Explore a supplied topology</a>
+                    <a href="labs/bgp-interop/">BGP interoperability labs</a>
+                    <a href="guides/ai-agent/">Test with an AI agent</a>
+                    <a href="reference/cli/">Explore the CLI</a>
+                    <a href="guides/public-looking-glass/">Publish a looking glass</a>
+                    <a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a>
+                </div>
+                <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
             </section>
 
             <section id="why-ze" class="home-section-panel home-section-panel-management" aria-labelledby="why-title">
@@ -385,8 +443,8 @@ Keep the logs if a check fails.</pre>
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">46.5</span><span class="index4-percent">%</span></p>
-                        <p><span data-ze-stat="rfc.proven_display">2,210</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">46.9</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,227</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">196</span></b><span>RFCs implemented</span></div>
                             <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
@@ -445,10 +503,10 @@ Keep the logs if a check fails.</pre>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">
-                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">48,500+</span></p>
+                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">49,300+</span></p>
                         <p>Check encoded bytes and parsed values. Verify configuration, state transitions and plugins.
                             Mutation checks with gomu examine whether tests catch code changes.</p><a href="quality/unit-fuzz-mutation/">Go tests and mutation checks →</a></article>
-                    <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">3,000+</span></p>
+                    <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">3,100+</span></p>
                         <p>Start sessions and exchange route updates. Run editor commands, commits and reloads.
                             Check output, errors and saved state.</p><a href="quality/functional-ci/">Scenarios and expected results →</a></article>
                     <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">110+</span></p>
@@ -484,7 +542,7 @@ Keep the logs if a check fails.</pre>
                     </a>
                     <a class="card reference-card cat-operate" href="reference/cli/">
                         <span class="cat">Commands</span>
-                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">534</span> CLI commands</strong>
+                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">604</span> CLI commands</strong>
                         <span class="reference-card-description">Syntax, arguments and pipe operators →</span>
                     </a>
                     <a class="card reference-card cat-automate" href="reference/plugins/">
@@ -591,63 +649,6 @@ Keep the logs if a check fails.</pre>
                 </div>
             </section>
 
-            <section class="home-section-panel home-section-panel-run index4-try" aria-labelledby="run-title">
-                <div class="section-head reveal cat-platform">
-                    <h2 id="run-title">Choose how to try Ze.</h2>
-                    <p>
-                        A local BGP lab is the simplest starting point. If you
-                        already run ExaBGP or want a different deployment,
-                        follow the path that matches your setup.
-                    </p>
-                </div>
-                <aside class="build-size" aria-labelledby="build-size-title">
-                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
-                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
-                </aside>
-                <div class="index4-choice-grid reveal">
-                    <article class="index4-choice index4-choice-featured">
-                        <div class="index4-choice-top"><span class="index4-choice-badge">Local lab</span><span class="index4-recommendation">Start here</span></div>
-                        <h3>Exchange your first routes.</h3>
-                        <p>Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.</p>
-                        <p class="index4-success"><strong>Success check</strong>Both sessions establish and each peer receives the other peer’s advertised prefix.</p>
-                        <a class="index4-choice-link" href="guides/quickstart/">Open the two-peer quickstart <span aria-hidden="true">→</span></a>
-                    </article>
-                    <article class="index4-choice">
-                        <div class="index4-choice-top"><span class="index4-choice-badge">ExaBGP migration</span></div>
-                        <h3>Try an existing configuration.</h3>
-                        <p>Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.</p>
-                        <p class="index4-success"><strong>Success check</strong>Validate the converted configuration and verify your sessions and script behavior in a lab.</p>
-                        <a class="index4-choice-link" href="use-cases/exabgp-migration/">Explore migration <span aria-hidden="true">→</span></a>
-                    </article>
-                    <article class="index4-choice">
-                        <div class="index4-choice-top"><span class="index4-choice-badge">Linux or Docker</span></div>
-                        <h3>Keep your existing host.</h3>
-                        <p>Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.</p>
-                        <p class="index4-success"><strong>Success check</strong>Connect to authenticated management and check that your configuration survives the documented restart or container recreation.</p>
-                        <div class="index4-choice-links"><a href="guides/ubuntu-build-install/">Linux service →</a><a href="guides/docker/">Docker →</a></div>
-                    </article>
-                    <article class="index4-choice">
-                        <div class="index4-choice-top"><span class="index4-choice-badge">VM or appliance</span></div>
-                        <h3>Give Ze its own system.</h3>
-                        <p>Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.</p>
-                        <p class="index4-success"><strong>Availability</strong>Source builds produce disk images and installer ISOs. No public image release is available yet.</p>
-                        <a class="index4-choice-link" href="guides/appliance/">Explore the appliance <span aria-hidden="true">→</span></a>
-                    </article>
-
-                </div>
-                <div class="index4-other-paths">
-                    <strong>Other ways to evaluate</strong>
-                    <a href="guides/netlab/">netlab and containerlab</a>
-                    <a href="labs/netlab/">Explore a supplied topology</a>
-                    <a href="labs/bgp-interop/">BGP interoperability labs</a>
-                    <a href="guides/ai-agent/">Test with an AI agent</a>
-                    <a href="reference/cli/">Explore the CLI</a>
-                    <a href="guides/public-looking-glass/">Publish a looking glass</a>
-                    <a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a>
-                </div>
-                <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
-            </section>
-
             <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
@@ -716,7 +717,7 @@ Keep the logs if a check fails.</pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 04:28 UTC</span>
                 </div>
             </div>
         </footer>

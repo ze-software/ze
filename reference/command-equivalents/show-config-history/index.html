@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show config history</code></dd></div>
-<div><dt>Usage</dt><dd><code>show config history</code></dd></div>
+<div><dt>Usage</dt><dd><code>show config history &lt;file&gt;</code></dd></div>
 <div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-config-cli:show-config-history</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -68,7 +68,9 @@
 </dl>
 <h3>Description</h3><p>Shows revisions with timestamps and commit metadata. Pair with &#39;show config<br>diff&#39; to review changes before rolling back.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>file</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Configuration file whose revisions are listed.</td><td>The configuration whose stored revision history is listed. Standard input has no revision history.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
 <section class="cmd-intent"><h3>Show running, candidate, and diffed configuration</h3>
@@ -140,7 +142,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

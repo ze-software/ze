@@ -17,6 +17,11 @@ Ze keeps a local structured audit log for operator actions that change state or 
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
 
+The web terminal's `commit confirmed` and the CLI bar's `commit now` record
+one successful `config-commit` entry after publication. The detail is the same
+path-qualified, secret-masked review shown before committing. A refused commit
+keeps the pending changes and records no successful commit entry.
+
 A daemon command records an entry only when it succeeds: a refused or failed command records nothing. Its `detail` is the command line as typed, with every credential value and the value after `content` replaced by `<redacted>`, so a key's bytes never reach the log.
 
 A discard record's `detail` lists only the changes that discard dropped. `discard <path>` keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. One exception: the SSH editor's diff lines carry no path, so when two places hold the same pending line (two peers both changed to the same hold time, say) and `discard <path>` drops one of them, the SSH record can also name the line you kept. The web records are exact. A whole discard run with nothing pending still writes a record, with an empty `detail`, on every surface, so the trail shows every discard an operator ran. A rollback record's `detail` is the rollback itself (the command in the web terminal, `rollback <backup>` in the SSH editor), a download record's is the file name, and an upload record's is `uploaded configuration`.
@@ -33,6 +38,7 @@ that user.
 <!-- source: internal/core/audit/dropped.go -- DroppedDiff -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdDiscardSession, cmdRollback -->
 <!-- source: internal/component/web/cli_terminal.go -- terminalAuditContext, terminalAuditSucceeded, runWebDiscard -->
+<!-- source: internal/component/web/cli_commit_audit_paths_test.go -- TestBrowserCommandCommitAudit -->
 <!-- source: internal/component/web/cli.go -- HandleCLICommandWithAuthorizerAndAudit, dispatchCLICommand, discardAuditDetail -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->

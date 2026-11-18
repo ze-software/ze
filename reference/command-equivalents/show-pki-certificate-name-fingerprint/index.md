@@ -5,17 +5,17 @@ Show the hash of the certificate\, to verify its identity against the one anothe
 ## Ze command
 
 - Registry path: `show pki certificate name fingerprint`
-- Usage: `show pki certificate name <name> fingerprint [sha256\|sha384\|sha512]`
-- Mode: Read-only
+- Usage: `show pki certificate name <name> fingerprint [sha256|sha384|sha512]`
+- Mode: Read\-only
 - Wire method: `ze-pki:show-certificate-fingerprint`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

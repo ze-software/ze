@@ -6,15 +6,15 @@ Show UPDATE throughput for your peers\.
 
 - Registry path: `show bgp peer statistics`
 - Usage: `show bgp peer <selector> statistics`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:peer-statistics`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address
-- Column order: address, remote-as, state, uptime, updates-received, updates-sent, keepalives-received, keepalives-sent, eor-received, eor-sent, rate-updates-received, rate-updates-sent, rate-keepalives-received, rate-keepalives-sent
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Column order: address\, remote\-as\, state\, uptime\, updates\-received\, updates\-sent\, keepalives\-received\, keepalives\-sent\, eor\-received\, eor\-sent\, rate\-updates\-received\, rate\-updates\-sent\, rate\-keepalives\-received\, rate\-keepalives\-sent
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

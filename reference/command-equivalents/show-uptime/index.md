@@ -6,16 +6,16 @@ Show how long the daemon has been running\.
 
 - Registry path: `show uptime`
 - Usage: `show uptime`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-cmd:show-uptime`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -48,5 +48,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show system uptime` (verified, vyos-cli)
+- `show system uptime` (verified, vyos\-cli)
   - Intent: Software version and uptime

@@ -4546,8 +4546,12 @@ daemon owns the editor, <code>docs/guide/config-editor.md</code>), so the file i
 daemon host, one per session, named <code>transcript-&lt;stamp&gt;-&lt;pid&gt;-&lt;n&gt;.log</code>; the
 client, for <code>ze cli -c &lt;command&gt;</code> and for a loose-file <code>ze config edit</code>, named
 <code>transcript-&lt;stamp&gt;-&lt;pid&gt;.log</code>. Transcripts include a header with timestamp,
-username, and remote host. Transcript writes are best-effort and never block
-CLI operation. Default is <code>disabled</code>.</p>
+username, and remote host. A locally served <code>ze cli -c</code> command also records its
+command with its pipe operators and the rendered answer, without loading SSH
+credentials or contacting a daemon. Its transcript host is <code>local</code>.</p>
+<!-- source: internal/component/cli/client/main.go -- runBGP, openOneShotTranscript, emitLocalResult -->
+<p>Transcript writes are best-effort and never block CLI operation. Default is
+<code>disabled</code>.</p>
 <p>A credential typed at the prompt is not written. The command line goes through
 the same redaction the SSH command log uses, so a bcrypt-shaped token, the
 value after a password-family keyword and the value after <code>content</code> (the
@@ -6241,6 +6245,7 @@ not start. It does not tell you what else is wrong with the machine, so run
 entry is one container that Ze itself runs from an OCI image:</p>
 <pre><code>container {
     instance web {
+        image redis:7
         enabled false
     }
 }
@@ -6258,6 +6263,10 @@ entry is one container that Ze itself runs from an OCI image:</p>
 <td>One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen</td>
 </tr>
 <tr>
+<td><code>image &lt;reference&gt;</code></td>
+<td>The image the container runs, mandatory. A short name is a repository on Docker Hub (one word is under <code>library</code>), a name with a registry host is taken as written, and <code>@sha256:</code> pins a digest. No tag means <code>latest</code>. A reference that cannot be completed is refused at the commit</td>
+</tr>
+<tr>
 <td><code>enabled</code></td>
 <td>Whether the container runs. The default is <code>true</code>. <code>false</code> keeps the container's statements and keeps it stopped</td>
 </tr>
@@ -6272,11 +6281,74 @@ entry is one container that Ze itself runs from an OCI image:</p>
 </tbody>
 </table>
 <p>An enabled container is accepted, and the daemon tries to start it once the
-configuration is applied: the commit never waits for the start. The container
-runtime is not complete. No shipped build holds an image store yet, so the
-start is refused there and the container takes the <code>failed</code> state. The image,
-the limits, the networks and every other statement of a container are not in
-the schema yet.</p>
+configuration is applied: the commit never waits for the start. A container
+runs an image the store holds. <code>ze create container image reference &lt;reference&gt;</code> fetches one, and a container whose image is not in the store yet
+waits for it and starts when the fetch ends. A container keeps the digest of
+its first start: fetching the same tag again does not change what it runs.
+The container runtime is not complete: the storage of a container is not
+capped yet, and the limits, the volumes and the statements that replace what
+the image declares are not in the schema yet. The networks and the published
+ports of a container are described in <code>docs/architecture/container/network.md</code>.</p>
+<!-- source: internal/plugins/container/config.go -- parseImage -->
+<!-- source: internal/plugins/container/imagestore/resolve.go -- Resolve -->
+<!-- source: internal/plugins/container/supervise.go -- ImagePresent -->
+<p>A registry needs no statement: Ze reaches it over HTTPS, checks its
+certificate against the system roots, and sends no credentials. One
+<code>registry</code> entry changes how one registry is reached:</p>
+<pre><code>container {
+    registry docker.io {
+        mirror {
+            address mirror.example.net
+            port 5000
+        }
+        authentication {
+            username operator
+            password hub-secret
+        }
+    }
+    registry registry.lab.example:5000 {
+        transport http
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>registry &lt;host&gt;</code></td>
+<td>Settings for one image registry. The name is the registry host, with its port when it has one, exactly as the image references write it. Docker Hub is <code>docker.io</code>, the registry a short name such as <code>redis</code> completes to. A name no reference can name is refused at the commit</td>
+</tr>
+<tr>
+<td><code>transport &lt;protocol&gt;</code></td>
+<td>Protocol Ze speaks to the registry and to its mirror: <code>https</code> or <code>http</code>. The default is <code>https</code>. Over <code>https</code> the certificate is always checked</td>
+</tr>
+<tr>
+<td><code>mirror</code></td>
+<td>Server Ze asks first; the registry is asked when it fails. <code>address</code> is mandatory: an IP address or a host name in lower case, and a loopback address is accepted. <code>port</code> is 1 to 65535 and defaults to 443 whatever the transport. <code>path</code> starts with a slash, defaults to <code>/</code>, and is placed before the path of every request to the mirror. The mirror is asked with no credentials, and what it serves passes the same digest and size checks. <span class="ev-src"><span class="ev-ref"><code>/v2/</code></span></span></td>
+</tr>
+<tr>
+<td><code>authentication</code></td>
+<td>Credentials Ze presents to the registry: <code>username</code> (1 to 255 characters) and <code>password</code> (1 to 4096 characters), both mandatory. They are sent to the registry or to the token service it names, never to the mirror. <code>show config</code> masks the password</td>
+</tr>
+<tr>
+<td><code>description &lt;text&gt;</code></td>
+<td>Free text shown with the registry, 1 to 255 characters</td>
+</tr>
+</tbody>
+</table>
+<p>A change to a registry entry applies to the next fetch; nothing is restarted
+and a fetch in flight is not interrupted. A registry signed by a private
+authority cannot be reached yet: the schema has no statement that names its
+certificate authority.</p>
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- list registry -->
+<!-- source: internal/plugins/container/imagestore/registry_list.go -- parseRegistrySections, checkRegistryName, parseMirror, parseAuthentication, listedClientConfig -->
+<!-- source: internal/plugins/container/registry/client.go -- New, mirrorPrefix -->
+<!-- test: internal/plugins/container/imagestore/registry_list_test.go TestRegistryListIsParsed, TestRegistryListRefusals, TestSchemaAcceptsRegistryEntry -->
 <p>When the daemon stops, it stops every container together: each gets its stop
 signal, and each still running after its <code>stop-timeout</code> is killed. A daemon
 that was killed leaves its containers running; the next start removes them
@@ -6404,7 +6476,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

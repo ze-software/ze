@@ -100,6 +100,10 @@
 </tbody>
 </table>
 <p>Each entry has <code>timestamp</code>, <code>actor</code>, <code>remote-addr</code>, <code>surface</code>, <code>action</code>, <code>detail</code>, and <code>outcome</code> fields. <code>detail</code> carries the config diff for commit and discard records when Ze has one.</p>
+<p>The web terminal's <code>commit confirmed</code> and the CLI bar's <code>commit now</code> record
+one successful <code>config-commit</code> entry after publication. The detail is the same
+path-qualified, secret-masked review shown before committing. A refused commit
+keeps the pending changes and records no successful commit entry.</p>
 <p>A daemon command records an entry only when it succeeds: a refused or failed command records nothing. Its <code>detail</code> is the command line as typed, with every credential value and the value after <code>content</code> replaced by <code>&lt;redacted&gt;</code>, so a key's bytes never reach the log.</p>
 <p>A discard record's <code>detail</code> lists only the changes that discard dropped. <code>discard &lt;path&gt;</code> keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. One exception: the SSH editor's diff lines carry no path, so when two places hold the same pending line (two peers both changed to the same hold time, say) and <code>discard &lt;path&gt;</code> drops one of them, the SSH record can also name the line you kept. The web records are exact. A whole discard run with nothing pending still writes a record, with an empty <code>detail</code>, on every surface, so the trail shows every discard an operator ran. A rollback record's <code>detail</code> is the rollback itself (the command in the web terminal, <code>rollback &lt;backup&gt;</code> in the SSH editor), a download record's is the file name, and an upload record's is <code>uploaded configuration</code>.</p>
 <p>Before a whole web discard, Ze opens the user's saved changes to prepare its
@@ -113,6 +117,7 @@ that user.</p>
 <!-- source: internal/core/audit/dropped.go -- DroppedDiff -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdDiscardSession, cmdRollback -->
 <!-- source: internal/component/web/cli_terminal.go -- terminalAuditContext, terminalAuditSucceeded, runWebDiscard -->
+<!-- source: internal/component/web/cli_commit_audit_paths_test.go -- TestBrowserCommandCommitAudit -->
 <!-- source: internal/component/web/cli.go -- HandleCLICommandWithAuthorizerAndAudit, dispatchCLICommand, discardAuditDetail -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
@@ -196,7 +201,7 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

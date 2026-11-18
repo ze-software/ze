@@ -6,15 +6,15 @@ Check the integrity of the store\'s entries and config history\.
 
 - Registry path: `show data check`
 - Usage: `show data check`
-- Mode: read-only, offline
+- Mode: read\-only\, offline
 - Wire method: `ze-config-storage:show-data-check`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: path, entries, corrupt-entries, vanished-entries, history-checked, findings; severity, check, kind, key, detail
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Column order: path\, entries\, corrupt\-entries\, vanished\-entries\, history\-checked\, findings\; severity\, check\, kind\, key\, detail
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save

@@ -5,16 +5,16 @@ List the key patterns registered by all subsystems\.
 ## Ze command
 
 - Registry path: `show data registered`
-- Usage: `show data registered`
-- Mode: read-only, offline
+- Usage: `show data registered [pattern <pattern>]`
+- Mode: read\-only\, offline
 - Wire method: `ze-config-storage:show-data-registered`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: pattern, description
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: pattern\, description
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -25,7 +25,9 @@ Lists the storage key patterns registered by subsystems\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `pattern` | string | no | any value of this type | Exact registered key pattern | Read one exact registered key pattern\. An unknown pattern is refused\. |
 
 ## Mapping intents
 

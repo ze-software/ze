@@ -1,52 +1,59 @@
 {
     "run": [
         {
-            "title": "Exchange your first routes.",
-            "label": "Local lab",
-            "body": "Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.",
+            "title": "Run Ze on your Linux host.",
+            "label": "Linux",
+            "body": "Run Ze as a Linux service to use your host as a router or replace an existing ExaBGP setup. For migration, convert your configuration and use the compatibility bridge for process scripts, checking the documented differences before switching.",
             "success_label": "Success check",
-            "success": "Both sessions establish and each peer receives the other peer’s advertised prefix.",
-            "recommendation": "Start here",
-            "link": {
-                "href": "guides/quickstart/",
-                "label": "Open the two-peer quickstart"
-            }
-        },
-        {
-            "title": "Try an existing configuration.",
-            "label": "ExaBGP migration",
-            "body": "Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.",
-            "success_label": "Success check",
-            "success": "Validate the converted configuration and verify your sessions and script behavior in a lab.",
-            "link": {
-                "href": "use-cases/exabgp-migration/",
-                "label": "Explore migration"
-            }
-        },
-        {
-            "title": "Keep your existing host.",
-            "label": "Linux or Docker",
-            "body": "Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.",
-            "success_label": "Success check",
-            "success": "Connect to authenticated management and check that your configuration survives the documented restart or container recreation.",
+            "success": "Check your sessions and routes. If migrating from ExaBGP, verify your process scripts before switching.",
             "link": {
                 "href": "guides/ubuntu-build-install/",
-                "label": "Linux service"
+                "label": "Install on Linux"
             },
             "secondary_link": {
+                "href": "use-cases/exabgp-migration/",
+                "label": "Replace ExaBGP"
+            }
+        },
+        {
+            "title": "Run Ze in Docker.",
+            "label": "Docker",
+            "body": "Run Ze's routing daemon in a container, with persistent configuration and the host managing its network interfaces. Docker is also an option for replacing ExaBGP, using the same migration tools and compatibility bridge.",
+            "success_label": "Success check",
+            "success": "Check your sessions and routes, then verify that your configuration survives container recreation.",
+            "link": {
                 "href": "guides/docker/",
-                "label": "Docker"
+                "label": "Run with Docker"
+            },
+            "secondary_link": {
+                "href": "use-cases/exabgp-migration/",
+                "label": "Replace ExaBGP"
             }
         },
         {
             "title": "Give Ze its own system.",
-            "label": "VM or appliance",
-            "body": "Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.",
+            "label": "Appliance",
+            "body": "Build a dedicated router on hardware or a VM with Ze's immutable operating system. Ze manages the network configuration, while the guide covers installation, authenticated SSH, updates and previous-slot recovery.",
             "success_label": "Availability",
             "success": "Source builds produce disk images and installer ISOs. No public image release is available yet.",
             "link": {
                 "href": "guides/appliance/",
-                "label": "Explore the appliance"
+                "label": "Build an appliance"
+            }
+        },
+        {
+            "title": "Test a network topology.",
+            "label": "Containerlab",
+            "body": "Use netlab with containerlab to run Ze in a test network. Start with the supplied topology to explore routing and check how Ze behaves before using it in your own network.",
+            "success_label": "Success check",
+            "success": "Check BGP sessions, kernel routes and traffic between the lab nodes.",
+            "link": {
+                "href": "guides/netlab/",
+                "label": "Start a test network"
+            },
+            "secondary_link": {
+                "href": "labs/netlab/",
+                "label": "Explore the topology"
             }
         }
     ],

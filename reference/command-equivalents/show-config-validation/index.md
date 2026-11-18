@@ -5,16 +5,16 @@ Check a config for errors without applying it\.
 ## Ze command
 
 - Registry path: `show config validation`
-- Usage: `show config validation <file>`
-- Mode: read-only, offline
+- Usage: `show config validation <file> [pending]`
+- Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-validation`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -28,6 +28,7 @@ Both the grammar of the file and the meaning of its values are checked\, and eac
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
 | `file` | string | yes | any value of this type | Config file path\, or \- for stdin\. | The config file to check\, or \- to read it on stdin\. |
+| `pending` | flag | no | any value of this type | Validate the saved draft beside the selected file\. | Check the saved \<file\>\.draft source instead of the committed file\. The daemon confines the draft path itself\, including symbolic links\. |
 
 ## Mapping intents
 

@@ -79,6 +79,7 @@ mechanisms. The filters come first, and
 <li><a href="#startup-order-does-not-decide-the-outcome">Startup Order Does Not Decide the Outcome</a></li>
 <li><a href="#when-redistribution-cannot-work">When Redistribution Cannot Work</a></li>
 <li><a href="#counters">Counters</a></li>
+<li><a href="#bgp-delivery-failures">BGP delivery failures</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
 <h2 id="route-filters">Route Filters</h2>
@@ -805,6 +806,17 @@ report and no separate redistribution check exists.</p>
 </tbody>
 </table>
 <!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
+<h3 id="bgp-delivery-failures">BGP delivery failures</h3>
+<p>If BGP cannot announce or withdraw a redistributed route, the log and the
+orchestrator's report bus record <code>doctor-bgp-redistribution</code>. <code>ze show errors</code>
+and the recent-events doctor check retain the failed operation, exact route,
+peer selector and original cause. Run <code>ze show bgp peers</code>, restore the named
+session, negotiated family or <code>send [ update ]</code> grant, then retry the source
+change or its replay. These are bounded incident records; later success does
+not rewrite an earlier failed operation. An accepted retained loser with zero
+announcements is not reported as a delivery failure.</p>
+<!-- source: internal/component/bgp/redistribute/consumer_diagnostic.go -- reportFailure -->
+<!-- source: internal/component/bgp/redistribute/register.go -- redistribution event-code ownership -->
 </div>
 </div>
             </section>
@@ -854,7 +866,7 @@ report and no separate redistribution check exists.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

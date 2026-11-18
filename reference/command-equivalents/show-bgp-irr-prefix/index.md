@@ -6,15 +6,15 @@ Show IRR\-resolved prefixes for a peer\.
 
 - Registry path: `show bgp irr prefix`
 - Usage: `show bgp irr prefix <peer>`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-bgp:show-irr-prefix`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: map
 - Address fields: none
-- Column order: asn, as-set, prefixes
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display
+- Column order: asn\, as\-set\, prefixes
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -35,7 +35,7 @@ Lists all IPv4 and IPv6 prefixes in the IRR\-resolved prefix\-list for the given
 
 Category: BGP
 
-Current Ze commands are IRR-focused. RPKI-specific show paths can be added to this entry when present in the live command catalog.
+Current Ze commands are IRR\-focused\. RPKI\-specific show paths can be added to this entry when present in the live command catalog\.
 
 ## Vendor equivalents
 

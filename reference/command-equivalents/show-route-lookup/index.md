@@ -6,16 +6,16 @@ Look up which route the kernel would use for a given IP\.
 
 - Registry path: `show route lookup`
 - Usage: `show route lookup <ip>`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-iface:show-route-lookup`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
@@ -38,7 +38,7 @@ Category: Routing
 ## Vendor equivalents
 
 ### Junos MX
-- `show route <prefix>` (verified, junos-route)
+- `show route <prefix>` (verified, junos\-route)
   - Intent: Route lookup for a prefix or address
 
 ### IOS XR
@@ -50,5 +50,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show ip route <prefix>` (verified, vyos-cli)
+- `show ip route <prefix>` (verified, vyos\-cli)
   - Intent: Route lookup for a prefix or address

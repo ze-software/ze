@@ -136,7 +136,12 @@ probe), for example.</p>
 <!-- source: internal/core/diagnostic/codes.go -- CodeDoctorDNSResolverPortUnavailable, CodeDoctorDNSResolverUpstreamUnreachable -->
 <!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks -->
 <p><code>ze config fix --plan &lt;file&gt;</code> reports candidate repairs without editing files.
-Where a repair is available, its diagnostic can carry a stable repair ID and a
+The same plan is available through <code>show config supplied fix-plan content &lt;base64&gt; [name &lt;filename&gt;]</code> on the daemon's command surfaces, including the
+browser's registered file/paste inspection controls. Both forms use the same
+validation and repair-plan producer; an invalid source still returns its plan.</p>
+<!-- source: internal/component/config/cli/cmd_fix.go -- fixPlanBytes -->
+<!-- source: internal/component/config/cli/config_supplied_tools.go -- suppliedFixPlan -->
+<p>Where a repair is available, its diagnostic can carry a stable repair ID and a
 safety label such as <code>format-only</code>, <code>section-local</code>, <code>behavior-preserving</code> or
 <code>requires-human-review</code>. A diagnostic does not always have an automatic repair.</p>
 <!-- source: internal/component/config/cli/cmd_fix.go -- resolveFixPlan -->
@@ -380,7 +385,7 @@ references, automation, authorization, audit, and diagnostics.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
                 </div>
             </div>
         </footer>

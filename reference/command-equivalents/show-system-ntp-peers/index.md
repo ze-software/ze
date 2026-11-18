@@ -6,15 +6,15 @@ Show NTP peers with offset\, RTT\, stratum\, and reachability\.
 
 - Registry path: `show system ntp peers`
 - Usage: `show system ntp peers`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-ntp:show-system-ntp-peers`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -48,7 +48,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show date` (verified, vyos-cli)
+- `show date` (verified, vyos\-cli)
   - Intent: System time and NTP state
-- `show ntp` (verified, vyos-cli)
+- `show ntp` (verified, vyos\-cli)
   - Intent: System time and NTP state

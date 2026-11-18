@@ -5,16 +5,16 @@ Show the OSPFv3 \(IPv6\) link\-state database with each native scope\-aware LSA 
 ## Ze command
 
 - Registry path: `show ospf ipv6 database`
-- Usage: `show ospf ipv6 database [address-family <ipv6-unicast\|ipv6-multicast\|ipv4-unicast\|ipv4-multicast>]`
-- Mode: Read-only
+- Usage: `show ospf ipv6 database [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]`
+- Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: `detail`, `extended`, `router`, `router-information`, `scope`, `segment-routing`
 - Answer shape: tab
 - Address fields: none
-- Column order: address-family, instance-id
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Column order: address\-family\, instance\-id
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -31,7 +31,7 @@ Base types decode into named fields\; unknown function codes fall back to a scop
 
 ## Mapping intents
 
-### OSPF link-state database
+### OSPF link\-state database
 
 Category: Routing protocols
 

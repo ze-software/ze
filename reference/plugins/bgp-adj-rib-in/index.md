@@ -9,7 +9,7 @@ Adj-RIB-In storage (raw hex replay)
 | Registry area | BGP |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/adj_rib_in` |
-| YANG modules | 1 |
+| YANG modules | 0 |
 
 ## Configuration
 
@@ -29,5 +29,5 @@ None
 
 Package: `internal/component/bgp/plugins/adj_rib_in`
 
-YANG files: `internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang`
+YANG files: None
 Metadata source: `Registration`

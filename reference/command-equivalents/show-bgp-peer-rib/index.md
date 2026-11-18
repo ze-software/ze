@@ -5,16 +5,16 @@ Show RIB data scoped to one peer\.
 ## Ze command
 
 - Registry path: `show bgp peer rib`
-- Usage: `show bgp peer <selector> rib [sent\|advertised\|received\|sent-received]`
-- Mode: Read-only
+- Usage: `show bgp peer <selector> rib [sent|advertised|received|sent-received]`
+- Mode: Read\-only
 - Wire method: `ze-bgp:peer-rib`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
-- Address fields: peer, next-hop
-- Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Address fields: peer\, next\-hop
+- Column order: peer\, direction\, family\, prefix\, next\-hop\, path\-id\, as\-path\, origin\, local\-pref\, med\, communities
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
@@ -39,14 +39,14 @@ Category: BGP
 
 Category: BGP
 
-Ze uses pipe filters on the peer RIB command for received and advertised views.
+Ze uses pipe filters on the peer RIB command for received and advertised views\.
 
 ## Vendor equivalents
 
 ### Junos MX
-- `show route advertising-protocol bgp <peer>` (verified, junos-route)
+- `show route advertising-protocol bgp <peer>` (verified, junos\-route)
   - Intent: Routes advertised to one BGP peer
-- `show route receive-protocol bgp <peer>` (verified, junos-route)
+- `show route receive-protocol bgp <peer>` (verified, junos\-route)
   - Intent: Routes received from one BGP peer
 
 ### IOS XR

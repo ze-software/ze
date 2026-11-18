@@ -9,7 +9,7 @@ Correlates UPDATE + RPKI events into merged update-rpki events
 | Registry area | BGP |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/rpki_decorator` |
-| YANG modules | 1 |
+| YANG modules | 0 |
 
 ## Configuration
 
@@ -29,5 +29,5 @@ None
 
 Package: `internal/component/bgp/plugins/rpki_decorator`
 
-YANG files: `internal/component/bgp/plugins/rpki_decorator/yang/ze-rpki-decorator.yang`
+YANG files: None
 Metadata source: `Registration`

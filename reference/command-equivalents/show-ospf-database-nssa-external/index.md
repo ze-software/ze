@@ -6,16 +6,16 @@ Show only NSSA\-external\-LSAs \(Type 7\, RFC 3101\)\.
 
 - Registry path: `show ospf database nssa-external`
 - Usage: `show ospf database nssa-external`
-- Mode: Read-only
+- Mode: Read\-only
 - Wire method: `ze-ospf:show-database-nssa-external`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

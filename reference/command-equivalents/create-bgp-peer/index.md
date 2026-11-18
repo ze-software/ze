@@ -5,17 +5,17 @@ Add a peer to the running daemon\.
 ## Ze command
 
 - Registry path: `create bgp peer`
-- Usage: `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true\|false>] [accept <true\|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true\|false>] [attach <attach>]`
+- Usage: `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true|false>] [accept <true|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true|false>] [attach <attach>]`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-create`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
-- Column order: peer, remote-as, message
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Column order: peer\, remote\-as\, message
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

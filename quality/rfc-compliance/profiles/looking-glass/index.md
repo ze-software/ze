@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 223, Tests awaiting verification 49, Not built 36
-- **Overview bar**: Ze MUST verified 223, SHOULD verified 5, Tests awaiting verification 50, Not assessed 87, Not built 36
+- **MUST bar**: Ze verified 240, Tests awaiting verification 32, Not built 36
+- **Overview bar**: Ze MUST verified 240, SHOULD verified 5, Tests awaiting verification 33, Not assessed 87, Not built 36
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze verified | 223 |
+| Ze verified | 240 |
 | OS verified | 0 |
-| Tests awaiting verification | 49 |
+| Tests awaiting verification | 32 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 108, Tests awaiting verification 12, Not built 13 | Ze MUST verified 108, SHOULD verified 3, Tests awaiting verification 13, Not assessed 30, Not built 13 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 

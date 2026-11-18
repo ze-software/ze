@@ -64,6 +64,7 @@
 <li><a href="#a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</a></li>
 <li><a href="#a-command-that-starts-work-outliving-its-request">A command that starts work outliving its request</a></li>
 <li><a href="#offline-fallback-read-only-commands-without-a-daemon">Offline fallback (read-only commands without a daemon)</a></li>
+<li><a href="#a-path-the-ze-binary-does-not-hold-an-external-plugins-command">A path the ze binary does not hold (an external plugin&#39;s command)</a></li>
 <li><a href="#local-data-commands-answered-in-the-callers-own-process-and-by-the-daemon">Local-data commands (answered in the caller&#39;s own process, and by the daemon)</a>
 <ol>
 <li><a href="#text-and-bytes-answers">Text and bytes answers</a></li>
@@ -358,6 +359,9 @@ produce continuously-updating output.</p>
 <h3 id="dispatch-keys-are-yang-paths">Dispatch keys are YANG paths</h3>
 <p>The daemon registers each built-in handler under its YANG command path, derived
 from the tree (<code>LoadBuiltins</code>: <code>d.RegisterWithOptions(wireToPath[wireMethod], ...)</code>).
+The loader receives the command tree alongside the maps derived from that same
+schema. It carries hidden ancestors into builtin and local-data metadata, and
+binds that tree before plugins declare commands.
 Because dispatch uses that path, moving a <code>ze:command</code> container renames the
 command. Callers that still send the old path will fail, including plugins using
 <code>dispatch-command</code> or an interactive plugin CLI session. Before migrating a
@@ -374,6 +378,18 @@ daemon at startup. The order in which <code>init()</code> runs across packages i
 controlled, so a later registration never replaces an earlier one.</p>
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath, ErrCommandHeld, ErrWireMethodHeld, loadBuiltinsWithAliases, RegisterWithOptions -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer -->
+<p>Private artifact imports and selected-configuration restores are declared in
+the artifact YANG model and registered with ordinary mutation audit metadata.
+Import consumes an account-owned completed byte transfer and delegates to the
+standalone data import producer inside complete artifact staging. Selected
+restore finishes the native checked source read before entering the installed
+runtime owner's shared restore publication. Source selection and live reload
+therefore do not hold the artifact owner lock together. Transport adapters use
+the same modeled command paths and authenticated account; they do not implement
+another import, selection or publication algorithm.</p>
+<!-- source: internal/component/config/cli/register_artifact_import_restore.go -- init -->
+<!-- source: internal/component/config/storage/cli/main.go -- ImportConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- RestoreConfigFromSource -->
 <h3 id="a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</h3>
 <p>The daemon serves the LONGEST registered key that prefixes the input and hands the
 rest to that handler as arguments. A parent registered at a short path would
@@ -401,8 +417,12 @@ calls, cancels the server context and then runs every registered <code>fn</code>
 returns only once each has ended its work, goroutines included. <code>OnStop</code>
 answers a withdrawal the owner calls when the work ends first (an operator's
 <code>update serve stop</code>), and it refuses once <code>Stop</code> has started, so a command that
-arrives while the daemon stops starts nothing.</p>
+arrives while the daemon stops starts nothing.
+Each <code>fn</code> returns an error when its cleanup fails. <code>StopFailure</code> retains every
+hook error alongside any fatal plugin error, so the daemon exits with failure
+after it has joined all cleanup work.</p>
 <!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop, stopHooks.run -->
+<!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.start, updateServeOwner.endWithDaemon -->
 <h3 id="offline-fallback-read-only-commands-without-a-daemon">Offline fallback (read-only commands without a daemon)</h3>
 <p>Some read-only <code>show</code> commands are useful when the daemon is unreachable:
@@ -410,10 +430,10 @@ arrives while the daemon stops starts nothing.</p>
 hardware inventory before startup. Their owner registers an in-process handler with
 <code>command.MustRegisterOfflineFallback(path, handler)</code> from its <code>init()</code>. The CLI serves the command from the
 daemon when it is reachable and calls the fallback <strong>only after a connection failure</strong>,
-so the fallback never shadows the daemon. Because <code>cmdutil.RunCommand</code> rejects commands
-absent from the CLI binary's tree before reaching the daemon path, it makes an exception
-for paths that have a registered fallback, routing them through so the fallback is
-reachable. Output is identical to the daemon RPC (both read the same detection library
+so the fallback never shadows the daemon. <code>cmdutil.RunCommand</code> sends a path that has a
+registered fallback down the daemon path even when the CLI binary's tree does not hold it,
+so the fallback is reachable with no daemon; any other path the tree does not hold takes
+the route of the next section. Output is identical to the daemon RPC (both read the same detection library
 / crash files), so online and offline results match. <code>show crashes</code> holds that
 identity to one call on each side: both build their rows from
 <code>crashlog.CrashListFields</code> and their readiness block from <code>crashes.Readiness</code>, so
@@ -423,6 +443,54 @@ the answer cannot vary with the health of the box being diagnosed.</p>
 <!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
+<h3 id="a-path-the-ze-binary-does-not-hold-an-external-plugins-command">A path the <code>ze</code> binary does not hold (an external plugin's command)</h3>
+<p><code>ze &lt;verb&gt; &lt;path&gt;</code> resolves the path against the command tree compiled into the
+binary. An external plugin brings its commands in its own YANG, which the
+daemon joins when <code>ze start</code> runs the plugin, so <code>ze show acme-monitor status</code>
+names a path that tree does not hold even while the running ze serves it.
+Before such a path is refused, <code>cmdutil.RunCommand</code> asks the running ze:</p>
+<table>
+<thead>
+<tr>
+<th>What answers</th>
+<th>What the operator gets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A running ze that holds the command</td>
+<td>Its answer, as for a compiled-in command: the line goes through the same one-shot route as <code>ze cli -c</code> (<code>cli.RunReached</code>), so the output, the exit code, a refusal of a value, and the format keyword (<code>ze show acme-monitor status json</code>) are the daemon's</td>
+</tr>
+<tr>
+<td>A running ze that holds no such command either</td>
+<td><code>error: unknown command: &lt;path&gt;</code>, the nearest compiled-in command, and <code>ze &lt;verb&gt; help</code>, as with no daemon; the daemon's own text follows as a hint when it says more than "unknown command"</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>An operator error: the path is not available, may belong to an external plugin, which only a running ze holds, why no ze answered, and one fix: <code>ze start</code> when nothing listens, <code>ze status</code> when the address cannot be read, <code>ze cli --user &lt;name&gt; -c "&lt;path&gt;"</code> when a ze listens and this account cannot log in</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>error: unknown command: &lt;path&gt;</code> with its hints, unchanged</td>
+</tr>
+</tbody>
+</table>
+<p>The walk to the daemon is <code>sshclient.ReachDaemon</code>, and the wording of each step
+it stops at is <code>sshclient.Unreached.Explain</code>, shared with the daemon route of
+<code>ze config validate</code>, <code>fmt</code>, <code>dump</code>, <code>diff</code> and <code>graph</code>. Which plugins the
+stored config declares is the step every command that parses a config with no
+daemon takes (<code>config.PublishDeclaredSchemas</code>): no plugin program is started
+(owner ruling of 2026-11-16). A stored config that cannot be read leaves the
+unknown-command refusal in place, with a hint that says the config was not
+checked.</p>
+<p><code>ze &lt;verb&gt; &lt;path&gt; help</code> still renders from the compiled-in tree, so for an
+external plugin's path it prints only the navigation usage line, and shell
+completion of <code>ze &lt;verb&gt;</code> offers no external plugin's command: both need the
+running ze's tree, and <code>ze cli</code> (<code>?</code>, Tab) has it.</p>
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer, refuseUnknown, refuseNotAvailable, storedConfigExternalPlugins -->
+<!-- source: internal/component/cli/client/main.go -- RunReached, runOne -->
+<!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon, Unreached.Explain -->
+<!-- source: internal/component/cli/sshclient/answer.go -- Answer.NotUnderstood -->
 <h3 id="local-data-commands-answered-in-the-callers-own-process-and-by-the-daemon">Local-data commands (answered in the caller's own process, and by the daemon)</h3>
 <p>A local-data command needs no daemon. Its handler reads a registry that
 <code>init()</code> filled in the process running it, so the answer exists before
@@ -666,7 +734,17 @@ section and the read-only profile, whose edit section denies by default,
 refuses it before any process starts. <code>show data cat</code> and <code>show config cat</code>
 declare it too: either reads any store key, the HTTPS private key
 (<code>meta/web/key</code>) and the bcrypt hashes under <code>meta/auth</code> and <code>meta/ssh</code>
-included, so a secret reaches only a caller the edit section allows.</p>
+included, so a secret reaches only a caller the edit section allows.
+The daemon-host file forms <code>show config dump</code>, <code>fmt</code>, <code>migrate</code>, <code>set</code>,
+<code>activate</code>, <code>deactivate</code> and <code>replace</code> also declare <code>NotReadOnly</code>. Their
+complete answers can carry usable credentials, including reversible <code>$9$</code>
+values, even though they do not change the source file. The dispatcher requires
+edit authorization before resolving or reading the filename. Selecting a
+preview or stripped form does not change that command's authorization.
+Caller-supplied forms still inspect the caller's own bytes under read
+authorization. <code>show config source</code> remains a read-authorized view with parsed
+secrets masked; it refuses an unparseable host file instead of returning raw
+private bytes.</p>
 <!-- source: internal/component/config/storage/cli/register.go -- show data cat NotReadOnly -->
 <!-- source: internal/component/config/cli/register.go -- show config cat NotReadOnly -->
 <p>The handler learns which route called it from <code>ValidatedArgs.Route()</code>:
@@ -891,7 +969,7 @@ kind and the expected answer.</p>
 </thead>
 <tbody>
 <tr>
-<td>Hidden (a plugin command declared <code>Hidden</code>)</td>
+<td>Hidden (<code>ze:hidden true</code> on the command or an ancestor, or a plugin command declared <code>Hidden</code>)</td>
 <td>Not offered</td>
 <td>Not offered</td>
 <td>Not offered. It still runs when typed in full</td>
@@ -1592,6 +1670,20 @@ typo from causing memory exhaustion.</p>
 <!-- source: internal/core/report/report.go -- newStore, maxWarningCap, maxErrorCap -->
 <hr>
 <h2 id="target-first-syntax">Target-First Syntax</h2>
+<p>For value arguments, omission differs from an explicit empty string. The shared
+invocation writer quotes an empty value as <code>""</code>; the command's model decides
+whether that value is valid. REST, gRPC and generated MCP arguments preserve
+that distinction, including empty encoded byte content. Optional blank HTML
+controls remain omitted at the form boundary, while a required supplied-byte
+input can contain zero bytes when its shared argument validator permits an
+empty value. A blank required HTML control whose model rejects empty, such as
+an integer, remains omitted for the dispatcher's missing-argument check.
+Empty flag controls leave the flag unset.</p>
+<!-- source: internal/component/command/arguments.go -- WriteInvocation, WriteInvocationValue -->
+<!-- source: internal/component/api/requests.go -- BuildCommand -->
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/web/graphical_supplied.go -- suppliedInspectionCommand.invocation -->
+<!-- source: internal/component/web/handler_admin.go -- commandArguments -->
 <h3 id="process-lifecycle-commands">Process Lifecycle Commands</h3>
 <pre><code>request shutdown         # Graceful shutdown
 request restart          # Graceful daemon restart; host stays running
@@ -2045,7 +2137,10 @@ file's bytes, <code>name</code> carries the file's base name as a label for the 
 messages, and nothing is read on the daemon's host. Its larger-value route is
 <code>show config validation file &lt;path&gt;</code>, for a file inside those directories
 (<code>docs/architecture/config/yang-config-design.md</code>,
-"<code>ze config validate</code> asks the running Ze first"). No surface has a
+"<code>ze config validate</code> asks the running Ze first"). The local <code>ze config fmt</code>,
+<code>dump</code>, <code>diff</code> and <code>graph</code> send their own supplied form the same way, and draw
+the answer with their local renderer (the same page, "<code>ze config fmt</code>, <code>dump</code>,
+<code>diff</code> and <code>graph</code> take the same route"). No surface has a
 second input channel, so the argument is the same on SSH, REST, gRPC, MCP and
 the web. Each leaf declares the bound, 261,120 base64 characters (195,840 bytes
 of content), which is what one SSH packet carries with the rest of the
@@ -2064,10 +2159,44 @@ config. The value after
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 <h4 id="caller-supplied-configuration-inspection">Caller-supplied configuration inspection</h4>
 <p>The config CLI owner registers <code>show config supplied dump</code>, <code>validation</code>,
-<code>fmt</code>, <code>graph</code> and <code>diff</code>. Each takes a required <code>content</code> argument through
+<code>fmt</code>, <code>graph</code>, <code>diff</code>, <code>migrate</code>, <code>fix-plan</code> and <code>source</code>. Each takes a required <code>content</code> argument through
 the same dispatcher as its file-based counterpart. A single-source command
 receives padded base64 of native configuration bytes. Its optional <code>name</code>
 is a basename used only in diagnostics; the default is <code>supplied.conf</code>.</p>
+<p><code>migrate</code> returns the set form by default, or nested blocks with <code>format hierarchical</code>, through the converter <code>ze config migrate</code> uses. <code>fix-plan</code>
+returns the diagnostic repair plan <code>ze config fix --plan</code> produces, including
+the plan of an invalid configuration. <code>source</code> returns the unexpanded source
+tree with parsed secrets masked; optional <code>path</code> contains quoted configuration
+path words. A missing subtree refuses rather than returning the whole source.
+The exact bytes a caller supplied remain readable when they cannot parse, so
+the caller can repair them. The corresponding file forms, <code>show config migrate</code>, <code>fix-plan</code> and <code>source</code>, take <code>file</code> and confine remote host filenames
+through <code>CallerPath</code>. A remotely read source that cannot parse is refused
+because its secret leaves cannot be masked.</p>
+<!-- source: internal/component/config/cli/config_supplied_tools.go -- suppliedMigrate, suppliedFixPlan, sourceBytesAnswer, fileToolAnswer -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- configMigrateBytes -->
+<!-- source: internal/component/config/cli/cmd_show.go -- sourceEditorAnswer -->
+<p>Detached editing uses <code>show config supplied set</code>, <code>activate</code>, <code>deactivate</code> and
+<code>replace</code>. These operations return configuration text; they do not publish it
+into a source file, store or live candidate. Each takes one encoded JSON object
+with <code>before</code> and <code>after</code> strings. For the three editing verbs, <code>before</code> is the
+source configuration and <code>after</code> is exactly one matching editing command, such
+as <code>set bgp router-id 192.0.2.1</code>. Multiple lines, pipes and a different leading verb
+are refused before the operation runs. Assigned values remain inside masked
+<code>content</code>, rather than a separate value argument that command records might
+disclose. For <code>replace</code>, both strings are complete configuration sources and
+the shared transition validator checks the replacement before serialization.
+Its warnings remain in the diagnostics for both serialized output and the
+masked diff returned by <code>dry-run</code>; serialization warnings follow them. The
+file counterparts take a confined
+<code>file</code> and <code>content</code> containing the encoded editing command or replacement
+bytes. Both routes use the same Editor operations and Save serializer as the
+local file/stdin tools. Only the local adapters choose file publication.
+The shared validator's complete value refusal keeps its original problem,
+explanation and correction on both routes. The editor's schema mask applies to
+each part before it is returned; adapters add no second explanation or fix.</p>
+<!-- source: internal/component/config/cli/config_detached.go -- suppliedMutation, detachedStatement, applyConfigSet, applyConfigActivation, detachedReplaceAnswer, detachedEditorAnswer -->
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
+<!-- source: internal/component/config/cli/cmd_deactivate.go -- runDeactivateLike -->
 <p>Dump and graph refusals retain the parsing or resolution error and name a
 validation command as the next step. Formatting a file that cannot be written
 retains any earlier password warnings before the actionable write error.
@@ -2090,6 +2219,28 @@ use this codec too.</p>
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate -->
 <!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate -->
 <!-- source: internal/core/redact/redact.go -- IsCredentialKeyword, Command -->
+<p><code>show config supplied completion</code> takes the same bounded JSON envelope with
+<code>configuration</code> and <code>input</code> string fields. The source and editing text stay
+together inside masked <code>content</code>; editing text can itself contain a secret.
+Optional <code>context</code> is a slash-separated configuration path. Without <code>ghost</code>,
+the document contains <code>completions</code>, preserving each native candidate's text,
+type, short help and description. With <code>ghost</code>, the blob contains the native
+ghost text followed by a newline. The local file/stdin command and supplied
+command share schema selection, parsing and the completion producer. Declared
+external programs are never started to answer a completion request.</p>
+<!-- source: internal/component/config/cli/cmd_completion.go -- completerForBytes -->
+<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion -->
+<p><code>show secret encode</code> and <code>show secret decode</code> take padded base64 <code>content</code>
+containing the caller's literal operand. Their optional <code>trim-line-ending</code>
+flag applies the standalone stdin rule; the default preserves every operand
+byte. Both return a blob with the standalone final newline and use the same
+codec and refusals as <code>ze secret</code>. These commands disclose the requested
+conversion result to the caller, including decoded plaintext, but never read
+host secrets. Their modeled sensitive content is masked in history and
+accounting, and refusals do not echo the private operand.</p>
+<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
+<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion, suppliedSecret -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-utilities-cmd.yang -- show config supplied completion, show secret -->
 <p>Comparison has the same scope as the existing local file command: resolved BGP
 values and schema-declared ordered-list ordering. Other non-BGP value changes,
 such as a changed <code>system host</code>, are not included. Supplying complete files
@@ -2102,6 +2253,64 @@ The supplied route opens no file, store or candidate, applies no environment
 block and checks the original caller's cancellation. Shared authorization,
 accounting and answer-shape pipe rules remain in force.</p>
 <!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedDump, suppliedValidation, suppliedFmt, suppliedGraph, suppliedDiff -->
+<p>Input bounds do not bound generated output: conversion to set form can repeat
+long source paths. The shared byte-answer boundary refuses a remote Blob larger
+than <code>BlobRemoteOctetsMax</code> (8 MiB), with no oversized payload and a local command
+as recovery. The local converter retains its file/stdout behavior. The same
+boundary checks cancellation before and after production for both supplied
+bytes and the file counterparts.</p>
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedAnswer -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
+<p><code>show config environment-validation</code> answers a typed validation verdict over
+the answering process's registered environment types and recorded range
+failures. <code>ze config validate --limit environment</code> shares that authority and
+returns exit 1 for invalid values; <code>-q</code> keeps the local invocation silent.
+Secret values never enter the diagnostics. Configuration list and history
+adapters share <code>configListRows</code> and <code>configHistoryRows</code>; their root text
+presentations no longer repeat storage traversal. A configuration list is
+returned only after every required store listing and selected loose-file
+directory can be read. An absent optional search directory is allowed;
+storage failures, an unreadable search directory or an unavailable working
+directory refuse the list with its cause and <code>ze doctor</code> as the next check.
+No partial configuration list is printed or published on those failures.</p>
+<!-- source: internal/component/config/cli/config_environment.go -- environmentValidationAnswer -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- validateEnvironment -->
+<!-- source: internal/component/config/cli/config_inventory.go -- configListRows, configHistoryRows -->
+<p><code>show config validation file &lt;file&gt; pending</code> checks the saved <code>&lt;file&gt;.draft</code>
+source. The local <code>ze config validate --pending &lt;file&gt;</code> shares that source
+reader. The daemon confines the actual draft path, including symbolic links,
+before reading it; permission to read the committed file does not admit an
+outside draft. Standard input has no saved draft. <code>show config history file &lt;file&gt;</code> declares its source explicitly and retains the positional file form.</p>
+<!-- source: internal/component/config/cli/config_validation_source.go -- readValidationSource -->
+<!-- source: internal/component/config/cli/config_data.go -- dataValidate, dataHistory, fileLeafTokens -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- show config validation pending, show config history file -->
+<p><code>request data config rename old &lt;name&gt; new &lt;name&gt;</code> renames a complete inactive
+stored configuration, including versions, pointers and saved editor records.
+The storage owner refuses destination collisions and unfinished publication
+intents. The daemon also refuses its running configuration identity and a
+configured managed client's serving identity. <code>ze config rename &lt;old-name&gt; &lt;new-name&gt;</code> calls the same transaction offline; a busy store sends the request
+to its owning daemon and requires an acknowledgment of both requested names.
+That route preserves the daemon's refusal and never removes the store lock.</p>
+<!-- source: internal/component/config/storage/rename_config.go -- RenameConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rename.go -- handleDataConfigRename -->
+<!-- source: internal/component/config/cli/cmd_rename.go -- cmdRenameThrough -->
+<!-- source: internal/component/config/cli/config_rename_daemon.go -- renameConfigThroughDaemon -->
+<p><code>request data config rollback name &lt;name&gt; revision &lt;N&gt;</code> selects the same
+one-based history revision as <code>ze config history</code>. The storage owner verifies
+the selected bytes and publishes a new active version, retaining the previous
+active version as rollback. The daemon stages and reloads its running source.
+Other stored configurations use the guarded storage transaction. Pending
+confirmation, file publication and another staged candidate refuse the write.</p>
+<!-- source: internal/component/config/storage/rollback_config.go -- RollbackConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig, configRolledBack -->
+<p>The local stored adapter uses that transaction offline and routes a busy store
+through its owning daemon. It prints success only after the response matches
+the requested name and revision and supplies both version identities and the
+selected source time.</p>
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
+<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon, configRollbackDaemonAnswer.selectedTime -->
+<p>Loose-file rollback retains its direct file behavior.</p>
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough -->
 <p>The primary graphical editor projects these registrations into native
 file/paste inspection forms. It joins <code>registry.Meta.SuppliedInput</code> to the
 actual command-tree argument definitions, composes the input once and dispatches
@@ -2137,12 +2346,22 @@ request reload           # Reload the configuration
 request plugin restart &lt;name&gt;   # Restart a configured plugin, stopping it first if it runs (lifts a respawn-limit disable)
 request data backup path &lt;file&gt; [spare &lt;n&gt;] [force]   # Back up the store to a file on the daemon host
 request data restore path &lt;file&gt; config [name &lt;n&gt;]    # Restore the config from a backup through the reload
+request data restore path &lt;file&gt; full                # Accept full recovery after clean shutdown and store close
 delete data key &lt;key&gt;    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
 update data key &lt;key&gt; content &lt;base64&gt;   # Write one runtime-state key from base64 bytes (at most 195,840 bytes) through the daemon's store
 update data config name &lt;name&gt; content &lt;base64&gt;   # Import one config as a new version (at most 195,840 bytes), through the reload for the daemon's own config
 show reload-status       # Show how many config reloads have been processed
 show config running      # Show the configuration the daemon applied
 </code></pre>
+<p>Standalone web mode binds the same store and full-recovery lifecycle without a
+configuration reload owner. Full-store restore can be accepted there, but
+applying a running configuration through restore, import or indexed rollback
+is refused before a candidate is staged. The accepted full source is applied
+only after web requests, command-owned resources and the original store finish
+cleanly; a cleanup failure prevents replacement.</p>
+<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
+<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
 <h4 id="show-reload-status-the-reload-fence">show reload-status (the reload fence)</h4>
 <p>Returns the reload generation counter as JSON:</p>
 <pre><code class="language-json">{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z"}
@@ -2484,7 +2703,7 @@ request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remo
 show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-prefix-match in Loc-RIB)
 </code></pre>
 <p>Generic pipes apply to the answer the command produced. The operator language has exactly one statement, <code>pipeCatalog</code>, and <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>docs/features/pipe-operators.generated.md</code></a> is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by <code>ze help command --json</code>, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.</p>
-<p>For a command the daemon serves, the DAEMON runs the chain. <code>execMiddleware</code> splits it off an SSH exec command and applies it, and <code>ze cli -c</code> sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor <code>environment cli format default</code>. A command the client serves in its own process through <code>RegisterLocalData</code> is the exception: <code>ServeLocal</code> runs the same chain over the local payload, before any daemon is contacted. <code>| save</code> is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.</p>
+<p>For a command the daemon serves, the DAEMON runs the chain. <code>execMiddleware</code> splits it off an SSH exec command and applies it. It reads the exec line as the client sent it (<code>RawCommand</code>), so a double-quoted value stays one word and a <code>|</code> inside quotes is not a pipe: <code>system command help name "show version"</code> names the command <code>show version</code>. <code>ze cli -c</code> sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor <code>environment cli format default</code>. A command the client serves in its own process through <code>RegisterLocalData</code> is the exception: <code>ServeLocal</code> runs the same chain over the local payload, before any daemon is contacted. <code>| save</code> is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.</p>
 <p>A chain the answer's shape cannot support is refused AFTER the command has run, and the refusal then arrives as the answer itself, marked with <code>pipe error: </code>. <code>ze cli -c</code> reads that mark on the first bytes of the stream: the refusal goes to stderr and the client exits 1, so a script that redirects stdout collects no diagnostic and reads no success.</p>
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
@@ -3420,11 +3639,26 @@ quotes, or an unknown quoted escape, is refused. <code>WriteInvocationValue</cod
 this same grammar for client values and concrete enum corrections.
 An empty value is written as <code>""</code> and retained as one empty token. Spaces
 inside a quoted value remain part of that value, including its trailing spaces.
+The local-data route decodes these words before registry lookup and model
+validation, preserving the same quoted values as daemon dispatch.
+Execution requires the closing quote. <code>ScanExecution</code> refuses an unfinished
+value before any handler runs and names the opening quote's one-based character
+column in the original line. The refusal does not echo the value, which may
+contain a credential. Local command execution and one-shot or streaming
+pipeline preparation use that same strict reader before source work or file
+creation. The operator grammar after the first unquoted pipe remains the
+pipeline parser's responsibility.</p>
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<p>Completion keeps using the permissive <code>ScanInvocation</code> reader while the
+operator types an unfinished value. Both readers use one scanner, retaining
+source offsets beside decoded tokens; completion does not need a second escape
+grammar, and execution does not infer a column from stripped tokens.
 Accounting and authorization read the same tokens as for any other line.
 <code>dispatch-command-args</code> never reaches the tokenizer, so a pipe in its <code>args</code>
 is data.</p>
 <!-- source: internal/component/plugin/server/command.go -- tokenize -->
-<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation -->
+<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation, ScanExecution, scanInvocation -->
+<!-- source: internal/component/command/pipe.go -- parseExecutionPipeChain -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocationValue -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 <p>MCP, REST and gRPC are operator surfaces that do not yet split the chain at
@@ -3447,7 +3681,14 @@ it judged and the leaf a lone spare positional token filled. Its fields are
 private, so only a successful call builds a non-zero value; the zero value means
 no tokens and no binding. <code>Tokens</code> answers a copy, so neither the route nor the
 handler can change what was judged. A call that leaves a mandatory leaf unfilled
-is refused with a <code>*command.MissingArgumentError</code> (<code>required argument missing: &lt;leaf&gt;</code>), one for each leaf it left unfilled, and each still reports the lone
+is refused with a <code>*command.ArgumentFaults</code> containing one
+<code>*command.MissingArgumentError</code> for each leaf it left unfilled, even when only
+one is missing. Its problem names the missing leaf, its explanation carries
+the leaf's declared description (or its help summary when no description is
+present), and its fix is the complete corrected command. A definition with
+neither text explicitly reports that the model makes the argument mandatory
+without supplying further explanation; Ze does not infer a purpose from its name.
+Each missing cause still reports the lone
 binding, because the dispatcher adopts a positional selector before it reports
 the missing leaves. The in-process routes (R2, R3, R6, R7) write the refusal to
 stderr, and a missing leaf is followed, once, by <code>hint: run '&lt;command&gt; help' to see the arguments it takes</code>, because the refusal names only the leaves the line
@@ -3459,8 +3700,8 @@ the line holds: a keyword with no value, a value its leaf refuses, a keyword
 typed twice, a token no definition takes, and each missing mandatory leaf,
 in declaration order. A leaf whose keyword or value is already at fault is not
 also named missing. A line with one fault is refused with that fault alone,
-except a value its leaf refuses, which is a <code>*command.ArgumentFaults</code> of one so
-every route restates it. A line with more is refused with a
+except a value its leaf refuses or a missing mandatory argument, which is a
+<code>*command.ArgumentFaults</code> of one so every route restates it. A line with more is refused with a
 <code>*command.ArgumentFaults</code>, an operator error whose problem line counts the
 faults, whose next lines name each fault in the order typed, and whose last line
 is the fix. A refusal of one value fault is that fault, with no count: its
@@ -3468,8 +3709,10 @@ problem, its why, then the fix. Its <code>Unwrap</code> answers the operator
 error and each fault, so <code>errors.As</code> finds a <code>*command.MissingArgumentError</code>
 inside it as it does on its own. In the list a missing leaf also names the
 words that supply it, written by the usage line's own value form
-(<code>required argument missing: asn, as in 'asn &lt;asn&gt;'</code>); alone, it keeps its
-text. A refused value (<code>*command.ValueArgumentError</code>) reads as the config value
+(<code>required argument missing: asn, as in 'asn &lt;asn&gt;'</code>); the cause's own explanation
+and fix are kept out of that list entry, so only the refusal's last line is a
+fix. A lone missing cause supplies its explanation and complete correction
+without a count of faults. A refused value (<code>*command.ValueArgumentError</code>) reads as the config value
 refusal does: the command path and the argument, the quoted value and its kind
 (<code>is not an accepted value</code>, with <code> (did you mean X?)</code> when one value is close,
 <code>is outside the accepted range</code>, <code>is outside the accepted length (N characters)</code>, <code>is not in the accepted format</code>), then its why: every accepted
@@ -3483,8 +3726,15 @@ number keeps its type refusal (<code>invalid value "x", expected unsigned intege
 The dispatcher asks for an <code>*command.ArgumentFaults</code> first. A list that
 holds only missing arguments binds a positional selector as a lone missing
 argument does, because each of them carries the same binding; a list with any
-other fault binds none. The selector guard speaks only for a lone missing
-argument. Every route then restates the list through one function,
+other fault binds none. A sole missing selector keeps that same typed refusal
+and the selector's declared purpose, with the corrected command placing it
+where the dispatcher reads it. Several unbound positional words still receive
+the selector guard's explanation that no value could be chosen as the selector.
+That guard reads the validator's captured unplaced positional values, or the
+successful validation's positional tokens; named keyword/value pairs do not
+become ambiguous values merely because they occupy two words. The missing
+cause owns that captured evidence and returns a copy to its caller.
+Every route then restates the list through one function,
 <code>ArgumentFaults.RestatedForLine</code>, so the same line reads the same on all of
 them: when every fault is a missing argument or a value typed in the line,
 and none was left unlisted, the fix line is the whole command, the operator's
@@ -3879,12 +4129,21 @@ that answer, then injects each non-hidden plugin command
 travel on that answer, so the tree carries the summary and the explanation. A
 plugin a later reload adds is absent until the operator attaches again.</li>
 </ul>
-<p><code>Hidden</code> commands still dispatch when typed in full. They never appear in
+<p><code>Hidden</code> commands still dispatch when typed in full. A YANG command tree carries
+<code>ze:hidden true</code> on a command or ancestor through merged branches and copied
+overlays. A plugin declaration cannot make a schema-hidden path visible.
+They never appear in
 completion, in help, in the MCP <code>tools/list</code> result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>buildCommandMeta</code> is the one producer of the last two surfaces, and it skips
-every hidden plugin command.</p>
+every hidden builtin or plugin command. Daemon command-list rows retain the
+hidden flag so attached clients apply the same rule. The help catalog also
+checks schema visibility before publishing builtin, local or plugin paths.</p>
 <!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries, Complete, Hidden -->
-<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
+<!-- source: internal/component/config/yang/command.go -- BuildCommandTree, inheritCommandHidden -->
+<!-- source: internal/component/command/help.go -- HiddenAtPath, HelpEntries, listedChildren -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta -->
+<!-- source: internal/component/plugin/server/system.go -- commandRows -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, appendPluginCommands -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
 <!-- source: internal/component/cli/client/main.go -- newAttachedModel, BuildRuntimeTreeFromDispatch -->
@@ -4287,9 +4546,31 @@ answers, and that is the trap all five registries exist in.</p>
 </tr>
 </tbody>
 </table>
-<p>One implementation resolves all five: <code>commandRegistry[T]</code> in <code>column_order.go</code>.</p>
+<p>One implementation resolves all five: <code>commandRegistry[T]</code> in <code>column_order.go</code>.
+Runtime lookup reads the shared execution grammar and matches each registered
+path segment to one decoded word. Quoting one keyword preserves its identity;
+one quoted value containing spaces cannot stand for several path keywords.</p>
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
+<p>An owner can confine its shape, columns, address fields and aliases to a parent
+with <code>RegisterChildBoundary</code>. Lookup derives an empty floor from the first typed
+keyword after that parent. An equal or longer explicit declaration wins, and
+removing a runtime value exposes the floor again. This is an inheritance rule,
+not a command inventory: it also masks unknown typed paths, whose dispatch still
+requires registration. Pipe filters keep their existing subtree inheritance.</p>
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
+<p>The owner can supply an argument predicate. One accepted token after the parent
+keeps the parent's metadata; two or more tokens still meet the child floor.
+Quoted spaces remain inside that one argument, and virtual floor paths preserve
+that word with the shared invocation writer's quoting.
+The predicate runs under the registry's read lock, so it must be bounded, safe
+for concurrent use and must not call the declaration registries. <code>show bgp</code>
+passes its overview handler's <code>isFamilyArg</code>, which reads the family registry.
+An explicit declaration on that argument path still wins. A registered child
+whose name is also an accepted family token must declare its own metadata.</p>
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpOverview, isFamilyArg -->
 <h4 id="two-packages-one-path-empty-is-a-floor-and-a-disagreement-is-a-defect">Two packages, one path: empty is a floor and a disagreement is a defect</h4>
 <p>The first four registries are a <code>declarationRegistry[T]</code>, which adds one rule to
 that lookup. <code>declare</code> reads what the path already holds:</p>
@@ -4331,8 +4612,8 @@ that lookup. <code>declare</code> reads what the path already holds:</p>
 </table>
 <p>An empty declaration is a FLOOR and never a claim. It stops a shorter path being
 inherited, and it says nothing about what the answer holds. <code>show bgp rib</code> is the
-case this rule was written for. The BGP peer command plugin blanks every direct
-child of <code>show bgp</code>, and the rib command plugin declares <code>tab</code> for
+case this rule was written for. The BGP peer command plugin confines the parent
+metadata with <code>RegisterChildBoundary</code>, and the rib command plugin declares <code>tab</code> for
 <code>show bgp rib</code>. Under the earlier last-writer-wins rule, package initialization
 order decided which of the two the path answered.</p>
 <p>Every in-tree caller declares from <code>init()</code>, so two different non-empty values
@@ -4372,6 +4653,10 @@ alone, and it means nothing over a <code>map</code> answer whose rows carry thei
 calls <code>tab</code> "rows read against a declared column order", and <code>operatorNeeds</code>
 reads the operator's own shape set. Calling both "rows" gave a refusal that
 contradicted itself, in front of an operator whose answer HAS rows.</p>
+<p>A finite JSON answer bounds <code>first</code> and <code>last</code> storage by the rows already
+present. A requested count above the result size keeps every row without
+reserving memory for that count.</p>
+<!-- source: internal/component/command/pipe.go -- applyTake -->
 <p>A declared address-field list is an ADMISSION gate AND a selector. It decides
 whether <code>| resolve</code> and <code>| origin</code> run at all, and it decides what they
 decorate. <code>bindAddressFields</code> copies the declaration onto each address operator
@@ -4397,13 +4682,14 @@ than the process boundary.</p>
 field. See "A plugin declares its own answer shape" below.</p>
 <p>A SELECTOR spelling declares nothing of its own. The registry resolves the string
 the operator typed. <code>show bgp peer detail</code> is not a prefix of
-<code>show bgp peer 192.0.2.1 detail</code>, so that spelling resolves <code>show bgp peer</code>, one
-of the empty declarations. It therefore reaches no refusal before dispatch, and
+<code>show bgp peer 192.0.2.1 detail</code>, so that spelling resolves the virtual empty
+floor at <code>show bgp peer</code>. It therefore reaches no shape refusal before dispatch, and
 the answer's own shape refuses after it.</p>
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription, operatorNeeds -->
 <!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren, registerShapes -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init, registerShapes -->
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- commandDecls -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- commandDecls -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- commandDecls -->
@@ -4457,12 +4743,24 @@ makes them work under every format:</p>
 </table>
 <p>Selection is a data question the operator asked out loud, so a program gets the
 answer. Sequence is presentation, so it stops at the two renderers.</p>
-<p><code>selectFields</code> walks the same shapes <code>tableStyle.renderValue</code> walks, and applies
-the same rule <code>orderKeys</code> applies. A record that carries at least one displayed
-field is cut to the displayed ones. A record that carries none is left whole.
-Without that agreement a nested sub-table and the JSON behind it would answer
-with different fields. Without it a record naming nothing displayed would render
-as a box with no rows.</p>
+<p><code>selectFields</code> walks the same shapes <code>tableStyle.renderValue</code> walks. When the
+operator names a container field, that explicitly chooses its containing record.
+The container's value is narrowed if it holds another requested field, and is
+otherwise kept whole. Thus <code>display peers</code> keeps the peer rows, while
+<code>display peers state</code> keeps their state fields.</p>
+<p>Without an explicit container, the record holding the most requested fields
+wins. This distinguishes the peer rows' <code>uptime</code> from the outer record's
+<code>uptime</code>: <code>display address remote-as state uptime</code> selects the peer rows, while
+the aggregate fields in the <code>summary</code> alias select the outer record. The chosen
+record keeps only the requested fields it holds; unknown field names do not
+create columns. Selection is applied to the data before formatting, so JSON and
+text retain the same fields.</p>
+<p>An equal match at different record locations is ambiguous and is refused by
+field name, without either record's values. <code>display uptime</code> over an answer
+holding both ages cannot silently choose one. Name the container first, such
+as <code>display peers | display uptime</code>, to resolve the choice. Row sequences remain
+selected one record at a time, and an empty row sequence stays a valid empty
+answer.</p>
 <p><code>applyDisplaySelect</code> decodes the payload through <code>decodePipeJSON</code>, the decoder
 every JSON-reading operator shares. It keeps each number as written and refuses
 a payload with trailing data. A uint64 wider than a float64 therefore reaches
@@ -4683,11 +4981,11 @@ engine stops a refused plugin before it can report anything itself.</p>
 <h4 id="a-declaration-adds-to-a-path-it-never-replaces-what-the-path-holds">A declaration ADDS to a path. It never replaces what the path holds</h4>
 <p><code>commandRegistry.register</code> stores one value for each path, so writing a declared
 set straight into the registry drops every alias that path already answered to.
-<code>show bgp rpki</code> already carries the empty declaration the in-tree BGP command
-plugin puts on every child of <code>show bgp</code>. A plugin therefore declares onto an
-occupied path in the ordinary case. <code>mergedAliases</code> adds the declared names to
-what the path holds. Every declared name is checked against that same set first,
-so nothing merged this way replaces anything.</p>
+An in-tree package or another plugin can already declare aliases on that path.
+<code>mergedAliases</code> adds the declared names to what the path holds. Every declared
+name is checked against that same set first, so nothing merged this way replaces
+anything. The <code>show bgp</code> parent boundary supplies an empty lookup floor without
+occupying the child's registration slot.</p>
 <p>Removal is by ENTRY for the same reason. <code>UnregisterPluginAliases</code> takes back the
 names one owner registered, and leaves the in-tree names and other owners' names
 in place. A path the owner created from nothing goes once its last entry is gone.
@@ -4698,6 +4996,7 @@ the runtime families. <code>rollbackStartupProcess</code> is both the failed-sta
 and the config-reload stop path. The other is the family-conflict unwind inside
 <code>onRegistration</code>.</p>
 <!-- source: internal/component/command/alias.go -- mergedAliases, UnregisterPluginAliases, pluginAliasPath -->
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
 <!-- source: internal/component/plugin/server/startup.go -- rollbackStartupProcess, engineStartupSink -->
 <h4 id="the-engine-derives-the-barrier-that-stops-an-alias-below-its-command">The engine derives the barrier that stops an alias below its command</h4>
 <p>An alias on <code>show bgp rpki</code> is inherited by <code>show bgp rpki roa</code>, because <code>roa</code>
@@ -4706,11 +5005,14 @@ prefix. That offers the name on a leaf whose answer cannot carry it.</p>
 <p><code>aliasBarriers</code> derives the answer from the plugin's own command list. It reads
 every command the plugin declared that sits strictly below a path carrying one
 of its aliases. Each such command that declares no alias itself gets an empty
-declaration. The in-tree form of the same barrier is written by hand in
-<code>peer.go</code>, over <code>cmdBgpChildren</code>. A plugin author writes nothing and does not
-have to know the resolution rule.</p>
+declaration. The in-tree BGP owner instead registers one parent boundary in
+<code>peer.go</code>. Its virtual floor covers every typed child branch, including newly
+registered commands and selector spellings, without a child list or schema
+cache. A child's own alias set still wins. A plugin author writes nothing and
+does not have to know the resolution rule.</p>
 <!-- source: internal/component/command/alias.go -- aliasBarriers -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init -->
+<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
 <h4 id="the-pipe-layer-selects-and-re-sequences-it-cannot-compute">The pipe layer selects and re-sequences. It cannot compute</h4>
 <p>This is the obligation every command that wants an alias owes, and it is a
 property of the PAYLOAD rather than of the pipe layer.</p>
@@ -5349,7 +5651,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 04:28 UTC</span>
                 </div>
             </div>
         </footer>

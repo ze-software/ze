@@ -5,17 +5,17 @@ Switch or report the zero\-copy forward\-handle fast path\.
 ## Ze command
 
 - Registry path: `request bgp rib fastpath`
-- Usage: `request bgp rib fastpath <enable\|disable\|status>`
+- Usage: `request bgp rib fastpath <enable|disable|status>`
 - Mode: Daemon
 - Wire method: `ze-bgp:rib-fastpath`
 - Backends: any backend
-- Task support: forbidden: the MCP server never answers with a task handle
+- Task support: forbidden\: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
+- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
