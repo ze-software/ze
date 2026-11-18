@@ -234,7 +234,8 @@ func unique(values []string) []string {
 // Message returns a commit message with a one-line 72-column subject, a body
 // wrapped without breaking words (a single word longer than the line, such as
 // a URL or a path, takes a line of its own), and the trailer lines after a
-// blank line.
+// blank line. Fixture approval records remain whole physical body lines so
+// the approval reader can count them.
 // A trailer is a record a script reads back, so it is never wrapped, and a
 // subject or body line that starts with a declared trailer key is refused:
 // the record is written by the one route declaredTrailers names, never by
@@ -273,7 +274,8 @@ func Message(subject string, body, trailers []string) (string, error) {
 // every line it emits and never breaking a word. A word that cannot fit even
 // alone with its indent (a URL, a path, a hash) is accepted, not refused: it
 // starts its own emitted line, and the next word starts the line after it.
-// Only a single word is exempt, so a line of several words still wraps.
+// Fixture approval records remain whole for their reader. Otherwise only a
+// single word is exempt, so an ordinary line of several words still wraps.
 func wrapBody(chunks []string) (string, error) {
 	lines := make([]string, 0)
 	for _, chunk := range chunks {
@@ -285,6 +287,10 @@ func wrapBody(chunks []string) (string, error) {
 			line := strings.TrimRight(raw, " \t")
 			if strings.TrimSpace(line) == "" {
 				lines = append(lines, "")
+				continue
+			}
+			if strings.HasPrefix(line, testJudgeLine) {
+				lines = append(lines, line)
 				continue
 			}
 			indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
