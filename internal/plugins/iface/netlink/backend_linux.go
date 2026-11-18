@@ -7,6 +7,8 @@
 package ifacenetlink
 
 import (
+	"errors"
+
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
@@ -15,6 +17,7 @@ import (
 // counter sockets.
 type netlinkBackend struct {
 	nativeVLANs nativeVLANResources
+	nativePPPs  nativePPPResources
 	mon         *monitor
 	counters    counterSource
 	// closed ends every neighbor watch this backend started
@@ -26,16 +29,21 @@ func newNetlinkBackend() (iface.Backend, error) {
 	return &netlinkBackend{}, nil
 }
 
-// Close MUST be called before discarding the backend. It permanently stops
-// counter reads and waits for any bounded snapshot already in progress. It
-// signals every neighbor watch to stop; each closes its channel once its
-// kernel subscription is released.
+// Close MUST be called before discarding the backend. It joins original PPP
+// writers and refuses unresolved outcomes before closing their backend's other
+// resources. It permanently stops counter reads and waits for any bounded
+// snapshot already in progress. It signals every neighbor watch to stop; each
+// closes its channel once its kernel subscription is released.
 func (b *netlinkBackend) Close() error {
+	settled, pppErr := b.nativePPPs.close()
+	if !settled {
+		return pppErr
+	}
 	if err := b.nativeVLANs.close(); err != nil {
-		return err
+		return errors.Join(pppErr, err)
 	}
 	b.StopMonitor()
 	b.closed.close()
 	b.counters.close()
-	return nil
+	return pppErr
 }

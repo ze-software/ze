@@ -1622,6 +1622,40 @@ its original rejected resource. Other failures retain their original cleanup
 owner; no name or index lookup supplies deletion or retry authority.
 <!-- source: internal/plugins/iface/netlink/counter_create_rejection_linux.go -- counterCreateNegativeReply, completedCounterCreateRejection -->
 
+Native PPP callers can bind an optional `NativePPPWriter` through the backend
+retained at unit creation. Binding runs inside the original namespace helper:
+the provider captures its route socket and obtains a positive creator-only
+`PPPIOCGOWNER` receipt on the same retained original unit file, captured index
+and unit. It retains the supported feature mask from that receipt.
+<!-- source: internal/component/iface/native_ppp.go -- NativePPPBackend, NativePPPUnitOwner, NativePPPWriter -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- netlinkBackend.BindNativePPPUnit, nativePPPProbe -->
+
+The writer supports MTU, administrative state, alias, exact point-to-point
+address pairs and simple IPv4/IPv6 routes. It preserves peer masks, including
+IPv6 /64, and RouteReplace semantics. Address deletion additionally requires
+the kernel's EXACT_ADDR_PAIR capability; matching and sibling preservation
+happen under the native writer lock. An absent capability refuses the write.
+<!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPWriter.RemoveAddressP2P, nativePPPAddressRequest, nativePPPRouteRequest -->
+
+The provider fills OWNER_FD during a short borrow of the original creator file,
+sends once, then erases that descriptor slot before releasing the borrow. ACK
+waiting happens afterward on the original socket. Unknown send, receive or
+parse outcomes retain the transaction and prevent another mutation. `Settle`
+only receives that original transaction. The caller MUST settle it before
+closing the writer; backend Close retains unresolved original writers.
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.mutate, nativePPPWriter.Settle, nativePPPResources.close -->
+
+A negative ACK validates the complete original request against its captured
+digest and preserves the native errno. It proves a terminal kernel response;
+an operation may have changed state before returning an error. The caller MUST
+retain its effect and cleanup receipts after transport settlement. A terminal
+close error remains available but does not keep unrelated backend resources open.
+<!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
+<!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
+
+This provider does not itself establish that shared PPP session and client
+consumers use it. Their entry-point and replacement controls prove that wiring.
+
 Linux requires statistics to persist “across routine operations like bringing
 the interface down and up” ([networking statistics documentation](https://docs.kernel.org/networking/statistics.html)).
 Its generic statistics API provides no driver-reset epoch. A driver reset whose
