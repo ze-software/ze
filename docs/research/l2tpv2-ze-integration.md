@@ -1106,6 +1106,15 @@ func (r *L2TPReactor) run(ctx context.Context) {
 to the tunnel's state machine. All tunnel/session state machines run
 synchronously within the reactor goroutine (no per-tunnel goroutines).
 
+The secondary tunnel index uses the peer endpoint and peer TID captured by
+`newTunnel`, separately from the latest control reply address. Registration
+and removal use that immutable key. Refreshing the reply address during
+dispatch leaves index membership unchanged. Discard removes an entry only
+while it still points to that original tunnel, preserving a fresh admission
+or another peer's entry.
+<!-- source: internal/component/l2tp/tunnel.go -- newTunnel -->
+<!-- source: internal/component/l2tp/reactor.go -- locateTunnelLocked, handle, discardTunnelLocked -->
+
 ### 11.2 Timer goroutine
 
 Single goroutine manages all timers:

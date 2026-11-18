@@ -108,6 +108,9 @@ type l2tpReactor struct {
 	tunnelsByLocalID map[uint16]*L2TPTunnel
 	tunnelsByPeer    map[peerKey]*L2TPTunnel
 	nextLocalTID     uint16
+	// Removed admissions retain their original native and PPP receipts;
+	// reusable wire labels never replace a pending cleanup owner.
+	retiredSessions map[*L2TPSession]*L2TPTunnel
 
 	// stopCCNLastSent bounds every StopCCN the reactor sends outside a
 	// tunnel (answerRefusedSCCRQ). One slot per hash of the source
@@ -981,7 +984,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, r.reliableConfig(), r.logger, r.params.Clock())
 	t.maxSessions = r.params.MaxSessions
 	r.tunnelsByLocalID[localTID] = t
-	r.tunnelsByPeer[key] = t
+	r.tunnelsByPeer[t.peerIndexKey] = t
 	r.logger.Info("l2tp: new tunnel created from SCCRQ",
 		"from", from.String(), "local-tid", localTID, "peer-tid", sccrq.AssignedTunnelID)
 	return t, teardowns, downs
@@ -1040,8 +1043,9 @@ func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 	return sentinel, teardowns, downs
 }
 
-// discardTunnelLocked removes a tunnel from both lookup maps and marks it
-// closed. Returns what clearSessions queued: the kernel teardown events for
+// discardTunnelLocked removes this original tunnel's entries from both lookup
+// maps and marks it closed. A reused key's new owner is preserved. Returns what
+// clearSessions queued: the kernel teardown events for
 // the sessions that held kernel resources, which the caller MUST enqueue to
 // the kernel worker, and one session-down per session under the tunnel's
 // order ticket, which the caller MUST deliver after it unlocks
@@ -1059,9 +1063,12 @@ func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) ([]kerne
 	// session".
 	t.clearSessions(l2tpevents.TerminateCauseNASError)
 	teardowns, downs := t.drainPendingTeardowns()
-	pk := peerKey{addr: t.peerAddr, tid: t.remoteTID}
-	delete(r.tunnelsByLocalID, t.localTID)
-	delete(r.tunnelsByPeer, pk)
+	if r.tunnelsByLocalID[t.localTID] == t {
+		delete(r.tunnelsByLocalID, t.localTID)
+	}
+	if r.tunnelsByPeer[t.peerIndexKey] == t {
+		delete(r.tunnelsByPeer, t.peerIndexKey)
+	}
 	t.state = L2TPTunnelClosed
 	r.logger.Info("l2tp: tunnel discarded",
 		"local-tid", t.localTID, "peer", t.peerAddr.String(), "reason", reason)

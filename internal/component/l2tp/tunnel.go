@@ -48,6 +48,10 @@ func (s L2TPTunnelState) String() string {
 type L2TPTunnel struct {
 	localTID  uint16
 	remoteTID uint16 // peer's Assigned Tunnel ID
+	// peerIndexKey is fixed at construction, before dispatch can refresh
+	// peerAddr or an SCCRP can assign remoteTID. Secondary registration and
+	// removal MUST use this key rather than the current wire coordinates.
+	peerIndexKey peerKey
 	// peerAddr is the last seen peer addr:port. RFC 2661 S8.1 requires it
 	// to stay static for the life of the tunnel; ze re-reads it from every
 	// inbound datagram to tolerate a peer that moves (a NAT rebind).
@@ -167,19 +171,20 @@ type L2TPTunnel struct {
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired
 // reliable engine. Caller owns the tunnel map entry; this function only
-// produces the value.
+// produces the value. A secondary registration MUST use peerIndexKey.
 func newTunnel(localTID, remoteTID uint16, peer netip.AddrPort, cfg ReliableConfig, logger *slog.Logger, now time.Time) *L2TPTunnel {
 	cfg.LocalTunnelID = localTID
 	cfg.PeerTunnelID = remoteTID
 	return &L2TPTunnel{
-		localTID:   localTID,
-		remoteTID:  remoteTID,
-		peerAddr:   peer,
-		state:      L2TPTunnelIdle,
-		engine:     NewReliableEngine(cfg),
-		logger:     logger.With("local-tid", localTID, "peer", peer.String()),
-		createdAt:  now,
-		fsmHistory: newFSMHistoryRing(),
+		localTID:     localTID,
+		remoteTID:    remoteTID,
+		peerIndexKey: peerKey{addr: peer, tid: remoteTID},
+		peerAddr:     peer,
+		state:        L2TPTunnelIdle,
+		engine:       NewReliableEngine(cfg),
+		logger:       logger.With("local-tid", localTID, "peer", peer.String()),
+		createdAt:    now,
+		fsmHistory:   newFSMHistoryRing(),
 	}
 }
 
