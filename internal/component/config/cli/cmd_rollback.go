@@ -139,7 +139,7 @@ func rollbackStoredConfig(store storage.Storage, name string, revision int) int 
 	if err != nil {
 		// Keep the recorded window's boot recovery command on the final line.
 		if stopped, recorded := err.(*confirm.StoppedWindowError); recorded { //nolint:errorlint // WriteOutsideRecorded returns this refusal directly, before apply.
-			var refusal *opererr.Error = stopped.OperatorError() //nolint:modernize // inferdecl: Pin the complete stopped-window refusal type at the stderr boundary.
+			var refusal *opererr.Error = stopped.OperatorError() //nolint:modernize,staticcheck // inferdecl/ST1023: Pin the complete stopped-window refusal type at the stderr boundary.
 			fmt.Fprintln(os.Stderr, "error:", refusal)
 			return exitError
 		}

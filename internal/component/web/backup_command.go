@@ -107,7 +107,7 @@ func (m *backupWorkspaces) response(ctx context.Context, r *http.Request, line s
 
 func backupCommandFailure(w http.ResponseWriter, err error) {
 	if refusal := backupSingleCommandError(err); refusal != nil {
-		var failure *opererr.Error = refusal.failure //nolint:modernize // inferdecl: Pin the complete native refusal type at the HTTP error boundary.
+		var failure *opererr.Error = refusal.failure //nolint:modernize,staticcheck // inferdecl/ST1023: Pin the complete native refusal type at the HTTP error boundary.
 		http.Error(w, failure.Error(), refusal.status)
 		return
 	}

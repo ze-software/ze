@@ -424,7 +424,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	tree := committedBaselineTree(store, configPath)
 
 	// Create editor manager for config editing via web.
-	var editorMgr *zeweb.EditorManager = zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory()) //nolint:modernize // inferdecl: Keep the concrete editor-owner type so the error inventory can prove Diff's operator-error result.
+	var editorMgr *zeweb.EditorManager = zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory()) //nolint:modernize,staticcheck // inferdecl/QF1011: Keep the concrete editor-owner type so the error inventory can prove Diff's operator-error result.
 	var broker *zeweb.EventBroker
 	managerOwned := true
 	defer func() {

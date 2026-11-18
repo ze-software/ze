@@ -902,10 +902,10 @@ derive from the registered operation and its modeled inputs.
 
 | Phase | Work and positive acceptance |
 |-------|------------------------------|
-| S1 | Store registration lookup, repair and encode share typed results. An unknown registered-key pattern fails on both routes; unresolved repair history errors cannot report success; successful repairs retain recovered keys and finding severity. Prefix and pattern selections are declared in YANG. Empty, whitespace-only and binary encoder input remains valid on the web, MCP, REST and gRPC as it is locally; explicit empty values are distinct from absent arguments. Environment-only validation uses the existing registered environment validation authority rather than unconditional success. |
+| S1 | Store registration lookup, repair and encode share typed results. An unknown registered-key pattern fails on both routes; unresolved repair history errors cannot report success; successful repairs retain recovered keys and finding severity. Prefix and pattern selections are declared in YANG. Empty, whitespace-only and binary encoder input remains valid on the web, MCP, REST and gRPC as it is locally; explicit empty values are distinct from absent arguments. Environment-only validation uses the existing registered environment validation authority rather than unconditional success. Doctor loader refusals retain their explanation and severity, provide the shared recovery command and withhold the runtime tree. |
 | S2 | Current-config conversion, fix-plan generation, masked source-subtree inspection and ExaBGP config/environment conversion are registered supplied-input operations. Their file/stdin entry points use the same byte producers. Both valid inputs and refused inputs retain their useful output and diagnostics. List and history root adapters consume typed producers instead of repeating traversal. |
 | S3 | Detached-file set/activate/deactivate, pending validation, rollback and stored-config rename have daemon forms for their actual source and publication target. File/paste controls return detached results without editing the live candidate. Local writes remain local adapters; formatting shares its producer and returns bytes for download remotely. |
-| S4 | Backup artifact list/show/diff/set and explicit draft-session editing are reachable through owner-held daemon operations and browser adapters. Artifact identity, ownership, bounds, history and cleanup are shared. Committed content remains the default browser source; draft resumption is explicit. Full-store restore uses a verified shutdown/recovery lifecycle, never replacement beneath an active owner. Retained private recovery resumes through the same importer with a durable source/target ownership proof and exact target `--path`; successful imported-owner close precedes private cleanup. Generic `RestoreBlob` keeps caller artifacts. Unknown or partially cleaned recovery-looking directories remain preserved with explicit owner handling that resolves admission debt. |
+| S4 | Backup artifact list/show/diff/set and explicit draft-session editing are reachable through owner-held daemon operations and browser adapters. Artifact identity, ownership, bounds, history and cleanup are shared. Committed content remains the default browser source; draft resumption is explicit. Full-store restore uses a verified shutdown/recovery lifecycle, never replacement beneath an active owner. SSH network grace expiry permits forced closure and a completed history drain; independent listener, transport, close and model-drain failures still refuse a clean restart. Retained private recovery resumes through the same importer with a durable source/target ownership proof and exact target `--path`; successful imported-owner close precedes private cleanup. Generic `RestoreBlob` keeps caller artifacts. Unknown or partially cleaned recovery-looking directories remain preserved with explicit owner handling that resolves admission debt. |
 | S5 | Independent review checks the complete standalone census against local, dispatcher and browser entry points, including failure verdicts and artifact preservation. Focused main-thread tests prove the reached behavior; registered-path enumeration alone is insufficient. |
 
 | Existing mechanism | Extension and preservation |
@@ -924,6 +924,79 @@ actionable refusals. No RFC behavior changes are planned. The command reference,
 API command architecture, web architecture and operation-specific guides change
 with their producers. Temporary evidence and phase handoffs are owned by this
 session's state record; obsolete logs are removed after results are recorded.
+
+#### Standalone amendment acceptance evidence (2026-11-18)
+
+Local commands, daemon operations and browser forms now call shared business
+producers. File reading, upload, download, authentication and explicit
+publication remain adapters at their owning boundaries. The evidence below is
+scoped to S1-S5; the local pipe walk does not prove daemon transport or
+authorization by itself. Commands identify reproducible native entry points.
+
+| Phase | Observed evidence | Canonical tests and entry points |
+|-------|-------------------|---------------------------------|
+| S1 | Registered-key refusals, repair failure/warning grading and complete, empty, whitespace and binary encoding passed. Environment validation rejects an invalid registered value and accepts its correction. | `TestRegisteredPatternRefusalMatchesStandalone`, `TestRepairRPCUnresolvedHistoryRefusesSuccess`, `TestDataEncodeRegisteredMatchesStandalone`, `TestConfigEnvironmentValidationRejectsMalformedValue`. Storage entry point: `./le --name session test unit pkg path ./internal/component/config/storage/cli/ run '^Test(RegisteredPattern|Repair|DataEncodeRegistered)'`. |
+| S2 | Supplied conversion, repair plans, masked source inspection and ExaBGP config/environment conversion passed against their local producers, including invalid input and cancellation. Unreadable inventories refuse without partial output. | `TestSuppliedConfigMigrationForms`, `TestSuppliedConfigFixPlanKeepsDiagnostics`, `TestSuppliedConfigSourceSubtreeRetainsMasking`, `TestSuppliedExaBGPMigrationDaemonDispatch`. Migration entry point: `./le --name session test unit pkg path ./internal/plugins/exabgp/ run '^TestSuppliedExaBGPMigration'`. |
+| S3 | Detached mutation/replacement, rename and indexed rollback passed with source preservation, native refusal context and stopped-window recovery. The final nine activation/deactivation controls and actual rollback scenario passed. | `TestSuppliedConfigDetachedMutationsMatchFileCommands`, `TestSuppliedConfigReplacementRemainsDetached`, `TestConfigRenameRootMovesPointerOnlyHistory`, `TestConfigRollbackRootPreservesStoppedWindowRemedy`, `TestDetachedActivationRefusalKeepsProducerContext`. Binary entry point: `./le --name session test bgp parse cli-config-rollback`. |
+| S4 | Real browser backup editing and raw-source check/salvage/download journeys passed, including access, cancellation and incomplete-transfer refusals. Each corrected restore/restart draft passed 80 load iterations before unchanged promotion; all three promoted live scenarios passed. Five final hub shutdown/history controls also passed. | `TestBrowserBackupWorkspace`, `TestBrowserBackupSourceRepair`, `TestBackupHTTPDownloadDetectsIncompleteTransfer`, `TestWebOnlyShutdownJoinsHistoryBeforeCommandOwner`. Lifecycle entry point: `./le --name session test bgp plugin data-restore-full data-restore-full-refused-live drain-restart-kind`. |
+| S5 | Independent review and exact population guards cover the standalone roots and flags. The real local CLI pipe walk preserves 47 original invocations and adds 26: 73 invocations over 71 paths. Its final draft passed all 80 load iterations and the unchanged promoted live scenario passed. | `TestStandaloneParityEvidenceIncludesEveryNewRegistration`, `TestStandaloneReturnedConfigurationRequiresRequestedValueAndState`, `TestStandaloneSuppliedContentPreservesEmptyAndPrivateBytes`, `TestCommittedScenarioLaunchesOnlyTheCompiledHelper`. Live entry point: `./le --name session test ui --pattern pipe-local-command`. |
+
+Normal comparisons passed for the complete `TestWebGoldenOutput` family, the six
+changed `TestWebHandlerGoldenOutput` cases and `TestWebViewDataIsTyped`, after
+independent oracle approval. The typed-view guard checked exact equality over
+111 components and all field-type refusals in that run. Update-mode captures
+are not these comparison results.
+
+A reached daemon shutdown test exposed a false cleanup failure after SSH network
+grace expired. Five additive native controls distinguish completed forced closure,
+listener-error provenance, foreign deadlines and overdue history cleanup. Their
+failed controls passed after the source repairs, as did the unchanged original
+daemon shutdown test, all 129 SSH package units and seven hub-owner controls.
+The retained SSH patch passed its exact application guard and the upstream
+v0.4.3 reverse/forward comparison. A separate native loader-refusal regression
+exposed an empty doctor recovery command; it passed unchanged after using the
+shared message/Fix helper, together with its valid-config control and three
+existing doctor controls. These repairs are committed in `f5961b331d` and
+`c8fcc136e7`.
+
+The registration regressions passed after their observed failures. The two
+remaining live-contract failures then passed after linking the feature-gated
+ExaBGP CLI owner into the checker. Actual HTTP shared-owner and flag controls
+passed. `./le --name session doc yang-contract command-contract` passed over
+544 modeled commands, 467 RPC handlers and 77 local handlers. Artifact
+registration/model checks retain all 46 methods and exact ownership equality.
+Parser-constant and lexical-shadow regressions each passed after their observed
+failures, followed by eight existing flag-feeder controls. Owner declarations
+now provide 29 flag specs on ten paths. The latest
+`./le --name session cli grammar check` reports no amendment-owned flag findings;
+its remaining three R9 findings concern the unrelated tool roots
+`arch error-inventory`, `arch error-wrap` and `test container-seed`.
+
+The implementation and proof chunks are committed in `b5a7d0dfe7`, `384ccd5025`,
+`d7061f9e75`, `038af8da35`, `d022fe5ddf`, `c89278177b` and `1d53fb1133`.
+The reviewed maintenance changes are committed in `57603016d7`. Explicit
+pointer declarations retain the conservative error inventory's boundary proof;
+their three local style exceptions name the overlapping checks and preserve
+the declarations, initializers and error handling.
+The four owned template outputs were regenerated; the native output comparison
+reported only the other owner's stale `l2tp_detail_templ.go` in that comparison.
+Topic documentation was source-reviewed. The full documentation-wiring
+composite was not run: it has no per-page scope and includes a daemon catalog
+build.
+
+The parent status, verification handoff and other acceptance criteria remain
+unchanged. Broader configuration-corpus findings involving BGP grant fixtures,
+reserved CoS prefixes and the later corpus timeout are not passing evidence
+here. Configured-plugin daemon conformance remains postponed under the owner's
+decision above; its eleven draft failures remain preserved. This section claims
+neither whole-tree acceptance nor release readiness.
+
+Final scoped lint: PASS — 15 explicit packages, zero findings in all eight
+native passes: host, Linux integration, FreeBSD, OpenBSD, DragonFly, capability,
+appliance and compile-out. The preceding missing-cache run is superseded by
+this complete successful retry. The current grammar check still reports only
+the three unrelated R9 tool roots above, with zero flag-in-YANG, demo-launch or
+flag-registration violations.
 
 ## Existing Mechanisms
 
