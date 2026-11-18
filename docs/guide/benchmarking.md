@@ -260,6 +260,18 @@ however many passes it has.
 <!-- source: internal/perf/report/html.go -- barLabel -->
 <!-- source: internal/test/perfrunner/run.go -- Runner.runPerf, Runner.measureDUT -->
 
+Each Ze pass records `dut-version` as `sha256:<digest>` of
+`/usr/local/bin/ze` in the running DUT container. The runner reads that binary
+before starting the pass and refuses a missing or malformed identity. This
+identifies the measured image artifact even when an existing image is reused;
+it is not a claim that the binary equals the checkout's current HEAD. Other
+DUTs keep their existing version behavior. The first genuine entry recorded by
+`le perf record evidence` establishes a baseline: without an earlier entry,
+`le perf track --check` has no before-and-after comparison to make.
+<!-- source: internal/test/perfrunner/run.go -- Runner.zeBinaryVersion, Runner.runPerf -->
+<!-- source: internal/le/perf/bench.go -- Bench.EvidenceRecord -->
+<!-- source: internal/perf/regression.go -- CheckHistory -->
+
 ### Manual Reports
 
 After running benchmarks, generate reports from the result files:

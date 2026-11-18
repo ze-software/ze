@@ -2,6 +2,8 @@ package perfrunner
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -536,6 +538,14 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (str
 		say(runner.Stderr, "  error: measure ", dut.Name, ": ", err.Error())
 		return "", false
 	}
+	var version string
+	if dut.Name == dutZE {
+		version, err = runner.zeBinaryVersion(ctx)
+		if err != nil {
+			say(runner.Stderr, "  error: identify the Ze binary for ", pass.Phrase(), ": ", err.Error())
+			return "", false
+		}
+	}
 	container := runner.senderName()
 	if err := runner.startContainer(ctx, runner.senderContainer()); err != nil {
 		say(runner.Stderr, "  error: start the sender: ", err.Error())
@@ -557,6 +567,9 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (str
 	// minutes covers DUT_REPEAT=5 (a 240 s hold before iteration 6).
 	reconnectWait := "10m"
 	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--reconnect-wait", reconnectWait, "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
+	if version != "" {
+		args = append(args, "--dut-version", version)
+	}
 	if dut.SenderPort != 0 {
 		args = append(args, "--sender-port", strconv.Itoa(dut.SenderPort))
 	}
@@ -576,6 +589,26 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (str
 		return "", false
 	}
 	return filepath.Join(runner.resultsDir, result), true
+}
+
+// zeBinaryVersion identifies the executable in the running Ze image rather
+// than the staging path, which can differ when a run reuses an existing image.
+func (runner *Runner) zeBinaryVersion(ctx context.Context) (string, error) {
+	const binary = "/usr/local/bin/ze"
+	container := runner.containerName(dutZE)
+	answer, err := runner.Docker.Exec(ctx, container, []string{"sha256sum", binary}, nil)
+	if err != nil {
+		return "", fmt.Errorf("read %s in %s: %w", binary, container, err)
+	}
+	fields := strings.Fields(answer.Stdout)
+	if len(fields) != 2 || fields[1] != binary || len(fields[0]) != 2*sha256.Size {
+		return "", fmt.Errorf("sha256sum %s in %s returned %q, want one SHA256 and that exact path", binary, container, answer.Stdout)
+	}
+	digest, err := hex.DecodeString(fields[0])
+	if err != nil {
+		return "", fmt.Errorf("sha256sum %s in %s returned an invalid SHA256 %q: %w", binary, container, fields[0], err)
+	}
+	return "sha256:" + hex.EncodeToString(digest), nil
 }
 
 // judgeResult reads the result file path that one pass of dut wrote and

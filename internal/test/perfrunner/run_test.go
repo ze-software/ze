@@ -113,8 +113,11 @@ type fakeCall struct {
 type dockerRecorder struct {
 	commands [][]string
 	answer   func([]string) (interoplab.ProcessResult, error)
-	results  string
-	received map[string]int
+	// checksumAnswer overrides only the Ze image binary query. An explicit
+	// empty success remains empty so refusal tests cannot inherit a digest.
+	checksumAnswer func() (interoplab.ProcessResult, error)
+	results        string
+	received       map[string]int
 }
 
 func (r *dockerRecorder) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
@@ -124,6 +127,13 @@ func (r *dockerRecorder) Run(ctx context.Context, command interoplab.ProcessComm
 	}
 	if err := r.send(command.Arguments); err != nil {
 		return interoplab.ProcessResult{ExitCode: -1}, err
+	}
+	argv := command.Arguments
+	if len(argv) == 5 && argv[0] == interoplab.DockerExecutable && argv[1] == "exec" && argv[3] == "sha256sum" && argv[4] == "/usr/local/bin/ze" {
+		if r.checksumAnswer != nil {
+			return r.checksumAnswer()
+		}
+		return interoplab.ProcessResult{Stdout: strings.Repeat("a", 64) + "  /usr/local/bin/ze\n"}, nil
 	}
 	if r.answer == nil {
 		return interoplab.ProcessResult{}, nil
@@ -153,7 +163,7 @@ func (r *dockerRecorder) send(argv []string) error {
 	if !short {
 		received = routes
 	}
-	result := perf.Result{DUTName: flag("--dut-name"), Pass: perf.PassFor(slices.Contains(argv, "-sender-first")), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
+	result := perf.Result{DUTName: flag("--dut-name"), DUTVersion: flag("--dut-version"), Pass: perf.PassFor(slices.Contains(argv, "-sender-first")), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
 	data, err := json.Marshal(&result)
 	if err != nil {
 		return err
@@ -263,6 +273,12 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 		t.Fatal("runPerf failed over a fake that always succeeds")
 	}
 	lines := recorder.recorded()
+	if len(lines) != 7 {
+		t.Fatalf("Docker command count = %d, want the six existing operations and one binary identity read: %q", len(lines), lines)
+	}
+	if want := "docker exec " + runner.containerName(dutZE) + " sha256sum /usr/local/bin/ze"; lines[1] != want {
+		t.Errorf("Ze binary identity exec = %q, want %q", lines[1], want)
+	}
 	for _, want := range []string{
 		"docker run -d --name " + runner.containerName("ze") + " --label ze.lab",
 		"--network " + runner.network + " --ip 172.31.0.2 --cap-add NET_ADMIN",
@@ -280,12 +296,12 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 		"-v " + runner.resultsDir + ":/results ",
 		"alpine:3.24.3 sleep 3600",
 	} {
-		if !strings.Contains(lines[1], want) {
-			t.Errorf("sender argv %q lacks %q", lines[1], want)
+		if !strings.Contains(lines[2], want) {
+			t.Errorf("sender argv %q lacks %q", lines[2], want)
 		}
 	}
-	if want := "docker exec " + runner.senderName() + " ip addr add 172.31.0.11/24 dev eth0"; lines[2] != want {
-		t.Errorf("receiver address exec = %q, want %q", lines[2], want)
+	if want := "docker exec " + runner.senderName() + " ip addr add 172.31.0.11/24 dev eth0"; lines[3] != want {
+		t.Errorf("receiver address exec = %q, want %q", lines[3], want)
 	}
 	if want := "docker rm -f " + runner.senderName(); lines[len(lines)-1] != want {
 		t.Errorf("the sender is not removed after the measurement: last command %q", lines[len(lines)-1])
