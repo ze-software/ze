@@ -38,10 +38,13 @@ authenticated connection. The SSH model owner's `Server.Stop` seals new model
 admission and joins all admitted factories/model cleanup before its caller may
 close the borrowed store. Its network deadline does not cancel this history
 drain: a network error closes remaining connections, then Stop still waits for
-accepted history. A storage call that has stopped answering holds Stop for at
-most 5 seconds, a share of the teardown margin the service manager's stop timeout
-allows. Stop then logs an error naming the storage and returns, so the daemon's
-teardown continues without that write, and that session's history or unsaved edit
+accepted history. Expiry of the network grace permits forced closure; successful
+closure and history cleanup complete a normal stop. Independent listener,
+transport or close failures remain stop failures. A storage call that has stopped
+answering holds Stop for at most 5 seconds, a share of the teardown margin the
+service manager's stop timeout allows. Stop then logs an error naming the storage
+and returns, so the daemon's teardown continues without that write, and that
+session's history or unsaved edit
 may be lost: a write it has not begun yet fails once the store closes. The stuck
 write still holds the store's own lock, so closing the store waits for it after
 everything else has stopped, and a second stop signal or the service manager's

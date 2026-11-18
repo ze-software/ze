@@ -680,8 +680,10 @@ func firstDuplicate(addrs []string) (string, bool) {
 
 // Stop seals model admission, shuts down the network, and joins all admitted
 // model cleanup before returning. The owner MUST call it before store release.
-// ctx bounds network shutdown only: an error forces network closure but cannot
-// drop accepted history. Only modelDrainLimit ends the join, for a storage call
+// ctx bounds network shutdown only: expiry permits forced network closure, and
+// successful closure and model cleanup complete the stop. Cancellation and
+// independent network/close errors remain failures and cannot drop accepted
+// history. Only modelDrainLimit ends the join, for a storage call
 // that has stopped answering: Stop then answers errModelDrainOverdue. A write that
 // session has not begun yet fails once the store closes, with the fs.ErrClosed
 // storage.store answers. The stuck write itself holds the store's lock, so closing
@@ -699,8 +701,21 @@ func (s *Server) Stop(ctx context.Context) error {
 	models.seal()
 	s.logger.Info("SSH server stopping")
 	err := network.Shutdown(ctx)
+	// Capture the allowance before forced Close can block. A joined listener
+	// failure or a deadline returned before this allowance expired must survive.
+	graceExpired := false
+	if err == context.DeadlineExceeded { //nolint:errorlint // Only the exact native sentinel is grace expiry; joined listener failures must survive.
+		if ctx.Err() == context.DeadlineExceeded {
+			graceExpired = true
+		}
+	}
 	if err != nil {
-		err = errors.Join(err, network.Close())
+		closeError := network.Close()
+		if graceExpired {
+			err = closeError
+		} else {
+			err = errors.Join(err, closeError)
+		}
 	}
 	// Factories use Server getters. Never hold s.mu while joining them, and
 	// never confuse the vendor's connection join with model cleanup.
