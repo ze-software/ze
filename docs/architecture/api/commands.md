@@ -1318,7 +1318,7 @@ config. The value after
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, leaf content -->
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, leaf content -->
 <!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, leaf content -->
-<!-- source: internal/component/config/cli/validate_route.go -- validationLine, sentLabel -->
+<!-- source: internal/component/config/cli/daemon_route.go -- suppliedQuestion.line, sentLabel -->
 <!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 

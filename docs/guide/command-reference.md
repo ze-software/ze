@@ -3229,7 +3229,8 @@ operator runs the same through the daemon, below: `show data check` answers
 the rows `check` prints, and `request data repair path <file>` writes the
 salvage on the daemon's host. Installing a repaired store in place of the live
 one needs ze stopped.
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory, printHistoryFindings -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory -->
+<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, repairVerdict.printHistory, repairVerdict.exitCode -->
 <!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 
 `backup` copies every key of the store, at any depth and in any namespace, to
@@ -3390,7 +3391,7 @@ If the complete repair report exceeds the 8 MiB response limit, the command
 fails with its path, counts, `salvage-written: true` and `details-omitted: true`.
 The saved salvage remains available. The answer names the command that checks
 it, instead of presenting a partial list as the complete report.
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusal -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusalWithFix -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 
 `show data check` answers the store's integrity verdict: `entries`,
@@ -3487,7 +3488,7 @@ carries `client`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig, handleDataKeyDelete, configurationKeyError, removeKeyError -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreConfigFromSource, handleDataKeyDelete, configurationKeyError, removeKeyError -->
 <!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
 <!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->

@@ -265,10 +265,11 @@ file given to `write` is refused there too, while the offline route writes an
 empty key: the one input the two routes answer differently. `import` refuses
 stdin on both routes, because the config is named after the file. Offline,
 `import` commits a config the store already holds as a new active version
-(`storage.RestoreConfig`), because a raw write of its `file/active/<name>` key
+(`storage.ImportConfig`), because a raw write of its `file/active/<name>` key
 is shadowed by its active pointer (`storage.ReadActiveConfig` reads the
 pointer's version first and the mirror only when no pointer exists).
-<!-- source: internal/component/config/storage/cli/main.go -- importConfigs, importConfig, importConfigsThroughDaemon -->
+<!-- source: internal/component/config/storage/cli/main.go -- importConfigs, ImportConfig, importConfigsThroughDaemon -->
+<!-- source: internal/component/config/storage/import_config.go -- ImportConfig -->
 <!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
 A running daemon changes its own store only through the handle it owns, by the
 store commands it serves on every surface: `request data backup`,

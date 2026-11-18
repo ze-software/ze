@@ -593,7 +593,7 @@ that limit, the command returns an explicit report failure with the saved path
 and counts. `salvage-written` confirms the completed write, and `details-omitted`
 states that the rows are absent. The response gives the local command that
 checks the saved salvage. It never reports a truncated list as complete.
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairAnswer, repairDetailsTooLarge, repairReportRefusal -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairAnswer, repairDetailsTooLarge, repairReportRefusalWithFix -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, ownedStore, CheckArtifactPath, refuseStoreName -->
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->

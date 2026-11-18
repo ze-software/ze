@@ -864,7 +864,8 @@ config held elsewhere with `show config supplied validation content <base64>`
 (`docs/architecture/api/commands.md`, "Caller-supplied configuration
 inspection"). `ze cli -c "show config validation <file>"` answers in its own
 process (`command.ServeLocal`) and asks no daemon.
-<!-- source: internal/component/config/cli/validate_route.go -- judgeConfig, asksRunningDaemon, validationLine, sentLabel, askValidationOverSSH, decodeDaemonValidation, unreachedOrAsked -->
+<!-- source: internal/component/config/cli/validate_route.go -- judgeConfig, validationQuestion, askDaemonValidation, decodeDaemonValidation -->
+<!-- source: internal/component/config/cli/daemon_route.go -- asksRunningDaemon, suppliedQuestion.line, sentLabel, askOverSSH, unreachedOrAsked -->
 <!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon -->
 <!-- source: internal/component/config/declared_schemas.go -- DaemonUnanswered, Unanswered -->
 <!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedValidation -->
