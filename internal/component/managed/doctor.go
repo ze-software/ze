@@ -15,12 +15,14 @@ package managed
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // hubProbeTimeout bounds the per-hub TCP reachability probe. A var so tests can
@@ -42,6 +44,70 @@ var hubDoctorCheck = diagnostic.DoctorCheck{
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{"doctor-hub-unreachable"},
 	Check:        checkHubReachable,
+}
+
+// hubClientDoctorCheck reports a managed client whose configuration names no
+// hub. Registered from register.go.
+var hubClientDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "hub-client-missing",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        731,
+	Component:    "managed",
+	Dependencies: []string{"config-tree"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorHubClientMissing},
+	Check:        checkHubClientDeclared,
+}
+
+// hubClientMissingFix is what brings a managed client with no hub block back
+// under its hub: provision it again, so its next start fetches the config the
+// hub serves, once that config holds the block.
+const hubClientMissingFix = "ze init --managed --force"
+
+// checkHubClientDeclared warns when this node is a managed client and its
+// configuration has no plugin/hub/client block. Such a node connects to no
+// hub and is never told of a change, and the running client says so only
+// once, in its log, when it applies that configuration.
+//
+// It answers nothing when it cannot look: no store, no managed flag it can
+// read, or a hub block config validation refuses. Each of those is another
+// check's finding, and "no hub block" is claimed only from a tree that was
+// read.
+func checkHubClientDeclared(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok || tree == nil {
+		return nil
+	}
+	if ctx.Store == nil {
+		return nil
+	}
+	flag, err := ctx.Store.ReadFile(zefs.KeyInstanceManaged.Pattern)
+	if err != nil {
+		return nil // No managed flag to read: this check has nothing to judge.
+	}
+	hubCfg, err := config.ExtractHubConfig(tree)
+	if err != nil {
+		return nil // Config validation reports a hub block it cannot read.
+	}
+	return diagnoseHubClientDeclared(strings.TrimSpace(string(flag)) == "true", len(hubCfg.Clients))
+}
+
+// diagnoseHubClientDeclared is checkHubClientDeclared on what it read.
+func diagnoseHubClientDeclared(managed bool, clientBlocks int) []diagnostic.Diagnostic {
+	if !managed {
+		return nil
+	}
+	if clientBlocks > 0 {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     diagnostic.CodeDoctorHubClientMissing,
+		Severity: diagnostic.SeverityWarning,
+		Message: "this node is a managed client and its configuration has no plugin hub client block, " +
+			"so it follows no hub and receives no configuration change",
+		Help: "add the client block to this node's configuration on the hub, then provision the node again so that it fetches it",
+		Fix:  hubClientMissingFix,
+	}}
 }
 
 // checkHubReachable warns when this node is configured as a managed client

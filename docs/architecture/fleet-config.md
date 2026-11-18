@@ -218,8 +218,25 @@ Client configs are entries in the hub's live tree, keyed by client name at
 `client-` prefix avoids collision with the hub's own config file).
 <!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 
-The admin can edit these through a live SSH editor owned by the hub.
-Offline writers, including `ze data`, require the hub to be stopped because
+The admin can edit these through a live SSH editor owned by the hub:
+`ze config edit client-<name>.conf` beside a running hub connects to the hub's
+own editor and names that file. The commit runs on the hub's store handle, with
+no reload of the hub, records a new active version and fires the write observer
+below, so the client is told. The file must exist first; an import or a restore
+gives it its first version. The attached console, the web editor and the API
+config sessions edit the hub's own configuration only.
+<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
+
+A running hub also takes a client config from a file: `ze data import
+client-<name>.conf` beside it, or `update data config name client-<name>.conf
+content <base64>` on any command surface, commits a new version through the
+same store handle.
+<!-- source: internal/component/config/storage/cli/main.go -- importConfigsThroughDaemon -->
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate -->
+
+Offline writers require the hub to be stopped because
 the writable store handle holds an exclusive lifetime lock. Read-only
 inspection remains available while the hub runs. `ze data rm` beside a running
 hub sends its removal to the hub as `delete data key`, which removes
@@ -281,7 +298,13 @@ that connection and reconnects at once with the new values, with no restart. A
 config that leaves the block alone keeps the connection, and a config the
 daemon refused changes nothing. A config with no hub-level `client` block asks
 for no hub connection: the client stops following its hub and logs that it did,
-which is what a restart on that config would do.
+which is what a restart on that config would do. The hub can no longer correct
+that client, so `ze doctor` on the client reports it under
+`doctor-hub-client-missing`: a managed client (`meta/instance/managed` is true)
+whose configuration names no hub. The fix is on both sides: add the block to
+the client's configuration on the hub, then provision the client again with
+`ze init --managed --force` so that its next start fetches it.
+<!-- source: internal/component/managed/doctor.go -- checkHubClientDeclared -->
 <!-- source: internal/component/managed/client.go -- adoptEndpoint, RunManagedClient -->
 <!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint -->
 

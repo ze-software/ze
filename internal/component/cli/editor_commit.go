@@ -169,7 +169,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		return nil, err
 	}
 	committedOutput := config.FormatSchemaStamp() + config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
-	if err := guard.WriteFile(e.originalPath, []byte(committedOutput), 0o600); err != nil {
+	if err := e.publishCommitted(guard, []byte(committedOutput)); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
 
@@ -195,6 +195,25 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	}
 
 	return &CommitResult{Applied: applied, Warnings: warnings}, nil
+}
+
+// publishCommitted writes the committed config where the next reader looks
+// for it. A config with a recorded active version is read through that
+// version, so the commit is recorded as a new active version; the plain file
+// is written with it. A config with no recorded version is the plain file
+// alone. Writing only the plain file of a versioned config left the next
+// session reading the version from before this commit, and its own commit
+// then dropped this one.
+func (e *Editor) publishCommitted(guard storage.WriteGuard, committed []byte) error {
+	versioned, err := storage.HasActiveVersionWithGuard(e.store, guard, e.originalPath)
+	if err != nil {
+		return err
+	}
+	if versioned {
+		_, err := storage.CommitConfigWithGuard(e.store, guard, e.originalPath, committed)
+		return err
+	}
+	return guard.WriteFile(e.originalPath, committed, 0o600)
 }
 
 // CommitSessionCandidate merges the current session's changes into a staged

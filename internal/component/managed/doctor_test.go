@@ -108,3 +108,31 @@ func TestHubReachableProbe(t *testing.T) {
 	require.NoError(t, ln.Close())
 	assert.False(t, hubReachable(reachableAddr, ""), "closed port should be unreachable")
 }
+
+// TestHubClientDoctorCheck: a managed client whose configuration names no hub
+// is reported, with the command that brings it back. A node that is not
+// managed, and a managed client that names its hub, are not.
+//
+// VALIDATES: a client that applied a pushed config with no hub client block,
+// and so stopped following its hub, is visible in `ze doctor`.
+// PREVENTS: that state being one log line at the moment it happened and
+// nothing afterwards.
+func TestHubClientDoctorCheck(t *testing.T) {
+	t.Run("managed with no hub block warns", func(t *testing.T) {
+		diags := diagnoseHubClientDeclared(true, 0)
+		require.Len(t, diags, 1)
+		assert.Equal(t, diagnostic.CodeDoctorHubClientMissing, diags[0].Code)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.Equal(t, hubClientMissingFix, diags[0].Fix)
+	})
+	t.Run("managed with a hub block is quiet", func(t *testing.T) {
+		assert.Nil(t, diagnoseHubClientDeclared(true, 1))
+	})
+	t.Run("not managed is quiet", func(t *testing.T) {
+		assert.Nil(t, diagnoseHubClientDeclared(false, 0))
+	})
+	t.Run("nothing to read is quiet", func(t *testing.T) {
+		assert.Nil(t, checkHubClientDeclared(diagnostic.DoctorCheckContext{Tree: nil}))
+		assert.Nil(t, checkHubClientDeclared(diagnostic.DoctorCheckContext{Tree: "not a tree"}))
+	})
+}

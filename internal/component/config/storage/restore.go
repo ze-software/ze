@@ -177,6 +177,25 @@ func RestoreConfig(target Storage, deviceName string, data []byte) (stamp string
 // restoreConfigLocked is the versioned publication RestoreConfig and stored
 // rollback share. The caller MUST hold guard until publication or withdrawal
 // completes, and MUST run the daemon reload instead for its active source.
+// HasActiveVersionWithGuard reports whether configPath has a recorded active
+// version, for a caller that already holds the config lock. A config that has
+// one is read through it (ReadActiveConfigWithGuard), so a writer that changes
+// the config MUST record a version too, with CommitConfigWithGuard: a write to
+// the plain file alone is invisible to the next reader.
+func HasActiveVersionWithGuard(store Storage, guard WriteGuard, configPath string) (bool, error) {
+	_, ok, err := readPointerLocked(store, guard, configPath, pointerActive)
+	return ok, err
+}
+
+// CommitConfigWithGuard records data as a new version of configPath and makes
+// it the active one, under a guard the caller already holds. It is what
+// RestoreConfig does under its own guard: the previous active version becomes
+// the rollback, and the plain active file is written with the same bytes. The
+// caller MUST release guard for the commit to be published.
+func CommitConfigWithGuard(target Storage, guard WriteGuard, configPath string, data []byte) (stamp string, err error) {
+	return restoreConfigLocked(target, guard, configPath, data)
+}
+
 func restoreConfigLocked(target Storage, guard WriteGuard, deviceName string, data []byte) (stamp string, err error) {
 	stamp, err = WriteCandidateVersionWithGuard(target, guard, deviceName, data, time.Now())
 	if err != nil {

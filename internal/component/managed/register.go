@@ -11,8 +11,10 @@ import (
 )
 
 func init() {
-	if err := diagnostic.RegisterDoctorCheck(hubDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "managed: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck} {
+		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
+			fmt.Fprintf(os.Stderr, "managed: doctor check registration failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

@@ -8,8 +8,6 @@ module ze-cos-cmd {
 
     container request {
         config false;
-        description "Request an operational change from the daemon.";
-        ze:help "Request a daemon operation.";
 
         container class-of-service {
             config false;

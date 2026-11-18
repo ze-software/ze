@@ -49,6 +49,7 @@ const (
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
 	CodeDoctorManagedClientRejected         = "doctor-managed-client-rejected"
 	CodeDoctorManagedClientNotifyDropped    = "doctor-managed-client-notify-dropped"
+	CodeDoctorHubClientMissing              = "doctor-hub-client-missing"
 	CodeDoctorPluginRemovalUnrecovered      = "doctor-plugin-removal-unrecovered"
 	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
 	CodeDoctorCommandEnsureRollbackFailed   = "doctor-command-ensure-rollback-failed"
@@ -354,6 +355,13 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "A managed client was refused because a client of the same name is already connected, or the client rejected the configuration the daemon sent it, " +
 			"so it runs without its current configuration. The row names the client and its last answer.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-managed-client-rejected"},
+	},
+	{
+		Code:  CodeDoctorHubClientMissing,
+		Title: "Managed client follows no hub",
+		Description: "This node is a managed client (meta/instance/managed is true) and its configuration has no plugin hub client block, so it connects to no hub and receives no configuration change. " +
+			"A hub can no longer correct this node: the configuration it serves for this node lost the block, and the node applied it.",
+		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-hub-client-missing"},
 	},
 	{
 		Code:  CodeDoctorManagedClientNotifyDropped,

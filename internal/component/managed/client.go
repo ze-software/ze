@@ -163,10 +163,8 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 			return // shutdown
 		}
 		if errors.Is(err, errHubClientRemoved) {
-			// Info, like the managed flag above: the config asks for no hub
-			// connection, and the daemon does what the config says.
-			logger().Info("the applied config has no plugin hub client block, stopping hub connection",
-				"name", cfg.Name)
+			logger().Warn("the config the hub sent has no plugin hub client block, so this node no longer follows its hub",
+				"code", diagnostic.CodeDoctorHubClientMissing, "name", cfg.Name, "fix", hubClientMissingFix)
 			return
 		}
 		if errors.Is(err, errEndpointChanged) {
