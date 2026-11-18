@@ -27,13 +27,7 @@ const UndeclaredDistance uint8 = 255
 // own override when it carries one, otherwise the distance declared for its
 // protocol, read from the seam at the moment of ranking.
 func resolvedDistance(p Path) uint8 {
-	if p.HasDistanceOverride {
-		return p.DistanceOverride
-	}
-	if d, ok := ribdistance.Resolve(DistanceProtocol(p)); ok {
-		return d
-	}
-	return UndeclaredDistance
+	return PreferenceFor(PreferenceSource{Protocol: DistanceProtocol(p), Metric: p.Metric, DistanceOverride: p.DistanceOverride, HasDistanceOverride: p.HasDistanceOverride}, ribdistance.Resolve).Distance
 }
 
 // DistanceProtocol returns the name `rib { distance { } }` declares p's

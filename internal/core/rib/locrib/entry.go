@@ -93,14 +93,9 @@ func selectBest(paths []Path) int {
 			best = i
 			continue
 		}
-		if paths[i].AdminDistance < paths[best].AdminDistance {
-			best = i
-			continue
-		}
-		if paths[i].AdminDistance > paths[best].AdminDistance {
-			continue
-		}
-		if paths[i].Metric < paths[best].Metric {
+		candidate := Preference{Distance: paths[i].AdminDistance, Metric: paths[i].Metric}
+		previous := Preference{Distance: paths[best].AdminDistance, Metric: paths[best].Metric}
+		if candidate.Before(previous) {
 			best = i
 		}
 	}
