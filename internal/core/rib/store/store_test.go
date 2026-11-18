@@ -147,3 +147,64 @@ func TestStoreInvalidPrefix(t *testing.T) {
 	assert.False(t, s.Delete(invalid))
 	assert.False(t, s.Modify(invalid, func(*int) {}))
 }
+
+// TestStoreCoveringMostSpecificFirst verifies the covering read answers every
+// stored prefix that contains an address, and nothing else, in the order a
+// covering lookup promises.
+//
+// VALIDATES: Store.Covering visits the containing prefixes, host route
+// included, from the most specific to the least, and stops when fn says so.
+// PREVENTS: a covering read that misses a less specific prefix, answers one
+// that does not contain the address, or yields in an order a caller would
+// have to sort again.
+func TestStoreCoveringMostSpecificFirst(t *testing.T) {
+	s := NewStore[string](family.IPv4Unicast)
+	for _, p := range []string{
+		"0.0.0.0/0", "10.0.0.0/8", "10.1.0.0/16", "10.1.2.3/32",
+		"10.2.0.0/16", "10.1.3.0/24", "192.0.2.0/24",
+	} {
+		s.Insert(netip.MustParsePrefix(p), p)
+	}
+
+	var got []string
+	s.Covering(netip.MustParseAddr("10.1.2.3"), func(pfx netip.Prefix, v string) bool {
+		assert.Equal(t, pfx.String(), v, "the value is the one stored under that prefix")
+		got = append(got, pfx.String())
+		return true
+	})
+	assert.Equal(t, []string{"10.1.2.3/32", "10.1.0.0/16", "10.0.0.0/8", "0.0.0.0/0"}, got)
+
+	var first []string
+	s.Covering(netip.MustParseAddr("10.1.2.3"), func(pfx netip.Prefix, _ string) bool {
+		first = append(first, pfx.String())
+		return false
+	})
+	assert.Equal(t, []string{"10.1.2.3/32"}, first, "a false return stops the read")
+
+	var none int
+	s.Covering(netip.Addr{}, func(netip.Prefix, string) bool { none++; return true })
+	assert.Zero(t, none, "an invalid address visits nothing")
+}
+
+// TestStoreCoveringIPv6 verifies the covering read on an IPv6 store, and that
+// an IPv4 address never reaches IPv6 entries.
+//
+// VALIDATES: Store.Covering over IPv6 prefixes, most specific first.
+// PREVENTS: an address of one version answered from the other version's routes.
+func TestStoreCoveringIPv6(t *testing.T) {
+	s := NewStore[int](family.IPv6Unicast)
+	for i, p := range []string{"::/0", "2001:db8::/32", "2001:db8:1::/48", "2001:db9::/32"} {
+		s.Insert(netip.MustParsePrefix(p), i)
+	}
+
+	var got []string
+	s.Covering(netip.MustParseAddr("2001:db8:1::5"), func(pfx netip.Prefix, _ int) bool {
+		got = append(got, pfx.String())
+		return true
+	})
+	assert.Equal(t, []string{"2001:db8:1::/48", "2001:db8::/32", "::/0"}, got)
+
+	var crossed int
+	s.Covering(netip.MustParseAddr("10.1.2.3"), func(netip.Prefix, int) bool { crossed++; return true })
+	assert.Zero(t, crossed, "an IPv4 address is covered by no IPv6 prefix")
+}

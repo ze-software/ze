@@ -225,7 +225,9 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 		return statusDone, json.RawMessage(`{"routes":[]}`), nil
 	}
 
-	_, selector, stages, errMsg := parsePipelineArgs(args)
+	// The scope is not read: a protocol RIB holds received routes only, so a
+	// covering or exact walk applies to it as it stands.
+	_, selector, walk, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
 		return statusError, "", errors.New(errMsg)
 	}
@@ -236,10 +238,10 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 	var source pipelineIterator
 	var release func()
 	if protoID == bgpProtocolID {
-		src := newInboundSource(r, selector)
+		src := newInboundSource(r, selector, walk)
 		source, release = src, src.release
 	} else {
-		src := newProtocolInboundSource(r, protoID, selector)
+		src := newProtocolInboundSource(r, protoID, selector, walk)
 		source, release = src, src.release
 	}
 	r.peerMu.RUnlock()

@@ -354,6 +354,97 @@ func (r *PeerRIB) IterateFamilySorted(fam family.Family, fn func(nlriBytes []byt
 	rib.iterateEntrySorted(fn)
 }
 
+// coveringFamiliesMax sizes the stack buffer IterateCovering and IterateExact
+// order families in. Three CIDR families hold an address of one IP version
+// (unicast, multicast, labeled unicast, IsCIDRFamily), so the buffer never
+// grows on this RIB; a larger set still works and costs one allocation.
+const coveringFamiliesMax = 4
+
+// IterateCovering calls fn for every stored path whose prefix contains addr:
+// family by family in family order, and within a family the most specific
+// prefix first, with every ADD-PATH path of each prefix. Stops if fn returns
+// false.
+//
+// It reads only the trie entries on the path to addr (FamilyRIB.iterateCovering),
+// never the whole table, which is what lets a looking glass on a full table
+// answer an address lookup. Families with no prefixes (the non-CIDR ones) and
+// families of the other IP version contribute nothing.
+//
+// fn runs with this type's read lock held, and owes it the same obligation
+// Iterate states.
+func (r *PeerRIB) IterateCovering(addr netip.Addr, fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var buf [coveringFamiliesMax]family.Family
+	for _, fam := range r.appendAddressFamilies(buf[:0], addr) {
+		keepGoing := r.families[fam].iterateCovering(addr, func(nlriBytes []byte, entry RouteEntry) bool {
+			return fn(fam, nlriBytes, entry)
+		})
+		if !keepGoing {
+			return
+		}
+	}
+}
+
+// IterateExact calls fn for every stored path whose prefix is pfx itself:
+// family by family in family order, with every ADD-PATH path of the prefix.
+// Stops if fn returns false. pfx MUST be masked (pfx == pfx.Masked()), as the
+// store keys its entries by the masked prefix and an unmasked one names none.
+//
+// It reads one trie entry per family (FamilyRIB.iterateExact), never the whole
+// table and never a longer prefix that shares pfx's leading text, which is what
+// the `prefix` text filter cannot promise. Families with no prefixes (the
+// non-CIDR ones) and families of the other IP version contribute nothing.
+//
+// fn runs with this type's read lock held, and owes it the same obligation
+// Iterate states.
+func (r *PeerRIB) IterateExact(pfx netip.Prefix, fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var buf [coveringFamiliesMax]family.Family
+	for _, fam := range r.appendAddressFamilies(buf[:0], pfx.Addr()) {
+		keepGoing := r.families[fam].iterateExact(pfx, func(nlriBytes []byte, entry RouteEntry) bool {
+			return fn(fam, nlriBytes, entry)
+		})
+		if !keepGoing {
+			return
+		}
+	}
+}
+
+// appendAddressFamilies appends to dst, in family order, this peer's CIDR
+// families of addr's IP version: the families IterateCovering and IterateExact
+// read. The families map yields in a different order on every run, and a
+// streamed answer cannot sort its rows afterwards, so the few families that can
+// answer are put in order first. Caller MUST hold r.mu.
+func (r *PeerRIB) appendAddressFamilies(dst []family.Family, addr netip.Addr) []family.Family {
+	start := len(dst)
+	for fam, rib := range r.families {
+		if !rib.cidr {
+			continue
+		}
+		if familyHoldsAddress(fam, addr) {
+			dst = append(dst, fam)
+		}
+	}
+	slices.SortFunc(dst[start:], compareFamilies)
+	return dst
+}
+
+// compareFamilies orders two families as family.FamilyLess does, in the form
+// slices.SortFunc takes.
+func compareFamilies(a, b family.Family) int {
+	if family.FamilyLess(a, b) {
+		return -1
+	}
+	if family.FamilyLess(b, a) {
+		return 1
+	}
+	return 0
+}
+
 // ModifyFamilyEntry calls fn with a pointer to the entry for the given NLRI in the given family.
 // fn may mutate the entry. Returns false if the NLRI does not exist.
 func (r *PeerRIB) ModifyFamilyEntry(fam family.Family, nlriBytes []byte, fn func(entry *RouteEntry)) bool {

@@ -4002,6 +4002,8 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib \| received` | read-only | Stream received routes only |
 | `show bgp rib \| advertised` | read-only | Stream advertised routes only |
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
+| `show bgp rib \| received \| covering <address>` | read-only | Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on `show bgp rib best` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --> |
+| `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib received exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
 | `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |

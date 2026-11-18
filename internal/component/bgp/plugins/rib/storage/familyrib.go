@@ -622,6 +622,104 @@ func (r *FamilyRIB) iterateEntry(fn func(nlriBytes []byte, entry RouteEntry) boo
 	})
 }
 
+// iterateCovering calls fn for every path whose prefix contains addr, the most
+// specific prefix first, and under ADD-PATH every path of each such prefix. It
+// answers false when fn stopped the read.
+//
+// It reads the trie entries on the path to addr and no others
+// (store.Store.Covering), so its cost follows the address length and the paths
+// found, never the table size. A non-CIDR family has no prefix to contain an
+// address, and a family of the other IP version holds none that can, so both
+// answer nothing: that is the answer, not a failure to look.
+func (r *FamilyRIB) iterateCovering(addr netip.Addr, fn func(nlriBytes []byte, entry RouteEntry) bool) bool {
+	if !r.cidr {
+		return true
+	}
+	if !familyHoldsAddress(r.fam, addr) {
+		return true
+	}
+	var buf [21]byte
+	keepGoing := true
+	if !r.addPath {
+		r.direct.Covering(addr, func(pfx netip.Prefix, entry RouteEntry) bool {
+			nlri := r.buildNLRIBytes(0, pfx, buf[:])
+			if nlri == nil {
+				return true
+			}
+			keepGoing = fn(nlri, entry)
+			return keepGoing
+		})
+		return keepGoing
+	}
+	r.multi.Covering(addr, func(pfx netip.Prefix, ps pathSet) bool {
+		for i := range ps.entries {
+			nlri := r.buildNLRIBytes(ps.entries[i].pathID, pfx, buf[:])
+			if nlri == nil {
+				continue
+			}
+			keepGoing = fn(nlri, ps.entries[i].entry)
+			if !keepGoing {
+				return false
+			}
+		}
+		return true
+	})
+	return keepGoing
+}
+
+// iterateExact calls fn for every path stored for pfx itself, and under
+// ADD-PATH every path of it. It answers false when fn stopped the read.
+//
+// It reads the one trie entry keyed by pfx (store.Store.Lookup), never another
+// prefix and never the table: a longer prefix that shares pfx's leading bits
+// is a different entry. pfx MUST be masked, as the store keys its entries by
+// the masked prefix. A non-CIDR family, and a family of the other IP version,
+// hold no entry for pfx, so both answer nothing: that is the answer, not a
+// failure to look.
+func (r *FamilyRIB) iterateExact(pfx netip.Prefix, fn func(nlriBytes []byte, entry RouteEntry) bool) bool {
+	if !r.cidr {
+		return true
+	}
+	if !familyHoldsAddress(r.fam, pfx.Addr()) {
+		return true
+	}
+	var buf [21]byte
+	if !r.addPath {
+		entry, found := r.direct.Lookup(pfx)
+		if !found {
+			return true
+		}
+		nlri := r.buildNLRIBytes(0, pfx, buf[:])
+		if nlri == nil {
+			return true
+		}
+		return fn(nlri, entry)
+	}
+	ps, found := r.multi.Lookup(pfx)
+	if !found {
+		return true
+	}
+	for i := range ps.entries {
+		nlri := r.buildNLRIBytes(ps.entries[i].pathID, pfx, buf[:])
+		if nlri == nil {
+			continue
+		}
+		if !fn(nlri, ps.entries[i].entry) {
+			return false
+		}
+	}
+	return true
+}
+
+// familyHoldsAddress reports whether a CIDR family's prefixes are of addr's IP
+// version. An IPv4-mapped IPv6 address is IPv6, as netip reads it.
+func familyHoldsAddress(fam family.Family, addr netip.Addr) bool {
+	if addr.Is4() {
+		return fam.AFI == family.AFIIPv4
+	}
+	return fam.AFI == family.AFIIPv6
+}
+
 // Release frees all RouteEntry handles and clears the RIB.
 func (r *FamilyRIB) Release() {
 	switch {

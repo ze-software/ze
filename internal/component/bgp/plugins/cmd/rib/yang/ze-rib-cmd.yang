@@ -24,16 +24,20 @@ or l2vpn.";
                 ze:rpc "ze-rib-api:show";
                 ze:task-support required;
                 description "Look at received or advertised routes with flexible filters: peer,
-family, prefix, AS path regex, community, match expression. Pipe
-operators: | count, | histogram, | graph. This is the main
-route inspection command.";
+family, prefix (a text match that can also list longer prefixes),
+AS path regex, community, match expression, covering, which lists
+the received routes whose prefix contains an IP address, and exact,
+which lists the received routes of one prefix. Pipe operators:
+| count, | histogram, | graph. This is the main route inspection
+command.";
                 ze:help "Query routes in the BGP RIB.";
 
                 container best {
                     config false;
                     ze:command "ze-bgp:rib-best";
                     ze:rpc "ze-rib-api:best";
-                    description "Same filters as 'show bgp rib'. Use '| reason' to see why each
+                    description "Same filters as 'show bgp rib', except covering and exact,
+which read received routes only. Use '| reason' to see why each
 path was selected (local-pref, AS path length, MED, etc.).";
                     ze:help "Show the winning route for each prefix.";
 

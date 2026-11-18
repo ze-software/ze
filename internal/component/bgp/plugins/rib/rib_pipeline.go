@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc4271.md -- route attributes surfaced by show pipelines
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestPathRows)
+// Related: rib_pipeline_covering.go — the covering and exact walks (receivedWalk) and their refusals
 // Related: rib_topology.go — graph terminal for AS path topology rendering
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_attr_format.go — attribute formatting for show enrichment
@@ -88,7 +89,10 @@ type inboundPeerRef struct {
 	peerRIB *storage.PeerRIB
 }
 
-// inboundSource iterates over all adj-rib-in routes matching the peer selector.
+// inboundSource iterates over the adj-rib-in routes its walk selects (every
+// route, the ones covering an address, or the ones of one prefix:
+// receivedWalk) of the peers matching
+// the peer selector.
 // Caller (showPipeline) holds r.peerMu.RLock across construction and the full
 // drain, and PeerRIB iteration uses PeerRIB's own lock.
 //
@@ -136,14 +140,21 @@ func retainEntry(entry *storage.RouteEntry) bool {
 
 type inboundSource struct {
 	r       *RIBManager
+	walk    receivedWalk
 	peers   []inboundPeerRef
 	peerIdx int
 	items   []RouteItem
 	itemIdx int
 	count   int
+
+	// walked counts the entries the walk handed this source, kept or not. It
+	// is the cost a covering walk promises to bound by the address length,
+	// and an exact walk by one entry per family, rather than the table size;
+	// TestCoveringReadsOnlyThePath and TestExactReadsOneEntry read it.
+	walked int
 }
 
-func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
+func newInboundSource(r *RIBManager, selectorStr string, walk receivedWalk) *inboundSource {
 	sel := selector.ParseDefault(selectorStr)
 	// Caller holds r.peerMu.RLock (see type doc); read r.bgpPeers under it.
 	// RouteItem.Peer is the JSON output string; PeerRIB caches the
@@ -159,9 +170,9 @@ func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
 	// its rows afterwards without holding them all, which is the thing
 	// streaming exists to avoid. Ordering the peer list costs one sort of a
 	// small slice and makes the whole answer reproducible: peers in address
-	// order, and each peer's routes in the order IterateSorted yields them.
+	// order, and each peer's routes in the order the walk yields them.
 	sort.Slice(peers, func(i, j int) bool { return peers[i].peer < peers[j].peer })
-	return &inboundSource{r: r, peers: peers}
+	return &inboundSource{r: r, walk: walk, peers: peers}
 }
 
 func (s *inboundSource) Next() (RouteItem, bool) {
@@ -188,7 +199,8 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		// lock, so asking inside the callback deadlocks against any writer that
 		// arrives between the two (PeerRIB.IsAddPath).
 		addPath := ref.peerRIB.AddPathFamilies()
-		ref.peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+		s.walk.read(ref.peerRIB, func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			s.walked++
 			// Retained INSIDE the iteration, which runs under the same PeerRIB
 			// lock Remove releases handles under. Taking the reference here is
 			// what makes the buffer safe to read after the walk gives that lock
@@ -239,6 +251,7 @@ type protocolInboundSource struct {
 	r        *RIBManager
 	protoID  redistevents.ProtocolID
 	selector string
+	walk     receivedWalk
 	peers    []string
 	peerIdx  int
 	items    []RouteItem
@@ -246,7 +259,7 @@ type protocolInboundSource struct {
 	count    int
 }
 
-func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, selectorStr string) *protocolInboundSource {
+func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, selectorStr string, walk receivedWalk) *protocolInboundSource {
 	sel := selector.ParseDefault(selectorStr)
 	protoPeers := r.ribInPool[protoID]
 	var peers []string
@@ -258,7 +271,7 @@ func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, se
 	// Sorted for the reason newInboundSource states: a streamed answer cannot
 	// order its rows after the fact.
 	slices.Sort(peers)
-	return &protocolInboundSource{r: r, protoID: protoID, selector: selectorStr, peers: peers}
+	return &protocolInboundSource{r: r, protoID: protoID, selector: selectorStr, walk: walk, peers: peers}
 }
 
 func (s *protocolInboundSource) Next() (RouteItem, bool) {
@@ -295,7 +308,7 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 		// PeerRIB.IsAddPath states: asking inside the callback takes the read
 		// lock the iteration already holds.
 		addPath := peerRIB.AddPathFamilies()
-		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+		s.walk.read(peerRIB, func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
 			// Retained under the iteration's own lock: see inboundSource.Next.
 			if !retainEntry(&entry) {
 				return true
@@ -434,9 +447,12 @@ type combinedSource struct {
 	count    int
 }
 
+// newCombinedSource reads both directions in full. A covering or exact walk
+// never reaches it: showPipeline refuses both on any scope that holds sent
+// routes (refuseCoveringScope, refuseExactScope).
 func newCombinedSource(r *RIBManager, selector string) *combinedSource {
 	return &combinedSource{
-		inbound:  newInboundSource(r, selector),
+		inbound:  newInboundSource(r, selector, receivedWalk{}),
 		outbound: newOutboundSource(r, selector),
 	}
 }
@@ -1239,6 +1255,18 @@ const (
 	filterFirst     = "first"
 	filterLast      = "last"
 
+	// filterCovering selects the received routes whose prefix contains one
+	// address. It is a source selector like `peer`, not a stage: the walk reads
+	// it (receivedWalk, rib_pipeline_covering.go), so apply() and filterKeywords
+	// do not carry it.
+	filterCovering = "covering"
+
+	// filterExact selects the received routes of one prefix, read from the
+	// trie by the prefix itself. It is a source selector for the reason
+	// filterCovering states. `prefix` stays the text filter: it keeps any row
+	// whose prefix text starts with its value, longer prefixes included.
+	filterExact = "exact"
+
 	terminalCount     = "count"
 	terminalJSON      = "json"
 	terminalHistogram = "histogram"
@@ -1260,9 +1288,19 @@ const (
 // walk covers those with a reference instead (bestSource.Next,
 // rib_pipeline_best.go), and this one is not converted.
 func (r *RIBManager) showPipeline(selector string, args []string) any {
-	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
+	scope, pipeSelector, walk, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
 		return refusePipelineArgs(errMsg, "show bgp rib count")
+	}
+	if walk.isCovering() {
+		if scope != scopeReceived {
+			return refuseCoveringScope(walk.covering)
+		}
+	}
+	if walk.isExact() {
+		if scope != scopeReceived {
+			return refuseExactScope(walk.exact)
+		}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -1272,12 +1310,12 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	// daemon never holds the whole table as one document
 	// (spec-record-answers-3-zero-alloc AC-4).
 	if !hasTerminal(stages) {
-		return sdk.Records{Key: showRowsEnvelopeKey, Rows: r.showRows(selector, scope, stages)}
+		return sdk.Records{Key: showRowsEnvelopeKey, Rows: r.showRows(selector, scope, walk, stages)}
 	}
 
 	// A terminal builds its whole answer here, so nothing is written to a
 	// transport while this runs and the sources may be drained in one go.
-	source, release := r.newShowSource(selector, scope)
+	source, release := r.newShowSource(selector, scope, walk)
 	defer release()
 
 	// Apply filter stages
@@ -1310,13 +1348,17 @@ const showRowsEnvelopeKey = "routes"
 // materializes a peer inside Next. Holding it across the drain as well would
 // nest a reader inside a reader, which deadlocks the moment a writer queues
 // between them: Go's RWMutex makes a later RLock wait behind a waiting writer.
-func (r *RIBManager) newShowSource(selector, scope string) (pipelineIterator, func()) {
+//
+// walk selects which received routes the received scope reads. showPipeline
+// refuses a covering or exact walk on the other two scopes before it gets here, which
+// is why only the received case passes it on.
+func (r *RIBManager) newShowSource(selector, scope string, walk receivedWalk) (pipelineIterator, func()) {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
 	switch scope {
 	case scopeReceived:
-		src := newInboundSource(r, selector)
+		src := newInboundSource(r, selector, walk)
 		return src, src.release
 	case scopeSent:
 		return newOutboundSource(r, selector), func() {}
@@ -1333,9 +1375,9 @@ func (r *RIBManager) newShowSource(selector, scope string) (pipelineIterator, fu
 // REFERENCE for the rows they have buffered, because PeerRIB.Remove releases an
 // entry's handles under the PeerRIB lock alone and a released slot is
 // re-interned in a release build.
-func (r *RIBManager) showRows(selector, scope string, stages []pipelineStage) iter.Seq[rpc.RowRecord] {
+func (r *RIBManager) showRows(selector, scope string, walk receivedWalk, stages []pipelineStage) iter.Seq[rpc.RowRecord] {
 	return func(yield func(rpc.RowRecord) bool) {
-		source, release := r.newShowSource(selector, scope)
+		source, release := r.newShowSource(selector, scope, walk)
 		defer release()
 
 		current := source
@@ -1440,12 +1482,21 @@ var scopeKeywords = map[string]string{
 	"sent-received": scopeSentReceived,
 }
 
-// parsePipelineArgs parses args into scope, selector, and ordered stage list.
-// Returns (scope, peerSelector, stages, errorMessage).
+// parsePipelineArgs parses args into scope, selector, received walk, and
+// ordered stage list.
+// Returns (scope, peerSelector, walk, stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
-func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) {
+//
+// `covering <address>` and `exact <prefix>` are parsed into the walk, the way
+// `peer` is parsed into the selector, and the value is read here once rather
+// than per row. The walk answers every received route unless one of them was
+// given; both in one command is refused (walkConflictRefusal). Whether the
+// scope can take such a walk is the caller's to judge: `show bgp rib` refuses
+// it on sent routes, and `show bgp rib protocol` has received routes only.
+func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineStage, string) {
 	scope := scopeSentReceived
 	selector := ""
+	var walk receivedWalk
 	var stages []pipelineStage
 
 	i := 0
@@ -1467,11 +1518,11 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 		if _, ok := scopeKeywords[keyword]; ok {
 			if sawTerminal {
 				var tb textbuf.Buffer
-				return "", "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
+				return "", "", receivedWalk{}, nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			if scopeName != "" {
 				var tb textbuf.Buffer
-				return "", "", nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
+				return "", "", receivedWalk{}, nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
 			}
 			scope = scopeKeywords[keyword]
 			scopeName = keyword
@@ -1480,16 +1531,60 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 		}
 		if keyword == rowKeyPeer {
 			if sawTerminal {
-				return "", "", nil, "filter after terminal: peer"
+				return "", "", receivedWalk{}, nil, "filter after terminal: peer"
 			}
 			if selector != "" {
-				return "", "", nil, "duplicate peer filter"
+				return "", "", receivedWalk{}, nil, "duplicate peer filter"
 			}
 			i++
 			if i >= len(args) {
-				return "", "", nil, "peer requires a value"
+				return "", "", receivedWalk{}, nil, "peer requires a value"
 			}
 			selector = args[i]
+			i++
+			continue
+		}
+		if keyword == filterCovering {
+			if sawTerminal {
+				return "", "", receivedWalk{}, nil, "filter after terminal: covering"
+			}
+			if walk.isCovering() {
+				return "", "", receivedWalk{}, nil, "duplicate covering filter: one address per lookup"
+			}
+			i++
+			if i >= len(args) {
+				return "", "", receivedWalk{}, nil, "covering requires a value: an IP address such as 192.0.2.1"
+			}
+			addr, errMsg := parseCoveringAddress(args[i])
+			if errMsg != "" {
+				return "", "", receivedWalk{}, nil, errMsg
+			}
+			if walk.isExact() {
+				return "", "", receivedWalk{}, nil, walkConflictRefusal(addr, walk.exact)
+			}
+			walk = coveringWalk(addr)
+			i++
+			continue
+		}
+		if keyword == filterExact {
+			if sawTerminal {
+				return "", "", receivedWalk{}, nil, "filter after terminal: exact"
+			}
+			if walk.isExact() {
+				return "", "", receivedWalk{}, nil, "duplicate exact filter: one prefix per lookup"
+			}
+			i++
+			if i >= len(args) {
+				return "", "", receivedWalk{}, nil, "exact requires a value: a prefix with its mask such as 10.0.0.0/8"
+			}
+			pfx, errMsg := parseExactPrefix(args[i])
+			if errMsg != "" {
+				return "", "", receivedWalk{}, nil, errMsg
+			}
+			if walk.isCovering() {
+				return "", "", receivedWalk{}, nil, walkConflictRefusal(walk.covering, pfx)
+			}
+			walk = exactWalk(pfx)
 			i++
 			continue
 		}
@@ -1497,16 +1592,16 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 		if filterKeywords[keyword] {
 			if sawTerminal {
 				var tb textbuf.Buffer
-				return "", "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
+				return "", "", receivedWalk{}, nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			i++
 			if i >= len(args) {
 				var tb textbuf.Buffer
-				return "", "", nil, tb.Str(keyword).Str(" requires a value").String()
+				return "", "", receivedWalk{}, nil, tb.Str(keyword).Str(" requires a value").String()
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return "", "", nil, errMsg
+					return "", "", receivedWalk{}, nil, errMsg
 				}
 			}
 			// first/last take a positive count. The client-side ValidatePipes
@@ -1516,7 +1611,7 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			if keyword == filterFirst || keyword == filterLast {
 				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
 					var tb textbuf.Buffer
-					return "", "", nil, tb.Str(keyword).Str(" requires a positive number").String()
+					return "", "", receivedWalk{}, nil, tb.Str(keyword).Str(" requires a positive number").String()
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
@@ -1526,7 +1621,7 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 
 		if terminalKeywords[keyword] {
 			if sawTerminal {
-				return "", "", nil, "multiple terminals not allowed"
+				return "", "", receivedWalk{}, nil, "multiple terminals not allowed"
 			}
 			sawTerminal = true
 			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
@@ -1535,10 +1630,10 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 		}
 
 		var tb textbuf.Buffer
-		return "", "", nil, tb.Str("unknown keyword: ").Str(keyword).String()
+		return "", "", receivedWalk{}, nil, tb.Str("unknown keyword: ").Str(keyword).String()
 	}
 
-	return scope, selector, stages, ""
+	return scope, selector, walk, stages, ""
 }
 
 // hasTerminal returns true if any stage is a terminal.

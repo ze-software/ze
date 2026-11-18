@@ -2601,6 +2601,82 @@ and names a valid count command to start from. A JSON object containing an
 oversized graph, use the same refusal path.
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- refusePipelineArgs, commandAnswer -->
 
+### The covering read
+
+`show bgp rib received covering <address>` answers every received route whose
+prefix contains one IPv4 or IPv6 address: within each peer, family by family,
+the most specific prefix first, with every ADD-PATH path of each prefix. It is
+the read a looking glass needs when a user types a host address, and it must
+not cost a full-table scan, because that endpoint is public.
+
+The read follows the trie, never the table. `store.Store.Covering` walks the
+BART nodes on the path from the root to the address (`bart.Table.Supernets`),
+so its cost follows the address length, at most one entry per prefix length,
+whatever the table holds. `FamilyRIB.iterateCovering` runs it over `direct`, or
+over `multi` with every path of each `pathSet`, and `PeerRIB.IterateCovering`
+runs it over the peer's CIDR families of the address's IP version, in family
+order, under the PeerRIB read lock. A non-CIDR family holds no prefix to
+contain an address and contributes nothing. The `maprib` build has no trie, so
+its `Store.Covering` scans the map and sorts the matches; the cost bound belongs
+to the default backend.
+
+`covering` is a source selector, like `peer`, and not a filter stage:
+`parsePipelineArgs` reads the address once into a `receivedWalk`, and the
+received sources (`inboundSource`, and `protocolInboundSource` for `show bgp rib
+protocol`) read each peer through that walk. A stage would see every row the
+source yields, which is the scan the read exists to avoid. The walk changes
+which entries a source reads and nothing else, so the locking and the pool
+references of the section above apply unchanged, and the filters and
+terminals after it compose as they do on the whole table.
+
+The value is a bare address. A value with a mask, a zone, or anything that is
+not an address is refused at parse time with the value and a form that works;
+`prefix` keeps its text meaning, partial form included. The scopes that hold
+sent routes refuse `covering`, naming the received form, because the
+Adj-RIB-Out is held in maps with no trie to walk. `show bgp rib best` refuses it
+too: its source collects prefixes with a whole-table walk of every peer.
+<!-- source: internal/core/rib/store/store_bart.go -- Store.Covering -->
+<!-- source: internal/core/rib/store/store_map.go -- Store.Covering -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateCovering, familyHoldsAddress -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateCovering -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, refuseCoveringScope, coveringOnBestRefusal -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, showPipeline, inboundSource -->
+
+### The exact read
+
+`show bgp rib received exact <prefix>` answers the received routes whose prefix
+is that prefix: within each peer, family by family, every ADD-PATH path of it.
+It is the read a looking glass needs when a user types a prefix with its mask.
+The `prefix` filter cannot answer that question. It is a text filter
+(`prefixFilter`), so it keeps every row whose prefix text starts with its value:
+`prefix 192.0.0.0/2` also lists `192.0.0.0/24`, `prefix 2000::/3` also lists
+`2000::/32`, and it reads the whole table to find them. `prefix` keeps that
+meaning, because operators use its partial form (`prefix 10.0`).
+
+The read is one trie lookup per family, never a scan. `FamilyRIB.iterateExact`
+reads the entry keyed by the prefix (`store.Store.Lookup`) from `direct`, or
+from `multi` with every path of its `pathSet`, and `PeerRIB.IterateExact` runs
+it over the peer's CIDR families of the prefix's IP version, in family order,
+under the PeerRIB read lock; `PeerRIB.appendAddressFamilies` picks and orders
+those families for both the covering and the exact read. A non-CIDR family, and
+a family of the other IP version, contribute nothing.
+
+`exact` is the second kind of `receivedWalk`: the zero value reads the whole
+table, `coveringWalk` the routes containing an address, `exactWalk` the routes
+of one prefix. `parsePipelineArgs` reads the value once. It refuses a bare
+address (naming the `covering` form), a value that is not a prefix, a zone, and
+a prefix with host bits set (naming the masked form, `10.0.0.1/8` gives
+`10.0.0.0/8`), because the store keys its entries by the masked prefix and
+masking silently would answer a prefix the operator did not write. One command
+takes `covering` or `exact`, never both (`walkConflictRefusal`). The scopes
+follow `covering`: `received` and `show bgp rib protocol` answer, while the
+scopes holding sent routes and `show bgp rib best` refuse with the received
+form, since neither the sent sources nor the best-path source take a walk.
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateExact -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateExact, appendAddressFamilies -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, exactWalk, parseExactPrefix, exactValueRefusal, walkConflictRefusal, refuseExactScope, exactOnBestRefusal -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- prefixFilter, parsePipelineArgs, showPipeline -->
+
 ### Example: IPv4 Unicast
 
 ```

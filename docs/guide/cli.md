@@ -81,9 +81,29 @@ what `show | blame` reports for the changes the console commits.
 | `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
 | `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
+| `show bgp rib received covering <address>` | Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families) |
+| `show bgp rib received exact <prefix>` | Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families) |
 | `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
 | `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, parseExactPrefix, walkConflictRefusal, refuseCoveringScope, refuseExactScope -->
+
+`covering` takes one address with no mask: `show bgp rib received covering
+192.0.2.1` lists `192.0.2.0/24`, then `192.0.0.0/22`, then `0.0.0.0/0` when a
+peer holds all three. It reads received routes only, so on `sent` or on the
+default scope it is refused with the received form to type.
+
+`exact` takes one prefix with its mask and answers that prefix alone: `show bgp
+rib received exact 192.0.0.0/2` lists the routes of `192.0.0.0/2` and not
+`192.0.0.0/24`. A bare address is refused with the `covering` form to type, and
+a prefix with host bits set is refused with its masked form (`10.0.0.1/8` names
+`10.0.0.0/8`). It reads received routes only, like `covering`, and one command
+takes `covering` or `exact`, never both.
+
+`prefix` stays a text filter on the prefix string, so it can also match longer
+prefixes that share its leading text: `prefix 10.0` matches `10.0.0.0/24` and
+not `10.10.0.0/16`, and `prefix 192.0.0.0/2` matches `192.0.0.0/24` too. Use
+`exact` to ask for one prefix.
 
 See [Route Injection guide](route-injection.md) for UPDATE syntax details.
 

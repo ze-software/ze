@@ -139,6 +139,26 @@ func (s *Store[T]) LookupLPM(addr netip.Addr) (T, netip.Prefix, bool) {
 	return val, pfx, true
 }
 
+// Covering visits every entry whose prefix contains addr, the most specific
+// prefix first, and stops when fn returns false. A prefix of addr's full
+// length (a host route) contains it too. An invalid addr visits nothing.
+//
+// The cost follows the address length, not the table size: bart.Table.Supernets
+// walks the trie nodes on the path from the root to addr and yields the
+// entries stored on that path, so a full table answers in the same steps as a
+// small one. That is why a covering question reads this rather than Iterate
+// with a Contains test.
+func (s *Store[T]) Covering(addr netip.Addr, fn func(pfx netip.Prefix, v T) bool) {
+	if !addr.IsValid() {
+		return
+	}
+	for pfx, v := range s.trie.Supernets(netip.PrefixFrom(addr, addr.BitLen())) {
+		if !fn(pfx, v) {
+			return
+		}
+	}
+}
+
 // Reset clears every entry. The backing trie is replaced with an empty one.
 // Callers that need per-entry cleanup (e.g. releasing pool handles on
 // RouteEntry) must run ModifyAll first.

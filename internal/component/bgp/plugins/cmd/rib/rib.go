@@ -99,6 +99,11 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
 		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", TakesArg: true},
 		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		// covering and exact take the received scope only, and `show bgp rib
+		// best` refuses both, so they are declared here and not below
+		// (rib_pipeline_covering.go).
+		command.PipeFilter{Name: "covering", Description: "Received routes whose prefix contains an IP address", TakesArg: true},
+		command.PipeFilter{Name: "exact", Description: "Received routes of exactly one prefix", TakesArg: true},
 		command.PipeFilter{Name: "path", Description: "Filter by AS path", TakesArg: true},
 		command.PipeFilter{Name: "community", Description: "Filter by standard community", TakesArg: true},
 		command.PipeFilter{Name: "match", Description: "Cross-field structured match", TakesArg: true},

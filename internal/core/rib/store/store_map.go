@@ -6,7 +6,9 @@
 package store
 
 import (
+	"cmp"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -123,6 +125,29 @@ func (s *Store[T]) LookupLPM(addr netip.Addr) (T, netip.Prefix, bool) {
 		return zero, netip.Prefix{}, false
 	}
 	return bestVal, bestPfx, true
+}
+
+// Covering visits every entry whose prefix contains addr, the most specific
+// prefix first, and stops when fn returns false. It keeps the order the BART
+// variant gives. A map has no path to walk, so this variant scans every entry,
+// as its LookupLPM does: the cost bound of a covering read belongs to the
+// default backend, and `maprib` is the fallback build that gives it up.
+func (s *Store[T]) Covering(addr netip.Addr, fn func(pfx netip.Prefix, v T) bool) {
+	if !addr.IsValid() {
+		return
+	}
+	var covering []netip.Prefix
+	for pfx := range s.routes {
+		if pfx.Contains(addr) {
+			covering = append(covering, pfx)
+		}
+	}
+	slices.SortFunc(covering, func(a, b netip.Prefix) int { return cmp.Compare(b.Bits(), a.Bits()) })
+	for _, pfx := range covering {
+		if !fn(pfx, s.routes[pfx]) {
+			return
+		}
+	}
 }
 
 // Reset clears every entry. Callers that need per-entry cleanup must run

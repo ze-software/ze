@@ -484,6 +484,12 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 			i++
 			continue
 		}
+		if keyword == filterCovering {
+			return "", nil, coveringOnBestRefusal
+		}
+		if keyword == filterExact {
+			return "", nil, exactOnBestRefusal
+		}
 
 		if filterKeywords[keyword] {
 			if sawTerminal {

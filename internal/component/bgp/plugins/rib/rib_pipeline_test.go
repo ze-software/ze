@@ -71,7 +71,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Use the source iterator
-	src := newInboundSource(r, "*")
+	src := newInboundSource(r, "*", receivedWalk{})
 	item, ok := src.Next()
 	require.True(t, ok, "expected at least one item")
 	assert.Equal(t, "192.0.2.1", item.Peer)
@@ -702,7 +702,7 @@ func TestFilterMatchCrossField(t *testing.T) {
 // VALIDATES: path filter with non-numeric ASN returns error from parsePipelineArgs.
 // PREVENTS: invalid ASN silently passing through to matchASPath where it returns false.
 func TestParsePipelineInvalidASN(t *testing.T) {
-	_, _, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
+	_, _, _, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
 	assert.NotEmpty(t, errMsg, "expected error for invalid ASN")
 	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
 
@@ -751,7 +751,7 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 // VALIDATES: AC-10 — terminal before filter is invalid.
 // PREVENTS: Silently ignoring filters placed after a terminal stage.
 func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
-	_, _, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
+	_, _, _, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
 	assert.Contains(t, errMsg, "filter after terminal")
 }
 
@@ -760,7 +760,7 @@ func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
 // VALIDATES: AC-10 — multiple terminals not allowed.
 // PREVENTS: Ambiguous pipeline with two terminal stages.
 func TestParsePipelineTwoTerminals(t *testing.T) {
-	_, _, _, errMsg := parsePipelineArgs([]string{"count", "json"})
+	_, _, _, _, errMsg := parsePipelineArgs([]string{"count", "json"})
 	assert.Contains(t, errMsg, "multiple terminals not allowed")
 }
 
@@ -1062,12 +1062,12 @@ func TestShowRibLastRingWraps(t *testing.T) {
 // server-side validation a crafted `last 99999999999` would reach the filter.
 func TestParsePipelineArgsRejectsBadFirstLast(t *testing.T) {
 	for _, arg := range []string{"0", "-1", "abc", ""} {
-		_, _, _, errMsg := parsePipelineArgs([]string{"last", arg})
+		_, _, _, _, errMsg := parsePipelineArgs([]string{"last", arg})
 		assert.NotEmpty(t, errMsg, "last %q should be rejected", arg)
-		_, _, _, errMsg = parsePipelineArgs([]string{"first", arg})
+		_, _, _, _, errMsg = parsePipelineArgs([]string{"first", arg})
 		assert.NotEmpty(t, errMsg, "first %q should be rejected", arg)
 	}
-	if _, _, _, errMsg := parsePipelineArgs([]string{"last", "5"}); errMsg != "" {
+	if _, _, _, _, errMsg := parsePipelineArgs([]string{"last", "5"}); errMsg != "" {
 		t.Errorf("last 5 should be accepted, got %q", errMsg)
 	}
 }
