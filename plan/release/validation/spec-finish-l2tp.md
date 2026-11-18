@@ -675,4 +675,8 @@ also pass exact race reruns after intended REDs. Reached API package and daemon
 checks, ordered accounting and native integration remain open. The six affected
 web outputs were captured, independently reviewed and refreshed byte-exactly;
 the full template comparison and three affected HTTP comparisons now pass.
-These checks do not replace the full 48/47/46 lab proof.
+The web and RADIUS implementation is committed in `585fcdb081`. A real-loader
+regression also exposed dropped YANG boolean arguments; the minimal lowerer
+fix passes explicit false and true plus type, presence and invalid-value checks
+after its intended RED. Its reached packages and the new daemon draft still
+need validation. These checks do not replace the full 48/47/46 lab proof.

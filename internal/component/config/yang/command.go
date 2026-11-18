@@ -749,6 +749,11 @@ func (patterns compiledPatterns) yangTypeToArgDef(name string, leaf *gyang.Entry
 	case gyang.Yempty:
 		def, err = command.NewFlagArg(name, opts)
 
+	case gyang.Ybool:
+		// A boolean carries its explicit true/false value. Only Yempty is
+		// presence-only: treating false as flag presence changes its meaning.
+		def, err = command.NewEnumArg(name, []string{"false", "true"}, opts)
+
 	case gyang.Yuint8:
 		opts.RangeMessage = typeConstraintMessages(declared).Range()
 		def, err = command.NewUintArg(name, 8, uintRanges(yt.Range), opts)
@@ -790,7 +795,7 @@ func (patterns compiledPatterns) yangTypeToArgDef(name string, leaf *gyang.Entry
 		def, err = command.NewUnionArg(name, members, opts)
 
 	case gyang.Ynone, gyang.Yint8, gyang.Yint16, gyang.Yint32, gyang.Yint64,
-		gyang.Ybinary, gyang.Ybits, gyang.Ybool, gyang.Ydecimal64,
+		gyang.Ybinary, gyang.Ybits, gyang.Ydecimal64,
 		gyang.Yidentityref, gyang.YinstanceIdentifier, gyang.Yleafref:
 		return command.ArgDef{}, false
 	default:

@@ -2981,6 +2981,13 @@ ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
 
+A `boolean` command leaf carries either `false` or `true`. The lowerer uses
+the enum validator for those two lexical values while retaining the source
+YANG type name in metadata. `empty` leaves use the presence-only flag
+constructor. Supplied `false` remains an argument value through validation
+and invocation writing.
+<!-- source: internal/component/config/yang/command.go -- argDefFor, yangTypeToArgDef -->
+
 `yangTypeToArgDef` builds every definition through these constructors and
 assigns the internal `ArgKind`; raw argument strings never choose it. A
 constructor refusal there is a BUG: goyang's type resolution sorts, coalesces
