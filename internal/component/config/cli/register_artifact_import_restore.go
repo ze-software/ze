@@ -9,8 +9,8 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-config-cli:artifact-import", Handler: artifactHandler(artifactImport), AuditAction: audit.ActionDataConfigImport},
-		pluginserver.RPCRegistration{WireMethod: "ze-config-cli:artifact-restore-config", Handler: artifactResponseHandler(artifactRestoreConfig), AuditAction: audit.ActionDataConfigRestore},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-import", Handler: artifactHandler(artifactImport), AuditAction: audit.ActionDataConfigImport},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-restore-config", Handler: artifactResponseHandler(artifactRestoreConfig), AuditAction: audit.ActionDataConfigRestore},
 	)
 	command.RegisterShape([]string{"request config artifact import", "request config artifact restore config"}, command.ShapeDoc)
 }

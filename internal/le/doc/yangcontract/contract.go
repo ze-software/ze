@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- the YANG/handler contract gate
 // Overview: report.go -- the answer this file produces
 // Detail: contract_bgp.go -- the BGP command handlers, behind their own tag
+// Detail: contract_exabgp.go -- the ExaBGP CLI owner, behind its own tag
 //
 // contract.go cross-checks the YANG command tree against the registered command
 // handlers, in both directions: a ze:command node naming a handler nobody
@@ -455,16 +456,22 @@ func collectLocalHandlers(root string) ([]string, error) {
 // localCommandRegistryFiles answers the source files that register a local
 // command handler.
 //
-// Owners register their local commands from their own register.go through the
-// importable registry rather than from cmd/ze, so every register.go under
-// internal/ is scanned. Until the command-provider aggregator lands, this
-// filesystem walk is what keeps the YANG/handler contract honest.
+// Owners register their local commands from register.go or register_*.go
+// through the importable registry rather than from cmd/ze. Both forms are
+// scanned under internal/ and cmd/ze, excluding test files. Until the
+// command-provider aggregator lands, this filesystem walk is what keeps the
+// YANG/handler contract honest.
 func localCommandRegistryFiles(root string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(root, "cmd", "ze", "*", "register.go"))
+	candidates, err := filepath.Glob(filepath.Join(root, "cmd", "ze", "*", "register*.go"))
 	if err != nil {
 		return nil, err
 	}
-	files = append(files, filepath.Join(root, "cmd", "ze", "main.go"))
+	files := []string{filepath.Join(root, "cmd", "ze", "main.go")}
+	for _, path := range candidates {
+		if localCommandRegistrySource(path) {
+			files = append(files, path)
+		}
+	}
 
 	internalRoot := filepath.Join(root, "internal")
 	walkErr := filepath.Walk(internalRoot, func(path string, info os.FileInfo, err error) error {
@@ -474,18 +481,21 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 			// never part of the tree either: another session shares this
 			// checkout (internal/le/repo/inventory, vanished). Anything else is a part
 			// of the tree this scan cannot read, and a scan that silently
-			// skips a register.go reports every command it holds as orphaned
+			// skips a registration file reports every command it holds as orphaned
 			// in one direction and none in the other.
 			if path == internalRoot || vanished(path) {
 				return filepath.SkipAll
 			}
 			return err
 		}
-		if info.IsDir() || filepath.Base(path) != "register.go" {
+		if info.IsDir() {
 			return nil
 		}
-		// Every register.go is read, because registration is where a local
-		// handler is declared and collectLocalHandlersFromFile keeps only the
+		if !localCommandRegistrySource(path) {
+			return nil
+		}
+		// Every registration source is read, because registration is where a
+		// local handler is declared and collectLocalHandlersFromFile keeps only the
 		// calls under the `command` package name. A list of owner directories
 		// here was a second declaration of who registers: the help plugin
 		// registered `help command` and `help ai` and was reported as having
@@ -498,6 +508,22 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 	}
 	slices.Sort(files)
 	return files, nil
+}
+
+// localCommandRegistrySource recognizes the owner's registration files at
+// both discovery roots without counting tests or source backups as handlers.
+func localCommandRegistrySource(path string) bool {
+	name := filepath.Base(path)
+	if name == "register.go" {
+		return true
+	}
+	if !strings.HasPrefix(name, "register_") {
+		return false
+	}
+	if !strings.HasSuffix(name, ".go") {
+		return false
+	}
+	return !strings.HasSuffix(name, "_test.go")
 }
 
 // vanished reports whether path is gone from the filesystem, which is how a

@@ -50,33 +50,33 @@ leaf text { type string { length "64"; pattern "[0-9a-f]{64}"; } mandatory true;
 augment "/configclicmd:show/configclicmd:config" {
 container artifact { config false; description "Inspect private detached artifacts. Select one declared operation below this keyword."; ze:help "Inspect private detached artifacts.";
 container key { config false; description "Inspect raw keys in a private artifact."; ze:help "Inspect private raw artifact keys.";
-container list { config false; ze:command "ze-config-cli:artifact-key-list"; description "List literal-prefix raw keys from the existing native store inventory. This private answer requires edit authorization."; ze:help "List raw artifact keys."; uses workspace;
+container list { config false; ze:command "ze-config:artifact-key-list"; description "List literal-prefix raw keys from the existing native store inventory. This private answer requires edit authorization."; ze:help "List raw artifact keys."; uses workspace;
 leaf prefix { type string { length "0..4096"; } description "Optional literal raw-key prefix. Omission lists the entire selected artifact."; ze:help "Literal raw-key prefix."; }
 }
 }
-container check { config false; ze:command "ze-config-cli:artifact-check"; description "Run the native frame and history integrity checker on exactly one private artifact or completed binary source. Failed verdicts retain their finding rows."; ze:help "Check a private artifact or binary source.";
+container check { config false; ze:command "ze-config:artifact-check"; description "Run the native frame and history integrity checker on exactly one private artifact or completed binary source. Failed verdicts retain their finding rows."; ze:help "Check a private artifact or binary source.";
 leaf artifact { type string { length "64"; pattern "[0-9a-f]{64}"; } description "Private artifact to inspect; select this or transfer, never both."; ze:help "Private artifact to check."; }
 leaf transfer { type string { length "64"; pattern "[0-9a-f]{64}"; } description "Completed private binary source, including a corrupt artifact; select this or artifact, never both."; ze:help "Complete source to check."; }
 }
-container list { config false; ze:command "ze-config-cli:artifact-list"; description "List private uploaded artifacts. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "List private uploaded artifacts.";
+container list { config false; ze:command "ze-config:artifact-list"; description "List private uploaded artifacts. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "List private uploaded artifacts.";
 }
-container info { config false; ze:command "ze-config-cli:artifact-info"; description "Inspect one private artifact inventory. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Inspect one private artifact inventory.";
+container info { config false; ze:command "ze-config:artifact-info"; description "Inspect one private artifact inventory. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Inspect one private artifact inventory.";
 uses workspace;}
 container config { config false; description "Inspect the configurations inside one private artifact."; ze:help "Inspect artifact configurations.";
-container list { config false; ze:command "ze-config-cli:artifact-configs"; description "List stored active and draft configuration records through the native configuration inventory."; ze:help "List artifact configuration records."; uses workspace; }
+container list { config false; ze:command "ze-config:artifact-configs"; description "List stored active and draft configuration records through the native configuration inventory."; ze:help "List artifact configuration records."; uses workspace; }
 }
-container history { config false; ze:command "ze-config-cli:artifact-history"; description "List native indexed configuration history and retained draft state in one artifact."; ze:help "List artifact configuration history."; uses workspace; uses configuration; }
-container diff { config false; ze:command "ze-config-cli:artifact-diff"; description "Compare resolved configurations or one history revision, with the native secret masking and ordered-list semantics. Select exactly one of other or revision."; ze:help "Compare artifact configurations or a revision.";
+container history { config false; ze:command "ze-config:artifact-history"; description "List native indexed configuration history and retained draft state in one artifact."; ze:help "List artifact configuration history."; uses workspace; uses configuration; }
+container diff { config false; ze:command "ze-config:artifact-diff"; description "Compare resolved configurations or one history revision, with the native secret masking and ordered-list semantics. Select exactly one of other or revision."; ze:help "Compare artifact configurations or a revision.";
 uses workspace; uses configuration;
 leaf other { type string { length "1..256"; } description "Another configuration in the same artifact. Select this or revision, never both."; ze:help "Other artifact configuration."; }
 leaf revision { type uint32 { range "1..max"; } description "One-based native history revision of name. Select this or other, never both."; ze:help "History revision to compare."; }
 }
-container source { config false; ze:command "ze-config-cli:artifact-source"; description "Inspect masked committed configuration source. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Inspect masked committed configuration source.";
+container source { config false; ze:command "ze-config:artifact-source"; description "Inspect masked committed configuration source. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Inspect masked committed configuration source.";
 uses workspace; uses configuration;
 leaf path { type string { length "1..4096"; } description "Path for this private operation; ownership comes only from authentication."; ze:help "Path."; }
 }
 container transfer { config false; description "Inspect a private snapshot transfer. Select one declared operation below this keyword."; ze:help "Inspect a private snapshot transfer.";
-container read { config false; ze:command "ze-config-cli:artifact-transfer-read"; description "Read one bounded immutable snapshot chunk. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Read one bounded immutable snapshot chunk.";
+container read { config false; ze:command "ze-config:artifact-transfer-read"; description "Read one bounded immutable snapshot chunk. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Read one bounded immutable snapshot chunk.";
 uses transfer; uses offset;}
 }
 }
@@ -85,79 +85,79 @@ container request { config false;
 container config { config false;
 container artifact { config false; description "Manage private detached artifact workspaces. Select one declared operation below this keyword."; ze:help "Manage private detached artifact workspaces.";
 container bytes { config false; description "Transfer arbitrary private bytes through the existing chunk protocol."; ze:help "Transfer private binary source bytes.";
-container begin { config false; ze:command "ze-config-cli:artifact-bytes-begin"; description "Begin a bounded binary source transfer. Unlike a workspace upload, finishing retains arbitrary bytes for raw-key writes or native check and repair."; ze:help "Begin a private binary source transfer.";
+container begin { config false; ze:command "ze-config:artifact-bytes-begin"; description "Begin a bounded binary source transfer. Unlike a workspace upload, finishing retains arbitrary bytes for raw-key writes or native check and repair."; ze:help "Begin a private binary source transfer.";
 leaf name { type string { length "1..128"; } mandatory true; description "Display label without a directory or control characters."; ze:help "Private source display label."; }
 leaf total { type uint64 { range "0..67108864"; } description "Optional exact byte count, checked before completion. Omission permits bounded unknown-length streaming."; ze:help "Optional exact binary length."; }
 }
 }
 container key { config false; description "Maintain explicit raw keys in a detached private artifact."; ze:help "Maintain private artifact raw keys.";
-container read { config false; ze:command "ze-config-cli:artifact-key-read"; description "Retain an immutable chunked snapshot of one raw key, including empty and binary values. Abort the returned transfer after its final read."; ze:help "Snapshot one raw artifact key."; uses raw-key; }
-container write { config false; ze:command "ze-config-cli:artifact-key-write"; description "Write complete private source bytes to one explicit key through the native store writer and complete artifact staging."; ze:help "Write one raw artifact key."; uses raw-key; uses transfer; }
-container delete { config false; ze:command "ze-config-cli:artifact-key-delete"; description "Remove exactly the selected raw key through the native store operation, preserving every unrelated key."; ze:help "Remove one raw artifact key."; uses raw-key; }
+container read { config false; ze:command "ze-config:artifact-key-read"; description "Retain an immutable chunked snapshot of one raw key, including empty and binary values. Abort the returned transfer after its final read."; ze:help "Snapshot one raw artifact key."; uses raw-key; }
+container write { config false; ze:command "ze-config:artifact-key-write"; description "Write complete private source bytes to one explicit key through the native store writer and complete artifact staging."; ze:help "Write one raw artifact key."; uses raw-key; uses transfer; }
+container delete { config false; ze:command "ze-config:artifact-key-delete"; description "Remove exactly the selected raw key through the native store operation, preserving every unrelated key."; ze:help "Remove one raw artifact key."; uses raw-key; }
 }
-container repair { config false; ze:command "ze-config-cli:artifact-repair"; description "Salvage a completed binary source into a new independent private artifact. The original source stays retained; the native frame and history repair grade determines success, warning or error with complete finding rows."; ze:help "Salvage a source into a new private artifact."; uses transfer; }
+container repair { config false; ze:command "ze-config:artifact-repair"; description "Salvage a completed binary source into a new independent private artifact. The original source stays retained; the native frame and history repair grade determines success, warning or error with complete finding rows."; ze:help "Salvage a source into a new private artifact."; uses transfer; }
 container session { config false; description "Explicitly resume native saved account/local-origin edits in an artifact. These operations retain ordinary committed reads as a separate source."; ze:help "Resume and edit saved native artifact sessions.";
-container resume { config false; ze:command "ze-config-cli:artifact-session-resume"; description "Resume only the authenticated account's native local-origin records and inspect its isolated candidate."; ze:help "Resume this account's saved artifact edits."; uses session-target; }
-container diff { config false; ze:command "ze-config-cli:artifact-session-diff"; description "Resume this account's saved edits and return the native masked difference from committed configuration."; ze:help "Inspect this account's saved difference."; uses session-target; }
-container changes { config false; ze:command "ze-config-cli:artifact-session-changes"; description "Resume this account's native session and inspect its pending change summaries with secret masking."; ze:help "Inspect this account's pending changes."; uses session-target; }
-container history { config false; ze:command "ze-config-cli:artifact-session-history"; description "Resume this account's native session and inspect the existing indexed stored history."; ze:help "Inspect native artifact session history."; uses session-target; }
-container set { config false; ze:command "ze-config-cli:artifact-session-set"; description "Apply one native set statement to this account's resumed isolated candidate, leaving committed content unchanged."; ze:help "Set this account's artifact candidate value."; uses session-change; }
-container activate { config false; ze:command "ze-config-cli:artifact-session-activate"; description "Apply one native activate statement to this account's resumed artifact candidate."; ze:help "Activate a saved artifact candidate path."; uses session-change; }
-container deactivate { config false; ze:command "ze-config-cli:artifact-session-deactivate"; description "Apply one native deactivate statement to this account's resumed artifact candidate."; ze:help "Deactivate a saved artifact candidate path."; uses session-change; }
-container delete { config false; ze:command "ze-config-cli:artifact-session-delete"; description "Apply one native delete statement to this account's resumed artifact candidate."; ze:help "Delete a saved artifact candidate path."; uses session-change; }
-container replace { config false; ze:command "ze-config-cli:artifact-session-replace"; description "Load complete replacement configuration through the native session load producer, without committing it."; ze:help "Replace this account's artifact candidate."; uses session-change; }
-container merge { config false; ze:command "ze-config-cli:artifact-session-merge"; description "Merge complete configuration input through the native session load producer, without committing it."; ze:help "Merge into this account's artifact candidate."; uses session-change; }
-container save { config false; ze:command "ze-config-cli:artifact-session-save"; description "Save this account's pending native changes into the shared draft while retaining other owners' intent."; ze:help "Save this account's artifact draft changes."; uses session-target; }
-container discard { config false; ze:command "ze-config-cli:artifact-session-discard"; description "Discard only this account's resumed session intent, preserving every other account and origin."; ze:help "Discard this account's artifact edits."; uses session-target; }
-container commit { config false; ze:command "ze-config-cli:artifact-session-commit"; description "Validate and publish this account's native saved session through candidate promotion, preserving other owners and reporting conflicts and warnings."; ze:help "Commit this account's artifact session."; uses session-target;
+container resume { config false; ze:command "ze-config:artifact-session-resume"; description "Resume only the authenticated account's native local-origin records and inspect its isolated candidate."; ze:help "Resume this account's saved artifact edits."; uses session-target; }
+container diff { config false; ze:command "ze-config:artifact-session-diff"; description "Resume this account's saved edits and return the native masked difference from committed configuration."; ze:help "Inspect this account's saved difference."; uses session-target; }
+container changes { config false; ze:command "ze-config:artifact-session-changes"; description "Resume this account's native session and inspect its pending change summaries with secret masking."; ze:help "Inspect this account's pending changes."; uses session-target; }
+container history { config false; ze:command "ze-config:artifact-session-history"; description "Resume this account's native session and inspect the existing indexed stored history."; ze:help "Inspect native artifact session history."; uses session-target; }
+container set { config false; ze:command "ze-config:artifact-session-set"; description "Apply one native set statement to this account's resumed isolated candidate, leaving committed content unchanged."; ze:help "Set this account's artifact candidate value."; uses session-change; }
+container activate { config false; ze:command "ze-config:artifact-session-activate"; description "Apply one native activate statement to this account's resumed artifact candidate."; ze:help "Activate a saved artifact candidate path."; uses session-change; }
+container deactivate { config false; ze:command "ze-config:artifact-session-deactivate"; description "Apply one native deactivate statement to this account's resumed artifact candidate."; ze:help "Deactivate a saved artifact candidate path."; uses session-change; }
+container delete { config false; ze:command "ze-config:artifact-session-delete"; description "Apply one native delete statement to this account's resumed artifact candidate."; ze:help "Delete a saved artifact candidate path."; uses session-change; }
+container replace { config false; ze:command "ze-config:artifact-session-replace"; description "Load complete replacement configuration through the native session load producer, without committing it."; ze:help "Replace this account's artifact candidate."; uses session-change; }
+container merge { config false; ze:command "ze-config:artifact-session-merge"; description "Merge complete configuration input through the native session load producer, without committing it."; ze:help "Merge into this account's artifact candidate."; uses session-change; }
+container save { config false; ze:command "ze-config:artifact-session-save"; description "Save this account's pending native changes into the shared draft while retaining other owners' intent."; ze:help "Save this account's artifact draft changes."; uses session-target; }
+container discard { config false; ze:command "ze-config:artifact-session-discard"; description "Discard only this account's resumed session intent, preserving every other account and origin."; ze:help "Discard this account's artifact edits."; uses session-target; }
+container commit { config false; ze:command "ze-config:artifact-session-commit"; description "Validate and publish this account's native saved session through candidate promotion, preserving other owners and reporting conflicts and warnings."; ze:help "Commit this account's artifact session."; uses session-target;
 leaf force { type empty; description "Explicitly accept native validation advisories and native saved-session conflict override behavior."; ze:help "Accept native advisories and conflict overrides."; }
 }
 }
-container set { config false; ze:command "ze-config-cli:artifact-set"; description "Apply one native set statement to a committed artifact configuration. Complete text comes from the authenticated account's private text transfer. Existing drafts and pending candidates remain separate."; ze:help "Set a value in an artifact configuration."; uses native-change; }
-container activate { config false; ze:command "ze-config-cli:artifact-activate"; description "Apply one native activate statement to an artifact configuration, preserving the complete surrounding artifact."; ze:help "Activate an artifact configuration path."; uses native-change; }
-container deactivate { config false; ze:command "ze-config-cli:artifact-deactivate"; description "Apply one native deactivate statement to an artifact configuration, preserving the complete surrounding artifact."; ze:help "Deactivate an artifact configuration path."; uses native-change; }
-container replace { config false; ze:command "ze-config-cli:artifact-replace"; description "Validate and replace one committed configuration using a complete private text transfer. The native tree editor and serializer preserve warnings and validate the result."; ze:help "Replace an artifact configuration."; uses native-change; }
-container rollback { config false; ze:command "ze-config-cli:artifact-rollback"; description "Publish one verified native history revision inside the private artifact. Pending candidate and interrupted publication fences remain enforced."; ze:help "Roll back an artifact configuration."; uses workspace; uses configuration; uses revision; }
-container import { config false; ze:command "ze-config-cli:artifact-import"; description "Import complete raw source bytes under one configuration basename through native data import, preserving other artifact keys and recorded publication fences. Input need not be valid configuration."; ze:help "Import private bytes into an artifact configuration."; uses workspace; uses configuration; uses transfer; }
+container set { config false; ze:command "ze-config:artifact-set"; description "Apply one native set statement to a committed artifact configuration. Complete text comes from the authenticated account's private text transfer. Existing drafts and pending candidates remain separate."; ze:help "Set a value in an artifact configuration."; uses native-change; }
+container activate { config false; ze:command "ze-config:artifact-activate"; description "Apply one native activate statement to an artifact configuration, preserving the complete surrounding artifact."; ze:help "Activate an artifact configuration path."; uses native-change; }
+container deactivate { config false; ze:command "ze-config:artifact-deactivate"; description "Apply one native deactivate statement to an artifact configuration, preserving the complete surrounding artifact."; ze:help "Deactivate an artifact configuration path."; uses native-change; }
+container replace { config false; ze:command "ze-config:artifact-replace"; description "Validate and replace one committed configuration using a complete private text transfer. The native tree editor and serializer preserve warnings and validate the result."; ze:help "Replace an artifact configuration."; uses native-change; }
+container rollback { config false; ze:command "ze-config:artifact-rollback"; description "Publish one verified native history revision inside the private artifact. Pending candidate and interrupted publication fences remain enforced."; ze:help "Roll back an artifact configuration."; uses workspace; uses configuration; uses revision; }
+container import { config false; ze:command "ze-config:artifact-import"; description "Import complete raw source bytes under one configuration basename through native data import, preserving other artifact keys and recorded publication fences. Input need not be valid configuration."; ze:help "Import private bytes into an artifact configuration."; uses workspace; uses configuration; uses transfer; }
 container restore { config false; description "Hand a private artifact to the daemon's existing restore lifecycle."; ze:help "Restore from a private artifact.";
-container config { config false; ze:command "ze-config-cli:artifact-restore-config"; description "Read a checked active configuration from the private artifact and publish it through the current live reload or configured managed-client owner. Refuse ambiguous source selection and targets without a reload owner."; ze:help "Restore one selected artifact configuration."; uses workspace;
+container config { config false; ze:command "ze-config:artifact-restore-config"; description "Read a checked active configuration from the private artifact and publish it through the current live reload or configured managed-client owner. Refuse ambiguous source selection and targets without a reload owner."; ze:help "Restore one selected artifact configuration."; uses workspace;
 leaf name { type string { length "1..255"; } description "Optional source configuration basename. Omission uses native restore selection: only configuration, then the current target's name, otherwise refusal."; ze:help "Configuration name inside the artifact."; }
 leaf client { type string { length "1..64"; } description "Optional managed client this hub is configured to serve. Its configuration is published without reloading the hub."; ze:help "Configured managed client to restore."; }
 }
-container full { config false; ze:command "ze-config-cli:artifact-restore-full"; description "Accept a complete independently retained recovery source, then restart only after the response transport completes. The outer owner replaces storage only after successful shutdown and store closure."; ze:help "Restore the whole store after clean shutdown."; uses workspace; }
+container full { config false; ze:command "ze-config:artifact-restore-full"; description "Accept a complete independently retained recovery source, then restart only after the response transport completes. The outer owner replaces storage only after successful shutdown and store closure."; ze:help "Restore the whole store after clean shutdown."; uses workspace; }
 }
 container upload { config false; description "Transfer a complete private artifact. Select one declared operation below this keyword."; ze:help "Transfer a complete private artifact.";
-container begin { config false; ze:command "ze-config-cli:artifact-upload-begin"; description "Begin a private artifact upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Begin a private artifact upload.";
+container begin { config false; ze:command "ze-config:artifact-upload-begin"; description "Begin a private artifact upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Begin a private artifact upload.";
 leaf name { type string { length "1..128"; } mandatory true; description "Name for this private operation; ownership comes only from authentication."; ze:help "Name."; }
 leaf total { type uint64 { range "0..67108864"; } description "Total for this private operation; ownership comes only from authentication."; ze:help "Total."; }
 }
-container append { config false; ze:command "ze-config-cli:artifact-upload-append"; description "Append bytes at the expected upload offset. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Append bytes at the expected upload offset.";
+container append { config false; ze:command "ze-config:artifact-upload-append"; description "Append bytes at the expected upload offset. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Append bytes at the expected upload offset.";
 uses transfer; uses offset; uses content;}
-container finish { config false; ze:command "ze-config-cli:artifact-upload-finish"; description "Verify and retain a completed upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Verify and retain a completed upload.";
+container finish { config false; ze:command "ze-config:artifact-upload-finish"; description "Verify and retain a completed upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Verify and retain a completed upload.";
 uses transfer;}
-container abort { config false; ze:command "ze-config-cli:artifact-upload-abort"; description "Remove a private transfer and its retained bytes. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Remove a private transfer and its retained bytes.";
+container abort { config false; ze:command "ze-config:artifact-upload-abort"; description "Remove a private transfer and its retained bytes. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Remove a private transfer and its retained bytes.";
 uses transfer;}
 }
 container text { config false; description "Transfer detached configuration text. Select one declared operation below this keyword."; ze:help "Transfer detached configuration text.";
-container begin { config false; ze:command "ze-config-cli:artifact-text-begin"; description "Begin bounded configuration text upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Begin bounded configuration text upload.";
+container begin { config false; ze:command "ze-config:artifact-text-begin"; description "Begin bounded configuration text upload. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Begin bounded configuration text upload.";
 leaf total { type uint64 { range "0..67108864"; } description "Total for this private operation; ownership comes only from authentication."; ze:help "Total."; }
 }
 }
 container download { config false; description "Download an immutable private artifact. Select one declared operation below this keyword."; ze:help "Download an immutable private artifact.";
-container begin { config false; ze:command "ze-config-cli:artifact-download-begin"; description "Snapshot a complete private artifact. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Snapshot a complete private artifact.";
+container begin { config false; ze:command "ze-config:artifact-download-begin"; description "Snapshot a complete private artifact. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Snapshot a complete private artifact.";
 uses workspace;}
 }
 container source { config false; description "Read raw committed configuration text privately. Select one declared operation below this keyword."; ze:help "Read raw committed configuration text privately.";
-container begin { config false; ze:command "ze-config-cli:artifact-source-begin"; description "Snapshot raw committed configuration text. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Snapshot raw committed configuration text.";
+container begin { config false; ze:command "ze-config:artifact-source-begin"; description "Snapshot raw committed configuration text. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Snapshot raw committed configuration text.";
 uses workspace; uses configuration;}
 }
-container validate { config false; ze:command "ze-config-cli:artifact-validate"; description "Validate supplied offline configuration text. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Validate supplied offline configuration text.";
+container validate { config false; ze:command "ze-config:artifact-validate"; description "Validate supplied offline configuration text. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Validate supplied offline configuration text.";
 uses edit;
 }
-container review { config false; ze:command "ze-config-cli:artifact-review"; description "Review a masked offline configuration difference. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Review a masked offline configuration difference.";
+container review { config false; ze:command "ze-config:artifact-review"; description "Review a masked offline configuration difference. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Review a masked offline configuration difference.";
 uses edit;
 }
-container save { config false; ze:command "ze-config-cli:artifact-save"; description "Save reviewed text into its private artifact. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Save reviewed text into its private artifact.";
+container save { config false; ze:command "ze-config:artifact-save"; description "Save reviewed text into its private artifact. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Save reviewed text into its private artifact.";
 uses edit;
 leaf review { type string { length "64"; pattern "[0-9a-f]{64}"; } mandatory true; description "Review for this private operation; ownership comes only from authentication."; ze:help "Review."; }
 }
@@ -166,7 +166,7 @@ leaf review { type string { length "64"; pattern "[0-9a-f]{64}"; } mandatory tru
 }
 container delete { config false;
 container config { config false; description "Select a private configuration artifact to remove. The artifact operation requires its identity and checks the authenticated account."; ze:help "Remove private configuration artifacts.";
-container artifact { config false; ze:command "ze-config-cli:artifact-delete"; description "Remove one private artifact workspace. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Remove one private artifact workspace.";
+container artifact { config false; ze:command "ze-config:artifact-delete"; description "Remove one private artifact workspace. The private owner checks the authenticated account, cancellation and resource allowance."; ze:help "Remove one private artifact workspace.";
 uses workspace;}
 }
 }
