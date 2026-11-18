@@ -346,6 +346,15 @@ YANG modules are loaded in two phases at startup.
 `yang.RegisterModule(name, content)`. Each component embeds its own `.yang` files
 and registers them at import time.
 
+<!-- source: internal/component/config/yang/register.go -- RegisterModule -->
+
+Registration stamps the caller's package into a private field. `Module.Registrar()`
+reads that provenance, and `ModuleRegistrar(name)` looks it up in the registry.
+`Modules()` returns a caller-owned snapshot. A caller can edit or sort that
+snapshot without changing registered names, text, provenance or the schema generation.
+
+<!-- source: internal/component/config/yang/register.go -- Module, Registrar, ModuleRegistrar, Modules -->
+
 `LoadRegistered()` attempts every registered module and joins every parse
 error, each naming its module, so one broken module does not hide the modules
 registered after it.

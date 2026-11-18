@@ -49,13 +49,13 @@ func TestYANGImportsFollowGoImports(t *testing.T) {
 				// loaded by the registry itself and have no registrar.
 				continue
 			}
-			if registrar == registered.Registrar {
+			if registrar == registered.Registrar() {
 				continue
 			}
 			edges++
-			if !graph.reaches(t, registered.Registrar, registrar) {
+			if !graph.reaches(t, registered.Registrar(), registrar) {
 				t.Errorf("%s (registered by %s) imports %s, but %s does not import %s in Go",
-					registered.Name, registered.Registrar, imported, registered.Registrar, registrar)
+					registered.Name, registered.Registrar(), imported, registered.Registrar(), registrar)
 			}
 		}
 	}

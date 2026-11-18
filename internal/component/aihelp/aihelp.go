@@ -267,7 +267,7 @@ func Services() ([]Service, error) {
 
 	// Modules and containers are walked in name order, so services that share
 	// a name (api-server merges across modules) keep one order on every run.
-	modules := slices.Clone(yang.Modules()) // the registry's own slice: never sort it in place
+	modules := yang.Modules()
 	slices.SortFunc(modules, func(a, b yang.Module) int { return strings.Compare(a.Name, b.Name) })
 	for _, mod := range modules {
 		if !strings.HasSuffix(mod.Name, "-conf.yang") {

@@ -16,15 +16,22 @@ func init() {
 	command.RegisterArgDefSource(commandArgDefs)
 }
 
-// Module holds a YANG module registered via init().
+// Module holds a snapshot of a YANG module registered via init().
+// The zero value has no registering package.
 type Module struct {
 	Name    string
 	Content string
-	// Registrar is the import path of the package that called
+	// registrar is the import path of the package that called
 	// RegisterModule. The wire-method prefix of a command node no builtin
 	// handler serves is derived from it, the same way a handler's prefix is
 	// derived from the package that registered the handler.
-	Registrar string
+	registrar string
+}
+
+// Registrar answers the package that registered this module. Its provenance
+// can be set only by registration, never by a caller holding a snapshot.
+func (m Module) Registrar() string {
+	return m.registrar
 }
 
 var modules []Module
@@ -50,10 +57,10 @@ func advanceModulesGeneration() {
 
 // RegisterModule registers a YANG module for loading.
 // Called from init() in packages that own YANG files. Each module is stamped
-// with the import path of the calling package (Registrar).
+// with the import path of the calling package (Module.Registrar).
 // Order of registration does not matter — goyang resolves imports during Resolve().
 func RegisterModule(name, content string) {
-	modules = append(modules, Module{Name: name, Content: content, Registrar: callsite.Package(2)})
+	modules = append(modules, Module{Name: name, Content: content, registrar: callsite.Package(2)})
 	advanceModulesGeneration()
 }
 
@@ -66,14 +73,15 @@ func RegisterModule(name, content string) {
 // in parallel with another test that loads YANG.
 func RegisterModuleForTest(name, content string) (restore func()) {
 	saved, savedGeneration := modules, modulesGeneration
-	modules = append(slices.Clone(saved), Module{Name: name, Content: content, Registrar: callsite.Package(2)})
+	modules = append(slices.Clone(saved), Module{Name: name, Content: content, registrar: callsite.Package(2)})
 	advanceModulesGeneration()
 	return func() { modules, modulesGeneration = saved, savedGeneration }
 }
 
-// Modules returns all registered YANG modules.
+// Modules returns a caller-owned snapshot of all registered YANG modules.
+// Editing or sorting the snapshot does not change the registry or its generation.
 func Modules() []Module {
-	return modules
+	return slices.Clone(modules)
 }
 
 // ModuleRegistrar answers the package that registered the module named
@@ -82,7 +90,7 @@ func Modules() []Module {
 func ModuleRegistrar(module string) (string, bool) {
 	for _, m := range modules {
 		if strings.TrimSuffix(m.Name, ".yang") == module {
-			return m.Registrar, true
+			return m.Registrar(), true
 		}
 	}
 	return "", false

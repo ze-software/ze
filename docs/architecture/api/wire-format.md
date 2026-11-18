@@ -63,8 +63,14 @@ A command no builtin handler serves (a local CLI handler such as
 `ze-env:show-list`, or a plugin process) has no registration to stamp, so its
 owner is the package that registered the node's YANG module: `RegisterModule`
 stamps the caller's package the same way, and `OwnerPrefix` applies the same
-rule to it. `ze-env-cmd.yang` is registered from `internal/plugins/env/yang`, so
+rule to it. The stamped package is private and read through `Module.Registrar()`
+or `ModuleRegistrar`. A `Modules()` snapshot cannot change that provenance in the
+registry. `ze-env-cmd.yang` is registered from `internal/plugins/env/yang`, so
 its nodes declare `ze-env:`.
+
+<!-- source: internal/component/config/yang/register.go -- RegisterModule, Registrar, ModuleRegistrar, Modules -->
+<!-- source: internal/component/plugin/server/rpc_register.go -- OwnerPrefix -->
+<!-- source: internal/plugins/env/yang/register.go -- init -->
 
 A fake plugin under `internal/test/plugins/<x>` owns `ze-test-<x>:`, so
 `ze-fakel2tp-cmd.yang` declares `ze-test-fakel2tp:emit`. The `test-` keeps a
