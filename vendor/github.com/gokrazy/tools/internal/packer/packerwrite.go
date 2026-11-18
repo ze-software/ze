@@ -403,7 +403,7 @@ func (pack *Pack) printHowToInteract(cfg *config.Struct) error {
 	log.Printf("")
 	log.Printf("To interact with the device, gokrazy provides a web interface reachable at:")
 	log.Printf("")
-	log.Printf("\t%s", updateBaseUrl.String())
+	log.Printf("\t%s", updateBaseUrl.Redacted())
 	log.Printf("")
 	log.Printf("In addition, the following Linux consoles are set up:")
 	log.Printf("")
