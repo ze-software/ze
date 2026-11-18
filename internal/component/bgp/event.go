@@ -28,12 +28,13 @@ var eventLogger = slogutil.LazyLogger("bgp.event")
 // Note: "direction" is inside message wrapper, not at root level.
 var KnownFields = map[string]bool{
 	"type": true, "msg-id": true, "message": true,
-	"source-policy-epoch":  true,
-	"source-receipt":       true,
-	"peer-owner":           true,
-	"selected-destination": true,
-	"destination-session":  true,
-	"peer":                 true, "state": true, "origin": true, "as-path": true,
+	"source-policy-epoch":   true,
+	"source-receipt":        true,
+	"peer-owner":            true,
+	"selected-destination":  true,
+	"ordinary-replay-owned": true,
+	"destination-session":   true,
+	"peer":                  true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
 	"large-communities": true, "extended-communities": true, "aigp": true,
 	"serial": true, "command": true, "args": true, "afi": true, "safi": true,
@@ -399,6 +400,7 @@ type Event struct {
 	InitialReplay       uint64 `json:"initial-replay,string,omitempty"`
 	DestinationSession  uint64 `json:"destination-session,string,omitempty"`
 	SelectedDestination bool   `json:"selected-destination,omitempty"`
+	OrdinaryReplayOwned bool   `json:"ordinary-replay-owned,omitempty"`
 	// SessionGeneration names, on a down state event, the session the down
 	// ended (reactor Peer.forwardGeneration); a departure echoes it as
 	// recovery-generation. Zero on every other event.

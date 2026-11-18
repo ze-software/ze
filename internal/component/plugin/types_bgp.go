@@ -213,6 +213,9 @@ type PeerInfo struct {
 	// SelectedDestination is filled by the per-recipient state projection.
 	// A process receiving state alone does not thereby become a destination.
 	SelectedDestination bool
+	// OrdinaryReplayOwned is advisory: automatic auxiliary replay stands down.
+	// It grants no selected-output authority and is derived from captured UP facts.
+	OrdinaryReplayOwned bool
 	// SessionGeneration is, on a session-down state change only, the forward
 	// generation of the session the down ended (reactor Peer.forwardGeneration),
 	// captured when it ended. Every event format carries it as
