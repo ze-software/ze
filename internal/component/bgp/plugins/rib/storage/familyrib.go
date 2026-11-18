@@ -157,7 +157,21 @@ func (r *FamilyRIB) buildNLRIBytes(pathID uint32, pfx netip.Prefix, buf []byte) 
 // attribute bytes, ParseAttributes is skipped entirely. This eliminates
 // 95%+ of allocation in no-op re-announcement scenarios (route refresh,
 // peer churn replay, duplicate UPDATE storms).
+//
+// Insert stores the route with no change time (RouteTimeUnrecorded), so the
+// route has no age. A caller that holds the route clock reading of the message
+// it is storing calls InsertAt.
 func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
+	r.InsertAt(attrBytes, nlriBytes, RouteTimeUnrecorded)
+}
+
+// InsertAt is Insert for a caller that holds changedAt, the route clock
+// reading of the message being stored. changedAt is written on a route this
+// call stores new or replaces. A re-announcement with equal attributes keeps
+// the stored entry and so its ChangedAt: every equal branch below, the
+// fingerprint fast path and entriesEqual alike, writes oldEntry back and never
+// the new entry.
+func (r *FamilyRIB) InsertAt(attrBytes, nlriBytes []byte, changedAt RouteTime) {
 	fp := attrFingerprint(attrBytes)
 	attrLen := uint32(len(attrBytes))
 
@@ -175,6 +189,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		}
 		newEntry.AttrFingerprint = fp
 		newEntry.AttrLen = attrLen
+		newEntry.ChangedAt = changedAt
 		r.insertOpaque(pathID, key, route, newEntry)
 		return
 	}
@@ -194,6 +209,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		}
 		newEntry.AttrFingerprint = fp
 		newEntry.AttrLen = attrLen
+		newEntry.ChangedAt = changedAt
 		r.insertMulti(pfx, pathID, newEntry)
 		return
 	}
@@ -222,6 +238,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	}
 	newEntry.AttrFingerprint = fp
 	newEntry.AttrLen = attrLen
+	newEntry.ChangedAt = changedAt
 
 	if oldEntry, exists := r.direct.Lookup(pfx); exists {
 		if entriesEqual(oldEntry, newEntry) {
@@ -250,6 +267,12 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 // entry, fingerprint, and attribute length for each NLRI in the UPDATE.
 // InsertEntry calls AddRef before storing so the caller can Release its
 // copy after all inserts.
+//
+// entry.ChangedAt is the route clock reading of the message, set once by the
+// caller for every NLRI of it. It is stored with a route this call stores new
+// or replaces. A re-announcement with equal attributes keeps the stored entry
+// and so its ChangedAt: every equal branch below copies the received identity
+// onto oldEntry field by field and never copies the time.
 func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, attrLen uint32) {
 	if !r.cidr {
 		pathID, key, route, ok := r.opaqueRouteKey(nlriBytes, false)

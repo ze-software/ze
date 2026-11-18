@@ -1580,3 +1580,195 @@ func showRowKeys(t *testing.T, r *RIBManager) []string {
 	}
 	return keys
 }
+
+// TestMatchASPathEndAnchor checks the end anchor of the path filter by
+// matching patterns that close with $ against AS paths that end, cross or
+// only contain the named run.
+//
+// VALIDATES: "65001$" matches a path whose last AS is 65001 (AC-4),
+// "^65010,65001$" matches exactly that path (AC-5), and a prepended origin
+// still matches "65001$" (AC-6).
+// PREVENTS: a route that crosses the AS and is originated elsewhere, or a
+// longer path that holds the pair, being listed by an anchored search.
+func TestMatchASPathEndAnchor(t *testing.T) {
+	tests := []struct {
+		name    string
+		asPath  []uint32
+		pattern string
+		want    bool
+	}{
+		{"origin of a two-AS path", []uint32{65010, 65001}, "65001$", true},
+		{"origin of a one-AS path", []uint32{65001}, "65001$", true},
+		{"crossing route, originated elsewhere", []uint32{65001, 65020}, "65001$", false},
+		{"crossing route, AS in the middle", []uint32{65010, 65001, 65020}, "65001$", false},
+		{"empty path has no origin", []uint32{}, "65001$", false},
+		{"run at the end", []uint32{65030, 65010, 65001}, "65010,65001$", true},
+		{"run before the end", []uint32{65010, 65001, 65020}, "65010,65001$", false},
+		{"run longer than the path", []uint32{65001}, "65010,65001$", false},
+		{"both anchors, exact path", []uint32{65010, 65001}, "^65010,65001$", true},
+		{"both anchors, pair then more", []uint32{65010, 65001, 65020}, "^65010,65001$", false},
+		{"both anchors, more then pair", []uint32{65030, 65010, 65001}, "^65010,65001$", false},
+		{"both anchors, pair in the middle", []uint32{65030, 65010, 65001, 65020}, "^65010,65001$", false},
+		{"both anchors, path too short", []uint32{65010}, "^65010,65001$", false},
+		{"both anchors, one AS", []uint32{65001}, "^65001$", true},
+		{"prepended origin", []uint32{65010, 65001, 65001, 65001}, "65001$", true},
+		{"prepended origin, every prepend named", []uint32{65010, 65001, 65001, 65001}, "^65010,65001,65001,65001$", true},
+		{"prepended origin is not the two-AS path", []uint32{65010, 65001, 65001, 65001}, "^65010,65001$", false},
+		{"asdot origin", []uint32{65010, 65546}, "1.10$", true},
+		{"space after the comma", []uint32{65010, 65001}, "^65010, 65001$", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchASPath(tt.asPath, tt.pattern)
+			assert.Equal(t, tt.want, got, "matchASPath(%v, %q)", tt.asPath, tt.pattern)
+		})
+	}
+
+	// A path that ends with an AS_SET: the filter reads the flat list
+	// formatASPath answers, so the end anchor reads the last member of the set.
+	// AS_SEQUENCE [65010], then AS_SET {65001, 65002}.
+	endsWithSet := formatASPath([]byte{
+		0x02, 0x01, 0x00, 0x00, 0xFD, 0xF2,
+		0x01, 0x02, 0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0xFD, 0xEA,
+	})
+	require.Equal(t, []uint32{65010, 65001, 65002}, endsWithSet)
+	assert.True(t, matchASPath(endsWithSet, "65002$"), "the last member of a closing AS_SET is the end of the path")
+	assert.False(t, matchASPath(endsWithSet, "65001$"), "an earlier member of a closing AS_SET is not the end of the path")
+}
+
+// TestValidatePathPatternEndAnchor checks that the validator and the matcher
+// read the end anchor the same way, by giving both the same patterns: every
+// accepted pattern must match a path it describes, and every refused pattern
+// must match nothing, even a path it would match with the $ ignored.
+//
+// VALIDATES: validatePathPattern and matchASPath accept exactly the same
+// patterns that carry a $, and both pipeline parsers refuse a misplaced $
+// with a message naming the pattern and the anchor.
+// PREVENTS: a pattern that validates and then matches nothing, which reads
+// as "no route has that path", and a refused pattern that matches everything.
+func TestValidatePathPatternEndAnchor(t *testing.T) {
+	accepted := []struct {
+		pattern string
+		asPath  []uint32
+	}{
+		{"65001$", []uint32{65010, 65001}},
+		{"^65010,65001$", []uint32{65010, 65001}},
+		{"^65001$", []uint32{65001}},
+		{"65010, 65001$", []uint32{65010, 65001}},
+		{" 65001$", []uint32{65001}},
+		{"1.10$", []uint32{65546}},
+		{"0.65001$", []uint32{65001}},
+	}
+	for _, tt := range accepted {
+		assert.Empty(t, validatePathPattern(tt.pattern), "validatePathPattern(%q) must accept", tt.pattern)
+		assert.True(t, matchASPath(tt.asPath, tt.pattern), "matchASPath(%v, %q)", tt.asPath, tt.pattern)
+	}
+
+	// Each refused pattern is tried against a path that holds only 65001 and
+	// against one that holds 65001 then 65002, the paths these patterns would
+	// match if the $ were dropped or read anywhere.
+	refusedAnchors := []string{
+		"$",             // no AS number
+		"^$",            // no AS number between the anchors
+		"65001$$",       // the anchor twice
+		"$65001",        // the anchor at the start
+		"65001$,65002",  // the anchor inside the run
+		"^65001$65002",  // the anchor inside a number
+		"65001 $",       // a space between the number and the anchor
+		"65001,$",       // an empty element before the anchor
+		"65001,,$",      // empty elements before the anchor
+		"65001$ ",       // a space after the anchor
+		"65001,65002$,", // a comma after the anchor
+	}
+	paths := [][]uint32{{65001}, {65001, 65002}}
+	for _, pattern := range refusedAnchors {
+		problem := validatePathPattern(pattern)
+		assert.Contains(t, problem, "end anchor", "validatePathPattern(%q) must refuse the anchor", pattern)
+		assert.Contains(t, problem, pattern, "the refusal of %q must name the pattern", pattern)
+		for _, asPath := range paths {
+			assert.False(t, matchASPath(asPath, pattern), "matchASPath(%v, %q) must match nothing", asPath, pattern)
+		}
+	}
+
+	// A token that names no AS number is still refused as one when the
+	// pattern is anchored, and the matcher answers nothing for it.
+	assert.Contains(t, validatePathPattern("peer$"), "invalid ASN")
+	assert.False(t, matchASPath([]uint32{65001}, "peer$"))
+
+	// The command parsers are where an operator meets the validator.
+	_, _, _, stages, problem := parsePipelineArgs([]string{"path", "^65010,65001$"})
+	require.Empty(t, problem, "show bgp rib must accept an anchored pattern")
+	require.Len(t, stages, 1)
+	assert.Equal(t, "^65010,65001$", stages[0].arg)
+	_, bestStages, problem := parseBestPipelineArgs([]string{"path", "65001$"})
+	require.Empty(t, problem, "show bgp rib best must accept an anchored pattern")
+	require.Len(t, bestStages, 1)
+	assert.Equal(t, "65001$", bestStages[0].arg)
+
+	_, _, _, _, problem = parsePipelineArgs([]string{"path", "65001$,65002"})
+	assert.Contains(t, problem, "end anchor", "show bgp rib must refuse a misplaced anchor")
+	_, _, problem = parseBestPipelineArgs([]string{"path", "65001$,65002"})
+	assert.Contains(t, problem, "end anchor", "show bgp rib best must refuse a misplaced anchor")
+}
+
+// TestParsePipelineValidatesASPathAlias checks that the `aspath` spelling of
+// the path filter is validated like `path`, by giving both command parsers a
+// value that names no AS number under each spelling.
+//
+// VALIDATES: `aspath <value>` is refused at parse time when the value is not
+// a path pattern, as `path <value>` is.
+// PREVENTS: `show bgp rib aspath peer` being accepted and answering no
+// route, because the matcher refuses what the parser let through.
+func TestParsePipelineValidatesASPathAlias(t *testing.T) {
+	for _, keyword := range []string{filterPath, filterASPath} {
+		_, _, _, _, problem := parsePipelineArgs([]string{keyword, "peer"})
+		assert.Contains(t, problem, "invalid ASN", "show bgp rib %s peer", keyword)
+		_, _, problem = parseBestPipelineArgs([]string{keyword, "peer"})
+		assert.Contains(t, problem, "invalid ASN", "show bgp rib best %s peer", keyword)
+
+		_, _, _, _, problem = parsePipelineArgs([]string{keyword, "65001$$"})
+		assert.Contains(t, problem, "end anchor", "show bgp rib %s 65001$$", keyword)
+		_, _, problem = parseBestPipelineArgs([]string{keyword, "65001$$"})
+		assert.Contains(t, problem, "end anchor", "show bgp rib best %s 65001$$", keyword)
+
+		_, _, _, _, problem = parsePipelineArgs([]string{keyword, "65001$"})
+		assert.Empty(t, problem, "show bgp rib %s 65001$", keyword)
+	}
+}
+
+// TestShowPipelinePathEndAnchor checks that an end-anchored path filter
+// reaches the routes of a stored RIB, by counting one stored route whose AS
+// path is [65001] under anchored patterns that name its origin and another.
+//
+// VALIDATES: `show bgp rib received path 65001$ count` counts the route AS
+// 65001 originates, and a misplaced anchor is refused as a pipeline refusal.
+// PREVENTS: the anchor being accepted by the parser and then ignored, or
+// dropped, by the filter stage that runs over the stored routes.
+func TestShowPipelinePathEndAnchor(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0})
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
+
+	counts := map[string]float64{
+		"65001$":        1,
+		"^65001$":       1,
+		"65002$":        0,
+		"^65001,65002$": 0,
+	}
+	for pattern, want := range counts {
+		result := r.showPipeline("*", []string{"received", "path", pattern, "count"})
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed), "pattern %q", pattern)
+		assert.Equal(t, want, parsed["count"], "show bgp rib received path %s count", pattern)
+	}
+
+	refusal, refused := r.showPipeline("*", []string{"received", "path", "65001$$", "count"}).(pipelineRefusal)
+	require.True(t, refused, "a misplaced end anchor must be refused, not answered")
+	require.Error(t, refusal.reason)
+	assert.Contains(t, refusal.reason.Error(), "end anchor")
+}

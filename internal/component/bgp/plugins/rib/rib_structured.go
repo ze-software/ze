@@ -323,6 +323,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// the latest UPDATE for the route.
 	receivedStale := receivedLLGRStaleFromMeta(se.Meta)
 
+	// The route clock is read once for this UPDATE and the reading handed to
+	// every route it announces, so the inserts below do not read the clock per
+	// route. insertLabeled, the unparsed labeled fallback, is the one
+	// exception and says why. The reading is stored with a route the UPDATE
+	// adds or changes, and an equal re-announcement keeps the stored one
+	// (storage.FamilyRIB.InsertEntry).
+	changedAt := r.routeClock.now()
+
 	// Parse attributes once for all announcements in this UPDATE.
 	// An UPDATE carries one attribute block shared by all announced NLRIs.
 	// Parsing per-NLRI was the dominant RIB allocation site (~57% of space).
@@ -343,6 +351,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			parsed.SourceReceipt = msg.SourceReceipt
 			parsed.SetSourceReference(source)
 			parsed.ReceivedLLGRStale = receivedStale
+			parsed.ChangedAt = changedAt
 			defer parsed.Release()
 		}
 	}
@@ -370,7 +379,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				if haveParsed {
 					peerRIB.InsertEntry(ipv4Family, parsed, fp, attrLen, wirePrefix)
 				} else {
-					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
+					peerRIB.InsertAt(ipv4Family, attrBytes, wirePrefix, changedAt)
 				}
 				peerRIB.ModifyFamilyEntry(ipv4Family, wirePrefix, func(entry *storage.RouteEntry) {
 					entry.MsgID = msg.MessageID
@@ -419,7 +428,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						if haveParsed {
 							peerRIB.InsertEntry(fam, parsed, fp, attrLen, wirePrefix)
 						} else {
-							peerRIB.Insert(fam, attrBytes, wirePrefix)
+							peerRIB.InsertAt(fam, attrBytes, wirePrefix, changedAt)
 						}
 						peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 							entry.MsgID = msg.MessageID
@@ -744,7 +753,11 @@ func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 	if err != nil || len(cidrBytes) == 0 {
 		return
 	}
-	peerRIB.Insert(fam, attrBytes, cidrBytes)
+	// The route clock is read here, per route, and not handed down from the
+	// handler: this is the fallback for an UPDATE whose attributes were not
+	// parsed once, which already parses them again for each route, and the
+	// parsed path (insertLabeledEntry) carries the handler's one reading.
+	peerRIB.InsertAt(fam, attrBytes, cidrBytes, r.routeClock.now())
 	peerRIB.ModifyFamilyEntry(fam, cidrBytes, func(stored *storage.RouteEntry) {
 		stored.MsgID = message
 		stored.SourcePolicyEpoch = sourcePolicyEpoch

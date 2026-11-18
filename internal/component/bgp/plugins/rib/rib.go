@@ -44,6 +44,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -468,6 +469,11 @@ type RIBManager struct {
 	// Read-only after configure; no lock needed for atomic load.
 	maximumPaths atomic.Uint32
 
+	// routeClock stamps each stored route with the reading of the message
+	// that last changed it, and each answered row with the reading it was read
+	// at (rib_route_age.go). Set once by newRIBManager and never written after.
+	routeClock routeClock
+
 	// relaxASPath enables the "as-path-relax" multipath semantic.
 	// When true, paths with the same AS-path length but different content are
 	// considered equal-cost. When false (default), AS-path content must match.
@@ -723,6 +729,7 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		grState:          make(map[uint64]*peerGRState),
 		bestPrev:         newBestPrevShards(),
 		bestPathInterner: newBestPrevInterner(),
+		routeClock:       newRouteClock(clock.RealClock{}),
 	}
 	r.maximumPaths.Store(1)
 	return r
@@ -1394,6 +1401,10 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 	parsed.SourceReceipt = sourceReceipt
 	parsed.SetSourceReference(source)
 	parsed.ReceivedLLGRStale = receivedStale
+	// One reading for every route of this NLRI section, stored with a route
+	// the section adds or changes and kept by an equal re-announcement
+	// (storage.FamilyRIB.InsertEntry).
+	parsed.ChangedAt = r.routeClock.now()
 	prefixes, err := nlrisplit.Split(fam, nlriBytes, addPath)
 	if err != nil {
 		logger().Warn("pool: split error, inserting parsed prefix", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(prefixes))

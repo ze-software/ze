@@ -100,18 +100,30 @@ func (r *PeerRIB) SetAddPath(fam family.Family, enabled bool) {
 
 // Insert adds an NLRI with its attributes to the RIB.
 // Creates the family RIB if it doesn't exist.
+// The route is stored with no change time and so has no age
+// (FamilyRIB.Insert); a caller that holds the reading of the message it is
+// storing calls InsertAt.
 func (r *PeerRIB) Insert(fam family.Family, attrBytes, nlriBytes []byte) {
+	r.InsertAt(fam, attrBytes, nlriBytes, RouteTimeUnrecorded)
+}
+
+// InsertAt is Insert for a caller that holds changedAt, the route clock
+// reading of the message being stored. The reading is written on a route this
+// call stores new or replaces, and an equal re-announcement keeps the stored
+// one (FamilyRIB.InsertAt).
+func (r *PeerRIB) InsertAt(fam family.Family, attrBytes, nlriBytes []byte, changedAt RouteTime) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	rib := r.getOrCreateFamily(fam)
-	rib.Insert(attrBytes, nlriBytes)
+	rib.InsertAt(attrBytes, nlriBytes, changedAt)
 }
 
 // InsertEntry adds an NLRI using a pre-parsed RouteEntry.
 // The caller parsed attributes once via ParseRouteEntry and reuses the same
 // entry for each NLRI in the UPDATE. InsertEntry takes its own reference
-// via AddRef internally.
+// via AddRef internally. entry.ChangedAt is the reading of the message, kept
+// or stored as FamilyRIB.InsertEntry states.
 func (r *PeerRIB) InsertEntry(fam family.Family, entry RouteEntry, fp uint64, attrLen uint32, nlriBytes []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

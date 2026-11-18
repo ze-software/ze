@@ -120,11 +120,15 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 		}
 	}
 
+	// One route clock reading for every route this injected UPDATE announces,
+	// as handleReceivedStructured takes one per received UPDATE.
+	changedAt := r.routeClock.now()
+
 	// nlriData already fetched above for validation.
 	if err == nil && len(nlriData) > 0 && nlrisplit.Supported(ipv4Family) {
 		prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, false)
 		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
+			peerRIB.InsertAt(ipv4Family, attrBytes, wirePrefix, changedAt)
 		}
 	}
 
@@ -136,7 +140,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 			if len(nlriBytes) > 0 {
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
 				for _, wirePrefix := range prefixes {
-					peerRIB.Insert(fam, attrBytes, wirePrefix)
+					peerRIB.InsertAt(fam, attrBytes, wirePrefix, changedAt)
 				}
 			}
 		}

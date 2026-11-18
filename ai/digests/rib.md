@@ -73,6 +73,13 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
   entirely (`familyrib.go`+`216`). Deeper equality is handle equality: `entriesEqual` =
   `Bundle == Bundle && ASPath == ASPath` (`familyrib.go`). Fingerprint collision → a missed
   attribute update, recovered by RIB refresh (documented in `routeentry.go`).
+- **Route change time:** `RouteEntry.ChangedAt` (`storage.RouteTime`, whole seconds on the
+  RIB's own clock plus one, zero = unrecorded, in the record's padding) is written on a first
+  insert and on an announcement whose attributes differ; every equal branch keeps the stored
+  entry, so a refresh does not reset it. The reading is taken once per received message from
+  `RIBManager.routeClock` (`rib_route_age.go`) and rides on the parsed entry (`InsertEntry`) or
+  goes to `PeerRIB.InsertAt`; plain `Insert` stores no time. Received `show bgp rib` rows carry
+  it as `age` in seconds (`markReadAt`, `writeRouteAge`). Best path never reads it.
 - **Best-path ordering:** `comparePair` (`bestpath.go`), step 0 stale-level depreference
   (LLGR level ≥ `DepreferenceThreshold`=2 loses), 1 highest LOCAL_PREF, 2 shortest AS_PATH
   (AS_SET counts as 1), 3 lowest ORIGIN, 4 lowest MED (only same first-neighbor-AS), 5 eBGP over

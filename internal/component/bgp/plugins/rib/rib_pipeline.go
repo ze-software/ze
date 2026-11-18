@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -25,7 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/selector"
-	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -63,6 +63,12 @@ type RouteItem struct {
 	pathID     uint32
 	addPath    bool
 	storeOwner uint64 // containing observation only, never source authority
+
+	// readAt is the route clock reading taken when the source read InEntry.
+	// The row's age is the time from InEntry.ChangedAt to it (writeRouteAge).
+	// A source sets it after its walk (markReadAt); unset, the row carries no
+	// `age` member.
+	readAt storage.RouteTime
 }
 
 // PipelineMeta holds pipeline result metadata.
@@ -243,6 +249,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			return true
 		})
 		s.r.markBestFacts(s.items)
+		s.r.markReadAt(s.items)
 	}
 }
 
@@ -340,6 +347,7 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 			})
 			return true
 		})
+		s.r.markReadAt(s.items)
 	}
 }
 
@@ -503,94 +511,143 @@ func (s *combinedSource) Meta() PipelineMeta {
 
 // --- AS path matching ---
 
-// matchASPath tests whether asPath matches the given pattern.
-// Pattern syntax:
-//   - "64501" — single AS exists anywhere in path
-//   - "64501,64502" — contiguous subsequence
-//   - "^64501" — anchored at start
-//   - "^64501,64502" — anchored contiguous sequence starting at index 0
-//   - "" — always matches (no filter)
-func matchASPath(asPath []uint32, pattern string) bool {
-	if pattern == "" {
-		return true
+// pathPattern is a parsed `path` filter value: the run of AS numbers to find,
+// and the ends of the AS path the run is tied to. Only parsePathPattern builds
+// one, so a pathPattern that exists was accepted.
+type pathPattern struct {
+	run     []uint32
+	atStart bool // the pattern opened with ^
+	atEnd   bool // the pattern closed with $
+}
+
+// parsePathPattern reads a `path` filter value. It returns the pattern and an
+// empty problem, or the problem as text and no pattern.
+//
+// The grammar is `[^] <asn>[,<asn>...] [$]`:
+//   - "64501": the AS is anywhere in the path
+//   - "64501,64502": the two ASes follow each other, anywhere in the path
+//   - "^64501,64502": the path starts with that run
+//   - "64502$": the path ends with that run, so 64502 is the origin AS
+//   - "^64501,64502$": the path is exactly that run
+//   - "": no filter, every path matches
+//
+// An AS number is read by asn.Parse, in any RFC 5396 spelling. The $ is read
+// only once, directly after the last AS number: anywhere else, or with no AS
+// number before it, the pattern is refused. A pattern with no $ keeps the
+// reading it had before the end anchor existed: spaces around a number and
+// empty elements are skipped, and a pattern holding no number matches every
+// path.
+//
+// validatePathPattern and matchASPath both go through this one reader, so a
+// pattern the first accepts is a pattern the second matches with. Two readers
+// would let a pattern validate and then match nothing, which reads as "no
+// route has that path".
+func parsePathPattern(pattern string) (pathPattern, string) {
+	var parsed pathPattern
+	text := pattern
+	if strings.HasPrefix(text, "^") {
+		parsed.atStart = true
+		text = text[1:]
+	}
+	if strings.HasSuffix(text, "$") {
+		parsed.atEnd = true
+		text = text[:len(text)-1]
+	}
+	if strings.Contains(text, "$") {
+		return pathPattern{}, pathEndAnchorProblem(pattern)
 	}
 
-	anchored := false
-	p := pattern
-	if strings.HasPrefix(p, "^") {
-		anchored = true
-		p = p[1:]
-	}
-
-	// Parse pattern ASNs.
-	parts, count := stringsx.SplitCount(p, ",")
-	needles := make([]uint32, 0, count)
-	for _, s := range parts {
-		s = strings.TrimSpace(s)
-		if s == "" {
+	parsed.run = make([]uint32, 0, strings.Count(text, ",")+1)
+	elementLast := ""
+	for element := range strings.SplitSeq(text, ",") {
+		elementLast = element
+		element = strings.TrimSpace(element)
+		if element == "" {
 			continue
 		}
-		number, err := asn.Parse(s)
+		number, err := asn.Parse(element)
 		if err != nil {
-			return false
+			var problem textbuf.Buffer
+			return pathPattern{}, problem.Str("invalid ASN in path pattern: ").Str(element).String()
 		}
-		needles = append(needles, number)
+		parsed.run = append(parsed.run, number)
 	}
 
-	if len(needles) == 0 {
+	if !parsed.atEnd {
+		return parsed, ""
+	}
+	// Every element above parsed, so the $ follows an AS number unless the
+	// last element is empty or a space separates the two.
+	if strings.TrimSpace(elementLast) == "" {
+		return pathPattern{}, pathEndAnchorProblem(pattern)
+	}
+	if strings.TrimRightFunc(elementLast, unicode.IsSpace) != elementLast {
+		return pathPattern{}, pathEndAnchorProblem(pattern)
+	}
+	return parsed, ""
+}
+
+// pathEndAnchorProblem is the refusal of a path pattern whose $ is not
+// directly after its last AS number. refusePipelineArgs adds why it matters
+// and the command to start from.
+func pathEndAnchorProblem(pattern string) string {
+	var problem textbuf.Buffer
+	return problem.Str("invalid end anchor in path pattern: ").Str(pattern).
+		Str(" ($ is read only directly after the last AS number, as in 64501,64502$)").String()
+}
+
+// matches reports whether asPath holds the pattern's run where the anchors
+// tie it. asPath is the flat list formatASPath answers: every AS number of
+// every segment in wire order, AS_SET and confederation members included. The
+// end anchor therefore reads the last AS number of that list. A path that
+// ends with an AS_SET ends, for this filter, with the last member of the set.
+//
+// The comparison is literal, with prepending left as received. "64502$"
+// matches a path ending 64502 64502 64502, because its last AS is 64502.
+// "^64501,64502$" does not match 64501 64502 64502: it names two ASes and
+// the path holds three.
+func (p pathPattern) matches(asPath []uint32) bool {
+	if len(p.run) == 0 {
 		return true
 	}
-
-	if anchored {
-		// Must match starting at index 0
-		if len(asPath) < len(needles) {
-			return false
-		}
-		for i, n := range needles {
-			if asPath[i] != n {
-				return false
-			}
-		}
-		return true
-	}
-
-	// Contiguous subsequence search
-	if len(needles) > len(asPath) {
+	if len(p.run) > len(asPath) {
 		return false
 	}
-	for i := 0; i <= len(asPath)-len(needles); i++ {
-		found := true
-		for j, n := range needles {
-			if asPath[i+j] != n {
-				found = false
-				break
-			}
+	if p.atStart {
+		if p.atEnd {
+			return slices.Equal(asPath, p.run)
 		}
-		if found {
+		return slices.Equal(asPath[:len(p.run)], p.run)
+	}
+	if p.atEnd {
+		return slices.Equal(asPath[len(asPath)-len(p.run):], p.run)
+	}
+	for first := 0; first <= len(asPath)-len(p.run); first++ {
+		if slices.Equal(asPath[first:first+len(p.run)], p.run) {
 			return true
 		}
 	}
 	return false
 }
 
-// validatePathPattern checks that every ASN in a path pattern is a valid uint32.
-// Returns an error message if invalid, empty string if valid.
-func validatePathPattern(pattern string) string {
-	p := strings.TrimPrefix(pattern, "^")
-	for s := range strings.SplitSeq(p, ",") {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		// asn.Parse reads all three RFC 5396 spellings. It moves with the
-		// reader in matchASPath: a pattern this accepts and that one refuses
-		// would validate and then match nothing.
-		if _, err := asn.Parse(s); err != nil {
-			var tb textbuf.Buffer
-			return tb.Str("invalid ASN in path pattern: ").Str(s).String()
-		}
+// matchASPath tests whether asPath matches the given `path` filter value, in
+// the grammar parsePathPattern states. A value parsePathPattern refuses
+// matches no path: the pipeline parser refuses it before a filter is built,
+// and a caller that skipped that check is answered nothing, never everything.
+func matchASPath(asPath []uint32, pattern string) bool {
+	parsed, problem := parsePathPattern(pattern)
+	if problem != "" {
+		return false
 	}
-	return ""
+	return parsed.matches(asPath)
+}
+
+// validatePathPattern checks a `path` filter value against the grammar
+// parsePathPattern states. Returns the problem as text if the value is
+// refused, empty string if it is accepted.
+func validatePathPattern(pattern string) string {
+	_, problem := parsePathPattern(pattern)
+	return problem
 }
 
 // --- Filter stages ---
@@ -1231,6 +1288,7 @@ func serializeRouteItem(item RouteItem) map[string]any {
 	if item.HasInEntry {
 		enrichRouteMapFromEntry(routeMap, item.InEntry)
 		writeBestFact(routeMap, item.Best)
+		writeRouteAge(routeMap, item.InEntry.ChangedAt, item.readAt)
 	} else if item.OutRoute != nil {
 		if item.OutRoute.NextHop != "" {
 			routeMap["next-hop"] = item.OutRoute.NextHop
@@ -1475,6 +1533,14 @@ func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 	return upstream
 }
 
+// isPathStage reports whether keyword builds a pathFilter, under either of
+// its two spellings. apply() builds the filter for both, so the parsers
+// validate the value of both: a spelling left unvalidated would accept a
+// pattern the matcher refuses, and answer no route.
+func isPathStage(keyword string) bool {
+	return keyword == filterPath || keyword == filterASPath
+}
+
 // filterKeywords are pipeline stage keywords that require a value argument.
 var filterKeywords = map[string]bool{
 	filterPath:      true,
@@ -1621,7 +1687,7 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 				var tb textbuf.Buffer
 				return "", "", nil, nil, tb.Str(keyword).Str(" requires a value").String()
 			}
-			if keyword == filterPath {
+			if isPathStage(keyword) {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
 					return "", "", nil, nil, errMsg
 				}

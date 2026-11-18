@@ -432,7 +432,11 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		}
 		manual[key] = routes
 	}
-	routes.Insert(fam, attrBytes, nlriBytes)
+	// The injected route is stamped like a received one: this command stores
+	// one route, so it reads the route clock once. Injecting the same route
+	// again is an equal re-announcement to storage.FamilyRIB.InsertAt, by its
+	// fingerprint or by its parsed attributes, so the stored time stays.
+	routes.InsertAt(fam, attrBytes, nlriBytes, r.routeClock.now())
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)

@@ -66,6 +66,10 @@ type bestSource struct {
 	// release, so a row is encoded from attributes that cannot be freed under it.
 	held      storage.RouteEntry
 	heldValid bool
+
+	// routeClock is the RIB's route clock, read when Next resolves an item's
+	// entry so the row's age is the route's age at that read.
+	routeClock routeClock
 }
 
 // bestRouteKey builds the lookup key used by the reason terminal's
@@ -237,7 +241,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		return entries[i].item.Prefix < entries[j].item.Prefix
 	})
 
-	return &bestSource{entries: entries}
+	return &bestSource{entries: entries, routeClock: r.routeClock}
 }
 
 // Next resolves the item's pool entry and RETAINS it, so every consumer
@@ -268,6 +272,9 @@ func (s *bestSource) Next() (RouteItem, bool) {
 			s.held, s.heldValid = held, true
 			item.HasInEntry = true
 			item.InEntry = held
+			// Read after the lookup, so the reading is never earlier than
+			// the time the entry holds.
+			item.readAt = s.routeClock.now()
 		}
 	}
 	return item, true
@@ -504,7 +511,7 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 				var tb2 textbuf.Buffer
 				return "", nil, tb2.Str(keyword).Str(" requires a value").String()
 			}
-			if keyword == filterPath {
+			if isPathStage(keyword) {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
 					return "", nil, errMsg
 				}

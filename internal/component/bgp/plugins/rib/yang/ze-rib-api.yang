@@ -258,6 +258,8 @@ given.";
         description "The scope is sent, received, or sent-received, which is the default.
                      A filter is path <pattern>, prefix <pattern>, community <value>,
                      family <afi/safi>, or match <text>.
+                     A path pattern is AS numbers joined by commas, matched as a run anywhere in the AS path.
+                     A leading ^ ties the run to the start of the path, and a trailing $ ties it to the end.
                      A terminal is one of four.
                      count returns metadata only.
                      json returns serialized output.
@@ -291,6 +293,8 @@ given.";
     rpc best {
         description "A filter is path <pattern>, prefix <pattern>, community <value>,
                      family <afi/safi>, or match <text>.
+                     A path pattern is AS numbers joined by commas, matched as a run anywhere in the AS path.
+                     A leading ^ ties the run to the start of the path, and a trailing $ ties it to the end.
                      A terminal is one of four.
                      count returns metadata only.
                      json returns serialized output.

@@ -78,6 +78,16 @@ type RouteEntry struct {
 	// Zero means no retained received Partial, not a rule for new attachment.
 	// It occupies padding before MsgID on the current 64-bit layout.
 	partial uint8
+	// ChangedAt is the route clock reading of the message that last changed
+	// this route's stored attributes: its first insert, or an announcement
+	// whose attributes differ. An equal re-announcement keeps it, because every
+	// equal branch of the insert paths writes the stored entry back. Zero is
+	// RouteTimeUnrecorded: the route was stored without a reading and has no
+	// age. Best-path selection MUST NOT read it: an age is information about a
+	// route, never a reason to prefer it. With the three bytes above it fills
+	// the padding before MsgID, so the record stays 64 bytes on a 64-bit
+	// layout (TestRouteEntrySize).
+	ChangedAt RouteTime
 	// MsgID identifies the received UPDATE for validation eligibility.
 	// Zero is an unversioned producer; it asks the gate about the current path.
 	MsgID uint64
@@ -237,11 +247,14 @@ func (e *RouteEntry) AddRef() error {
 // optional attribute is accepted and passed along to other BGP peers and the
 // Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it
 // MUST NOT be set back to 0 by the current AS."
+// ChangedAt follows the copy too: a clone is the same route, so it has the
+// same age.
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
 		StaleLevel:        e.StaleLevel,
 		ReceivedLLGRStale: e.ReceivedLLGRStale,
 		partial:           e.partial,
+		ChangedAt:         e.ChangedAt,
 		MsgID:             e.MsgID,
 		SourcePolicyEpoch: e.SourcePolicyEpoch,
 		SourceReceipt:     e.SourceReceipt,

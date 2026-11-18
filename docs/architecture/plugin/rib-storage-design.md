@@ -2584,6 +2584,67 @@ func NewNLRISet(family FamilyKey, addPath bool) NLRISet {
 2. **Efficient lookup:** Find all routes with same attributes
 3. **UPDATE building:** Group routes by attrs for efficient encoding
 
+### Route Change Time
+
+Each stored route holds the time its stored attributes last changed, so a
+reader can ask how long a route has been stable. `show bgp rib` answers it as
+the `age` member of a received row, and the looking glass shows that age.
+
+**Design:** `ChangedAt storage.RouteTime` on `RouteEntry`: per-route metadata
+like `StaleLevel`, never pooled. A `RouteTime` is one reading of the RIB's route
+clock: the whole seconds elapsed since the epoch the RIB took when it started,
+plus one, in four bytes.
+
+| Choice | Reason |
+|--------|--------|
+| Seconds since the RIB's own start, not since the Unix epoch | An age is a difference of two readings. Readings of one process's monotonic clock do not move when the wall clock is stepped, so an NTP correction never makes a route older or younger |
+| Plus one | Zero stays free. The zero value is `RouteTimeUnrecorded`: the route was stored without a reading. `RouteTime.AgeAt` answers no age for it, and the row then carries no `age` member, where a zero would read as "changed this second" |
+| One-second resolution, four bytes | A looking glass shows ages in seconds, and four bytes hold 136 years of uptime. A reading the type cannot hold is `RouteTimeUnrecorded`, never a wrapped small number |
+| Nothing is persisted | A reading means nothing outside the process that took it. After a restart every route is relearned and is new |
+
+**When it is written.** Only when a route's stored attributes change: on its
+first insert and on an announcement whose attributes differ. A re-announcement
+with equal attributes keeps the stored reading, on every insert path, because
+the equal branches write the stored entry back and copy only the received
+identity onto it. The test is the one that already decides a no-op: the
+attribute fingerprint and length, then `entriesEqual` on the parsed handles. A
+route refresh therefore leaves every stable route's age growing. A new label
+stack under equal attributes does not move the time either, and neither does an
+in-place change through `ModifyFamilyEntry` (a stale mark, the received
+identity).
+
+| Insert path | Where the reading comes from |
+|-------------|------------------------------|
+| Received UPDATE, attributes parsed once (`handleReceivedStructured`) | One reading for the UPDATE, set on the parsed entry and stored by `InsertEntry` for each NLRI, ADD-PATH and non-CIDR families included, and by `insertLabeledEntry` for labeled unicast |
+| Received UPDATE, attributes not parsed once | The same reading, handed to `PeerRIB.InsertAt`. `insertLabeled`, the labeled form of this fallback, reads the clock itself for each route: it already parses the attributes for each route |
+| JSON event path (`insertPoolNLRIs`) | One reading for each NLRI section of the event |
+| `request bgp rib inject` (`injectRoute`) | One reading for the command, handed to `PeerRIB.InsertAt` |
+| An injected wire UPDATE (`handleInjectWireRoute`) | One reading for the UPDATE |
+| `PeerRIB.Insert` and `FamilyRIB.Insert` | None: the route is stored with `RouteTimeUnrecorded`. No shipped caller uses them |
+
+**The clock.** `RIBManager.routeClock` wraps an `internal/core/clock` clock and
+the epoch it read when `newRIBManager` built it, so a test hands the RIB a clock
+it moves. The handlers read it once per received message, never per route,
+apart from the fallback the table names. A `RIBManager` built without
+`newRIBManager` holds no clock: every reading is `RouteTimeUnrecorded` and its
+routes have no age.
+
+**Best-path selection never reads it.** `extractCandidate` does not copy the
+time into a `Candidate`: an age is information about a route, never a reason to
+prefer it.
+
+**Cost.** The four bytes fill padding the record already had, between its three
+one-byte fields and the message ID. The record is expected to stay 64 bytes, to
+be confirmed by `TestRouteEntrySize`, which also pins the field's offset.
+`RouteEntry.Clone` copies the time, so a retained or cloned route keeps its age.
+
+<!-- source: internal/component/bgp/plugins/rib/storage/routetime.go -- RouteTime, RouteTimeUnrecorded, RouteTimeSince, RouteTime.AgeAt -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, RouteEntry.Clone -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- FamilyRIB.InsertAt, FamilyRIB.InsertEntry, entriesEqual -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- PeerRIB.InsertAt, PeerRIB.InsertEntry -->
+<!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- routeClock, newRouteClock -->
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleReceivedStructured, insertLabeled -->
+
 ### Stale Route Tracking (Graceful Restart)
 
 RFC 4724 requires the Receiving Speaker to mark routes as stale when a GR-capable peer
@@ -2823,6 +2884,17 @@ election. A protocol RIB's rows answer `false`, because its routes never enter
 the election. A non-CIDR row carries no `best`: its winner is keyed by wire
 NLRI, which the row no longer holds, and an absent member says the RIB could
 not tell, where `false` would claim it lost. Sent rows carry none either.
+
+**A received row says how long ago its route changed.** After the same walk,
+`markReadAt` stamps the buffered rows with one reading of the route clock, and
+`writeRouteAge` writes `age`: a JSON number, the whole seconds from the route's
+`ChangedAt` to that reading. The reading is taken after the walk, so it is
+never earlier than a time one of the walked entries holds. `show bgp rib best`
+rows read the clock when `bestSource.Next` resolves the entry. A row whose
+route holds no reading carries no `age`, and sent rows carry none: an
+Adj-RIB-Out copy keeps no time. The member is additive, so a reader that does
+not know it is unaffected.
+<!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- markReadAt, writeRouteAge, rowKeyAge -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- LookupRetained -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource, applyBestStages -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, newShowSource, inboundSource, lastFilter -->
@@ -3413,9 +3485,11 @@ RouteEntry {
 ```
 
 `RouteEntry` is 64 bytes on the current 64-bit layout: it holds stale state,
-received Partial facts, message and source-policy provenance, an attribute
-fingerprint and length, the bundle and AS_PATH handles, and a local source-lease
-reference. The Partial byte occupies existing padding before the message ID.
+received Partial facts, the route's change time, message and source-policy
+provenance, an attribute fingerprint and length, the bundle and AS_PATH handles,
+and a local source-lease reference. The Partial byte and the four-byte change
+time occupy existing padding before the message ID. With the change time the
+64-byte figure is expected, to be confirmed by `TestRouteEntrySize`.
 The 12 non-AS_PATH attribute handles live in a `Bundle` struct (48 bytes) stored
 in `BundlePool`. Routes with identical attribute values share that bundle even
 when their received Partial facts differ.
