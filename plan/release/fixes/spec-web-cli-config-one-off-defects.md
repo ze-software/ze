@@ -35,6 +35,85 @@ the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
 
+### Create and download a system backup (2026-11-18)
+
+Owner request, verbatim, after identifying the missing browser creation action:
+
+> ok please add this feature and nothing else do not drift
+
+This amendment alone is the current implementation scope. The earlier Task
+paragraph directing broad continuation is historical and does not authorize
+resuming the other parent obligations. The existing uploaded-backup editor
+remains intact. The parent stays open; this amendment does not close it.
+
+| Item | Decision or constraint |
+|------|------------------------|
+| Requested behavior | Add **Create backup of this system** on `/backups/`; its POST downloads a complete `.zefs` of the hosting daemon's store |
+| Existing producer | `storage.Backup` owns the coherent whole-store guard and copies every raw key, including drafts, history, credentials and binary data |
+| Existing transfer authority | `config/artifact.Owner` owns account-bound snapshots, quotas, expiry, cleanup debt and shutdown; use its existing read/abort transport |
+| Existing command boundary | Config CLI already adapts storage CLI producers; keep the web handler a thin authenticated command adapter |
+| Selected approach | Add `request config artifact system snapshot`, returning the existing immutable transfer shape; add a browser POST adapter and native form |
+| Rejected alternative | Making artifact identity optional on the existing private-artifact download command would blur source selection and weaken its current mandatory identity contract |
+| Preservation | Uploaded workspaces, live committed and pending state, other accounts and original files remain unchanged; no restore, commit or routing action is invoked |
+| Schema and discovery | Declare the command in `ze-config-artifact-cmd.yang`, register its RPC and document it beside existing artifact operations; no listener, feature flag, dependency or new process |
+| Resource policy | Refuse oversized output and exhausted allowance using the shared owner; remove failed or completed private output through its existing cleanup-debt handling |
+| Validation boundary | A complete backup need not contain a configuration; do not require the uploaded-editor configuration picker to accept a system snapshot |
+
+#### C1 acceptance and wiring
+
+| AC | Observable outcome | Permitted survivors and reason |
+|----|--------------------|-------------------------------|
+| C-AC-1 | An authorized user submits the native creation form and receives a `.zefs` attachment that reopens with all source keys byte-identical | Saved drafts, history, credentials and binary keys survive because this is a complete store backup |
+| C-AC-2 | Creation and download leave the live store and all uploaded workspaces unchanged | All existing live and offline work survives because creation is read-only with respect to those sources |
+| C-AC-3 | Anonymous, read-only, cross-origin, unsupported-method and unavailable-store requests refuse without disclosing source bytes | Existing authorized workspaces stay usable; a refused creation has no source mutation |
+| C-AC-4 | Snapshots obey owner/account quotas and size limits; failed creation and completed, failed or cancelled downloads release their owned temporary output | Existing snapshots remain available until their own close/expiry; cleanup failures remain explicit admission debt |
+
+Entry point: `pageBackupWorkspace` posts to the registered backup subtree;
+`backupWorkspaces.serve` dispatches the declared snapshot command and streams
+its returned transfer. The config RPC reaches `BackupSystemTo` on the installed
+data target, through the shared artifact owner, and `storage.Backup` supplies
+the whole-store copy. HTTP/native browser tests reopen the actual attachment;
+owner and storage tests exercise limits and cleanup. Main runs scoped red and
+green tests; source agents run no code.
+
+| Phase | Files and evidence |
+|-------|--------------------|
+| C1 tests first | New `artifact_system_test.go`, `backup_system_test.go`, `backup_system_integration_test.go` and `system_snapshot_test.go`; registered route/command reaches a behavioral refusal before implementation |
+| C1 implementation | Web backup route and page; artifact snapshot producer; config CLI handler/registration; storage CLI live-source adapter; the artifact command YANG declaration and its generated glue only as required |
+| C1 documentation | Narrow additions to the existing web guide, web-interface/web-components architecture, storage-backends and command contract where changed |
+| C1 verification | Scoped new snapshot tests plus existing backup/transfer tests; native browser creation/download/reopen; reached storage tests, lint and generated-template/YANG checks |
+
+| Risk | Early signal | Mitigation |
+|------|--------------|------------|
+| C-R1 | Download is plain config text or omits a key class | Reopen the binary artifact and compare all source raw keys, including a non-UTF-8 value |
+| C-R2 | Browser chooses a server path or bypasses ownership | Use only a server-owned private transfer and require normal authentication, edit authorization and same-origin POST |
+| C-R3 | Large backup escapes quotas or failure leaves output | Enforce the admitted allowance in the shared owner/backup producer and retain failed cleanup as debt |
+| C-R4 | Source commits race the copy | Reuse the source write guard held by the backup producer throughout the whole key walk |
+
+Integration dispositions: command/YANG registration and its inventory are
+required; no new configuration option, environment variable, runtime dependency,
+metric or BGP behavior. Existing backup-storage diagnostic reporting covers
+storage failures. Existing artifact expiry/abort/shutdown owns lifetime.
+Changed-wire census is additive: the YANG command, config CLI RPC registration
+and handler write the existing transfer response; `backupWorkspaces.command`
+decodes it, `read` consumes its chunks and `abort` releases it. Existing download,
+upload, source and external command callers retain their current grammar and
+response fields. The wire-method inventory receives exactly the added RPC.
+
+| C1 execution | Observed result |
+|--------------|-----------------|
+| Wiring RED | `TestArtifactSystemSnapshotRegistered`, run through `CGO_ENABLED=0 ./le --name web-cli-fixes test unit pkg path ./internal/component/config/cli/ run '^TestArtifactSystemSnapshotRegistered$'`, failed at the real dispatch with `unknown command` before implementation. The new test compiled and reached its intended assertion. |
+| Storage and artifact regressions | Native `test unit pkg path ./internal/component/config/storage/ path ./internal/component/config/artifact/` passed both complete reached packages with race detection after the bounded producer and owner implementation. |
+| Registered command GREEN | Native admitted `go test -race -v -count=1` with complete manifest feature tags and `-run '^TestArtifactSystemSnapshot' ./internal/component/config/cli/` passed `TestArtifactSystemSnapshotRegistered` and `TestArtifactSystemSnapshotRequiresEdit`. The former reopens the chunked binary artifact and compares every raw source key; the latter refuses a read-only caller. |
+| Backend lint | Native `go lint run scope './internal/component/config/storage/ ./internal/component/config/storage/cli/ ./internal/component/config/artifact/ ./internal/component/config/cli/'` passed host and Linux/integration with zero issues after spelling-only corrections. |
+| Additive expected outputs | Independent `ze-test-judge` approved exactly the new wire-method row and the creation-form additions to `backup_workspace--upload.html` and `get-backups.txt`; those approved changes are applied. Runtime inventory and golden comparisons remain separate. |
+| Initial web build boundary, cleared by its owner | The first complete-feature integration attempt failed before execution because two concurrent L2TP fixtures still used `SessionEvents(uint16)`. Their owning task migrated them to `subscriberid.L2TPBirth`; this amendment changed neither file. |
+| HTTP/browser GREEN | After that dependency changed, the unchanged native complete-feature integration selection `^(TestBackupSystemDownload.*\|TestBrowserBackupSystemDownload\|TestBrowserBackupWorkspace(Scroll)?)$` passed all seven named roots and all refusal/interruption subcases with race detection. The native browser downloaded and reopened the new system backup; the existing upload/edit/download and wheel journeys passed. |
+| Wire inventory GREEN | `TestRegisteredWireMethods` passed against the actual complete-feature registry with the single approved new method. |
+| Rendered expectations | Full `TestWebGoldenOutput` passed, including all backup variants. Handler cases `get-backups`, `get-backups-anonymous` and `get-backups-read-only` passed. The broader handler run remains red only on the concurrent `get-l2tp-session-json` capture's subscriber-identity changes; no unrelated capture was refreshed. |
+| Page checks | Native assets and HTMX checks passed. Page generation succeeded; the broader template-output check reports only the concurrent `l2tp_detail_templ.go` as stale, and does not report the backup page. |
+| Current validation boundary | Web lint produced no source-analysis verdict: its first launch lost shared cache entries, and its retry refused planning because concurrent `l2tp/observer.go` plus five dependency files changed. Backend lint and backup HTTP/browser acceptance are recorded above; web lint remains unverified until those inputs settle. No parent completion, whole-checkout green or deployment is claimed. |
+
 ### Offline backup browser workspace (2026-11-17)
 
 Owner requirement, verbatim:

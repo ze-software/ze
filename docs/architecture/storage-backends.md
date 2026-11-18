@@ -555,6 +555,17 @@ window's revert would wipe it. `request data
 backup` runs `Backup` over the daemon's own bound handle (`ownedStore` looks
 through `BindConfigSource`), under the lock every commit takes.
 
+Browser-created system backups use `BackupBounded` over that same installed
+store. It keeps the source guard across a complete size preflight and native
+copy, uses exact-fit encoding and checks cancellation between keys. The
+preflight includes a conservative framing allowance before creating output;
+keys and values alone do not establish the encoded artifact's size. The private
+artifact owner supplies the smaller of its remaining shared allowance and its
+single-artifact limit, and removes output on any creation failure. This changes
+neither the ordinary `Backup` API nor its caller-selected spare policy.
+<!-- source: internal/component/config/storage/backup_bounded.go -- BackupBounded, checkBackupAllowance -->
+<!-- source: internal/component/config/artifact/system_snapshot.go -- SnapshotSystem -->
+
 Private artifact selected-config restore uses the same `ReadRestoreSource` and
 `RestoreConfigFromSource` publication as the daemon's path adapter. Source
 selection returns complete owned bytes before the artifact owner lock releases;

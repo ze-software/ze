@@ -1544,6 +1544,7 @@ show status              # Show process status
 request reload           # Reload the configuration
 request plugin restart <name>   # Restart a configured plugin, stopping it first if it runs (lifts a respawn-limit disable)
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
+request config artifact system snapshot             # Create a private full-store download transfer
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 request data restore path <file> full                # Accept full recovery after clean shutdown and store close
 delete data key <key>    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
@@ -1562,6 +1563,19 @@ cleanly; a cleanup failure prevents replacement.
 <!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
 <!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
+
+`request config artifact system snapshot` requires edit access because its
+complete `.zefs` includes credentials and private keys. Its result is the
+existing private transfer document (`transfer`, `total`, `next`, `complete`).
+Read it with `show config artifact transfer read transfer <id> offset <n>` and
+finish with `request config artifact upload abort transfer <id>`, including
+after a failed read. A different account cannot read the transfer. Source
+history, drafts and pending changes are preserved as raw keys; creation invokes
+neither commit nor reload. The daemon must serve a store, and bounded snapshot
+admission may refuse before creating output. The browser creation form uses
+this command and downloads the resulting bytes directly.
+<!-- source: internal/component/config/cli/artifact_system.go -- artifactSystemSnapshot -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- system, snapshot -->
 
 #### show reload-status (the reload fence)
 

@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -31,6 +32,10 @@ type BackupResult struct {
 // An existing file at path is refused unless replace is set; every name the
 // live store owns in its own folder is refused whatever replace says. The artifact is created 0600: it holds credentials.
 func Backup(source Storage, path string, replace bool, opts ...zefs.Option) (result BackupResult, err error) {
+	return backup(context.Background(), source, path, replace, 0, opts...)
+}
+
+func backup(ctx context.Context, source Storage, path string, replace bool, limit int64, opts ...zefs.Option) (result BackupResult, err error) {
 	owned, ok := ownedStore(source)
 	if !ok {
 		return BackupResult{}, fmt.Errorf("backup: unsupported storage %T", source)
@@ -53,14 +58,22 @@ func Backup(source Storage, path string, replace bool, opts ...zefs.Option) (res
 	if err != nil {
 		return BackupResult{}, fmt.Errorf("backup: list source keys: %w", err)
 	}
+	if limit > 0 {
+		if err := checkBackupAllowance(ctx, guard, keys, limit); err != nil {
+			return BackupResult{}, err
+		}
+	}
 	artifact, err := CreateBlobPopulated(target, func(seed Storage) error {
-		return copyKeys(guard, seed, keys)
+		return copyKeys(ctx, guard, seed, keys)
 	}, replace, opts...)
 	if err != nil {
 		return BackupResult{}, fmt.Errorf("backup %s: %w", target, err)
 	}
 	if err := artifact.Close(); err != nil {
 		return BackupResult{}, fmt.Errorf("backup %s: close: %w", target, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return BackupResult{}, err
 	}
 	info, err := os.Stat(target)
 	if err != nil {
@@ -72,7 +85,7 @@ func Backup(source Storage, path string, replace bool, opts ...zefs.Option) (res
 // copyKeys writes every key the source guard holds into the seed under one
 // seed guard, so the artifact is encoded once rather than once per key. The
 // guarded source bytes are written before the source guard is released.
-func copyKeys(source WriteGuard, seed Storage, keys []string) (err error) {
+func copyKeys(ctx context.Context, source WriteGuard, seed Storage, keys []string) (err error) {
 	owned, ok := seed.(*store)
 	if !ok {
 		return fmt.Errorf("backup: unsupported artifact storage %T", seed)
@@ -84,6 +97,9 @@ func copyKeys(source WriteGuard, seed Storage, keys []string) (err error) {
 	defer func() { err = releaseGuard(target, err) }()
 	stamp := time.Now()
 	for _, key := range objectsFirst(keys) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		data, err := source.ReadKey(key)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", key, err)

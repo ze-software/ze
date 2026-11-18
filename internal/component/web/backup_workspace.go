@@ -80,6 +80,16 @@ func (m *backupWorkspaces) serve(w http.ResponseWriter, r *http.Request) {
 		backupRefuse(w, http.StatusServiceUnavailable, "The daemon artifact commands are unavailable.", "No private workspace can start without its daemon owner.", "Reconnect to the running daemon and reopen /backups/")
 		return
 	}
+	tail := strings.TrimPrefix(r.URL.Path, backupWorkspacePath)
+	if tail == "system-download" {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			backupRefuse(w, http.StatusMethodNotAllowed, "Creating a system backup requires its form submission.", "No backup was created.", "Open /backups/ and select Create backup of this system")
+			return
+		}
+		m.downloadSystem(w, r)
+		return
+	}
 	if r.Method != http.MethodGet {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "GET, POST")
@@ -87,7 +97,6 @@ func (m *backupWorkspaces) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	tail := strings.TrimPrefix(r.URL.Path, backupWorkspacePath)
 	if tail == "" {
 		if r.Method == http.MethodPost {
 			m.upload(w, r)

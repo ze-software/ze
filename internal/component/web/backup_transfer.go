@@ -68,5 +68,19 @@ func (m *backupWorkspaces) download(w http.ResponseWriter, r *http.Request, id s
 	}
 }
 
+func (m *backupWorkspaces) downloadSystem(w http.ResponseWriter, r *http.Request) {
+	transfer, err := m.command(r.Context(), r, "request config artifact system snapshot")
+	if err != nil {
+		backupCommandFailure(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="system-backup.zefs"`)
+	w.Header().Set("Content-Length", strconv.FormatInt(transfer.Total, 10))
+	if err := m.read(r, transfer.Transfer, w); err != nil {
+		reportBackupStorageFailure()
+	}
+}
+
 // Keep this boundary independent of any client-supplied path.
 func backupWorkspaceURL(id string) string { return backupWorkspacePath + strings.Trim(id, "/") + "/" }

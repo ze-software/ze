@@ -128,6 +128,22 @@ No web listener is needed for command access to an artifact.
 <!-- source: internal/component/config/artifact/owner.go -- Owner, Close -->
 <!-- source: internal/component/config/cli/artifact_rpc.go -- serverArtifacts, AttachArtifactOwner, attachServerArtifactsLocked, artifactHandler -->
 
+The initial page also posts **Create backup of this system** to
+`/backups/system-download`. This edit-authorized, same-origin POST requests
+`request config artifact system snapshot` and downloads `system-backup.zefs`.
+The registered command uses the installed data target's store and the same
+guarded full-store backup producer. It retains one immutable account-bound
+source transfer in the existing owner, without creating an editor workspace or
+requiring a committed configuration. Existing read/abort operations stream and
+remove it, including after cancellation or a failed response write. The HTTP
+response declares the complete snapshot's byte length so an interrupted read
+cannot be mistaken for a complete download. Creating a snapshot never invokes
+reload or publishes a live configuration.
+<!-- source: internal/component/web/backup_transfer.go -- downloadSystem -->
+<!-- source: internal/component/config/cli/artifact_system.go -- artifactSystemSnapshot -->
+<!-- source: internal/component/config/artifact/system_snapshot.go -- SnapshotSystem -->
+<!-- source: internal/component/config/storage/cli/system_backup.go -- BackupSystemTo -->
+
 The artifact command family also exposes the native stored configuration
 inventory, history, resolved comparisons, one-statement set and activation,
 replacement, and indexed rollback. `show config artifact diff` selects exactly

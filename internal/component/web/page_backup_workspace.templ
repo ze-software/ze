@@ -25,6 +25,13 @@ templ pageBackupWorkspace(v backupPageData) {
 				if v.Source != nil {
 					@componentBackupSource(*v.Source)
 				} else if v.Path == "" {
+					<form method="POST" action="/backups/system-download" class="backup-panel">
+						<h2>Back up this system</h2>
+						<p>Download a complete .zefs copy of this system's store, including configuration history, saved drafts and credentials.</p>
+						<p>Keep this backup private. Before opening it in the Ze CLI on Unix, restrict access to your account:</p>
+						<pre><code>chmod 600 system-backup.zefs</code></pre>
+						<button id="backup-system-download" type="submit">Create backup of this system</button>
+					</form>
 					<form method="POST" action="/backups/" enctype="multipart/form-data" class="backup-panel">
 						<label for="backup-upload-file">Backup file (.zefs, at most 64 MiB)</label>
 						<input id="backup-upload-file" type="file" name="backup" accept=".zefs" required>

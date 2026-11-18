@@ -68,8 +68,11 @@ Hidden overlays (shown on demand):
 
 `pageBackupWorkspace` is a separate native HTML shell with file upload,
 configuration selection, a full-text editor, validation, masked review, save,
-binary download and close controls. It uses ordinary forms, shared base styles
-and a page stylesheet; it has no script, HTMX, SSE or live commit bar. The page
+binary download and close controls. Its initial page also offers **Create
+backup of this system**, a same-origin POST that downloads a complete current
+store snapshot without entering an uploaded editor workspace. It uses ordinary
+forms, shared base styles and a page stylesheet; it has no script, HTMX, SSE or
+live commit bar. The page
 head uses the generated `pgPageBackupWorkspace` asset declaration, whose set is
 empty because the page and its components require no scripts. The page
 stylesheet restores normal document scrolling so the editor and lower controls

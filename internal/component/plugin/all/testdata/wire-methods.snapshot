@@ -147,6 +147,7 @@ ze-config:artifact-session-set
 ze-config:artifact-set
 ze-config:artifact-source
 ze-config:artifact-source-begin
+ze-config:artifact-system-snapshot
 ze-config:artifact-text-begin
 ze-config:artifact-transfer-read
 ze-config:artifact-upload-abort

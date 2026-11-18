@@ -9,6 +9,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-system-snapshot", Handler: artifactHandler(artifactSystemSnapshot)},
 		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-upload-begin", Handler: artifactHandler(artifactUploadBegin)},
 		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-text-begin", Handler: artifactHandler(artifactTextBegin)},
 		pluginserver.RPCRegistration{WireMethod: "ze-config:artifact-upload-append", Handler: artifactHandler(artifactUploadAppend)},
@@ -37,6 +38,7 @@ func init() {
 	command.RegisterShape([]string{"show config artifact list"}, command.ShapeTab)
 	command.RegisterShape([]string{"show config artifact source"}, command.ShapeBlob)
 	command.RegisterShape([]string{"show config artifact info", "show config artifact transfer read",
+		"request config artifact system snapshot",
 		"request config artifact upload begin", "request config artifact text begin", "request config artifact upload append",
 		"request config artifact upload finish", "request config artifact upload abort", "request config artifact download begin",
 		"request config artifact source begin", "request config artifact validate", "request config artifact review",
