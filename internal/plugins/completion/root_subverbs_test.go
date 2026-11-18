@@ -33,16 +33,14 @@ func TestScriptsOfferRegisteredSubVerbs(t *testing.T) {
 		"bash": "        *)\n" +
 			"            # Every other root: the second word from the sub-verbs it\n" +
 			"            # registers, so a new root completes with no edit here.\n" +
-			"            if [[ ${depth} -eq 1 ]]; then\n" +
-			"                local completions\n" +
-			"                completions=$(ze completion words \"${subcmd}\" 2>/dev/null | cut -f1)\n",
+			"            local completions\n" +
+			"            completions=$(ze completion words \"${_ze_context[@]}\" 2>/dev/null | cut -f1)\n",
 		"zsh": "                *)\n" +
 			"                    # Every other root: the second word from the sub-verbs it\n" +
 			"                    # registers, so a new root completes with no edit here.\n" +
-			"                    if (( CURRENT == 2 )); then\n" +
-			"                        local -a root_verbs\n" +
-			"                        root_verbs=(${(f)\"$(ze completion words ${words[1]} 2>/dev/null",
-		"fish":    "complete -c ze -n 'test (__ze_depth secret) = 0' -a '(__ze_complete_dynamic secret)'\n",
+			"                    local -a root_verbs\n" +
+			"                    root_verbs=(${(f)\"$(ze completion words \"${(@)words[1,CURRENT-1]}\" 2>/dev/null",
+		"fish":    "complete -c ze -n '__ze_under_command secret' -a '(__ze_complete_dynamic secret)'\n",
 		"nushell": "(^ze completion words $subcmd ...$rest",
 	}
 	for _, shell := range shells {

@@ -7,11 +7,12 @@ import (
 	"sort"
 )
 
-// Value-hint kinds for FlagSpec.ValueHint. A shell can complete the flag's
-// value when the hint names a known value source; "" means the flag is a
-// boolean/switch with no value.
+// Value-hint kinds for FlagSpec.ValueHint. Every nonempty hint consumes a
+// value. Text has no suggested candidates; Family and File name their value
+// sources. None means a boolean/switch with no value.
 const (
 	FlagValueNone   = ""
+	FlagValueText   = "text"
 	FlagValueFamily = "family"
 	FlagValueFile   = "file"
 )

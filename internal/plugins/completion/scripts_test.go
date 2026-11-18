@@ -11,9 +11,9 @@ import (
 	"github.com/ze-software/ze/internal/plugins/completion/script"
 )
 
-// VALIDATES: R-12 -- ze's four completion scripts are byte-for-byte the
-// scripts captured from HEAD before the le generator was added beside them.
-// PREVENTS: sharing the generator with le changing what an operator's shell
+// VALIDATES: R-12 -- ze's four completion scripts match the maintained,
+// independently approved golden baselines byte-for-byte.
+// PREVENTS: generator changes silently changing what an operator's shell
 // loads for ze.
 func TestZeCompletionScriptsUnchanged(t *testing.T) {
 	for _, shell := range shells {

@@ -40,7 +40,8 @@ function __ze_needs_command
 end
 
 # __ze_depth subcmd — echoes the completion depth (0-indexed) after subcmd.
-# Returns 1 (no output) if subcmd not found. A partial current token does not
+# Returns 1 and prints -1 if subcmd is not found, so numeric callers always
+# receive an operand. A partial current token does not
 # count as a completed level, matching bash depth and zsh CURRENT guards.
 function __ze_depth
     set -l expected $argv[1]
@@ -67,10 +68,19 @@ function __ze_depth
         else if test "$word" = "$expected"
             set found 1
         else
+            echo -1
             return 1
         end
     end
-    test $found -eq 0; and return 1
+    if test $found -eq 0
+        echo -1
+        return 1
+    end
+    set -l hint (__ze_value_hint)
+    if test -n "$hint"
+        echo -1
+        return 1
+    end
     # Partial current token is part of current depth, not next.
     set -l ct (commandline -ct)
     test -n "$ct"; and set n (math $n - 1)
@@ -97,7 +107,11 @@ function __ze_under_command
             case '-*'
                 continue
         end
-        test "$word" = "$expected"; and return 0
+        if test "$word" = "$expected"
+            set -l hint (__ze_value_hint)
+            test -n "$hint"; and return 1
+            return 0
+        end
         return 1
     end
     return 1
@@ -151,44 +165,12 @@ end
 # Extracts the command path after the subcommand and passes it to words.
 function __ze_complete_dynamic
     set -l subcmd $argv[1]
-    set -l cmd (commandline -opc)
-    set -l all_words
-    set -l found 0
-    set -l skip_next 0
-    for word in $cmd[2..]
-        if test $skip_next -eq 1
-            set skip_next 0
-            continue
-        end
-        switch $word
-            case '-d' '--debug' '-V' '--version'
-                continue
-            case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
-                set skip_next 1
-                continue
-            case '-*'
-                continue
-        end
-        if test $found -eq 1
-            set all_words $all_words $word
-        else if test "$word" = "$subcmd"
-            set found 1
-        else
-            return
-        end
-    end
-    test $found -eq 0; and return
-
-    # If the current token is non-empty (partial word), exclude it from path.
-    set -l ct (commandline -ct)
-    set -l path $all_words
-    if test -n "$ct"; and test (count $path) -gt 0
-        set path $path[1..-2]
-    end
-
-    ze completion words $subcmd $path 2>/dev/null
+    set -l path (__ze_subcmd_path)
+    test (count $path) -eq 0; and return
+    test "$path[1]" != "$subcmd"; and return
+    ze completion words $path 2>/dev/null
     # Add dynamic peer selectors when completing after "peer"
-    if test (count $path) -eq 1; and test "$path[1]" = "peer"
+    if test (count $path) -eq 2; and test "$path[2]" = "peer"
         ze completion peers 2>/dev/null
     end
 end
@@ -204,29 +186,43 @@ function __ze_complete_families
     ze completion families 2>/dev/null
 end
 
-# __ze_subcmd_path echoes the positional command path after ze (skipping flags).
+# __ze_subcmd_path preserves local flags and values for the shared parser.
+# Only the global flags handled before a command are removed here.
 function __ze_subcmd_path
-    set -l cmd (commandline -opc)
+    set -l cmd (commandline -xpc)
     set -l skip_next 0
+    set -l found 0
     for word in $cmd[2..]
         if test $skip_next -eq 1
             set skip_next 0
             continue
         end
-        switch $word
-            case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
-                set skip_next 1
-                continue
-            case '-*'
-                continue
+        if test $found -eq 0
+            switch $word
+                case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
+                    set skip_next 1
+                    continue
+                case '-*'
+                    continue
+            end
+            set found 1
         end
         echo $word
     end
 end
 
+# __ze_value_hint asks the registration which value the current token fills.
+function __ze_value_hint
+    set -l path (__ze_subcmd_path)
+    set -l current (commandline -ct)
+    ze completion flag-value $path "$current" 2>/dev/null | string split -f 1 \t
+end
+
 # __ze_complete_flags offers flag names from the registry inventory for the
 # current subcommand path (registration over hardcoding).
 function __ze_complete_flags
+    set -l hint (__ze_value_hint)
+    test -n "$hint"; and return
     set -l path (__ze_subcmd_path)
     test (count $path) -ge 1; and ze completion flags $path 2>/dev/null
 end
@@ -286,7 +282,11 @@ complete -c ze -n __ze_needs_command -l chaos-seed -x -d 'Enable chaos mode with
 complete -c ze -n __ze_needs_command -l chaos-rate -x -d 'Fault probability (0.0-1.0)'
 
 # --- Flag inventory + value completion (registration over hardcoding) ---
-# --family value completion from the shared registry.
+# Value hints are shared with the command-path parser, including text values
+# which consume input without offering unrelated command words or flags.
+complete -c ze -n 'set -l hint (__ze_value_hint); test "$hint" = family' -f -a '(__ze_complete_families)'
+complete -c ze -n 'set -l hint (__ze_value_hint); test "$hint" = file' -F
+# Plugin-specific family flags can also be declared after a dynamic name.
 complete -c ze -n '__ze_prev_is --family' -f -a '(__ze_complete_families)'
 # Flag names for the current subcommand path when typing a "-" token.
 complete -c ze -n 'string match -q -- "-*" (commandline -ct)' -f -a '(__ze_complete_flags)'

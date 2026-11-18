@@ -2,6 +2,22 @@
 
 Plugins have four distinct operating modes with different input/output formats.
 
+## Offline flag completion
+
+An offline command registers its flags through `registry.RegisterCommandFlags`.
+Each `FlagSpec` declares its name, description, and `ValueHint`. `FlagValueNone`
+means a switch. `FlagValueText` consumes a value without suggesting candidates.
+`FlagValueFamily` and `FlagValueFile` consume values from their named sources.
+<!-- source: internal/component/command/registry/flags.go -- FlagSpec, RegisterCommandFlags -->
+
+Completion removes registered flags and consumed values before it resolves a
+command path. Both `--name value` and `--name=value` retain the command's flag
+inventory after the value. The internal `completion flag-value` query receives
+completed words followed by the current token, including an empty token.
+It returns the current value hint as one completion record, or no record when
+the current token is not a registered value.
+<!-- source: internal/plugins/completion/flags.go -- flagContext, flagValue, writeFlags -->
+
 ## Modes Overview
 
 | Mode | Invocation | Input Format | Use Case |

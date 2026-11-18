@@ -297,9 +297,10 @@ word of every registered root. A root's second words are the verbs its `Subs`
 hint names: the first word of each comma-separated item, when that word is
 spelled like a verb, so a placeholder (`<plugin-name>`), a flag (`-c`) or a
 number is never offered. bash and zsh reach them through a default case arm
-that asks `ze completion words <root>` at tab time, fish through one rule per
-root with verbs, and nushell through its one completer for every argument. A
-new root completes its verbs with no edit to any generator. A few roots keep a
+that asks `ze completion words` with the completed arguments at tab time, fish
+through one rule per root with verbs, and nushell through its one completer for
+every argument. A new root completes its verbs with no edit to any generator.
+A few roots keep a
 hand-written arm for what the registry does not hold: file names after
 `config`, `exabgp` and `signal`, module names after `schema show`, plugin names
 after `plugin`, and the descriptions of their verbs.
@@ -308,3 +309,10 @@ after `plugin`, and the descriptions of their verbs.
 <!-- source: internal/plugins/completion/bash.go -- bashScript -->
 <!-- source: internal/plugins/completion/zsh.go -- zshScript -->
 <!-- source: internal/plugins/completion/fish.go -- fishScript -->
+
+Offline flag completion reads each command's registered `ValueHint`. A text
+value produces no candidates while the operator types it. After a completed
+value, flag and command completion resume at the command path. The same parser
+removes separate and equals-form flag values for both completion queries.
+<!-- source: internal/plugins/completion/flags.go -- flagContext, flagValue, writeFlags -->
+<!-- source: internal/plugins/completion/words.go -- completionTree -->

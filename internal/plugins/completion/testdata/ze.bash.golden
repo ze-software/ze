@@ -40,7 +40,7 @@ _ze_find_subcmd() {
 _ze() {
     local cur prev words cword
     if declare -F _init_completion >/dev/null 2>&1; then
-        _init_completion || return
+        _init_completion -n =: || return
     else
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -87,18 +87,40 @@ _ze() {
     local subcmd="${words[_ze_subcmd_idx]}"
     local depth=$(( cword - _ze_subcmd_idx ))
 
+    # Ask the command's registration before offering flags or command words.
+    local -a _ze_context=("${words[@]:_ze_subcmd_idx:depth}")
+    local _ze_value
+    _ze_value=$(ze completion flag-value "${_ze_context[@]}" "${cur}" 2>/dev/null | cut -f1)
+    if [[ -n "${_ze_value}" ]]; then
+        COMPREPLY=()
+        local _ze_prefix=""
+        if [[ "${cur}" == --*=* ]]; then
+            _ze_prefix="${cur%%=*}="
+            cur="${cur#*=}"
+        fi
+        case "${_ze_value}" in
+            family)
+                local families
+                families=$(ze completion families 2>/dev/null | cut -f1)
+                COMPREPLY=($(compgen -W "${families}" -- "${cur}"))
+                ;;
+            file) _ze_filedir ;;
+        esac
+        if [[ -n "${_ze_prefix}" ]]; then
+            local j
+            for (( j=0; j < ${#COMPREPLY[@]}; j++ )); do
+                COMPREPLY[j]="${_ze_prefix}${COMPREPLY[j]}"
+            done
+        fi
+        return
+    fi
+
     # Flag-name completion from the registry inventory (registration over
     # hardcoding): if the current subcommand path has registered flags, offer
     # them when the user is typing a "-" token.
     if [[ "${cur}" == -* ]]; then
-        local -a _ze_flag_path=()
-        local j
-        for (( j=_ze_subcmd_idx; j < cword; j++ )); do
-            [[ "${words[j]}" == -* ]] && continue
-            _ze_flag_path+=("${words[j]}")
-        done
         local _ze_flags
-        _ze_flags=$(ze completion flags "${_ze_flag_path[@]}" 2>/dev/null | cut -f1)
+        _ze_flags=$(ze completion flags "${_ze_context[@]}" 2>/dev/null | cut -f1)
         if [[ -n "${_ze_flags}" ]]; then
             COMPREPLY=($(compgen -W "${_ze_flags}" -- "${cur}"))
             return
@@ -214,11 +236,9 @@ _ze() {
         *)
             # Every other root: the second word from the sub-verbs it
             # registers, so a new root completes with no edit here.
-            if [[ ${depth} -eq 1 ]]; then
-                local completions
-                completions=$(ze completion words "${subcmd}" 2>/dev/null | cut -f1)
-                COMPREPLY=($(compgen -W "${completions}" -- "${cur}"))
-            fi
+            local completions
+            completions=$(ze completion words "${_ze_context[@]}" 2>/dev/null | cut -f1)
+            COMPREPLY=($(compgen -W "${completions}" -- "${cur}"))
             ;;
     esac
 }

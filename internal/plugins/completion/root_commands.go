@@ -95,7 +95,7 @@ func shellRootsWithSubVerbs() []string {
 func fishRootSubVerbLines() string {
 	var tb textbuf.Buffer
 	for _, name := range shellRootsWithSubVerbs() {
-		tb.Str("complete -c ze -n 'test (__ze_depth ").Str(name).Str(") = 0' -a '(__ze_complete_dynamic ").Str(name).Str(")'\n")
+		tb.Str("complete -c ze -n '__ze_under_command ").Str(name).Str("' -a '(__ze_complete_dynamic ").Str(name).Str(")'\n")
 	}
 	return tb.String()
 }

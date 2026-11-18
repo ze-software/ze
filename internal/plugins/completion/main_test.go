@@ -194,7 +194,7 @@ func TestRunFish(t *testing.T) {
 		"__ze_needs_command",
 		"__ze_under_command",
 		"__ze_complete_dynamic",
-		"ze completion words $subcmd",
+		"ze completion words $path",
 		"__ze_complete_dynamic show",
 	} {
 		if !strings.Contains(out, want) {

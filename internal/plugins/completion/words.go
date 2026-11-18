@@ -87,6 +87,10 @@ const nameRIB = "rib"
 // walk in it. A nil tree with no error means args name nothing completable.
 // The error is the YANG loader's refusal of the schema.
 func completionTree(args []string) (*command.Node, []string, error) {
+	args, pending := flagContext(args)
+	if pending != registry.FlagValueNone {
+		return nil, nil, nil
+	}
 	if len(args) == 0 {
 		return nil, nil, nil
 	}

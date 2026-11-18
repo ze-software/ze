@@ -39,6 +39,8 @@ func Run(args []string) int {
 		return words(args[1:])
 	case "flags":
 		return flags(args[1:])
+	case "flag-value":
+		return flagValue(args[1:])
 	case "families":
 		return families()
 	case "peers":

@@ -42,6 +42,20 @@ _ze() {
             _describe 'ze command' commands
             ;;
         args)
+            # Registered values consume a token before command/flag completion.
+            local _ze_value
+            _ze_value=$(ze completion flag-value "${(@)words[1,CURRENT]}" 2>/dev/null | cut -f1)
+            if [[ -n "${_ze_value}" ]]; then
+                case "${_ze_value}" in
+                    family)
+                        local -a _ze_fam
+                        _ze_fam=(${(f)"$(ze completion families 2>/dev/null | sed $'s/\t/:/')"})
+                        [[ ${#_ze_fam} -gt 0 ]] && _describe 'family' _ze_fam
+                        ;;
+                    file) _files ;;
+                esac
+                return
+            fi
             # Value completion for --family (any subcommand), from the registry.
             if [[ "${words[CURRENT-1]}" == "--family" ]]; then
                 local -a _ze_fam
@@ -51,13 +65,9 @@ _ze() {
             # Flag-name completion from the registry inventory (registration
             # over hardcoding).
             if [[ "${words[CURRENT]}" == -* ]]; then
-                local -a _ze_fp
-                local _ze_w
-                for _ze_w in ${words[2,CURRENT-1]}; do
-                    [[ "$_ze_w" == -* ]] || _ze_fp+=("$_ze_w")
-                done
+                local -a _ze_fp=("${(@)words[1,CURRENT-1]}")
                 local -a _ze_fl
-                _ze_fl=(${(f)"$(ze completion flags ${_ze_fp} 2>/dev/null | sed $'s/\t/:/')"})
+                _ze_fl=(${(f)"$(ze completion flags "${_ze_fp[@]}" 2>/dev/null | sed $'s/\t/:/')"})
                 [[ ${#_ze_fl} -gt 0 ]] && { _describe 'flag' _ze_fl; return }
             fi
             case ${words[1]} in
@@ -208,11 +218,9 @@ _ze() {
                 *)
                     # Every other root: the second word from the sub-verbs it
                     # registers, so a new root completes with no edit here.
-                    if (( CURRENT == 2 )); then
-                        local -a root_verbs
-                        root_verbs=(${(f)"$(ze completion words ${words[1]} 2>/dev/null | sed $'s/\t/:/')"})
-                        [[ ${#root_verbs} -gt 0 ]] && _describe 'command' root_verbs
-                    fi
+                    local -a root_verbs
+                    root_verbs=(${(f)"$(ze completion words "${(@)words[1,CURRENT-1]}" 2>/dev/null | sed $'s/\t/:/')"})
+                    [[ ${#root_verbs} -gt 0 ]] && _describe 'command' root_verbs
                     ;;
             esac
             ;;
