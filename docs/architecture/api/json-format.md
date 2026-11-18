@@ -90,6 +90,18 @@ API keeps birdwatcher-convention `snake_case` for Alice-LG compatibility.
 
 ## BGP Events
 
+`connection-id` is an optional decimal uint64 string at the BGP payload level.
+When the engine has a captured Session it names that exact physical connection,
+including both OPEN directions, state and EOR. Zero or absence is unrecorded;
+it cannot be replaced by a current peer lookup, `destination-session`, a source
+policy epoch or a replay receipt. Text events carry the same decimal value
+after `connection-id` on parsed lines. The legacy raw UPDATE text line keeps
+its byte-only grammar and carries no physical provenance; that line cannot
+authorize a connection-scoped lifecycle operation. This fact grants no send
+or source permission.
+<!-- source: internal/component/bgp/format/text.go -- appendPeerJSON, AppendOpen -->
+<!-- source: internal/component/bgp/format/json.go -- JSONEncoder.message -->
+
 All BGP events have the same structure: type in `message`, `peer` and event-specific data at `bgp` level:
 
 ```json
@@ -124,6 +136,7 @@ Subscribers without the opt-in keep the bare document or text line.
 | bgp.source-policy-epoch | uint64 | Original received source-policy admission on UPDATE events; omitted when unrecorded or locally originated. Independent of message ID, dispatch session generation and source-DOWN revocation |
 | bgp.source-receipt | uint64 | Original engine-issued source session identity on UPDATE events; omitted when unrecorded or locally originated. Retained replay preserves this value rather than looking up the current peer session |
 | bgp.peer-owner | uint64 | Engine-owned Peer incarnation for this event, including state and refresh. Reconnect keeps it; removal and recreation changes it. Zero is explicitly unrecorded and grants no source authority |
+| bgp.destination-session | string | Exact decimal uint64 of the original producing session on sent UPDATEs and control events. Zero is omitted. Descriptive output provenance, never a source or send grant |
 | bgp.peer.remote.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number. Omitted while a dynamic peer's AS is not yet negotiated: the OPEN Ze sends it, a NOTIFICATION sent in OpenSent, and the `connected` and `fsm` events before OpenConfirm carry none. AS 0 is never written, because no peer can hold it (RFC 7607 Section 2) |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
@@ -168,6 +181,16 @@ storage records an original receipt; a current session cannot supply one.
 <!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
 <!-- source: internal/component/bgp/event.go -- Event, ParseEvent -->
+
+Sent UPDATE JSON preserves the producing session's captured
+`destination-session` in every UPDATE format, including End-of-RIB and an
+unreadable UPDATE. It is an exact decimal string, independent of the physical
+`connection-id` and received source identities. Received UPDATEs omit it, even
+when the formatter holds a peer snapshot that has one. A zero stays omitted;
+route metadata and current peer state cannot supply a replacement value.
+This field grants neither selected ownership nor permission to send.
+<!-- source: internal/component/bgp/format/text_update.go -- appendSentDestinationJSON -->
+<!-- test: internal/component/bgp/format/sent_destination_session_test.go TestSentUpdateJSONKeepsCapturedDestinationSession -->
 
 ### Event Types
 

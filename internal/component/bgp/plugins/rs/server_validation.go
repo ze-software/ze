@@ -23,8 +23,13 @@ func (rs *routeServer) validationChanged(changes []ribevents.ValidationRoute) {
 	}
 	for _, route := range changes {
 		sourcePeer := route.Peer.String()
+		key, err := newWorkerKey(sourcePeer, route.PeerOwner, route.ConnectionID)
+		if err != nil {
+			rs.warnLifecycle("validation has no physical source actor", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+			continue
+		}
 		item := workItem{sourcePeer: sourcePeer, validation: route}
-		if !rs.workers.Dispatch(workerKey{sourcePeer: sourcePeer}, item) {
+		if !rs.workers.Dispatch(key, item) {
 			logger().Debug("validation replay discarded after worker shutdown", "peer", sourcePeer)
 		}
 	}
@@ -46,12 +51,12 @@ func (rs *routeServer) processValidation(key workerKey, route ribevents.Validati
 func (rs *routeServer) replayValidation(key workerKey, route ribevents.ValidationRoute, mayPark bool) {
 	rs.flushWorkerBatch(key)
 	rs.mu.RLock()
-	peer := rs.peers[key.sourcePeer]
-	if peer != nil && peer.StateSeen && !peer.Up {
+	peer := rs.peers[key]
+	if peer == nil {
 		rs.mu.RUnlock()
 		return
 	}
-	targets := rs.selectForwardTargets(nil, key.sourcePeer, 0, map[family.Family]bool{route.Family: true})
+	targets := rs.selectForwardTargets(nil, key, 0, map[family.Family]bool{route.Family: true})
 	rs.mu.RUnlock()
 	// A validation change is a live change. Its relay leaves
 	// StoredRoute.InitialUpdate false, so the engine holds it behind the
@@ -66,11 +71,13 @@ func (rs *routeServer) replayValidation(key workerKey, route ribevents.Validatio
 	// store (ribevents.ReplayPathCommand).
 	for _, target := range targets {
 		ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
-		_, err := ribevents.RelayReplayPath(ctx, rs.dispatchCommand, rs.relayReplayRoutes,
-			target, key.sourcePeer, route.Family.String(), route.Prefix.String(), strconv.FormatUint(uint64(route.PathID), 10))
+		_, err := ribevents.RelayReplayPath(ctx, rs.dispatchCommand, func(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
+			return rs.relayToTarget(ctx, target, routes)
+		},
+			target.Destination, key.address.String(), route.Family.String(), route.Prefix.String(), strconv.FormatUint(uint64(route.PathID), 10), route.PeerOwner, route.ConnectionID)
 		cancel()
 		if err != nil {
-			logger().Error("validation replay failed", "source", key.sourcePeer, "target", target, "prefix", route.Prefix, "error", err)
+			logger().Error("validation replay failed", "source", key.address.String(), "target", target, "prefix", route.Prefix, "error", err)
 		}
 	}
 }
@@ -80,7 +87,7 @@ func (rs *routeServer) replayValidation(key workerKey, route ribevents.Validatio
 // handled yet is parked even with no target: the UPDATE reaches this route
 // server after any target up now in progress took its cut, so replayFlowSpecs
 // leaves the rule to this relay, and the release selects the targets again.
-func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.ValidationRoute, targets []string, mayPark bool) {
+func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.ValidationRoute, targets []rpc.ForwardTarget, mayPark bool) {
 	path, present := ribevents.LookupFlowSpecPath(route)
 	if present && mayPark && rs.parkValidation(key, route, path.MsgID) {
 		return
@@ -89,22 +96,23 @@ func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.Va
 		return
 	}
 	stored := rpc.StoredRoute{
-		SourcePeer: key.sourcePeer, Family: route.Family.String(), PathID: route.PathID,
+		SourcePeer: key.address.String(), SourceOwner: key.owner, SourceConnectionID: key.connectionID, Family: route.Family.String(), PathID: route.PathID,
 		NLRIHex: hex.EncodeToString([]byte(route.NLRI)), NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: true,
 	}
 	if present {
 		stored.AttrHex = hex.EncodeToString(path.Attributes)
 		stored.MsgID = path.MsgID
+		stored.SourceReceipt = path.SourceReceipt
 		stored.SourcePolicyEpoch = path.SourcePolicyEpoch
 		stored.Withdraw = false
 	}
 	routes := []rpc.StoredRoute{stored}
 	for _, target := range targets {
 		ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
-		err := rs.plugin.RelayStoredRoute(ctx, target, routes)
+		err := rs.relayToTarget(ctx, target, routes)
 		cancel()
 		if err != nil {
-			logger().Error("FlowSpec validation replay failed", "source", key.sourcePeer, "target", target, "error", err)
+			logger().Error("FlowSpec validation replay failed", "source", key.address.String(), "target", target, "error", err)
 		}
 	}
 }
@@ -184,7 +192,7 @@ func (rs *routeServer) releaseParkedValidations(key workerKey) {
 		parked := batch.parked[0]
 		batch.parked = slices.Delete(batch.parked, 0, 1)
 		logger().Warn("FlowSpec rule relayed before its UPDATE was forwarded: the source sent nothing more within the worker idle timeout",
-			"source-peer", key.sourcePeer, "msg-id", parked.msgID, "handled-msg-id", batch.processed)
+			"source-peer", key.address.String(), "msg-id", parked.msgID, "handled-msg-id", batch.processed)
 		rs.replayValidation(key, parked.route, false)
 	}
 }
@@ -194,25 +202,11 @@ func (rs *routeServer) releaseParkedValidations(key workerKey) {
 // peer-down withdraws its routes, so a rule its targets never received is not
 // relayed now. Called by the worker pool on the worker goroutine (onClose).
 func (rs *routeServer) dropParkedValidations(key workerKey) {
-	val, loaded := rs.batches.Load(key)
-	if !loaded {
-		return
-	}
-	batch, ok := val.(*forwardBatch)
-	if !ok {
-		return
-	}
-	for _, parked := range batch.parked {
-		if rs.stopping.Load() {
-			logger().Debug("FlowSpec rule dropped at shutdown before its UPDATE was forwarded",
-				"source-peer", key.sourcePeer, "msg-id", parked.msgID)
-			continue
-		}
-		logger().Warn("FlowSpec rule dropped: the source went down before its UPDATE was forwarded, and its peer-down withdraws its routes",
-			"source-peer", key.sourcePeer, "msg-id", parked.msgID, "handled-msg-id", batch.processed)
-	}
-	clear(batch.parked)
-	batch.parked = batch.parked[:0]
+	// The physical close callback runs once after the final cached flush. A
+	// retained current path still owes its already-admitted validation replay;
+	// currentStoredRouteLocked excludes unretained/removed predicates per route.
+	rs.releaseParkedValidations(key)
+	rs.batches.Delete(key)
 }
 
 // workerBatch returns the source worker's batch state, creating it on first use.
@@ -244,21 +238,22 @@ func (rs *routeServer) workerBatch(key workerKey) *forwardBatch {
 // replay passes the destination's replay fence while the live unicast waits
 // behind it. A path whose MessageID is unknown (0) is replayed: sent twice,
 // never dropped.
-func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
+func (rs *routeServer) replayFlowSpecs(parent context.Context, destinationKey workerKey, gen, cut uint64) error {
+	destination := destinationKey.address.String()
 	// A timed-out optional-store replay must not cancel this independent phase.
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	ctx, cancel := context.WithTimeout(parent, updateRouteTimeout)
 	defer cancel()
 	for _, key := range ribevents.FlowSpecRoutes() {
-		if key.Peer.String() == destination {
+		if key.PeerOwner == destinationKey.owner {
 			continue
 		}
 		rs.mu.RLock()
-		target := rs.peers[destination]
+		target := rs.peers[destinationKey]
 		current := target != nil && target.Up && target.ReplayGen == gen
 		supported := current && (target.Families == nil || target.SupportsFamily(key.Family))
 		rs.mu.RUnlock()
 		if !current {
-			return
+			return nil
 		}
 		if !supported {
 			continue
@@ -270,16 +265,17 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 		if path.MsgID != 0 && path.MsgID > cut {
 			continue // the live rail's: relayed by the source worker (parkValidation)
 		}
-		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
+		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), SourceOwner: key.PeerOwner, SourceConnectionID: key.ConnectionID, SourceReceipt: path.SourceReceipt, Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
 			SourcePolicyEpoch: path.SourcePolicyEpoch,
 			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 			InitialUpdate: true} // peer-up replay: passes the destination's replay fence
-		if err := rs.plugin.RelayStoredRoute(ctx, destination, []rpc.StoredRoute{route}); err != nil {
-			logger().Error("FlowSpec peer-up replay failed", "source", key.Peer, "target", destination, "error", err)
-			return
+		if err := rs.relayReplayRoutes(ctx, destination, []rpc.StoredRoute{route}); err != nil {
+			return err
 		}
 	}
+
+	return nil
 }
 
 // askFlowSpecGate emits a gate-query, so the selecting RIB announces its

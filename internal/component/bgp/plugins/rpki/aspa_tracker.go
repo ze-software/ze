@@ -8,8 +8,19 @@ import (
 	"sync"
 )
 
-// routeKey uniquely identifies a tracked route.
+// rpkiSource records the original UPDATE actor, never selecting authority.
+// Its zero value names an unowned observation. Nonzero actor fields are copied
+// from the received event; neither an address nor a later callback supplies one.
+// A stored key is immutable for its whole received lifetime.
+type rpkiSource struct {
+	owner      uint64
+	connection uint64
+}
+
+// routeKey identifies one original actor's received path. Reconnects and
+// same-address siblings are distinct even when their native path IDs are zero.
 type routeKey struct {
+	source   rpkiSource
 	peerAddr string
 	family   string
 	prefix   string
@@ -31,6 +42,8 @@ type trackedRoute struct {
 	path      []uint32 // owned copy of normalized AS_PATH
 	aspaState uint8
 	mode      aspaMode
+	noLLGR    bool
+	retained  bool
 	// neighbor re-applies the neighbor-AS step on every re-validation: a
 	// route that failed it stays Invalid whatever the cache later holds.
 	neighbor aspaNeighbor
@@ -91,14 +104,31 @@ func (t *aSPATracker) Remove(key routeKey, msgID uint64) {
 	delete(t.routes, key)
 }
 
-func (t *aSPATracker) removePeer(peerAddr string) {
+func (t *aSPATracker) removePeer(peerAddr string, source rpkiSource) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for key, route := range t.routes {
 		if key.peerAddr == peerAddr {
+			if key.source != source {
+				continue
+			}
 			t.removeFromIndexLocked(route)
 			delete(t.routes, key)
 		}
+	}
+}
+
+// removeOwner is terminal Peer removal, not a physical DOWN wildcard.
+// The caller MUST supply the original nonzero owner from the removed event.
+func (t *aSPATracker) removeOwner(owner uint64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for key, route := range t.routes {
+		if key.source.owner != owner {
+			continue
+		}
+		t.removeFromIndexLocked(route)
+		delete(t.routes, key)
 	}
 }
 

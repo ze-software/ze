@@ -25,6 +25,9 @@ var errAnnounceQueueBoundary = errors.New("unsent announcement boundary is unkno
 // The caller MUST keep update's build buffers and queue attributes borrowed
 // until return. QueueAnnounce takes ownership of each retained route.
 func (a *reactorAPIAdapter) queueRetiredAnnounce(ctx context.Context, target announceTarget, update *message.Update, batch bgptypes.NLRIBatch, facts announceFacts, attrs []attribute.Attribute, userASPath *attribute.ASPath, cause error) error {
+	if target.destinationOwner != 0 {
+		return cause
+	}
 	if batch.SentOwnerMessage != 0 {
 		return cause
 	}

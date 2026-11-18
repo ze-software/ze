@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/netip"
 	"time"
 	"unique"
 
@@ -60,6 +59,9 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if key.PeerOwner == 0 {
 		return false
 	}
+	if key.ConnectionID == 0 {
+		return false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.terminal != nil {
@@ -73,12 +75,12 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if !named {
 		return false
 	}
-	if pending := r.pending[pendingKey(key.Peer, rk)]; pending != nil {
-		if pending.route.SourceOwner == key.PeerOwner {
+	if pending := r.pending[pendingKey(receivedPeerOf(key.Peer, key.PeerOwner, key.ConnectionID), rk)]; pending != nil {
+		if pending.route.validationSourceMatches(key) {
 			return false
 		}
 	}
-	routes := r.ribIn[key.Peer]
+	routes := r.ribIn[receivedPeerOf(key.Peer, key.PeerOwner, key.ConnectionID)]
 	if routes == nil {
 		return false
 	}
@@ -89,11 +91,14 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if route.SourceOwner != key.PeerOwner {
 		return false
 	}
-	// RFC 8212 Section 3: an applied import denial excludes the route.
-	if r.sourcePolicyDeniedLocked(key.Peer, route.SourcePolicyEpoch) {
+	if route.ConnectionID != key.ConnectionID {
 		return false
 	}
-	if newer := r.earlyDecisions[pendingKey(key.Peer, rk)]; newer != nil && newer.msgID > route.MsgID {
+	// RFC 8212 Section 3: an applied import denial excludes the route.
+	if r.sourcePolicyDeniedLocked(route.SourceOwner, route.SourcePolicyEpoch) {
+		return false
+	}
+	if newer := r.earlyDecisions[pendingKey(receivedPeerOf(key.Peer, key.PeerOwner, key.ConnectionID), rk)]; newer != nil && receivedBefore(route.ConnectionID, route.MsgID, newer.connectionID, newer.msgID) {
 		return false
 	}
 	if r.validationEnabled && route.Ineligible {
@@ -112,24 +117,36 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 	if key.PeerOwner == 0 {
 		return false
 	}
+	if key.ConnectionID == 0 {
+		return false
+	}
 	rk, named := validationRouteKey(key)
 	if !named {
 		return false
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	if pending := r.pending[pendingKey(key.Peer, rk)]; pending != nil {
-		if pending.route.SourceOwner == key.PeerOwner {
+	if pending := r.pending[pendingKey(receivedPeerOf(key.Peer, key.PeerOwner, key.ConnectionID), rk)]; pending != nil {
+		if pending.route.validationSourceMatches(key) {
 			return true
 		}
 	}
-	if routes := r.ribIn[key.Peer]; routes != nil {
+	if routes := r.ribIn[receivedPeerOf(key.Peer, key.PeerOwner, key.ConnectionID)]; routes != nil {
 		route, present := routes.Get(rk)
 		if present {
-			return route.SourceOwner == key.PeerOwner
+			return route.validationSourceMatches(key)
 		}
 	}
 	return false
+}
+
+// validationSourceMatches compares immutable received provenance. A caller MUST
+// already have refused an unrecorded query; this method grants no authority.
+func (route *RawRoute) validationSourceMatches(key ribevents.ValidationRoute) bool {
+	if route.SourceOwner != key.PeerOwner {
+		return false
+	}
+	return route.ConnectionID == key.ConnectionID
 }
 
 // noteValidationChange MUST run under mu. The caller MUST finish with a
@@ -148,7 +165,7 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 // validationRouteKey decodes, so a subscriber that asks the selection query
 // with the notified key finds the route. The caller MUST note such a route
 // while it is still stored: a removal notes before it deletes.
-func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRouteKey) {
+func (r *AdjRIBInManager) noteValidationChange(peer receivedPeer, key compactRouteKey) {
 	if r.emitValidation == nil {
 		return
 	}
@@ -159,7 +176,7 @@ func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRoute
 	if route == nil {
 		return
 	}
-	change := ribevents.ValidationRoute{Peer: peer, PeerOwner: route.SourceOwner, Family: key.Fam, Prefix: key.Prefix, PathID: key.PathID}
+	change := ribevents.ValidationRoute{Peer: peer.address, PeerOwner: route.SourceOwner, ConnectionID: route.ConnectionID, Family: key.Fam, Prefix: key.Prefix, PathID: key.PathID}
 	if key.keyedByNLRI() {
 		nlri, named := r.validationNLRILocked(peer, key)
 		if !named {
@@ -183,7 +200,7 @@ func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRoute
 // to announce. It is also false, and logged, when the stored bytes do not
 // decode back to key: a ValidationRoute no subscriber could resolve is never
 // emitted. MUST hold mu.
-func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRouteKey) (nlri string, named bool) {
+func (r *AdjRIBInManager) validationNLRILocked(peer receivedPeer, key compactRouteKey) (nlri string, named bool) {
 	route := r.validationStoredRouteLocked(peer, key)
 	if route == nil {
 		return "", false
@@ -191,19 +208,19 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 	wire, err := hex.DecodeString(route.NLRIHex)
 	if err != nil {
 		logger().Error("validation change not announced: the stored route's NLRI is not hex, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
-			"peer", peer, "family", key.Fam, "route", key.routeName(), "error", err)
+			"peer", peer.address, "peer-owner", peer.owner, "family", key.Fam, "route", key.routeName(), "error", err)
 		return "", false
 	}
-	change := ribevents.ValidationRoute{Peer: peer, PeerOwner: route.SourceOwner, Family: key.Fam, PathID: key.PathID, NLRI: string(wire)}
+	change := ribevents.ValidationRoute{Peer: peer.address, PeerOwner: route.SourceOwner, ConnectionID: route.ConnectionID, Family: key.Fam, PathID: key.PathID, NLRI: string(wire)}
 	resolved, ok := validationRouteKey(change)
 	if !ok {
 		logger().Error("validation change not announced: the stored route's NLRI does not parse as a store key, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
-			"peer", peer, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
+			"peer", peer.address, "peer-owner", peer.owner, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
 		return "", false
 	}
 	if resolved != key {
 		logger().Error("validation change not announced: the stored route's NLRI does not name its own store key, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
-			"peer", peer, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
+			"peer", peer.address, "peer-owner", peer.owner, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
 		return "", false
 	}
 	return change.NLRI, true
@@ -212,7 +229,7 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 // validationStoredRouteLocked borrows the original pending or installed value.
 // A nil result means neither store holds that path. The caller MUST hold mu
 // through every read of the returned route.
-func (r *AdjRIBInManager) validationStoredRouteLocked(peer netip.Addr, key compactRouteKey) *RawRoute {
+func (r *AdjRIBInManager) validationStoredRouteLocked(peer receivedPeer, key compactRouteKey) *RawRoute {
 	if pending := r.pending[pendingKey(peer, key)]; pending != nil {
 		return pending.route
 	}
@@ -422,7 +439,7 @@ func (r *AdjRIBInManager) eligibilityAnswerCommand(args []string) (string, any, 
 	if len(args) != 1 {
 		return statusError, "", errors.New(eligibilityCommand + " requires one argument: the JSON eligibility request")
 	}
-	answer, err := ribevents.AnswerEligibility(args[0], r.routeEligible, r.routePresent)
+	answer, err := ribevents.AnswerEligibility(args[0], r.routeEligible, r.routePresent, r.eligibilityProgress)
 	if err != nil {
 		return statusError, "", fmt.Errorf("%s: %w", eligibilityCommand, err)
 	}
@@ -477,14 +494,14 @@ func (r *AdjRIBInManager) announcedGateCommand(status string, data any, err erro
 //
 // The change is noted before the delete, while the route still supplies the
 // NLRI that names it (noteValidationChange).
-func (r *AdjRIBInManager) removeInstalled(peer netip.Addr, key compactRouteKey) {
+func (r *AdjRIBInManager) removeInstalled(peer receivedPeer, key compactRouteKey) {
 	r.noteValidationChange(peer, key)
 	if routes := r.ribIn[peer]; routes != nil {
 		routes.Delete(key)
 	}
 }
 
-func (r *AdjRIBInManager) removePeerInstalled(peer netip.Addr) {
+func (r *AdjRIBInManager) removePeerInstalled(peer receivedPeer) {
 	if routes := r.ribIn[peer]; routes != nil {
 		routes.Range(func(key compactRouteKey, _ uint64, _ *RawRoute) bool {
 			r.noteValidationChange(peer, key)
@@ -492,6 +509,34 @@ func (r *AdjRIBInManager) removePeerInstalled(peer netip.Addr) {
 		})
 	}
 	delete(r.ribIn, peer)
-	delete(r.validationPeers, peer)
-	r.dropSourcePolicyLocked(peer)
+	for key := range r.validationPeers {
+		if key.source == peer {
+			delete(r.validationPeers, key)
+		}
+	}
+	if peer.owner != 0 {
+		r.dropSourcePolicyLocked(peer.owner)
+	}
+}
+
+// eligibilityProgress is a causal processing fact, never a route verdict or a
+// source lease. The caller MUST still ask exact current membership and retake
+// its own local actor revision before admitting any output.
+func (r *AdjRIBInManager) eligibilityProgress(route ribevents.ValidationRoute, minimum uint64) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.terminal != nil {
+		return false, r.terminal
+	}
+	source, live := r.sourceLive[route.PeerOwner]
+	if !live {
+		return false, errors.New("eligibility original source is no longer live; reconcile its retained membership before cold adoption")
+	}
+	if source.address != route.Peer {
+		return false, errors.New("eligibility minimum names another source address; preserve the original source")
+	}
+	if source.connectionID != route.ConnectionID {
+		return false, errors.New("eligibility minimum names another physical connection; preserve the original source")
+	}
+	return source.processedMsgID >= minimum, nil
 }

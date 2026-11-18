@@ -86,7 +86,7 @@ func (p *privateNegotiationEpoch) messageCallback(next MessageCallback) MessageC
 	if next == nil {
 		return nil
 	}
-	return func(addr netip.Addr, kind msgtype.MessageType, body []byte,
+	return func(captured *Session, addr netip.Addr, kind msgtype.MessageType, body []byte,
 		update *wireu.WireUpdate, ctx bgpctx.ContextID, direction rpc.MessageDirection,
 		buffer BufHandle, meta map[string]any, source string, id uint64) bool {
 		if kind == msgtype.TypeOPEN {
@@ -99,7 +99,7 @@ func (p *privateNegotiationEpoch) messageCallback(next MessageCallback) MessageC
 				return false // The bounded copy never takes the original pool handle.
 			}
 		}
-		return next(addr, kind, body, update, ctx, direction, buffer, meta, source, id)
+		return next(captured, addr, kind, body, update, ctx, direction, buffer, meta, source, id)
 	}
 }
 
@@ -123,7 +123,7 @@ func (event observedOpen) publish(s *Session) error {
 		return err
 	}
 	if s.onMessageReceived != nil {
-		s.onMessageReceived(s.settings.Address, msgtype.TypeOPEN, event.body, nil, event.context,
+		s.onMessageReceived(s, s.settings.Address, msgtype.TypeOPEN, event.body, nil, event.context,
 			event.direction, BufHandle{}, nil, event.source, event.messageID)
 	}
 	return nil

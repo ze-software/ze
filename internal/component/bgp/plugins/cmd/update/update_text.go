@@ -1204,7 +1204,7 @@ func parseLabelStack(args []string) ([]uint32, int, error) {
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, RequiresSelector: true, AcceptsDestinationSession: true},
 	)
 	pluginserver.RegisterProcessCleanup(clearProcessCursors)
 }
@@ -1365,9 +1365,17 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	if recoveryErr != nil {
 		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, recoveryErr)
 	}
+	recoveryOwner, recoveryOwnerErr := recoveryOwnerFromMeta(ctx.Meta)
+	if recoveryOwnerErr != nil {
+		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, recoveryOwnerErr)
+	}
 	sentOwnerMessage, ownerErr := sentOwnerMessageFromMeta(ctx.Meta)
 	if ownerErr != nil {
 		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, ownerErr)
+	}
+	destinationOwner, destinationErr := destinationOwnerFromMeta(ctx.Meta)
+	if destinationErr != nil {
+		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, destinationErr)
 	}
 	initial, initialErr := initialReplayFromMeta(ctx.Meta, sentOwnerMessage)
 	if initialErr != nil {
@@ -1405,7 +1413,9 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Stale:                staleLevel,
 				Replay:               replay,
 				SentOwnerMessage:     sentOwnerMessage,
+				DestinationOwner:     destinationOwner,
 				SourcePolicyEpoch:    ctx.SourcePolicyEpoch,
+				OriginAdmissionID:    plugin.OriginAdmissionID(originCtx),
 				InitialReplay:        initial.InitialReplay,
 				InitialLocal:         initial.InitialLocal,
 				InitialSourcePeer:    initial.InitialSourcePeer,
@@ -1441,13 +1451,15 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			// contains the MP_UNREACH_NLRI is not required to carry any other path
 			// attributes" -- so the command is what decides which one is sent.
 			batch := bgptypes.NLRIBatch{
-				Family:             group.Family,
-				NLRIs:              group.Withdraw,
-				NextHop:            group.NextHop,
-				Wire:               group.Wire,
-				RecoverySource:     recoverySource,
-				RecoveryGeneration: recoveryGeneration,
-				SentOwnerMessage:   sentOwnerMessage,
+				Family:              group.Family,
+				NLRIs:               group.Withdraw,
+				NextHop:             group.NextHop,
+				Wire:                group.Wire,
+				RecoverySource:      recoverySource,
+				RecoverySourceOwner: recoveryOwner,
+				RecoveryGeneration:  recoveryGeneration,
+				SentOwnerMessage:    sentOwnerMessage,
+				DestinationOwner:    destinationOwner,
 
 				RestoreConfigured: group.RestoreConfigured,
 			}
@@ -1551,6 +1563,25 @@ func replayFromMeta(meta map[string]any) bool {
 	}
 	replay, ok := meta["replay"].(bool)
 	return ok && replay
+}
+
+func destinationOwnerFromMeta(meta map[string]any) (uint64, error) {
+	value, present := meta["destination-owner"]
+	if !present {
+		return 0, nil // ordinary operator-selected write
+	}
+	text, ok := value.(string)
+	if !ok {
+		return 0, errors.New("destination-owner must be a nonzero decimal string")
+	}
+	owner, err := strconv.ParseUint(text, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if owner == 0 {
+		return 0, errors.New("destination-owner 0 grants no captured destination authority")
+	}
+	return owner, nil
 }
 
 // sentOwnerMessageFromMeta refuses malformed automatic cleanup rather than

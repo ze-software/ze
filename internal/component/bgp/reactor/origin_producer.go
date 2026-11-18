@@ -91,6 +91,7 @@ type originSourceIdentity struct {
 // Nil/zero is invalid; immutable after construction and safe for concurrent reads.
 type originSource struct {
 	identity    originSourceIdentity
+	accepted    *originAcceptedBinding
 	metric      uint32
 	distance    uint8
 	hasDistance bool

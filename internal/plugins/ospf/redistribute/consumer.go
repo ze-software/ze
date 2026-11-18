@@ -280,7 +280,8 @@ func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry conf
 // peers withdraw the external (AC-5). A prefix that was never injected is a no-op.
 // The generic WithdrawRoute carries no source, so the consumer recovers the source
 // label it recorded at inject time (forgetSource).
-func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, prefixStr string) {
+func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) {
+	prefixStr := removal.Prefix
 	c.offerMu.Lock()
 	defer c.offerMu.Unlock()
 

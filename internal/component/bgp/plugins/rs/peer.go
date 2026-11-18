@@ -3,13 +3,45 @@
 
 package rs
 
-import "github.com/ze-software/ze/internal/core/family"
+import (
+	"github.com/ze-software/ze/internal/component/bgp/retention"
+	"github.com/ze-software/ze/internal/core/family"
+	"sync"
+)
 
 // PeerState tracks the state of a BGP peer.
 type PeerState struct {
-	Address string // Peer IP address
-	ASN     uint32 // Peer AS number
-	Up      bool   // Session is established
+	// These are current obligations of this exact physical actor, under mu.
+	leaseMu       sync.Mutex
+	nativeMu      sync.Mutex
+	sourceReceipt uint64
+	sourceLease   bool
+	// A release revokes authority before its RPC can time out. This is one
+	// current join obligation, not permission to admit another output.
+	sourceReleaseOwed bool
+	// withdrawalMu owns both scalars. A cold query MUST carry processedMsgID
+	// and MUST recheck inventoryRevision before put and output enrollment.
+	inventoryRevision uint64
+	processedMsgID    uint64
+	pendingAdoptions  uint64
+	pendingUpdates    uint64
+	adoptionOpen      bool
+	sourceRetained    bool
+	replayFailure     error
+	departure         *sourceDeparture
+	downPending       bool
+	downGeneration    uint64
+	retainedFamilies  map[family.Family]bool
+	cleanup           []retention.Cleanup
+
+	downApplied bool // Exact physical DOWN was consumed; retained actors own this until release.
+	// SessionGeneration is the published original UP generation, never a physical ID.
+	SessionGeneration uint64
+	// DestinationSession is the original UP output receipt, independent of physical identity.
+	DestinationSession uint64
+	Address            string // Peer IP address
+	ASN                uint32 // Peer AS number
+	Up                 bool   // Session is established
 	// StateSeen records that handleState has processed at least one state event
 	// for this peer, which is what makes Up == false READABLE.
 	//
@@ -62,8 +94,9 @@ type PeerState struct {
 	//   msgID <= ForwardFrom  -> the peer's Adj-RIB-In replay delivers it
 	//   msgID >  ForwardFrom  -> the live forward delivers it
 	//
-	// FlowSpec is outside this partition: the live forward carries no FlowSpec
-	// rule, so replayFlowSpecs replays every current path regardless of the cut.
+	// FlowSpec uses the same partition. replayFlowSpecs supplies known paths
+	// at or below the cut; the source worker supplies later paths through
+	// its validation relay after preceding unicast work.
 	//
 	// MessageID is the right quantity because it is the only one bgp-rs and
 	// bgp-adj-rib-in both observe per route (reactor.nextMsgID stamps it on the

@@ -24,13 +24,14 @@ const relayChunkBudget = rpc.MaxMessageSize - relayFrameReserve
 //
 // The derivation, for the widest form of each non-string field:
 //
-//	{"source-peer":"","family":"","attr-hex":"","next-hop-hex":"","nlri-hex":"","msg-id":18446744073709551615,"source-policy-epoch":18446744073709551615,"withdraw":true,"path-id":4294967295,"nlri-framing":"source-wire"},
+//	{"source-peer":"","source-owner":"18446744073709551615","source-receipt":"18446744073709551615","source-connection-id":"18446744073709551615","family":"","attr-hex":"","next-hop-hex":"","nlri-hex":"","msg-id":18446744073709551615,"source-policy-epoch":18446744073709551615,"withdraw":true,"initial-update":true,"path-id":4294967295,"nlri-framing":"source-wire"},
 //
-// Source policy provenance adds 43 bytes to the previous 176-byte bound.
-// The bound retains the previous three bytes of slack.
+// Original source owner/receipt/physical string fields and initial-update add
+// 146 bytes to the previous219-byte bound. The widest encoded route plus comma
+// costs362 bytes; the bound retains the previous three bytes of slack.
 // TestRelayRouteJSONMaxBoundsMarshal pins the number against encoding/json, so a
 // field added to rpc.StoredRoute reddens a test rather than losing a chunk.
-const relayRouteJSONFixed = 219
+const relayRouteJSONFixed = 365
 
 // relayRouteJSONMax reports how many bytes one route adds to the serialized
 // rpc.RelayStoredRouteInput.

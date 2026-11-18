@@ -40,7 +40,8 @@ const ReplayRoutesCommand = "request bgp adj-rib-in replay-routes"
 // relays it under its own send grant, for the reason ReplayRoutesCommand gives.
 // The page is empty when the destination is the source itself.
 //
-// Arguments: "<destination> <source> <family> <prefix> <path-id>".
+// Arguments: "<destination> <source> <family> <prefix> <path-id> <peer-owner> <connection-id>".
+// The final values are the immutable originals carried by ValidationRoute.
 const ReplayPathCommand = "request bgp adj-rib-in replay-path"
 
 // ReplayPage is one answer to ReplayRoutesCommand or ReplayPathCommand.
@@ -148,8 +149,8 @@ func RelayReplay(ctx context.Context, dispatch ReplayDispatch, relay ReplayRelay
 //
 // Safe for concurrent use when dispatch and relay are.
 func RelayReplayPath(ctx context.Context, dispatch ReplayDispatch, relay ReplayRelay,
-	destination, source, family, prefix, pathID string) (int, error) {
-	page, err := readReplayPage(ctx, dispatch, ReplayPathCommand, destination, source, family, prefix, pathID)
+	destination, source, family, prefix, pathID string, owner, connection uint64) (int, error) {
+	page, err := readReplayPage(ctx, dispatch, ReplayPathCommand, destination, source, family, prefix, pathID, textbuf.StringUint(owner), textbuf.StringUint(connection))
 	if err != nil {
 		return 0, err
 	}

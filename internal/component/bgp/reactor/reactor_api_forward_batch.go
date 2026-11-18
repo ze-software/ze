@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -62,20 +63,36 @@ var errNoPeersMatch = errors.New("forward-cached: no established peers match des
 // it is not an identity anything trusts. A refused batch still acks every id,
 // for the reason the destination-resolution branch below already states.
 func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender) error {
+	return a.forwardUpdates(context.Background(), updateIDs, destinations, pluginName, sender, nil)
+}
+
+func (a *reactorAPIAdapter) forwardUpdates(ctx context.Context, updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender, bound *boundForwardRequest) error {
+	if err := requireBoundForwardContext(sender, bound); err != nil {
+		if bound == nil {
+			a.ackBatch(updateIDs, pluginName)
+		}
+		return err
+	}
 	if len(updateIDs) == 0 {
-		return nil
+		if bound == nil {
+			return nil
+		}
 	}
 	origin := announceOrigin(sender)
 	if !origin.sender.IsSet() {
 		sendNoSenderDenied(destinationsTarget(len(destinations)), origin)
-		a.ackBatch(updateIDs, pluginName)
+		if bound == nil {
+			a.ackBatch(updateIDs, pluginName)
+		}
 		return fmt.Errorf("%w: %d destinations, send type %s",
 			errSendNoSender, len(destinations), origin.sendType)
 	}
 	if len(destinations) > maxForwardDestinations {
 		fwdLogger().Error("forward-cached: destination list exceeds cap",
 			"count", len(destinations), "cap", maxForwardDestinations, "plugin", pluginName)
-		a.ackBatch(updateIDs, pluginName)
+		if bound == nil {
+			a.ackBatch(updateIDs, pluginName)
+		}
 		return fmt.Errorf("forward-cached: %d destinations exceeds cap %d", len(destinations), maxForwardDestinations)
 	}
 
@@ -84,7 +101,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	// The peer set is a batch-level snapshot: peers that join or leave during
 	// the flush window (~50ms) are not reflected, which is acceptable for a
 	// route-server flush window.
-	matchingPeers, resolveErr := a.resolveDestinationPeers(destinations)
+	matchingPeers, resolveErr := a.cachedDestinationPeers(destinations, sender, bound)
 	if resolveErr != nil {
 		// Refusing the batch is not a reason to keep its cache entries. The
 		// caller took delivery of every id, so the cache-consumer contract owes
@@ -92,7 +109,9 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		// refused-source branch below does. An unordered consumer has no
 		// cumulative ack to sweep them later, so skipping this pinned their read
 		// buffers until the 5-minute safety valve.
-		a.ackBatch(updateIDs, pluginName)
+		if bound == nil {
+			a.ackBatch(updateIDs, pluginName)
+		}
 		if errors.Is(resolveErr, errNoDestinations) {
 			fwdLogger().Warn("forward-cached: empty destination list, refusing to broadcast",
 				"ids", len(updateIDs), "plugin", pluginName)
@@ -117,34 +136,22 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	permitted, refused := filterPermittedPeers(matchingPeers, origin)
 	a.r.mu.RUnlock()
 	if len(permitted) == 0 && refused > 0 {
-		a.ackBatch(updateIDs, pluginName)
+		if bound == nil {
+			a.ackBatch(updateIDs, pluginName)
+		}
 		return sendNotPermitted(textbuf.StrIntStr("", int64(len(destinations)), " destinations"), origin)
 	}
 	matchingPeers = permitted
+	if bound != nil {
+		if len(updateIDs) == 0 {
+			return bound.targetError
+		}
+	}
 
 	ids := dedupIDs(updateIDs)
 
-	// Cache source info per distinct source address across the batch.
-	// Batches average well below 16 distinct sources per flush.
-	type srcCacheEntry struct {
-		addr netip.Addr
-		info forwardSourceInfo
-	}
-	var srcCacheBuf [4]srcCacheEntry
-	srcCache := srcCacheBuf[:0]
-
-	lookupSrcInfo := func(srcAddr netip.Addr) forwardSourceInfo {
-		for i := range srcCache {
-			if srcCache[i].addr == srcAddr {
-				return srcCache[i].info
-			}
-		}
-		info := a.resolveSourceInfo(srcAddr)
-		srcCache = append(srcCache, srcCacheEntry{addr: srcAddr, info: info})
-		return info
-	}
-
 	var lastErr error
+	var dispatchErr error
 	processed := 0
 
 	for _, id := range ids {
@@ -158,8 +165,12 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 
 		func() {
 			defer a.r.recentUpdates.Release(id)
-			srcInfo := lookupSrcInfo(update.SourcePeerIP)
-			if !srcInfo.resolved {
+			srcInfo, stage, sourceErr := cachedSourceForRequest(update, bound)
+			if stage != nil {
+				defer stage.release()
+				srcInfo.bound = stage
+			}
+			if sourceErr != nil {
 				// Fail CLOSED, per-id: this rail is the one bgp-rs uses, so the RFC 4456
 				// hole would be widest here. The entry is still acked below so refusing
 				// does not leak it, and the refusal is logged because a guard that
@@ -167,7 +178,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 				fwdLogger().Warn("forward-cached refused: source peer is not an established peer",
 					"id", id, "source", update.SourcePeerIP, "plugin", pluginName)
 				lastErr = errForwardNoSource
-				if pluginName != "" {
+				if pluginName != "" && bound == nil {
 					if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
 						cacheLogger().Warn("cache ack after refused forward failed",
 							"id", id, "plugin", pluginName, "err", ackErr)
@@ -181,7 +192,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 			var filteredBuf [16]*Peer
 			filtered := filteredBuf[:0]
 			for _, peer := range matchingPeers {
-				if peer.Settings().Address != update.SourcePeerIP {
+				if peer != srcInfo.peer {
 					filtered = append(filtered, peer)
 				}
 			}
@@ -190,12 +201,15 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 				srcInfo.sender = sender
 				fwdErr := a.forwardUpdateCore(update, id, filtered, srcInfo)
 				if fwdErr != nil {
+					if !errors.Is(fwdErr, errAllDestinationsSuppressed) {
+						dispatchErr = errors.Join(dispatchErr, fwdErr)
+					}
 					fwdLogger().Debug("ForwardUpdatesDirect: dispatch returned",
 						"id", id, "err", fwdErr)
 				}
 			}
 
-			if pluginName != "" {
+			if pluginName != "" && bound == nil {
 				if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
 					cacheLogger().Warn("cache ack after forward failed",
 						"id", id, "plugin", pluginName, "err", ackErr)
@@ -205,6 +219,9 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		}()
 	}
 
+	if bound != nil {
+		return errors.Join(bound.targetError, lastErr, dispatchErr)
+	}
 	if processed == 0 {
 		return lastErr
 	}
@@ -302,8 +319,10 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 		// Filled for every source: the in-process egress filters and the
 		// export chain's source-peer fields read it.
 		info.filterInfo = filterapi.PeerFilterInfo{
-			Address: s.Address,
-			PeerAS:  srcPeer.PeerAS(),
+			PeerOwner:    srcPeer.sourceOwner,
+			ConnectionID: connectionIDOf(srcPeer.currentSession()),
+			Address:      s.Address,
+			PeerAS:       srcPeer.PeerAS(),
 			// Effective per-peer local AS, matching the forward-path src/dest
 			// filterInfo fills (reactor_api_forward.go, peer_forward_facts.go)
 			// so no egress filter ever reads a silent zero from src.LocalAS.

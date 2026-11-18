@@ -644,7 +644,36 @@ slices into that buffer (`docs/architecture/memory/lifetime-contracts.md`).
 With receive validation enabled, eviction also checks whether the path remains
 pending or stored in Adj-RIB-In. A retained ineligible path keeps its identifier
 for recovery, and an obsolete withdrawal cannot free its replacement's identity.
-The presence check and identifier removal share the identifier-table lock.
+Source mappings are keyed by both the registry SourceID and the original stable
+PeerOwner: two configured peers sharing an address can share a SourceID, but
+cannot share mappings or remove each other's entries. The raw builder, context
+converter and AIGP producer receive the original source facts separately from
+policy-modified bytes. Direct local/API advertisements keep their existing
+session identifier domain; they acquire no fabricated physical connection.
+
+Each current mapping holds one latest original physical connection and ingress
+message ID. Allocation and reuse update that stamp under the identifier lock;
+an older retained replay may reuse the number but cannot regress the stamp.
+A replay's new cache ID is never used as its received generation. Reconnect of
+the same logical peer/path keeps its number. An old withdrawal cannot release
+a mapping already reused by a newer connection or received generation. A newer
+withdrawal may retire an obsolete mapping only after the mapping's original
+connection no longer owns it in validation.
+
+Presence can call a gate in another process. The identifier table installs one
+transient compare-release claim, unlocks, asks about the mapping's captured
+original connection, then locks and compares that exact claim before deletion.
+Every allocation/reuse invalidates the claim, even for the same original
+generation; removal and remint cannot inherit it. No global identifier lock is
+held across a validation callback or RPC, and no completed claim/history remains.
+Unknown original receipt provenance refuses identifier work with a bounded
+`doctor-bgp-forward-path-origin` event and a recovery command. It never borrows
+a current Session or reconstructs ownership from an address.
+<!-- source: internal/component/bgp/reactor/forward_path_origin.go -- newFwdPathOrigin, withOrigin, releasedBy -->
+<!-- source: internal/component/bgp/reactor/forward_path_origin_diagnostic.go -- reportForwardPathOriginFailure -->
+<!-- test: internal/component/bgp/reactor/forward_path_mapping_connection_test.go TestForwardPathMappingRetainedCacheEvictionKeepsFreshConnection -->
+<!-- test: internal/component/bgp/reactor/forward_path_mapping_connection_test.go TestForwardPathMappingPresenceQueryCannotReleaseConcurrentReuse -->
+<!-- test: internal/component/bgp/reactor/forward_path_mapping_connection_test.go TestForwardPathMappingNewWithdrawalQueriesMappedOriginal -->
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- releasePath -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- validationRetainsPath -->
 

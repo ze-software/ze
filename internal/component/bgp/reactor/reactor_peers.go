@@ -397,7 +397,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (peerRemoval, err
 	// good: a peer that merely reconnects keeps its entries, so it re-announces
 	// each path under the identifier the destinations already hold, which they
 	// read as the replacement it is.
-	fwdPathIDs.releaseSource(peer.SourceID())
+	fwdPathIDs.releaseSource(fwdPathSource{sourceID: peer.SourceID(), peerOwner: peer.sourceOwner})
 
 	delete(r.peers, key)
 	r.peerGeneration.Add(1)

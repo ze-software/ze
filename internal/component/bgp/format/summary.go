@@ -122,6 +122,7 @@ func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID, sourcePolicyEpo
 	buf = appendPeerJSON(buf, peer)
 	buf = appendSourcePolicyEpochJSON(buf, sourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, sourceReceipt)
+	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 	buf = append(buf, `,"nlri":{"announce":`...)
 	buf = strconv.AppendBool(buf, announce)
 	buf = append(buf, `,"withdrawn":`...)

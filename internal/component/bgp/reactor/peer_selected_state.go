@@ -8,11 +8,21 @@ package reactor
 // refuses invalid declarations before a peer starts. Explicit roles are served
 // by their own owner, rather than the ordinary advertiser.
 func (p *Peer) selectedStateDestination() (session uint64, ordinaryOwner string) {
-	current := p.currentSession()
+	return p.selectedDestinationForSession(p.currentSession())
+}
+
+// selectedDestinationForSession projects the exact producing connection.
+// A delayed callback retains its old token, but MUST NOT acquire a replacement's
+// owner. The caller MUST pass the original captured Session, or nil for an
+// explicitly unrecorded observation. Safe for concurrent use.
+func (p *Peer) selectedDestinationForSession(current *Session) (session uint64, ordinaryOwner string) {
 	if current == nil {
 		return 0, ""
 	}
 	session = current.initialReplay.Load()
+	if p.currentSession() != current {
+		return session, ""
+	}
 	snapshot := p.selectedOwnerSnapshot()
 	if snapshot == nil {
 		return session, ""

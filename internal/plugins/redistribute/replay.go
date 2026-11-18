@@ -124,9 +124,11 @@ type replayCoordinator struct {
 
 // sourceRoute names one route a producer announces, whatever consumer holds it.
 type sourceRoute struct {
-	source string
-	family family.Family
-	prefix netip.Prefix
+	source   string
+	family   family.Family
+	prefix   netip.Prefix
+	instance uint32
+	table    uint32
 }
 
 func newReplayCoordinator() *replayCoordinator {
@@ -337,7 +339,7 @@ func (c *replayCoordinator) noteIncremental(source string, fam family.Family, en
 		return
 	}
 	for i := range entries {
-		k := sourceRoute{source: source, family: fam, prefix: entries[i].Prefix}
+		k := sourceRoute{source: source, family: fam, prefix: entries[i].Prefix, instance: entries[i].SourceInstance, table: entries[i].Table}
 		// only the two actions that change a route's presence are recorded; the dispatcher refuses the others
 		//exhaustive:ignore
 		switch entries[i].Action {
@@ -352,13 +354,13 @@ func (c *replayCoordinator) noteIncremental(source string, fam family.Family, en
 // removedSince answers whether the most recent incremental action on source's
 // route was a Remove handled after replayID was minted, so the replay's Add of
 // it is stale.
-func (c *replayCoordinator) removedSince(replayID uint64, source string, fam family.Family, prefix netip.Prefix) bool {
+func (c *replayCoordinator) removedSince(replayID uint64, source string, fam family.Family, prefix netip.Prefix, instance, table uint32) bool {
 	if c == nil {
 		return false
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	g, ok := c.removed[sourceRoute{source: source, family: fam, prefix: prefix}]
+	g, ok := c.removed[sourceRoute{source: source, family: fam, prefix: prefix, instance: instance, table: table}]
 	if !ok {
 		return false
 	}
@@ -459,7 +461,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		// Remove reached the orchestrator first. Dispatching the stale Add would
 		// hand the target a route its source no longer has, with no Remove left
 		// to retire it.
-		if coord.removedSince(b.ReplayID, name, famVal, entry.Prefix) {
+		if coord.removedSince(b.ReplayID, name, famVal, entry.Prefix, entry.SourceInstance, entry.Table) {
 			logger().Debug("redistribute-orchestrator: replay entry removed since the request, dropping", "source", name, "family", famVal.String(), "prefix", entry.Prefix, "replay-id", b.ReplayID)
 			continue
 		}
@@ -478,7 +480,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		// and always sends: the peer holds nothing yet.
 		if target.kind != replayKindConsumer {
 			if accepted {
-				dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets)
+				dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets, gen)
 			}
 			continue
 		}
@@ -486,14 +488,15 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		// registered or a reload changed its rules, so it settles in the held
 		// set as an incremental Add does. It sends only what the consumer does
 		// not already hold as it would be sent (heldRoutes.beginAdd).
-		key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}
+		key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix, instance: entry.SourceInstance, table: entry.Table}
 		sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
+		sent.generation = gen
 		dispatched := false
 		if accepted {
 			dispatched = beginDispatchedAdd(key, &route, &sent, true)
 		}
 		if dispatched {
-			dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets)
+			dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets, gen)
 		}
 		settleDispatchedAdd(ctx, consumer, key, gen, dispatched, accepted, &route, &sent, entry, peer, b.OriginASN, b.Community)
 	}
@@ -501,8 +504,8 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 }
 
 // dispatchReplayed sends one replayed entry and counts it.
-func dispatchReplayed(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, b *redistevents.RouteChangeBatch, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets) {
-	dispatchEntryToConsumer(ctx, consumer, fam, source, peer, b.OriginASN, b.Community, entry, view, sets)
+func dispatchReplayed(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, b *redistevents.RouteChangeBatch, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) {
+	dispatchEntryToConsumer(ctx, consumer, fam, source, peer, b.OriginASN, b.Community, entry, view, sets, generation)
 	if m := getMetrics(); m != nil && m.replayTotal != nil {
 		m.replayTotal.With(source).Inc()
 	}

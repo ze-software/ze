@@ -78,6 +78,7 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 	destinationSession, _ := peer.selectedStateDestination()
 	removal := peerRemoval{source: peer, stop: stop, removed: &plugin.PeerInfo{
 		PeerOwner:          peer.sourceOwner,
+		ConnectionID:       connectionIDOf(peer.currentSession()),
 		Address:            settings.Address,
 		LocalAddress:       settings.LocalAddress,
 		AddressStr:         peer.addrString,

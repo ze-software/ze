@@ -44,17 +44,44 @@ type fwdEndOfRIB struct {
 // The item is marked as part of the initial update, so it passes the replay
 // fence the way the replay ahead of it does (Peer.forwardOrderHold): the marker
 // ends the initial update, and the live changes the fence holds follow it.
-func (a *reactorAPIAdapter) queueEndOfRIB(peer *Peer, fam family.Family, update *message.Update, ownsClaim bool) bool {
-	peer.mu.RLock()
-	session := peer.session
-	peer.mu.RUnlock()
-	return a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: peer.settings.PeerKey()}, &fwdItem{
-		updates:       []*message.Update{update},
-		peer:          peer,
-		session:       session,
-		initialUpdate: true,
-		endOfRIB:      &fwdEndOfRIB{session: session, family: fam, ownsClaim: ownsClaim},
+func (a *reactorAPIAdapter) queueEndOfRIB(target announceTarget, fam family.Family, update *message.Update, ownsClaim bool) bool {
+	return a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: target.peer.settings.PeerKey()}, &fwdItem{
+		updates:            []*message.Update{update},
+		peer:               target.peer,
+		session:            target.session,
+		destinationOwner:   target.destinationOwner,
+		destinationSession: target.destinationSession,
+		initialUpdate:      true,
+		endOfRIB:           &fwdEndOfRIB{session: target.session, family: fam, ownsClaim: ownsClaim},
 	})
+}
+
+// claimEndOfRIB cannot claim a family on a successor of the captured Session.
+func (target announceTarget) claimEndOfRIB(fam family.Family) (bool, error) {
+	target.peer.mu.Lock()
+	defer target.peer.mu.Unlock()
+	if target.peer.session != target.session {
+		return false, errAdjOutSession
+	}
+	if target.peer.initialSyncEOR == nil {
+		target.peer.initialSyncEOR = make(map[family.Family]bool, 2)
+	}
+	if target.peer.initialSyncEOR[fam] {
+		return false, nil
+	}
+	target.peer.initialSyncEOR[fam] = true
+	return true, nil
+}
+
+// releaseEndOfRIBClaim cannot release a successor's independent family claim.
+// The captured Session check and claim removal share the lifecycle lock.
+func (target announceTarget) releaseEndOfRIBClaim(fam family.Family) {
+	target.peer.mu.Lock()
+	defer target.peer.mu.Unlock()
+	if target.peer.session != target.session {
+		return
+	}
+	delete(target.peer.initialSyncEOR, fam)
 }
 
 // settleEndOfRIB settles the End-of-RIB markers one batch carried for session.
@@ -75,7 +102,7 @@ func settleEndOfRIB(peer *Peer, session *Session, items []fwdItem, written bool)
 			continue
 		}
 		if mark.ownsClaim {
-			peer.releaseInitialSyncEOR(mark.family)
+			announceTarget{peer: peer, session: mark.session}.releaseEndOfRIBClaim(mark.family)
 		}
 	}
 }

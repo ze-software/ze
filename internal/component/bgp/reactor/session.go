@@ -191,6 +191,8 @@ const sendHoldTimerMin = 8 * time.Minute
 // state machine through the connection lifecycle.
 
 // MessageCallback is called when a BGP message is sent or received.
+// captured is the actual producing Session, never a current address lookup.
+// Session emitters MUST pass themselves; observer wrappers MUST forward it.
 // peerAddr is the peer's address, msgType is the message type, rawBytes is the body (without header).
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
@@ -206,7 +208,7 @@ const sendHoldTimerMin = 8 * time.Minute
 // The reactor takes ownership only of received UPDATEs. Their bytes may already
 // be recycled when the callback returns; control messages remain borrowed until
 // their session handlers finish.
-type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) (kept bool)
+type MessageCallback func(captured *Session, peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
 //
@@ -483,6 +485,10 @@ type Session struct {
 	// panic included (Peer.runInitialSync). endInitialSync waits on it when the
 	// latch reads started. Created with the session (NewSession).
 	initialSyncDone chan struct{}
+
+	// connectionID is issued once at birth, before either OPEN, and never changes.
+	connectionID        uint64
+	publishedGeneration atomic.Uint64 // Assigned at this Session's Established publication, independent of physical identity.
 
 	// Receipt for this connection's deliberate initial replay. It is
 	// published on peer-UP and expires with initialSyncEOROwed. NewSession
@@ -919,7 +925,8 @@ func NewSession(settings *PeerSettings) *Session {
 		coalesceEnabled:  coalesceEnabled(),
 		addrLabel:        settings.Address.String(),
 	}
-	s.initialReplay.Store(nextMsgID())
+	s.connectionID = nextMsgID()
+	s.initialReplay.Store(s.connectionID)
 
 	// The installed-mode prefix visitor is bound here, once for the session,
 	// rather than for each NLRI section it walks.

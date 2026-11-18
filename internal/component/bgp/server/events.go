@@ -88,6 +88,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se := rpc.GetStructuredEvent()
 	se.PeerAddress = peer.AddrStr()
 	se.PeerOwner = peer.PeerOwner
+	se.ConnectionID = peer.ConnectionID
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
@@ -106,6 +107,15 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.SourceID = msg.SourceID
 	se.SourcePolicyEpoch = msg.SourcePolicyEpoch
 	se.SourceReceipt = msg.SourceReceipt
+	if msg.Type == msgtype.TypeUPDATE {
+		if msg.Direction == rpc.DirectionSent {
+			se.DestinationSession = peer.DestinationSession
+		}
+	}
+	if msg.Type == msgtype.TypeROUTEREFRESH {
+		se.DestinationSession = peer.DestinationSession
+		se.SelectedDestination = peer.SelectedDestination
+	}
 	return se
 }
 
@@ -115,6 +125,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.UnheldRoles = unheldRoles
 	se.PeerAddress = peer.AddrStr()
 	se.PeerOwner = peer.PeerOwner
+	se.ConnectionID = peer.ConnectionID
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
@@ -129,6 +140,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.InitialReplay = peer.InitialReplay
 	se.DestinationSession = peer.DestinationSession
 	se.SelectedDestination = peer.SelectedDestination
+	se.OrdinaryReplayOwned = peer.OrdinaryReplayOwned
 	se.SessionGeneration = peer.SessionGeneration
 	se.Reason = reason
 	se.FSMEvent = peer.CloseFSMEvent
@@ -222,9 +234,15 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
+		deliveryPeer := peer
 		cacheKey := proc.FormatCacheKey()
+		if msg.Type == msgtype.TypeROUTEREFRESH {
+			projected := selectedRefreshPeer(peer, proc.Name(), msg.Direction)
+			deliveryPeer = &projected
+			cacheKey = selectedStateFormatKey(cacheKey, projected.SelectedDestination)
+		}
 		if _, ok := fmtCache.get(cacheKey); !ok {
-			fmtCache.set(cacheKey, formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding()))
+			fmtCache.set(cacheKey, formatMessageForSubscription(encoder, deliveryPeer, msg, proc.Format(), proc.Encoding()))
 		}
 	}
 
@@ -233,13 +251,27 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	sent := 0
 
 	for _, proc := range procs {
+		deliveryPeer := peer
+		if msg.Type == msgtype.TypeROUTEREFRESH {
+			projected := selectedRefreshPeer(peer, proc.Name(), msg.Direction)
+			deliveryPeer = &projected
+		}
 		var delivery process.EventDelivery
 		if proc.HasStructuredHandler() {
-			se := getStructuredEvent(peer, &msg)
+			se := getStructuredEvent(deliveryPeer, &msg)
 			delivery = process.EventDelivery{Event: se, Result: results}
 		} else {
-			output, _ := fmtCache.get(proc.FormatCacheKey())
-			output, err := envelopeCache.wrap(peer, &msg, proc, output)
+			cacheKey := proc.FormatCacheKey()
+			if msg.Type == msgtype.TypeROUTEREFRESH {
+				cacheKey = selectedStateFormatKey(cacheKey, deliveryPeer.SelectedDestination)
+			}
+			output, cached := fmtCache.get(cacheKey)
+			if !cached {
+				// The fixed cache can be full when recipient classes differ.
+				// Render this exact request rather than delivering an empty event.
+				output = formatMessageForSubscription(encoder, deliveryPeer, msg, proc.Format(), proc.Encoding())
+			}
+			output, err := envelopeCache.wrap(deliveryPeer, &msg, proc, output)
 			if err != nil {
 				logger().Warn("BGP UPDATE event envelope refused", "proc", proc.Name(), "message-id", msg.MessageID, "err", err)
 				continue
@@ -1111,7 +1143,17 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	sentETID := eventKindToID(eventType)
-	procs := s.PeerScopedProcs(bgpNS(), sentETID, events.DirSent, peerAddr, peer.Name)
+	publish := true
+	if msg.Type == msgtype.TypeUPDATE && peer.SentObservation != nil {
+		publish = peer.SentObservation.BeginSentObservation()
+		if publish {
+			defer peer.SentObservation.EndSentObservation()
+		}
+	}
+	var procs []*process.Process
+	if publish {
+		procs = s.PeerScopedProcs(bgpNS(), sentETID, events.DirSent, peerAddr, peer.Name)
+	}
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return

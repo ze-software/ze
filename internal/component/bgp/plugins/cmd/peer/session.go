@@ -14,7 +14,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-session-peer-ready", Handler: handlePeerSessionReady},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-session-peer-ready", Handler: handlePeerSessionReady, AcceptsDestinationSession: true},
 	)
 }
 
@@ -40,7 +40,7 @@ func handlePeerSessionReady(ctx *pluginserver.CommandContext, validated command.
 		return nil, fmt.Errorf("plugin session ready requires session <initial-replay token> from the peer UP event")
 	}
 	if ctx.Reactor() != nil && ctx.Peer != "" && ctx.Peer != "*" {
-		if err := ctx.Reactor().SignalPeerAPIReady(ctx.Peer, ctx.Sender, initialReplay); err != nil {
+		if err := ctx.Reactor().SignalPeerAPIReady(ctx.Context(), ctx.Peer, ctx.Sender, initialReplay); err != nil {
 			return nil, fmt.Errorf("peer %s readiness refused: %w", ctx.Peer, err)
 		}
 	}

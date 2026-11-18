@@ -100,6 +100,16 @@ const (
 // Candidate holds extracted attribute values for best-path comparison.
 // Gathered candidates also own their immutable entry and label snapshot until
 // releaseCandidates; directly extracted candidates only borrow ASPathHandle.
+// candidateOrigin records which existing input population supplied a snapshot.
+// Zero is unrecorded and never admits a candidate to ordinary learned output.
+type candidateOrigin uint8
+
+const (
+	candidateOriginUnrecorded candidateOrigin = iota
+	candidateOriginReceived
+	candidateOriginManual
+)
+
 type Candidate struct {
 	PeerAddr           string           // peer IP address string (map keys, JSON, internPeer)
 	PeerIP             netip.Addr       // parsed peer address (zero-alloc comparison)
@@ -134,6 +144,37 @@ type Candidate struct {
 	// Other Candidate constructors carry extracted comparison values only.
 	entry       storage.RouteEntry
 	labelHandle attrpool.Handle
+	origin      candidateOrigin
+	// storeOwner identifies the containing observation for forwarding/show
+	// only. It MUST NOT replace PeerOwner or create a source receipt.
+	storeOwner uint64
+}
+
+// partitionReceivedCandidates uses the existing caller-owned pointer scratch and retains
+// every pointer exactly once. Manual forwarding candidates are outside this
+// learned scope before export, never a recipient-policy fallback.
+func partitionReceivedCandidates(candidates []*Candidate) int {
+	count := 0
+	for i, candidate := range candidates {
+		if candidate.origin != candidateOriginReceived {
+			continue
+		}
+		candidates[count], candidates[i] = candidates[i], candidates[count]
+		count++
+	}
+	return count
+}
+
+// candidateOriginFor reports recorded provenance, never a grant inferred from
+// the containing store. Passive forwarding entries remain explicitly unknown.
+func candidateOriginFor(entry storage.RouteEntry) candidateOrigin {
+	if entry.SourcePeerOwner() == 0 {
+		return candidateOriginUnrecorded
+	}
+	if entry.SourceReceipt == 0 {
+		return candidateOriginUnrecorded
+	}
+	return candidateOriginReceived
 }
 
 // SelectBest selects the best route, or nil when the list is empty.
@@ -452,6 +493,9 @@ func compareAfterMED(a, b *Candidate) (int, BestStep) {
 	if a.PeerOwner != b.PeerOwner {
 		return cmp.Compare(a.PeerOwner, b.PeerOwner), BestStepPeerOwner
 	}
+	if a.storeOwner != b.storeOwner {
+		return cmp.Compare(a.storeOwner, b.storeOwner), BestStepPeerOwner
+	}
 
 	return 0, BestStepEqual
 }
@@ -595,6 +639,11 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		var tb textbuf.Buffer
 		return cmp.Compare(a.PeerOwner, b.PeerOwner), BestStepPeerOwner,
 			tb.Str("peer-owner ").Uint(a.PeerOwner).Str(" vs ").Uint(b.PeerOwner).String()
+	}
+	if a.storeOwner != b.storeOwner {
+		var tb textbuf.Buffer
+		return cmp.Compare(a.storeOwner, b.storeOwner), BestStepPeerOwner,
+			tb.Str("peer-owner ").Uint(a.storeOwner).Str(" vs ").Uint(b.storeOwner).String()
 	}
 
 	return 0, BestStepEqual, "identical candidates"

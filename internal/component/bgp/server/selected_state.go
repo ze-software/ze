@@ -39,10 +39,35 @@ func selectedStatePeer(peer *plugin.PeerInfo, recipient string, state rpc.Sessio
 	return projected
 }
 
+// selectedRefreshPeer projects a received control message to its actual recipient.
+// The captured Session is descriptive; only its matching ordinary owner is
+// eligible, and a refresh MUST NOT start another initial-routing replay.
+// The delivery MUST use this copy without mutating the shared peer observation.
+func selectedRefreshPeer(peer *plugin.PeerInfo, recipient string, direction rpc.MessageDirection) plugin.PeerInfo {
+	projected := *peer
+	projected.SelectedDestination = false
+	projected.InitialReplay = 0
+	if direction != rpc.DirectionReceived {
+		return projected
+	}
+	if peer.DestinationSession == 0 {
+		return projected
+	}
+	if peer.SelectedOwner == "" {
+		return projected
+	}
+	if peer.SelectedOwner != recipient {
+		return projected
+	}
+	projected.SelectedDestination = true
+	return projected
+}
+
 const selectedStateFormatSuffix = "\x00selected"
 
-// selectedStateFormatKey keeps both recipient classes in the four-slot cache:
-// JSON/text multiplied by ordinary owner/observer. Monitor keys stay unchanged.
+// selectedStateFormatKey keeps both state/refresh recipient classes in the
+// four-slot cache: JSON/text multiplied by ordinary owner/observer. Monitor keys
+// stay unchanged.
 func selectedStateFormatKey(encoding string, selected bool) string {
 	if selected {
 		return encoding + selectedStateFormatSuffix

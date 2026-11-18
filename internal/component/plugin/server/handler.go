@@ -345,8 +345,12 @@ type RPCRegistration struct {
 	// NotReadOnly requires edit authorization even for a show command whose
 	// private answer grants access equivalent to changing configuration.
 	NotReadOnly      bool
-	RequiresSelector bool   // True if peer commands must have explicit selector (not default "*")
-	PluginCommand    string // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
+	RequiresSelector bool // True if peer commands must have explicit selector (not default "*")
+	// AcceptsPeerConnection binds the handler to the supplied original physical
+	// peer. The dispatcher refuses this constraint for every other command.
+	AcceptsPeerConnection     bool
+	AcceptsDestinationSession bool   // Opt-in for original destination-session constraints.
+	PluginCommand             string // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
 	// Complete answers values at the position after the completed arguments,
 	// read from daemon runtime state for tab completion (arg_completion.go).
 	// Nil means the argument completes from its YANG leaves alone.

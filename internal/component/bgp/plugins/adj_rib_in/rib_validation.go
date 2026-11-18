@@ -6,7 +6,6 @@ package adj_rib_in
 
 import (
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/family"
@@ -27,7 +26,7 @@ const defaultValidationTimeout = 30 * time.Second
 
 // pendingRoute stores a route awaiting validation.
 type pendingRoute struct {
-	peerAddr   netip.Addr
+	peerAddr   receivedPeer
 	family     family.Family
 	prefix     string
 	routeKey   compactRouteKey // Key for insertion into installed seqmap
@@ -37,8 +36,8 @@ type pendingRoute struct {
 }
 
 // pendingKey builds a lookup key for the pending routes map.
-func pendingKey(peerAddr netip.Addr, routeKey compactRouteKey) compactPendingKey {
-	return compactPendingKey{PeerAddr: peerAddr, Route: routeKey}
+func pendingKey(peerAddr receivedPeer, routeKey compactRouteKey) compactPendingKey {
+	return compactPendingKey{Peer: peerAddr, Route: routeKey}
 }
 
 // promoteToInstalled moves a pending route to the installed ribIn map.
@@ -58,13 +57,21 @@ func (r *AdjRIBInManager) promoteToInstalled(pr *pendingRoute, validationState u
 // A newer decision waits for its route; the previous path becomes ineligible
 // immediately so a failed replacement cannot leave it active.
 // Caller MUST hold mu and finish with unlockValidation.
-func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compactRouteKey, d *rpc.ValidationDecision) bool {
+func (r *AdjRIBInManager) applyToInstalled(peerAddr receivedPeer, routeKey compactRouteKey, d *rpc.ValidationDecision) bool {
 	routes := r.ribIn[peerAddr]
 	if routes == nil {
 		return false
 	}
 	route, ok := routes.Get(routeKey)
 	if !ok {
+		return false
+	}
+	if d.ConnectionID != route.ConnectionID {
+		if d.ConnectionID < route.ConnectionID {
+			return true
+		}
+		route.Ineligible = true
+		r.noteValidationChange(peerAddr, routeKey)
 		return false
 	}
 	if d.MsgID != 0 && d.MsgID != route.MsgID {
@@ -96,15 +103,27 @@ func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compact
 // applyDecision is shared by typed, batch-text and individual text commands.
 // It returns true only when the decision is buffered ahead of its UPDATE.
 // Caller MUST hold mu and finish with unlockValidation.
-func (r *AdjRIBInManager) applyDecision(peer netip.Addr, key compactRouteKey, d *rpc.ValidationDecision) bool {
+func (r *AdjRIBInManager) applyDecision(peer receivedPeer, key compactRouteKey, d *rpc.ValidationDecision) bool {
+	if !r.sourceDecisionAdmittedLocked(peer, key, d) {
+		return false
+	}
 	if !r.validationEnabled || !isSimplePrefixFamily(key.Fam) {
 		return false
 	}
 	pKey := pendingKey(peer, key)
-	if newer := r.earlyDecisions[pKey]; newer != nil && d.MsgID != 0 && newer.msgID > d.MsgID {
-		return false
+	if newer := r.earlyDecisions[pKey]; newer != nil {
+		if receivedBefore(d.ConnectionID, d.MsgID, newer.connectionID, newer.msgID) {
+			return false
+		}
 	}
 	if pr, ok := r.pending[pKey]; ok {
+		if d.ConnectionID != pr.route.ConnectionID {
+			if d.ConnectionID < pr.route.ConnectionID {
+				return false
+			}
+			r.storeEarlyDecision(peer, key, d)
+			return true
+		}
 		if d.MsgID != 0 && d.MsgID != pr.route.MsgID {
 			if d.MsgID < pr.route.MsgID {
 				return false
@@ -139,11 +158,11 @@ func (r *AdjRIBInManager) sweepExpiredPending() {
 
 	for key, pr := range r.pending {
 		if now.Sub(pr.receivedAt) > timeout {
-			if ed := r.earlyDecisions[key]; ed != nil && ed.msgID > pr.route.MsgID {
+			if ed := r.earlyDecisions[key]; ed != nil && receivedBefore(pr.route.ConnectionID, pr.route.MsgID, ed.connectionID, ed.msgID) {
 				continue
 			}
 			logger().Warn("validation timeout, promoting route (fail-open)",
-				"peer", pr.peerAddr, "family", pr.family, "prefix", pr.prefix)
+				"peer", pr.peerAddr.address, "peer-owner", pr.peerAddr.owner, "family", pr.family, "prefix", pr.prefix)
 			r.promoteToInstalled(pr, ValidationNotValidated)
 			delete(r.pending, key)
 		}
@@ -152,14 +171,15 @@ func (r *AdjRIBInManager) sweepExpiredPending() {
 
 // clearPeerPending removes all pending routes and early decisions for a peer.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) clearPeerPending(peerAddr netip.Addr) {
+func (r *AdjRIBInManager) clearPeerPending(peerAddr receivedPeer) {
 	for key := range r.pending {
-		if key.PeerAddr == peerAddr {
+		if key.Peer == peerAddr {
+			r.noteValidationChange(peerAddr, key.Route)
 			delete(r.pending, key)
 		}
 	}
 	for key := range r.earlyDecisions {
-		if key.PeerAddr == peerAddr {
+		if key.Peer == peerAddr {
 			delete(r.earlyDecisions, key)
 		}
 	}
@@ -168,7 +188,7 @@ func (r *AdjRIBInManager) clearPeerPending(peerAddr netip.Addr) {
 // removePending removes a specific pending route by routeKey.
 // Caller must hold r.mu write lock. The change is noted before the delete,
 // while the route still supplies the NLRI that names it (noteValidationChange).
-func (r *AdjRIBInManager) removePending(peerAddr netip.Addr, routeKey compactRouteKey) {
+func (r *AdjRIBInManager) removePending(peerAddr receivedPeer, routeKey compactRouteKey) {
 	r.noteValidationChange(peerAddr, routeKey)
 	key := pendingKey(peerAddr, routeKey)
 	delete(r.pending, key)
@@ -196,10 +216,11 @@ func parseValidationState(s string) (uint8, error) {
 
 // earlyDecision stores a validation decision that arrived before the route.
 type earlyDecision struct {
-	action     earlyAction
-	state      uint8
-	msgID      uint64
-	receivedAt time.Time
+	action       earlyAction
+	state        uint8
+	msgID        uint64
+	connectionID uint64
+	receivedAt   time.Time
 }
 
 type earlyAction uint8
@@ -217,13 +238,19 @@ const earlyDecisionTimeout = 1 * time.Minute
 // applyEarlyDecision checks for a buffered decision and applies it to a
 // newly-pending route. Returns true if a decision was found and applied.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, pr *pendingRoute) bool {
+func (r *AdjRIBInManager) applyEarlyDecision(peerAddr receivedPeer, routeKey compactRouteKey, pr *pendingRoute) bool {
 	key := pendingKey(peerAddr, routeKey)
 	// This arrival supersedes any older pending route even when its decision
 	// is already buffered and it bypasses the pending timeout queue entirely.
 	delete(r.pending, key)
 	ed, ok := r.earlyDecisions[key]
 	if !ok {
+		return false
+	}
+	if ed.connectionID != pr.route.ConnectionID {
+		if ed.connectionID < pr.route.ConnectionID {
+			delete(r.earlyDecisions, key)
+		}
 		return false
 	}
 	if ed.msgID != 0 && ed.msgID != pr.route.MsgID {
@@ -240,7 +267,7 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compa
 		pr.route.Ineligible = true
 		r.promoteToInstalled(pr, ed.state)
 	case earlyReject:
-		logger().Debug("applied early reject", "peer", peerAddr)
+		logger().Debug("applied early reject", "peer", peerAddr.address, "peer-owner", peerAddr.owner)
 		r.removeInstalled(peerAddr, routeKey)
 	default:
 		panic("BUG: invalid early validation action")
@@ -250,10 +277,12 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compa
 
 // storeEarlyDecision buffers a validation decision for a route not yet pending.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) storeEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, d *rpc.ValidationDecision) {
+func (r *AdjRIBInManager) storeEarlyDecision(peerAddr receivedPeer, routeKey compactRouteKey, d *rpc.ValidationDecision) {
 	key := pendingKey(peerAddr, routeKey)
-	if old := r.earlyDecisions[key]; old != nil && d.MsgID != 0 && old.msgID > d.MsgID {
-		return
+	if old := r.earlyDecisions[key]; old != nil {
+		if receivedBefore(d.ConnectionID, d.MsgID, old.connectionID, old.msgID) {
+			return
+		}
 	}
 	action := earlyReject
 	if d.Accept {
@@ -263,7 +292,7 @@ func (r *AdjRIBInManager) storeEarlyDecision(peerAddr netip.Addr, routeKey compa
 		action = earlyIneligible
 	}
 	r.earlyDecisions[key] = &earlyDecision{
-		action: action, state: d.ValState, msgID: d.MsgID, receivedAt: time.Now(),
+		action: action, state: d.ValState, msgID: d.MsgID, connectionID: d.ConnectionID, receivedAt: time.Now(),
 	}
 }
 
@@ -275,11 +304,11 @@ func (r *AdjRIBInManager) sweepExpiredEarlyDecisions() {
 	now := time.Now()
 	for key, ed := range r.earlyDecisions {
 		if now.Sub(ed.receivedAt) > earlyDecisionTimeout {
-			if pending := r.pending[key]; pending != nil && ed.msgID > pending.route.MsgID {
+			if pending := r.pending[key]; pending != nil && receivedBefore(pending.route.ConnectionID, pending.route.MsgID, ed.connectionID, ed.msgID) {
 				continue
 			}
-			if routes := r.ribIn[key.PeerAddr]; routes != nil {
-				if route, ok := routes.Get(key.Route); ok && ed.msgID > route.MsgID {
+			if routes := r.ribIn[key.Peer]; routes != nil {
+				if route, ok := routes.Get(key.Route); ok && receivedBefore(route.ConnectionID, route.MsgID, ed.connectionID, ed.msgID) {
 					continue
 				}
 			}

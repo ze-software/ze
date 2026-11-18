@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const bgpConsumerName = "bgp"
@@ -28,16 +29,33 @@ var logger = slogutil.LazyLogger("bgp.redistribute")
 // orchestrator's engine connection (register.go, the consumer factory).
 type BGPConsumer struct {
 	dispatcher redistribute.RouteUpdater
+	accepted   *bgpAcceptedRecords
 }
 
 // NewBGPConsumer creates a BGP redistribution consumer wrapping the given dispatcher.
 func NewBGPConsumer(d redistribute.RouteUpdater) *BGPConsumer {
-	return &BGPConsumer{dispatcher: d}
+	consumer := &BGPConsumer{dispatcher: d, accepted: newBGPAcceptedRecords()}
+	if d != nil {
+		d.OnOriginAdmissionLookup(consumer.accepted.lookup)
+	}
+	return consumer
 }
 
 func (c *BGPConsumer) Name() string { return bgpConsumerName }
 
 func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry redistribute.RouteEntry) {
+	release, err := c.accepted.begin(ctx)
+	if err != nil {
+		c.reportFailure(ctx, "announce", entry.Peer, entry.Prefix, fam, "", err)
+		return
+	}
+	defer release()
+	record, replaced, err := c.accepted.offer(fam, entry)
+	if err != nil {
+		c.reportFailure(ctx, "announce", entry.Peer, entry.Prefix, fam, "", err)
+		return
+	}
+	defer c.accepted.finish(replaced)
 	cmd := formatAnnounce(fam.String(), &entry)
 	// Peer targets a single peer (replay-on-peer-up); empty is the normal
 	// fan-out to all peers.
@@ -48,7 +66,7 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 	logger().Debug("bgp consumer: injecting route", "command", cmd, "peer", sel)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
-	result, err := c.dispatcher.UpdateRouteResult(cctx, sel, cmd)
+	result, err := c.dispatcher.UpdateRouteRequestResult(cctx, rpc.UpdateRouteInput{PeerSelector: sel, Command: cmd, OriginAdmissionID: record.id})
 	if err != nil {
 		c.reportFailure(ctx, "announce", sel, entry.Prefix, fam, cmd, err)
 		return
@@ -70,16 +88,36 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 	logger().Debug("bgp consumer: update-route ok", "added", result.Announced, "withdrawn", result.Withdrawn)
 }
 
-func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, prefix string) {
-	cmd := formatWithdraw(fam.String(), prefix)
-	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
-	defer cancel()
-	result, err := c.dispatcher.UpdateRouteResult(cctx, "*", cmd)
-	if err == nil {
-		err = result.Err()
-	}
+func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, removal redistribute.RouteRemoval) {
+	release, err := c.accepted.begin(ctx)
 	if err != nil {
-		c.reportFailure(ctx, "withdraw", "*", prefix, fam, cmd, err)
+		c.reportFailure(ctx, "withdraw", "*", removal.Prefix, fam, "", err)
+		return
+	}
+	defer release()
+	records, err := c.accepted.retiring(fam, removal)
+	if err != nil {
+		c.reportFailure(ctx, "withdraw", "*", removal.Prefix, fam, "", err)
+		return
+	}
+	// Only the actual admitted scopes of this exact source are withdrawn.
+	for _, record := range records {
+		peer := record.snapshot.Peer
+		if peer == "" {
+			peer = "*"
+		}
+		command := formatWithdraw(fam.String(), removal.Prefix)
+		work, cancel := context.WithTimeout(ctx, updateRouteTimeout)
+		output, err := c.dispatcher.UpdateRouteRequestResult(work, rpc.UpdateRouteInput{PeerSelector: peer, Command: command, OriginAdmissionID: record.id})
+		cancel()
+		if err == nil {
+			err = output.Err()
+		}
+		if err != nil {
+			c.reportFailure(ctx, "withdraw", peer, removal.Prefix, fam, command, err)
+			continue
+		}
+		c.accepted.withdrawn(record)
 	}
 }
 

@@ -26,13 +26,15 @@ import (
 // key because two sources can feed the same prefix to one consumer: a rejected
 // entry from a source the consumer never held that prefix from withdraws
 // nothing. Where the consumer holds the prefix from both, the withdraw names the
-// prefix alone (RedistConsumer.WithdrawRoute carries no source), so it removes
-// the prefix exactly as an accepted Remove from that source does.
+// original source instance/table too. BGP removes that accepted contribution;
+// native prefix-only adapters continue removing their prefix as before.
 type heldKey struct {
 	consumer string
 	source   string
 	family   family.Family
 	prefix   netip.Prefix
+	instance uint32
+	table    uint32
 }
 
 // heldRoutes records which routes each consumer holds, so that a replacement Add
@@ -87,6 +89,7 @@ type sentRoute struct {
 	community   []uint32
 	distance    uint8
 	hasDistance bool
+	generation  uint64
 }
 
 // newSentRoute answers what a dispatch of entry from a batch carrying originASN
@@ -206,6 +209,7 @@ func (h *heldRoutes) settleAdd(k heldKey, route *configredist.RedistRoute, sent 
 		h.endInflightLocked(k)
 	}
 	sets := sent.sets
+	sent.generation = h.generation
 	moved := gen != h.generation
 	if moved {
 		accepted = false
@@ -264,8 +268,8 @@ func removeReplacedRoute(ctx context.Context, consumer configredist.RedistConsum
 // dispatch an accepted Remove takes, so it reaches the consumer and
 // ze_bgp_redistribute_withdrawals the same way.
 func withdrawHeld(ctx context.Context, consumer configredist.RedistConsumer, key heldKey) {
-	withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
-	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil, ribpolicy.Sets{})
+	withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix, SourceInstance: key.instance, Table: key.table}
+	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil, ribpolicy.Sets{}, 0)
 }
 
 // rejected answers the held routes ev no longer accepts for their consumer. A

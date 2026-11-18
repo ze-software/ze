@@ -93,9 +93,10 @@ const (
 
 // FlowSpecQuery is one question to the selecting RIB's FlowSpec lookup.
 type FlowSpecQuery struct {
-	Operation FlowSpecOperation `json:"operation"`
-	Route     ValidationRoute   `json:"route"`
-	MsgID     uint64            `json:"msg-id,omitempty"`
+	AfterMsgID uint64            `json:"after-msg-id,omitempty"`
+	Operation  FlowSpecOperation `json:"operation"`
+	Route      ValidationRoute   `json:"route"`
+	MsgID      uint64            `json:"msg-id,omitempty"`
 }
 
 // FlowSpecRequest is the one argument of the RIB's FlowSpec command, as
@@ -115,7 +116,8 @@ type FlowSpecResult struct {
 // FlowSpecAnswer is the data the FlowSpec command answers: one result per
 // query in query order, and the authorized routes when the request asked.
 type FlowSpecAnswer struct {
-	Results []FlowSpecResult  `json:"results"`
+	Pending bool              `json:"pending,omitempty"`
+	Results []FlowSpecResult  `json:"results,omitempty"`
 	Routes  []ValidationRoute `json:"routes,omitempty"`
 }
 
@@ -147,7 +149,7 @@ func NoteFlowSpecGate(state FlowSpecGateState) {
 // it cannot obtain is the refusing one (fail closed): not eligible, not
 // present, no path, redirect refused, no routes.
 func remoteFlowSpec(command string) *flowSpecProvider {
-	provider := &flowSpecProvider{announced: true}
+	provider := &flowSpecProvider{announced: true, command: command}
 	provider.batch = func(queries []FlowSpecQuery, results []FlowSpecResult) {
 		askFlowSpecOwner(command, queries, results)
 	}
@@ -201,6 +203,12 @@ func askFlowSpecOwner(command string, queries []FlowSpecQuery, results []FlowSpe
 // askFlowSpecRequest sends one FlowSpec command and checks it answered
 // resultCount results.
 func askFlowSpecRequest(command string, request FlowSpecRequest, resultCount int) (FlowSpecAnswer, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), GateLookupTimeout)
+	defer cancel()
+	return askFlowSpecRequestContext(ctx, command, request, resultCount)
+}
+
+func askFlowSpecRequestContext(ctx context.Context, command string, request FlowSpecRequest, resultCount int) (FlowSpecAnswer, error) {
 	dispatch := gateDispatch.Load()
 	if dispatch == nil {
 		return FlowSpecAnswer{}, errors.New("this process registered no route to the engine's command dispatcher")
@@ -209,8 +217,6 @@ func askFlowSpecRequest(command string, request FlowSpecRequest, resultCount int
 	if err != nil {
 		return FlowSpecAnswer{}, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), GateLookupTimeout)
-	defer cancel()
 	status, data, err := (*dispatch)(ctx, command, string(payload))
 	if err != nil {
 		return FlowSpecAnswer{}, err
@@ -221,6 +227,12 @@ func askFlowSpecRequest(command string, request FlowSpecRequest, resultCount int
 	var answer FlowSpecAnswer
 	if err := json.Unmarshal(data, &answer); err != nil {
 		return FlowSpecAnswer{}, err
+	}
+	if answer.Pending {
+		if len(answer.Results) != 0 || len(answer.Routes) != 0 {
+			return FlowSpecAnswer{}, errors.New("pending FlowSpec answer carries verdicts; retry the complete original-source request")
+		}
+		return answer, nil
 	}
 	if len(answer.Results) != resultCount {
 		return FlowSpecAnswer{}, errors.New("the FlowSpec command answered a different number of results than it was asked")
@@ -234,6 +246,45 @@ func askFlowSpecRequest(command string, request FlowSpecRequest, resultCount int
 // operation, a routes answer above FlowSpecRoutesMax, and a process that holds
 // no registered lookup (it would answer from another process's copy).
 func AnswerFlowSpec(request string) (FlowSpecAnswer, error) {
+	provider := flowSpecLookup.Load()
+	if provider == nil {
+		return FlowSpecAnswer{}, errors.New("this process holds no FlowSpec lookup")
+	}
+	if provider.announced {
+		return FlowSpecAnswer{}, errors.New("this process holds no FlowSpec lookup of its own")
+	}
+	return provider.answerRequest(request)
+}
+
+// AnswerFlowSpecFor answers from the command's actual selecting instance. A
+// global registration from a different instance cannot certify this actor.
+func AnswerFlowSpecFor(request string, eligible ValidationLookup, present func(ValidationRoute) bool, path func(ValidationRoute) (FlowSpecPath, bool), routes func() []ValidationRoute, redirect func(ValidationRoute, uint64) bool, progress EligibilityProgress) (FlowSpecAnswer, error) {
+	provider := flowSpecProvider{eligible: eligible, present: present, path: path, routes: routes, redirect: redirect, progress: progress}
+	return provider.answerRequest(request)
+}
+
+// LookupFlowSpecRequest preserves known lag as a whole Pending answer on both
+// actual local lookup and framed command paths. It never turns lag into absence.
+// The caller owns its finite retry context and local inventory revision check.
+func LookupFlowSpecRequest(ctx context.Context, input FlowSpecRequest) (FlowSpecAnswer, error) {
+	if err := ctx.Err(); err != nil {
+		return FlowSpecAnswer{}, err
+	}
+	provider := flowSpecLookup.Load()
+	if provider == nil {
+		return FlowSpecAnswer{}, errors.New("this process holds no FlowSpec lookup; start the selecting RIB before replay")
+	}
+	if provider.announced {
+		return askFlowSpecRequestContext(ctx, provider.command, input, len(input.Queries))
+	}
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return FlowSpecAnswer{}, err
+	}
+	return provider.answerRequest(string(raw))
+}
+
+func (provider *flowSpecProvider) answerRequest(request string) (FlowSpecAnswer, error) {
 	var input FlowSpecRequest
 	if err := json.Unmarshal([]byte(request), &input); err != nil {
 		return FlowSpecAnswer{}, err
@@ -241,12 +292,32 @@ func AnswerFlowSpec(request string) (FlowSpecAnswer, error) {
 	if len(input.Queries) > EligibilityBatchMax {
 		return FlowSpecAnswer{}, errors.New("FlowSpec request carries more queries than EligibilityBatchMax")
 	}
-	provider := flowSpecLookup.Load()
-	if provider == nil {
-		return FlowSpecAnswer{}, errors.New("this process holds no FlowSpec lookup")
+	pending := false
+	// Validate every operation and original tuple before exposing any Pending
+	// or calling a route lookup. A lagged first query cannot mask a malformed tail.
+	for _, query := range input.Queries {
+		switch query.Operation {
+		case FlowSpecEligible, FlowSpecPresent, FlowSpecPathOf, FlowSpecRedirect:
+		default:
+			return FlowSpecAnswer{}, errors.New("unknown FlowSpec operation " + string(query.Operation))
+		}
+		if query.AfterMsgID == 0 {
+			continue
+		}
+		if query.Route.PeerOwner == 0 || query.Route.ConnectionID == 0 || !query.Route.Peer.IsValid() {
+			return FlowSpecAnswer{}, errors.New("FlowSpec minimum lacks original owner, address or physical connection; preserve its received identity")
+		}
+		if provider.progress == nil {
+			return FlowSpecAnswer{}, errors.New("FlowSpec provider has no original processing position; do not infer catch-up from another source")
+		}
+		current, err := provider.progress(query.Route, query.AfterMsgID)
+		if err != nil {
+			return FlowSpecAnswer{}, err
+		}
+		pending = pending || !current
 	}
-	if provider.announced {
-		return FlowSpecAnswer{}, errors.New("this process holds no FlowSpec lookup of its own")
+	if pending {
+		return FlowSpecAnswer{Pending: true}, nil
 	}
 	answer := FlowSpecAnswer{Results: make([]FlowSpecResult, len(input.Queries))}
 	if err := provider.answerEach(input.Queries, answer.Results); err != nil {
@@ -255,11 +326,13 @@ func AnswerFlowSpec(request string) (FlowSpecAnswer, error) {
 	if !input.Routes {
 		return answer, nil
 	}
-	routes := provider.routes()
-	if len(routes) > FlowSpecRoutesMax {
+	if provider.routes == nil {
+		return FlowSpecAnswer{}, errors.New("this process registered no FlowSpec route lookup")
+	}
+	answer.Routes = provider.routes()
+	if len(answer.Routes) > FlowSpecRoutesMax {
 		return FlowSpecAnswer{}, errors.New("the RIB holds more authorized FlowSpec routes than FlowSpecRoutesMax")
 	}
-	answer.Routes = routes
 	return answer, nil
 }
 
@@ -280,7 +353,11 @@ func (p *flowSpecProvider) answerEach(queries []FlowSpecQuery, results []FlowSpe
 			}
 			results[i].Path, results[i].Verdict = p.path(query.Route)
 		case FlowSpecRedirect:
-			results[i].Verdict = FlowSpecRedirectRefused(query.Route, query.MsgID)
+			if p.redirect != nil {
+				results[i].Verdict = p.redirect(query.Route, query.MsgID)
+			} else {
+				results[i].Verdict = FlowSpecRedirectRefused(query.Route, query.MsgID)
+			}
 		default:
 			return errors.New("unknown FlowSpec operation " + string(query.Operation))
 		}

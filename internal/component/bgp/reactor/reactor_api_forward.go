@@ -12,6 +12,7 @@
 package reactor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -136,6 +137,12 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		if nc := peer.negotiated.Load(); nc == nil || !nc.Has(fam) {
 			continue
 		}
+		target := announceTarget{peer: peer, session: peer.currentSession()}
+		target.destinationOwner, target.destinationSession = sender.Destination()
+		if err := destinationCurrent(peer, target.session, sender); err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		// The replay form stands down, answered as handled and with nothing
 		// written, in three cases. A replay's marker is an AUTOMATIC one: Ze
 		// sends it because a plugin finished replaying, not because anyone
@@ -189,7 +196,11 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		// skips a claimed family, and so does a replay. claimed records whether
 		// this call took the claim, so a failed send hands back only a claim it
 		// owns.
-		claimed := peer.claimInitialSyncEOR(fam)
+		claimed, claimErr := target.claimEndOfRIB(fam)
+		if claimErr != nil {
+			errs = append(errs, claimErr)
+			continue
+		}
 		if once && !claimed {
 			sentCount++
 			continue
@@ -201,9 +212,9 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		// without a forward pool queues nothing, so nothing is owed ahead and
 		// the marker is written at once.
 		if a.r.fwdPool != nil {
-			if !a.queueEndOfRIB(peer, fam, update, claimed) {
+			if !a.queueEndOfRIB(target, fam, update, claimed) {
 				if claimed {
-					peer.releaseInitialSyncEOR(fam)
+					target.releaseEndOfRIBClaim(fam)
 				}
 				errs = append(errs, errForwardPoolStopped)
 				continue
@@ -211,10 +222,19 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 			sentCount++
 			continue
 		}
-		if err := peer.SendUpdate(update); err != nil {
+		var sendErr error
+		if target.destinationOwner != 0 {
+			owner := fwdItem{peer: peer, session: target.session,
+				destinationOwner: target.destinationOwner, destinationSession: target.destinationSession,
+				endOfRIB: &fwdEndOfRIB{session: target.session, family: fam, ownsClaim: claimed}}
+			sendErr = target.session.sendUpdateOwnedWithSplit(context.Background(), update, message.MaxMsgLen, false, false, &owner, (*Session).writeUpdate)
+		} else {
+			sendErr = peer.SendUpdate(update)
+		}
+		if err := sendErr; err != nil {
 			// Release, or the family stays marked and the peer never gets it.
 			if claimed {
-				peer.releaseInitialSyncEOR(fam)
+				target.releaseEndOfRIBClaim(fam)
 			}
 			errs = append(errs, err)
 		} else {
@@ -341,6 +361,43 @@ func (a *reactorAPIAdapter) SendEoRR(sel *selector.Selector, afi uint16, safi ui
 // so a program that may ask for a refresh is not thereby allowed to originate
 // routes. That is the whole point of the two send types being separate words.
 func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16, safi uint8, subtype message.RouteRefreshSubtype, sender plugin.Sender) error {
+	owner, _ := sender.Destination()
+	if owner != 0 {
+		return errors.New("bound route refresh requires its request context; use the original destination command")
+	}
+	return a.sendRouteRefreshContext(context.Background(), sel, afi, safi, subtype, sender)
+}
+
+func (a *reactorAPIAdapter) SendRefreshBound(ctx context.Context, sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+	owner, session := sender.Destination()
+	if owner == 0 {
+		return errAdjOutSession
+	}
+	if session == 0 {
+		return errAdjOutSession
+	}
+	lifetime, err := plugin.OriginProducerFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	if !lifetime.Sender().SameIssuer(sender) {
+		return errAdjOutProvenance
+	}
+	if err := lifetime.Current(); err != nil {
+		return err
+	}
+	process, ok := lifetime.ProcessContext()
+	if !ok {
+		return errAdjOutProvenance
+	}
+	work, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(process, cancel)
+	defer func() { stop(); cancel() }()
+	ctx = work
+	return a.sendRouteRefreshContext(ctx, sel, afi, safi, message.RouteRefreshNormal, sender)
+}
+
+func (a *reactorAPIAdapter) sendRouteRefreshContext(ctx context.Context, sel *selector.Selector, afi uint16, safi uint8, subtype message.RouteRefreshSubtype, sender plugin.Sender) error {
 	requiresEnhancedRR := subtype == message.RouteRefreshBoRR || subtype == message.RouteRefreshEoRR
 
 	rr := &message.RouteRefresh{
@@ -381,6 +438,29 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 			}
 		}
 
+		owner, _ := sender.Destination()
+		if owner != 0 {
+			session := peer.currentSession()
+			if session == nil {
+				errs = append(errs, errAdjOutSession)
+				continue
+			}
+			err := session.sendUpdateCounted(ctx, &message.Update{}, nil, false, nil, func(current *Session, _ *message.Update) error {
+				if err := destinationCurrent(peer, current, sender); err != nil {
+					return err
+				}
+				return current.writeMessageHeld(rr)
+			})
+			if err == nil {
+				err = destinationCurrent(peer, session, sender)
+			}
+			if err != nil {
+				errs = append(errs, err)
+			} else {
+				peer.incrRefreshSent()
+			}
+			continue
+		}
 		// RFC 7313 Section 4: a BoRR or EoRR takes its place among the routes of
 		// the refresh it brackets (sendRefreshMarker), and is counted when sent.
 		if requiresEnhancedRR {
@@ -470,49 +550,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("%w: selector %s, send type %s", errSendNoSender, sel, origin.sendType)
 	}
 
-	// Resolve matching peers and source info under one lock.
+	if err := requireBoundForwardContext(sender, nil); err != nil {
+		return err
+	}
+	srcInfo, sourceErr := originalCachedSource(update)
+	if sourceErr != nil {
+		return sourceErr
+	}
+	// Resolve destinations only after immutable original source validation. A
+	// configured sibling sharing the address remains a different destination.
 	a.r.mu.RLock()
 	var peersBuf [16]*Peer
 	matchingPeers := peersBuf[:0]
-	var srcInfo forwardSourceInfo
 	for _, peer := range a.r.peers {
-		addr := peer.Settings().Address
-		if addr == update.SourcePeerIP {
-			// Established only, matching resolveRelaySource: a torn-down peer keeps
-			// its Settings but Peer.clearEncodingContexts has already zeroed
-			// remoteRouterID, so its facts would inject ORIGINATOR_ID 0.0.0.0.
-			if peer.State() != PeerStateEstablished {
-				continue
-			}
-			s := peer.Settings()
-			srcInfo = forwardSourceInfo{
-				// Guarded: source may be a dynamic peer still resolving its ASN.
-				isIBGP:         peer.IsIBGP(),
-				isRRClient:     s.RouteReflectorClient,
-				remoteRouterID: peer.RemoteRouterID(),
-				globalLocalAS:  s.GlobalLocalAS,
-				resolved:       true,
-				peer:           peer,
-			}
-			// Filled for every forwarded UPDATE, once per source: the egress
-			// engine steps and the export chain's source-peer fields read it.
-			srcInfo.filterInfo = filterapi.PeerFilterInfo{
-				Address: s.Address,
-				PeerAS:  peer.PeerAS(),
-				// Effective per-peer local AS, mirroring the dest filterInfo
-				// (peer_forward_facts.go). Kept in sync so no egress filter
-				// ever reads a silent zero from src.LocalAS.
-				LocalAS:   s.LocalAS,
-				Name:      s.Name,
-				GroupName: s.GroupName,
-				// The one IBGP rule, so a filter never compares PeerAS with
-				// LocalAS (which reads an RFC 7705 migration session as EBGP).
-				IsIBGP:   srcInfo.isIBGP,
-				RSClient: s.RSClient,
-			}
+		if peer == srcInfo.peer {
 			continue
 		}
-		if sel.Matches(addr) {
+		if sel.Matches(peer.Settings().Address) {
 			matchingPeers = append(matchingPeers, peer)
 		}
 	}
@@ -555,6 +609,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 // quietly skip the RFC 4456 reflection rules and the RFC 7947 policy for a source
 // it never actually found. See errForwardNoSource.
 type forwardSourceInfo struct {
+	bound *boundForwardStage // Non-nil only for captured synchronous legacy replay.
 	// trackDelivery is set before a partitioned fan-out, so a later fatal
 	// section can exclude that captured connection's earlier dispatches.
 	trackDelivery  bool
@@ -722,7 +777,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	var srcAIGPLinkMetric uint64
 	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
-		srcAIGPLinkMetric = a.r.sourceAIGPLinkMetric(update.SourcePeerIP)
+		srcAIGPLinkMetric = sourceAIGPLinkMetric(srcInfo.peer)
 		srcAIGPNextHop = aigpNextHop(sourceWire.Payload())
 	}
 
@@ -1309,7 +1364,20 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 						continue
 					}
 				}
-				body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+				var pathOrigin fwdPathOrigin
+				if sendCtx := bgpctx.Registry.Get(destCtxID); sendCtx != nil {
+					if sendCtx.AnyAddPath() {
+						var originErr error
+						pathOrigin, originErr = newFwdPathOrigin(update)
+						if originErr != nil {
+							reportForwardPathOriginFailure(facts.addrStr, originErr)
+							dedup.abandon(candidate)
+							a.r.fwdPool.releaseItem(&item)
+							continue
+						}
+					}
+				}
+				body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache, pathOrigin)
 				if !ok {
 					// A failed build MUST release any outgoing-pool buffer acquired by
 					// the rebuild, just as a failed attribute treatment above does.
@@ -1391,6 +1459,18 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		a.r.recentUpdates.retainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
+			if srcInfo.bound != nil {
+				owner, session := srcInfo.bound.request.senderFor(pending[i].item.peer).Destination()
+				pending[i].item.destinationOwner = owner
+				pending[i].item.destinationSession = session
+				pending[i].item.bound = srcInfo.bound
+				srcInfo.bound.items = append(srcInfo.bound.items, pending[i].item)
+				if !pending[i].cleanup {
+					dispatchedCount++
+					result.sentTo(pending[i].item.session)
+				}
+				continue
+			}
 			if srcInfo.selected != nil {
 				pending[i].item.authority = adjOutSelected
 				pending[i].item.selected = srcInfo.selected.write

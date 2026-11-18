@@ -73,8 +73,9 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 	if p.reactor != nil {
 		settings := p.settingsSnapshot()
 		wirePeer := plugin.PeerInfo{
-			PeerOwner: p.sourceOwner,
-			Address:   settings.Address, AddressStr: p.addrString,
+			PeerOwner:    p.sourceOwner,
+			ConnectionID: session.connectionID,
+			Address:      settings.Address, AddressStr: p.addrString,
 			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 			LocalAS: settings.LocalAS, PeerAS: rpc.RemoteASOf(settings.PeerAS), RouterID: settings.RouterID,
 		}

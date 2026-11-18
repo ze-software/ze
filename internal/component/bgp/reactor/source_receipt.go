@@ -16,11 +16,16 @@ import (
 // Its nil and zero values are invalid. Only newSourceReceiptFacts constructs it;
 // the Peer pointer supplies revocation fences, never replacement session facts.
 type sourceReceiptFacts struct {
-	source    relaySource
-	peerOwner uint64
+	source       relaySource
+	peerOwner    uint64
+	connectionID uint64 // immutable original physical Session from the issuing factory
 }
 
-func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
+func newSourceReceiptFacts(source relaySource, connectionID uint64) (*sourceReceiptFacts, error) {
+	if connectionID == 0 {
+		return nil, errors.New("source receipt: original physical connection is missing")
+	}
+
 	if !source.ok {
 		return nil, errors.New("source receipt: forwarding facts are unresolved")
 	}
@@ -44,12 +49,28 @@ func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
 	}
 	// A forwardSourceInfo also carries one operation's sender, recovery and
 	// replay state. None is a source-session fact or transferable authority.
-	facts := &sourceReceiptFacts{peerOwner: source.info.peer.sourceOwner, source: relaySource{addr: source.addr, ctxID: source.ctxID,
+	facts := &sourceReceiptFacts{connectionID: connectionID, peerOwner: source.info.peer.sourceOwner, source: relaySource{addr: source.addr, ctxID: source.ctxID,
 		srcID: source.srcID, strAdr: source.strAdr, generation: source.generation, ok: true}}
+	source.info.filterInfo.ConnectionID = connectionID
 	facts.source.info = forwardSourceInfo{isIBGP: source.info.isIBGP, isRRClient: source.info.isRRClient,
 		remoteRouterID: source.info.remoteRouterID, globalLocalAS: source.info.globalLocalAS,
 		filterInfo: source.info.filterInfo, resolved: true, peer: source.info.peer}
 	return facts, nil
+}
+
+// recoverySource returns the original immutable Session facts, never permission
+// to send. queueRecovery still requires the exact round's Peer/generation cut
+// and the normal source/export admission. No current Session facts are borrowed.
+func (store *sourceReceiptStore) recoverySource(id, owner uint64) relaySource {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	record := store.entries[id]
+	if id == 0 || owner == 0 || record == nil || record.facts.peerOwner != owner {
+		return relaySource{}
+	}
+	source := record.facts.source
+	source.receipt = id
+	return source
 }
 
 // sourceReceiptStore holds session facts, not routes or GR policy. Its zero
@@ -69,6 +90,8 @@ type sourceReceiptRecord struct {
 	id           uint64
 	facts        sourceReceiptFacts
 	deliveryOpen bool
+	liveLifetime context.Context
+	endLive      context.CancelFunc
 	leases       map[plugin.SelectedOwner]*sourceReceiptLease
 	writes       uint64
 	pins         uint64
@@ -94,7 +117,8 @@ func (store *sourceReceiptStore) issue(facts *sourceReceiptFacts) (*liveSourceRe
 		return nil, errors.New("source receipt: identity exhausted; restart Ze with ze request restart before admitting a new source session")
 	}
 	store.next++
-	record := &sourceReceiptRecord{id: store.next, facts: *facts, deliveryOpen: true,
+	liveLifetime, endLive := context.WithCancel(context.Background())
+	record := &sourceReceiptRecord{id: store.next, facts: *facts, deliveryOpen: true, liveLifetime: liveLifetime, endLive: endLive,
 		leases: make(map[plugin.SelectedOwner]*sourceReceiptLease)}
 	if store.entries == nil {
 		store.entries = make(map[uint64]*sourceReceiptRecord)
@@ -111,6 +135,7 @@ func (live *liveSourceReceipt) ID() uint64 { return live.record.id }
 func (live *liveSourceReceipt) close() {
 	live.store.mu.Lock()
 	defer live.store.mu.Unlock()
+	live.record.endLive()
 	live.record.deliveryOpen = false
 	live.store.dropUnused(live.record)
 }
@@ -121,11 +146,12 @@ func (live *liveSourceReceipt) close() {
 // The owner MUST revoke the lease when its last candidate is purged or its
 // retention expires. revoke MUST join every begin/complete pair before success.
 type sourceReceiptLease struct {
-	store    *sourceReceiptStore
-	record   *sourceReceiptRecord
-	owner    plugin.SelectedOwner
-	retained bool
-	revoked  chan struct{}
+	store     *sourceReceiptStore
+	record    *sourceReceiptRecord
+	owner     plugin.SelectedOwner
+	retained  bool
+	transient bool // Only actual live writes own this lease until explicit acquisition.
+	revoked   chan struct{}
 	// lifetime is canceled with revoked so a final writer blocked in a socket
 	// flush can use the existing request cancellation and joined cleanup path.
 	lifetime context.Context
@@ -158,6 +184,12 @@ func (store *sourceReceiptStore) acquire(id uint64, owner plugin.SelectedOwner) 
 		if err := lease.current(); err != nil {
 			return nil, err
 		}
+		if lease.transient {
+			if !record.deliveryOpen {
+				return nil, errors.New("source receipt: live write cannot acquire retention after original delivery ended")
+			}
+			lease.transient = false
+		}
 		return lease, nil
 	}
 	if !record.deliveryOpen {
@@ -180,6 +212,9 @@ func (lease *sourceReceiptLease) retain() error {
 	}
 	if lease.record.facts.source.info.peer.stopping.Load() {
 		return errors.New("source receipt: original peer has been removed or stopped")
+	}
+	if lease.transient {
+		return errors.New("source receipt: acquire the original source before retaining it")
 	}
 	lease.retained = true
 	return nil
@@ -205,11 +240,18 @@ type sourceReceiptWrite struct {
 	lease *sourceReceiptLease
 	id    uint64
 	epoch uint64
+	live  bool // Captured per write; a later shared lease retention cannot upgrade it.
 }
 
 func (lease *sourceReceiptLease) begin(epoch uint64) (sourceReceiptWrite, error) {
 	lease.store.mu.Lock()
 	defer lease.store.mu.Unlock()
+	return lease.beginLocked(epoch)
+}
+
+// beginLocked shares write enrollment between explicit leases and live calls.
+// Caller MUST hold store.mu; it never acquires a peer lock or performs I/O.
+func (lease *sourceReceiptLease) beginLocked(epoch uint64) (sourceReceiptWrite, error) {
 	if err := lease.acceptsWrite(epoch); err != nil {
 		return sourceReceiptWrite{}, err
 	}
@@ -254,6 +296,12 @@ func (write sourceReceiptWrite) current() error {
 	if _, pending := write.lease.writes[write.id]; !pending {
 		return errors.New("source receipt: final write has already completed")
 	}
+	if write.live {
+		source := &write.lease.record.facts.source
+		if !forwardSourceCurrent(source.info.peer, source.generation) {
+			return errForwardNoSource
+		}
+	}
 	return write.lease.acceptsWrite(write.epoch)
 }
 
@@ -282,6 +330,11 @@ func (write sourceReceiptWrite) complete() {
 	delete(lease.writes, write.id)
 	lease.record.writes--
 	if len(lease.writes) == 0 {
+		if lease.transient {
+			if lease.record.leases[lease.owner] == lease {
+				delete(lease.record.leases, lease.owner)
+			}
+		}
 		if lease.idle != nil {
 			close(lease.idle)
 			lease.idle = nil

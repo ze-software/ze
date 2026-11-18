@@ -623,6 +623,12 @@ type Peer struct {
 	// reuses an address's ID. It remains typed through internal sent delivery.
 	sourceOwner uint64
 
+	// SENT publication spans every original Session, including raw writes before
+	// source receipt capture. This leaf mutex never crosses I/O or other locks.
+	sentObservationMu   sync.Mutex
+	sentObservations    uint64
+	sentObservationIdle chan struct{}
+
 	// addrString caches settings.Address.String() to avoid per-message
 	// string allocation on the hot path (Prometheus labels, bus notifications,
 	// forward pool keys). Computed once at peer creation.
@@ -991,8 +997,12 @@ func (p *Peer) raiseReplayFence() {
 
 // takeInitialReplayReceipt numbers the current session's initial replay again,
 // at the instant enterEstablished takes it. Caller MUST be enterEstablished.
+// The caller MUST NOT hold p.mu. Mint/store share its lock with original-target
+// capture, including an UPDATE numbered while the fresh token is being published.
 func (p *Peer) takeInitialReplayReceipt() {
-	session := p.currentSession()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	session := p.session
 	if session == nil {
 		return
 	}
@@ -1062,6 +1072,10 @@ func (p *Peer) replayOwns(updateID uint64) bool {
 // A report that completes the set lowers the replay fence
 // (Peer.initialUpdateOwed) and releases the live forwards parked behind it.
 func (p *Peer) SignalAPIReady(sender plugin.Sender, initialReplay uint64) error {
+	return p.signalAPIReadyContext(context.Background(), sender, initialReplay)
+}
+
+func (p *Peer) signalAPIReadyContext(ctx context.Context, sender plugin.Sender, initialReplay uint64) error {
 	process, named := sender.Process()
 	if !named {
 		if sender.IsOperator() {
@@ -1072,7 +1086,8 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender, initialReplay uint64) error 
 		return errors.New("plugin session ready requires a named process; explicit operator readiness is a no-op")
 	}
 
-	lowered, err := p.creditAPIReady(process, initialReplay)
+	owner, session := sender.Destination()
+	lowered, err := p.creditAPIReadyContext(ctx, process, initialReplay, owner, session)
 	if err != nil {
 		return err
 	}
@@ -1092,8 +1107,26 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender, initialReplay uint64) error 
 // resetAPISync, so old work cannot credit a replacement session's expectation
 // set or lower its replay fence.
 func (p *Peer) creditAPIReady(process string, initialReplay uint64) (bool, error) {
+	return p.creditAPIReadyContext(context.Background(), process, initialReplay, 0, 0)
+}
+
+func (p *Peer) creditAPIReadyContext(ctx context.Context, process string, initialReplay, owner, session uint64) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if owner != 0 {
+		if p.sourceOwner != owner {
+			return false, errAdjOutSession
+		}
+		if p.session == nil {
+			return false, errAdjOutSession
+		}
+		if p.session.initialReplay.Load() != session {
+			return false, errAdjOutSession
+		}
+	}
 
 	if initialReplay == 0 {
 		return false, errors.New("plugin session ready requires session <initial-replay token> from the peer UP event")
@@ -2005,6 +2038,7 @@ var forwardGenerationCut sync.RWMutex
 // store happen under forwardGenerationCut, so a recovery snapshot sees both
 // or neither. Safe for concurrent use.
 func (p *Peer) advanceForwardGeneration() {
+	defer sourceReceipts.invalidateLivePeer(p)
 	forwardGenerationCut.RLock()
 	defer forwardGenerationCut.RUnlock()
 	next := forwardGenerationClock.Add(1)
@@ -2028,10 +2062,14 @@ func (p *Peer) advanceForwardGeneration() {
 func (p *Peer) setState(s PeerState) {
 	if s == PeerStateEstablished {
 		p.advanceForwardGeneration()
+		if session := p.establishedSession.Load(); session != nil {
+			session.publishedGeneration.Store(p.forwardGeneration.Load())
+		}
 	}
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
 		if old == PeerStateEstablished && s != PeerStateEstablished {
+			sourceReceipts.invalidateLivePeer(p)
 			p.incrConnectionsDropped()
 		}
 		p.updatePeerStateMetric(old, s)

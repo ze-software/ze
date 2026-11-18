@@ -5,6 +5,9 @@ package format
 
 import (
 	"encoding/hex"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bufpool"
+	"github.com/ze-software/ze/internal/core/family"
 	"strconv"
 
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
@@ -32,6 +35,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	buf = appendSourcePolicyEpochText(buf, sourcePolicyEpoch)
 	buf = appendSourceReceiptText(buf, sourceReceipt)
 	buf = appendPeerOwnerText(buf, peer.PeerOwner)
+	buf = appendConnectionIDText(buf, peer.ConnectionID)
 
 	announced := result.AnnouncedByFamily(ctx)
 	withdrawn := result.WithdrawnByFamily(ctx)
@@ -57,10 +61,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 		buf = append(buf, textparse.ShortNext...)
 		buf = append(buf, ' ')
 		buf = fam.NextHop.AppendTo(buf)
-		buf = append(buf, " nlri "...)
-		buf = fam.Family.AppendTo(buf)
-		buf = append(buf, " add "...)
-		buf = appendNLRIList(buf, fam.NLRIs)
+		buf = appendTextFamilyNLRIs(buf, fam.Family, fam.NLRIs, false)
 	}
 
 	// Withdrawn routes: nlri <fam> del <nlri>[,<nlri>]...
@@ -68,19 +69,73 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 		if fam.SplitErr != nil {
 			continue
 		}
-		buf = append(buf, " nlri "...)
-		buf = fam.Family.AppendTo(buf)
-		buf = append(buf, " del "...)
-		buf = appendNLRIList(buf, fam.NLRIs)
+		buf = appendTextFamilyNLRIs(buf, fam.Family, fam.NLRIs, true)
 	}
 
 	buf = append(buf, '\n')
 	return buf
 }
 
+// Text encoding can run concurrently for multiple process subscribers. This
+// fixed maximum scratch pool owns no route and all callers MUST return a loan.
+var nativeTextScratch = bufpool.New(1, message.ExtMsgLen, "bgp-native-text")
+
+// appendTextFamilyNLRIs keeps compact plain INET output while giving every
+// ADD-PATH or opaque route a separate existing section. NLRI presence comes
+// from HasPathID, never from a nonzero identifier test.
+func appendTextFamilyNLRIs(buf []byte, fam family.Family, entries []nlri.NLRI, withdraw bool) []byte {
+	compact := len(entries) > 0
+	for _, entry := range entries {
+		if _, inet := entry.(*nlri.INET); !inet {
+			compact = false
+			break
+		}
+		if nlri.HasPathID(entry) {
+			compact = false
+			break
+		}
+	}
+	operation := " add "
+	if withdraw {
+		operation = " del "
+	}
+	if compact {
+		buf = append(buf, " nlri "...)
+		buf = fam.AppendTo(buf)
+		buf = append(buf, operation...)
+		return appendNLRIList(buf, entries)
+	}
+	for _, entry := range entries {
+		buf = append(buf, " nlri "...)
+		buf = fam.AppendTo(buf)
+		if nlri.HasPathID(entry) {
+			buf = append(buf, " info "...)
+			buf = strconv.AppendUint(buf, uint64(entry.PathID()), 10)
+		}
+		buf = append(buf, operation...)
+		if inet, ok := entry.(*nlri.INET); ok {
+			buf = inet.AppendString(buf)
+			continue
+		}
+		buf = append(buf, "raw "...)
+		buf = appendTextNativeNLRI(buf, entry)
+	}
+	return buf
+}
+
+// appendTextNativeNLRI uses the public payload-only WriteTo contract. In
+// particular WireNLRI.Bytes includes ADD-PATH while WriteTo strips it, so the
+// identity is never guessed by slicing an arbitrary carrier's Bytes result.
+func appendTextNativeNLRI(buf []byte, entry nlri.NLRI) []byte {
+	scratch := nativeTextScratch.Get()
+	defer nativeTextScratch.Put(scratch)
+	written := entry.WriteTo(scratch, 0)
+	return hex.AppendEncode(buf, scratch[:written])
+}
+
 // appendNLRIList appends NLRIs in compact format.
 // INET NLRIs use comma-separated CIDRs: prefix <a>,<b>.
-// Other NLRIs use keyword boundary: <nlri1> <nlri2>.
+// Only plain INET lists use this compact form; captured native sections use appendTextFamilyNLRIs.
 // Uses AppendString/AppendKey for INET NLRIs to avoid per-NLRI string allocations.
 func appendNLRIList(buf []byte, nlris []nlri.NLRI) []byte {
 	if len(nlris) == 0 {
@@ -273,6 +328,7 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	buf = append(buf, " state "...)
 	buf = state.AppendTo(buf)
 	buf = appendPeerOwnerText(buf, peer.PeerOwner)
+	buf = appendConnectionIDText(buf, peer.ConnectionID)
 	if reason != "" {
 		buf = append(buf, " reason "...)
 		buf = append(buf, reason...)

@@ -213,7 +213,7 @@ func runReplay(path string, ident replayIdentity) (*replayReport, error) {
 	defer func() { _ = session.Stop() }()
 
 	var announced, withdrawn []string
-	session.SetMessageCallback(func(_ netip.Addr, mt msgtype.MessageType, _ []byte,
+	session.SetMessageCallback(func(_ *reactor.Session, _ netip.Addr, mt msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ reactor.BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if mt == msgtype.TypeUPDATE && wu != nil {

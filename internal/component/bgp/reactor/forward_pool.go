@@ -54,11 +54,17 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies then updates under writeMu (fwdBatchHandler).
 type fwdItem struct {
-	rawBodies [][]byte          // Zero-copy or split pieces: writeOriginatedBodyPreFiltered when originated, else writeRawUpdateBody
-	updates   []*message.Update // Re-encode path: writeUpdateGated, gated when originated
-	peer      *Peer             // Target peer for all operations
-	session   *Session          // Destination incarnation captured before materialization
-	authority adjOutAuthority
+	// Optional original destination restriction from an admitted request. These
+	// are not source ownership; final adjOut admission rechecks the tuple.
+	destinationOwner   uint64
+	destinationSession uint64
+	boundWrite         *boundForwardTargetWrite // Existing worker carries one captured synchronous writer obligation.
+	bound              *boundForwardStage       // Borrowed until the bound request final flush joins.
+	rawBodies          [][]byte                 // Zero-copy or split pieces: writeOriginatedBodyPreFiltered when originated, else writeRawUpdateBody
+	updates            []*message.Update        // Re-encode path: writeUpdateGated, gated when originated
+	peer               *Peer                    // Target peer for all operations
+	session            *Session                 // Destination incarnation captured before materialization
+	authority          adjOutAuthority
 
 	// exportGeneration is the Peer.exportGeneration read together with the chain
 	// that judged this item, zero when no chain ran ahead of the writer: the
@@ -1467,7 +1473,21 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 			)
 		}
 	}()
-	fp.handler(key, items)
+	start := 0
+	for i := range items {
+		write := items[i].boundWrite
+		if write == nil {
+			continue
+		}
+		if start < i {
+			fp.handler(key, items[start:i])
+		}
+		write.run()
+		start = i + 1
+	}
+	if start < len(items) {
+		fp.handler(key, items[start:])
+	}
 }
 
 // drainBatch collects available items from the channel without blocking.

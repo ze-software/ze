@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -41,6 +42,7 @@ func policyRemovalItem(parent *fwdItem, removal *fwdPolicyRemoval) fwdItem {
 	}
 	return fwdItem{
 		peer: parent.peer, session: parent.session, authority: authority,
+		bound: parent.bound, destinationOwner: parent.destinationOwner, destinationSession: parent.destinationSession,
 		meta: parent.meta, sourcePeerStr: parent.sourcePeerStr,
 		sourceMessageID: parent.sourceMessageID, sourcePolicyEpoch: parent.sourcePolicyEpoch,
 		sourceReceipt: parent.sourceReceipt, selected: parent.selected,
@@ -143,6 +145,18 @@ func prepareFwdPolicyRemovals(item *fwdItem, owner *ReceivedUpdate, original *wi
 	if item.session != nil {
 		negotiated = item.session.Negotiated()
 	}
+	// RFC 7911 Section 2: generated withdrawal identifiers belong to the
+	// original received generation, just as the surviving forward body does.
+	var pathOrigin fwdPathOrigin
+	if sendCtx := bgpctx.Registry.Get(facts.sendCtxID); sendCtx != nil {
+		if sendCtx.AnyAddPath() {
+			var originErr error
+			pathOrigin, originErr = newFwdPathOrigin(owner)
+			if originErr != nil {
+				return originErr
+			}
+		}
+	}
 	item.policyRemovals = make([]fwdPolicyRemoval, 0, len(removals))
 	item.supersedeKey = 0 // Equal surviving bytes can owe different source removals.
 	var cache fwdParseCache
@@ -161,7 +175,7 @@ func prepareFwdPolicyRemovals(item *fwdItem, owner *ReceivedUpdate, original *wi
 		wire := wireu.NewWireUpdate(body, original.SourceCtxID())
 		wire.SetSourceID(original.SourceID())
 		// RFC 4271 Section 4.3; RFC 7911 Section 3; RFC 8654 Section 4.
-		built, ok := buildFwdBody(wire, facts.maxMsgSize, facts.sendCtxID, item.peer, facts.addr, &cache)
+		built, ok := buildFwdBody(wire, facts.maxMsgSize, facts.sendCtxID, item.peer, facts.addr, &cache, pathOrigin)
 		if !ok {
 			return errPolicyRemovalEncoding
 		}

@@ -408,7 +408,7 @@ func (p *Peer) announceNegotiated(r *Reactor, session *Session, neg *capability.
 		hooks.beforeNegotiated()
 	}
 	p.markSessionUp(r, session, sessionUpNegotiated)
-	r.notifyPeerNegotiated(p, neg)
+	r.notifyPeerNegotiated(p, session, neg)
 }
 
 // announceEstablished tells the plugins that session reached Established: the
@@ -435,7 +435,7 @@ func (p *Peer) announceEstablished(r *Reactor, session *Session) {
 // The caller MUST hold neither r.mu nor p.mu.
 func (p *Peer) announceClosed(r *Reactor, session *Session) {
 	p.markSessionUp(r, session, sessionUpClosing)
-	r.forgetClosedPeer(p)
+	r.forgetClosedPeer(p, session)
 }
 
 // announceDown tells the plugins that the session is down: the state down, to
@@ -481,8 +481,7 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBin
 			neg = format.NegotiatedToDecoded(negotiated)
 		}
 	}
-	info := establishedPeerInfo(p)
-	info.InitialReplay = 0
+	info := boundPeerInfo(p, session)
 	sink.OnPeerBound(&info, neg, stateNames, negotiatedNames)
 }
 

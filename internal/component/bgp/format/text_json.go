@@ -71,6 +71,7 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	buf = appendPeerJSON(buf, peer)
 	buf = appendSourcePolicyEpochJSON(buf, sourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, sourceReceipt)
+	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 
 	// Update container with attr and nlri inside
 	buf = append(buf, `,"update":{`...)

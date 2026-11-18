@@ -18,6 +18,7 @@
 package reactor
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -150,8 +151,10 @@ func relaySourceForPeer(srcPeer *Peer, contextID bgpctx.ContextID, llgrAdvertise
 	// Filled for every source: the in-process egress filters and the
 	// export chain's source-peer fields read it.
 	out.info.filterInfo = filterapi.PeerFilterInfo{
-		Address: s.Address,
-		PeerAS:  s.PeerAS,
+		PeerOwner:    srcPeer.sourceOwner,
+		ConnectionID: connectionIDOf(srcPeer.currentSession()),
+		Address:      s.Address,
+		PeerAS:       s.PeerAS,
 		// Effective per-peer local AS, matching the forward path's src
 		// filterInfo so no egress filter reads a silent zero.
 		LocalAS:   s.LocalAS,
@@ -186,8 +189,17 @@ func relaySourceForPeer(srcPeer *Peer, contextID bgpctx.ContextID, llgrAdvertise
 // the route bytes come from the CALLER, so this rail could put a plugin's stored
 // routes into a peer that never attached it.
 func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
+	return a.relayStoredRoutes(context.Background(), destination, routes, sender, nil)
+}
+
+func (a *reactorAPIAdapter) relayStoredRoutes(ctx context.Context, destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender, bound *boundForwardRequest) error {
+	if err := requireBoundForwardContext(sender, bound); err != nil {
+		return err
+	}
 	if len(routes) == 0 {
-		return nil
+		if bound == nil {
+			return nil
+		}
 	}
 	origin := announceOrigin(sender)
 	if !origin.sender.IsSet() {
@@ -198,7 +210,7 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 	// Resolve the destination once, reusing the batch resolver so this call
 	// matches ForwardUpdatesDirect's semantics (Addr-based match, zone stripped,
 	// established peers only).
-	matchingPeers, err := a.resolveDestinationPeers([]netip.AddrPort{netip.AddrPortFrom(destination, 0)})
+	matchingPeers, err := a.relayDestinationPeers(destination, sender, bound)
 	if err != nil {
 		fwdLogger().Debug("relay-stored-route: destination did not resolve",
 			"destination", destination, "routes", len(routes), "err", err)
@@ -213,23 +225,12 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		return sendNotPermitted("destination "+destination.String(), origin)
 	}
 	matchingPeers = permitted
-
-	// Cache source facts per distinct source address: a peer-up replay is
-	// dominated by a handful of sources, so this avoids re-resolving per route.
-	var srcCacheBuf [4]relaySource
-	srcCache := srcCacheBuf[:0]
-
-	lookupSource := func(srcAddr netip.Addr) relaySource {
-		for i := range srcCache {
-			if srcCache[i].addr == srcAddr {
-				return srcCache[i]
-			}
-		}
-		src := a.resolveRelaySource(srcAddr)
-		srcCache = append(srcCache, src)
-		return src
+	if len(routes) == 0 {
+		return nil
 	}
 
+	// A receipt is Session-wide. Resolving it is bounded by this call's routes
+	// and creates neither a per-route authority cache nor an address fallback.
 	// Reused across routes: scanAttrBlock replaces the contents each call, so one
 	// slice serves the whole replay instead of allocating per route.
 	var spansBuf [16]relayAttrSpan
@@ -267,17 +268,25 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			continue
 		}
 
-		// A route must never be relayed back to the peer that sent it.
-		// buildReplayRoutes filters this on the plugin side, but the engine
-		// cannot trust a caller-supplied list to have done so.
-		if srcAddr == destination {
-			// Never eligible: a route is not relayed back to its own source.
-			eligible -= run
+		if route.Withdraw {
+			if route.SourceOwner != 0 {
+				{
+					if err := a.retireOriginalStoredRoute(ctx, matchingPeers, route, sender, bound); err != nil {
+						lastErr = err
+					} else {
+						relayed += run
+					}
+					i += run
+					continue
+				}
+			}
+		}
+		src, sourceErr := a.relaySourceForRequest(ctx, srcAddr, route, sender, bound)
+		if sourceErr != nil {
+			lastErr = sourceErr
 			i += run
 			continue
 		}
-
-		src := lookupSource(srcAddr)
 		if !src.ok {
 			// Fail CLOSED. adj-rib-in drops a peer's routes when it goes down, so
 			// this is the narrow race where the source left between the replay
@@ -291,6 +300,12 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			continue
 		}
 
+		targets := relayOtherPeers(matchingPeers, src.info.peer)
+		if len(targets) == 0 {
+			eligible -= run
+			i += run
+			continue
+		}
 		update, updateID, consumed, buildErr := a.buildRelayUpdate(routes[i:i+run], src, &spans)
 		if buildErr != nil {
 			// The whole run is dropped, not just its first route. Every reason
@@ -319,7 +334,15 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			defer a.r.recentUpdates.Release(updateID)
 			src.info.sender = sender
 			src.info.initialUpdate = routes[i].InitialUpdate
-			return a.forwardUpdateCore(update, updateID, matchingPeers, src.info)
+			if bound != nil {
+				stage, stageErr := bound.stage(src.receipt, routes[i].SourcePolicyEpoch)
+				if stageErr != nil {
+					return stageErr
+				}
+				defer stage.release()
+				src.info.bound = stage
+			}
+			return a.forwardUpdateCore(update, updateID, targets, src.info)
 		}()
 
 		// A route the destination's egress policy suppressed is NOT a failure:
@@ -396,10 +419,18 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 // identifiers still share one message.
 func relayRunLen(routes []rpc.StoredRoute) int {
 	first := &routes[0]
+	if first.Withdraw {
+		if first.SourceOwner != 0 {
+			return 1
+		}
+	}
 	n := 1
 	for n < len(routes) {
 		next := &routes[n]
-		if next.SourcePeer != first.SourcePeer ||
+		if next.SourceOwner != first.SourceOwner ||
+			next.SourceReceipt != first.SourceReceipt ||
+			next.SourceConnectionID != first.SourceConnectionID ||
+			next.SourcePeer != first.SourcePeer ||
 			next.Family != first.Family ||
 			next.NLRIFraming != first.NLRIFraming ||
 			next.NextHopHex != first.NextHopHex ||

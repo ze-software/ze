@@ -7,6 +7,7 @@ package rs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
@@ -18,7 +19,6 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -111,37 +111,79 @@ func isDispatchUnknownCommand(err error) bool {
 // handleState processes peer state changes.
 // The state event retains the initial replay receipt captured at peer-up.
 func (rs *routeServer) handleState(event *Event) {
-	peerAddr := event.PeerAddr
-	state := event.State
-
-	if peerAddr == "" {
+	if event.PeerOwner == 0 {
+		rs.warnLifecycle("state has no original Peer owner", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "peer", event.PeerAddr)
 		return
 	}
-
-	if state == "up" {
-		rs.retained.Begin(peerAddr)
-		if event.Reason == rpc.ReasonAttached {
-			rs.handleAttachedUp(peerAddr)
+	if event.Reason == rpc.ReasonPeerRemoved {
+		if event.ConnectionID == 0 {
+			rs.handleOwnerRemoved(event)
 			return
 		}
-		rs.handleStateUp(peerAddr, event.InitialReplay)
+	}
+	key, err := newWorkerKey(event.PeerAddr, event.PeerOwner, event.ConnectionID)
+	if err != nil {
+		rs.warnLifecycle("state has no physical actor", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 		return
 	}
-
-	rs.mu.Lock()
-	if rs.peers[peerAddr] == nil {
-		rs.peers[peerAddr] = &PeerState{Address: peerAddr}
+	if event.State == "up" {
+		if err := rs.retained.Begin(key.owner, key.connectionID); err != nil {
+			rs.warnLifecycle("retention lifetime refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+			return
+		}
+		if event.Reason == rpc.ReasonAttached {
+			rs.handleAttachedUp(key, event.DestinationSession, event.SessionGeneration)
+			return
+		}
+		rs.handleStateUp(key, event.InitialReplay, event.DestinationSession, event.SessionGeneration)
+		return
 	}
-	rs.peers[peerAddr].Up = false
-	// From here on `!Up` means DOWN for this peer, never "not yet" -- see
-	// PeerState.StateSeen and processForward's guard.
-	rs.peers[peerAddr].StateSeen = true
+	rs.mu.Lock()
+	if peer := rs.peers[key]; peer != nil {
+		if event.State == "down" {
+			if peer.downApplied {
+				rs.mu.Unlock()
+				return
+			}
+			peer.downApplied = true
+		}
+		peer.Up = false
+		peer.StateSeen = true
+	}
 	rs.mu.Unlock()
+	if event.State == "down" {
+		rs.handleStateDown(key, event.SessionGeneration)
+	}
+}
 
-	logger().Debug("peer state applied", "peer", peerAddr, "state", state)
-
-	if state == "down" {
-		rs.handleStateDown(peerAddr, event.SessionGeneration)
+// handleOwnerRemoved answers only an actual owner-terminal removal. It
+// enumerates that owner's existing physical rows, never treating connection
+// zero as a wildcard transport DOWN or selecting a peer by address.
+func (rs *routeServer) handleOwnerRemoved(event *Event) {
+	if err := rs.retained.End(event.PeerOwner); err != nil {
+		rs.warnLifecycle("terminal retention lifetime refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+		return
+	}
+	rs.mu.Lock()
+	var keys []workerKey
+	for key, actor := range rs.peers {
+		if key.owner != event.PeerOwner {
+			continue
+		}
+		actor.Up = false
+		actor.StateSeen = true
+		actor.downApplied = true
+		actor.downPending = true
+		actor.downGeneration = event.SessionGeneration
+		actor.retainedFamilies = nil
+		actor.adoptionOpen = false
+		keys = append(keys, key)
+	}
+	rs.mu.Unlock()
+	for _, key := range keys {
+		if !rs.enqueueDeparture(key, make(map[withdrawalKey]withdrawalEntry)) {
+			rs.warnLifecycle("terminal original departure was not admitted", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "peer-owner", key.owner, "connection-id", key.connectionID)
+		}
 	}
 }
 
@@ -157,44 +199,66 @@ const withdrawalBatchSize = 500
 // stamped with generation, the down's session-generation, which the engine
 // bounds the departure by.
 // Batches native/text identities by family; the RIB elects any replacement.
-func (rs *routeServer) handleStateDown(peerAddr string, generation uint64) {
-	// Drain workers first: in-flight forwards may update the withdrawal map.
-	// PeerDown waits for all workers to finish, so after this call no more
-	// updates for this peer can occur.
-	rs.workers.PeerDown(peerAddr)
-
-	// Extract and clear withdrawal entries for this peer.
-	rs.withdrawalMu.Lock()
-	entries := rs.withdrawals[peerAddr]
-	delete(rs.withdrawals, peerAddr)
-	// The session's source-policy transaction ends with it: a later phase is
-	// refused rather than applied to a successor session (source_policy.go).
-	delete(rs.sourcePolicy, peerAddr)
-	rs.withdrawalMu.Unlock()
-	retained := rs.retained.Take(peerAddr)
-
-	// Resolve retention synchronously: a reconnect or expiry must not change
-	// this DOWN decision before the asynchronous withdrawals run. RFC 4724
-	// Section 4.2: the families bgp-gr's bgp-gr/retention verdict for this
-	// DOWN retains, taken on every DOWN so no later one reads it. The RIB owns retained
-	// source/output inventory and its eventual purge withdrawals; this
-	// transient forwarding inventory must not become a second stale store.
-	for wk := range entries {
-		if retained[wk.fam] {
-			delete(entries, wk)
-			continue
-		}
-		entry := entries[wk]
-		entry.generation = generation
-		entries[wk] = entry
-	}
-
-	if len(entries) == 0 {
+func (rs *routeServer) handleStateDown(key workerKey, generation uint64) {
+	keep, err := rs.retained.Take(key.owner, key.connectionID)
+	if err != nil {
+		rs.warnLifecycle("physical retention verdict refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 		return
 	}
-	if !rs.enqueueDeparture(peerAddr, entries) {
-		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
+	rs.mu.Lock()
+	peer := rs.peers[key]
+	if peer == nil {
+		rs.mu.Unlock()
+		return
 	}
+	peer.Up = false
+	peer.downPending = true
+	peer.downGeneration = generation
+	peer.retainedFamilies = keep
+	rs.mu.Unlock()
+	rs.withdrawalMu.Lock()
+	if txn := rs.sourcePolicy[key.owner]; txn != nil && txn.source == key {
+		delete(rs.sourcePolicy, key.owner)
+	}
+	rs.withdrawalMu.Unlock()
+	if err := rs.retainSource(key); err != nil {
+		rs.warnLifecycle("original source retain remains owed", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+	}
+	// Empty is a real DOWN marker, not a synthetic route. The existing fixed
+	// departure workers perform the actual close, retain and reconciliation.
+	if !rs.enqueueDeparture(key, make(map[withdrawalKey]withdrawalEntry)) {
+		rs.warnLifecycle("original source DOWN was not admitted", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "peer-owner", key.owner, "connection-id", key.connectionID)
+	}
+}
+
+// takeWithdrawalEntriesLocked removes only the original RECEIVE owner's entries.
+// Caller MUST hold withdrawalMu. Zero is unrecorded, so it selects nothing.
+func (rs *routeServer) takeWithdrawalEntriesLocked(source string, owner, connection uint64) map[withdrawalKey]withdrawalEntry {
+	if owner == 0 {
+		return nil
+	}
+	if connection == 0 {
+		return nil
+	}
+	entries := rs.withdrawals[source]
+	var taken map[withdrawalKey]withdrawalEntry
+	for native, entry := range entries {
+		if entry.owner != owner {
+			continue
+		}
+		if entry.connectionID != connection {
+			continue
+		}
+		if taken == nil {
+			taken = make(map[withdrawalKey]withdrawalEntry)
+		}
+		taken[native] = entry
+		delete(entries, native)
+	}
+	if len(entries) == 0 {
+		delete(rs.withdrawals, source)
+	}
+	return taken
 }
 
 // departureWorkers bounds how many sources' departures the route server sends
@@ -214,7 +278,7 @@ const departureWorkers = 8
 // event delivery goroutine: blocking it would hold back the events the
 // engine's recovery of an earlier departure may wait on. It answers false,
 // queuing nothing, once stopDepartures was called.
-func (rs *routeServer) enqueueDeparture(peerAddr string, entries map[withdrawalKey]withdrawalEntry) bool {
+func (rs *routeServer) enqueueDeparture(key workerKey, entries map[withdrawalKey]withdrawalEntry) bool {
 	rs.departureMu.Lock()
 	defer rs.departureMu.Unlock()
 	if rs.departuresStopped {
@@ -222,14 +286,20 @@ func (rs *routeServer) enqueueDeparture(peerAddr string, entries map[withdrawalK
 	}
 	if rs.departures == nil {
 		rs.departures = syncutil.NewCoalescer(departureWorkers,
-			func(waiting, next map[withdrawalKey]withdrawalEntry) map[withdrawalKey]withdrawalEntry {
-				maps.Copy(waiting, next)
+			func(waiting, next departureWork) departureWork {
+				maps.Copy(waiting.entries, next.entries)
+				waiting.revision = next.revision
 				return waiting
 			},
-			rs.sendBatchedWithdrawals,
+			rs.sendDepartureWork,
 		)
 	}
-	return rs.departures.Enqueue(peerAddr, entries)
+	if rs.departureRevisions == nil {
+		rs.departureRevisions = make(map[workerKey]uint64)
+	}
+	revision := rs.departureRevisions[key] + 1
+	rs.departureRevisions[key] = revision
+	return rs.departures.Enqueue(key, departureWork{entries: entries, revision: revision})
 }
 
 // stopDepartures refuses further departures and, when the workers were
@@ -252,6 +322,7 @@ func (rs *routeServer) stopDepartures() {
 // shares a family AND a command form, because those two together decide the
 // command's opening tokens.
 type withdrawalGroup struct {
+	owner    uint64
 	fam      string
 	wireForm bool
 	addPath  bool
@@ -277,9 +348,34 @@ type withdrawalGroup struct {
 // An ADD-PATH unicast route goes out in hex too: the text form has no Path
 // Identifier in a batch, so its group is "update hex nlri <family> addpath del
 // <hex1> ...", carrying the source's identifier.
-func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
-	if len(entries) == 0 {
+func (rs *routeServer) sendBatchedWithdrawals(key workerKey, entries map[withdrawalKey]withdrawalEntry) {
+	rs.mu.RLock()
+	nativeActor := rs.peers[key]
+	rs.mu.RUnlock()
+	if nativeActor == nil {
 		return
+	}
+	nativeActor.nativeMu.Lock()
+	defer nativeActor.nativeMu.Unlock()
+	if rs.hasPendingDown(key) {
+		rs.workers.PeerDown(key)
+		selected, err := rs.finishSourceDown(rs.replayParent(), key)
+		if err != nil {
+			rs.warnLifecycle("original source DOWN remains unsettled", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+			return
+		}
+		maps.Copy(entries, selected)
+	}
+	rs.recordDeparture(key, entries)
+	if err := rs.settleDepartureLocked(rs.replayParent(), key); err != nil {
+		rs.warnLifecycle("original source native departure remains owed", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+	}
+}
+
+func (rs *routeServer) sendDepartureRoutes(ctx context.Context, key workerKey, entries map[withdrawalKey]withdrawalEntry, targets []rpc.ForwardTarget) error {
+	peerAddr := key.address.String()
+	if len(entries) == 0 {
+		return nil
 	}
 
 	// Group by family and form for batched commands. String conversion on cold
@@ -290,7 +386,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		// CIDR and native VPN identities retain the latest announcement's hex.
 		if entry.wire != "" {
 			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath,
-				generation: entry.generation}
+				owner: entry.owner, generation: entry.generation}
 			byGroup[g] = append(byGroup[g], entry.wire)
 			continue
 		}
@@ -298,12 +394,12 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		// Identifier in a batch, so it goes out as its native NLRI.
 		if wk.nlriStr == "" && wk.addPath {
 			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: true,
-				generation: entry.generation}
+				owner: entry.owner, generation: entry.generation}
 			byGroup[g] = append(byGroup[g], addPathUnicastHex(wk.pathID, wk.prefix))
 			continue
 		}
 		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath,
-			generation: entry.generation}
+			owner: entry.owner, generation: entry.generation}
 		if wk.nlriStr == "" {
 			byGroup[g] = append(byGroup[g], tb.Reset().Str("prefix ").Prefix(wk.prefix).String())
 		} else {
@@ -311,12 +407,6 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		}
 	}
 
-	addr, err := netip.ParseAddr(peerAddr)
-	if err != nil {
-		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
-		return
-	}
-	excludeSel := selector.ExcludeAddr(addr)
 	var buf textbuf.Buffer
 
 	for g, nlris := range byGroup {
@@ -352,9 +442,14 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 			command := buf.String()
 			// The engine chooses replacement or withdrawal from the selecting
 			// RIB, then queues it behind this destination's prior forwards.
-			rs.recoverRouteSel(excludeSel, command, peerAddr, g.generation)
+			for _, target := range targets {
+				if err := rs.recoverBound(ctx, target, command, peerAddr, g.owner, g.generation); err != nil {
+					return err
+				}
+			}
 		}
 	}
+	return nil
 }
 
 // claimReplayOwnership re-affirms to bgp-adj-rib-in that this plugin drives
@@ -407,7 +502,8 @@ func (rs *routeServer) claimReplayOwnership() {
 // per-peer lifecycle goroutine (not blocking the event loop).
 // A convergent delta replay loop then covers routes that adj-rib-in may not
 // have stored yet at full-replay time (race between event delivery and replay).
-func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
+func (rs *routeServer) handleStateUp(key workerKey, initialReplay, destinationSession, generation uint64) {
+	peerAddr := key.address.String()
 	// ONE critical section makes the peer a live forward target, captures its
 	// cut, and shuts its replay gate. selectForwardTargets reads them under
 	// rs.mu, so no live forward can select this peer without the matching
@@ -418,11 +514,20 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 	// The generation increment lets a stale goroutine from a previous session
 	// (rapid reconnect) tell that it no longer owns this peer's replay.
 	rs.mu.Lock()
-	peer := rs.peers[peerAddr]
+	peer := rs.peers[key]
 	if peer == nil {
 		peer = &PeerState{Address: peerAddr}
-		rs.peers[peerAddr] = peer
+		rs.peers[key] = peer
 	}
+	for siblingKey, sibling := range rs.peers {
+		if siblingKey.owner == key.owner && siblingKey != key {
+			sibling.Up = false
+		}
+	}
+	peer.downApplied = false
+	peer.adoptionOpen = true
+	peer.SessionGeneration = generation
+	peer.DestinationSession = destinationSession
 	peer.Up = true
 	peer.StateSeen = true
 	// THE CUT. Every UPDATE at or below it is the replay's to deliver, every
@@ -434,6 +539,14 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 	cut := peer.ForwardFrom
 	done := make(chan struct{})
 	peer.replayDone = done
+	target, targetErr := targetOf(key, peer)
+	if targetErr != nil {
+		peer.replayDone = nil
+		rs.mu.Unlock()
+		close(done)
+		rs.warnLifecycle("peer-up replay target refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", targetErr)
+		return
+	}
 	rs.mu.Unlock()
 
 	// Logged outside the critical section: the same lock gates every
@@ -441,7 +554,13 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "cut", cut)
 
 	// Spawn per-peer lifecycle goroutine for replay (not blocking event loop).
-	go rs.replayForPeer(peerAddr, gen, cut, initialReplay, done)
+
+	replayCtx, admitted := rs.replays.begin(rs.downCtx, done)
+	if !admitted {
+		rs.endReplay(key, done)
+		return
+	}
+	go rs.replayForPeer(context.WithValue(replayCtx, replayTargetKey{}, target), key, gen, cut, initialReplay, done)
 }
 
 // handleAttachedUp records a peer up that a reload delivered when it attached
@@ -451,13 +570,23 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 // is signaled (an attached up carries no initial-replay receipt). The peer is
 // a forward source and target again from the current cut on, and the
 // generation increment stops any replay a previous up of this peer still runs.
-func (rs *routeServer) handleAttachedUp(peerAddr string) {
+func (rs *routeServer) handleAttachedUp(key workerKey, destinationSession, generation uint64) {
+	peerAddr := key.address.String()
 	rs.mu.Lock()
-	peer := rs.peers[peerAddr]
+	peer := rs.peers[key]
 	if peer == nil {
 		peer = &PeerState{Address: peerAddr}
-		rs.peers[peerAddr] = peer
+		rs.peers[key] = peer
 	}
+	for siblingKey, sibling := range rs.peers {
+		if siblingKey.owner == key.owner && siblingKey != key {
+			sibling.Up = false
+		}
+	}
+	peer.downApplied = false
+	peer.adoptionOpen = true
+	peer.SessionGeneration = generation
+	peer.DestinationSession = destinationSession
 	peer.Up = true
 	peer.StateSeen = true
 	peer.ForwardFrom = rs.seenMsgID
@@ -475,11 +604,11 @@ func (rs *routeServer) handleAttachedUp(peerAddr string) {
 // everything it will send, End-of-RIB included. A stale goroutine leaves the
 // gate alone, because the peer's newer session owns it. done is closed either
 // way.
-func (rs *routeServer) endReplay(peerAddr string, done chan struct{}) {
-	defer close(done)
+func (rs *routeServer) endReplay(key workerKey, done chan struct{}) {
+	defer rs.replays.finish(done)
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	p := rs.peers[peerAddr]
+	p := rs.peers[key]
 	if p == nil {
 		return
 	}
@@ -495,39 +624,20 @@ func (rs *routeServer) endReplay(peerAddr string, done chan struct{}) {
 // and sends nothing more. On every exit it opens done (endReplay), after its
 // End-of-RIB, which releases the live forwards held behind it.
 // initialReplay MUST be the receipt captured by this replay's peer-up event.
-func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay uint64, done chan struct{}) {
-	defer rs.endReplay(peerAddr, done)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+func (rs *routeServer) replayForPeer(parent context.Context, key workerKey, gen, cut, initialReplay uint64, done chan struct{}) {
+	peerAddr := key.address.String()
+	defer rs.endReplay(key, done)
+	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
 	defer cancel()
 
 	// Full replay from index 0.
-	replayCommand := cmdAdjRIBInReplay
+
 	// "<peer> <from-index> <max-msg-id>": resume from the start, stop at the cut.
 	cutArg := textbuf.StringUint(cut)
-	replayArgs := []string{peerAddr, "0", cutArg}
-	first, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRoutes, peerAddr, 0, cutArg)
+
+	first, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRead, peerAddr, 0, cutArg)
 	if err != nil {
-		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
-		// OptionalDependencies entry that was not registered at build time,
-		// DispatchCommand returns ErrUnknownCommand ("unknown command ..."). Log
-		// one WARN per RouteServer instance (sync.Once) and skip the replay
-		// loop instead of spamming ERROR for every peer-up. Other replay
-		// failures (IPC timeout, engine error) get an ERROR log so they stay
-		// visible.
-		if isDispatchUnknownCommand(err) {
-			rs.adjRibInMissingOnce.Do(func() {
-				logger().Warn("bgp-adj-rib-in not loaded; peer-up replay limited to authorized FlowSpec routes")
-			})
-		} else {
-			logger().Error("replay failed", "peer", peerAddr, "command", replayCommand, "args", replayArgs, "replayed", first.Replayed, "error", err)
-		}
-		// Always send EOR when replay terminates -- the peer needs per-family
-		// end-of-RIB markers to finish its initial sync regardless of whether
-		// the replay itself succeeded, failed transiently, or was skipped
-		// because adj-rib-in is not loaded. Without this, any replay-failure
-		// path left the peer waiting for EOR that would never come.
-		rs.replayFlowSpecs(peerAddr, gen, cut)
-		rs.sendEOR(peerAddr, gen, initialReplay)
+		rs.finishOptionalReplayRead(parent, key, gen, cut, initialReplay, err)
 		return
 	}
 
@@ -536,7 +646,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 	// A rapid reconnect made this goroutine stale: the newer one owns the
 	// peer's replay, and nothing more is sent from here.
 	rs.mu.RLock()
-	stale := rs.peers[peerAddr] == nil || rs.peers[peerAddr].ReplayGen != gen
+	stale := rs.peers[key] == nil || rs.peers[key].ReplayGen != gen
 	rs.mu.RUnlock()
 
 	if stale {
@@ -573,13 +683,15 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 			// (ai/rules/evidence.md).
 			logger().Warn("peer-up replay gave up waiting for adj-rib-in to reach the cut; routes at or below it may be missing",
 				"peer", peerAddr, "cut", cut, "ingested", progress.ingestedString(), "budget", replayCatchUpBudget)
-			break
+			rs.failReplay(key, gen, errors.New("original peer-up replay did not cover its captured cut"))
+			return
 		}
 		rs.sleep(replayConvergenceDelay)
 		next, deltaErr := rs.deltaReplay(ctx, peerAddr, cutArg, progress)
 		if deltaErr != nil {
 			logger().Warn("catch-up replay failed", "peer", peerAddr, "error", deltaErr)
-			break
+			rs.finishOptionalReplayRead(parent, key, gen, cut, initialReplay, deltaErr)
+			return
 		}
 		progress = next
 	}
@@ -594,7 +706,8 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 		next, deltaErr := rs.deltaReplay(ctx, peerAddr, cutArg, progress)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
-			break
+			rs.finishOptionalReplayRead(parent, key, gen, cut, initialReplay, deltaErr)
+			return
 		}
 		progress = next
 		if progress.replayed > 0 {
@@ -604,70 +717,77 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 
 	// Send End-of-RIB per negotiated family (RFC 4271).
 	// Re-check generation: peer may have reconnected during the delta loop.
-	rs.replayFlowSpecs(peerAddr, gen, cut)
-	rs.sendEOR(peerAddr, gen, initialReplay)
+	if err := rs.replayFlowSpecs(parent, key, gen, cut); err != nil {
+		rs.failReplay(key, gen, err)
+		return
+	}
+	rs.finishReplayOutput(parent, key, gen, initialReplay)
 }
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
 // Checks generation to avoid sending EOR from a stale replay goroutine.
-func (rs *routeServer) sendEOR(peerAddr string, gen, initialReplay uint64) {
-	rs.mu.RLock()
-	p := rs.peers[peerAddr]
-	// A peer with no recorded family gets no marker but still reports replay
-	// completion: the live-forward fence counts processes, not families.
-	if p == nil || p.ReplayGen != gen {
-		rs.mu.RUnlock()
-		return
+func (rs *routeServer) sendEOR(ctx context.Context, key workerKey, gen, initialReplay uint64) error {
+	target, ok := ctx.Value(replayTargetKey{}).(rpc.ForwardTarget)
+	if !ok {
+		return errors.New("EOR has no captured destination UP")
 	}
-	families := make([]string, 0, len(p.Families))
-	for f := range p.Families {
-		families = append(families, f.String())
+	rs.mu.RLock()
+	peer := rs.peers[key]
+	if peer == nil {
+		rs.mu.RUnlock()
+		return errors.New("EOR original actor ended")
+	}
+	if peer.ReplayGen != gen {
+		rs.mu.RUnlock()
+		return errors.New("EOR original replay was superseded")
+	}
+	families := make([]string, 0, len(peer.Families))
+	for fam := range peer.Families {
+		families = append(families, fam.String())
 	}
 	rs.mu.RUnlock()
-
-	// Sort for deterministic ordering in tests and logs.
 	slices.Sort(families)
-
 	for _, fam := range families {
-		// RFC 4724 Section 2: IPv4 unicast's End-of-RIB is `nlri eor`, every
-		// other family's `mp <family> eor`.
-		eor := "update text mp " + fam + " eor"
+		command := "update text mp " + fam + " eor"
 		if textparse.LegacyNLRISection(fam, false) {
-			eor = "update text nlri eor"
+			command = "update text nlri eor"
 		}
-		// RFC 4724 Section 2: the marker indicates "the completion of the
-		// initial routing update". The replay-eor meta has the engine send it
-		// only when this session has not already carried the family's marker
-		// from the reactor's own initial sync, so the replay does not repeat it.
-		rs.updateRouteWithMeta(peerAddr, eor, map[string]any{bgptypes.ReplayEORMeta: true})
+		if rs.updateRouteHook != nil {
+			rs.updateRouteHook(target.Destination, command)
+		}
+		work, cancel := context.WithTimeout(ctx, forwardCachedTimeout)
+		output, finish, admitErr := rs.beginTargetOutput(work, []rpc.ForwardTarget{target})
+		if admitErr != nil {
+			cancel()
+			return admitErr
+		}
+		defer finish()
+		_, _, err := rs.plugin.UpdateRouteRequest(output, rpc.UpdateRouteInput{PeerSelector: target.Destination, Command: command, Meta: map[string]any{bgptypes.ReplayEORMeta: true}, DestinationOwner: target.DestinationOwner, DestinationSession: target.DestinationSession})
+		cancel()
+		if err != nil {
+			rs.rememberUnknownOutput([]rpc.ForwardTarget{target}, err)
+			return err
+		}
 	}
-	if len(families) > 0 {
-		logger().Info("sent EOR", "peer", peerAddr, "families", families)
-	}
-	rs.signalSessionReady(peerAddr, initialReplay)
+	return rs.signalSessionReady(ctx, target, initialReplay)
 }
 
 // signalSessionReady reports completion of this plugin's initial replay so the
 // engine can release live forwards held behind it. End-of-RIB is independent.
 // initialReplay MUST come from the replay's peer-up event, never a current-session lookup.
-func (rs *routeServer) signalSessionReady(peerAddr string, initialReplay uint64) {
+func (rs *routeServer) signalSessionReady(ctx context.Context, target rpc.ForwardTarget, initialReplay uint64) error {
 	if initialReplay == 0 {
-		logger().Warn("cannot report replay readiness without the peer-up session receipt", "peer", peerAddr)
-		return
+		return errors.New("replay readiness has no original receipt")
 	}
-	var tb textbuf.Buffer
-	rs.peerAction(peerAddr, tb.Str("plugin session ready session ").Uint(initialReplay).String())
+	var action textbuf.Buffer
+	return rs.peerDestinationAction(ctx, target, action.Str("plugin session ready session ").Uint(initialReplay).String())
 }
 
-// replayProgress is what one replay call reports back about the replay's state.
+// replayProgress preserves the receive store's page cursor, delivered count,
+// and optional ingest position. An absent position differs from a real zero.
 type replayProgress struct {
-	// cursor is the highest sequence index DELIVERED so far ("last-index"), the
-	// resume point for the next call.
-	cursor uint64
-	// replayed is how many routes the most recent call delivered.
+	cursor   uint64
 	replayed int
-	// ingested is adj-rib-in's ingest position ("ingested-msg-id"), or nil when
-	// it tracks none.
 	ingested *uint64
 }
 
@@ -711,7 +831,7 @@ func replayProgressOf(walk ribevents.ReplayProgress, prevCursor uint64) replayPr
 // deltaReplay relays whatever adj-rib-in has stored since prev.cursor, still
 // bounded by the same cut, and folds the walk into a new progress.
 func (rs *routeServer) deltaReplay(ctx context.Context, peerAddr, cutArg string, prev replayProgress) (replayProgress, error) {
-	walk, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRoutes, peerAddr, prev.cursor, cutArg)
+	walk, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRead, peerAddr, prev.cursor, cutArg)
 	if err != nil {
 		return prev, err
 	}
@@ -721,18 +841,17 @@ func (rs *routeServer) deltaReplay(ctx context.Context, peerAddr, cutArg string,
 // handleOpen processes OPEN events to capture peer capabilities.
 // Text format capabilities: "cap <code> <name> [<value>]" tokens parsed by parseTextOpen.
 func (rs *routeServer) handleOpen(event *Event) {
-	peerAddr := event.PeerAddr
-	if peerAddr == "" {
+	key, err := newWorkerKey(event.PeerAddr, event.PeerOwner, event.ConnectionID)
+	if err != nil {
+		rs.warnLifecycle("OPEN has no physical actor", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 		return
 	}
-
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-
-	if rs.peers[peerAddr] == nil {
-		rs.peers[peerAddr] = &PeerState{Address: peerAddr}
+	if rs.peers[key] == nil {
+		rs.peers[key] = &PeerState{Address: key.address.String()}
 	}
-	peer := rs.peers[peerAddr]
+	peer := rs.peers[key]
 
 	peer.ASN = event.PeerASN
 
@@ -768,16 +887,16 @@ func (rs *routeServer) handleOpen(event *Event) {
 // releasing — updateRoute does an SDK RPC with a 10 s timeout, so holding
 // the lock during network I/O would block all state updates.
 func (rs *routeServer) handleRefresh(event *Event) {
-	peerAddr := event.PeerAddr
-	if peerAddr == "" {
+	original, err := newWorkerKey(event.PeerAddr, event.PeerOwner, event.ConnectionID)
+	if err != nil {
+		rs.warnLifecycle("refresh has no original physical actor", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 		return
 	}
 	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}
-
 	rs.mu.RLock()
-	var targets []string
-	for addr, peer := range rs.peers {
-		if addr == peerAddr {
+	var targets []rpc.ForwardTarget
+	for key, peer := range rs.peers {
+		if key.owner == original.owner {
 			continue
 		}
 		if !peer.Up {
@@ -786,18 +905,34 @@ func (rs *routeServer) handleRefresh(event *Event) {
 		if !peer.hasCapability("route-refresh") {
 			continue
 		}
-		if peer.Families != nil && !peer.SupportsFamily(fam) {
+		if peer.Families != nil {
+			if !peer.SupportsFamily(fam) {
+				continue
+			}
+		}
+		target, targetErr := targetOf(key, peer)
+		if targetErr != nil {
+			rs.warnLifecycle("refresh target refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", targetErr)
 			continue
 		}
-		targets = append(targets, addr)
+		targets = append(targets, target)
 	}
 	rs.mu.RUnlock()
-
-	// Send refreshes asynchronously — per-lifecycle goroutine (not hot path).
-	famStr := fam.String()
+	if len(targets) == 0 {
+		return
+	}
+	done := make(chan struct{})
+	ctx, admitted := rs.replays.begin(rs.downCtx, done)
+	if !admitted {
+		rs.replays.finish(done)
+		return
+	}
 	go func() {
-		for _, addr := range targets {
-			rs.peerAction(addr, "refresh "+famStr)
+		defer rs.replays.finish(done)
+		for _, target := range targets {
+			if err := rs.peerDestinationAction(ctx, target, "refresh "+fam.String()); err != nil {
+				rs.logEngineCallFailure("captured refresh failed", err, "peer-owner", target.DestinationOwner)
+			}
 		}
 	}()
 }
@@ -807,7 +942,7 @@ func (rs *routeServer) handleRefresh(event *Event) {
 func (rs *routeServer) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show bgp rs status":
-		return statusDone, map[string]any{"running": true}, nil
+		return statusDone, map[string]any{"running": true, "lifecycle": rs.lifecycleStatus()}, nil
 	case "show bgp rs peers":
 		return statusDone, rs.peerStatus(), nil
 	default:
@@ -828,28 +963,40 @@ func (rs *routeServer) handleCommand(command string) (string, any, error) {
 func (rs *routeServer) peerStatus() any {
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
-
-	addresses := slices.SortedFunc(maps.Keys(rs.peers), comparePeerAddress)
-	peers := make([]map[string]any, 0, len(addresses))
-	for _, address := range addresses {
-		p := rs.peers[address]
-		row := map[string]any{
-			tokenAddress: p.Address,
-			"remote":     map[string]any{"as": p.ASN},
-			"up":         p.Up,
-		}
-		// The families key is absent, never empty, while the peer is down or no
-		// OPEN is recorded: a down entry may hold an earlier session's set, and a
-		// nil set means SupportsFamily applies no filter, which an empty list
-		// would misstate. It is not a declared column, because it is absent on
-		// some rows.
-		if p.Up && p.Families != nil {
-			row["families"] = recordedFamilyNames(p.Families)
-		}
-		peers = append(peers, row)
+	keys := make([]workerKey, 0, len(rs.peers))
+	for key := range rs.peers {
+		keys = append(keys, key)
 	}
-
-	return map[string]any{"peers": peers}
+	slices.SortFunc(keys, func(a, b workerKey) int {
+		if n := a.address.Compare(b.address); n != 0 {
+			return n
+		}
+		if a.owner < b.owner {
+			return -1
+		}
+		if a.owner > b.owner {
+			return 1
+		}
+		if a.connectionID < b.connectionID {
+			return -1
+		}
+		if a.connectionID > b.connectionID {
+			return 1
+		}
+		return 0
+	})
+	rows := make([]map[string]any, 0, len(keys))
+	for _, key := range keys {
+		p := rs.peers[key]
+		row := map[string]any{tokenAddress: p.Address, "remote": map[string]any{"as": p.ASN}, "up": p.Up, "peer-owner": textbuf.StringUint(key.owner), "connection-id": textbuf.StringUint(key.connectionID)}
+		if p.Up {
+			if p.Families != nil {
+				row["families"] = recordedFamilyNames(p.Families)
+			}
+		}
+		rows = append(rows, row)
+	}
+	return map[string]any{"peers": rows}
 }
 
 // recordedFamilyNames is the recorded family set as sorted family names.

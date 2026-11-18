@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -39,6 +40,7 @@ const (
 	methodDeliverEvent   = "ze-plugin-callback:deliver-event"
 	methodSourcePolicy   = "ze-plugin-callback:source-policy"
 	methodExecuteCommand = "ze-plugin-callback:execute-command"
+	methodDoctorCheck    = "ze-plugin-callback:doctor-check"
 
 	methodDeclareCapabilities = "ze-plugin-engine:declare-capabilities"
 	methodReady               = "ze-plugin-engine:ready"
@@ -89,9 +91,24 @@ type EngineRPC struct {
 
 // Engine is the engine side of one running plugin. Its methods are safe for
 // concurrent use; the plugin's own concurrency is whatever its SDK loop gives.
+// RPCHandler is a test engine evaluator. It MUST honor ctx, so cleanup can
+// cancel and join admitted work. ErrUnhandledRPC retains the built-in answer.
+type RPCHandler func(context.Context, string, json.RawMessage) (any, error)
+
+var ErrUnhandledRPC = errors.New("pluginengine: operation uses its built-in answer")
+
+// engineWorkers bounds simultaneous engine evaluations and the waiting queue.
+// A held background read must coexist with a later event's engine call, as
+// the daemon's actual concurrent runtime dispatcher permits.
+const engineWorkers = 4
+
 type Engine struct {
-	mux    *rpc.MuxConn
-	bridge *rpc.DirectBridge // nil on TransportWire
+	handler   RPCHandler
+	workers   sync.WaitGroup
+	engineCtx context.Context
+	stopServe context.CancelFunc
+	mux       *rpc.MuxConn
+	bridge    *rpc.DirectBridge // nil on TransportWire
 
 	mu         sync.Mutex
 	rpcs       []EngineRPC
@@ -202,6 +219,8 @@ func Start(t testing.TB, transport Transport, run func(net.Conn) int) *Engine {
 	exited := make(chan int, 1)
 	go runPlugin(run, conn, exited)
 	serveCtx, stopServe := context.WithCancel(context.Background())
+	e.engineCtx = serveCtx
+	e.stopServe = stopServe
 	t.Cleanup(func() {
 		stopServe()
 		if e.bridge != nil {
@@ -210,6 +229,11 @@ func Start(t testing.TB, transport Transport, run func(net.Conn) int) *Engine {
 		e.mux.Close()     //nolint:errcheck // test cleanup: the plugin may have closed it first
 		engineEnd.Close() //nolint:errcheck // test cleanup
 		pluginEnd.Close() //nolint:errcheck // test cleanup
+		e.workers.Wait()
+		if e.bridge != nil {
+			e.bridge.StopDispatch()
+			e.bridge.WaitDispatch()
+		}
 		select {
 		case <-exited:
 		case <-time.After(exitTimeout):
@@ -223,7 +247,8 @@ func Start(t testing.TB, transport Transport, run func(net.Conn) int) *Engine {
 		t.Fatal("pluginengine: startup: " + err.Error())
 	}
 	if transport == TransportWire {
-		go e.serveWire(serveCtx)
+		e.workers.Add(1)
+		go func() { defer e.workers.Done(); e.serveWire(serveCtx) }()
 	}
 	// The Stage 5 acknowledgement lets the SDK activate its bridge and run
 	// OnStarted; it does not mean its command callbacks are installed yet.
@@ -284,43 +309,140 @@ func (e *Engine) expectAndAnswer(ctx context.Context, want string, result any) e
 	}
 }
 
-// serveWire answers the plugin's engine RPCs on the MuxConn until ctx ends or
-// the connection closes. It is the wire transport's one engine worker.
+// serveWire owns one arrival reader, a bounded queue and fixed evaluators.
+// Start MUST cancel and join this owner before releasing the test engine; it
+// cancels and joins every evaluator on EOF, response failure or cancellation.
 func (e *Engine) serveWire(ctx context.Context) {
+	jobs := make(chan *rpc.Request, engineWorkers)
+	var workers sync.WaitGroup
+	for range engineWorkers {
+		workers.Add(1)
+		go func() { defer workers.Done(); e.serveWireWorker(ctx, jobs) }()
+	}
+	defer func() { e.stopServe(); close(jobs); workers.Wait() }()
+	// One long-lived reader records arrival before admitting each request to
+	// the bounded work queue, preserving RPCs' documented arrival order.
 	for {
 		select {
-		case req, ok := <-e.mux.Requests():
+		case request, ok := <-e.mux.Requests():
 			if !ok {
 				return
 			}
-			result, err := e.answer(req.Method, req.Params)
-			if err != nil {
-				e.mux.SendError(ctx, req.ID, err.Error()) //nolint:errcheck // the plugin logs a refused RPC; a failed send means it is gone
-				continue
+			e.recordRPC(request.Method, request.Params)
+			select {
+			case jobs <- request:
+			case <-ctx.Done():
+				return
 			}
-			e.mux.SendResult(ctx, req.ID, result) //nolint:errcheck // a failed send means the plugin is gone
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
+// serveWireWorker owns one fixed evaluator. serveWire MUST cancel and join
+// every worker on EOF, response failure or cleanup before the engine is freed.
+func (e *Engine) serveWireWorker(ctx context.Context, jobs <-chan *rpc.Request) {
+	for {
+		select {
+		case request, ok := <-jobs:
+			if !ok {
+				return
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			result, err := e.answer(ctx, request.Method, request.Params)
+			if err := e.answerWire(ctx, request, result, err); err != nil {
+				e.stopServe()
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// answerWire uses the same answer producer as the daemon for ordinary
+// commands. Physical and destination-bound commands retain their joined JSON
+// receipt, which the SDK validates against the original request tuple.
+func (e *Engine) answerWire(ctx context.Context, request *rpc.Request, result any, callErr error) error {
+	records := request.Method == rpc.MethodDispatchCommandArgs
+	if request.Method == rpc.MethodDispatchCommand {
+		var input rpc.DispatchCommandInput
+		if err := json.Unmarshal(request.Params, &input); err != nil {
+			return rpc.WriteDocumentAnswer(e.mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{Message: err.Error()}, nil)
+		}
+		records = !input.PeerBound() && !input.DestinationBound()
+	}
+	if !records {
+		if callErr != nil {
+			return e.mux.SendError(ctx, request.ID, callErr.Error())
+		}
+		return e.mux.SendResult(ctx, request.ID, result)
+	}
+	if callErr != nil {
+		return rpc.WriteDocumentAnswer(e.mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{Message: callErr.Error()}, nil)
+	}
+	output, valid := result.(*rpc.DispatchCommandOutput)
+	if !valid || output == nil {
+		return rpc.WriteDocumentAnswer(e.mux.AnswerWriter(ctx), request.ID,
+			rpc.AnswerTail{Message: "pluginengine: dispatch evaluator returned no typed command answer"}, nil)
+	}
+	response := &plugin.Response{Status: output.Status, Error: output.Error, Warnings: output.Warnings}
+	if len(output.Data) > 0 {
+		response.Data = plugin.RawJSON(output.Data)
+	}
+	if output.RecordAnswer != nil {
+		if err := output.RecordAnswer.Validate(output.Status); err != nil {
+			return rpc.WriteDocumentAnswer(e.mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{Message: err.Error()}, nil)
+		}
+		if err := response.CompleteRecordAnswer(output.RecordAnswer); err != nil {
+			return rpc.WriteDocumentAnswer(e.mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{Message: err.Error()}, nil)
+		}
+	}
+	if err := plugin.WriteAnswer(e.mux.AnswerWriter(ctx), request.ID, response); err != nil {
+		return err
+	}
+	output.TransportComplete()
+	return nil
+}
+
+// recordRPC captures arrival on the one wire reader or actual bridge dispatch.
+// It owns a copy, so a later evaluator cannot mutate the retained evidence.
+func (e *Engine) recordRPC(method string, params json.RawMessage) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.rpcs = append(e.rpcs, EngineRPC{Method: method, Params: append(json.RawMessage(nil), params...)})
+}
+
 // dispatchBridged answers one engine RPC the plugin makes through the bridge.
-func (e *Engine) dispatchBridged(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
-	result, err := e.answer(method, params)
+func (e *Engine) dispatchBridged(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+	e.recordRPC(method, params)
+	work, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(e.engineCtx, cancel)
+	defer stop()
+	defer cancel()
+	result, err := e.answer(work, method, params)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(result)
 }
 
-// answer records one engine RPC and builds its answer. UPDATE and event calls
+// answer evaluates one recorded engine RPC. UPDATE and event calls
 // have empty fake answers. Source leases require fixture-issued identities.
 // Every other method is refused, and stays visible in RPCs.
-func (e *Engine) answer(method string, params json.RawMessage) (any, error) {
+func (e *Engine) answer(ctx context.Context, method string, params json.RawMessage) (any, error) {
 	e.mu.Lock()
-	e.rpcs = append(e.rpcs, EngineRPC{Method: method, Params: append(json.RawMessage(nil), params...)})
+	handler := e.handler
 	e.mu.Unlock()
+	if handler != nil {
+		result, err := handler(ctx, method, params)
+		if !errors.Is(err, ErrUnhandledRPC) {
+			return result, err
+		}
+	}
 	if method == rpc.MethodUpdateRoute {
 		return &rpc.UpdateRouteOutput{}, nil
 	}
@@ -331,6 +453,49 @@ func (e *Engine) answer(method string, params json.RawMessage) (any, error) {
 		return e.sourceLeaseAnswer(params)
 	}
 	return nil, errors.New("pluginengine: no fake engine answer for " + method)
+}
+
+// SetRPCHandler replaces the test evaluator under the same dispatch recorder.
+// Safe for concurrent use. The evaluator MUST finish when ctx ends; cleanup
+// cancels that context and MUST join every admitted wire/bridge call.
+func (e *Engine) SetRPCHandler(handler RPCHandler) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.handler = handler
+}
+
+// DeliverStructured uses the actual internal transport's registered typed event
+// handler. A wire-only engine refuses it; the test must use a formatted event.
+func (e *Engine) DeliverStructured(events []any) error {
+	if e.bridge == nil {
+		return errors.New("pluginengine: typed events require the bridge transport")
+	}
+	return e.bridge.DeliverStructured(events)
+}
+
+// SettleEvents waits for the registered off-loop callback and judges its exact
+// deadline receipt. The caller MUST first join event application via Deliver.
+func (e *Engine) SettleEvents(ctx context.Context) error {
+	deadline, bounded := ctx.Deadline()
+	if !bounded {
+		return errors.New("pluginengine: event settlement requires a deadline")
+	}
+	input := rpc.EventSettlementInput{DeadlineMS: deadline.UnixMilli()}
+	raw, err := e.callback(ctx, rpc.MethodEventSettlement, input)
+	if err != nil {
+		return err
+	}
+	var output rpc.EventSettlementOutput
+	if err := json.Unmarshal(raw, &output); err != nil {
+		return err
+	}
+	if err := output.Validate(input); err != nil {
+		return err
+	}
+	if output.Status != rpc.StatusOK {
+		return errors.New(output.Error)
+	}
+	return nil
 }
 
 // RPCs is every engine RPC the plugin made since startup, in arrival order.
@@ -407,8 +572,8 @@ func (e *Engine) SourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) 
 	return out, nil
 }
 
-// Execute runs one plugin command and returns the document it answered. A
-// command that answered an error is an error.
+// Execute runs one plugin command and returns the document it answered.
+// Only a final Done returns a document; every other verdict is an error.
 func (e *Engine) Execute(ctx context.Context, command string, args []string) (json.RawMessage, error) {
 	return e.ExecutePeer(ctx, command, args, "")
 }
@@ -443,5 +608,22 @@ func (e *Engine) ExecutePeer(ctx context.Context, command string, args []string,
 	if message := answer.Message(); message != "" {
 		return nil, errors.New(command + ": " + message)
 	}
+	if verdict := answer.Verdict(); verdict != rpc.StatusDone {
+		return nil, errors.New(command + ": " + verdict + ": " + string(document))
+	}
 	return document, nil
+}
+
+// DoctorCheck asks the actual registered runtime callback on the selected SDK
+// transport. It changes no engine acceptance rule and applies no repair.
+func (e *Engine) DoctorCheck(ctx context.Context, name string) ([]rpc.DoctorCheckDiagnostic, error) {
+	raw, err := e.callback(ctx, methodDoctorCheck, &rpc.DoctorCheckInput{Name: name})
+	if err != nil {
+		return nil, err
+	}
+	var output rpc.DoctorCheckOutput
+	if err := json.Unmarshal(raw, &output); err != nil {
+		return nil, err
+	}
+	return output.Diagnostics, nil
 }

@@ -38,14 +38,14 @@ func (r *RIBManager) markBestFacts(items []RouteItem) {
 		if !item.route.IsValid() {
 			continue
 		}
-		item.Best = r.bestFactOf(item.Family, item.route, item.Peer, item.pathID, item.addPath)
+		item.Best = r.bestFactOf(item.Family, item.route, item.Peer, item.storeOwner, item.pathID, item.addPath)
 	}
 }
 
 // bestFactOf answers whether peer's path (pathID under addPath) is the
 // recorded winner of pfx. A family no election has recorded a winner in, and a
 // prefix with no record, have no winner, so the path is not the best.
-func (r *RIBManager) bestFactOf(fam family.Family, pfx netip.Prefix, peer string, pathID uint32, addPath bool) bestFact {
+func (r *RIBManager) bestFactOf(fam family.Family, pfx netip.Prefix, peer string, peerOwner uint64, pathID uint32, addPath bool) bestFact {
 	fs := r.bestPrev.familyShards(fam, false)
 	if fs == nil {
 		return bestFactNotBest
@@ -60,6 +60,9 @@ func (r *RIBManager) bestFactOf(fam family.Family, pfx netip.Prefix, peer string
 	// The record holds its peer slot while the shard lock is held, so the
 	// slot cannot be reused under this read.
 	if r.bestPathInterner.peerAt(prev.rec.peerIdx()) != peer {
+		return bestFactNotBest
+	}
+	if r.bestPathInterner.ownerAt(prev.rec.peerIdx()) != peerOwner {
 		return bestFactNotBest
 	}
 	if prev.addPath != addPath {

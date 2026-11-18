@@ -126,6 +126,16 @@ peer it matches is wiped.";
                     }
                 }
 
+                container out-excluding-owner {
+                    config false;
+                    ze:command "ze-bgp:rib-clear-out-excluding-owner";
+                    ze:rpc "ze-rib-api:clear-out-excluding-owner";
+                    ze:task-support forbidden;
+                    description "Re-advertise to current destinations except one captured original
+peer owner. This narrows replay and grants no send permission. The ordinary out command
+and its literal peer selectors keep their existing grammar.";
+                    ze:help "Replay while excluding one original destination owner";
+                }
                 container out {
                     config false;
                     ze:command "ze-bgp:rib-clear-out";
@@ -172,6 +182,61 @@ session negotiated is replayed.";
                              it. A route added this way is not in the configuration and does not survive a
                              restart.";
                 ze:help "Request BGP RIB actions.";
+
+                container source {
+                    config false;
+                    description "Internal GR operations on original received provenance. Both owner
+                                 and physical connection are mandatory and grant no authority.";
+                    ze:help "Original received source lifecycle";
+                    container retain-routes {
+                        config false;
+                        ze:command "ze-bgp:rib-source-retain-routes";
+                        ze:rpc "ze-rib-api:source-retain-routes";
+                        ze:task-support forbidden;
+                        description "Prepare retention of one original received connection.";
+                        ze:help "Prepare retention of one original received connection";
+                    }
+                    container release-routes {
+                        config false;
+                        ze:command "ze-bgp:rib-source-release-routes";
+                        ze:rpc "ze-rib-api:source-release-routes";
+                        ze:task-support forbidden;
+                        description "Release one original retained connection.";
+                        ze:help "Release one original retained connection";
+                    }
+                    container mark-stale {
+                        config false;
+                        ze:command "ze-bgp:rib-source-mark-stale";
+                        ze:rpc "ze-rib-api:source-mark-stale";
+                        ze:task-support forbidden;
+                        description "Mark one original retained connection stale.";
+                        ze:help "Mark one original retained connection stale";
+                    }
+                    container purge-stale {
+                        config false;
+                        ze:command "ze-bgp:rib-source-purge-stale";
+                        ze:rpc "ze-rib-api:source-purge-stale";
+                        ze:task-support forbidden;
+                        description "Purge stale routes of one original connection.";
+                        ze:help "Purge stale routes of one original connection";
+                    }
+                    container attach-community {
+                        config false;
+                        ze:command "ze-bgp:rib-source-attach-community";
+                        ze:rpc "ze-rib-api:source-attach-community";
+                        ze:task-support forbidden;
+                        description "Decorate stale routes of one original connection.";
+                        ze:help "Decorate stale routes of one original connection";
+                    }
+                    container delete-with-community {
+                        config false;
+                        ze:command "ze-bgp:rib-source-delete-with-community";
+                        ze:rpc "ze-rib-api:source-delete-with-community";
+                        ze:task-support forbidden;
+                        description "Delete matching stale routes of one original connection.";
+                        ze:help "Delete matching stale routes of one original connection";
+                    }
+                }
 
                 container inject {
                     config false;

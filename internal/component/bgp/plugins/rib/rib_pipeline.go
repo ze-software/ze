@@ -59,9 +59,10 @@ type RouteItem struct {
 
 	// route, pathID and addPath name a received CIDR path for markBestFacts:
 	// the prefix, and the path identifier when addPath says one was read.
-	route   netip.Prefix
-	pathID  uint32
-	addPath bool
+	route      netip.Prefix
+	pathID     uint32
+	addPath    bool
+	storeOwner uint64 // containing observation only, never source authority
 }
 
 // PipelineMeta holds pipeline result metadata.
@@ -85,6 +86,7 @@ type pipelineIterator interface {
 // inboundPeerRef is a snapshot of a peer name and its PeerRIB pointer,
 // captured under peerMu so iteration can proceed without holding peerMu.
 type inboundPeerRef struct {
+	owner   uint64
 	peer    string
 	peerRIB *storage.PeerRIB
 }
@@ -162,7 +164,12 @@ func newInboundSource(r *RIBManager, selectorStr string, walk receivedWalk) *inb
 	var peers []inboundPeerRef
 	for peer, peerRIB := range r.bgpPeers {
 		if r.selectsPeer(sel, peer) {
-			peers = append(peers, inboundPeerRef{peer: peerRIB.PeerAddr(), peerRIB: peerRIB})
+			peers = append(peers, inboundPeerRef{owner: peer, peer: peerRIB.PeerAddr(), peerRIB: peerRIB})
+		}
+	}
+	for address, peerRIB := range r.ribInPool[bgpProtocolID] {
+		if sel.Matches(peerRIB.PeerAddress()) {
+			peers = append(peers, inboundPeerRef{peer: address, peerRIB: peerRIB})
 		}
 	}
 	// Sorted so the WALK is deterministic. r.bgpPeers is a map, so the order it
@@ -171,7 +178,12 @@ func newInboundSource(r *RIBManager, selectorStr string, walk receivedWalk) *inb
 	// streaming exists to avoid. Ordering the peer list costs one sort of a
 	// small slice and makes the whole answer reproducible: peers in address
 	// order, and each peer's routes in the order the walk yields them.
-	sort.Slice(peers, func(i, j int) bool { return peers[i].peer < peers[j].peer })
+	sort.Slice(peers, func(i, j int) bool {
+		if peers[i].peer != peers[j].peer {
+			return peers[i].peer < peers[j].peer
+		}
+		return peers[i].owner < peers[j].owner
+	})
 	return &inboundSource{r: r, walk: walk, peers: peers}
 }
 
@@ -226,6 +238,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				route:      route,
 				pathID:     pathID,
 				addPath:    addPath[fam],
+				storeOwner: ref.owner,
 			})
 			return true
 		})
@@ -351,7 +364,7 @@ func (s *protocolInboundSource) release() {
 // (inboundSource, above, and plan/journal/false-synchronization-claim.md).
 type outboundSource struct {
 	r       *RIBManager
-	peers   []netip.Addr
+	peers   []uint64
 	peerIdx int
 	items   []RouteItem
 	itemIdx int
@@ -360,14 +373,14 @@ type outboundSource struct {
 
 func newOutboundSource(r *RIBManager, selectorStr string) *outboundSource {
 	sel := selector.ParseDefault(selectorStr)
-	var peers []netip.Addr
+	var peers []uint64
 	for peer := range r.ribOut {
-		if r.selectsPeer(sel, peer) {
+		if r.selectsDestination(sel, peer) {
 			peers = append(peers, peer)
 		}
 	}
 	// Sorted for the reason newInboundSource states.
-	sort.Slice(peers, func(i, j int) bool { return peers[i].Less(peers[j]) })
+	slices.Sort(peers)
 	return &outboundSource{r: r, peers: peers}
 }
 
@@ -391,7 +404,13 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 
 		// RouteItem.Peer is the JSON output string: one conversion per peer
 		// (not per route), on this cold show-command path.
-		peerStr := peer.String()
+		s.r.peerMu.RLock()
+		address, known := s.r.peerAddressLocked(peer)
+		s.r.peerMu.RUnlock()
+		if !known {
+			continue
+		}
+		peerStr := address.String()
 
 		// r.ribOut is written by handleSent under peerMu.Lock, so the read
 		// takes peerMu for itself: a streaming walk gives the lock back between

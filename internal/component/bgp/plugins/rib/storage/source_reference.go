@@ -10,15 +10,17 @@ import "sync/atomic"
 // A newly constructed reference owns one count. Raw value copies borrow it;
 // RouteEntry.AddRef and Clone acquire independent ownership.
 type SourceReference struct {
-	peerOwner uint64
-	refs      atomic.Int64
-	wake      func()
+	peerOwner    uint64
+	connectionID uint64
+	refs         atomic.Int64
+	wake         func()
 }
 
-// NewSourceReference captures the original Peer owner after successful lease
-// acquisition. The owner MUST supply that original fact, never a later lookup.
-func NewSourceReference(peerOwner uint64, wake func()) *SourceReference {
-	r := &SourceReference{peerOwner: peerOwner, wake: wake}
+// NewSourceReference captures the original Peer owner and physical connection
+// after successful lease acquisition. Both MUST be the original nonzero facts,
+// never a later lookup; acquire validates them before this constructor runs.
+func NewSourceReference(peerOwner, connectionID uint64, wake func()) *SourceReference {
+	r := &SourceReference{peerOwner: peerOwner, connectionID: connectionID, wake: wake}
 	r.refs.Store(1)
 	return r
 }
@@ -38,6 +40,18 @@ func (r *SourceReference) PeerOwner() uint64 {
 func (e *RouteEntry) SourcePeerOwner() uint64 {
 	return e.source.PeerOwner()
 }
+
+// ConnectionID is the original received physical Session, not the current
+// connection of the Peer. A nil reference explicitly has no such provenance.
+func (r *SourceReference) ConnectionID() uint64 {
+	if r == nil {
+		return 0
+	}
+	return r.connectionID
+}
+
+// SourceConnectionID reads the same immutable fact from an owned route clone.
+func (e *RouteEntry) SourceConnectionID() uint64 { return e.source.ConnectionID() }
 
 // AddRef also lets the owning lease registry re-use a pending zero reference
 // before its serialized engine release starts. Other callers hold a live owner.

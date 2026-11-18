@@ -50,7 +50,6 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -242,6 +241,13 @@ const metricsUpdateInterval = 10 * time.Second
 // peerMetadata stores per-peer metadata for best-path comparison and capability lookup.
 // Extracted from received UPDATE events (nested peer format) and structured events.
 type peerMetadata struct {
+	processedMsgID   uint64 // Whole original UPDATE effects committed on this physical actor.
+	processingFailed bool   // A current unapplied gap cannot be hidden by a larger later message.
+	ConnectionID     uint64 // captured current-event provenance; retained routes use their SourceReference
+	// Address and Session are observations of this exact configured Peer owner.
+	// Address never supplies authority; Session fences delayed physical DOWN.
+	Address  netip.Addr
+	Session  uint64
 	PeerASN  uint32 // peer's AS number
 	LocalASN uint32 // local AS number (for eBGP/iBGP detection)
 	// RemoteRouterID is the peer's BGP Identifier from its OPEN. It is the
@@ -263,7 +269,10 @@ type peerMetadata struct {
 	// LocalAddress), and it is the address ze itself advertises as NEXT_HOP
 	// under `next-hop self` (precomputeNextHop, reactor/peer_forward_facts.go).
 	// Read by selfNextHops, which is how the RIB knows "itself".
-	LocalAddress netip.Addr
+	LocalAddress    netip.Addr
+	refreshOwner    uint64
+	refreshSession  uint64
+	refreshOrdinary bool
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
@@ -271,6 +280,9 @@ type peerMetadata struct {
 // can display absolute times (when routes went stale, when they expire).
 // RFC 4724 Section 4.2: Receiving Speaker route retention.
 type peerGRState struct {
+	// source narrows this active cycle to its immutable original connection.
+	// A nil source belongs only to the explicit peer-wide operator commands.
+	source      *ribPhysicalSource
 	StaleAt     time.Time   // when routes were marked stale (disconnect time)
 	RestartTime uint16      // peer's negotiated restart time in seconds
 	ExpiresAt   time.Time   // StaleAt + RestartTime
@@ -334,40 +346,40 @@ type RIBManager struct {
 	// sourceApplied is how far each source's received UPDATEs are applied,
 	// and how far they were when a lifecycle removal of its sent copies last
 	// ran (rib_sent_lifecycle.go, R-12 for forwarded writes). Under peerMu.
-	sourceApplied map[netip.Addr]sourceApplied
+	sourceApplied map[uint64]sourceApplied
 
 	// sourcePolicy holds each source's source-policy transaction and its undo
 	// pins (source_policy.go). Under peerMu; dropped when the session ends.
-	sourcePolicy map[netip.Addr]*sourcePolicyTxn
+	sourcePolicy map[uint64]*sourcePolicyTxn
 
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
 	// withdrawAllForRouter's prefix match), so this inner map stays
-	// string-keyed by design. BGP peers live in bgpPeers, keyed by
-	// netip.Addr.
+	// string-keyed by design. BGP peers live in bgpPeers, keyed by their
+	// authenticated configured Peer owner.
 	ribInPool map[redistevents.ProtocolID]map[string]*storage.PeerRIB
 
-	// bgpPeers holds BGP Adj-RIB-In state, keyed by parsed peer address.
-	// Peer strings are parsed once at the event / command boundary; every
-	// internal lookup uses the netip.Addr key (ai/rules/go-standards.md).
-	bgpPeers map[netip.Addr]*storage.PeerRIB
+	// bgpPeers holds BGP Adj-RIB-In state by original configured Peer owner.
+	// Same-address sessions remain independent. peerMeta holds the observed
+	// address and current Session; neither is an alternative authority index.
+	bgpPeers map[uint64]*storage.PeerRIB
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
 	// Enables per-family operations (route refresh, LLGR readvertisement).
 	// Wire attribute bytes are deduplicated in pool.RibOut (idx 16).
-	ribOut map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry // peerAddr -> family -> ribOutKey -> entry
+	ribOut map[uint64]map[family.Family]map[ribOutKey]ribOutEntry // original destination owner -> family -> sent path
 
 	// peerUp tracks which peers are currently up
-	peerUp map[netip.Addr]bool
+	peerUp map[uint64]bool
 
 	// peerNames holds the configured name of each session, as its last state
 	// event stated it. Like peerUp it outlives the session, so a name still
 	// selects a down session's retained and sent routes (rib_peer_name.go).
-	peerNames map[netip.Addr]string
+	peerNames map[uint64]string
 
 	// peerMeta tracks per-peer metadata for best-path comparison.
-	peerMeta map[netip.Addr]*peerMetadata // peer address -> metadata
+	peerMeta map[uint64]*peerMetadata // original Peer owner -> observed facts
 
 	// selfNextHops names every address this speaker answers to as a next hop:
 	// the local end of each session in peerMeta, deduplicated. RFC 4271
@@ -388,12 +400,12 @@ type RIBManager struct {
 	// the restart timer expires or the peer re-establishes and sends EOR.
 	// Set by "request bgp rib retain-routes <peer>" command from bgp-gr plugin.
 	// Cleared by "request bgp rib release-routes <peer>" or when the peer comes back up.
-	retainedPeers map[netip.Addr]bool
+	retainedPeers map[uint64]bool
 
 	// grState tracks per-peer Graceful Restart metadata.
 	// Set by "request bgp rib mark-stale" command, cleared by "request bgp rib release-routes" or timer expiry.
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
-	grState map[netip.Addr]*peerGRState
+	grState map[uint64]*peerGRState
 
 	// bestPrev tracks the previous best-path per (family, prefix) for change
 	// detection. Sharded by prefix: each family is split across N shards
@@ -534,37 +546,50 @@ func (r *RIBManager) updateMetrics() {
 	// Prometheus labels are strings (external boundary), so the tracking
 	// maps stay string-keyed; netip.Addr keys convert once per cycle here.
 	currentIn := make(map[string]bool)
+	inCounts := make(map[string]int)
 	totalIn := 0
 	for _, peerRIB := range r.bgpPeers {
 		count := peerRIB.Len()
 		label := peerRIB.PeerAddr()
-		m.routesInVec.With(label).Set(float64(count))
+		inCounts[label] += count
 		currentIn[label] = true
 		totalIn += count
 	}
 	for _, protoPeers := range r.ribInPool {
 		for peer, peerRIB := range protoPeers {
 			count := peerRIB.Len()
-			m.routesInVec.With(peer).Set(float64(count))
+			inCounts[peer] += count
 			currentIn[peer] = true
 			totalIn += count
 		}
 	}
 
+	for peer, count := range inCounts {
+		m.routesInVec.With(peer).Set(float64(count))
+	}
 	currentOut := make(map[string]bool, len(r.ribOut))
 	totalOut := 0
+	outCounts := make(map[string]int)
 	for peer, peerFamilies := range r.ribOut {
 		count := 0
 		for _, familyRoutes := range peerFamilies {
 			count += len(familyRoutes)
 		}
-		label := peer.String()
-		m.routesOutVec.With(label).Set(float64(count))
+		address, known := r.peerAddressLocked(peer)
+		if !known {
+			continue
+		}
+		label := address.String()
+		outCounts[label] += count
 		currentOut[label] = true
 		totalOut += count
 	}
 
 	r.peerMu.RUnlock()
+
+	for label, count := range outCounts {
+		m.routesOutVec.With(label).Set(float64(count))
+	}
 
 	r.updateSelectedMetrics(m)
 
@@ -688,14 +713,14 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		ribInPool: map[redistevents.ProtocolID]map[string]*storage.PeerRIB{
 			bmpProtocolID: make(map[string]*storage.PeerRIB),
 		},
-		bgpPeers:         make(map[netip.Addr]*storage.PeerRIB),
-		ribOut:           make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
-		peerUp:           make(map[netip.Addr]bool),
-		peerNames:        make(map[netip.Addr]string),
-		peerMeta:         make(map[netip.Addr]*peerMetadata),
-		sourceApplied:    make(map[netip.Addr]sourceApplied),
-		retainedPeers:    make(map[netip.Addr]bool),
-		grState:          make(map[netip.Addr]*peerGRState),
+		bgpPeers:         make(map[uint64]*storage.PeerRIB),
+		ribOut:           make(map[uint64]map[family.Family]map[ribOutKey]ribOutEntry),
+		peerUp:           make(map[uint64]bool),
+		peerNames:        make(map[uint64]string),
+		peerMeta:         make(map[uint64]*peerMetadata),
+		sourceApplied:    make(map[uint64]sourceApplied),
+		retainedPeers:    make(map[uint64]bool),
+		grState:          make(map[uint64]*peerGRState),
 		bestPrev:         newBestPrevShards(),
 		bestPathInterner: newBestPrevInterner(),
 	}
@@ -729,11 +754,18 @@ func runRIBPlugin(conn net.Conn) int {
 			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
 		return 1
 	}
+	// SDK refresh MUST be bound before the run can admit its first UP.
+	if err := selected.setRefreshSender(p.SelectRefresh); err != nil {
+		logger().Error("BGP selected refresh could not start", "error", err,
+			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
+		return 1
+	}
 	r.selectedDispatch = selected
 	p.OnCurrentSelection(selected.currentSelection)
+	p.OnOriginIntake(selected.originIntake)
 	activeManager.Store(r)
 	defer activeManager.Store(nil)
-	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes)
+	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes, r.sourceProgress)
 	defer ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
 	ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
 	defer ribevents.RegisterFlowSpecRedirectLookup(nil)
@@ -997,9 +1029,13 @@ func (r *RIBManager) handleSent(event *Event) {
 		logger().Debug("handleSent: empty peer address, skipping")
 		return
 	}
-	peerAddr, err := parsePeerAddr(event.GetPeerAddress())
+	address, err := parsePeerAddr(event.GetPeerAddress())
 	if err != nil {
 		logger().Warn("sent event dropped", "error", err)
+		return
+	}
+	destinationOwner := event.PeerOwner
+	if destinationOwner == 0 {
 		return
 	}
 	sourcePaths, sourceErr := sentPathSources(event.RouteMeta)
@@ -1039,22 +1075,23 @@ func (r *RIBManager) handleSent(event *Event) {
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
+	r.recordSentDestinationLocked(destinationOwner, address)
 
-	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+	if r.ribOut[destinationOwner] == nil {
+		r.ribOut[destinationOwner] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
 	for _, fam := range event.RawWithdrawnFamilies() {
-		r.removeSentNLRIs(peerAddr, fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam])
+		r.removeSentNLRIs(destinationOwner, fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam])
 	}
 	for _, fam := range event.RawNLRIFamilies() {
-		r.storeSentEntries(peerAddr, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
-			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
+		r.storeSentEntries(destinationOwner, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
+			ribOutEntry{MsgID: msgID, DestinationSession: event.DestinationSession, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
 				SourcePolicyEpoch: event.SourcePolicyEpoch,
-				NextHop:           sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner,
+				NextHop:           sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner, SourceConnectionID: sentSourceConnection(event.RouteMeta),
 				LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
-	followed := !recovery && r.lifecycleFollowedLocked(sourcePeer, uint64(sourceMessageID))
+	followed := !recovery && r.lifecycleFollowedLocked(sourceOwner, uint64(sourceMessageID))
 	for fam, ops := range event.FamilyOps {
 		var ordinal uint32
 		sourceIndex := 0
@@ -1064,37 +1101,39 @@ func (r *RIBManager) handleSent(event *Event) {
 				if len(event.GetRawNLRIBytes(fam)) > 0 {
 					continue
 				}
-				if r.ribOut[peerAddr] == nil {
-					r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+				if r.ribOut[destinationOwner] == nil {
+					r.ribOut[destinationOwner] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 				}
-				if r.ribOut[peerAddr][fam] == nil {
-					r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
+				if r.ribOut[destinationOwner][fam] == nil {
+					r.ribOut[destinationOwner][fam] = make(map[ribOutKey]ribOutEntry)
 				}
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
-						logger().Warn("sent: invalid nlri value", "peer", peerAddr, "family", fam)
+						logger().Warn("sent: invalid nlri value", "peer", destinationOwner, "family", fam)
 						continue
 					}
 					pfx, err := netip.ParsePrefix(prefix)
 					if err != nil {
-						logger().Warn("sent: invalid prefix", "peer", peerAddr, "prefix", prefix)
+						logger().Warn("sent: invalid prefix", "peer", destinationOwner, "prefix", prefix)
 						continue
 					}
 					key := ribOutKey{Prefix: pfx.Masked(), PathID: pathID}
-					old, existed := r.ribOut[peerAddr][fam][key]
+					old, existed := r.ribOut[destinationOwner][fam][key]
 					stored := ribOutEntry{
-						MsgID:             msgID,
-						AttrHandle:        attrHandle,
-						ConfigStatic:      configStatic,
-						AddPath:           event.AddPath[fam] || sentNLRIHasPathID(nlriVal),
-						NextHop:           op.NextHop,
-						SourcePeer:        sourcePeer,
-						SourceMessageID:   uint64(sourceMessageID),
-						SourcePolicyEpoch: event.SourcePolicyEpoch,
-						SourceID:          sourceID,
-						SourceOwner:       sourceOwner,
-						LocalOrigin:       localOrigin,
+						MsgID:              msgID,
+						DestinationSession: event.DestinationSession,
+						AttrHandle:         attrHandle,
+						ConfigStatic:       configStatic,
+						AddPath:            event.AddPath[fam] || sentNLRIHasPathID(nlriVal),
+						NextHop:            op.NextHop,
+						SourcePeer:         sourcePeer,
+						SourceMessageID:    uint64(sourceMessageID),
+						SourcePolicyEpoch:  event.SourcePolicyEpoch,
+						SourceID:           sourceID,
+						SourceOwner:        sourceOwner,
+						SourceConnectionID: sentSourceConnection(event.RouteMeta),
+						LocalOrigin:        localOrigin,
 					}
 					setSentPathSource(&stored, fam, ordinal, sourcePaths, &sourceIndex)
 					ordinal++
@@ -1104,19 +1143,19 @@ func (r *RIBManager) handleSent(event *Event) {
 					if attrHandle.IsValid() {
 						_ = pool.RibOut.AddRef(attrHandle)
 					}
-					r.ribOut[peerAddr][fam][key] = stored
+					r.ribOut[destinationOwner][fam][key] = stored
 					if recovery {
-						r.projectRecoveryWriteLocked(peerAddr, fam, key)
+						r.projectRecoveryWriteLocked(destinationOwner, fam, key)
 					}
 					if followed {
-						r.projectForwardedWriteLocked(peerAddr, fam, key)
+						r.projectForwardedWriteLocked(destinationOwner, fam, key)
 					}
 				}
 			case routeaction.Del:
 				if len(event.GetRawWithdrawnBytes(fam)) > 0 {
 					continue
 				}
-				familyRoutes := r.ribOut[peerAddr][fam]
+				familyRoutes := r.ribOut[destinationOwner][fam]
 				if familyRoutes == nil {
 					continue
 				}
@@ -1136,10 +1175,10 @@ func (r *RIBManager) handleSent(event *Event) {
 					}
 				}
 				if len(familyRoutes) == 0 {
-					delete(r.ribOut[peerAddr], fam)
+					delete(r.ribOut[destinationOwner], fam)
 				}
-				if len(r.ribOut[peerAddr]) == 0 {
-					delete(r.ribOut, peerAddr)
+				if len(r.ribOut[destinationOwner]) == 0 {
+					delete(r.ribOut, destinationOwner)
 				}
 			case routeaction.Unspecified, routeaction.Update, routeaction.Withdraw:
 				// Only Add and Del change this sent-route inventory.
@@ -1186,6 +1225,13 @@ func (r *RIBManager) handleReceived(event *Event) {
 		logger().Warn("received event dropped", "error", err)
 		return
 	}
+	committed := false
+	storeApplied := false
+	defer func() {
+		if !committed {
+			r.failSourceProcessed(peerAddr, event.PeerOwner, event.ConnectionID)
+		}
+	}()
 	// An UPDATE arrives only in Established, where the peer's AS is always
 	// negotiated. One without it is a Ze defect, and iBGP or eBGP cannot be
 	// decided for its routes, so it is refused rather than stored under AS 0.
@@ -1202,6 +1248,11 @@ func (r *RIBManager) handleReceived(event *Event) {
 	}
 
 	if len(event.FamilyOps) == 0 {
+		if !r.validEmptyReceived(event) {
+			return
+		}
+		committed = true
+		r.noteSourceProcessed(peerAddr, event.PeerOwner, event.ConnectionID, event.GetMsgID())
 		return
 	}
 
@@ -1212,42 +1263,64 @@ func (r *RIBManager) handleReceived(event *Event) {
 		logger().Warn("received event: missing raw fields, requires format=full", "peer", event.GetPeerAddress())
 		return
 	}
-	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, event.PeerOwner, event.SourceReceipt)
+	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, event.PeerOwner, event.SourceReceipt, event.ConnectionID)
 	if err != nil {
 		r.sourceLeases.reportFailures(context.Background())
 		return
 	}
 	defer source.Release()
+	if event.PeerOwner == 0 {
+		return // A passive unrecorded event cannot select a source store.
+	}
 
 	r.peerMu.Lock()
 	if r.stopping {
 		r.peerMu.Unlock()
 		return
 	}
+	if !r.sourceUpdateCurrentLocked(event.PeerOwner, peerAddr, event.ConnectionID) {
+		r.peerMu.Unlock()
+		return
+	}
 	defer func() {
 		r.peerMu.Unlock()
 		r.reconcileReceived(event)
+		if storeApplied {
+			committed = true
+			r.noteSourceProcessed(peerAddr, event.PeerOwner, event.ConnectionID, event.GetMsgID())
+		}
 	}()
 
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
 	r.updatePeerMetadata(event, peerAddr, peerAS)
 
-	r.handleReceivedPool(event, peerAddr, source)
-	r.noteReceivedLocked(peerAddr, event.GetMsgID())
+	storeApplied = r.handleReceivedPool(event, peerAddr, source)
+	r.noteReceivedLocked(event.PeerOwner, event.GetMsgID())
 }
 
 // handleReceivedPool stores routes in pool storage.
 // Caller must hold write lock. PeerRIB caches the canonical address string
 // for metric labels and log lines (PeerRIB.PeerAddr).
-func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr, source *storage.SourceReference) {
-	if r.bgpPeers[peerAddr] == nil {
+func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr, source *storage.SourceReference) bool {
+	applied := true
+	hadAnnounce := false
+	peerOwner := event.PeerOwner
+	if r.bgpPeers[peerOwner] == nil {
 		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
 		// and metric labels, which must match netip.Addr.String() everywhere.
-		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+		created, err := storage.NewAddressPeerRIB(peerAddr)
+		if err != nil {
+			r.failAdvertise(err)
+			return false
+		}
+		r.bgpPeers[peerOwner] = created
 	}
-	peerRIB := r.bgpPeers[peerAddr]
+	peerRIB := r.bgpPeers[peerOwner]
 
 	attrBytes := event.GetRawAttributesBytes()
+	if event.RawAttributes != "" && len(attrBytes) == 0 {
+		return false
+	}
 
 	// Withdrawals first, for the reason handleReceivedStructured spells out:
 	// RFC 4271 Section 4.3 says an UPDATE naming the same prefix in WITHDRAWN
@@ -1256,8 +1329,13 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr, sourc
 	// JSON/pool sibling of that path and had the same ordering.
 	for _, fam := range event.RawWithdrawnFamilies() {
 		wdBytes := event.GetRawWithdrawnBytes(fam)
+		if event.RawWithdrawn[fam] != "" && len(wdBytes) == 0 {
+			applied = false
+		}
 		if len(wdBytes) > 0 {
-			r.removePoolNLRIs(peerRIB, fam, wdBytes, event.AddPath[fam])
+			if !r.removePoolNLRIs(peerRIB, fam, wdBytes, event.AddPath[fam]) {
+				applied = false
+			}
 		}
 	}
 
@@ -1266,30 +1344,56 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr, sourc
 	receivedStale := receivedLLGRStaleFromMeta(event.RouteMeta)
 	for _, fam := range event.RawNLRIFamilies() {
 		nlriBytes := event.GetRawNLRIBytes(fam)
+		if event.RawNLRI[fam] != "" && len(nlriBytes) == 0 {
+			applied = false
+		}
 		if len(nlriBytes) > 0 {
+			hadAnnounce = true
 			familyAttrs, err := receivedFamilyAttrs(event, fam, attrBytes)
 			if err != nil {
+				applied = false
 				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
 				continue
 			}
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt, receivedStale, source)
+			if !r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt, receivedStale, source) {
+				applied = false
+			}
 		}
 	}
+	if !hadAnnounce {
+		entry, _, _, err := storage.ParseRouteEntry(attrBytes)
+		if err != nil {
+			applied = false
+		} else {
+			entry.Release()
+		}
+	}
+	return applied
 }
 
 // insertPoolNLRIs inserts split NLRIs into the peer's RIB. Metric labels and
 // log lines use PeerRIB's cached canonical address string (no per-call
 // conversion). receivedStale is the RFC 9494 Section 4.3 verdict written on
 // every stored route.
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch, sourceReceipt uint64, receivedStale bool, source *storage.SourceReference) {
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch, sourceReceipt uint64, receivedStale bool, source *storage.SourceReference) bool {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
-		return
+		return true // Unsupported families intentionally have no receive-store effect.
 	}
 	if addPath {
 		peerRIB.SetAddPath(fam, true)
 	}
+	parsed, fp, attrLen, parseErr := storage.ParseRouteEntry(attrBytes)
+	if parseErr != nil {
+		return false
+	}
+	defer parsed.Release()
+	parsed.MsgID = msgID
+	parsed.SourcePolicyEpoch = sourcePolicyEpoch
+	parsed.SourceReceipt = sourceReceipt
+	parsed.SetSourceReference(source)
+	parsed.ReceivedLLGRStale = receivedStale
 	prefixes, err := nlrisplit.Split(fam, nlriBytes, addPath)
 	if err != nil {
 		logger().Warn("pool: split error, inserting parsed prefix", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(prefixes))
@@ -1301,10 +1405,10 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, sourceReceipt, &prefixes, source)
+			r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, receivedStale, &prefixes)
 			continue
 		}
-		peerRIB.Insert(fam, attrBytes, wirePrefix)
+		peerRIB.InsertEntry(fam, parsed, fp, attrLen, wirePrefix)
 		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 			entry.MsgID = msgID
 			entry.SourcePolicyEpoch = sourcePolicyEpoch
@@ -1317,12 +1421,13 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 		m.routeInserts.With(peerRIB.PeerAddr(), famStr).Add(float64(len(prefixes)))
 	}
 	logger().Debug("pool: inserted routes", "peer", peerRIB.PeerAddr(), "family", famStr, "count", len(prefixes))
+	return err == nil
 }
 
-func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, wdBytes []byte, addPath bool) {
+func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, wdBytes []byte, addPath bool) bool {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
-		return
+		return true
 	}
 	withdrawns, err := nlrisplit.SplitWithdrawn(fam, wdBytes, addPath)
 	if err != nil {
@@ -1335,6 +1440,7 @@ func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 		m.routeWithdrawals.With(peerRIB.PeerAddr(), famStr).Add(float64(len(withdrawns)))
 	}
 	logger().Debug("pool: withdrew routes", "peer", peerRIB.PeerAddr(), "family", famStr, "count", len(withdrawns))
+	return err == nil
 }
 
 // handleRefresh processes a normal route refresh request from a peer.
@@ -1342,37 +1448,8 @@ func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 // SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
 func (r *RIBManager) handleRefresh(event *Event) {
 	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}
-
-	if event.GetPeerAddress() == "" {
-		logger().Warn("refresh event: empty peer address")
-		return
-	}
-	peerAddr, err := parsePeerAddr(event.GetPeerAddress())
-	if err != nil {
-		logger().Warn("refresh event dropped", "error", err)
-		return
-	}
-
-	r.peerMu.RLock()
-	if !r.peerUp[peerAddr] {
-		r.peerMu.RUnlock()
-		logger().Debug("refresh request for down peer", "peer", peerAddr)
-		return
-	}
-
-	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
-	r.peerMu.RUnlock()
-
-	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence.
-	// Markers dispatch through request-peer; only the routes use update-route.
-	// The RPC selector stays the original event string.
-	peerSelector := event.GetPeerAddress()
-	var tb textbuf.Buffer
-	r.dispatchPeerAction(peerSelector, tb.Str("borr ").Str(fam.String()).String())
-	r.sendRoutes(peerSelector, routesToSend)
-	r.dispatchPeerAction(peerSelector, tb.Reset().Str("eorr ").Str(fam.String()).String())
-
-	logger().Debug("completed route refresh", "peer", peerSelector, "family", fam, "routes", len(routesToSend))
+	r.queueSelectedRefresh(event.GetPeerAddress(), event.PeerOwner,
+		event.DestinationSession, event.SelectedDestination, fam)
 }
 
 // handleStructuredState processes a structured state event from DirectBridge.
@@ -1387,22 +1464,34 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	if r.consumeExportPolicy(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.DestinationSession, se.Reason) {
 		return
 	}
-	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.DestinationSession)
+	r.rememberRefreshSession(peerAddr, se.PeerOwner, se.DestinationSession, state == rpc.SessionStateUp, se.SelectedDestination)
+	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.PeerOwner, se.DestinationSession)
+	peerOwner := se.PeerOwner
+	if peerOwner == 0 {
+		return // Zero is unrecorded, never a wildcard source owner.
+	}
 	if state == rpc.SessionStateDown {
 		if se.Reason != rpc.ReasonPeerRemoved {
-			r.retainSourceOnDown(peerAddr)
+			r.peerMu.RLock()
+			current := r.sourceSessionCurrentLocked(peerOwner, se.DestinationSession)
+			r.peerMu.RUnlock()
+			if !current {
+				return
+			}
+			r.retainSourceOnDown(peerAddr, peerOwner)
 		}
 	}
-	defer r.settleSourceLeases(peerAddr)
+	defer r.settleSourceLeases(peerOwner)
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
 	// it is what tells a peer's first session (empty Adj-RIB-Out by definition)
 	// from a re-established one. See collectPeerUpReplay.
-	wasUp, seenBefore := r.peerUp[peerAddr]
+	wasUp, seenBefore := r.peerUp[peerOwner]
 	isUp := state == rpc.SessionStateUp
-	r.peerUp[peerAddr] = isUp
-	r.recordPeerName(peerAddr, se.PeerName)
+	r.peerUp[peerOwner] = isUp
+	r.recordPeerStateLocked(peerOwner, peerAddr, se.DestinationSession, se.ConnectionID, isUp)
+	r.recordPeerName(peerOwner, se.PeerName)
 
 	// cameUp records the down->up TRANSITION explicitly. It must not be inferred
 	// from replayGroups != nil: collectGroupedRibOutRoutes returns nil both when
@@ -1414,46 +1503,52 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	cameUp := false
 	var replayGroups []replayGroup
 	purgePeer := false
+	var sourceKeys []affectedPrefix
 	departed := !isUp
 	if !wasUp {
 		departed = se.Reason == rpc.ReasonPeerRemoved
 	}
 	if se.Reason == rpc.ReasonPeerRemoved {
-		delete(r.retainedPeers, peerAddr)
+		delete(r.retainedPeers, peerOwner)
 	}
 
 	if isUp && !wasUp {
-		delete(r.retainedPeers, peerAddr)
+		delete(r.retainedPeers, peerOwner)
 		// Ordinary destinations replay current selection through their captured
 		// worker, including on attach. Legacy attached observers have no replay
 		// receipt or send authority. Both are still recorded up for source state.
 		if !ordinaryDestination && se.Reason != rpc.ReasonAttached {
 			cameUp = true
-			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
-		r.dropSourcePolicyLocked(peerAddr)
-		if r.retainedPeers[peerAddr] {
+		r.dropSourcePolicyLocked(peerOwner)
+		if r.retainedPeers[peerOwner] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
 		} else {
-			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[peerOwner]; peerRIB != nil {
+				sourceKeys = r.captureScopedSourceKeysLocked(peerRIB)
 				peerRIB.Release()
-				delete(r.bgpPeers, peerAddr)
+				delete(r.bgpPeers, peerOwner)
 			}
-			delete(r.peerMeta, peerAddr)
+			r.clearPeerRouteMetadataLocked(peerOwner)
 			r.refreshSelfNextHopsLocked()
 			// Purge only after releasing peerMu: an election may hold a shard
 			// while a synchronous Loc-RIB subscriber reads peer state.
 			purgePeer = true
 		}
 	}
+	if se.Reason == rpc.ReasonPeerRemoved {
+		r.forgetPeerSourceLocked(peerOwner)
+	}
 	r.peerMu.Unlock()
 
 	if purgePeer {
 		if se.Reason == rpc.ReasonPeerRemoved {
-			r.sourceLeases.forgetAdmission(peerAddr)
+			r.sourceLeases.forgetAdmission(peerOwner)
 		}
-		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
+		r.emitPurgedWithdraws(r.purgeBestPrevForOwner(bestPeer{owner: peerOwner, address: peerAddr.String()}))
+		r.reconcileSourceKeys(sourceKeys)
 	}
 
 	// Call on every peer-up, including with zero groups: replayRoutesWithCursor
@@ -1478,68 +1573,86 @@ func (r *RIBManager) handleState(event *Event) {
 	if r.consumeExportPolicy(peerAddr, state == "up", event.SelectedDestination, event.DestinationSession, event.Reason) {
 		return
 	}
-	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == "up", event.SelectedDestination, event.DestinationSession)
+	r.rememberRefreshSession(peerAddr, event.PeerOwner, event.DestinationSession, state == "up", event.SelectedDestination)
+	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == "up", event.SelectedDestination, event.PeerOwner, event.DestinationSession)
+	peerOwner := event.PeerOwner
+	if peerOwner == 0 {
+		return // Zero is unrecorded, never a wildcard source owner.
+	}
 	if state == "down" {
 		if event.Reason != rpc.ReasonPeerRemoved {
-			r.retainSourceOnDown(peerAddr)
+			r.peerMu.RLock()
+			current := r.sourceSessionCurrentLocked(peerOwner, event.DestinationSession)
+			r.peerMu.RUnlock()
+			if !current {
+				return
+			}
+			r.retainSourceOnDown(peerAddr, peerOwner)
 		}
 	}
-	defer r.settleSourceLeases(peerAddr)
+	defer r.settleSourceLeases(peerOwner)
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
 	// it is what tells a peer's first session (empty Adj-RIB-Out by definition)
 	// from a re-established one. See collectPeerUpReplay.
-	wasUp, seenBefore := r.peerUp[peerAddr]
+	wasUp, seenBefore := r.peerUp[peerOwner]
 	isUp := state == "up"
-	r.peerUp[peerAddr] = isUp
-	r.recordPeerName(peerAddr, event.GetPeerName())
+	r.peerUp[peerOwner] = isUp
+	r.recordPeerStateLocked(peerOwner, peerAddr, event.DestinationSession, event.ConnectionID, isUp)
+	r.recordPeerName(peerOwner, event.GetPeerName())
 
 	// See handleStructuredState for why the transition is tracked explicitly
 	// rather than inferred from replayGroups != nil.
 	cameUp := false
 	var replayGroups []replayGroup
 	purgePeer := false
+	var sourceKeys []affectedPrefix
 	departed := !isUp
 	if !wasUp {
 		departed = event.Reason == rpc.ReasonPeerRemoved
 	}
 	if event.Reason == rpc.ReasonPeerRemoved {
-		delete(r.retainedPeers, peerAddr)
+		delete(r.retainedPeers, peerOwner)
 	}
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		// Ordinary output and legacy attached observers use neither this
 		// SENT-history replay nor its readiness (see handleStructuredState).
-		delete(r.retainedPeers, peerAddr)
+		delete(r.retainedPeers, peerOwner)
 		if !ordinaryDestination && event.Reason != rpc.ReasonAttached {
 			cameUp = true
-			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
-		r.dropSourcePolicyLocked(peerAddr)
+		r.dropSourcePolicyLocked(peerOwner)
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
-		if r.retainedPeers[peerAddr] {
+		if r.retainedPeers[peerOwner] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
 		} else {
-			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[peerOwner]; peerRIB != nil {
+				sourceKeys = r.captureScopedSourceKeysLocked(peerRIB)
 				peerRIB.Release()
-				delete(r.bgpPeers, peerAddr)
+				delete(r.bgpPeers, peerOwner)
 			}
-			delete(r.peerMeta, peerAddr)
+			r.clearPeerRouteMetadataLocked(peerOwner)
 			r.refreshSelfNextHopsLocked()
 			// See handleStructuredState for the off-peer-lock purge contract.
 			purgePeer = true
 		}
 	}
+	if event.Reason == rpc.ReasonPeerRemoved {
+		r.forgetPeerSourceLocked(peerOwner)
+	}
 	r.peerMu.Unlock()
 
 	if purgePeer {
 		if event.Reason == rpc.ReasonPeerRemoved {
-			r.sourceLeases.forgetAdmission(peerAddr)
+			r.sourceLeases.forgetAdmission(peerOwner)
 		}
-		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
+		r.emitPurgedWithdraws(r.purgeBestPrevForOwner(bestPeer{owner: peerOwner, address: peerAddr.String()}))
+		r.reconcileSourceKeys(sourceKeys)
 	}
 
 	// I/O operations after releasing lock. Called on every peer-up, including
@@ -1572,13 +1685,28 @@ func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr, peerA
 	// compares (extractCandidate, rib_commands.go) and which every peer of a
 	// TABLE_DUMP_V2 dump is keyed by (rib_mrt.go).
 	remoteRouterID := event.GetPeerRouterID()
-	r.peerMeta[peerAddr] = &peerMetadata{
-		PeerASN:        peerAS,
-		LocalASN:       localASN,
-		RemoteRouterID: remoteRouterID,
-		GroupName:      group,
-		LocalAddress:   localAddr,
+	var session uint64
+	connectionID := event.ConnectionID
+	if previous := r.peerMeta[event.PeerOwner]; previous != nil {
+		session = previous.Session
+		if previous.ConnectionID != 0 {
+			connectionID = previous.ConnectionID
+		}
 	}
+	metadata := &peerMetadata{
+		ConnectionID:     connectionID,
+		Address:          peerAddr,
+		Session:          session,
+		processedMsgID:   r.peerProcessedLocked(event.PeerOwner, peerAddr, connectionID),
+		processingFailed: r.peerProcessingFailedLocked(event.PeerOwner, peerAddr, connectionID),
+		PeerASN:          peerAS,
+		LocalASN:         localASN,
+		RemoteRouterID:   remoteRouterID,
+		GroupName:        group,
+		LocalAddress:     localAddr,
+	}
+	r.copyRefreshSessionLocked(event.PeerOwner, metadata)
+	r.peerMeta[event.PeerOwner] = metadata
 	r.refreshSelfNextHopsLocked()
 }
 
@@ -1660,6 +1788,7 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "show bgp rib"},
 		{Name: "clear bgp rib in"},
 		{Name: "clear bgp rib out"},
+		{Name: ownerExcludedResendCommand, Shape: shapeMap},
 		// GR support: route retention and stale tracking (RFC 4724)
 		{Name: "request bgp rib retain-routes"},
 		{Name: "request bgp rib release-routes"},
@@ -1696,6 +1825,7 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "request bgp rib fastpath"},
 	}
 
+	decls = append(decls, sourceCommandDecls()...)
 	for index := range decls {
 		decls[index].ShortHelp = commandSummary(decls[index].Name)
 	}

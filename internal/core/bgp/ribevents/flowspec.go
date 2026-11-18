@@ -36,6 +36,8 @@ type FlowSpecPath struct {
 }
 
 type flowSpecProvider struct {
+	progress EligibilityProgress
+	command  string
 	eligible ValidationLookup
 	present  func(ValidationRoute) bool
 	path     func(ValidationRoute) (FlowSpecPath, bool)
@@ -79,12 +81,15 @@ func FlowSpecKey(raw []byte) string {
 // RegisterFlowSpecLookup installs the selecting RIB's mandatory gate. Its owner
 // MUST register before receiving peer events and MUST unregister after stopping
 // delivery. This registration is independent of optional RPKI validation.
-func RegisterFlowSpecLookup(eligible ValidationLookup, present func(ValidationRoute) bool, path func(ValidationRoute) (FlowSpecPath, bool), routes func() []ValidationRoute) {
+func RegisterFlowSpecLookup(eligible ValidationLookup, present func(ValidationRoute) bool, path func(ValidationRoute) (FlowSpecPath, bool), routes func() []ValidationRoute, progress ...EligibilityProgress) {
 	if eligible == nil {
 		flowSpecLookup.Store(nil)
 		return
 	}
 	provider := &flowSpecProvider{eligible: eligible, present: present, path: path, routes: routes}
+	if len(progress) > 0 {
+		provider.progress = progress[0]
+	}
 	provider.batch = provider.localFlowSpecBatch
 	flowSpecLookup.Store(provider)
 }

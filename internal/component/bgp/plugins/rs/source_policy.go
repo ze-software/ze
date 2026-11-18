@@ -25,8 +25,10 @@ const sourcePolicyOwner sourcepolicy.Owner = "bgp-rs"
 // later UPDATE re-announced under a newer epoch are never restamped. Guarded
 // by routeServer.withdrawalMu.
 type sourcePolicyTxn struct {
-	ledger sourcepolicy.Ledger
-	pins   map[withdrawalKey]struct{}
+	relayFailures map[relayFailureKey]error
+	source        workerKey // Exact actor matching the captured owner and published UP generation.
+	ledger        sourcepolicy.Ledger
+	pins          map[withdrawalKey]struct{}
 }
 
 // ledgerOf is the transaction's ledger, nil when the source holds none.
@@ -39,7 +41,8 @@ func (txn *sourcePolicyTxn) ledgerOf() *sourcepolicy.Ledger {
 
 // handleSourcePolicy is bgp-rs's source-policy lifecycle handler. Source.Peer
 // is matched as the peer address the received-UPDATE events carry, in the
-// netip.Addr string form that keys the withdrawal map and the source workers.
+// netip.Addr string form that buckets inventory and serializes source workers.
+// Source.PeerOwner selects the original received owner and keys transactions.
 // It runs on the SDK source-policy worker, concurrently with event delivery:
 // each phase changes the withdrawal map under withdrawalMu and waits for the
 // source's worker with no lock held.
@@ -82,15 +85,15 @@ func (rs *routeServer) handleSourcePolicy(ctx context.Context, input rpc.SourceP
 // while it settled, before pinning anything.
 func (rs *routeServer) prepareSourcePolicy(ctx context.Context, source string, input rpc.SourcePolicyInput) error {
 	rs.withdrawalMu.Lock()
-	done, err := sourcePolicyOwner.Reprepare(rs.sourcePolicy[source].ledgerOf(), input)
+	done, err := sourcePolicyOwner.Reprepare(rs.sourcePolicy[input.Source.PeerOwner].ledgerOf(), input)
 	rs.withdrawalMu.Unlock()
 	if done {
 		return err
 	}
-	if !rs.sourceUp(source) {
+	if !rs.sourceUp(source, input.Source.PeerOwner, input.Source.SessionGeneration) {
 		return errors.New("bgp-rs: source " + source + " has no established session to prepare")
 	}
-	if err := rs.settleSource(ctx, source); err != nil {
+	if err := rs.settleSource(ctx, source, input.Source.PeerOwner); err != nil {
 		return errors.New("bgp-rs: source " + source + ": its queued forwarding work did not finish before prepare: " + err.Error())
 	}
 	// The coordinator stops waiting at the request's deadline, and a settle
@@ -103,8 +106,19 @@ func (rs *routeServer) prepareSourcePolicy(ctx context.Context, source string, i
 	}
 
 	rs.withdrawalMu.Lock()
-	txn := &sourcePolicyTxn{ledger: sourcepolicy.NewLedger(input), pins: make(map[withdrawalKey]struct{})}
+	original, originalErr := rs.sourceActor(source, input.Source.PeerOwner, input.Source.SessionGeneration)
+	if originalErr != nil {
+		rs.withdrawalMu.Unlock()
+		return originalErr
+	}
+	txn := &sourcePolicyTxn{source: original, ledger: sourcepolicy.NewLedger(input), pins: make(map[withdrawalKey]struct{})}
 	for key, entry := range rs.withdrawals[source] {
+		if entry.owner != original.owner {
+			continue
+		}
+		if entry.connectionID != original.connectionID {
+			continue
+		}
 		if entry.sourcePolicyEpoch > input.Source.PolicyEpoch {
 			rs.withdrawalMu.Unlock()
 			return errors.New("bgp-rs: transaction " + input.TransactionID + " captured policy epoch of source " +
@@ -113,18 +127,18 @@ func (rs *routeServer) prepareSourcePolicy(ctx context.Context, source string, i
 		txn.pins[key] = struct{}{}
 	}
 	if rs.sourcePolicy == nil {
-		rs.sourcePolicy = make(map[string]*sourcePolicyTxn)
+		rs.sourcePolicy = make(map[uint64]*sourcePolicyTxn)
 	}
-	rs.sourcePolicy[source] = txn
+	rs.sourcePolicy[input.Source.PeerOwner] = txn
 	err = txn.ledger.Record(input, sourcepolicy.StagePrepared, nil)
 	rs.withdrawalMu.Unlock()
 
 	// A down that ran between the check above and the install found no
 	// transaction to drop; this one would outlive its session.
-	if !rs.sourceUp(source) {
+	if !rs.sourceUp(source, input.Source.PeerOwner, input.Source.SessionGeneration) {
 		rs.withdrawalMu.Lock()
-		if rs.sourcePolicy[source] == txn {
-			delete(rs.sourcePolicy, source)
+		if rs.sourcePolicy[input.Source.PeerOwner] == txn {
+			delete(rs.sourcePolicy, input.Source.PeerOwner)
 		}
 		rs.withdrawalMu.Unlock()
 		return errors.New("bgp-rs: source " + source + " went down while its transaction was prepared")
@@ -146,7 +160,7 @@ func (rs *routeServer) prepareSourcePolicy(ctx context.Context, source string, i
 // explicit Import Policy has been applied."
 func (rs *routeServer) applySourcePolicy(ctx context.Context, source string, input rpc.SourcePolicyInput) error {
 	rs.withdrawalMu.Lock()
-	txn := rs.sourcePolicy[source]
+	txn := rs.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	rs.withdrawalMu.Unlock()
 	if err != nil {
@@ -155,12 +169,16 @@ func (rs *routeServer) applySourcePolicy(ctx context.Context, source string, inp
 	if duplicate {
 		return nil
 	}
-	settled := rs.settleSource(ctx, source)
+	settled := rs.settleSource(ctx, source, input.Source.PeerOwner)
 	if settled != nil {
 		settled = errors.New("bgp-rs: source " + source + ": the relays of its excluded routes did not reach the engine: " + settled.Error())
 	}
 	rs.withdrawalMu.Lock()
 	defer rs.withdrawalMu.Unlock()
+	if rs.sourcePolicy[input.Source.PeerOwner] != txn {
+		_, err := sourcePolicyOwner.Admit(nil, input)
+		return err
+	}
 	return txn.ledger.Record(input, sourcepolicy.StageApplied, settled)
 }
 
@@ -178,7 +196,7 @@ func (rs *routeServer) applySourcePolicy(ctx context.Context, source string, inp
 // explicit Import Policy has been applied."
 func (rs *routeServer) abortSourcePolicy(ctx context.Context, source string, input rpc.SourcePolicyInput) error {
 	rs.withdrawalMu.Lock()
-	txn := rs.sourcePolicy[source]
+	txn := rs.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		rs.withdrawalMu.Unlock()
@@ -200,6 +218,12 @@ func (rs *routeServer) abortSourcePolicy(ctx context.Context, source string, inp
 	entries := rs.withdrawals[source]
 	for key := range txn.pins {
 		entry, held := entries[key]
+		if entry.owner != txn.source.owner {
+			continue
+		}
+		if entry.connectionID != txn.source.connectionID {
+			continue
+		}
 		if !held {
 			continue
 		}
@@ -212,7 +236,7 @@ func (rs *routeServer) abortSourcePolicy(ctx context.Context, source string, inp
 	txn.pins = nil
 	rs.withdrawalMu.Unlock()
 
-	settled := rs.settleSource(ctx, source)
+	settled := rs.settleSource(ctx, source, input.Source.PeerOwner)
 	if settled != nil {
 		settled = errors.New("bgp-rs: source " + source + ": the relays of its restored routes did not reach the engine: " + settled.Error())
 	}
@@ -229,7 +253,7 @@ func (rs *routeServer) abortSourcePolicy(ctx context.Context, source string, inp
 func (rs *routeServer) finalizeSourcePolicy(source string, input rpc.SourcePolicyInput) error {
 	rs.withdrawalMu.Lock()
 	defer rs.withdrawalMu.Unlock()
-	txn := rs.sourcePolicy[source]
+	txn := rs.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		return err
@@ -240,6 +264,15 @@ func (rs *routeServer) finalizeSourcePolicy(source string, input rpc.SourcePolic
 	bound := txn.ledger.Source().PolicyEpoch
 	entries := rs.withdrawals[source]
 	for key, entry := range entries {
+		if entry.owner != txn.source.owner {
+			continue
+		}
+		if entry.connectionID != txn.source.connectionID {
+			continue
+		}
+		if entry.owner != input.Source.PeerOwner {
+			continue
+		}
 		if entry.sourcePolicyEpoch <= bound {
 			delete(entries, key)
 		}
@@ -250,11 +283,40 @@ func (rs *routeServer) finalizeSourcePolicy(source string, input rpc.SourcePolic
 
 // sourceUp reports whether the source's session is up as this plugin last
 // saw it.
-func (rs *routeServer) sourceUp(source string) bool {
+func (rs *routeServer) sourceUp(source string, owner, generation uint64) bool {
+	_, err := rs.sourceActor(source, owner, generation)
+	return err == nil
+}
+
+// sourceActor binds the source-policy capture to the published UP triple.
+// ConnectionID and SessionGeneration are separate engine facts: matching the
+// original owner and generation selects the immutable physical actor; no
+// address-selected current connection or numeric equality can supply it.
+func (rs *routeServer) sourceActor(source string, owner, generation uint64) (workerKey, error) {
+	if owner == 0 {
+		return workerKey{}, errors.New("bgp-rs: source capture has no original owner")
+	}
+	if generation == 0 {
+		return workerKey{}, errors.New("bgp-rs: source capture has no published UP generation")
+	}
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
-	peer := rs.peers[source]
-	return peer != nil && peer.Up
+	for key, peer := range rs.peers {
+		if key.owner != owner {
+			continue
+		}
+		if key.address.String() != source {
+			continue
+		}
+		if peer.SessionGeneration != generation {
+			continue
+		}
+		if !peer.Up {
+			continue
+		}
+		return key, nil
+	}
+	return workerKey{}, errors.New("bgp-rs: captured original UP no longer has an established physical actor")
 }
 
 // settleSource returns once a departure still queued for source has been sent
@@ -262,31 +324,48 @@ func (rs *routeServer) sourceUp(source string) bool {
 // including the worker's forward batch. It returns ctx's error when ctx ends
 // first. MUST NOT be called with withdrawalMu or mu held: the worker takes
 // both.
-func (rs *routeServer) settleSource(ctx context.Context, source string) error {
-	if err := rs.awaitDeparture(ctx, source); err != nil {
-		return errors.New("its departure was still being sent: " + err.Error())
+func (rs *routeServer) settleSource(ctx context.Context, source string, owner uint64) error {
+	if err := rs.awaitDeparture(ctx, owner); err != nil {
+		return errors.New("its original departure did not finish: " + err.Error())
 	}
-	barrier := make(chan struct{})
-	if !rs.workers.Dispatch(workerKey{sourcePeer: source}, workItem{sourcePeer: source, barrier: barrier}) {
-		return errors.New("its worker is closing (the session went down) or the plugin is stopping")
+	if err := rs.workers.settleOwner(ctx, owner); err != nil {
+		return err
 	}
-	select {
-	case <-barrier:
-		return nil
-	case <-ctx.Done():
-		return errors.New("its worker did not finish its queue: " + ctx.Err().Error())
+	rs.mu.RLock()
+	var keys []workerKey
+	for key, actor := range rs.peers {
+		if key.owner == owner && actor.departure != nil {
+			keys = append(keys, key)
+		}
 	}
+	rs.mu.RUnlock()
+	for _, key := range keys {
+		if err := rs.settleDeparture(ctx, key); err != nil {
+			return err
+		}
+	}
+	return rs.sourceRelayFailure(owner)
 }
 
 // awaitDeparture waits for a departure queued for source to be sent. With no
 // departure ever queued there is nothing to wait for.
-func (rs *routeServer) awaitDeparture(ctx context.Context, source string) error {
+func (rs *routeServer) awaitDeparture(ctx context.Context, owner uint64) error {
 	rs.departureMu.Lock()
 	departures := rs.departures
+	var keys []workerKey
+	for key := range rs.departureRevisions {
+		if key.owner == owner {
+			keys = append(keys, key)
+		}
+	}
 	rs.departureMu.Unlock()
-	// refuse-by-default: guards routeServer.settleSource -- the workers start with the first departure ever queued, so with none there is no departure to wait for and settleSource goes straight to its worker barrier
 	if departures == nil {
 		return nil
 	}
-	return departures.Await(ctx, source)
+	for _, key := range keys {
+		if err := departures.Await(ctx, key); err != nil {
+			return err
+		}
+	}
+	return nil
 }

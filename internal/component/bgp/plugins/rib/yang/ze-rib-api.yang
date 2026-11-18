@@ -21,6 +21,198 @@ module ze-rib-api {
         description "Initial revision";
     }
 
+    grouping original-source {
+        description "An original received Peer and physical connection. These narrow existing
+                     source rights; they never select by address or authorize an update.";
+        leaf owner {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:keyword-only;
+            description "Original nonzero configured Peer owner.";
+            ze:help "Original configured Peer owner";
+        }
+        leaf connection {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:keyword-only;
+            description "Original nonzero physical received connection.";
+            ze:help "Original physical received connection";
+        }
+    }
+
+    rpc source-retain-routes {
+        description "Prepare retention of one original received connection. The scope narrows existing rights and never authorizes a send.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Prepare retention of one original received connection";
+        input {
+            uses original-source;
+            leaf on-down {
+                type empty;
+                mandatory true;
+                ze:keyword-only;
+                description "Apply retention before the ordered DOWN event";
+                ze:help "Apply retention before the ordered DOWN event";
+            }
+            leaf-list families {
+                type zt:address-family;
+                min-elements 1;
+                ze:keyword-only;
+                description "The negotiated GR or LLGR families retained on this DOWN.";
+                ze:help "Negotiated retained families";
+            }
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf retained-peers { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc source-release-routes {
+        description "Release one original retained connection. Cleanup joins captured output before releasing the existing lease.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Release one original retained connection";
+        input {
+            uses original-source;
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf released-routes { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc source-mark-stale {
+        description "Mark one original retained connection stale. The scope narrows existing rights and never authorizes a send.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Mark one original retained connection stale";
+        input {
+            uses original-source;
+            leaf restart-time {
+                type uint16;
+                mandatory true;
+                ze:keyword-only;
+                description "Restart time in seconds";
+                ze:help "Restart time in seconds";
+            }
+            leaf stale-level {
+                type uint8 { range "1..max"; }
+                ze:keyword-only;
+                description "Nonzero stale level; omitted means conventional GR level one";
+                ze:help "Nonzero stale level; omitted means conventional GR level one";
+            }
+            leaf family {
+                type zt:address-family;
+                ze:keyword-only;
+                description "Registered native address family";
+                ze:help "Registered native address family";
+            }
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf marked { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc source-purge-stale {
+        description "Purge stale routes of one original connection. Cleanup joins captured output before releasing the existing lease.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Purge stale routes of one original connection";
+        input {
+            uses original-source;
+            leaf family {
+                type zt:address-family;
+                ze:keyword-only;
+                description "Registered native address family";
+                ze:help "Registered native address family";
+            }
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf purged { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc source-attach-community {
+        description "Decorate stale routes of one original connection. The scope narrows existing rights and never authorizes a send.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Decorate stale routes of one original connection";
+        input {
+            uses original-source;
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                ze:keyword-only;
+                description "Registered native address family";
+                ze:help "Registered native address family";
+            }
+            leaf community {
+                type string { length "8"; pattern "[0-9a-fA-F]{8}"; }
+                mandatory true;
+                ze:keyword-only;
+                description "Four community octets as eight hexadecimal digits";
+                ze:help "Four community octets as eight hexadecimal digits";
+            }
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf attached { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc source-delete-with-community {
+        description "Delete matching stale routes of one original connection. Cleanup joins captured output before releasing the existing lease.
+                     A successor cannot complete the original source's operation.";
+        ze:help "Delete matching stale routes of one original connection";
+        input {
+            uses original-source;
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                ze:keyword-only;
+                description "Registered native address family";
+                ze:help "Registered native address family";
+            }
+            leaf community {
+                type string { length "8"; pattern "[0-9a-fA-F]{8}"; }
+                mandatory true;
+                ze:keyword-only;
+                description "Four community octets as eight hexadecimal digits";
+                ze:help "Four community octets as eight hexadecimal digits";
+            }
+        }
+        output {
+            leaf peer-owner { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original Peer owner in decimal."; ze:help "Original Peer owner"; }
+            leaf connection-id { type string { length "1..20"; pattern "[1-9][0-9]*"; } description "Original physical connection in decimal."; ze:help "Original connection"; }
+            leaf deleted { type uint32; description "Number affected in the original scope."; ze:help "Number affected"; }
+        }
+    }
+
+    rpc clear-out-excluding-owner {
+        description "Replay to captured live destinations except this exact original Peer owner.
+                     The owner narrows replay and grants no send authority. Completion joins
+                     the captured destination writers, never a replacement by address.";
+        ze:help "Replay all other live destination owners";
+        input {
+            leaf owner {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:keyword-only;
+                description "Original configured Peer owner excluded from replay.";
+                ze:help "Original destination owner to exclude";
+            }
+            leaf family {
+                type zt:address-family;
+                ze:keyword-only;
+                description "Registered native address family";
+                ze:help "Registered native address family";
+            }
+        }
+    }
+
     // RIB operations
 
     rpc status {

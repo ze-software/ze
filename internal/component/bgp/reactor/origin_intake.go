@@ -81,7 +81,7 @@ func originBatchProducerOperation(ctx context.Context, batch bgptypes.NLRIBatch,
 			return originProducer{}, err
 		}
 	}
-	if owner.Sender() != sender {
+	if !owner.Sender().SameIssuer(sender) {
 		return originProducer{}, errors.New("origin producer does not match the authenticated sender")
 	}
 	if operation == rpc.OriginIntakeWithdraw {
@@ -142,6 +142,9 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 		}
 	}
 	if !originBatchEligible(batch) {
+		if batch.OriginAdmissionID != 0 {
+			return nil, errors.New("accepted redistribution cannot claim received, replay or SENT provenance")
+		}
 		return peers, nil
 	}
 	direct := peers
@@ -151,7 +154,34 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 	var builds []*originBuildValue
 	prepared := false
 	var counted []bool
+	if batch.OriginAdmissionID != 0 {
+		if len(batch.NLRIs) != 1 {
+			return nil, errors.New("one accepted redistribution ID must name exactly one native route")
+		}
+		var err error
+		producer, err = originBatchProducerOperation(ctx, batch, sender, operation)
+		if err != nil {
+			return nil, err
+		}
+		builds = make([]*originBuildValue, 1)
+		if operation == rpc.OriginIntakeAnnounce {
+			builds[0], err = captureOriginBuild(batch, batch.NLRIs[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+		counted = make([]bool, 1)
+		prepared = true
+	}
 	for peerIndex, peer := range peers {
+		var acceptedSource *originSource
+		if batch.OriginAdmissionID != 0 {
+			var err error
+			acceptedSource, err = originSourceFromAdmission(ctx, producer, batch.OriginAdmissionID, batch.NLRIs[0], builds[0], peer, operation)
+			if err != nil {
+				return nil, err
+			}
+		}
 		peer.mu.RLock()
 		configured := peer.settings.DisseminationOwner
 		peer.mu.RUnlock()
@@ -183,9 +213,13 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 			if err != nil {
 				return nil, err
 			}
-			source, err = newOriginSource(originSourceInput{kind: originSourceLocalBGP})
-			if err != nil {
-				return nil, err
+			if batch.OriginAdmissionID == 0 {
+				source, err = newOriginSource(originSourceInput{kind: originSourceLocalBGP})
+				if err != nil {
+					return nil, err
+				}
+			} else if len(batch.NLRIs) != 1 {
+				return nil, errors.New("one accepted redistribution ID must name exactly one native route")
 			}
 
 			builds = make([]*originBuildValue, len(batch.NLRIs))
@@ -204,9 +238,13 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
+			currentSource := source
+			if batch.OriginAdmissionID != 0 {
+				currentSource = acceptedSource
+			}
 			var result *rpc.UpdateRouteOutput
 			if operation == rpc.OriginIntakeAnnounce {
-				result, err = a.offerOriginToPeer(ctx, producer, source, builds[i], peer, owner)
+				result, err = a.offerOriginToPeer(ctx, producer, currentSource, builds[i], peer, owner)
 			} else {
 				if n == nil {
 					return nil, errors.New("origin withdrawal native path is nil")
@@ -218,7 +256,7 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 				if identityErr != nil {
 					return nil, identityErr
 				}
-				result, err = a.withdrawOriginFromPeer(ctx, producer, source, identity, peer, owner)
+				result, err = a.withdrawOriginFromPeer(ctx, producer, currentSource, identity, peer, owner)
 			}
 			if result != nil {
 				output.Admissions = append(output.Admissions, result.Admissions...)
@@ -285,6 +323,12 @@ func (a *reactorAPIAdapter) offerIssuedOrigin(ctx context.Context, receipt uint6
 	store.mu.Lock()
 	record := store.receipts[receipt]
 	store.mu.Unlock()
+	if record == nil {
+		return nil, errors.New("issued origin disappeared before its callback")
+	}
+	if err := record.source.acceptedCurrent(ctx, peer); err != nil {
+		return nil, errors.Join(err, store.retireOriginReceipt(ctx, receipt))
+	}
 	operation, release, err := store.beginOriginCall(ctx, record, owner, false)
 	if err != nil {
 		return nil, errors.Join(err, store.retireOriginReceipt(ctx, receipt))

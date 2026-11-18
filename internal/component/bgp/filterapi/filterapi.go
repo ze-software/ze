@@ -46,6 +46,12 @@ const MetaKeyRebuilt = "rebuilt"
 // PeerFilterInfo holds BGP peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {
+	// PeerOwner is the immutable original runtime peer identity. Zero means
+	// unavailable (configuration-only facts), never an address-derived owner.
+	// This read-only fact grants no source or send authority.
+	PeerOwner uint64
+	// ConnectionID is the captured physical Session for these facts; zero is unrecorded.
+	ConnectionID uint64
 	Address      netip.Addr // Peer IP address
 	PeerAS       uint32     // Remote AS number
 	LocalAS      uint32     // Local AS number on this session; never compare it with PeerAS to classify the session, read IsIBGP

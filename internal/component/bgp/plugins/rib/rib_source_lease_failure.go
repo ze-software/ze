@@ -41,7 +41,7 @@ func (s *ribSourceLeases) operationError(cause error, peer netip.Addr, receipt u
 		"This source's selected routes cannot be sent safely until its authorization settles; other sources remain available.", s.manager.advertiseRepair())
 }
 
-func (s *ribSourceLeases) setAdmission(peer netip.Addr, err error) {
+func (s *ribSourceLeases) setAdmission(peer uint64, err error) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -56,7 +56,7 @@ func (s *ribSourceLeases) setAdmission(peer netip.Addr, err error) {
 	}
 }
 
-func (s *ribSourceLeases) forgetAdmission(peer netip.Addr) {
+func (s *ribSourceLeases) forgetAdmission(peer uint64) {
 	if s == nil {
 		return
 	}
@@ -71,13 +71,13 @@ func (s *ribSourceLeases) forgetAdmission(peer netip.Addr) {
 
 // failures contains current admission problems and failed final releases only.
 // A successful unrelated source operation cannot erase a pending release.
-func (s *ribSourceLeases) failures() map[netip.Addr]error {
+func (s *ribSourceLeases) failures() map[uint64]error {
 	if s == nil {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	failures := make(map[netip.Addr]error, len(s.admission))
+	failures := make(map[uint64]error, len(s.admission))
 	maps.Copy(failures, s.admission)
 	var receipts []uint64
 	for receipt, lease := range s.leases {
@@ -88,7 +88,7 @@ func (s *ribSourceLeases) failures() map[netip.Addr]error {
 	slices.Sort(receipts)
 	for _, receipt := range receipts {
 		lease := s.leases[receipt]
-		failures[lease.peer] = errors.Join(failures[lease.peer], lease.failure)
+		failures[lease.peerOwner] = errors.Join(failures[lease.peerOwner], lease.failure)
 	}
 	return failures
 }
@@ -106,8 +106,8 @@ func (s *ribSourceLeases) doctorFailures() []rpc.DoctorCheckDiagnostic {
 	return findings
 }
 
-func sourceLeaseSubject(peer netip.Addr) string {
-	return "received source " + peer.String()
+func sourceLeaseSubject(peer uint64) string {
+	return fmt.Sprintf("received source owner %d", peer)
 }
 
 // reportFailures owns acknowledgment state only. It performs no operation under

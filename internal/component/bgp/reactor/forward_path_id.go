@@ -14,7 +14,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/source"
 )
 
 // fwdPathIDs holds ze's own RFC 7911 Path Identifier for every path it
@@ -115,15 +114,15 @@ func fwdPathKeyFor(out *fwdPathKey, fam family.Family, received uint32, raw []by
 type fwdPathIDTable struct {
 	mu       sync.RWMutex
 	next     uint32
-	bySource map[source.SourceID]map[uint32]uint32
-	byPath   map[source.SourceID]map[fwdPathKey]uint32
+	bySource map[fwdPathSource]map[uint32]fwdPathMapping
+	byPath   map[fwdPathSource]map[fwdPathKey]fwdPathMapping
 	used     map[uint32]uint64
 }
 
 func newFwdPathIDTable() *fwdPathIDTable {
 	return &fwdPathIDTable{
-		bySource: make(map[source.SourceID]map[uint32]uint32),
-		byPath:   make(map[source.SourceID]map[fwdPathKey]uint32),
+		bySource: make(map[fwdPathSource]map[uint32]fwdPathMapping),
+		byPath:   make(map[fwdPathSource]map[fwdPathKey]fwdPathMapping),
 		used:     make(map[uint32]uint64),
 	}
 }
@@ -132,26 +131,20 @@ func newFwdPathIDTable() *fwdPathIDTable {
 // assigning one on first sight and returning the same one every time after.
 // received is the identifier the source sent, which is 0 for every path such a
 // source sends.
-func (t *fwdPathIDTable) generate(src source.SourceID, received uint32) uint32 {
-	t.mu.RLock()
-	id, ok := t.bySource[src][received]
-	t.mu.RUnlock()
-	if ok {
-		return id
-	}
-
+func (t *fwdPathIDTable) generate(origin fwdPathOrigin, received uint32) uint32 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	perSource, ok := t.bySource[src]
-	if !ok {
-		perSource = make(map[uint32]uint32, 1)
-		t.bySource[src] = perSource
+	perSource := t.bySource[origin.source]
+	if perSource == nil {
+		perSource = make(map[uint32]fwdPathMapping, 1)
+		t.bySource[origin.source] = perSource
 	}
-	if id, ok := perSource[received]; ok {
-		return id
+	if mapping, ok := perSource[received]; ok {
+		perSource[received] = mapping.withOrigin(origin)
+		return mapping.id
 	}
-	id = t.mintLocked()
-	perSource[received] = id
+	id := t.mintLocked()
+	perSource[received] = fwdPathMapping{id: id, origin: origin}
 	t.used[id]++
 	return id
 }
@@ -161,37 +154,31 @@ func (t *fwdPathIDTable) generate(src source.SourceID, received uint32) uint32 {
 // one every time after. The path is the key, so a re-advertisement under the
 // identifier the source already used keeps the identifier ze already gave it,
 // which is the replacement RFC 7911 Section 5 defines.
-func (t *fwdPathIDTable) generatePath(src source.SourceID, key *fwdPathKey) uint32 {
-	t.mu.RLock()
-	id, ok := t.byPath[src][*key]
-	t.mu.RUnlock()
-	if ok {
-		return id
-	}
-
+func (t *fwdPathIDTable) generatePath(origin fwdPathOrigin, key *fwdPathKey) uint32 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	perSource, ok := t.byPath[src]
-	if !ok {
-		perSource = make(map[fwdPathKey]uint32, 1)
-		t.byPath[src] = perSource
+	perSource := t.byPath[origin.source]
+	if perSource == nil {
+		perSource = make(map[fwdPathKey]fwdPathMapping, 1)
+		t.byPath[origin.source] = perSource
 	}
-	if id, ok := perSource[*key]; ok {
-		return id
+	if mapping, ok := perSource[*key]; ok {
+		perSource[*key] = mapping.withOrigin(origin)
+		return mapping.id
 	}
-	id = t.mintLocked()
-	perSource[*key] = id
+	id := t.mintLocked()
+	perSource[*key] = fwdPathMapping{id: id, origin: origin}
 	t.used[id]++
 	return id
 }
 
 // lookupPath never allocates an identifier for a withdrawal. Unknown paths
 // retain zero on the temporary wire; final ownership admission rejects them.
-func (t *fwdPathIDTable) lookupPath(src source.SourceID, key *fwdPathKey) uint32 {
+func (t *fwdPathIDTable) lookupPath(src fwdPathSource, key *fwdPathKey) uint32 {
 	t.mu.RLock()
-	id := t.byPath[src][*key]
+	mapping := t.byPath[src][*key]
 	t.mu.RUnlock()
-	return id
+	return mapping.id
 }
 
 // reserve assigns an identifier for a recipient collision. The writer MUST
@@ -242,26 +229,46 @@ func (t *fwdPathIDTable) releaseLocked(id uint32) {
 // forced gap eviction may precede them. Recipient slots and staged proposals
 // retain their own reservations, and final admission resolves preserved ingress
 // identity against the recipient even after the source mapping is gone.
-func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer netip.Addr, peerOwner uint64, raw []byte) {
+func (t *fwdPathIDTable) releasePath(origin fwdPathOrigin, key *fwdPathKey, peer netip.Addr, raw []byte) {
+	t.mu.Lock()
+	perSource := t.byPath[origin.source]
+	mapping, ok := perSource[*key]
+	if !ok {
+		t.mu.Unlock()
+		return
+	}
+	if !mapping.releasedBy(origin) {
+		t.mu.Unlock()
+		return
+	}
+	claim := &fwdPathRelease{}
+	mapping.release = claim
+	perSource[*key] = mapping
+	t.mu.Unlock()
+	// RoutePresent can be a remote provider. It MUST run outside the allocator
+	// lock. Its query names this mapping's captured original connection.
+	retained := validationRetainsPath(peer, mapping.origin.source.peerOwner, mapping.origin.connectionID, key.family, key.received, raw)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	// Query while holding the identifier lock: no concurrent forward can take
-	// the old identifier between this presence check and its removal.
-	if validationRetainsPath(peer, peerOwner, key.family, key.received, raw) {
-		return
-	}
-	perSource, ok := t.byPath[src]
+	perSource = t.byPath[origin.source]
+	current, ok := perSource[*key]
 	if !ok {
 		return
 	}
-	id, ok := perSource[*key]
-	if !ok {
+	// Every reuse invalidates the claim, including a replay of the same original
+	// generation; a delete/remint cannot inherit this live pointer either.
+	if current.release != claim {
 		return
 	}
-	t.releaseLocked(id)
+	if retained {
+		current.release = nil
+		perSource[*key] = current
+		return
+	}
+	t.releaseLocked(current.id)
 	delete(perSource, *key)
 	if len(perSource) == 0 {
-		delete(t.byPath, src)
+		delete(t.byPath, origin.source)
 	}
 }
 
@@ -291,15 +298,15 @@ func (t *fwdPathIDTable) mintLocked() uint32 {
 // replacement it is. Removal is the point where ze has withdrawn the peer's
 // routes and will not send them again, which is what RFC 7911 needs before a
 // value is reused (AC-4).
-func (t *fwdPathIDTable) releaseSource(src source.SourceID) {
+func (t *fwdPathIDTable) releaseSource(src fwdPathSource) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	for _, id := range t.bySource[src] {
-		t.releaseLocked(id)
+	for _, mapping := range t.bySource[src] {
+		t.releaseLocked(mapping.id)
 	}
 	delete(t.bySource, src)
-	for _, id := range t.byPath[src] {
-		t.releaseLocked(id)
+	for _, mapping := range t.byPath[src] {
+		t.releaseLocked(mapping.id)
 	}
 	delete(t.byPath, src)
 }
@@ -312,7 +319,7 @@ func (t *fwdPathIDTable) releaseSource(src source.SourceID) {
 // for the whole section rather than one per prefix. Framed lookups reuse key
 // scratch, but cache no answer: each NLRI can name a different path.
 type fwdPathIDMemo struct {
-	source     source.SourceID
+	origin     fwdPathOrigin
 	have       bool
 	received   uint32
 	generated  uint32
@@ -326,11 +333,11 @@ func (m *fwdPathIDMemo) unframed(received uint32, withdraw bool) uint32 {
 	}
 	if withdraw {
 		fwdPathIDs.mu.RLock()
-		id := fwdPathIDs.bySource[m.source][received]
+		mapping := fwdPathIDs.bySource[m.origin.source][received]
 		fwdPathIDs.mu.RUnlock()
-		return id
+		return mapping.id
 	}
-	id := fwdPathIDs.generate(m.source, received)
+	id := fwdPathIDs.generate(m.origin, received)
 	m.have, m.received, m.generated = true, received, id
 	return id
 }
@@ -343,9 +350,9 @@ func (m *fwdPathIDMemo) framed(fam family.Family, received uint32, raw []byte, w
 		return 0, err
 	}
 	if withdraw {
-		return fwdPathIDs.lookupPath(m.source, &key), nil
+		return fwdPathIDs.lookupPath(m.origin.source, &key), nil
 	}
-	return fwdPathIDs.generatePath(m.source, &key), nil
+	return fwdPathIDs.generatePath(m.origin, &key), nil
 }
 
 // fwdRegenerateRawPathIDs rewrites every Path Identifier a same-context payload
@@ -377,9 +384,15 @@ func (m *fwdPathIDMemo) framed(fam family.Family, received uint32, raw []byte, w
 // writes those bytes to TCP after buildFwdBody returns. The caller MUST carry
 // the handle out for the ReceivedUpdate to adopt, never release it at end of
 // call. A zero handle means the copy fell back to the heap and needs none.
-func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingContext) ([]byte, BufHandle, error) {
+func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingContext, origin fwdPathOrigin) ([]byte, BufHandle, error) {
 	if !ctx.AnyAddPath() {
 		return nil, BufHandle{}, nil
+	}
+	if origin.source.peerOwner == 0 {
+		return nil, BufHandle{}, fmt.Errorf("path identifier rewrite: original peer owner is missing")
+	}
+	if origin.connectionID == 0 {
+		return nil, BufHandle{}, fmt.Errorf("path identifier rewrite: original physical connection is missing")
 	}
 
 	announced, err := peerWire.NLRI()
@@ -439,7 +452,7 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 		}
 	}()
 
-	memo := fwdPathIDMemo{source: peerWire.SourceID()}
+	memo := fwdPathIDMemo{origin: origin}
 	if needV4 {
 		section, sectionErr := copied.NLRI()
 		if sectionErr != nil {
@@ -526,8 +539,10 @@ func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo, withdr
 // (releaseSource). So an UPDATE from a session that negotiated ADD-PATH for
 // nothing costs one context-registry read and returns.
 //
-// Lock ordering: cache.mu -> fwdPathIDs.mu -> Adj-RIB-In read lock. The receive
-// store MUST release its lock before cache operations or validation events.
+// Cache eviction may hold cache.mu. Receipt lookup is a leaf read; presence
+// callbacks (including remote RPC) run outside fwdPathIDs.mu. A transient
+// compare-release claim admits deletion only if no allocation/reuse intervened.
+// The receive store MUST release its lock before cache operations or events.
 // Retained paths keep their identifiers even if a stale withdrawal cache entry
 // is evicted after a replacement has become eligible.
 func fwdReleaseWithdrawnPathIDs(update *ReceivedUpdate) {
@@ -540,17 +555,40 @@ func fwdReleaseWithdrawnPathIDs(update *ReceivedUpdate) {
 		return
 	}
 
+	withdrawn, err := peerWire.Withdrawn()
+	if err != nil {
+		reportForwardPathOriginFailure(update.SourcePeerStr, err)
+		return
+	}
+	mpUnreach, err := peerWire.MPUnreach()
+	if err != nil {
+		reportForwardPathOriginFailure(update.SourcePeerStr, err)
+		return
+	}
+	if len(withdrawn) == 0 {
+		if mpUnreach == nil {
+			return
+		}
+		if len(mpUnreach.WithdrawnBytes()) == 0 {
+			return
+		}
+	}
 	src := peerWire.SourceID()
-	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, src, update.SourcePeerIP, update.SourceOwner); err != nil {
+	origin, err := newFwdPathOrigin(update)
+	if err != nil {
+		reportForwardPathOriginFailure(update.SourcePeerStr, err)
+		return
+	}
+	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, origin, update.SourcePeerIP); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
-	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, src, update.SourcePeerIP, update.SourceOwner); err != nil {
+	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, origin, update.SourcePeerIP); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
 }
 
 // fwdReleaseIPv4Withdrawn frees the identifiers of the Withdrawn Routes field.
-func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr, peerOwner uint64) error {
+func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, origin fwdPathOrigin, peer netip.Addr) error {
 	if !srcCtx.AddPath(family.IPv4Unicast) {
 		return nil
 	}
@@ -565,11 +603,11 @@ func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.Encoding
 	if err != nil {
 		return fmt.Errorf("nlri: %w", err)
 	}
-	return fwdReleaseSection(src, peer, peerOwner, family.IPv4Unicast, withdrawn, announced)
+	return fwdReleaseSection(origin, peer, family.IPv4Unicast, withdrawn, announced)
 }
 
 // fwdReleaseMPWithdrawn frees the identifiers of the MP_UNREACH_NLRI attribute.
-func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr, peerOwner uint64) error {
+func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, origin fwdPathOrigin, peer netip.Addr) error {
 	mpUnreach, err := peerWire.MPUnreach()
 	if err != nil {
 		return fmt.Errorf("mp_unreach: %w", err)
@@ -596,7 +634,7 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 	if mpReach != nil && mpReach.Family() == fam {
 		announced = mpReach.NLRIBytes()
 	}
-	return fwdReleaseSection(src, peer, peerOwner, fam, withdrawn, announced)
+	return fwdReleaseSection(origin, peer, fam, withdrawn, announced)
 }
 
 // fwdReleaseSection frees ze's identifier for every path one withdrawn section
@@ -607,7 +645,7 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 // pair, so ze must keep the identifier that named it. RFC 7606 Section 5.1
 // forbids a conforming sender to put both fields in one UPDATE, so an ordinary
 // withdraw reaches an empty announced section and builds no set at all.
-func fwdReleaseSection(src source.SourceID, peer netip.Addr, peerOwner uint64, fam family.Family, withdrawn, announced []byte) error {
+func fwdReleaseSection(origin fwdPathOrigin, peer netip.Addr, fam family.Family, withdrawn, announced []byte) error {
 	alsoAnnounced, err := fwdAnnouncedPaths(fam, announced)
 	if err != nil {
 		return fmt.Errorf("announced section: %w", err)
@@ -629,7 +667,7 @@ func fwdReleaseSection(src source.SourceID, peer netip.Addr, peerOwner uint64, f
 			return true
 		}
 		if _, both := alsoAnnounced[key]; !both {
-			fwdPathIDs.releasePath(src, &key, peer, peerOwner, raw[4:])
+			fwdPathIDs.releasePath(origin, &key, peer, raw[4:])
 		}
 		return true
 	})

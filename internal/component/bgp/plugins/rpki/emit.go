@@ -119,9 +119,11 @@ func buildRPKIEventUnavailable(peerAddr, peerName string, peerASN uint32, msgID 
 	return string(data)
 }
 
-// The decorator correlates one RPKI event with one UPDATE by peer and MsgID.
+// Revalidation groups the original actor and MsgID before the decorator
+// correlates the secondary event with its globally unique received UPDATE.
 // Neither an address family nor a prefix is a separate correlation unit.
 type rpkiUpdateKey struct {
+	source   rpkiSource
 	peerAddr string
 	msgID    uint64
 }
@@ -135,7 +137,7 @@ type rpkiUpdateResults struct {
 }
 
 func collectRPKIUpdate(updates map[rpkiUpdateKey]*rpkiUpdateResults, key routeKey, route originRoute) {
-	updateKey := rpkiUpdateKey{peerAddr: key.peerAddr, msgID: route.msgID}
+	updateKey := rpkiUpdateKey{peerAddr: key.peerAddr, source: key.source, msgID: route.msgID}
 	update := updates[updateKey]
 	if update == nil {
 		update = &rpkiUpdateResults{

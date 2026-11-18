@@ -36,17 +36,68 @@ type Event struct {
 	InitialReplay uint64 // Captured peer-up session receipt; zero grants no readiness.
 	// SessionGeneration is, on a down, the session the down ended; the
 	// departure names it as recovery-generation. Zero on every other event.
-	SessionGeneration uint64
-	Open              *OpenInfo   // OPEN: decoded open data
-	AFI               family.AFI  // Refresh: AFI
-	SAFI              family.SAFI // Refresh: SAFI
+	SessionGeneration  uint64
+	PeerOwner          uint64
+	ConnectionID       uint64
+	DestinationSession uint64
+	Open               *OpenInfo   // OPEN: decoded open data
+	AFI                family.AFI  // Refresh: AFI
+	SAFI               family.SAFI // Refresh: SAFI
+}
+
+// parseEventPhysicalFields validates all reserved lifecycle identity fields.
+// These event forms carry no route attributes. A repeated or malformed field
+// refuses the entire lifecycle rather than partially mutating an actor.
+func parseEventPhysicalFields(text string, event *Event) bool {
+	scanner := textparse.NewScanner(text)
+	var ownerSeen, connectionSeen, destinationSeen bool
+	for !scanner.Done() {
+		token, ok := scanner.Next()
+		if !ok {
+			break
+		}
+		switch token {
+		case "peer-owner", "connection-id", "destination-session":
+			value, ok := scanner.Next()
+			if !ok {
+				return false
+			}
+			identity, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return false
+			}
+			switch token {
+			case "peer-owner":
+				if ownerSeen {
+					return false
+				}
+				ownerSeen = true
+				event.PeerOwner = identity
+			case "connection-id":
+				if connectionSeen {
+					return false
+				}
+				connectionSeen = true
+				event.ConnectionID = identity
+			case "destination-session":
+				if destinationSeen {
+					return false
+				}
+				destinationSeen = true
+				event.DestinationSession = identity
+			}
+		}
+	}
+	return true
 }
 
 // FamilyOperation represents a single add or del operation for a family.
 // Text format: "nlri <family> add <prefix>..." or "nlri <family> del <prefix>...".
 type FamilyOperation struct {
-	Action string // "add" or "del"
-	NLRIs  []any  // Prefix strings from text parsing
+	PathID  uint32
+	AddPath bool
+	Action  string // "add" or "del"
+	NLRIs   []any  // Prefix strings from text parsing
 }
 
 // OpenInfo contains OPEN message details.
@@ -231,7 +282,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 		tok := textparse.ResolveAlias(raw)
 
 		switch tok {
-		case textparse.KWSourcePolicyEpoch, textparse.KWSourceReceipt, textparse.KWPeerOwner:
+		case textparse.KWSourcePolicyEpoch, textparse.KWSourceReceipt, textparse.KWPeerOwner, textparse.KWConnectionID:
 			s.Next() // Provenance was parsed before worker dispatch.
 		case textparse.KWNextHop:
 			s.Next() // consume the address
@@ -243,6 +294,8 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 				continue
 			}
 
+			var pathID uint64
+			var addPath bool
 			// Optional path-id modifier
 			next, ok := s.Peek()
 			if !ok {
@@ -250,7 +303,13 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 			}
 			if textparse.ResolveAlias(next) == textparse.KWPathInformation {
 				s.Next() // consume "info"/"path-information"
-				s.Next() // consume the ID value
+				idToken, _ := s.Next()
+				var err error
+				pathID, err = strconv.ParseUint(idToken, 10, 32)
+				if err != nil {
+					return nil
+				}
+				addPath = true
 				if _, ok = s.Peek(); !ok {
 					continue
 				}
@@ -278,7 +337,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 
 			if len(nlris) > 0 {
 				result[fam] = append(result[fam],
-					FamilyOperation{Action: action, NLRIs: nlris})
+					FamilyOperation{Action: action, NLRIs: nlris, PathID: uint32(pathID), AddPath: addPath})
 			}
 
 		// Attribute keywords: consume their values.
@@ -373,7 +432,7 @@ func parseTextOpen(text string) *Event {
 				continue
 			}
 			value := ""
-			if next, ok := s.Peek(); ok && next != tokenCap && next != tokenRouterID && next != tokenHoldTime {
+			if next, ok := s.Peek(); ok && next != tokenCap && next != tokenRouterID && next != tokenHoldTime && next != "peer-owner" && next != "connection-id" && next != "destination-session" {
 				value, _ = s.Next()
 			}
 			event.Open.Capabilities = append(event.Open.Capabilities,
@@ -381,6 +440,9 @@ func parseTextOpen(text string) *Event {
 		}
 	}
 
+	if !parseEventPhysicalFields(text, event) {
+		return nil
+	}
 	return event
 }
 
@@ -436,7 +498,7 @@ func parseTextState(text string) *Event {
 				return nil
 			}
 			event.InitialReplay = token
-		case "session-generation":
+		case "session-generation", "peer-owner":
 			value, ok := s.Next()
 			// refuse-by-default: guards routeServer.dispatchText -- nil is the parser's refusal of a down whose generation it cannot read, and dispatchText hands handleState no event for it, never a departure with a guessed one
 			if !ok {
@@ -446,10 +508,17 @@ func parseTextState(text string) *Event {
 			if err != nil {
 				return nil
 			}
-			event.SessionGeneration = generation
+			if tok == "peer-owner" {
+				event.PeerOwner = generation
+			} else {
+				event.SessionGeneration = generation
+			}
 		}
 	}
 
+	if !parseEventPhysicalFields(text, event) {
+		return nil
+	}
 	return event
 }
 
@@ -504,5 +573,8 @@ func parseTextRefresh(text string) *Event {
 		}
 	}
 
+	if !parseEventPhysicalFields(text, event) {
+		return nil
+	}
 	return event
 }

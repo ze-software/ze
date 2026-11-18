@@ -11,6 +11,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -92,7 +93,7 @@ type ReactorStartupCoordinator interface {
 	// complete. sender names the reporting process; initialReplay is the token
 	// captured from its peer-UP event. Only explicit operator no-op readiness
 	// may omit the token. A stale or missing process receipt is an error.
-	SignalPeerAPIReady(peerAddr string, sender Sender, initialReplay uint64) error
+	SignalPeerAPIReady(ctx context.Context, peerAddr string, sender Sender, initialReplay uint64) error
 
 	// SetPeerUpBarrier declares how many barrier-declaring plugins
 	// (registry.Registration.PeerUpBarrier) a peer's peer-up event is being

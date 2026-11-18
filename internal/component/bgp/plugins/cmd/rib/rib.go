@@ -14,23 +14,25 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Plugin command names — used in both RPCRegistration.PluginCommand and ForwardToPlugin
 // to prevent divergence between the two.
 const (
-	cmdRibStatus     = "show bgp rib status"
-	cmdRibShow       = "show bgp rib"
-	cmdRibBest       = "show bgp rib best"
-	cmdRibBestStatus = "show bgp rib best status"
-	cmdRibClearIn    = "clear bgp rib in"
-	cmdRibClearOut   = "clear bgp rib out"
-	cmdRibInject     = "request bgp rib inject"
-	cmdRibWithdraw   = "request bgp rib withdraw"
-	cmdRibRPF        = "show bgp rib rpf"
-	cmdRibProtocol   = "show bgp rib protocol"
-	cmdRibFastpath   = "request bgp rib fastpath"
+	cmdRibStatus                 = "show bgp rib status"
+	cmdRibShow                   = "show bgp rib"
+	cmdRibBest                   = "show bgp rib best"
+	cmdRibBestStatus             = "show bgp rib best status"
+	cmdRibClearIn                = "clear bgp rib in"
+	cmdRibClearOut               = "clear bgp rib out"
+	cmdRibClearOutExcludingOwner = "clear bgp rib out-excluding-owner"
+	cmdRibInject                 = "request bgp rib inject"
+	cmdRibWithdraw               = "request bgp rib withdraw"
+	cmdRibRPF                    = "show bgp rib rpf"
+	cmdRibProtocol               = "show bgp rib protocol"
+	cmdRibFastpath               = "request bgp rib fastpath"
 	// The three META-commands. This package forwards none of them: they are
 	// dispatched through the plugin, and they are named here because a
 	// declaration resolves by command PATH and these three sit under
@@ -84,6 +86,7 @@ func init() {
 		// Write commands (exposed via "ze run" only)
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out-excluding-owner", Handler: forwardRibClearOutExcludingOwner, PluginCommand: cmdRibClearOutExcludingOwner},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
@@ -338,6 +341,40 @@ func forwardRibClearOut(ctx *pluginserver.CommandContext, validated command.Vali
 		return refusal, nil
 	}
 	return ctx.Dispatcher().ForwardToPluginAfterEvents(ribClearHandoff(ctx), cmdRibClearOut, args, args[0])
+}
+
+// forwardRibClearOutExcludingOwner retains the exact original-owner exclusion
+// through both actual model judgements. It narrows the existing replay right;
+// it does not bind a peer or grant source/send authority.
+func forwardRibClearOutExcludingOwner(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args, refusal := ribClearOutExcludingOwnerArgs(validated)
+	if refusal != nil {
+		return refusal, nil
+	}
+	return ctx.Dispatcher().ForwardToPluginAfterEvents(ribClearHandoff(ctx), cmdRibClearOutExcludingOwner, args, "*")
+}
+
+func ribClearOutExcludingOwnerArgs(validated command.ValidatedArgs) ([]string, *plugin.Response) {
+	owner, given := validated.Value("owner")
+	if !given {
+		return nil, ribClearOutExcludingOwnerRefusal()
+	}
+	args := []string{"owner", owner}
+	tokensMax := 2
+	if family, given := validated.Value("family"); given {
+		args = append(args, "family", family)
+		tokensMax += 2
+	}
+	if len(validated.Tokens()) > tokensMax {
+		return nil, ribClearOutExcludingOwnerRefusal()
+	}
+	return args, nil
+}
+
+func ribClearOutExcludingOwnerRefusal() *plugin.Response {
+	return plugin.OperatorErrorResponse(opererr.New("The original-owner replay exclusion is incomplete or has an unbound argument",
+		"Replay must keep the exact original owner through both command judgements",
+		"Use clear bgp rib out-excluding-owner owner <nonzero owner> [family <afi/safi>]"))
 }
 
 // ribClearHandoff answers the context the clear forwarders hand the bgp-rib

@@ -100,15 +100,17 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			continue // No YANG tree entry (editor-internal)
 		}
 		if err := d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
-			Hidden:           command.HiddenAtPath(cmdTree, strings.Fields(name)),
-			ReadOnly:         IsReadOnlyPath(name) && !reg.NotReadOnly,
-			RequiresSelector: reg.RequiresSelector,
-			PluginProxy:      reg.PluginCommand != "",
-			ArgDefs:          pathToArgDefs[name],
-			Description:      pathToHelp[name],
-			Owner:            reg.WireMethod,
-			Complete:         reg.Complete,
-			AuditAction:      reg.AuditAction,
+			Hidden:                    command.HiddenAtPath(cmdTree, strings.Fields(name)),
+			ReadOnly:                  IsReadOnlyPath(name) && !reg.NotReadOnly,
+			RequiresSelector:          reg.RequiresSelector,
+			AcceptsPeerConnection:     reg.AcceptsPeerConnection,
+			AcceptsDestinationSession: reg.AcceptsDestinationSession,
+			PluginProxy:               reg.PluginCommand != "",
+			ArgDefs:                   pathToArgDefs[name],
+			Description:               pathToHelp[name],
+			Owner:                     reg.WireMethod,
+			Complete:                  reg.Complete,
+			AuditAction:               reg.AuditAction,
 		}); err != nil {
 			return err
 		}
@@ -160,15 +162,17 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 				handler = wrapWithEnsureChain(handler, chain)
 			}
 			if err := d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
-				Hidden:           command.HiddenAtPath(cmdTree, strings.Fields(name)),
-				ReadOnly:         IsReadOnlyPath(name) && !reg.NotReadOnly,
-				RequiresSelector: reg.RequiresSelector,
-				PluginProxy:      reg.PluginCommand != "",
-				ArgDefs:          pathToArgDefs[name],
-				Description:      pathToHelp[name],
-				Owner:            reg.WireMethod,
-				Complete:         reg.Complete,
-				AuditAction:      reg.AuditAction,
+				Hidden:                    command.HiddenAtPath(cmdTree, strings.Fields(name)),
+				ReadOnly:                  IsReadOnlyPath(name) && !reg.NotReadOnly,
+				RequiresSelector:          reg.RequiresSelector,
+				AcceptsPeerConnection:     reg.AcceptsPeerConnection,
+				AcceptsDestinationSession: reg.AcceptsDestinationSession,
+				PluginProxy:               reg.PluginCommand != "",
+				ArgDefs:                   pathToArgDefs[name],
+				Description:               pathToHelp[name],
+				Owner:                     reg.WireMethod,
+				Complete:                  reg.Complete,
+				AuditAction:               reg.AuditAction,
 			}); err != nil {
 				return err
 			}
@@ -226,6 +230,8 @@ type CommandContext struct {
 	Authorizer        plugin.Authorizer // Request-carried policy generation; nil uses the dispatcher's live policy.
 	Meta              map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
 	SourcePolicyEpoch uint64            // Original received provenance from UpdateRoute RPC, not route metadata.
+	PeerOwner         uint64            // Original constrained peer; zero with ConnectionID means unbound.
+	ConnectionID      uint64            // Captured physical session, never a destination replay token.
 	Selectors         map[string]string // Extracted typed selector values, keyed by selector keyword.
 	// Sender says who issued this command, and every path that builds a
 	// CommandContext states it: plugin.ProcessSender(proc.Name()) on the plugin
@@ -561,11 +567,13 @@ type Command struct {
 	// YANG description statement. Empty means the command declares no explanation, and
 	// the help page then prints the summary alone. It is NEVER read as a
 	// summary, and no one-line surface reads it at all.
-	Description      string
-	ReadOnly         bool             // True if command only reads state (safe for "ze show")
-	Hidden           bool             // Hidden from discovery; full-path execution remains available.
-	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
-	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
+	Description               string
+	ReadOnly                  bool             // True if command only reads state (safe for "ze show")
+	Hidden                    bool             // Hidden from discovery; full-path execution remains available.
+	RequiresSelector          bool             // True if command requires an explicit selector instead of implicit/all scope
+	AcceptsPeerConnection     bool             // Registration-owned opt-in for physical peer constraints.
+	AcceptsDestinationSession bool             // Opt-in for original destination-session constraints.
+	ArgDefs                   []command.ArgDef // Typed argument definitions from YANG leaves.
 	// Complete answers the values the command's argument may take, from the
 	// daemon's runtime state (arg_completion.go). Nil means the command
 	// declares none, and its argument completes from its YANG leaves alone.
@@ -604,15 +612,17 @@ func (c *Command) TakesInlineSelector() bool {
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
-	Hidden           bool             // Schema visibility, including hidden ancestors.
-	ReadOnly         bool             // True if command only reads state
-	RequiresSelector bool             // True if the command requires an explicit selector value
-	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
-	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
-	Description      string           // The long explanation the command's own help page prints (empty = none declared)
-	Owner            string           // The wire method of the builtin RPC registering the command (empty = none declared)
-	Complete         ArgCompleter     // The argument completer the builtin RPC declares (nil = none declared)
-	AuditAction      string           // The audit action a successful run records (empty = no audit entry)
+	Hidden                    bool             // Schema visibility, including hidden ancestors.
+	ReadOnly                  bool             // True if command only reads state
+	RequiresSelector          bool             // True if the command requires an explicit selector value
+	AcceptsPeerConnection     bool             // Registration-owned opt-in for physical peer constraints.
+	AcceptsDestinationSession bool             // Opt-in for original destination-session constraints.
+	PluginProxy               bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
+	ArgDefs                   []command.ArgDef // Typed argument definitions from YANG leaves
+	Description               string           // The long explanation the command's own help page prints (empty = none declared)
+	Owner                     string           // The wire method of the builtin RPC registering the command (empty = none declared)
+	Complete                  ArgCompleter     // The argument completer the builtin RPC declares (nil = none declared)
+	AuditAction               string           // The audit action a successful run records (empty = no audit entry)
 }
 
 // ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
@@ -699,17 +709,19 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		return heldCommandError(name, holder.Owner)
 	}
 	d.commands[key] = &Command{
-		Name:             name,
-		Handler:          handler,
-		Owner:            opts.Owner,
-		ShortHelp:        help,
-		Description:      opts.Description,
-		ReadOnly:         opts.ReadOnly,
-		Hidden:           opts.Hidden,
-		RequiresSelector: opts.RequiresSelector,
-		ArgDefs:          opts.ArgDefs,
-		Complete:         opts.Complete,
-		AuditAction:      opts.AuditAction,
+		Name:                      name,
+		Handler:                   handler,
+		Owner:                     opts.Owner,
+		ShortHelp:                 help,
+		Description:               opts.Description,
+		ReadOnly:                  opts.ReadOnly,
+		Hidden:                    opts.Hidden,
+		RequiresSelector:          opts.RequiresSelector,
+		AcceptsPeerConnection:     opts.AcceptsPeerConnection,
+		AcceptsDestinationSession: opts.AcceptsDestinationSession,
+		ArgDefs:                   opts.ArgDefs,
+		Complete:                  opts.Complete,
+		AuditAction:               opts.AuditAction,
 	}
 	d.updateSortedKeys()
 
@@ -1195,6 +1207,27 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// Find the longest matching builtin command prefix, allowing selector
 	// values to appear inline where the YANG arg metadata expects them.
 	matchedCmd, args, selectors, ok := d.matchBuiltinTokens(tokens)
+	if ctx != nil {
+		if ctx.PeerOwner != 0 {
+			if !ok {
+				return nil, errors.New("this command cannot bind an original physical peer; dispatch an explicitly registered physical peer command")
+			}
+			if !matchedCmd.AcceptsPeerConnection {
+				return nil, errors.New("this command does not accept a physical peer constraint; dispatch an explicitly registered physical peer command")
+			}
+		}
+	}
+	if ctx != nil {
+		owner, _ := ctx.Sender.Destination()
+		if owner != 0 {
+			if !ok {
+				return nil, errors.New("command cannot bind an original destination; use a registered destination command")
+			}
+			if !matchedCmd.AcceptsDestinationSession {
+				return nil, errors.New("command does not accept an original destination; use a registered destination command")
+			}
+		}
+	}
 	if ok {
 		// Typed-argument validation runs HERE, ahead of the selector guard,
 		// because the guard needs its answer: matchCommandTokens fills only

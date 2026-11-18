@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"io"
 	"net"
 	"net/netip"
@@ -97,7 +98,7 @@ func atomicAggregatePolicyForwarder(ctx context.Context, args []string) error {
 		if event.BGP.Peer.Name != "source" {
 			return plugin.ReleaseCached(ctx, id)
 		}
-		if err := plugin.ForwardCached(ctx, id, []string{addrLoopbackThird, addrLoopbackFourth}); err != nil {
+		if err := plugin.ForwardCached(ctx, rpc.ForwardCachedInput{IDs: id, Destinations: []string{addrLoopbackThird, addrLoopbackFourth}}); err != nil {
 			return fmt.Errorf("atomic policy forward cached source update %d: %w", id[0], err)
 		}
 		return nil

@@ -7,7 +7,6 @@ package reactor
 import (
 	"context"
 	"errors"
-	"net/netip"
 	"slices"
 	"sync"
 	"time"
@@ -71,7 +70,7 @@ type recoveryOwedKey struct {
 	key      adjOutKey
 	record   *adjOutOwed
 	epoch    uint64
-	excluded []netip.Addr
+	excluded []uint64
 }
 
 // startRecovery MUST be called once per session, before the session publishes
@@ -417,7 +416,7 @@ func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) erro
 	if err := command.Process.DrainEventsApplied(w.ctx); err != nil {
 		return err
 	}
-	request := ribevents.RecoveryRequest{Destination: w.peer.Settings().Address, Family: fam,
+	request := ribevents.RecoveryRequest{Destination: w.peer.Settings().Address, DestinationOwner: w.peer.sourceOwner, Family: fam,
 		Keys: make([]ribevents.RecoveryKey, len(chunk))}
 	for i := range chunk {
 		// The snapshot's excluded set is a copy, so appending to it is safe.

@@ -22,7 +22,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -92,6 +91,13 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		logger().Warn("received structured event dropped", "error", err)
 		return
 	}
+	committed := false
+	valid := true
+	defer func() {
+		if !committed {
+			r.failSourceProcessed(peerAddr, se.PeerOwner, se.ConnectionID)
+		}
+	}()
 	// An UPDATE arrives only in Established, where the peer's AS is always
 	// negotiated. One without it is a Ze defect, and iBGP or eBGP cannot be
 	// decided for its routes, so it is refused rather than stored under AS 0.
@@ -107,17 +113,28 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	wu := msg.WireUpdate
-	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, se.PeerOwner, msg.SourceReceipt)
+	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, se.PeerOwner, msg.SourceReceipt, se.ConnectionID)
 	if err != nil {
 		r.sourceLeases.reportFailures(context.Background())
 		return
 	}
 	defer source.Release()
+	if se.PeerOwner == 0 {
+		return // A passive unrecorded event cannot select a source store.
+	}
 
 	// Get raw attribute bytes directly (no hex encode/decode).
 	var attrBytes []byte
 	if msg.AttrsWire != nil {
 		attrBytes = msg.AttrsWire.Packed()
+	} else {
+		attributes, err := wu.Attrs()
+		if err != nil {
+			return
+		}
+		if attributes != nil {
+			attrBytes = attributes.Packed()
+		}
 	}
 
 	// Wrap the UPDATE wire bytes in a locrib.ForwardHandle so Change
@@ -155,7 +172,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	//
 	// Race with handleStructuredState DOWN: if a DOWN event lands between
 	// here and Phase 3, that handler takes r.peerMu.Lock, calls
-	// peerRIB.Release, and delete(r.bgpPeers, peerAddr). Phase 2 below
+	// peerRIB.Release, and delete(r.bgpPeers, se.PeerOwner). Phase 2 below
 	// keeps writing to the local peerRIB pointer -- those writes land on
 	// an orphan PeerRIB that no future candidate gather sees. Semantics
 	// stay correct because Phase 3's checkBestPathChange still emits
@@ -167,11 +184,17 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		r.peerMu.Unlock()
 		return
 	}
+	if !r.sourceUpdateCurrentLocked(se.PeerOwner, peerAddr, se.ConnectionID) {
+		r.peerMu.Unlock()
+		return
+	}
 	// Compare against the cached peerMetadata on a stack-local candidate so
 	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
 	// skip both the heap alloc AND the map write. Only when the struct
 	// changes do we take the address (triggering the escape).
 	candidate := peerMetadata{
+		ConnectionID:   se.ConnectionID,
+		Address:        peerAddr,
 		PeerASN:        peerAS,
 		LocalASN:       se.LocalAS,
 		RemoteRouterID: se.RemoteRouterID,
@@ -184,26 +207,40 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		// address rather than a wrong one.
 		LocalAddress: parseLocalAddr(se.LocalAddress),
 	}
-	if cur := r.peerMeta[peerAddr]; cur == nil || *cur != candidate {
+	r.copyRefreshSessionLocked(se.PeerOwner, &candidate)
+	if cur := r.peerMeta[se.PeerOwner]; cur != nil {
+		candidate.Session = cur.Session
+		candidate.processedMsgID = r.peerProcessedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
+		candidate.processingFailed = r.peerProcessingFailedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
+		if cur.ConnectionID != 0 {
+			candidate.ConnectionID = cur.ConnectionID
+		}
+	}
+	if cur := r.peerMeta[se.PeerOwner]; cur == nil || *cur != candidate {
 		m := candidate
-		r.peerMeta[peerAddr] = &m
+		r.peerMeta[se.PeerOwner] = &m
 		r.refreshSelfNextHopsLocked()
 	}
-	peerRIB := r.bgpPeers[peerAddr]
+	peerRIB := r.bgpPeers[se.PeerOwner]
 	if peerRIB == nil {
 		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
 		// and metric labels, which must match netip.Addr.String() everywhere.
-		peerRIB = storage.NewPeerRIB(peerAddr.String())
-		r.bgpPeers[peerAddr] = peerRIB
+		peerRIB, err = storage.NewAddressPeerRIB(peerAddr)
+		if err != nil {
+			r.peerMu.Unlock()
+			r.failAdvertise(err)
+			return
+		}
+		r.bgpPeers[se.PeerOwner] = peerRIB
 	}
 	// Noted before the inserts below: events reach this handler one at a
 	// time, so no sent projection runs between here and the inserts, and a
 	// lifecycle removal that fences in between leaves this fresh path alone.
-	r.noteReceivedLocked(peerAddr, msg.MessageID)
+	r.noteReceivedLocked(se.PeerOwner, msg.MessageID)
 	r.peerMu.Unlock()
 	defer func() {
 		r.peerMu.RLock()
-		current := r.bgpPeers[peerAddr] == peerRIB
+		current := r.bgpPeers[se.PeerOwner] == peerRIB
 		r.peerMu.RUnlock()
 		if !current {
 			// A concurrent DOWN may have purged this store before our inserts.
@@ -233,10 +270,16 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 	// Process IPv4 unicast withdrawals (legacy Withdrawn section).
 	wdData, err := wu.Withdrawn()
+	if err != nil {
+		valid = false
+	}
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
 		if nlrisplit.Supported(ipv4Family) {
-			withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, addPath)
+			withdrawns, splitErr := nlrisplit.Split(ipv4Family, wdData, addPath)
+			if splitErr != nil {
+				valid = false
+			}
 			for _, wd := range withdrawns {
 				peerRIB.Remove(ipv4Family, wd)
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wd, addPath: addPath})
@@ -246,6 +289,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 	// Process MP_UNREACH_NLRI withdrawals (multiprotocol families).
 	mpUnreach, err := wu.MPUnreach()
+	if err != nil {
+		valid = false
+	}
 	if err == nil && mpUnreach != nil {
 		fam := mpUnreach.Family()
 		if nlrisplit.Supported(fam) {
@@ -254,7 +300,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				addPath := ctx != nil && ctx.AddPath(fam)
 				// RFC 8277 Section 2.4: a withdrawal frames its label field as
 				// one Compatibility field, so it is split and read as such.
-				withdrawns, _ := nlrisplit.SplitWithdrawn(fam, wdBytes, addPath)
+				withdrawns, splitErr := nlrisplit.SplitWithdrawn(fam, wdBytes, addPath)
+				if splitErr != nil {
+					valid = false
+				}
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wd := range withdrawns {
 					if isLabeled {
@@ -284,6 +333,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	if len(attrBytes) > 0 {
 		var parseErr error
 		parsed, fp, attrLen, parseErr = storage.ParseRouteEntry(attrBytes)
+		if parseErr != nil {
+			valid = false
+		}
 		if parseErr == nil {
 			haveParsed = true
 			parsed.MsgID = msg.MessageID
@@ -297,6 +349,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 	// Process IPv4 unicast announces (legacy NLRI section).
 	nlriData, err := wu.NLRI()
+	if err != nil {
+		valid = false
+	}
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
 		// Record ADD-PATH for the family before the first insert so the FamilyRIB is
@@ -307,7 +362,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			peerRIB.SetAddPath(ipv4Family, true)
 		}
 		if nlrisplit.Supported(ipv4Family) {
-			prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, addPath)
+			prefixes, splitErr := nlrisplit.Split(ipv4Family, nlriData, addPath)
+			if splitErr != nil {
+				valid = false
+			}
 			for _, wirePrefix := range prefixes {
 				if haveParsed {
 					peerRIB.InsertEntry(ipv4Family, parsed, fp, attrLen, wirePrefix)
@@ -328,6 +386,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 	// Process MP_REACH_NLRI announces (multiprotocol families).
 	mpReach, err := wu.MPReach()
+	if err != nil {
+		valid = false
+	}
 	if err == nil && mpReach != nil {
 		fam := mpReach.Family()
 		if !nlrisplit.Supported(fam) {
@@ -342,7 +403,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				if addPath {
 					peerRIB.SetAddPath(fam, true)
 				}
-				prefixes, _ := nlrisplit.Split(fam, nlriBytes, addPath)
+				prefixes, splitErr := nlrisplit.Split(fam, nlriBytes, addPath)
+				if splitErr != nil {
+					valid = false
+				}
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wirePrefix := range prefixes {
 					if isLabeled {
@@ -416,6 +480,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	} else if len(singleChanges) > 0 {
 		publishBestChanges(singleChanges, singleFam)
 	}
+	if valid {
+		committed = true
+		r.noteSourceProcessed(peerAddr, se.PeerOwner, se.ConnectionID, msg.MessageID)
+	}
 }
 
 // handleSentStructured processes sent UPDATE events from wire types.
@@ -434,9 +502,13 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	if se.PeerAddress == "" {
 		return
 	}
-	peerAddr, err := parsePeerAddr(se.PeerAddress)
+	address, err := parsePeerAddr(se.PeerAddress)
 	if err != nil {
 		logger().Warn("sent structured event dropped", "error", err)
+		return
+	}
+	destinationOwner := se.PeerOwner
+	if destinationOwner == 0 {
 		return
 	}
 
@@ -473,9 +545,10 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
+	r.recordSentDestinationLocked(destinationOwner, address)
 
-	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+	if r.ribOut[destinationOwner] == nil {
+		r.ribOut[destinationOwner] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
 
 	// Withdrawals first here too, and for the same reason as the receive path above.
@@ -490,7 +563,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.removeSentNLRIs(peerAddr, ipv4Family, wdData, addPath)
+		r.removeSentNLRIs(destinationOwner, ipv4Family, wdData, addPath)
 	}
 
 	// Process MP_UNREACH_NLRI withdrawals.
@@ -500,7 +573,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.removeSentNLRIs(peerAddr, fam, wdBytes, addPath)
+			r.removeSentNLRIs(destinationOwner, fam, wdBytes, addPath)
 		}
 	}
 
@@ -509,10 +582,10 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		ipv4Ordinal = r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
-			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
+		ipv4Ordinal = r.storeSentEntries(destinationOwner, ipv4Family, nlriData, addPath,
+			ribOutEntry{MsgID: msgID, DestinationSession: se.DestinationSession, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
 				SourcePolicyEpoch: msg.SourcePolicyEpoch,
-				SourceID:          msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
+				SourceID:          msg.SourceID, SourceOwner: sourceOwner, SourceConnectionID: msg.SourceConnectionID, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -526,10 +599,10 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 			if fam == ipv4Family {
 				ordinal = ipv4Ordinal
 			}
-			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath,
-				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
+			r.storeSentEntries(destinationOwner, fam, nlriBytes, addPath,
+				ribOutEntry{MsgID: msgID, DestinationSession: se.DestinationSession, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
 					SourcePolicyEpoch: msg.SourcePolicyEpoch,
-					SourceID:          msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, ordinal)
+					SourceID:          msg.SourceID, SourceOwner: sourceOwner, SourceConnectionID: msg.SourceConnectionID, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, ordinal)
 		}
 	}
 
@@ -544,23 +617,23 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 // passes projectRecoveryWriteLocked. Any other write whose received message a
 // lifecycle removal of its source followed passes projectForwardedWriteLocked.
 // Caller must hold write lock.
-func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
+func (r *RIBManager) storeSentEntries(destinationOwner uint64, fam family.Family, nlriData []byte, addPath bool,
 	entry ribOutEntry, sourcePeer string, replay, recovery bool, sources []wireu.SentPathSource, ordinal uint32) uint32 {
 
 	if replay {
 		return ordinal
 	}
-	followed := !recovery && r.lifecycleFollowedLocked(sourcePeer, entry.SourceMessageID)
+	followed := !recovery && r.lifecycleFollowedLocked(entry.SourceOwner, entry.SourceMessageID)
 	split := nlrisplit.Get(fam)
 	if split == nil {
 		logger().Warn("sent: unsupported NLRI family", "family", fam)
 		return ordinal
 	}
-	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+	if r.ribOut[destinationOwner] == nil {
+		r.ribOut[destinationOwner] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
-	if r.ribOut[peerAddr][fam] == nil {
-		r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
+	if r.ribOut[destinationOwner][fam] == nil {
+		r.ribOut[destinationOwner][fam] = make(map[ribOutKey]ribOutEntry)
 	}
 	sourceIndex := 0
 	_, err := split(nlriData, addPath, func(raw []byte) bool {
@@ -572,7 +645,7 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 			logger().Warn("sent: invalid NLRI key", "family", fam)
 			return true
 		}
-		old, existed := r.ribOut[peerAddr][fam][key]
+		old, existed := r.ribOut[destinationOwner][fam][key]
 		stored.AddPath = addPath
 		stored.SourcePeer = sourcePeer
 		if !key.Prefix.IsValid() {
@@ -588,12 +661,12 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 		if stored.AttrHandle.IsValid() {
 			_ = pool.RibOut.AddRef(stored.AttrHandle)
 		}
-		r.ribOut[peerAddr][fam][key] = stored
+		r.ribOut[destinationOwner][fam][key] = stored
 		if recovery {
-			r.projectRecoveryWriteLocked(peerAddr, fam, key)
+			r.projectRecoveryWriteLocked(destinationOwner, fam, key)
 		}
 		if followed {
-			r.projectForwardedWriteLocked(peerAddr, fam, key)
+			r.projectForwardedWriteLocked(destinationOwner, fam, key)
 		}
 		return true
 	})
@@ -605,8 +678,8 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 
 // removeSentNLRIs walks NLRI bytes and removes ribOutEntry records from ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdData []byte, addPath bool) {
-	familyRoutes := r.ribOut[peerAddr][fam]
+func (r *RIBManager) removeSentNLRIs(destinationOwner uint64, fam family.Family, wdData []byte, addPath bool) {
+	familyRoutes := r.ribOut[destinationOwner][fam]
 	if familyRoutes == nil {
 		return
 	}
@@ -633,10 +706,10 @@ func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdD
 	}
 
 	if len(familyRoutes) == 0 {
-		delete(r.ribOut[peerAddr], fam)
+		delete(r.ribOut[destinationOwner], fam)
 	}
-	if len(r.ribOut[peerAddr]) == 0 {
-		delete(r.ribOut, peerAddr)
+	if len(r.ribOut[destinationOwner]) == 0 {
+		delete(r.ribOut, destinationOwner)
 	}
 }
 
@@ -644,44 +717,18 @@ func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdD
 // RFC 7313: subtype 0 = normal refresh (replay routes), 1 = BoRR marker, 2 = EoRR marker.
 func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
-	if !ok || msg == nil || msg.RawBytes == nil || len(msg.RawBytes) < 4 {
+	if !ok || msg == nil || len(msg.RawBytes) < 4 {
 		return
 	}
-
-	// Route refresh wire: AFI (2) + subtype (1) + SAFI (1) = 4 bytes.
-	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
-	subtype := msg.RawBytes[2]
-	safi := msg.RawBytes[3]
-	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
-
-	if se.PeerAddress == "" {
+	// The captured message retains its wire bytes. Only effective normal
+	// requests belong here; RFC2918-only reserved normalization is upstream.
+	if msg.RawBytes[2] != 0 {
 		return
 	}
-	peerAddr, err := parsePeerAddr(se.PeerAddress)
-	if err != nil {
-		logger().Warn("refresh structured event dropped", "error", err)
-		return
-	}
-
-	// Only subtype 0 (normal refresh) triggers route replay.
-	if subtype != 0 {
-		return
-	}
-
-	r.peerMu.RLock()
-	if !r.peerUp[peerAddr] {
-		r.peerMu.RUnlock()
-		return
-	}
-
-	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
-	r.peerMu.RUnlock()
-
-	// The RPC selector stays the original event string.
-	var tb textbuf.Buffer
-	r.dispatchPeerAction(se.PeerAddress, tb.Str("borr ").Str(fam.String()).String())
-	r.sendRoutes(se.PeerAddress, routesToSend)
-	r.dispatchPeerAction(se.PeerAddress, tb.Reset().Str("eorr ").Str(fam.String()).String())
+	fam := family.Family{AFI: family.AFI(uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])),
+		SAFI: family.SAFI(msg.RawBytes[3])}
+	r.queueSelectedRefresh(se.PeerAddress, se.PeerOwner,
+		se.DestinationSession, se.SelectedDestination, fam)
 }
 
 // insertLabeled handles a single labeled unicast NLRI announce. It strips

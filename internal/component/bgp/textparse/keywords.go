@@ -45,6 +45,8 @@ const (
 	KWSourceReceipt = "source-receipt"
 	// KWPeerOwner identifies the immutable engine Peer incarnation.
 	KWPeerOwner = "peer-owner"
+	// KWConnectionID is immutable physical-session provenance in an event header.
+	KWConnectionID = "connection-id"
 
 	// Action keywords (NLRI-only: MP_REACH vs MP_UNREACH).
 	KWAdd = "add"
@@ -176,6 +178,7 @@ var topLevelKeywords = map[string]bool{
 	KWSourcePolicyEpoch: true,
 	KWSourceReceipt:     true,
 	KWPeerOwner:         true,
+	KWConnectionID:      true,
 }
 
 // isAttributeKeyword returns true if the token is an attribute keyword.

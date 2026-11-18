@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
@@ -123,8 +124,9 @@ type RawRoute struct {
 	// stores PathID 0 that way.
 	HasPathID bool
 
-	ValidationState uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
-	Ineligible      bool  // Retained by validation, excluded from selection and replay.
+	ValidationState       uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+	retainedForValidation bool  // Original GR lifetime, never acceptance.
+	Ineligible            bool  // Retained by validation, excluded from selection and replay.
 
 	// MsgID is the reactor's MessageID of the UPDATE this route arrived in
 	// (reactor.nextMsgID, a process-global monotonic counter stamped on every
@@ -143,6 +145,11 @@ type RawRoute struct {
 	// SourceOwner is the original authenticated Peer, independent of its
 	// address and a replacement Session. Zero is unrecorded provenance.
 	SourceOwner uint64
+	// SourceReceipt is the unchanged receipt carried by the original UPDATE.
+	// Keeping it acquires no engine lease and grants no output permission.
+	SourceReceipt uint64
+	// ConnectionID stays with these original bytes through pending and installed state.
+	ConnectionID uint64
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -151,10 +158,10 @@ type AdjRIBInManager struct {
 	plugin *sdk.Plugin
 
 	// ribIn stores routes received FROM peers.
-	// sourcePeer → seqmap of compactRouteKey → RawRoute
-	// Keyed by netip.Addr: peer strings are parsed once at the event /
-	// command boundary (see parsePeerAddress).
-	ribIn map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]
+	// (original owner, diagnostic address) → native compactRouteKey → RawRoute.
+	// Address selectors aggregate these stores deliberately; they convey no
+	// authority over another owner at the same address.
+	ribIn map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute]
 
 	// peerUp tracks which peers are currently up.
 	peerUp map[netip.Addr]bool
@@ -171,7 +178,7 @@ type AdjRIBInManager struct {
 	// validationEnabled is set by "request bgp adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
 	validationEnabled bool
-	validationPeers   map[netip.Addr]validationPeer
+	validationPeers   map[validationPeerKey]validationPeer
 
 	// validationTimeout is the fail-open timeout for pending routes.
 	// Zero means use defaultValidationTimeout (30s).
@@ -190,6 +197,9 @@ type AdjRIBInManager struct {
 	// mutationMu serializes store mutations through publication and live removal.
 	// Queries take only mu, so subscribers can query during publication.
 	mutationMu sync.Mutex
+	// replayGuard joins self-owned replay snapshots through their actual relay.
+	// It never protects engine I/O with the received-store mutation lock.
+	replayGuard sync.RWMutex
 	// terminal is protected by mu; nil leaves debt settlement to admission,
 	// errReceiveStoreRemoved records successful removal, and every other error
 	// records terminal failure.
@@ -217,10 +227,15 @@ type AdjRIBInManager struct {
 	// pins, and policyDenied the epoch at or below which an applied denial makes
 	// the source's routes ineligible (source_policy.go). Both under mu; both
 	// dropped with the source's routes when its session ends.
-	sourcePolicy map[netip.Addr]*sourcePolicyTxn
-	policyDenied map[netip.Addr]uint64
+	sourcePolicy map[uint64]*sourcePolicyTxn
+	policyDenied map[uint64]uint64
+	// sourceLive holds captured physical facts for established original owners.
+	// It contains current owners only; DOWN removes a row, with no history.
+	sourceLive map[uint64]sourceLive
 
-	mu sync.RWMutex
+	// retentionVerdicts records only attached original UP-to-DOWN lifetimes.
+	retentionVerdicts retention.Ledger
+	mu                sync.RWMutex
 
 	// keyScratch is where routeKeyFromNLRI decodes a route identity, guarded by
 	// mu. A local array escapes through the family's key function, per NLRI.
@@ -407,7 +422,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 
 	r := &AdjRIBInManager{
 		plugin:         p,
-		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
+		ribIn:          make(map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*pendingRoute),
 		earlyDecisions: make(map[compactPendingKey]*earlyDecision),
@@ -459,6 +474,9 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 
 	// Fallback: JSON event handler for non-DirectBridge delivery.
 	p.OnEvent(func(jsonStr string) error {
+		if matched, err := r.handleRetainedValidationEvent(jsonStr); matched {
+			return err
+		}
 		if r.handleGateEvent(jsonStr) {
 			return nil
 		}
@@ -501,6 +519,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	// needs this store's validation gate announced again; enveloped, so
 	// handleGateEvent tells them from the BGP events.
 	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventFlowSpecGate, ribevents.EventGateQuery})
+	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
 	p.SetEnvelope(true)
 	// Once the subscriptions are live, ask the RIB to announce its
 	// flowspec-gate again, in case it announced before this store subscribed.
@@ -574,6 +593,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
+	defer r.noteSourceProcessed(peerAddr, se.PeerOwner, se.ConnectionID, msg.MessageID)
 	wu := msg.WireUpdate
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
@@ -585,9 +605,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		}
 	}
 
+	source := receivedPeerOf(peerAddr, se.PeerOwner, se.ConnectionID)
 	r.mu.Lock()
 	defer r.unlockValidation()
-	r.rememberValidationPeer(peerAddr, validationPeer{
+	defer r.rememberValidationPeer(source, se.ConnectionID, validationPeer{
 		Name: se.PeerName, Group: se.PeerGroup, ASN: se.PeerAS, LocalAS: se.LocalAS,
 	})
 
@@ -606,7 +627,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	if wdData, err := wu.Withdrawn(); err == nil && len(wdData) > 0 {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
-		r.removeStructuredNLRIs(peerAddr, fam, wdData, addPath)
+		r.removeStructuredNLRIs(source, fam, wdData, addPath, se.ConnectionID, msg.MessageID)
 	}
 
 	// MP_UNREACH_NLRI withdrawals.
@@ -616,9 +637,9 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			if isSimplePrefixFamily(fam) {
-				r.removeStructuredNLRIs(peerAddr, fam, wdBytes, addPath)
+				r.removeStructuredNLRIs(source, fam, wdBytes, addPath, se.ConnectionID, msg.MessageID)
 			} else {
-				r.removeComplexNLRIs(peerAddr, fam, wdBytes, addPath)
+				r.removeComplexNLRIs(source, fam, wdBytes, addPath, se.ConnectionID, msg.MessageID)
 			}
 		}
 	}
@@ -628,7 +649,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
+		r.installStructuredNLRIs(source, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
 	}
 
 	// MP_REACH_NLRI announces.
@@ -647,11 +668,11 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			// the link-local next hop it needs (RFC2545-3-1, RFC2545-3-2).
 			nhopHex := hex.EncodeToString(mpReach.NextHopBytes())
 			if isSimplePrefixFamily(fam) {
-				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
+				r.installStructuredNLRIs(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
 			} else {
 				// Every other family: split and key each NLRI with the family's
 				// registered codec (rib_complex.go).
-				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
+				r.installComplexNLRIs(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
 			}
 		}
 	}
@@ -659,7 +680,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner uint64) {
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -674,6 +695,9 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			continue
 		}
 		rk := routeKeyFromWire(fam, pfx, pathID)
+		if !r.receiveCurrentLocked(peerAddr, rk, connectionID, msgID) {
+			continue
+		}
 		// wirePrefix starts AFTER the path identifier: nlri.NLRIIterator.Next
 		// consumes those four octets, so the stored bytes are prefix-only and the
 		// identifier survives in PathID (RFC 7911 Section 3).
@@ -690,6 +714,8 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceOwner:       sourceOwner,
+			SourceReceipt:     sourceReceipt,
+			ConnectionID:      connectionID,
 		}
 
 		if r.validationEnabled && isSimplePrefixFamily(fam) {
@@ -706,6 +732,8 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			if !r.applyEarlyDecision(peerAddr, rk, pr) {
 				pKey := pendingKey(peerAddr, rk)
 				r.pending[pKey] = pr
+				// Pending membership is visible before it becomes eligible.
+				r.noteValidationChange(peerAddr, rk)
 			}
 		} else {
 			if r.ribIn[peerAddr] == nil {
@@ -722,7 +750,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 
 // removeStructuredNLRIs walks simple-prefix wire bytes and removes routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool) {
+func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, connectionID, msgID uint64) {
 	iter := nlri.NewNLRIIterator(data, addPath)
 	for {
 		wirePrefix, pathID, ok := iter.Next()
@@ -734,10 +762,7 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 			continue
 		}
 		rk := routeKeyFromWire(fam, pfx, pathID)
-		r.removePending(peerAddr, rk)
-		if r.ribIn[peerAddr] != nil {
-			r.ribIn[peerAddr].Delete(rk)
-		}
+		r.removeReceivedLocked(peerAddr, rk, connectionID, msgID)
 	}
 }
 
@@ -758,10 +783,19 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 		return
 	}
 
+	if state == rpc.SessionStateDown {
+		if se.Reason == rpc.ReasonPeerRemoved {
+			r.endSourceOwner(se.PeerOwner)
+			return
+		}
+	}
+	r.replayGuard.RLock()
+	defer r.replayGuard.RUnlock()
+
 	isUp := state == rpc.SessionStateUp
 	initialReplay := se.InitialReplay
 
-	if !r.recordPeerState(peerAddr, isUp) {
+	if !r.recordPeerState(peerAddr, isUp, se.PeerOwner, se.ConnectionID) {
 		return
 	}
 
@@ -785,10 +819,10 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 		// No other plugin drives peer-up replay for THIS peer, so nothing else
 		// tracks a cut and nothing else forwards these routes: replay all of them.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
-		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
+		if err := r.relayRoutesTo(rpc.RelayStoredRouteInput{Destination: se.PeerAddress, DestinationOwner: se.PeerOwner, DestinationSession: initialReplay, Routes: routes}); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
 		}
-		if err := r.replayFlowSpecs(peerAddr); err != nil {
+		if err := r.replayFlowSpecsTo(peerAddr, rpc.RelayStoredRouteInput{Destination: se.PeerAddress, DestinationOwner: se.PeerOwner, DestinationSession: initialReplay}); err != nil {
 			logger().Error("FlowSpec peer-up replay failed", "peer", se.PeerAddress, "error", err)
 		}
 	}
@@ -856,6 +890,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		return
 	}
 
+	defer r.noteSourceProcessed(peerAddr, event.PeerOwner, event.ConnectionID, event.GetMsgID())
 	if len(event.FamilyOps) == 0 {
 		return
 	}
@@ -865,9 +900,10 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		return
 	}
 
+	source := receivedPeerOf(peerAddr, event.PeerOwner, event.ConnectionID)
 	r.mu.Lock()
 	defer r.unlockValidation()
-	r.rememberValidationPeer(peerAddr, peer)
+	defer r.rememberValidationPeer(source, event.ConnectionID, peer)
 
 	// The event's own next-hop is an address STRING, so it cannot express the
 	// two-address form RFC 2545 Section 3 defines for an IPv6 next hop. The raw
@@ -878,8 +914,8 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 	for fam, ops := range event.FamilyOps {
 		// Split raw NLRI hex into individual prefixes for simple families.
-		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
-		// and the raw blob is used directly (see switch below).
+		// Native families below use their raw registered splitter instead of
+		// these prefix-only entries.
 		rawNLRIHex := event.GetRawNLRIHex(fam)
 		// RFC 7911 Section 3 prepends four octets to every NLRI when the session
 		// negotiated ADD-PATH for this family, so the split cannot find the prefix
@@ -889,6 +925,28 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		var splitHexEntries []string
 		if rawNLRIHex != "" {
 			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam, addPath)
+		}
+
+		if !isSimplePrefixFamily(fam) {
+			for _, pass := range [...]routeaction.Action{routeaction.Del, routeaction.Add} {
+				for _, op := range ops {
+					if op.Action != pass {
+						continue
+					}
+					if op.Action == routeaction.Del {
+						r.removeComplexNLRIs(source, fam, event.GetRawWithdrawnBytes(fam), addPath, event.ConnectionID, event.GetMsgID())
+						continue
+					}
+					nextHop := nhopToHex(op.NextHop)
+					if mpNhopHex != "" {
+						if mpFam == fam {
+							nextHop = mpNhopHex
+						}
+					}
+					r.installComplexNLRIs(source, fam, event.GetRawNLRIBytes(fam), addPath, event.GetRawAttributesHex(), nextHop, event.GetMsgID(), event.SourcePolicyEpoch, event.PeerOwner, event.ConnectionID, event.SourceReceipt)
+				}
+			}
+			continue
 		}
 
 		// Del before Add, and the order is load-bearing. RFC 4271 Section 4.3 says an
@@ -928,20 +986,17 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						}
 						rk := routeKeyFromStrings(fam, prefix, pathID)
 
-						// Both prefix-only branches store the bare RFC 4271 NLRI and
-						// carry the identifier in PathID; the raw-section branch
-						// stores a whole NLRI section in the source's own framing.
+						if !r.receiveCurrentLocked(source, rk, event.ConnectionID, event.GetMsgID()) {
+							continue
+						}
+
+						// Each simple route stores bare RFC4271 NLRI bytes. ADD-PATH
+						// presence and its identifier remain in their separate fields.
 						var nlriHex string
 						framing := rpc.NLRIFramingPrefixOnly
 						switch {
 						case i < len(splitHexEntries):
 							nlriHex = splitHexEntries[i]
-						case rawNLRIHex != "" && !isSimplePrefixFamily(fam):
-							if i > 0 {
-								continue
-							}
-							nlriHex = rawNLRIHex
-							framing = rpc.NLRIFramingSourceWire
 						default:
 							nlriHex = prefixToWireHex(fam, prefix)
 						}
@@ -957,12 +1012,14 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							MsgID:             event.GetMsgID(),
 							SourcePolicyEpoch: event.SourcePolicyEpoch,
 							SourceOwner:       event.PeerOwner,
+							SourceReceipt:     event.SourceReceipt,
+							ConnectionID:      event.ConnectionID,
 						}
 
 						if r.validationEnabled && isSimplePrefixFamily(fam) {
-							r.removeInstalled(peerAddr, rk)
+							r.removeInstalled(source, rk)
 							pr := &pendingRoute{
-								peerAddr:   peerAddr,
+								peerAddr:   source,
 								family:     fam,
 								prefix:     prefix,
 								routeKey:   rk,
@@ -970,18 +1027,20 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 								receivedAt: time.Now(),
 								state:      ValidationPending,
 							}
-							if !r.applyEarlyDecision(peerAddr, rk, pr) {
-								pKey := pendingKey(peerAddr, rk)
+							if !r.applyEarlyDecision(source, rk, pr) {
+								pKey := pendingKey(source, rk)
 								r.pending[pKey] = pr
+								// Pending membership is visible before it becomes eligible.
+								r.noteValidationChange(source, rk)
 							}
 						} else {
-							if r.ribIn[peerAddr] == nil {
-								r.ribIn[peerAddr] = newSeqMap()
+							if r.ribIn[source] == nil {
+								r.ribIn[source] = newSeqMap()
 							}
 							r.seqCounter++
-							r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+							r.ribIn[source].Put(rk, r.seqCounter, route)
 							if isSimplePrefixFamily(fam) {
-								r.noteValidationChange(peerAddr, rk)
+								r.noteValidationChange(source, rk)
 							}
 						}
 					}
@@ -993,10 +1052,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							continue
 						}
 						rk := routeKeyFromStrings(fam, prefix, pathID)
-						r.removePending(peerAddr, rk)
-						if r.ribIn[peerAddr] != nil {
-							r.ribIn[peerAddr].Delete(rk)
-						}
+						r.removeReceivedLocked(source, rk, event.ConnectionID, event.GetMsgID())
 					}
 				case routeaction.Unspecified, routeaction.Update, routeaction.Withdraw:
 					// The pass guard excludes actions that do not add or delete routes.
@@ -1033,10 +1089,19 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		return
 	}
 
+	if state == stateDown {
+		if event.Reason == rpc.ReasonPeerRemoved {
+			r.endSourceOwner(event.PeerOwner)
+			return
+		}
+	}
+	r.replayGuard.RLock()
+	defer r.replayGuard.RUnlock()
+
 	isUp := state == stateUp
 	initialReplay := event.InitialReplay
 
-	if !r.recordPeerState(peerAddr, isUp) {
+	if !r.recordPeerState(peerAddr, isUp, event.PeerOwner, event.ConnectionID) {
 		return
 	}
 
@@ -1063,10 +1128,10 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		// buildReplayRoutes takes RLock internally; relayRoutes does I/O and
 		// waits on the engine. Both run outside mutationMu and the write lock.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
-		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
+		if err := r.relayRoutesTo(rpc.RelayStoredRouteInput{Destination: event.GetPeerAddress(), DestinationOwner: event.PeerOwner, DestinationSession: initialReplay, Routes: routes}); err != nil {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
-		if err := r.replayFlowSpecs(peerAddr); err != nil {
+		if err := r.replayFlowSpecsTo(peerAddr, rpc.RelayStoredRouteInput{Destination: event.GetPeerAddress(), DestinationOwner: event.PeerOwner, DestinationSession: initialReplay}); err != nil {
 			logger().Error("FlowSpec peer-up replay failed", "peer", event.GetPeerAddress(), "error", err)
 		}
 	}
@@ -1076,20 +1141,16 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 // recordPeerState applies one peer's up or down under the mutation owner and
 // releases it, and answers whether it was admitted. A peer going down loses its
 // installed and pending routes. The caller's replay MUST run after this returns.
-func (r *AdjRIBInManager) recordPeerState(peerAddr netip.Addr, isUp bool) bool {
+func (r *AdjRIBInManager) recordPeerState(peerAddr netip.Addr, isUp bool, owner, connectionID uint64) bool {
 	if err := r.admitMutation(false); err != nil {
 		return false
 	}
 	defer r.mutationMu.Unlock()
 
 	r.mu.Lock()
-	r.peerUp[peerAddr] = isUp
-	if !isUp {
-		r.removePeerInstalled(peerAddr)
-		r.clearPeerPending(peerAddr)
-	}
+	admitted := r.recordSourceStateLocked(peerAddr, isUp, owner, connectionID)
 	r.unlockValidation()
-	return true
+	return admitted
 }
 
 // noteIngested advances the ingest position to msgID if it is newer.
@@ -1167,10 +1228,10 @@ func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint
 	defer r.mu.RUnlock()
 
 	for sourcePeer, routes := range r.ribIn {
-		if sourcePeer == targetPeer {
+		if sourcePeer.address == targetPeer {
 			continue // Don't replay a peer's own routes back to it.
 		}
-		sourceStr := sourcePeer.String()
+		sourceStr := sourcePeer.address.String()
 		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
 			// FlowSpec snapshots come only from the mandatory selecting RIB.
 			// Its authorization and stored attributes are authoritative even
@@ -1182,7 +1243,7 @@ func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint
 				return true
 			}
 			// RFC 8212 Section 3: an applied import denial excludes the route.
-			if r.sourcePolicyDeniedLocked(sourcePeer, rt.SourcePolicyEpoch) {
+			if r.sourcePolicyDeniedLocked(rt.SourceOwner, rt.SourcePolicyEpoch) {
 				return true
 			}
 			if seq <= fromIndex {
@@ -1210,6 +1271,7 @@ func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint
 func replayStoredRoute(source string, rt *RawRoute) rpc.StoredRoute {
 	return rpc.StoredRoute{
 		SourcePeer:  source,
+		SourceOwner: rt.SourceOwner, SourceReceipt: rt.SourceReceipt, SourceConnectionID: rt.ConnectionID,
 		Family:      rt.Family.String(),
 		AttrHex:     rt.AttrHex,
 		NextHopHex:  rt.NHopHex,
@@ -1240,6 +1302,13 @@ func replayStoredRoute(source string, rt *RawRoute) rpc.StoredRoute {
 // at ERROR instead of WARN-and-continue, and skip the delta-convergence loop
 // that would otherwise run against a replay that never happened.
 func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRoute) error {
+	return r.relayRoutesTo(rpc.RelayStoredRouteInput{Destination: destination, Routes: routes})
+}
+
+// relayRoutesTo shares chunking with explicit unbound operator replay while
+// automatic peer-up replay carries the exact original target from its UP.
+func (r *AdjRIBInManager) relayRoutesTo(input rpc.RelayStoredRouteInput) error {
+	destination, routes := input.Destination, input.Routes
 	if len(routes) == 0 {
 		return nil
 	}
@@ -1247,7 +1316,9 @@ func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRou
 	defer cancel()
 	for start := 0; start < len(routes); {
 		end := relayChunkEnd(routes, start, relayChunkBudget)
-		if err := r.relayChunk(ctx, destination, routes[start:end]); err != nil {
+		chunk := input
+		chunk.Routes = routes[start:end]
+		if err := r.relayChunk(ctx, chunk); err != nil {
 			logger().Warn("relay-stored-route failed",
 				"peer", destination, "routes", len(routes),
 				"chunk-start", start, "chunk-routes", end-start, "error", err)
@@ -1261,9 +1332,9 @@ func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRou
 // relayChunk sends one chunk to the engine, or to the test seam when one is
 // installed. The seam sits here rather than around the whole walk so a test sees
 // the chunks the engine sees.
-func (r *AdjRIBInManager) relayChunk(ctx context.Context, destination string, chunk []rpc.StoredRoute) error {
+func (r *AdjRIBInManager) relayChunk(ctx context.Context, input rpc.RelayStoredRouteInput) error {
 	if r.routeRelayer != nil {
-		return r.routeRelayer(destination, chunk)
+		return r.routeRelayer(input.Destination, input.Routes)
 	}
-	return r.plugin.RelayStoredRoute(ctx, destination, chunk)
+	return r.plugin.RelayStoredRoute(ctx, input)
 }

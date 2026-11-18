@@ -187,6 +187,32 @@ func addressFact(facts func(s *Session) (*filterapi.PeerFilterInfo, bool)) func(
 	}
 }
 
+// answerPeerOwner reports only the runtime identity the reactor supplied.
+// Configuration-only facts have no owner, and MUST remain absent on the wire.
+func answerPeerOwner(s *Session) Value {
+	p, known := s.peerFacts()
+	if !known {
+		return Value{}
+	}
+	if p.PeerOwner == 0 {
+		return Value{}
+	}
+	return Value{present: true, number: p.PeerOwner, numbered: true}
+}
+
+// answerConnectionID reads the captured runtime Session, never an AS/address
+// inference or a configuration insertion fact.
+func answerConnectionID(s *Session) Value {
+	p, known := s.peerFacts()
+	if !known {
+		return Value{}
+	}
+	if p.ConnectionID == 0 {
+		return Value{}
+	}
+	return Value{present: true, number: p.ConnectionID, numbered: true}
+}
+
 // asFact answers an AS number fact. Zero is not an AS a session runs with
 // (RFC 7607 Section 2: "AS 0 MUST NOT be configured"), so a zero answers
 // absent: the reactor fills no AS for that session.

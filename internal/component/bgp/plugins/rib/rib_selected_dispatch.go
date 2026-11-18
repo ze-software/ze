@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -26,10 +27,12 @@ import (
 type scopedRevision uint64
 
 type selectedScopedRoute struct {
-	wire    rpc.SelectedRoute
-	steady  selectedItemBudget
-	initial selectedItemBudget
-	absence selectedItemBudget
+	preference locrib.PreferenceSource
+	order      uint64
+	wire       rpc.SelectedRoute
+	steady     selectedItemBudget
+	initial    selectedItemBudget
+	absence    selectedItemBudget
 }
 
 // selectedAcknowledgment contains no route payload. possible includes both a
@@ -43,6 +46,17 @@ type selectedAcknowledgment struct {
 	uncertain bool
 	family    string
 	absence   selectedItemBudget
+	failure   *selectedWriteFailure
+}
+
+// selectedWriteFailure is one completed failed attempt of a current output
+// key. Only the worker's failed-call/validated-stale branches construct it.
+// Nil means no failed attempt; successful receipts replace the acknowledgment
+// and release it. It retains no route payload or historical revision list.
+type selectedWriteFailure struct {
+	revision scopedRevision
+	kind     rpc.SelectedRouteKind
+	cause    error
 }
 
 // selectedDestinationID includes the engine's captured Session token. Two
@@ -64,23 +78,31 @@ type selectedDispatchItem struct {
 // is uninitialized. The dispatch mutex protects all fields except its channels
 // and immutable lifetime/identity. One worker owns each RPC through settlement.
 type selectedDestination struct {
-	peer           netip.Addr
-	address        string
-	session        uint64
-	ctx            context.Context
-	cancel         context.CancelFunc
-	done           chan struct{}
-	wake           chan struct{}
-	acknowledged   map[advertiseKey]selectedAcknowledgment
-	pending        map[advertiseKey]struct{}
-	inFlight       []selectedDispatchItem
-	ready          bool
-	reofferLearned bool
-	failure        error
-	envelope       selectedItemBudget
+	owner           uint64
+	cancelBatch     context.CancelFunc
+	batchContext    context.Context
+	batchDone       chan struct{}
+	peer            netip.Addr
+	address         string
+	session         uint64
+	ctx             context.Context
+	cancel          context.CancelFunc
+	done            chan struct{}
+	wake            chan struct{}
+	acknowledged    map[advertiseKey]selectedAcknowledgment
+	pending         map[advertiseKey]struct{}
+	inFlight        []selectedDispatchItem
+	ready           bool
+	reofferLearned  bool
+	failure         error
+	envelope        selectedItemBudget
+	refreshFamilies map[family.Family]struct{}
+	refreshPending  map[family.Family]uint64
+	refreshOrder    []family.Family
+	refreshActive   *selectedRefreshRun
 }
 
-// selectedDispatch holds only current desired selections and the output
+// selectedDispatch holds current admitted origins, desired selections and output
 // identities each current destination may still own. It never stores global
 // withdrawn history. Nil means ordinary dispatch has not been started.
 //
@@ -92,9 +114,14 @@ type selectedDispatch struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	send         rpc.SelectRoutesHandler
+	refresh      selectedRefreshSender
 	ready        func(context.Context, string, uint64) error
 	reporter     *selectedReporter
 	current      map[advertiseKey]*selectedScopedRoute
+	origins      map[advertiseKey]map[originIdentity]map[originScope]*originContribution
+	scoped       map[originScope]map[advertiseKey]originScopedWinner
+	distances    map[string]uint8
+	admission    uint64
 	destinations map[selectedDestinationID]*selectedDestination
 	cut          scopedRevision
 	changed      chan struct{}
@@ -111,7 +138,9 @@ func newSelectedDispatch(parent context.Context, send rpc.SelectRoutesHandler, r
 	}
 	ctx, cancel := context.WithCancel(parent)
 	d := &selectedDispatch{ctx: ctx, cancel: cancel, send: send, ready: ready,
-		current:      make(map[advertiseKey]*selectedScopedRoute),
+		current: make(map[advertiseKey]*selectedScopedRoute),
+		origins: make(map[advertiseKey]map[originIdentity]map[originScope]*originContribution),
+		scoped:  make(map[originScope]map[advertiseKey]originScopedWinner), distances: originDefaultDistances(),
 		destinations: make(map[selectedDestinationID]*selectedDestination), changed: make(chan struct{})}
 	if report != nil {
 		d.reporter = newSelectedReporter(d, report)
@@ -157,10 +186,28 @@ func (d *selectedDispatch) publish(capture *advertiseRoute) error {
 	if err := d.advanceLocked(); err != nil {
 		return err
 	}
+	current.preference = locrib.PreferenceSource{Protocol: "ibgp", Metric: capture.metric}
+	if capture.isEBGP {
+		current.preference.Protocol = "ebgp"
+	}
+	if previous := d.current[capture.key]; previous != nil {
+		current.order = previous.order
+	} else {
+		if d.admission == math.MaxUint64 {
+			return errors.New("selected admission order exhausted; restart the deciding process")
+		}
+		d.admission++
+		current.order = d.admission
+	}
 	current.wire.Revision = uint64(d.cut)
 	d.current[capture.key] = current
+	for scope := range d.originScopesLocked(capture.key) {
+		if err := d.reelectOriginLocked(scope, capture.key, false); err != nil {
+			return err
+		}
+	}
 	for _, destination := range d.destinations {
-		destination.pending[capture.key] = struct{}{}
+		d.queueSelectedKeyLocked(destination, capture.key)
 	}
 	d.signalLocked()
 	return nil
@@ -191,18 +238,13 @@ func (d *selectedDispatch) remove(key advertiseKey) error {
 		return err
 	}
 	delete(d.current, key)
+	for scope := range d.originScopesLocked(key) {
+		if err := d.reelectOriginLocked(scope, key, false); err != nil {
+			return err
+		}
+	}
 	for _, destination := range d.destinations {
-		ack, exists := destination.acknowledged[key]
-		if !exists {
-			delete(destination.pending, key)
-			continue
-		}
-		if !ack.possible {
-			delete(destination.acknowledged, key)
-			delete(destination.pending, key)
-			continue
-		}
-		destination.pending[key] = struct{}{}
+		d.queueSelectedKeyLocked(destination, key)
 	}
 	d.signalLocked()
 	return nil
@@ -237,8 +279,13 @@ func (d *selectedDispatch) renewSource(receipts []uint64) error {
 		next := *current
 		next.wire.Revision = uint64(d.cut)
 		d.current[key] = &next
+		for scope := range d.originScopesLocked(key) {
+			if err := d.reelectOriginLocked(scope, key, false); err != nil {
+				return err
+			}
+		}
 		for _, destination := range d.destinations {
-			destination.pending[key] = struct{}{}
+			d.queueSelectedKeyLocked(destination, key)
 		}
 	}
 	d.signalLocked()
@@ -281,7 +328,10 @@ func (d *selectedDispatch) signalLocked() {
 
 // destinationUp is called only from the authenticated exact destination-owner
 // projection. An UP received through source/state grants alone is insufficient.
-func (d *selectedDispatch) destinationUp(peer netip.Addr, session uint64) error {
+func (d *selectedDispatch) destinationOwnerUp(peer netip.Addr, owner, session uint64) error {
+	if owner == 0 {
+		return errors.New("selected destination has no original Peer owner; preserve its authenticated state event")
+	}
 	if !peer.IsValid() {
 		return errors.New("selected destination has no peer address; use its authenticated state event")
 	}
@@ -289,6 +339,7 @@ func (d *selectedDispatch) destinationUp(peer netip.Addr, session uint64) error 
 		return errors.New("selected destination has no Session token; use its authenticated UP receipt")
 	}
 	address := peer.String()
+	refreshFamilies := selectedRefreshFamilies()
 	envelope, err := selectedEnvelopeSize(rpc.SelectRoutesInput{Destination: address, DestinationSession: session})
 	if err != nil {
 		return err
@@ -299,14 +350,20 @@ func (d *selectedDispatch) destinationUp(peer netip.Addr, session uint64) error 
 		return errors.New("selected dispatcher has stopped; start a new deciding process")
 	}
 	id := selectedDestinationID{peer: peer, session: session}
-	if d.destinations[id] != nil {
+	if previous := d.destinations[id]; previous != nil {
+		if previous.owner != owner {
+			return errors.New("selected destination Session has another original Peer owner; preserve its authenticated owner")
+		}
 		return nil
 	}
 	ctx, cancel := context.WithCancel(d.ctx)
-	destination := &selectedDestination{peer: peer, address: address, session: session, envelope: envelope,
+	destination := &selectedDestination{owner: owner, peer: peer, address: address, session: session, envelope: envelope, refreshFamilies: refreshFamilies,
 		ctx: ctx, cancel: cancel, done: make(chan struct{}), wake: make(chan struct{}, 1),
 		acknowledged: make(map[advertiseKey]selectedAcknowledgment), pending: make(map[advertiseKey]struct{}, len(d.current))}
 	for key := range d.current {
+		destination.pending[key] = struct{}{}
+	}
+	for key := range d.scoped[originScope{peer: peer, owner: owner}] {
 		destination.pending[key] = struct{}{}
 	}
 	d.destinations[id] = destination
@@ -391,12 +448,32 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 			if destination.reofferLearned {
 				// Consume only after any predecessor request completed. Its
 				// suppressed receipt cannot erase this newer policy request.
-				for key, current := range d.current {
+				for key := range d.current {
+					// A common learned key may elect a local origin only in
+					// this scope. Policy reoffer MUST preserve that local output.
+					current := d.currentForLocked(destination, key)
 					if current.wire.Kind == rpc.SelectedRouteReceived {
 						destination.pending[key] = struct{}{}
 					}
 				}
 				destination.reofferLearned = false
+			}
+			if d.refreshQueuedLocked(destination) {
+				refresh := d.startRefreshLocked(destination)
+				d.mu.Unlock()
+				err := d.refreshStep(destination, refresh)
+				d.mu.Lock()
+				destination.failure = err
+				d.signalChangeLocked()
+				d.signalReportLocked()
+				d.mu.Unlock()
+				if destination.ctx.Err() != nil {
+					return
+				}
+				if err != nil && !selectedDispatchRetry(destination) {
+					return
+				}
+				continue
 			}
 			batch, items, buildError := d.batchLocked(destination)
 			if len(items) == 0 {
@@ -418,51 +495,13 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 						}
 						continue
 					}
+					continue
 				}
 				break
 			}
-			destination.inFlight = items
-			for i := range items {
-				item := &items[i]
-				if item.route.Kind == rpc.SelectedRouteAbsent {
-					continue
-				}
-				previous := destination.acknowledged[item.key]
-				if !previous.possible {
-					previous.native, previous.source, previous.possible = item.route.KeyNLRI, item.source, true
-					previous.family, previous.absence = item.route.Family, item.absence
-				}
-				destination.acknowledged[item.key] = previous
-			}
+			d.admitBatchLocked(destination, items)
 			d.mu.Unlock()
-
-			output, err := d.send(destination.ctx, batch)
-			if err == nil {
-				err = output.Validate(batch)
-			}
-			recordSelectedBatch(err)
-			d.mu.Lock()
-			destination.inFlight = nil
-			if destination.ctx.Err() != nil {
-				d.mu.Unlock()
-				return
-			}
-			if err == nil {
-				err = d.completeLocked(destination, items, output)
-			} else {
-				// A multi-key request may have written a prefix before its
-				// final answer failed. Retain one uncertainty bit, not a
-				// history of all attempted source receipts or route bodies.
-				for i := range items {
-					ack := destination.acknowledged[items[i].key]
-					ack.uncertain = true
-					destination.acknowledged[items[i].key] = ack
-				}
-			}
-			destination.failure = err
-			d.signalChangeLocked()
-			d.signalReportLocked()
-			d.mu.Unlock()
+			err := d.sendBatch(destination, batch, items)
 			if err == nil {
 				continue
 			}
@@ -525,21 +564,24 @@ func (d *selectedDispatch) completeLocked(destination *selectedDestination, item
 			destination.acknowledged[item.key] = selectedAcknowledgment{revision: scopedRevision(item.route.Revision),
 				native: item.route.KeyNLRI, source: item.source, possible: true, family: item.route.Family, absence: item.absence}
 		case rpc.SelectedSuppressed, rpc.SelectedAbsent:
-			if _, current := d.current[item.key]; current {
+			if d.currentForLocked(destination, item.key) != nil {
 				destination.acknowledged[item.key] = selectedAcknowledgment{revision: scopedRevision(item.route.Revision),
 					native: item.route.KeyNLRI, source: item.source, family: item.route.Family, absence: item.absence}
 			} else {
 				delete(destination.acknowledged, item.key)
 			}
 		case rpc.SelectedStaleRevision:
-			// No success projection: reconcile the current desired revision.
-			refused = errors.Join(refused, errors.New("selected writer reports a newer revision; reconcile the current destination selection"))
+			cause := errors.New("selected writer reports a newer revision; reconcile the current destination selection")
+			ack := destination.acknowledged[item.key]
+			ack.failure = &selectedWriteFailure{revision: scopedRevision(item.route.Revision), kind: item.route.Kind, cause: cause}
+			destination.acknowledged[item.key] = ack
+			refused = errors.Join(refused, cause)
 		case rpc.SelectedOutcomeUnspecified:
 			panic("BUG: validated selected outcome is unspecified")
 		default:
 			panic("BUG: validated selected outcome is unknown")
 		}
-		if current := d.current[item.key]; current != nil {
+		if current := d.currentForLocked(destination, item.key); current != nil {
 			if destination.acknowledged[item.key].revision == scopedRevision(current.wire.Revision) {
 				delete(destination.pending, item.key)
 			}
@@ -565,35 +607,7 @@ func (d *selectedDispatch) batchLocked(destination *selectedDestination) (rpc.Se
 // pendingItemsLocked borrows current captures only during batch construction.
 // The receiver MUST hold d.mu through iteration and MUST NOT retain the iterator.
 func (d *selectedDispatch) pendingItemsLocked(destination *selectedDestination) iter.Seq[selectedDispatchItem] {
-	return func(yield func(selectedDispatchItem) bool) {
-		for key := range destination.pending {
-			if current := d.current[key]; current != nil {
-				route := current.wire
-				stored := *route.Route
-				stored.InitialUpdate = !destination.ready
-				route.Route = &stored
-				budget := current.steady
-				if !destination.ready {
-					budget = current.initial
-				}
-				if !yield(selectedDispatchItem{key: key, route: route, source: route.SourceReceipt, budget: budget, absence: current.absence}) {
-					return
-				}
-				continue
-			}
-			ack := destination.acknowledged[key]
-			if !ack.possible {
-				delete(destination.acknowledged, key)
-				delete(destination.pending, key)
-				continue
-			}
-			if !yield(selectedDispatchItem{key: key, source: ack.source, budget: ack.absence, absence: ack.absence,
-				route: rpc.SelectedRoute{Kind: rpc.SelectedRouteAbsent, Family: ack.family,
-					KeyNLRI: ack.native, Revision: uint64(d.cut)}}) {
-				return
-			}
-		}
-	}
+	return d.itemsForKeysLocked(destination, destination.pending)
 }
 
 func selectedDispatchKey(name string, raw []byte) (advertiseKey, error) {
@@ -655,7 +669,7 @@ func (d *selectedDispatch) currentSelection(ctx context.Context, input rpc.Curre
 		requested := input.Keys[i]
 		result := rpc.CurrentSelectionResult{Family: requested.Family, KeyNLRI: append([]byte(nil), requested.KeyNLRI...),
 			Revision: requested.Revision, Presence: rpc.CurrentSelectionAbsent}
-		if current := d.current[key]; current != nil {
+		if current := d.currentForLocked(destination, key); current != nil {
 			result.Presence, result.CurrentRevision = rpc.CurrentSelectionPresent, current.wire.Revision
 		}
 		output.Results[i] = result

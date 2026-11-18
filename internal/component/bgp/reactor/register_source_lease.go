@@ -97,16 +97,26 @@ func sourceLeaseCleanup(proc *process.Process) {
 func completeSourceLeaseRemoval(peers ...*Peer) {
 	ctx, cancel := context.WithTimeout(context.Background(), rpc.CancellableRequestTimeout+rpc.RequestCancelTimeout)
 	err := sourceReceipts.revokePeers(ctx, peers...)
+	for _, peer := range peers {
+		if joinErr := peer.joinSentObservations(ctx); joinErr != nil && err == nil {
+			err = joinErr
+		}
+	}
 	cancel()
 	if err == nil {
 		return
 	}
-	message := report.FitMessage("Removed BGP sources have revoked authority, but final selected writes missed their join deadline: " + err.Error())
+	message := report.FitMessage("Removed BGP peers have revoked authority, but final writes or SENT publications missed their join deadline: " + err.Error())
 	report.RaiseErrorFix(reportSourceBGP, codeSourceLeaseCleanup, "source-removal", message, "ze request restart")
 	peerLogger().Error(message, "code", codeSourceLeaseCleanup, "fix", "ze request restart")
 	// All rights were revoked before the timed wait. The caller has no error
 	// channel and MUST keep its barrier closed until their final cleanup ends.
 	if err := sourceReceipts.revokePeers(context.Background(), peers...); err != nil {
 		panic("BUG: noncancelable source removal join failed: " + err.Error())
+	}
+	for _, peer := range peers {
+		if err := peer.joinSentObservations(context.Background()); err != nil {
+			panic("BUG: noncancelable SENT publication join failed: " + err.Error())
+		}
 	}
 }

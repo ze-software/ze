@@ -13,9 +13,10 @@ import (
 // EligibilityQuery is one question to the receive gate: RouteEligible for the
 // route and msgID, or RoutePresent for the route when Present is set.
 type EligibilityQuery struct {
-	Route   ValidationRoute `json:"route"`
-	MsgID   uint64          `json:"msg-id,omitempty"`
-	Present bool            `json:"present,omitempty"`
+	AfterMsgID uint64          `json:"after-msg-id,omitempty"`
+	Route      ValidationRoute `json:"route"`
+	MsgID      uint64          `json:"msg-id,omitempty"`
+	Present    bool            `json:"present,omitempty"`
 }
 
 // EligibilityRequest is the one argument of the gate owner's eligibility
@@ -27,7 +28,8 @@ type EligibilityRequest struct {
 // EligibilityAnswer is the data the eligibility command answers: one answer
 // per query, in query order.
 type EligibilityAnswer struct {
-	Answers []bool `json:"answers"`
+	Pending bool   `json:"pending,omitempty"`
+	Answers []bool `json:"answers,omitempty"`
 }
 
 // EligibilityBatchMax bounds the queries one eligibility command carries. A
@@ -64,7 +66,7 @@ func RegisterGateDispatch(fn GateDispatch) (release func()) {
 // remoteValidation is the provider of a process that does not hold the gate's
 // lookup while its owner, in another process, serves command.
 func remoteValidation(command string) *validationProvider {
-	provider := &validationProvider{announced: true}
+	provider := &validationProvider{announced: true, command: command}
 	provider.batch = func(queries []EligibilityQuery, answers []bool) {
 		askGateOwner(command, queries, answers)
 	}
@@ -126,6 +128,9 @@ func askGateChunk(dispatch GateDispatch, command string, queries []EligibilityQu
 	if err := json.Unmarshal(data, &answer); err != nil {
 		return err
 	}
+	if answer.Pending {
+		return errors.New("eligibility original source has not finished its required UPDATEs; retry the current query within its request context")
+	}
 	if len(answer.Answers) != len(queries) {
 		return errors.New("the eligibility command answered a different number of verdicts than it was asked")
 	}
@@ -150,7 +155,11 @@ func logRemoteRefusal(command string, err error) {
 // AnswerEligibility is the gate owner's side of the eligibility command: it
 // decodes request (one EligibilityRequest), answers each query from the
 // owner's own lookup, and refuses a request above EligibilityBatchMax.
-func AnswerEligibility(request string, eligible ValidationLookup, present func(ValidationRoute) bool) (EligibilityAnswer, error) {
+// EligibilityProgress reads only the original source's committed processing
+// position. False means known lag; an error means the original is unknown.
+type EligibilityProgress func(ValidationRoute, uint64) (bool, error)
+
+func AnswerEligibility(request string, eligible ValidationLookup, present func(ValidationRoute) bool, progress EligibilityProgress) (EligibilityAnswer, error) {
 	var input EligibilityRequest
 	if err := json.Unmarshal([]byte(request), &input); err != nil {
 		return EligibilityAnswer{}, err
@@ -158,8 +167,79 @@ func AnswerEligibility(request string, eligible ValidationLookup, present func(V
 	if len(input.Queries) > EligibilityBatchMax {
 		return EligibilityAnswer{}, errors.New("eligibility request carries more queries than EligibilityBatchMax")
 	}
+	pending := false
+	for _, query := range input.Queries {
+		if query.AfterMsgID == 0 {
+			continue
+		}
+		if query.Route.PeerOwner == 0 {
+			return EligibilityAnswer{}, errors.New("eligibility minimum has no original peer owner; preserve the received source identity")
+		}
+		if query.Route.ConnectionID == 0 {
+			return EligibilityAnswer{}, errors.New("eligibility minimum has no original physical connection; preserve the received source identity")
+		}
+		if progress == nil {
+			return EligibilityAnswer{}, errors.New("eligibility provider has no original source processing position; do not infer catch-up from a global message maximum")
+		}
+		current, err := progress(query.Route, query.AfterMsgID)
+		if err != nil {
+			return EligibilityAnswer{}, err
+		}
+		pending = pending || !current
+	}
+	if pending {
+		return EligibilityAnswer{Pending: true}, nil
+	}
 	provider := validationProvider{eligible: eligible, present: present}
 	answer := EligibilityAnswer{Answers: make([]bool, len(input.Queries))}
 	provider.answerEach(input.Queries, answer.Answers)
+	return answer, nil
+}
+
+// LookupEligibilityRequest carries an original-source cold-read floor through
+// the actual local provider or its announced framed command. Pending remains
+// unanswered and the caller owns retries within its existing finite context.
+func LookupEligibilityRequest(ctx context.Context, input EligibilityRequest) (EligibilityAnswer, error) {
+	if err := ctx.Err(); err != nil {
+		return EligibilityAnswer{}, err
+	}
+	provider := validationLookup.Load()
+	if provider == nil {
+		return EligibilityAnswer{}, errors.New("this process holds no receive validation lookup; start its owner before replay")
+	}
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return EligibilityAnswer{}, err
+	}
+	if !provider.announced {
+		return AnswerEligibility(string(raw), provider.eligible, provider.present, provider.progress)
+	}
+	if provider.command == "" {
+		return EligibilityAnswer{}, errors.New("receive validation owner has no command; restore its announced eligibility command before replay")
+	}
+	dispatch := gateDispatch.Load()
+	if dispatch == nil {
+		return EligibilityAnswer{}, errors.New("this process registered no route to the eligibility command")
+	}
+	status, data, err := (*dispatch)(ctx, provider.command, string(raw))
+	if err != nil {
+		return EligibilityAnswer{}, err
+	}
+	if status != gateStatusDone {
+		return EligibilityAnswer{}, errors.New("eligibility command did not complete; inspect its owning plugin before replay")
+	}
+	var answer EligibilityAnswer
+	if err := json.Unmarshal(data, &answer); err != nil {
+		return EligibilityAnswer{}, err
+	}
+	if answer.Pending {
+		if len(answer.Answers) != 0 {
+			return EligibilityAnswer{}, errors.New("pending eligibility answer carries verdicts; retry the complete original-source request")
+		}
+		return answer, nil
+	}
+	if len(answer.Answers) != len(input.Queries) {
+		return EligibilityAnswer{}, errors.New("eligibility command returned an incomplete answer; retry its whole request")
+	}
 	return answer, nil
 }

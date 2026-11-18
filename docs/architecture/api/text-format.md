@@ -133,7 +133,12 @@ Shared keyword constants defined in `textparse/keywords.go`. The alias `e-com` i
 
 ### NLRI String Formats
 
-Each NLRI type plugin implements `String()`, which produces the text appended after the `nlri` keyword. Every row below is read from the method its Source column names.
+Each NLRI type implements `String()` for display. The table below describes
+those display strings, read from the named methods. Native UPDATE events use
+`appendTextFamilyNLRIs` instead: plain INET routes keep compact prefixes,
+ADD-PATH identifiers use the section's `info` pair, and complex routes use
+`raw <hex>` for one native payload without its Path Identifier.
+<!-- source: internal/component/bgp/format/text_human.go -- appendTextFamilyNLRIs, appendTextNativeNLRI -->
 
 | Type | Format | Optional Fields | Source |
 |------|--------|-----------------|--------|
@@ -167,7 +172,13 @@ A field name is followed by a space and then its value. No `set` keyword sits be
 A label stack of more than one label prints as a comma-separated list, `label 1000,2000`. VPN and labeled unicast carry RFC 3032 Section 2.1 stack entries. EVPN Type 2 carries one or two label fields; Type 5 carries exactly one. `String()` prints the 20-bit label of each entry through `nlri.LabelValue`. The traffic class and bottom-of-stack bits are kept on the wire and are not printed. EVPN Type 1 carries exactly one three-octet label field, including the zero value required for per-ES routes; its received low bits are preserved without requiring a bottom-of-stack bit.
 <!-- source: internal/core/bgp/nlri/rd.go -- LabelValue -->
 
-`path-id <id>` is printed by VPN and labeled unicast, and only when the NLRI carries a Path Identifier. RFC 7911 Section 3 gives the field four octets and reserves no value, so zero is an identifier like any other: the types record a presence flag (`VPN.HasPathID`, `LabeledUnicast.HasPathID`) set by `parseVPNAnnounce` from the ADD-PATH negotiation, or by the caller of the constructor, and the clause follows that flag rather than a test on the value. `INET.String` prints the prefix alone, so an IPv4 or IPv6 unicast NLRI reads the same whether or not ADD-PATH was negotiated.
+`path-id <id>` appears in VPN and labeled-unicast display strings only when
+the NLRI carries a Path Identifier. RFC 7911 Section 3 gives the field four
+octets and reserves no value, so zero is an identifier like any other. The
+types record presence independently of the identifier's value. `INET.String`
+prints the prefix alone; native UPDATE events preserve an INET route's
+identifier in `nlri <family> info <id> add|del <prefix>`, including zero.
+<!-- source: internal/component/bgp/format/text_human.go -- appendTextFamilyNLRIs -->
 <!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 
 MVPN prints a route type name from RFC 6514 Section 4, such as `source-active` or `shared-tree-join`, and `type(<N>)` for a route type it does not name. It adds `rd <rd>` whenever the route body was long enough to hold a Route Distinguisher and that Route Distinguisher parsed. Route types 1 to 4 keep their body as octets, and ze still reads the Route Distinguisher at the front of it.
@@ -282,8 +293,11 @@ The unified text protocol work already landed the pieces used by the current for
 
 ### Still Proposed: Complex NLRI Dict Mode
 
-Complex NLRIs are still emitted from each NLRI type's `String()` method. Those strings can contain type-specific sub-fields and `set` tokens. The route-server event parser keeps them as opaque NLRI strings for forwarding.
-<!-- source: internal/component/bgp/format/text_human.go -- appendNLRIList -->
+Complex NLRIs in native UPDATE events use `raw <hex>` for one payload, with
+the negotiated Path Identifier held separately in `info`. The route-server
+event parser uses the registered family framer and key function to retain that
+identity. Display strings are not retained route keys.
+<!-- source: internal/component/bgp/format/text_human.go -- appendTextFamilyNLRIs, appendTextNativeNLRI -->
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- buildNLRIEntries, parseTextNLRIOps -->
 
 Dict mode remains proposed for any future parser that needs to understand complex NLRI sub-fields. Such a parser would need a family-specific sub-key table and would read sub-key-value pairs after `nlri <family> add|del` until the next top-level keyword.

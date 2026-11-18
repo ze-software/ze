@@ -45,6 +45,9 @@ type nlriRecords struct {
 	records           []nlriRecord
 	scratch           [nlrisplit.PrefixKeyScratchSize]byte
 	sourcePolicyEpoch uint64
+	sourceReceipt     uint64
+	sourceConnection  uint64
+	sourceOwner       uint64
 }
 
 // nlriRecordPool amortizes records and scratch allocation for NLRI extraction.
@@ -89,6 +92,9 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) (*nlriRecords, error) {
 	}
 	sp.records = sp.records[:0]
 	sp.sourcePolicyEpoch = msg.SourcePolicyEpoch
+	sp.sourceReceipt = msg.SourceReceipt
+	sp.sourceConnection = msg.SourceConnectionID
+	sp.sourceOwner = msg.SourceOwner
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and
@@ -231,7 +237,7 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 		// A withdrawal of a CIDR-keyed family arrives as an INET of the prefix
 		// it names (wireu.ParseWithdrawnNLRIs), and is keyed the way
 		// appendOpaqueRecords keys its announcement.
-		if inet, ok := n.(*nlri.INET); ok && cidrKeyed {
+		if inet, ok := n.(*nlri.INET); ok {
 			records = append(records, nlriRecord{
 				fam:        fam,
 				familyName: famStr,
@@ -239,6 +245,7 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 				prefix:     inet.Prefix(),
 				pathID:     inet.PathID(),
 				cidrKeyed:  true,
+				addPath:    nlri.HasPathID(inet),
 			})
 			continue
 		}
@@ -294,13 +301,13 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 		fam:        fam,
 		familyName: famStr,
 		action:     action,
-		nlriStr:    tb.Hex(data).String(),
 		wireForm:   true,
 		addPath:    addPath,
 	}
 	if cidrKeyed {
 		rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, data, addPath, scratch)
-	} else if fam.SAFI == family.SAFIVPN {
+		rec.nlriStr = tb.Hex(data).String()
+	} else {
 		pathID, payload, splitErr := nlri.SplitPathID(data, addPath)
 		if splitErr != nil {
 			logger().Warn("VPN inventory path identifier rejected", "family", famStr, "error", splitErr)
@@ -314,8 +321,16 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 			logger().Warn("VPN inventory identity rejected", "family", famStr, "error", keyErr)
 			return records
 		}
+		// Wire text and native identity have one immutable owner. Keeping
+		// both as slices of it avoids a second allocation per opaque route;
+		// neither slice borrows the parser input or pooled key scratch.
+		hexLen := 2 * len(data)
+		tb.Reset(hexLen + len(key)).Hex(data)
+		_, _ = tb.Write(key)
+		owned := tb.String()
 		rec.pathID = pathID
-		rec.nativeKey = string(key)
+		rec.nlriStr = owned[:hexLen]
+		rec.nativeKey = owned[hexLen:]
 	}
 	records = append(records, rec)
 	return records
@@ -373,32 +388,32 @@ func addPathUnicastHex(pathID uint32, prefix netip.Prefix) string {
 
 // recordKey derives the withdrawal-set key for one record. The add and the del
 // arm MUST derive it the same way, or a withdrawal never cancels its announce.
-func recordKey(rec *nlriRecord) withdrawalKey {
+func recordKey(rec *nlriRecord, sourceOwner uint64) withdrawalKey {
 	if rec.nativeKey != "" {
-		return withdrawalKey{fam: rec.fam, nlriStr: rec.nativeKey, pathID: rec.pathID, wireForm: true, addPath: rec.addPath}
+		return withdrawalKey{owner: sourceOwner, fam: rec.fam, nlriStr: rec.nativeKey, pathID: rec.pathID, wireForm: true, addPath: rec.addPath}
 	}
 	if rec.cidrKeyed {
-		return withdrawalKey{fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID}
+		return withdrawalKey{owner: sourceOwner, fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID, addPath: rec.addPath}
 	}
 	if rec.nlriStr != "" {
-		return withdrawalKey{fam: rec.fam, nlriStr: rec.nlriStr, wireForm: rec.wireForm, addPath: rec.addPath}
+		return withdrawalKey{owner: sourceOwner, fam: rec.fam, nlriStr: rec.nlriStr, wireForm: rec.wireForm, addPath: rec.addPath}
 	}
 	// A unicast record: under ADD-PATH its Path Identifier is part of its
 	// identity (RFC 7911 Section 5), and addPath tells sendBatchedWithdrawals
 	// to withdraw it with that identifier.
-	return withdrawalKey{fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID, addPath: rec.addPath}
+	return withdrawalKey{owner: sourceOwner, fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID, addPath: rec.addPath}
 }
 
 // recordEntry is what the withdrawal set holds for an announced record: the
 // hex its peer-down withdrawal goes out as when the key is not that hex.
-func recordEntry(rec *nlriRecord, sourcePolicyEpoch uint64) withdrawalEntry {
+func recordEntry(rec *nlriRecord, sourcePolicyEpoch, sourceReceipt, sourceOwner, sourceConnection uint64) withdrawalEntry {
 	if rec.nativeKey != "" {
-		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
+		return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
 	}
 	if rec.cidrKeyed {
-		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
+		return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
 	}
-	return withdrawalEntry{sourcePolicyEpoch: sourcePolicyEpoch}
+	return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, sourcePolicyEpoch: sourcePolicyEpoch}
 }
 
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
@@ -412,10 +427,12 @@ func (rs *routeServer) applyNLRIRecords(sourcePeer string, records *nlriRecords)
 			if rs.withdrawals[sourcePeer] == nil {
 				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 			}
-			rs.withdrawals[sourcePeer][recordKey(rec)] = recordEntry(rec, records.sourcePolicyEpoch)
+			rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)] = recordEntry(rec, records.sourcePolicyEpoch, records.sourceReceipt, records.sourceOwner, records.sourceConnection)
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
-				delete(rs.withdrawals[sourcePeer], recordKey(rec))
+				if entry := rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)]; entry.connectionID == records.sourceConnection {
+					delete(rs.withdrawals[sourcePeer], recordKey(rec, records.sourceOwner))
+				}
 			}
 		}
 	}

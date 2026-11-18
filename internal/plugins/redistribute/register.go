@@ -4,9 +4,11 @@ import (
 	"context"
 	"net"
 	"strings"
+	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/events"
@@ -75,6 +77,20 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
+	ctx, cancel := sdk.SignalContext()
+	issues := issuequeue.Start(p)
+	runtimeCtx := withRedistributionIssues(ctx, issues)
+	var workers sync.WaitGroup
+	// OnStarted runs synchronously before Run enters its event loop. Its run
+	// worker MUST finish before the original queue stops and p closes. Stop
+	// seals report admission and drains accepted reports. A copied event
+	// callback that runs later keeps this queue and logs its late refusal.
+	defer func() {
+		cancel()
+		workers.Wait()
+		issues.Stop()
+	}()
+
 	// Peer-up trigger: fire a targeted redistribute replay to a peer that
 	// establishes after an injection (spec-redistribute-late-join-replay).
 	coord := newReplayCoordinator()
@@ -82,7 +98,7 @@ func runPlugin(conn net.Conn) int {
 
 	// The import rules are this plugin's to install: it owns the redistribute
 	// root, and the evaluator it reads is the one it sets.
-	rules := &ruleState{}
+	rules := &ruleState{runtimeContext: runtimeCtx}
 	p.OnConfigure(rules.configure)
 	p.OnConfigVerify(rules.verify)
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return rules.apply() })
@@ -92,9 +108,14 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	factoryConsumers := constructFactoryConsumers(p)
 	p.OnStarted(func(ctx context.Context) error {
-		buildFactoryConsumers(p)
-		go run(ctx)
+		publishFactoryConsumers(factoryConsumers)
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			run(withRedistributionIssues(ctx, issues))
+		}()
 		return nil
 	})
 
@@ -141,8 +162,6 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{configRoot, policy.RootName}}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
@@ -153,17 +172,27 @@ func runPlugin(conn net.Conn) int {
 // bgpStateNamespace is the event namespace the BGP peer state events live in.
 const bgpStateNamespace = "bgp"
 
-// buildFactoryConsumers builds every destination a consumer factory declares
-// over this plugin's engine connection and registers it. A destination's own
-// package registers the factory from init() (BGP does, in
-// internal/component/bgp/redistribute/register.go), so this plugin names no
-// destination and a build without that package has none. Re-registering
-// replaces the consumer an earlier start built, because an SDK reconnect runs
-// OnStarted again.
-func buildFactoryConsumers(updater configredist.RouteUpdater) {
-	for _, factory := range configredist.ConsumerFactories() {
-		if configredist.ReregisterConsumer(factory.New(updater)) {
-			logger().Debug(Name+": consumer rebuilt", "destination", factory.Name)
+// Consumer constructors register optional SDK callbacks before Run. Registry
+// publication still waits for Started, because it can trigger source replay.
+// A destination registers its factory from init; this orchestrator imports no
+// protocol and a build without the destination carries no factory.
+// constructFactoryConsumers MUST precede SDK.Run: constructors register their
+// optional callbacks. publishFactoryConsumers MUST follow actual SDK readiness.
+func constructFactoryConsumers(updater configredist.RouteUpdater) []configredist.RedistConsumer {
+	factories := configredist.ConsumerFactories()
+	consumers := make([]configredist.RedistConsumer, 0, len(factories))
+	for _, factory := range factories {
+		consumers = append(consumers, factory.New(updater))
+	}
+	return consumers
+}
+
+// publishFactoryConsumers MUST follow constructFactoryConsumers and Started.
+// Registry visibility may fire a producer replay and therefore requires ready I/O.
+func publishFactoryConsumers(consumers []configredist.RedistConsumer) {
+	for _, consumer := range consumers {
+		if configredist.ReregisterConsumer(consumer) {
+			logger().Debug(Name+": consumer rebuilt", "destination", consumer.Name())
 		}
 	}
 }

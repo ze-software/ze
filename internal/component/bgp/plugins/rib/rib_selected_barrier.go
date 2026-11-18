@@ -38,18 +38,28 @@ func selectedPeerIn(peer netip.Addr, peers []netip.Addr) bool {
 // in current desired state. Its actual/uncertain acknowledged or in-flight
 // source identity still names the affected destination until retirement ends.
 func (d *selectedDispatch) barrierSource(ctx context.Context, receipts []uint64) error {
-	if d == nil {
-		return nil
-	}
-	d.mu.Lock()
-	if d.fatal != nil {
-		err := d.fatal
-		d.mu.Unlock()
+	active, err := d.sourceDestinations(receipts)
+	if err != nil {
 		return err
 	}
+	return d.barrierDestinations(ctx, active)
+}
+
+// sourceDestinations MUST be captured before mutating a source as well as read
+// afterwards. An unsent old winner can disappear without leaving an output
+// receipt; its replacement still owes the destinations captured here. Callers
+// MUST join these exact worker incarnations after publishing the replacement.
+func (d *selectedDispatch) sourceDestinations(receipts []uint64) ([]*selectedDestination, error) {
+	if d == nil {
+		return nil, nil
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.fatal != nil {
+		return nil, d.fatal
+	}
 	if len(receipts) == 0 {
-		d.mu.Unlock()
-		return nil
+		return nil, nil
 	}
 	active := make([]*selectedDestination, 0, len(d.destinations))
 	for _, destination := range d.destinations {
@@ -57,12 +67,12 @@ func (d *selectedDispatch) barrierSource(ctx context.Context, receipts []uint64)
 			active = append(active, destination)
 		}
 	}
-	d.mu.Unlock()
-	return d.barrierDestinations(ctx, active)
+	return active, nil
 }
 
 func (d *selectedDispatch) sourcePendingLocked(destination *selectedDestination, receipts []uint64) bool {
-	for _, current := range d.current {
+	for key := range d.current {
+		current := d.currentForLocked(destination, key)
 		if selectedReceiptIn(current.wire.SourceReceipt, receipts) {
 			return true
 		}
@@ -77,6 +87,22 @@ func (d *selectedDispatch) sourcePendingLocked(destination *selectedDestination,
 			return true
 		}
 	}
+	if active := destination.refreshActive; active != nil {
+		// Replacement writes outside the frozen cut cannot leave an
+		// unbounded source history. As with a lost multi-key answer above,
+		// conservatively join this destination's End for a nonempty source
+		// request. Other destinations keep their independent workers.
+		if active.sourceUncertain {
+			if len(receipts) != 0 {
+				return true
+			}
+		}
+		for _, receipt := range receipts {
+			if _, included := active.sources[receipt]; included {
+				return true
+			}
+		}
+	}
 	for i := range destination.inFlight {
 		if selectedReceiptIn(destination.inFlight[i].source, receipts) {
 			return true
@@ -86,6 +112,9 @@ func (d *selectedDispatch) sourcePendingLocked(destination *selectedDestination,
 }
 
 func (d *selectedDispatch) barrierDestinations(ctx context.Context, active []*selectedDestination) error {
+	if d == nil {
+		return nil
+	}
 	for {
 		d.mu.Lock()
 		if d.fatal != nil {
@@ -122,6 +151,9 @@ func (d *selectedDispatch) barrierDestinations(ctx context.Context, active []*se
 }
 
 func (d *selectedDispatch) settledLocked(destination *selectedDestination) bool {
+	if destination.refreshActive != nil || len(destination.refreshOrder) != 0 {
+		return false
+	}
 	if destination.reofferLearned || len(destination.inFlight) > 0 {
 		return false
 	}
@@ -132,4 +164,48 @@ func (d *selectedDispatch) settledLocked(destination *selectedDestination) bool 
 		return false
 	}
 	return len(destination.pending) == 0
+}
+
+// sourceReleaseReady is the last-reference release guard, including retries
+// from the running lease worker. It never waits: one blocked recipient cannot
+// stop unrelated source releases. Existing retry admission repeats the guard.
+// Operation holds cover mutation/publication; the captured workers then cover
+// final removal or replacement, including a winner that was never written.
+func (d *selectedDispatch) sourceReleaseReady(active []*selectedDestination) error {
+	if d == nil {
+		return nil
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.fatal != nil {
+		return d.fatal
+	}
+	var pending []selectedUnsettled
+	seen := make(map[*selectedDestination]struct{})
+	inspect := func(destination *selectedDestination) {
+		if _, duplicate := seen[destination]; duplicate {
+			return
+		}
+		seen[destination] = struct{}{}
+		id := selectedDestinationID{peer: destination.peer, session: destination.session}
+		select {
+		case <-destination.done:
+			return
+		default:
+		}
+		if destination.ctx.Err() != nil || d.destinations[id] != destination || !d.settledLocked(destination) {
+			cause := destination.failure
+			if cause == nil {
+				cause = errors.New("selected output is queued or in flight")
+			}
+			pending = append(pending, selectedUnsettled{id: id, cause: cause})
+		}
+	}
+	for _, destination := range active {
+		inspect(destination)
+	}
+	if len(pending) != 0 {
+		return selectedBarrierError(errors.New("selected output has not settled"), pending)
+	}
+	return nil
 }

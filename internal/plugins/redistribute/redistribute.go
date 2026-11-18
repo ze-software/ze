@@ -270,7 +270,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			// Acceptance is decided for each ROUTE, not for the batch: an import
 			// rule's chain reads the entry's prefix, tag and BGP class.
 			route := redistRoute(name, b.Protocol, famVal, entry)
-			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix}
+			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix, instance: entry.SourceInstance, table: entry.Table}
 			sets, accepted := ev.Accept(&route, cname)
 			if !accepted {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
@@ -282,12 +282,13 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			case redistevents.ActionAdd:
 				// Empty peer selector: the incremental path fans out to all peers.
 				sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
+				sent.generation = gen
 				dispatched := false
 				if accepted {
 					dispatched = beginDispatchedAdd(key, &route, &sent, false)
 				}
 				if dispatched {
-					dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
+					dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets, gen)
 				}
 				settleDispatchedAdd(ctx, consumer, key, gen, dispatched, accepted, &route, &sent, entry, "", b.OriginASN, b.Community)
 			case redistevents.ActionRemove:
@@ -295,7 +296,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 					removeReplacedRoute(ctx, consumer, key)
 					continue
 				}
-				dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
+				dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets, gen)
 				consumerHeld.release(key)
 			case redistevents.ActionUnspecified:
 				logger().Warn(Name+": skipping entry with no action", "source", name, "prefix", entry.Prefix)
@@ -331,7 +332,7 @@ func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsum
 	case settlementSettled:
 	case settlementResend:
 		logger().Debug(Name+": reloaded rules resend the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
-		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, peer, originASN, community, produced, view, sets)
+		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, peer, originASN, community, produced, view, sets, sent.generation)
 	case settlementWithdraw:
 		logger().Debug(Name+": rejected entry withdraws the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
 		withdrawHeld(ctx, consumer, key)
@@ -410,7 +411,7 @@ func entrySource(protocol string, entry *redistevents.RouteChangeEntry) string {
 // selector for the replay path (empty means the normal all-peers fan-out).
 // view is the route the import chain judged and sets what its accepting chain
 // set; a withdraw carries neither and passes nil and the zero Sets.
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets) {
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) {
 	adjusted := applySets(produced, sets)
 	entry := &adjusted
 	if !entry.Prefix.IsValid() {
@@ -445,6 +446,8 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			Source:              source,
 			Protocol:            route.Source,
 			SourceInstance:      entry.SourceInstance,
+			SourceMetric:        produced.Metric,
+			AdmissionGeneration: generation,
 			Table:               entry.Table,
 			DistanceOverride:    entry.DistanceOverride,
 			HasDistanceOverride: entry.HasDistanceOverride,
@@ -462,7 +465,12 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 		if m := getMetrics(); m != nil {
 			m.withdrawals.Inc()
 		}
-		consumer.WithdrawRoute(ctx, fam, entry.Prefix.String())
+		protocol, known := redistevents.ProtocolIDOf(source)
+		if !known {
+			reportUnknownWithdrawal(ctx, source, fam, entry.Prefix)
+			return
+		}
+		consumer.WithdrawRoute(ctx, fam, configredist.RouteRemoval{Prefix: entry.Prefix.String(), Source: source, Protocol: protocol, SourceInstance: produced.SourceInstance, Table: produced.Table})
 		return
 	}
 	logger().Warn(Name+": skipping entry with invalid action", "action", entry.Action, "prefix", entry.Prefix)

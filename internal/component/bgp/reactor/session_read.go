@@ -428,7 +428,7 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			}
 			extraWU := wireu.NewWireUpdate(extra, typedWithdrawCtxID)
 			extraWU.SetSourceID(wireUpdate.SourceID())
-			s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
+			s.onMessageReceived(s, s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
 		}
 
 		if action < message.RFC7606ActionTreatAsWithdraw && s.invalidReceiveNextHop(wireUpdate) {
@@ -524,7 +524,7 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 				if s.onMessageReceived != nil {
 					extraWU := wireu.NewWireUpdate(extra, withdrawCtxID)
 					extraWU.SetSourceID(wireUpdate.SourceID())
-					s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
+					s.onMessageReceived(s, s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
 				}
 			}
 			wireUpdate = primary
@@ -668,7 +668,7 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 func (s *Session) deliverReceivedMessage(kind msgtype.MessageType, body []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, buf BufHandle) (error, bool) {
 	var kept bool
 	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, kind, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
+		kept = s.onMessageReceived(s, s.settings.Address, kind, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
 	}
 
 	// A policy filter on the import chain (e.g. filter_family tear-down) may have

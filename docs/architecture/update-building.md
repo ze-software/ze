@@ -631,6 +631,14 @@ snapshots and cache reconstruction. The stable identity is the same
 `peer-owner` that state, refresh and source-policy events carry; an inbound
 connection's remote port never supplies it. Sent events keep the destination
 Peer identity separate from the route's original `SourceOwner`.
+A received ROUTE-REFRESH captures its producing Session before observers run.
+Observer wrappers retain that same Session; the notification path projects its
+opaque destination token and checks the ordinary owner against that exact
+connection's current dissemination publication. A delayed predecessor cannot
+borrow its successor's output eligibility. These event facts describe delivery,
+while the selected operation's final writer still authenticates permission.
+<!-- source: internal/component/bgp/reactor/source_session.go -- sourceMessageCallback, messageReceiverForPeer -->
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedDestinationForSession -->
 Receive-validation and path-identifier retention queries carry that same original
 owner. The selecting RIB reads it from the acquired source reference shared by
 the stored path and its owned clones. The typed and JSON validation keys preserve
@@ -1606,3 +1614,22 @@ and RIB".
 
 **Created:** 2026-01-01
 **Last Updated: 2026-01-30
+
+
+### Bound cache and stored replay completion
+
+The bound variants of cached and stored replay materialize normal forward items
+then consume those items through the existing synchronous Session writer. A
+cached call carries the complete captured target set. Its source guard remains
+enrolled until each target's final flush or cancellation joins; only then does
+the caller's existing cumulative cache acknowledgment advance. The receiver
+checks every original owner/session even when there are no routes or IDs.
+<!-- source: internal/component/bgp/reactor/relay_bound.go -- boundForwardStage.flush, flushPeer -->
+
+An owned stored withdrawal matches only the current acknowledged SENT slot's
+original source owner, physical connection, receipt when supplied, native key,
+received path identifier and message generation. It does not ask revoked import
+policy for announce permission. Message zero is not withdrawal authority. A
+newer same-connection generation, selected output and unrelated local output
+remain independent. Missing receipts require explicit prefix-only NLRI framing.
+<!-- source: internal/component/bgp/reactor/relay_retire_original.go -- retireOriginalStoredRoute, originalStoredRetirement -->

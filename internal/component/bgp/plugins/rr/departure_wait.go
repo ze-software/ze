@@ -7,7 +7,6 @@ package rr
 import (
 	"context"
 	"errors"
-	"net/netip"
 )
 
 // departureWait is one source's departures queued or running: count of them,
@@ -19,8 +18,79 @@ type departureWait struct {
 
 // sendDeparture runs one departure on a departure worker (sendPeerDown), then
 // counts it done, waking a source-policy prepare waiting for the source.
-func (rr *routeReflector) sendDeparture(source netip.Addr, entries map[string]withdrawalInfo) {
-	rr.sendPeerDown(source, entries)
+// departureWork keeps the destinations captured on original DOWN separate
+// from comparable withdrawalInfo values used by source-policy pins.
+type departureBatch struct {
+	entries map[withdrawalKey]withdrawalInfo
+	targets []peerTarget
+}
+type departureWork struct {
+	entries map[withdrawalKey]withdrawalInfo
+	batches []departureBatch
+}
+
+func (rr *routeReflector) sendDeparture(source peerIdentity, work departureWork) {
+	ctx := rr.replayParent()
+	err := rr.forwards.wait(ctx)
+	blocked := false
+	if err == nil {
+		err = rr.unsettledWork()
+		blocked = err != nil
+	}
+	if err == nil {
+		err = rr.retainSource(ctx, source)
+	}
+	if err != nil {
+		blocked = true
+	}
+	if err == nil {
+		err = rr.sendPeerDown(ctx, source, work)
+	}
+	if blocked {
+		rr.mu.RLock()
+		state := rr.peers[source]
+		rr.mu.RUnlock()
+		if state != nil {
+			state.departureCall.Lock()
+			rr.mu.Lock()
+			if state.departureOwed == nil {
+				held := work
+				state.departureOwed = &held
+			} else {
+				if state.departureOwed.entries == nil {
+					state.departureOwed.entries = make(map[withdrawalKey]withdrawalInfo)
+				}
+				for key, info := range work.entries {
+					state.departureOwed.entries[key] = info
+				}
+				state.departureOwed.batches = append(state.departureOwed.batches, work.batches...)
+			}
+			rr.mu.Unlock()
+			state.departureCall.Unlock()
+		}
+	}
+	if err != nil {
+		rr.reportUpdateFailure(source.address.String(), "original source departure", err)
+	}
+	if err == nil {
+		rr.withdrawalMu.Lock()
+		entries := rr.withdrawals[source.address.String()]
+		for key, closed := range work.entries {
+			if current, present := entries[key]; present {
+				if current == closed {
+					delete(entries, key)
+				}
+			}
+		}
+		if len(entries) == 0 {
+			delete(rr.withdrawals, source.address.String())
+		}
+		rr.withdrawalMu.Unlock()
+		err = rr.releaseEndedSource(ctx, source)
+		if err != nil {
+			rr.reportUpdateFailure(source.address.String(), "normal DOWN lease release", err)
+		}
+	}
 	rr.departureMu.Lock()
 	defer rr.departureMu.Unlock()
 	wait := rr.departing[source]
@@ -38,23 +108,21 @@ func (rr *routeReflector) sendDeparture(source netip.Addr, entries map[string]wi
 // awaitDepartures returns once no departure of source is queued or running,
 // so a source-policy prepare pins the source's routes behind every departure
 // recovery the reflector already owed. It refuses when ctx ends first.
-func (rr *routeReflector) awaitDepartures(ctx context.Context, source string) error {
-	addr, err := netip.ParseAddr(source)
-	if err != nil {
-		return errors.New("bgp-rr: source-policy peer " + source + " is not an IP address: " + err.Error())
-	}
+func (rr *routeReflector) awaitDepartures(ctx context.Context, owner uint64) error {
 	rr.departureMu.Lock()
-	wait := rr.departing[addr]
+	pending := make(map[peerIdentity]<-chan struct{})
+	for source, wait := range rr.departing {
+		if source.owner == owner {
+			pending[source] = wait.idle
+		}
+	}
 	rr.departureMu.Unlock()
-	// refuse-by-default: guards sendDeparture -- no registered wait is the idle state sendDeparture leaves when the source's last departure is answered
-	if wait == nil {
-		return nil
+	for source, idle := range pending {
+		select {
+		case <-idle:
+		case <-ctx.Done():
+			return errors.New("bgp-rr: source " + source.address.String() + ": departure recovery in flight did not reach the engine before the source-policy deadline: " + ctx.Err().Error())
+		}
 	}
-	select {
-	case <-wait.idle:
-		return nil
-	case <-ctx.Done():
-		return errors.New("bgp-rr: source " + source + " still has a departure recovery in flight from its last session " +
-			"down, and it did not finish before the source-policy deadline; commit the change again once it has")
-	}
+	return nil
 }

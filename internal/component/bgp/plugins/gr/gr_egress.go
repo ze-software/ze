@@ -39,21 +39,27 @@ var localPrefZero [4]byte // zero-value is correct: 0x00000000
 // a peer flap concurrent with a forward is otherwise a fatal concurrent map
 // read and map write, which recover() does not catch. Read it through hasLLGR.
 //
-// The local AS for iBGP detection is NOT stored here: the filter reads the
-// effective per-peer local AS per destination as the local-as fact
-// (dest.LocalAS), which correctly honors a per-peer local-as override where a
-// single captured global value would not.
+// Session classification is NOT inferred here. The filter reads the reactor's
+// actual IsIBGP fact, which includes the configured RFC 7705 migration ASN.
 type egressFilterState struct {
 	mu           *sync.Mutex             // grPlugin.mu: guards peerLLGRCaps
-	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> LLGR capability from the peer's OPEN
+	peerLLGRCaps map[uint64]*llgrPeerCap // original peer owner -> received LLGR capability
 }
 
-// hasLLGR reports whether the LLGR Capability was received from peerAddr.
-func (s *egressFilterState) hasLLGR(peerAddr string) bool {
+// hasLLGR reports whether this original destination advertised LLGR.
+// Missing runtime identity MUST NOT borrow another neighbor's capability.
+func (s *egressFilterState) hasLLGR(peerOwner, connectionID uint64) bool {
+	// refuse-by-default: guards capability lookup -- no original owner was supplied.
+	if peerOwner == 0 {
+		return false
+	}
+	if connectionID == 0 {
+		return false
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, ok := s.peerLLGRCaps[peerAddr]
-	return ok
+	caps, ok := s.peerLLGRCaps[peerOwner]
+	return ok && caps != nil && caps.connectionID == connectionID
 }
 
 // egressState is the package-level pointer to the filter's shared state.
@@ -134,7 +140,7 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 	// RFC 9494 Section 5.2 names.
 	hasLLGR := false
 	if s := egressState.Load(); s != nil {
-		hasLLGR = s.hasLLGR(dest.Address.String())
+		hasLLGR = s.hasLLGR(dest.PeerOwner, dest.ConnectionID)
 	} else if !egressStateMissingWarned.Load() && egressStateMissingWarned.CompareAndSwap(false, true) {
 		egressWarnLogger().Warn("LLGR egress state not loaded, treating every destination as LLGR-incapable",
 			"dest", dest.Address,
@@ -148,12 +154,9 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 	}
 
 	// Destination peer does NOT have LLGR capability.
-	// RFC 9494 Section 4.6: iBGP is dest.PeerAS == our local AS for this session.
-	// dest.LocalAS is the destination's effective per-peer local AS, the
-	// local-as fact evaluateLLGREgress reads.
-	isIBGP := dest.PeerAS == dest.LocalAS
-
-	if isIBGP {
+	// RFC 9494 Section 4.6 uses the session's actual internal classification.
+	// Comparing ASNs here loses RFC 7705 migration sessions.
+	if dest.IsIBGP {
 		// RFC 9494 Section 4.6: Optional Partial Deployment Procedure (IBGP).
 		// The route is delivered but deprioritized.
 		mods.Op(attrCodeCommunity, filterapi.AttrModAdd, communityNoExport[:])

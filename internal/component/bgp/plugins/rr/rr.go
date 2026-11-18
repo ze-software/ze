@@ -16,11 +16,11 @@ package rr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
 	"net"
-	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,7 +28,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
@@ -82,12 +81,34 @@ const (
 
 // peerState tracks a connected peer's state and capabilities.
 type peerState struct {
-	Address      string
-	ASN          uint32
-	Up           bool
-	ReplayGen    uint64 // Incremented on each state-up, guards stale goroutines
-	Families     map[family.Family]bool
-	Capabilities map[string]bool
+	// replayDebt is current work for this original target only, guarded by mu.
+	replayDebt        *peerReplayDebt
+	replayCalls       uint64 // Guarded by mu; pins this original actor until its admitted replay returns.
+	optionalReplayErr error
+	sourceOutputDebt  error
+	departureOwed     *departureWork
+	departureCall     sync.Mutex
+	targetOutputDebt  error
+	// inventoryRevision and processedMsgID are guarded by withdrawalMu. They
+	// describe only this original actor's current receive projection, not a
+	// tombstone or a second route inventory.
+	inventoryRevision   uint64
+	processedMsgID      uint64
+	leaseMu             sync.Mutex
+	leaseCall           sync.Mutex
+	Address             string
+	Identity            peerIdentity
+	DestinationSession  uint64
+	SourceReceipt       uint64
+	Leased              bool
+	DownSeen            bool
+	PublishedGeneration uint64
+	RetainPending       bool
+	ASN                 uint32
+	Up                  bool
+	ReplayGen           uint64 // Incremented on each state-up, guards stale goroutines
+	Families            map[family.Family]bool
+	Capabilities        map[string]bool
 }
 
 // routeReflector implements a BGP Route Reflector plugin (RFC 4456).
@@ -95,11 +116,18 @@ type peerState struct {
 // The reactor handles RFC 4456 forwarding rules, ORIGINATOR_ID injection,
 // CLUSTER_LIST prepend, and next-hop rewriting.
 type routeReflector struct {
-	plugin *sdk.Plugin
+	replayRetryMu   sync.Mutex
+	replayRetryIdle chan struct{}
+	cleanupPending  map[peerIdentity]uint64
+	workMu          sync.Mutex
+	workErr         error
+	receiveGate     string
+	replays         replayLifetimes
+	plugin          *sdk.Plugin
 	// retained holds bgp-gr's retention verdict per peer, recorded from the
 	// bgp-gr/retention event and taken by handleStateDown for that peer.
 	retained retention.Ledger
-	peers    map[string]*peerState
+	peers    map[peerIdentity]*peerState
 	mu       sync.RWMutex
 	buf      textbuf.Buffer
 	stopping atomic.Bool
@@ -107,11 +135,11 @@ type routeReflector struct {
 	// withdrawalMu protects the withdrawals map.
 	withdrawalMu sync.Mutex
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
-	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
-	withdrawals map[string]map[string]withdrawalInfo
+	// Observed address -> original owner, physical connection and native route key -> withdrawalInfo.
+	withdrawals map[string]map[withdrawalKey]withdrawalInfo
 	// sourcePolicy holds each source's open source-policy transaction
-	// (source_policy.go), keyed like withdrawals and guarded by withdrawalMu.
-	sourcePolicy map[string]*sourcePolicyTxn
+	// (source_policy.go), keyed by original owner and guarded by withdrawalMu.
+	sourcePolicy map[uint64]*sourcePolicyTxn
 	// forwards counts the received UPDATEs being reflected, and validation
 	// is the revalidation worker (nil without an event bus): a source-policy
 	// phase waits for both (settleSource).
@@ -126,13 +154,13 @@ type routeReflector struct {
 	// before the plugin connection is released. departureMu guards both
 	// fields.
 	departureMu       sync.Mutex
-	departures        *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo]
+	departures        *syncutil.Coalescer[peerIdentity, departureWork]
 	departuresStopped bool
 	// departing counts each source's departures queued or running, so a
 	// source-policy prepare can wait for them (awaitDepartures). merged is
 	// set by the Coalescer's merge, which runs inside Enqueue, so an enqueue
 	// merged into a waiting departure adds no count. departureMu guards both.
-	departing map[netip.Addr]*departureWait
+	departing map[peerIdentity]*departureWait
 	merged    bool
 	// downCtx bounds every peer-down recovery request. It is canceled at
 	// shutdown and carries no deadline: the engine keeps a departure's keys
@@ -160,15 +188,19 @@ func serveRouteReflector(p *sdk.Plugin) int {
 	downCtx, stopDown := context.WithCancel(context.Background())
 	rr := &routeReflector{
 		plugin:      p,
-		peers:       make(map[string]*peerState),
-		withdrawals: make(map[string]map[string]withdrawalInfo),
+		peers:       make(map[peerIdentity]*peerState),
+		withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo),
 		downCtx:     downCtx,
 	}
 	defer rr.stopDepartures()
-	defer stopDown()
+	defer func() {
+		stopDown()
+		rr.replays.stop()
+	}()
 
 	// Register structured event handler for DirectBridge delivery (hot path).
 	p.OnStructuredEvent(func(events []any) error {
+		var failed error
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
 			if !ok {
@@ -180,18 +212,22 @@ func serveRouteReflector(p *sdk.Plugin) int {
 					// Update withdrawal map BEFORE forwarding: the forward path can
 					// trigger cache eviction which frees the pool buffer backing
 					// msg.WireUpdate. Reading WireUpdate after forward is use-after-free.
-					rr.forwards.enter()
-					rr.withdrawalMu.Lock()
-					rr.updateWithdrawalMapWire(se.PeerAddress, msg)
-					rr.withdrawalMu.Unlock()
-					rr.forwardUpdate(msg.MessageID)
-					rr.forwards.leave()
+					if err := rr.reflectWire(se, msg); err != nil {
+						var output *forwardOutputError
+						if !errors.As(err, &output) {
+							failed = errors.Join(failed, err)
+						}
+					}
 				}
 			case rpc.EventKindState:
-				rr.handleStructuredState(se)
+				if err := rr.handleStructuredState(se); err != nil {
+					failed = errors.Join(failed, err)
+				}
 			case rpc.EventKindOpen:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
-					rr.handleStructuredOpen(se, msg)
+					if err := rr.handleStructuredOpen(se, msg); err != nil {
+						failed = errors.Join(failed, err)
+					}
 				}
 			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
 				rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
@@ -201,14 +237,20 @@ func serveRouteReflector(p *sdk.Plugin) int {
 				// The plugin event set is open; unknown events do not trigger reflection.
 			}
 		}
-		return nil
+		return failed
 	})
 
 	// Register text event handler for fork-mode delivery (fallback).
-	p.OnEvent(func(eventStr string) error {
-		rr.dispatchText(eventStr)
-		return nil
+	p.OnEvent(func(text string) error {
+		err := rr.dispatchText(text)
+		var output *forwardOutputError
+		if errors.As(err, &output) {
+			return nil
+		}
+		return err
 	})
+	p.OnEventSettlement(rr.settleEvents)
+	p.OnDoctorCheck(rr.replayDoctorCheck)
 
 	// RFC 8212 Section 3: the source-policy lifecycle owner (source_policy.go).
 	p.OnSourcePolicy(rr.handleSourcePolicy)
@@ -256,13 +298,13 @@ func serveRouteReflector(p *sdk.Plugin) int {
 	p.SetEncoding("text")
 	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
 	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
-	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType})
+	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
 	// The receive store's eligibility change, through the SDK so a forked
 	// bgp-rr hears it too: the daemon's own bus never reaches a subprocess.
 	// The selecting RIB's flowspec-gate names the command that answers its
 	// FlowSpec lookup, so a forked bgp-rr (or one beside a forked bgp-rib)
 	// replays FlowSpec rules rather than withdrawing every one.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventFlowSpecGate})
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventFlowSpecGate, ribevents.EventValidationGate})
 	p.SetEnvelope(true)
 
 	ctx, cancel := sdk.SignalContext()
@@ -283,11 +325,29 @@ func serveRouteReflector(p *sdk.Plugin) int {
 // forwardUpdate forwards a cached UPDATE to all peers via cache-forward.
 // The reactor handles source exclusion, client/non-client filtering (RFC 4456),
 // ORIGINATOR_ID, CLUSTER_LIST, and next-hop rewriting.
-func (rr *routeReflector) forwardUpdate(msgID uint64) {
+func (rr *routeReflector) forwardUpdate(ctx context.Context, source peerIdentity, msgID uint64) error {
 	if rr.stopping.Load() {
-		return
+		return rr.plugin.ReleaseCached(ctx, []uint64{msgID})
 	}
-	rr.updateRoute("*", rr.buf.Reset().Str("cached ").Uint(msgID).String())
+	targets := rr.targets(source, family.Family{})
+	if len(targets) == 0 {
+		return rr.plugin.ReleaseCached(ctx, []uint64{msgID})
+	}
+	captured := make([]rpc.ForwardTarget, 0, len(targets))
+	for _, target := range targets {
+		captured = append(captured, rpc.ForwardTarget{Destination: target.identity.address.String(),
+			DestinationOwner: target.identity.owner, DestinationSession: target.session})
+	}
+	// One request owns the cache consumer's single ACK, after every captured
+	// destination's final writer or joined cancellation has completed.
+	err := rr.plugin.ForwardCached(ctx, rpc.ForwardCachedInput{IDs: []uint64{msgID}, Targets: captured})
+	var notDispatched *rpc.CachedWriteNotDispatchedError
+	if errors.As(err, &notDispatched) {
+		err = rr.rejectCached(msgID, err)
+	}
+	var command textbuf.Buffer
+	rr.reportUpdateFailure("*", command.Str("cached ").Uint(msgID).String(), err)
+	return err
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
@@ -302,6 +362,10 @@ func (rr *routeReflector) updateRouteWithMeta(peerSelector, command string, meta
 	defer cancel()
 
 	_, _, err := rr.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
+	rr.reportUpdateFailure(peerSelector, command, err)
+}
+
+func (rr *routeReflector) reportUpdateFailure(peerSelector, command string, err error) {
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rr.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)",
@@ -330,27 +394,12 @@ func (rr *routeReflector) updateRouteWithMeta(peerSelector, command string, meta
 // recovery-generation names the session whose end the departure answers, so
 // the engine owes only routes that session or an older one of the source
 // wrote, never a newer session's route graceful restart retains.
-func (rr *routeReflector) recoverRouteSel(sel *selector.Selector, command, source string, generation uint64) {
-	ctx := rr.downCtx
-	if ctx == nil {
-		// Struct-literal unit owners have no running plugin lifecycle.
-		ctx = context.Background()
-	}
-	meta := map[string]any{"recovery-source": source,
+func (rr *routeReflector) recoverRouteSel(ctx context.Context, target peerTarget, command string, source peerIdentity, owner, generation uint64) error {
+	meta := map[string]any{"recovery-source": source.address.String(), "recovery-source-owner": strconv.FormatUint(owner, 10),
 		"recovery-generation": strconv.FormatUint(generation, 10)}
-	_, _, err := rr.plugin.UpdateRouteSelWithMeta(ctx, sel, command, meta)
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rr.stopping.Load() {
-			logger().Debug("update-route failed (shutting down)",
-				"peer", sel, "command", command, "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("update-route failed (peer disconnected)",
-				"peer", sel, "command", command, "error", err)
-		} else {
-			logger().Error("update-route failed",
-				"peer", sel, "command", command, "error", err)
-		}
-	}
+	_, _, err := rr.plugin.UpdateRouteRequest(ctx, rpc.UpdateRouteInput{PeerSelector: target.identity.address.String(), Command: command, Meta: meta,
+		DestinationOwner: target.identity.owner, DestinationSession: target.session})
+	return err
 }
 
 // isConnectionError reports whether err indicates the target peer's connection is closed.
@@ -362,45 +411,115 @@ func isConnectionError(err error) bool {
 }
 
 // handleStructuredState processes state events from DirectBridge.
-func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
-	if se.PeerAddress == "" {
-		return
-	}
-
-	rr.mu.Lock()
-	if rr.peers[se.PeerAddress] == nil {
-		rr.peers[se.PeerAddress] = &peerState{Address: se.PeerAddress}
-	}
-	peer := rr.peers[se.PeerAddress]
-	peer.Up = (se.State == rpc.SessionStateUp)
-	// A dynamic peer's AS is unknown before its OPEN is negotiated: keep the
-	// last one learned rather than recording AS 0.
-	if asn, known := se.PeerAS.ASN(); known {
-		peer.ASN = asn
+func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
+	identity, err := newPeerIdentity(se.PeerAddress, se.PeerOwner, se.ConnectionID)
+	if err != nil {
+		if se.PeerOwner != 0 {
+			if se.ConnectionID == 0 {
+				if se.Reason == "peer-removed" {
+					rr.endOwner(se.PeerOwner)
+					return nil
+				}
+			}
+		}
+		return err
 	}
 	switch se.State {
 	case rpc.SessionStateUp:
-		rr.retained.Begin(se.PeerAddress)
-		if se.Reason == rpc.ReasonAttached {
-			// A reload attached this plugin to a session already up: the
-			// peer's initial routing update was sent without it, and is not
-			// this plugin's to replay.
+		if se.SessionGeneration == 0 {
+			return errors.New("bgp-rr: UP has no captured source-policy generation")
+		}
+		if se.DestinationSession == 0 {
+			return errors.New("bgp-rr: UP has no captured destination session")
+		}
+		rr.mu.RLock()
+		older := make([]peerIdentity, 0)
+		for prior := range rr.peers {
+			if prior.owner != identity.owner {
+				continue
+			}
+			if prior.connection > identity.connection {
+				rr.mu.RUnlock()
+				return nil
+			}
+			if prior.connection < identity.connection {
+				older = append(older, prior)
+			}
+		}
+		rr.mu.RUnlock()
+		// The same actor lease lock serializes late page adoption with replacement
+		// and DOWN. No old physical actor can acquire after its successor arrives.
+		for _, prior := range older {
+			rr.mu.RLock()
+			state := rr.peers[prior]
+			rr.mu.RUnlock()
+			if state == nil {
+				continue
+			}
+			rr.mu.RLock()
+			alreadyDown := state.DownSeen
+			generation := state.PublishedGeneration
+			rr.mu.RUnlock()
+			if !alreadyDown {
+				rr.handleStateDown(prior, generation)
+			}
+		}
+		rr.mu.Lock()
+		if rr.peers == nil {
+			rr.peers = make(map[peerIdentity]*peerState)
+		}
+		peer := rr.peers[identity]
+		if peer == nil {
+			peer = &peerState{Address: se.PeerAddress, Identity: identity}
+			rr.peers[identity] = peer
+		}
+		if peer.Up {
 			rr.mu.Unlock()
-			return
+			return nil
+		}
+		if peer.DownSeen {
+			rr.mu.Unlock()
+			return nil
+		}
+		peer.Up = true
+		peer.DestinationSession = se.DestinationSession
+		peer.PublishedGeneration = se.SessionGeneration
+		if asn, known := se.PeerAS.ASN(); known {
+			peer.ASN = asn
+		}
+		if err := rr.retained.Begin(identity.owner, identity.connection); err != nil {
+			peer.Up = false
+			rr.mu.Unlock()
+			return err
+		}
+		if se.Reason == rpc.ReasonAttached {
+			rr.mu.Unlock()
+			return nil
 		}
 		peer.ReplayGen++
-		gen := peer.ReplayGen
+		target := peerTarget{identity: identity, session: peer.DestinationSession, generation: peer.ReplayGen}
 		rr.mu.Unlock()
-		go rr.replayForPeer(se.PeerAddress, gen, se.InitialReplay)
+		rr.startPeerReplay(target, se.InitialReplay)
 	case rpc.SessionStateDown:
-		rr.mu.Unlock()
-		rr.handleStateDown(se.PeerAddress, se.SessionGeneration)
+		rr.mu.RLock()
+		peer := rr.peers[identity]
+		rr.mu.RUnlock()
+		if peer == nil {
+			return nil
+		}
+		rr.mu.RLock()
+		seen := peer.DownSeen
+		rr.mu.RUnlock()
+		if seen {
+			return nil
+		}
+		rr.handleStateDown(identity, se.SessionGeneration)
 	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
-		rr.mu.Unlock()
+		return errors.New("bgp-rr: state event has no valid state")
 	default:
-		// The plugin state set is open; unknown states need no further action.
-		rr.mu.Unlock()
+		return errors.New("bgp-rr: state event has an unknown state")
 	}
+	return nil
 }
 
 // handleStateDown hands every route the downed source peer still announces to
@@ -420,51 +539,100 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 // race within the structured path. The withdrawalMu guards against the
 // (theoretical) case of text and structured paths processing the same peer
 // concurrently.
-func (rr *routeReflector) handleStateDown(peerAddr string, generation uint64) {
-	rr.withdrawalMu.Lock()
-	entries := rr.withdrawals[peerAddr]
-	delete(rr.withdrawals, peerAddr)
-	rr.dropSourcePolicyLocked(peerAddr)
-	rr.withdrawalMu.Unlock()
-	// Taken before any return: every DOWN consumes its verdict, so no later
-	// DOWN of this peer reads it.
-	retained := rr.retained.Take(peerAddr)
-
-	if len(entries) == 0 {
+func (rr *routeReflector) handleStateDown(source peerIdentity, generation uint64) {
+	retained, err := rr.retained.Take(source.owner, source.connection)
+	if err != nil {
+		rr.noteWorkFailure("DOWN retention admission", err)
 		return
 	}
-
-	// RFC 4724 Section 4.2: "it MUST retain the routes received from the
-	// peer for all the address families that were previously received in
-	// the Graceful Restart Capability". Resolve retention here,
-	// synchronously, as bgp-rs does: a reconnect or expiry must not change
-	// this DOWN decision before the departure worker sends it. The RIB owns a
-	// retained family's routes and their eventual purge, so a retained route
-	// MUST NOT reach the engine as a departure: the recovery would withdraw
-	// it from every destination during the restart window.
-	// RFC 4724 Section 4.2: the families bgp-gr's verdict for this DOWN retains.
-	for key, info := range entries {
+	rr.mu.RLock()
+	state := rr.peers[source]
+	rr.mu.RUnlock()
+	if state == nil {
+		return
+	}
+	state.leaseMu.Lock()
+	rr.mu.Lock()
+	state.Up = false
+	state.DownSeen = true
+	state.optionalReplayErr = nil
+	rr.mu.Unlock()
+	rr.withdrawalMu.Lock()
+	entries := make(map[withdrawalKey]withdrawalInfo)
+	for key, info := range rr.withdrawals[source.address.String()] {
+		if key.owner != source.owner {
+			continue
+		}
+		if key.connection != source.connection {
+			continue
+		}
 		if retained[info.Family] {
-			delete(entries, key)
+			info.Retained = true
+			rr.withdrawals[source.address.String()][key] = info
 			continue
 		}
 		info.Generation = generation
+		info.Closing = true
+		rr.withdrawals[source.address.String()][key] = info
 		entries[key] = info
 	}
+	if txn := rr.sourcePolicy[source.owner]; txn != nil {
+		if txn.actor == source {
+			rr.dropSourcePolicyLocked(source.owner)
+		}
+	}
+	kept := false
+	for key, info := range rr.withdrawals[source.address.String()] {
+		if key.owner != source.owner {
+			continue
+		}
+		if key.connection != source.connection {
+			continue
+		}
+		if info.Retained {
+			if !info.Closing {
+				kept = true
+			}
+		}
+	}
+	rr.withdrawalMu.Unlock()
+	rr.mu.Lock()
+	state.RetainPending = kept
+	rr.mu.Unlock()
+	// Even an empty departure owns the normal-DOWN lease release; it cannot
+	// remain queued until an unrelated future applied-event barrier.
+	if !rr.enqueueDeparture(source, entries) {
+		rr.noteWorkFailure("source departure", errors.New("departure worker stopped before admission"))
+	}
+	rr.oweCleanup(source)
+	state.leaseMu.Unlock()
+}
 
+// takeWithdrawalEntriesLocked removes only the original RECEIVE owner's entries.
+// Caller MUST hold withdrawalMu. Zero is unrecorded, so it selects nothing.
+func (rr *routeReflector) takeWithdrawalEntriesLocked(source string, owner, connection uint64) map[withdrawalKey]withdrawalInfo {
+	if owner == 0 {
+		return nil
+	}
+	var taken map[withdrawalKey]withdrawalInfo
+	entries := rr.withdrawals[source]
+	for key, entry := range entries {
+		if entry.SourceOwner != owner {
+			continue
+		}
+		if key.connection != connection {
+			continue
+		}
+		if taken == nil {
+			taken = make(map[withdrawalKey]withdrawalInfo)
+		}
+		taken[key] = entry
+		delete(entries, key)
+	}
 	if len(entries) == 0 {
-		// Every route belonged to a retained family.
-		return
+		delete(rr.withdrawals, source)
 	}
-
-	addr, err := netip.ParseAddr(peerAddr)
-	if err != nil {
-		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
-		return
-	}
-	if !rr.enqueueDeparture(addr, entries) {
-		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
-	}
+	return taken
 }
 
 // departureWorkers bounds how many sources' departures the route reflector
@@ -484,32 +652,38 @@ const departureWorkers = 8
 // event delivery goroutine: blocking it would hold back the events the
 // engine's recovery of an earlier departure may wait on. It answers false,
 // queuing nothing, once stopDepartures was called.
-func (rr *routeReflector) enqueueDeparture(source netip.Addr, entries map[string]withdrawalInfo) bool {
+func (rr *routeReflector) enqueueDeparture(source peerIdentity, entries map[withdrawalKey]withdrawalInfo) bool {
+	// Snapshot before queue admission. A worker MUST NOT discover a successor
+	// through current peers after this source's original DOWN was delivered.
+	work := departureWork{entries: entries}
+	if len(entries) > 0 {
+		work.batches = []departureBatch{{entries: entries, targets: rr.targets(source, family.Family{})}}
+	}
 	rr.departureMu.Lock()
 	defer rr.departureMu.Unlock()
 	if rr.departuresStopped {
 		return false
 	}
 	if rr.departures == nil {
-		rr.departures = syncutil.NewCoalescer(departureWorkers,
-			func(waiting, next map[string]withdrawalInfo) map[string]withdrawalInfo {
-				// Runs inside Enqueue, under departureMu (merged).
-				rr.merged = true
-				maps.Copy(waiting, next)
-				return waiting
-			},
-			rr.sendDeparture,
-		)
+		rr.departures = syncutil.NewCoalescer(departureWorkers, func(waiting, next departureWork) departureWork {
+			rr.merged = true
+			merged := make(map[withdrawalKey]withdrawalInfo, len(waiting.entries)+len(next.entries))
+			maps.Copy(merged, waiting.entries)
+			maps.Copy(merged, next.entries)
+			waiting.entries = merged
+			waiting.batches = append(waiting.batches, next.batches...)
+			return waiting
+		}, rr.sendDeparture)
 	}
 	rr.merged = false
-	if !rr.departures.Enqueue(source, entries) {
+	if !rr.departures.Enqueue(source, work) {
 		return false
 	}
 	if rr.merged {
 		return true
 	}
 	if rr.departing == nil {
-		rr.departing = make(map[netip.Addr]*departureWait)
+		rr.departing = make(map[peerIdentity]*departureWait)
 	}
 	wait := rr.departing[source]
 	if wait == nil {
@@ -541,6 +715,7 @@ func (rr *routeReflector) stopDepartures() {
 // routes, retain native bytes and the ADD-PATH negotiation, so their group goes
 // out as hex.
 type withdrawalGroup struct {
+	owner    uint64
 	family   family.Family
 	wireForm bool
 	addPath  bool
@@ -553,44 +728,46 @@ type withdrawalGroup struct {
 // departed source's routes to every peer except that source, grouped by
 // family, wire form and ADD-PATH, at most withdrawalBatchSize routes per
 // request to bound command length.
-func (rr *routeReflector) sendPeerDown(source netip.Addr, entries map[string]withdrawalInfo) {
+func (rr *routeReflector) sendPeerDown(ctx context.Context, source peerIdentity, work departureWork) error {
+	for _, batch := range work.batches {
+		if err := rr.sendDepartureBatch(ctx, source, batch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (rr *routeReflector) sendDepartureBatch(ctx context.Context, source peerIdentity, work departureBatch) error {
 	byGroup := make(map[withdrawalGroup][]string)
-	for _, info := range entries {
-		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath,
-			generation: info.Generation}
+	for _, info := range work.entries {
+		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath, owner: info.SourceOwner, generation: info.Generation}
 		byGroup[group] = append(byGroup[group], info.Prefix)
 	}
-
-	excludeSel := selector.ExcludeAddr(source)
-	recoverySource := source.String()
-	var command textbuf.Buffer
 	for group, prefixes := range byGroup {
-		// Map iteration is unordered; sorting makes one down emit one byte
-		// sequence. Cold path, once per peer-down.
 		slices.Sort(prefixes)
 		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 			end := min(i+withdrawalBatchSize, len(prefixes))
-			if !group.wireForm {
-				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), prefixes[i:end]), recoverySource, group.generation)
-				continue
+			command := nlriDelCmd(group.family.String(), prefixes[i:end])
+			if group.wireForm {
+				var text textbuf.Buffer
+				text.Str("update hex nlri ").Str(group.family.String())
+				if group.addPath {
+					text.Str(" addpath")
+				}
+				for _, prefix := range prefixes[i:end] {
+					text.Str(" del ").Str(prefix)
+				}
+				command = text.String()
 			}
-			// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
-			// attribute to withdraw a route whose NLRI was previously
-			// specified in an MP_REACH_NLRI attribute, the lengths and
-			// values of the respective prefixes must match, and the
-			// respective AFI/SAFIs must match." Native bytes keep RD and
-			// prefix; RFC 7911 framing keeps the source's identifier,
-			// including zero, which the engine maps to the destination's.
-			command.Reset().Str("update hex nlri ").Str(group.family.String())
-			if group.addPath {
-				command.Str(" addpath")
+			for _, target := range work.targets {
+				if err := rr.recoverRouteSel(ctx, target, command, source, group.owner, group.generation); err != nil {
+					rr.noteTargetOutputFailure(target, "original source departure", err)
+					return err
+				}
 			}
-			for _, prefix := range prefixes[i:end] {
-				command.Str(" del ").Str(prefix)
-			}
-			rr.recoverRouteSel(excludeSel, command.String(), recoverySource, group.generation)
 		}
 	}
+	return nil
 }
 
 // rrOpenUnreadable is the warning for a received OPEN the route reflector
@@ -610,21 +787,25 @@ const rrOpenUnreadable = "The route reflector cannot read this peer's OPEN messa
 // is a wrong answer. An entry from an earlier session of the peer stays, and
 // the next accepted OPEN overwrites it; its readers skip it while the peer is
 // down.
-func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) {
-	if se.PeerAddress == "" || msg.RawBytes == nil {
-		return
+func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) error {
+	identity, identityErr := newPeerIdentity(se.PeerAddress, se.PeerOwner, se.ConnectionID)
+	if identityErr != nil {
+		return identityErr
+	}
+	if msg.RawBytes == nil {
+		return errors.New("bgp-rr: received OPEN is unreadable")
 	}
 
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
 		logger().Warn(rrOpenUnreadable, "peer", se.PeerAddress, "error", err)
-		return
+		return errors.New("bgp-rr: received OPEN is unreadable")
 	}
 	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length width.
 	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	if err != nil {
 		logger().Warn(rrOpenUnreadable, "peer", se.PeerAddress, "error", err)
-		return
+		return errors.New("bgp-rr: received OPEN is unreadable")
 	}
 
 	asn := uint32(open.MyAS)
@@ -635,7 +816,10 @@ func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 		if mp, ok := c.(*capability.Multiprotocol); ok {
 			hasMP = true
 			capabilities["multiprotocol"] = true
-			families[family.Family{AFI: mp.AFI, SAFI: mp.SAFI}] = true
+			fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+			if _, known := family.LookupFamily(fam.String()); known {
+				families[fam] = true
+			}
 		}
 		if asn4, ok := c.(*capability.ASN4); ok {
 			asn = asn4.ASN
@@ -649,161 +833,118 @@ func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 		families[family.IPv4Unicast] = true
 	}
 
+	return rr.recordOpen(identity, asn, families, capabilities)
+}
+
+func (rr *routeReflector) recordOpen(identity peerIdentity, asn uint32, families map[family.Family]bool, capabilities map[string]bool) error {
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
-
-	if rr.peers[se.PeerAddress] == nil {
-		rr.peers[se.PeerAddress] = &peerState{Address: se.PeerAddress}
+	for prior, state := range rr.peers {
+		if prior.owner != identity.owner {
+			continue
+		}
+		if prior.connection > identity.connection {
+			return nil
+		}
+		if prior == identity {
+			if state.DownSeen {
+				return nil
+			}
+		}
 	}
-	peer := rr.peers[se.PeerAddress]
+	if rr.peers == nil {
+		rr.peers = make(map[peerIdentity]*peerState)
+	}
+
+	if rr.peers[identity] == nil {
+		rr.peers[identity] = &peerState{Address: identity.address.String(), Identity: identity}
+	}
+	peer := rr.peers[identity]
 	peer.ASN = asn
 	peer.Families = families
 	peer.Capabilities = capabilities
+	return nil
 }
 
 // dispatchText routes text-format events to handlers (fork-mode fallback).
-func (rr *routeReflector) dispatchText(text string) {
+func (rr *routeReflector) dispatchText(text string) error {
 	if rr.stopping.Load() {
-		return
+		return errors.New("bgp-rr: event arrived after reflector admission closed")
 	}
-	// bgp-gr's verdict, delivered ahead of the DOWN it decides.
-	if envelope, ok := retention.Accepts(text); ok {
-		if err := rr.retained.Record(envelope); err != nil {
-			logger().Warn("bgp-rr: retention verdict refused", "err", err)
-		}
-		return
+	if envelope, matched := retention.AcceptsCleanup(text); matched {
+		return rr.cleanupSource(envelope)
 	}
-	// The selecting RIB's FlowSpec lookup command (ribevents.NoteFlowSpecGate).
+	if envelope, matched := retention.Accepts(text); matched {
+		return rr.retained.Record(envelope)
+	}
 	if matched, err := ribevents.ApplyFlowSpecGate(text); matched {
-		if err != nil {
-			logger().Warn("bgp-rr: flowspec-gate refused", "err", err)
-		}
-		return
+		return err
 	}
-	// The receive store's eligibility change: the revalidation relay.
+	gate, matched, err := ribevents.DecodeValidationGate(text)
+	if err != nil {
+		return err
+	}
+	if matched {
+		rr.mu.Lock()
+		rr.receiveGate = gate.Command
+		rr.mu.Unlock()
+		ribevents.NoteValidationGate(gate)
+		return nil
+	}
 	routes, matched, err := ribevents.DecodeValidationChange(text)
 	if err != nil {
-		logger().Warn("bgp-rr: validation-change refused", "err", err)
-		return
+		return err
 	}
 	if matched {
 		rr.validationChanged(routes)
-		return
+		return nil
 	}
 	text, receipt, enveloped, err := bgptypes.UnwrapUpdateText(text)
 	if err != nil {
-		logger().Warn("received UPDATE envelope rejected", "error", err)
-		return
+		return err
 	}
-
-	// Quick parse: "peer <addr> remote as <n> <dir> <type> <id> ..."
-	// State:       "peer <addr> remote as <n> state <state>"
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
 	if len(fields) < 6 {
-		return
+		return nil
 	}
-
-	// fields[5] is either "state" or the direction token.
+	if fields[0] != "peer" {
+		return nil
+	}
+	if fields[2] != "remote" {
+		return errors.New("bgp-rr: event has malformed remote AS header")
+	}
+	if fields[3] != "as" {
+		return errors.New("bgp-rr: event has malformed remote AS header")
+	}
 	if fields[5] == eventState {
-		if len(fields) >= 7 {
-			peerAddr := fields[1]
-			state := fields[6]
-			var initialReplay, sessionGeneration uint64
-			attached := false
-			for i := 7; i < len(fields); i++ {
-				if fields[i] == "reason" && i+1 < len(fields) && fields[i+1] == rpc.ReasonAttached {
-					attached = true
-				}
-				if fields[i] != "initial-replay" && fields[i] != "session-generation" {
-					continue
-				}
-				keyword := fields[i]
-				i++
-				if i == len(fields) {
-					return
-				}
-				token, err := strconv.ParseUint(fields[i], 10, 64)
-				if err != nil {
-					return
-				}
-				if keyword == "session-generation" {
-					sessionGeneration = token
-					continue
-				}
-				initialReplay = token
-			}
-
-			rr.mu.Lock()
-			if rr.peers[peerAddr] == nil {
-				rr.peers[peerAddr] = &peerState{Address: peerAddr}
-			}
-			peer := rr.peers[peerAddr]
-			peer.Up = (state == "up")
-			switch state {
-			case "up":
-				rr.retained.Begin(peerAddr)
-				if attached {
-					// handleStructuredState's reason: no replay on an attached up.
-					rr.mu.Unlock()
-					return
-				}
-				peer.ReplayGen++
-				gen := peer.ReplayGen
-				rr.mu.Unlock()
-				go rr.replayForPeer(peerAddr, gen, initialReplay)
-			case "down":
-				rr.mu.Unlock()
-				rr.handleStateDown(peerAddr, sessionGeneration)
-			default: // other states (e.g. "connected")
-				rr.mu.Unlock()
-			}
-		}
-		return
+		return rr.textState(fields)
 	}
-
-	// Message events: fields[5]=direction [6]=type [7]=id
 	if len(fields) < 8 {
-		return
+		return nil
 	}
-
-	if fields[6] == eventUpdate {
-		msgID, err := strconv.ParseUint(fields[7], 10, 64)
-		if err != nil {
-			return
-		}
-		sourcePolicyEpoch, sourceReceipt, peerOwner, err := textparse.SourceProvenance(text)
-		if err != nil {
-			logger().Warn("received UPDATE provenance rejected", "peer", fields[1], "error", err)
-			ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
-			if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {
-				logger().Warn("rejected UPDATE cache release failed", "message-id", msgID, "error", releaseErr)
-			}
-			cancel()
-			return
-		}
-		if enveloped {
-			if err := receipt.Validate(fields[1], peerOwner, msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
-				logger().Warn("received UPDATE receipt rejected", "peer", fields[1], "message-id", msgID, "error", err)
-				ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
-				if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {
-					logger().Warn("rejected UPDATE cache release failed", "message-id", msgID, "error", releaseErr)
-				}
-				cancel()
-				return
-			}
-		}
-		// Update withdrawal map from text before forwarding.
-		peerAddr := fields[1]
-		ops := parseTextNLRIOps(text)
-		rr.forwards.enter()
-		if len(ops) > 0 {
-			rr.withdrawalMu.Lock()
-			rr.updateWithdrawalMapText(peerAddr, ops, sourcePolicyEpoch)
-			rr.withdrawalMu.Unlock()
-		}
-		rr.forwardUpdate(msgID)
-		rr.forwards.leave()
+	if fields[5] != "received" {
+		return nil
 	}
+	if fields[6] == eventOpen {
+		return rr.textOpen(fields)
+	}
+	if fields[6] != eventUpdate {
+		return nil
+	}
+	msgID, err := strconv.ParseUint(fields[7], 10, 64)
+	if err != nil {
+		return err
+	}
+	epoch, sourceReceipt, owner, connection, err := textparse.SourcePhysicalProvenance(text)
+	if err != nil {
+		return rr.rejectCached(msgID, err)
+	}
+	if enveloped {
+		if err := receipt.Validate(fields[1], owner, msgID, epoch, sourceReceipt); err != nil {
+			return rr.rejectCached(msgID, err)
+		}
+	}
+	return rr.reflectText(fields[1], owner, connection, sourceReceipt, msgID, epoch, text)
 }
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -864,53 +1005,75 @@ func recordedFamilyNames(families map[family.Family]bool) []string {
 // The gen parameter guards against rapid reconnects: if the peer's ReplayGen
 // has changed by the time replay finishes, this goroutine is stale.
 // initialReplay MUST be the receipt captured by this replay's peer-up event.
-func (rr *routeReflector) replayForPeer(peerAddr string, gen, initialReplay uint64) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	// The mandatory selecting RIB owns FlowSpec replay independently of the
-	// optional store. Complete it before EOR and the readiness report on both
-	// successful and failed optional-store replay.
-	var replayed int
-	defer func() {
-		replayed += rr.replayFlowSpecs(peerAddr, gen)
-		if replayed > 0 {
-			rr.sendEOR(peerAddr, gen)
-		}
-		rr.signalSessionReady(peerAddr, gen, initialReplay)
-	}()
-
-	// Full replay from store index 0.
-	progress, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, rr.plugin.RelayStoredRoute, peerAddr, 0, "")
-	replayed = progress.Replayed
-	if err != nil {
-		// Optional-store failure does not prevent mandatory FlowSpec replay.
-		logger().Warn("replay failed", "peer", peerAddr, "replayed", progress.Replayed, "error", err)
+func (rr *routeReflector) replayForPeer(parent context.Context, target peerTarget, initialReplay uint64, done chan struct{}) {
+	defer rr.replays.finish(done)
+	state, admitted := rr.pinPeerReplay(target)
+	if !admitted {
 		return
 	}
-	lastIndex := progress.LastIndex
-
-	// Convergent delta replay: catch routes adj-rib-in received after the
-	// full replay snapshot (race between event delivery and replay).
-	for i := range replayConvergenceMax {
-		if lastIndex == 0 {
-			break
+	defer rr.finishPeerReplay(target.identity, state)
+	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	defer cancel()
+	destination := target.identity.address.String()
+	var relayFailure error
+	relay := func(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
+		err := rr.relayToPeer(ctx, target, destination, routes)
+		if err != nil {
+			relayFailure = err
 		}
-		if i > 0 {
-			time.Sleep(replayConvergenceDelay)
-		}
-		delta, deltaErr := ribevents.RelayReplay(ctx, rr.dispatchCommand, rr.plugin.RelayStoredRoute, peerAddr, lastIndex, "")
-		replayed += delta.Replayed
-		if deltaErr != nil {
-			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
-			break
-		}
-		if delta.Replayed == 0 {
-			break
-		}
-		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", delta.Replayed)
-		lastIndex = delta.LastIndex
+		return err
 	}
+	progress, readFailure := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, 0, "")
+	replayed := progress.Replayed
+	last := progress.LastIndex
+	if readFailure == nil {
+		for range replayConvergenceMax {
+			if last == 0 {
+				break
+			}
+			if !rr.targetCurrent(target) {
+				return
+			}
+			delta, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, last, "")
+			replayed += delta.Replayed
+			if err != nil {
+				readFailure = err
+				break
+			}
+			if delta.Replayed == 0 {
+				break
+			}
+			last = delta.LastIndex
+		}
+	}
+	if relayFailure != nil {
+		rr.rememberReplay(target, initialReplay, relayFailure)
+		return
+	}
+	if readFailure != nil {
+		// An optional PAGE READ refuses no already joined output. In particular,
+		// its expired context must not suppress mandatory selecting-RIB replay.
+		rr.reportOptionalReplay(parent, target, readFailure)
+	}
+	if readFailure == nil {
+		rr.reportOptionalReplay(parent, target, nil)
+	}
+	flowCount, failed := rr.replayFlowSpecs(parent, target)
+	replayed += flowCount
+	if failed != nil {
+		rr.rememberReplay(target, initialReplay, failed)
+		return
+	}
+	if replayed > 0 {
+		failed = rr.sendEOR(parent, target)
+	}
+	if failed == nil {
+		failed = rr.signalSessionReady(parent, target, initialReplay)
+	}
+	// These final writes are required. Their unknown completion cannot be
+	// converted into a safe eligibility read retry or an optional-store warning.
+	rr.noteTargetOutputFailure(target, "peer-UP final End-of-RIB and readiness", failed)
+	rr.rememberReplay(target, initialReplay, failed)
 }
 
 // dispatchCommand sends a command to the engine via the SDK.
@@ -919,28 +1082,42 @@ func (rr *routeReflector) dispatchCommand(ctx context.Context, command string, a
 }
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
-func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
+func (rr *routeReflector) sendEOR(parent context.Context, target peerTarget) error {
 	rr.mu.RLock()
-	p := rr.peers[peerAddr]
-	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {
+	p := rr.peers[target.identity]
+	if p == nil {
 		rr.mu.RUnlock()
-		return
+		return nil
+	}
+	if !p.Up {
+		rr.mu.RUnlock()
+		return nil
+	}
+	if p.ReplayGen != target.generation {
+		rr.mu.RUnlock()
+		return nil
+	}
+	if p.DestinationSession != target.session {
+		rr.mu.RUnlock()
+		return nil
 	}
 	families := make([]string, 0, len(p.Families))
-	for f := range p.Families {
-		families = append(families, f.String())
+	for fam := range p.Families {
+		families = append(families, fam.String())
 	}
 	rr.mu.RUnlock()
-
 	slices.Sort(families)
 	for _, fam := range families {
-		// RFC 4724 Section 2: the marker indicates "the completion of the
-		// initial routing update". The replay-eor meta has the engine send it
-		// only when this session has not already carried the family's marker
-		// from the reactor's own initial sync, so the replay does not repeat it.
-		rr.updateRouteWithMeta(peerAddr, rrEORCmd(fam), map[string]any{bgptypes.ReplayEORMeta: true})
+		ctx, cancel := context.WithTimeout(parent, updateRouteTimeout)
+		_, _, err := rr.plugin.UpdateRouteRequest(ctx, rpc.UpdateRouteInput{PeerSelector: target.identity.address.String(),
+			Command: rrEORCmd(fam), Meta: map[string]any{bgptypes.ReplayEORMeta: true},
+			DestinationOwner: target.identity.owner, DestinationSession: target.session})
+		cancel()
+		if err != nil {
+			return err
+		}
 	}
-	logger().Info("sent EOR", "peer", peerAddr, "families", families)
+	return nil
 }
 
 // signalSessionReady reports completion of this plugin's initial replay so the
@@ -948,27 +1125,19 @@ func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 // The local generation check rejects known stale work; the captured receipt also
 // fences a reconnect after that check at the command consumer.
 // initialReplay MUST come from the replay's peer-up event, never a current-session lookup.
-func (rr *routeReflector) signalSessionReady(peerAddr string, gen, initialReplay uint64) {
+func (rr *routeReflector) signalSessionReady(parent context.Context, target peerTarget, initialReplay uint64) error {
 	if initialReplay == 0 {
-		logger().Warn("cannot report replay readiness without the peer-up session receipt", "peer", peerAddr)
-		return
+		return nil
 	}
-	rr.mu.RLock()
-	p := rr.peers[peerAddr]
-	stale := p == nil || p.ReplayGen != gen
-	rr.mu.RUnlock()
-	if stale {
-		return
+	if !rr.targetCurrent(target) {
+		return nil
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	ctx, cancel := context.WithTimeout(parent, updateRouteTimeout)
 	defer cancel()
-	var tb textbuf.Buffer
-	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready session ").Uint(initialReplay).String()
-	if _, _, err := rr.plugin.DispatchCommand(ctx, command); err != nil {
-		logger().Warn("plugin session ready failed; this peer's live forwards remain fenced",
-			"peer", peerAddr, "error", err)
-	}
+	var text textbuf.Buffer
+	command := text.Str("request peer ").Str(target.identity.address.String()).Str(" plugin session ready session ").Uint(initialReplay).String()
+	_, _, err := rr.plugin.DispatchDestinationCommand(ctx, rpc.DispatchCommandInput{Command: command, DestinationOwner: target.identity.owner, DestinationSession: target.session})
+	return err
 }
 
 // nlriDelCmd is one text withdrawal of prefixes, each a complete NLRI
@@ -1024,6 +1193,7 @@ func commandDecls() []sdk.CommandDecl {
 func routeReflectorRegistration() *sdk.Registration {
 	return &sdk.Registration{
 		CacheConsumer:          true,
+		DoctorChecks:           []rpc.DoctorCheckDecl{replayDoctorDeclaration()},
 		CacheConsumerUnordered: true,
 		// SourcePolicyOwner: this plugin keeps per-source state for the peers
 		// whose UPDATEs it receives (forwarded routes and the withdrawal map).
@@ -1037,6 +1207,7 @@ func routeReflectorRegistration() *sdk.Registration {
 		Dissemination:       disseminationDecls(),
 		SignalsSessionReady: true,
 		FencesLiveForwards:  true,
+		EventSettlement:     true,
 		Commands:            commandDecls(),
 		// The registry's edges, so a forked reflector takes a DOWN before
 		// the stores it depends on, as an internal one does.

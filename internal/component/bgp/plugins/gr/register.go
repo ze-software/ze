@@ -37,10 +37,10 @@ var (
 	grDependencies = []string{"bgp-rib", policy.PluginName}
 	// grOptionalDependencies and grStartAfter put this plugin's retention
 	// verdict (bgp-gr/retention) ahead of the route server's and the route
-	// reflector's DOWN, which consume it. Order only: a graceful-restart
-	// configuration loads neither.
+	// reflector's and received-validation owners' DOWN, which consume it.
+	// Order only: a graceful-restart configuration loads no optional validator.
 	grOptionalDependencies = []string{"bgp-rs"}
-	grStartAfter           = []string{"bgp-rr"}
+	grStartAfter           = []string{"bgp-rr", "bgp-adj-rib-in", "bgp-rpki"}
 )
 
 // fieldStale is the route metadata key this plugin's LLGR ingress step

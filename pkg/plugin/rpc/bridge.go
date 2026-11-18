@@ -780,7 +780,7 @@ func (b *DirectBridge) HasEmitEvent() bool {
 // ctx is checked before dispatch; a canceled context short-circuits the call.
 // Engine-side handlers may also honor ctx for long-running dispatch paths,
 // though the current reactor path completes promptly.
-type ForwardCachedHandler func(ctx context.Context, ids []uint64, destinations []string) error
+type ForwardCachedHandler func(ctx context.Context, input ForwardCachedInput) (*CachedWriteOutput, error)
 
 // SetForwardCached registers the engine-side typed forward-cached handler.
 // Called by the engine after startup alongside SetDispatchRPC.
@@ -792,7 +792,7 @@ func (b *DirectBridge) SetForwardCached(fn ForwardCachedHandler) {
 // ForwardCached calls the engine's typed forward-cached handler directly.
 // Returns ctx.Err() when ctx is already canceled before dispatch, or the
 // handler's error otherwise. Not-set returns an error without dispatching.
-func (b *DirectBridge) ForwardCached(ctx context.Context, ids []uint64, destinations []string) error {
+func (b *DirectBridge) ForwardCached(ctx context.Context, input ForwardCachedInput) error {
 	if !b.beginDispatch() {
 		return ErrBridgeClosed
 	}
@@ -800,13 +800,22 @@ func (b *DirectBridge) ForwardCached(ctx context.Context, ids []uint64, destinat
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if !b.hasForwardCached.Load() {
-		return errors.New("forward-cached handler not set")
+	if err := input.Validate(); err != nil {
+		return err
 	}
-	return b.forwardCached(ctx, ids, destinations)
+	if !b.hasForwardCached.Load() {
+		return errors.New("ForwardCached handler not set")
+	}
+	output, err := b.forwardCached(ctx, input)
+	if err != nil {
+		return err
+	}
+	if !input.Bound() {
+		return nil
+	}
+	return output.Validate(input.DeadlineMS)
 }
 
-// HasForwardCached reports whether the typed forward-cached handler is set.
 func (b *DirectBridge) HasForwardCached() bool {
 	return b.ready.Load() && b.hasForwardCached.Load()
 }
@@ -851,7 +860,7 @@ func (b *DirectBridge) HasReleaseCached() bool {
 // spec-fixit-bgp-egress-rail-divergence.
 //
 // ctx is checked before dispatch; a canceled context short-circuits the call.
-type RelayStoredRouteHandler func(ctx context.Context, destination string, routes []StoredRoute) error
+type RelayStoredRouteHandler func(ctx context.Context, input RelayStoredRouteInput) (*CachedWriteOutput, error)
 
 // SetRelayStoredRoute registers the engine-side typed relay-stored-route handler.
 // Called by the engine after startup alongside SetDispatchRPC.
@@ -863,7 +872,7 @@ func (b *DirectBridge) SetRelayStoredRoute(fn RelayStoredRouteHandler) {
 // RelayStoredRoute calls the engine's typed relay-stored-route handler directly.
 // Returns ctx.Err() when ctx is already canceled before dispatch, or the
 // handler's error otherwise. Not-set returns an error without dispatching.
-func (b *DirectBridge) RelayStoredRoute(ctx context.Context, destination string, routes []StoredRoute) error {
+func (b *DirectBridge) RelayStoredRoute(ctx context.Context, input RelayStoredRouteInput) error {
 	if !b.beginDispatch() {
 		return ErrBridgeClosed
 	}
@@ -871,13 +880,22 @@ func (b *DirectBridge) RelayStoredRoute(ctx context.Context, destination string,
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if !b.hasRelayStoredRoute.Load() {
-		return errors.New("relay-stored-route handler not set")
+	if err := input.Validate(); err != nil {
+		return err
 	}
-	return b.relayStoredRoute(ctx, destination, routes)
+	if !b.hasRelayStoredRoute.Load() {
+		return errors.New("RelayStoredRoute handler not set")
+	}
+	output, err := b.relayStoredRoute(ctx, input)
+	if err != nil {
+		return err
+	}
+	if input.DestinationOwner == 0 {
+		return nil
+	}
+	return output.Validate(input.DeadlineMS)
 }
 
-// HasRelayStoredRoute reports whether the typed relay-stored-route handler is set.
 func (b *DirectBridge) HasRelayStoredRoute() bool {
 	return b.ready.Load() && b.hasRelayStoredRoute.Load()
 }
@@ -938,16 +956,20 @@ func (b *DirectBridge) HasInjectWireRoute() bool {
 // ValidationDecision carries a route-validation decision through typed or JSON RPC.
 // Ineligible retains a rejected route for re-evaluation; it MUST NOT accompany Accept.
 // MsgID scopes the decision to one received UPDATE. Zero explicitly means an
-// unversioned decision for the current route, or the next route if none is stored.
+// unversioned decision within its exact source, or its next route if none is stored.
 type ValidationDecision struct {
 	Accept     bool
 	Ineligible bool
 	PeerAddr   string
-	Family     string
-	Prefix     string
-	PathID     uint32
-	ValState   uint8 // Origin state for accepted or retained routes: 1=Valid, 2=NotFound, 3=Invalid.
-	MsgID      uint64
+	// PeerOwner and ConnectionID are captured original received facts.
+	// Both zero name observations only; neither is an address wildcard.
+	PeerOwner    uint64 `json:"peer-owner,string"`
+	ConnectionID uint64 `json:"connection-id,string"`
+	Family       string
+	Prefix       string
+	PathID       uint32
+	ValState     uint8 // Origin state for accepted or retained routes: 1=Valid, 2=NotFound, 3=Invalid.
+	MsgID        uint64
 }
 
 // BatchValidateResult carries the outcome counters from a batch validation.
@@ -1100,7 +1122,7 @@ type StructuredEvent struct {
 	MessageID           uint64           // Unique message ID (0 for non-message events)
 	State               SessionState     // For state events: SessionStateUp, SessionStateDown
 	InitialReplay       uint64           // Exact peer-up replay session receipt; zero when absent.
-	DestinationSession  uint64           // Captured connection identity on every state event.
+	DestinationSession  uint64           // Captured connection identity on state, actual SENT UPDATE and refresh events.
 	SelectedDestination bool             // This recipient is the complete ordinary output owner.
 	OrdinaryReplayOwned bool             // Captured UP has ordinary output; auxiliary automatic replay stands down, without granting authority.
 	// SessionGeneration is, for a down state event, the forward generation of
@@ -1112,6 +1134,7 @@ type StructuredEvent struct {
 	SourcePolicyEpoch uint64 // Original received policy admission, independent of session generation.
 	SourceReceipt     uint64 // Original engine-issued source session; zero is unrecorded.
 	PeerOwner         uint64 // Event Peer incarnation; sent original-source identity stays in RawMessage.
+	ConnectionID      uint64 // Original physical Session, independent of output authority or replay receipts.
 	Reason            string // For state events: close reason
 	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
 	// of the FSM event that closed the session; zero means no relevant event,
@@ -1164,6 +1187,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.SourcePolicyEpoch = 0
 	se.SourceReceipt = 0
 	se.PeerOwner = 0
+	se.ConnectionID = 0
 	se.Reason = ""
 	se.FSMEvent = 0
 	se.RawMessage = nil

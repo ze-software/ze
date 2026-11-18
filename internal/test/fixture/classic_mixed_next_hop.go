@@ -225,7 +225,7 @@ func (state *classicMixedNextHopState) run(ctx context.Context, plugin *sdk.Plug
 			return fmt.Errorf("%s phase%d reactor-forwarded=%t", rail, phase, receipt.ReactorForwarded)
 		}
 		if rail == classicMixedNextHopRailCached {
-			if err := plugin.ForwardCached(ctx, []uint64{receipt.MessageID}, []string{addrLoopbackThird, addrLoopbackFourth}); err != nil {
+			if err := plugin.ForwardCached(ctx, rpc.ForwardCachedInput{IDs: []uint64{receipt.MessageID}, Destinations: []string{addrLoopbackThird, addrLoopbackFourth}}); err != nil {
 				return err
 			}
 		}

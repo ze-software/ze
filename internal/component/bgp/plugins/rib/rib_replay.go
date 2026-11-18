@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/hex"
 	"hash/fnv"
-	"net/netip"
 	"sort"
 	"strconv"
 	"time"
@@ -67,8 +66,8 @@ type groupKey struct {
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
 // Each distinct AttrHandle is decoded once. Returns groups ready for replay.
-func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGroup {
-	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{}, false)
+func (r *RIBManager) collectGroupedRibOutRoutes(destinationOwner uint64) []replayGroup {
+	return r.collectGroupedRibOutRoutesFiltered(destinationOwner, family.Family{}, false)
 }
 
 // collectPeerUpReplay returns the Adj-RIB-Out groups to re-advertise to a peer
@@ -91,24 +90,24 @@ func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGro
 // by declining -- the rail that sent it is the one delivering it.
 //
 // Caller must hold peerMu.
-func (r *RIBManager) collectPeerUpReplay(peerAddr netip.Addr, seenBefore bool) []replayGroup {
+func (r *RIBManager) collectPeerUpReplay(destinationOwner uint64, seenBefore bool) []replayGroup {
 	if seenBefore {
-		return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{}, true)
+		return r.collectGroupedRibOutRoutesFiltered(destinationOwner, family.Family{}, true)
 	}
 	// Say it rather than decline silently (ai/rules/evidence.md): a
 	// non-empty Adj-RIB-Out here means the reordering actually happened and a
 	// duplicate was suppressed, which is invisible everywhere else.
-	if n := len(r.ribOut[peerAddr]); n > 0 {
+	if n := len(r.ribOut[destinationOwner]); n > 0 {
 		logger().Warn("adj-rib-out replay skipped on a peer's first session: entries were recorded by this session's own sends",
-			"peer", peerAddr, "families", n)
+			"peer", destinationOwner, "families", n)
 	}
 	return nil
 }
 
 // collectGroupedRibOutRoutesForFamily is like collectGroupedRibOutRoutes but
 // restricted to a single address family.
-func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fam family.Family) []replayGroup {
-	return r.collectGroupedRibOutRoutesFiltered(peerAddr, fam, false)
+func (r *RIBManager) collectGroupedRibOutRoutesForFamily(destinationOwner uint64, fam family.Family) []replayGroup {
+	return r.collectGroupedRibOutRoutesFiltered(destinationOwner, fam, false)
 }
 
 // collectGroupedRibOutRoutesFiltered groups ribOut entries for replay.
@@ -123,8 +122,8 @@ func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fa
 // it, the live forwards parked behind the fence stay parked for the session.
 // Test the emptiness you
 // mean (len(groups) == 0), never the nil-ness of the return.
-func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, filterFam family.Family, peerUp bool) []replayGroup {
-	peerFamilies := r.ribOut[peerAddr]
+func (r *RIBManager) collectGroupedRibOutRoutesFiltered(destinationOwner uint64, filterFam family.Family, peerUp bool) []replayGroup {
+	peerFamilies := r.ribOut[destinationOwner]
 	if peerFamilies == nil {
 		return nil
 	}

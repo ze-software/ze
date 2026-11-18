@@ -84,8 +84,14 @@ type flowSpecUnicast struct {
 	candidate  *Candidate
 }
 
-func flowSpecKey(peer netip.Addr, peerOwner uint64, fam family.Family, raw []byte, addPath bool) (ribevents.ValidationRoute, bool) {
-	key := ribevents.ValidationRoute{Peer: peer, PeerOwner: peerOwner, Family: fam}
+func flowSpecKey(peer netip.Addr, peerOwner, connectionID uint64, fam family.Family, raw []byte, addPath bool) (ribevents.ValidationRoute, bool) {
+	key := ribevents.ValidationRoute{Peer: peer, PeerOwner: peerOwner, ConnectionID: connectionID, Family: fam}
+	if peerOwner == 0 {
+		return key, false
+	}
+	if connectionID == 0 {
+		return key, false
+	}
 	if addPath {
 		if len(raw) < 4 {
 			return key, false
@@ -281,6 +287,9 @@ func flowSpecAuthorized(flow *flowSpecRoute, unicast []flowSpecUnicast) bool {
 }
 
 func (r *RIBManager) flowSpecEligible(key ribevents.ValidationRoute, msgID uint64) bool {
+	if key.ConnectionID == 0 {
+		return false
+	}
 	if key.PeerOwner == 0 {
 		return false
 	}
@@ -296,6 +305,9 @@ func (r *RIBManager) flowSpecEligible(key ribevents.ValidationRoute, msgID uint6
 // rule's own verdict, the one the local install strips by, so the wire and the
 // install agree rule by rule. A verdict for another generation answers false.
 func (r *RIBManager) flowSpecRedirectRefusedFor(key ribevents.ValidationRoute, msgID uint64) bool {
+	if key.ConnectionID == 0 {
+		return false
+	}
 	if key.PeerOwner == 0 {
 		return false
 	}
@@ -308,6 +320,9 @@ func (r *RIBManager) flowSpecRedirectRefusedFor(key ribevents.ValidationRoute, m
 }
 
 func (r *RIBManager) flowSpecPresent(key ribevents.ValidationRoute) bool {
+	if key.ConnectionID == 0 {
+		return false
+	}
 	if key.PeerOwner == 0 {
 		return false
 	}
@@ -320,12 +335,15 @@ func (r *RIBManager) flowSpecPresent(key ribevents.ValidationRoute) bool {
 }
 
 func (r *RIBManager) flowSpecPath(key ribevents.ValidationRoute) (ribevents.FlowSpecPath, bool) {
+	if key.ConnectionID == 0 {
+		return ribevents.FlowSpecPath{}, false
+	}
 	if key.PeerOwner == 0 {
 		return ribevents.FlowSpecPath{}, false
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	peer := r.bgpPeers[key.Peer]
+	peer := r.bgpPeers[key.PeerOwner]
 	if peer == nil {
 		return ribevents.FlowSpecPath{}, false
 	}
@@ -342,6 +360,9 @@ func (r *RIBManager) flowSpecPath(key ribevents.ValidationRoute) (ribevents.Flow
 	}
 	defer entry.Release()
 	if entry.SourcePeerOwner() != key.PeerOwner {
+		return ribevents.FlowSpecPath{}, false
+	}
+	if entry.SourceConnectionID() != key.ConnectionID {
 		return ribevents.FlowSpecPath{}, false
 	}
 	attrs, err := entry.ToWireBytes()
@@ -411,20 +432,24 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		return
 	}
 	var flows []flowSpecRoute
-	for peer, routes := range r.bgpPeers {
+	for owner, routes := range r.bgpPeers {
+		peer, known := r.peerAddressLocked(owner)
+		if !known {
+			continue
+		}
 		for _, fam := range flowSpecFamilies {
 			if routes.FamilyLen(fam) == 0 {
 				continue
 			}
 			addPath := routes.IsAddPath(fam)
 			routes.IterateFamily(fam, func(raw []byte, entry storage.RouteEntry) bool {
-				key, ok := flowSpecKey(peer, entry.SourcePeerOwner(), fam, raw, addPath)
+				key, ok := flowSpecKey(peer, entry.SourcePeerOwner(), entry.SourceConnectionID(), fam, raw, addPath)
 				if !ok || entry.AddRef() != nil {
 					return true
 				}
 				domain, destination, matchable := flowSpecDestination(fam, []byte(key.NLRI))
 				first, _, local, valid := flowSpecASPath(entry)
-				candidate := r.extractCandidate(fam, peer, routes.PeerAddr(), entry)
+				candidate := r.extractCandidate(fam, owner, peer, routes.PeerAddr(), entry)
 				var target netip.Addr
 				// draft-simpson-idr-flowspec-redirect-02 Section 3 binds the
 				// check to a route "from an EBGP peer", on by default and off
@@ -432,7 +457,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				// (zero) is external, as flowSpecAuthorized reads it, so the
 				// check fails closed rather than letting the action through.
 				external := candidate.LocalASN == 0 || candidate.PeerASN != candidate.LocalASN
-				if external && r.flowSpecRedirectChecked(peer) {
+				if external && r.flowSpecRedirectChecked(owner, peer) {
 					target = flowSpecRedirectTarget(entry)
 				}
 				flows = append(flows, flowSpecRoute{key: key, addPath: addPath, domain: domain, destination: destination, matchable: matchable,
@@ -449,7 +474,11 @@ func (r *RIBManager) reconcileFlowSpecs() {
 	var queries []ribevents.EligibilityQuery
 	var asked []int
 	if len(flows) > 0 {
-		for peer, routes := range r.bgpPeers {
+		for owner, routes := range r.bgpPeers {
+			peer, known := r.peerAddressLocked(owner)
+			if !known {
+				continue
+			}
 			flags := routes.AddPathFamilies()
 			for _, fam := range routes.Families() {
 				if fam.SAFI != family.SAFIUnicast && fam.SAFI != family.SAFIVPN {
@@ -489,11 +518,11 @@ func (r *RIBManager) reconcileFlowSpecs() {
 						pathID, _, _ := parsePrevKey(fam, raw, flags[fam])
 						asked = append(asked, len(unicast))
 						queries = append(queries, ribevents.EligibilityQuery{
-							Route: ribevents.ValidationRoute{Peer: peer, PeerOwner: entry.SourcePeerOwner(), Family: fam, Prefix: prefix, PathID: pathID},
+							Route: ribevents.ValidationRoute{Peer: peer, PeerOwner: entry.SourcePeerOwner(), ConnectionID: entry.SourceConnectionID(), Family: fam, Prefix: prefix, PathID: pathID},
 							MsgID: entry.MsgID,
 						})
 					}
-					candidate := r.extractCandidate(fam, peer, routes.PeerAddr(), entry)
+					candidate := r.extractCandidate(fam, owner, peer, routes.PeerAddr(), entry)
 					unicast = append(unicast, flowSpecUnicast{domain: domain, prefix: prefix,
 						originator: flowSpecOriginator(peer, entry), firstAS: first, lastAS: last, candidate: candidate})
 					return true

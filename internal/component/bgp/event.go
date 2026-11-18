@@ -388,6 +388,7 @@ type Event struct {
 	SourcePolicyEpoch uint64        `json:"source-policy-epoch"`
 	SourceReceipt     uint64        `json:"source-receipt"`
 	PeerOwner         uint64        `json:"peer-owner"`
+	ConnectionID      uint64        `json:"connection-id,string,omitempty"`
 
 	// Received events use message wrapper (includes type, id, direction).
 	Message *MessageInfo `json:"message,omitempty"`
@@ -395,7 +396,7 @@ type Event struct {
 	// Peer info - uses RawMessage to handle both flat and nested formats.
 	Peer json.RawMessage `json:"peer"`
 
-	// State event field.
+	// State and captured refresh delivery fields.
 	State               string `json:"state,omitempty"`
 	InitialReplay       uint64 `json:"initial-replay,string,omitempty"`
 	DestinationSession  uint64 `json:"destination-session,string,omitempty"`

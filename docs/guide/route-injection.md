@@ -8,6 +8,14 @@ Ze supports injecting routes at runtime through text, hex, or base64 encoded UPD
 `request bgp rib inject` inserts a synthetic candidate into Ze's BGP RIB without
 requiring a live BGP session. If the route wins best-path selection, it continues
 through the system RIB and configured FIB backends.
+The supplied peer address labels a manual candidate in a separate synthetic
+source slot. A learned route at the same address remains independently owned;
+withdrawing the manual candidate leaves that learned route available.
+
+The injection command supplies no received-source authority for ordinary BGP
+output. That output elects from admitted learned routes independently of the
+forwarding result. Export of a manual candidate requires an explicitly admitted
+origin or redistribution path.
 
 ```bash
 ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"

@@ -17,13 +17,13 @@ import (
 // skipped list belongs to its reader; structured dispatch MUST clone the
 // publisher's list before handing it to an asynchronous worker.
 type UpdateReceipt struct {
-	PeerOwner         uint64           `json:"peer-owner"`
-	Peer              netip.Addr       `json:"peer"`
-	MessageID         uint64           `json:"message-id"`
-	SourcePolicyEpoch uint64           `json:"source-policy-epoch"`
-	SourceReceipt     uint64           `json:"source-receipt"`
-	ReactorForwarded  bool             `json:"reactor-forwarded"`
-	FastPathSkipped   []netip.AddrPort `json:"fast-path-skipped,omitempty"`
+	PeerOwner         uint64              `json:"peer-owner"`
+	Peer              netip.Addr          `json:"peer"`
+	MessageID         uint64              `json:"message-id"`
+	SourcePolicyEpoch uint64              `json:"source-policy-epoch"`
+	SourceReceipt     uint64              `json:"source-receipt"`
+	ReactorForwarded  bool                `json:"reactor-forwarded"`
+	FastPathSkipped   []rpc.ForwardTarget `json:"fast-path-skipped,omitempty"`
 }
 
 // ParseUpdateReceipt decodes one UPDATE envelope's mandatory metadata. The
@@ -34,13 +34,13 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE envelope requires a forwarding receipt")
 	}
 	var fields struct {
-		Peer              netip.Addr       `json:"peer"`
-		PeerOwner         receiptUint64    `json:"peer-owner"`
-		MessageID         receiptUint64    `json:"message-id"`
-		SourcePolicyEpoch receiptUint64    `json:"source-policy-epoch"`
-		SourceReceipt     receiptUint64    `json:"source-receipt"`
-		ReactorForwarded  receiptDecision  `json:"reactor-forwarded"`
-		FastPathSkipped   []netip.AddrPort `json:"fast-path-skipped"`
+		Peer              netip.Addr          `json:"peer"`
+		PeerOwner         receiptUint64       `json:"peer-owner"`
+		MessageID         receiptUint64       `json:"message-id"`
+		SourcePolicyEpoch receiptUint64       `json:"source-policy-epoch"`
+		SourceReceipt     receiptUint64       `json:"source-receipt"`
+		ReactorForwarded  receiptDecision     `json:"reactor-forwarded"`
+		FastPathSkipped   []rpc.ForwardTarget `json:"fast-path-skipped"`
 	}
 	if err := json.Unmarshal(metadata, &fields); err != nil {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt: %w", err)
@@ -62,6 +62,11 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 	}
 	if fields.ReactorForwarded == receiptDecisionUnspecified {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt requires reactor-forwarded")
+	}
+	for _, target := range fields.FastPathSkipped {
+		if _, err := target.Address(); err != nil {
+			return UpdateReceipt{}, err
+		}
 	}
 	return UpdateReceipt{
 		Peer: fields.Peer, PeerOwner: fields.PeerOwner.value, MessageID: fields.MessageID.value,

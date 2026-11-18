@@ -13,7 +13,8 @@ package reactor
 
 import (
 	"net/netip"
-	"slices"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -51,7 +52,7 @@ import (
 // is withdrawn only the field a gate refused, and a source whose MP_REACH_NLRI
 // and MP_UNREACH_NLRI name two families is withdrawn both rather than sent
 // nothing.
-func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int) {
+func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]rpc.ForwardTarget, int) {
 	// notifyMessageReceiver already classified live entries at receipt.
 	var cached bool
 	if received := update.receivedPeer; received != nil {
@@ -106,10 +107,17 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 // filters peers in place: the caller MUST NOT read the slice it passed in
 // afterwards. Both lists are a redo's destinations, a handful at most, so the
 // nested scan costs less than a set would.
-func withoutPeerKeys(peers []*Peer, keys []netip.AddrPort) []*Peer {
+func withoutPeerKeys(peers []*Peer, keys []rpc.ForwardTarget) []*Peer {
 	kept := peers[:0]
 	for _, peer := range peers {
-		if !slices.Contains(keys, peer.Settings().PeerKey()) {
+		handedBack := false
+		for _, key := range keys {
+			if key.DestinationOwner == peer.sourceOwner {
+				handedBack = true
+				break
+			}
+		}
+		if !handedBack {
 			kept = append(kept, peer)
 		}
 	}
@@ -126,7 +134,7 @@ func withoutPeerKeys(peers []*Peer, keys []netip.AddrPort) []*Peer {
 // policies, then visits only directly on a retry: O(current peers + selected
 // destinations), with no membership map. The retry MUST recheck current peer
 // identity and live facts before accepting a pointer from the previous pass.
-func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int, []*Peer) {
+func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]rpc.ForwardTarget, int, []*Peer) {
 	var result forwardResult
 	defer func() { result.settle() }()
 	return reactorForwardRSSectionResult(r, update, wire, only, updateID, sourcePeerAddr, sourcePeer, &result)
@@ -135,7 +143,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 // reactorForwardRSSectionResult shares terminal failures with the whole fan-out,
 // so section retries cannot write a session an earlier section must retire.
 // The caller MUST settle result after its last section and with no dispatch lock.
-func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer, result *forwardResult) ([]netip.AddrPort, int, []*Peer) {
+func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer, result *forwardResult) ([]rpc.ForwardTarget, int, []*Peer) {
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
 	var srcSession *Session
@@ -150,7 +158,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 	matchingPeers := peersBuf[:0]
 	var srcIsRRClient, srcIsIBGP bool
 	var srcRemoteRouterID uint32
-	var skippedBuf [4]netip.AddrPort
+	var skippedBuf [4]rpc.ForwardTarget
 	skipped := skippedBuf[:0]
 
 	for _, peer := range r.peers {
@@ -182,12 +190,12 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// UPDATE fell back to the route server, which reported the refusal,
 		// and with one granted destination the refused one went unreported.
 		if !pf.rsRelaySend {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		// RFC 8212 Section 3: cached forwarding applies the same destination final.
 		if !pf.exportPolicy.AcceptsExportAtEnd(pf.isEBGP, filterapi.ExportExplicit) {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		// A destination whose replay fence is up is the route server's to
@@ -204,7 +212,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// the cut (batchForwardUpdateSkipped), and what it forwards waits behind
 		// the same fence.
 		if peer.replayOwns(updateID) {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
@@ -225,12 +233,12 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// a reload between passes can revoke the grant. A refused client is
 		// handed back as the first pass hands it back.
 		if !pf.rsRelaySend {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		// RFC 8212 Section 3: retry uses the current coherent destination facts.
 		if !pf.exportPolicy.AcceptsExportAtEnd(pf.isEBGP, filterapi.ExportExplicit) {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		// A session that came up between the passes raised its replay fence,
@@ -238,7 +246,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// exactly as on the first pass above: hand it back rather than park a
 		// section the replay also carries.
 		if peer.replayOwns(updateID) {
-			skipped = append(skipped, pf.peerKey)
+			skipped = append(skipped, pf.forwardTarget())
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
@@ -334,7 +342,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 	var srcAIGPLinkMetric uint64
 	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
-		srcAIGPLinkMetric = r.sourceAIGPLinkMetric(sourcePeerAddr)
+		srcAIGPLinkMetric = sourceAIGPLinkMetric(sourcePeer)
 	}
 
 	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE constant.
@@ -506,7 +514,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 					// rail judges it again and drops it fail-closed.
 					fwdLogger().Warn("rs fast path: export chain failed, deferring the destination to the plugin rail",
 						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
-					skipped = append(skipped, facts.peerKey)
+					skipped = append(skipped, facts.forwardTarget())
 					continue
 				}
 				// A reject or a withdraw verdict: the client may hold the
@@ -688,7 +696,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 						r.fwdPool.releaseItem(&pending[retirementIndex].item)
 						pending = pending[:retirementIndex]
 					}
-					skipped = append(skipped, facts.peerKey)
+					skipped = append(skipped, facts.forwardTarget())
 					continue
 				}
 				bySection = append(bySection, peer)
@@ -793,7 +801,20 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 					continue
 				}
 			}
-			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+			var pathOrigin fwdPathOrigin
+			if sendCtx := bgpctx.Registry.Get(destCtxID); sendCtx != nil {
+				if sendCtx.AnyAddPath() {
+					var originErr error
+					pathOrigin, originErr = newFwdPathOrigin(update)
+					if originErr != nil {
+						reportForwardPathOriginFailure(facts.addrStr, originErr)
+						dedup.abandon(candidate)
+						r.fwdPool.releaseItem(&item)
+						continue
+					}
+				}
+			}
+			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache, pathOrigin)
 			if !ok {
 				// A failed build MUST release any outgoing-pool buffer acquired by
 				// the rebuild, just as a failed attribute treatment above does.
@@ -888,7 +909,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			if dst != nil && dst.replayOwns(updateID) {
 				pending[i].item.done()
 				r.fwdPool.releaseItem(&pending[i].item)
-				skipped = append(skipped, pending[i].key.peerAddr)
+				skipped = append(skipped, capturedForwardTarget(dst, pending[i].item.session))
 				continue
 			}
 			if !pending[i].withdraw {

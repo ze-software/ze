@@ -28,6 +28,7 @@ import (
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -103,6 +104,8 @@ const (
 
 // validationRequest is a pending validation decision to be processed by the worker.
 type validationRequest struct {
+	source   rpkiSource
+	peerName string
 	peerAddr string
 	// peerGroup is the name of the group the source session belongs to, empty for a
 	// standalone peer. It is carried because a session created from a listen-range
@@ -136,11 +139,12 @@ func aspaOverridesAccept(aspaState, invalidAction, unknownAction uint8) bool {
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
 type rPKIPlugin struct {
-	plugin      *sdk.Plugin
-	cache       *ROACache
-	aspaCache   *aSPACache
-	dataLease   *rtrDataLease
-	aspaTracker *aSPATracker
+	retentionVerdicts retention.Ledger
+	plugin            *sdk.Plugin
+	cache             *ROACache
+	aspaCache         *aSPACache
+	dataLease         *rtrDataLease
+	aspaTracker       *aSPATracker
 	// originTracker records active routes for RFC 6811 Section 4 re-validation when the ROA
 	// cache (VRP set) changes. Populated whenever origin validation runs (independent of ASPA).
 	originTracker     *originTracker
@@ -169,9 +173,13 @@ type rPKIPlugin struct {
 	// Serialize route registration with cache-change callbacks: a notification
 	// must not run between the initial verdict and registration of its route.
 	validationMu sync.Mutex
-	// dispatchMu fences in-flight decisions while configuration changes policy.
-	dispatchMu           sync.Mutex
-	validationGeneration atomic.Uint64
+	// dispatchMu joins in-flight decisions before policy or source cleanup.
+	// Cleanup takes validationMu first; the worker never takes validationMu.
+	// validationDispatchHook is immutable after worker start and nil in production.
+	// Tests hold the actual copied batch before dispatch admission.
+	validationDispatchHook func()
+	dispatchMu             sync.Mutex
+	validationGeneration   atomic.Uint64
 	// sessions holds the RTR sessions of the current config generation, most preferred
 	// first. startSessions is the only writer; a status snapshot reads it under mu.
 	sessions []*RTRSession
@@ -348,17 +356,16 @@ func runRPKIPlugin(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			if se.EventType == rpc.EventKindState && se.State == rpc.SessionStateDown {
-				rp.removePeer(se.PeerAddress)
-			} else if se.EventType == rpc.EventKindUpdate {
-				rp.handleStructuredUpdate(se)
-			}
+			rp.handleStructuredEvent(se)
 		}
 		return nil
 	})
 
 	// Fallback: JSON event handler for non-DirectBridge delivery.
 	p.OnEvent(func(jsonStr string) error {
+		if matched, err := rp.handleRetainedValidationEvent(jsonStr); matched {
+			return err
+		}
 		event, err := bgp.ParseEvent([]byte(jsonStr))
 		if err != nil {
 			logger().Warn("rpki: parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
@@ -437,6 +444,8 @@ func runRPKIPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
+	p.SetEnvelope(true)
 	err := p.Run(ctx, &sdk.Registration{
 		Commands: commandDecls(),
 		Pipes:    pipeDecls(),
@@ -573,6 +582,24 @@ func (rp *rPKIPlugin) aspaNeighborForPeer(address, name, group string, peerAS ui
 	return newASPANeighbor(peerAS, localRSClient)
 }
 
+// handleStructuredEvent is the actual typed SDK event handler's per-event
+// entry point. Original actor fields are never recovered from a peer lookup.
+func (rp *rPKIPlugin) handleStructuredEvent(event *rpc.StructuredEvent) {
+	if event.EventType == rpc.EventKindState {
+		if event.State == rpc.SessionStateUp {
+			rp.beginRetention(event.PeerOwner, event.ConnectionID)
+		}
+		if event.State == rpc.SessionStateDown {
+			rp.handlePeerDown(event.PeerAddress,
+				rpkiSource{owner: event.PeerOwner, connection: event.ConnectionID}, event.Reason)
+		}
+		return
+	}
+	if event.EventType == rpc.EventKindUpdate {
+		rp.handleStructuredUpdate(event)
+	}
+}
+
 // handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
 // Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
 // each prefix against the ROA cache. No JSON parsing needed.
@@ -608,6 +635,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		return
 	}
 	msgID := se.MessageID
+	source := rpkiSource{owner: se.PeerOwner, connection: se.ConnectionID}
 	wu := msg.WireUpdate
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
@@ -619,7 +647,8 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// so buildDecisions can apply the exemption without re-reading the wire. The
 	// communities that count are the ones THIS session agreed to, which is why
 	// the peer's address is an input.
-	carriesBlackhole := rp.carriesAgreedBlackhole(peerAddr, peerGroup, msg.AttrsWire)
+	carriesBlackhole := rp.carriesAgreedBlackhole(peerAddr, peerName, peerGroup, msg.AttrsWire)
+	noLLGR := rpkiCarriesBlackhole(msg.AttrsWire, []attribute.Community{attribute.CommunityNoLLGR})
 
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
@@ -646,7 +675,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// and must stay tracked (RFC4271-4.3-5, RFC4271-4.3-7). Pruning last dropped it from
 	// the tracker, and a route missing from the tracker is a route ASPA re-validation
 	// never revisits.
-	rp.removeWithdrawnFromTracker(peerAddr, msgID, wu, ctx)
+	rp.removeWithdrawnFromTracker(peerAddr, msgID, wu, ctx, source)
 
 	results := make(map[string]map[string]uint8)
 	eventASPA := aspaStateNone
@@ -655,12 +684,12 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		results["ipv4/unicast"] = rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
-			nlriData, addPath, false, originAS, cacheEmpty, aspaState, carriesBlackhole)
+			nlriData, addPath, false, originAS, cacheEmpty, aspaState, carriesBlackhole, source, noLLGR)
 		eventASPA = aspaState
 		// Track announced routes for ASPA re-validation (AC-5).
 		if aspaState != aspaStateNone {
 			rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
-				nlriData, addPath, false, normalizedPath, aspaState)
+				nlriData, addPath, false, normalizedPath, aspaState, source, noLLGR)
 		}
 	}
 
@@ -680,7 +709,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 				mpASPAState, mpNormalizedPath = aspaStateNone, nil
 			}
 			prefixes := rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
-				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, mpASPAState, carriesBlackhole)
+				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, mpASPAState, carriesBlackhole, source, noLLGR)
 			if existing := results[fam.String()]; existing != nil {
 				maps.Copy(existing, prefixes)
 			} else {
@@ -691,7 +720,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 			}
 			if mpASPAState != aspaStateNone {
 				rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
-					nlriBytes, addPath, fam.AFI == 2, mpNormalizedPath, mpASPAState)
+					nlriBytes, addPath, fam.AFI == 2, mpNormalizedPath, mpASPAState, source, noLLGR)
 			}
 		}
 	}
@@ -703,7 +732,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
 func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerASN uint32, msgID uint64,
 	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8,
-	blackhole bool) map[string]uint8 {
+	blackhole bool, source rpkiSource, noLLGR bool) map[string]uint8 {
 
 	addrLen := 4
 	if isIPv6 {
@@ -747,6 +776,7 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerAS
 
 		select {
 		case rp.validateCh <- validationRequest{
+			source: source, peerName: peerName,
 			peerAddr:   peerAddr,
 			peerGroup:  peerGroup,
 			family:     family,
@@ -765,10 +795,10 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerAS
 
 		// Track the route for RFC 6811 Section 4 origin re-validation when the ROA cache (VRP set)
 		// changes. Independent of ASPA: origin validation runs whenever RPKI is active.
-		rp.originTracker.Track(routeKey{peerAddr: peerAddr, family: family, prefix: prefix, pathID: pathID},
+		rp.originTracker.Track(routeKey{peerAddr: peerAddr, source: source, family: family, prefix: prefix, pathID: pathID},
 			originRoute{peerGroup: peerGroup, peerName: peerName, peerASN: peerASN,
 				originAS: originAS, state: state, aspaState: aspaState,
-				blackhole: blackhole, msgID: msgID, unavailable: cacheEmpty})
+				blackhole: blackhole, noLLGR: noLLGR, msgID: msgID, unavailable: cacheEmpty})
 	}
 
 	return familyResults
@@ -779,8 +809,15 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerAS
 // to the async worker, and emits an rpki event with per-prefix validation states.
 func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	if event.GetEventType() == rpc.EventKindState && event.GetPeerState() == "down" {
-		rp.removePeer(event.GetPeerAddress())
+		rp.handlePeerDown(event.GetPeerAddress(),
+			rpkiSource{owner: event.PeerOwner, connection: event.ConnectionID}, event.Reason)
 		return
+	}
+	if event.GetEventType() == rpc.EventKindState {
+		if event.GetPeerState() == "up" {
+			rp.beginRetention(event.PeerOwner, event.ConnectionID)
+			return
+		}
 	}
 	if !rp.active.Load() {
 		return
@@ -818,6 +855,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 		return
 	}
 	peerAddr, peerName, peerGroup := peer.Remote.Address, peer.Name, peer.Group
+	source := rpkiSource{owner: event.PeerOwner, connection: event.ConnectionID}
 
 	// Use the same segment-aware origin rule on both delivery paths, including
 	// the local speaker AS for an empty or confederation-ending AS_PATH.
@@ -855,7 +893,8 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	// carries no raw attributes at all the answer is false, and the exemption
 	// stays closed: a route whose communities were never delivered must not be
 	// treated as if it asked for a blackhole.
-	blackhole := rp.carriesAgreedBlackhole(peerAddr, peerGroup, attrs)
+	blackhole := rp.carriesAgreedBlackhole(peerAddr, peerName, peerGroup, attrs)
+	noLLGR := rpkiCarriesBlackhole(attrs, []attribute.Community{attribute.CommunityNoLLGR})
 
 	// Full events preserve the segment types, including AS_SET. Flattened JSON
 	// AS paths are used only when the event carries no raw attributes.
@@ -903,7 +942,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					key := routeKey{peerAddr: peerAddr, family: famName, prefix: prefix, pathID: pathID}
+					key := routeKey{peerAddr: peerAddr, source: source, family: famName, prefix: prefix, pathID: pathID}
 					if op.Action == routeaction.Del {
 						rp.aspaTracker.Remove(key, event.GetMsgID())
 						rp.originTracker.Remove(key, event.GetMsgID())
@@ -916,7 +955,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 					// Blocking enqueue to async worker (backpressure if worker falls behind).
 					select {
 					case rp.validateCh <- validationRequest{
-						peerAddr:   peerAddr,
+						peerAddr: peerAddr, source: source, peerName: peerName,
 						peerGroup:  peerGroup,
 						family:     famName,
 						prefix:     prefix,
@@ -934,11 +973,11 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 					rp.originTracker.Track(key, originRoute{
 						peerGroup: peerGroup, peerName: peerName, peerASN: peerASN,
 						originAS: originAS, state: state, aspaState: familyASPA,
-						blackhole: blackhole, msgID: event.GetMsgID(), unavailable: cacheEmpty,
+						blackhole: blackhole, noLLGR: noLLGR, msgID: event.GetMsgID(), unavailable: cacheEmpty,
 					})
 					if familyASPA != aspaStateNone {
 						rp.aspaTracker.Track(trackedRoute{
-							key: key, peerName: peerName, peerGroup: peerGroup, peerASN: peerASN,
+							key: key, noLLGR: noLLGR, peerName: peerName, peerGroup: peerGroup, peerASN: peerASN,
 							msgID: event.GetMsgID(), path: normalizedPath, aspaState: familyASPA,
 							mode:     rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
 							neighbor: rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN),
@@ -1058,6 +1097,9 @@ func (rp *rPKIPlugin) drainAndDispatch(batch []validationRequest) {
 // dispatchBatch sends a batch of validation decisions to adj-rib-in
 // via the typed BatchValidate path (no string serialization for internal plugins).
 func (rp *rPKIPlugin) dispatchBatch(batch []validationRequest) {
+	if rp.validationDispatchHook != nil {
+		rp.validationDispatchHook()
+	}
 	rp.dispatchMu.Lock()
 	defer rp.dispatchMu.Unlock()
 	// Enqueue is serialized by validationMu, so generations are monotonic.
@@ -1066,6 +1108,18 @@ func (rp *rPKIPlugin) dispatchBatch(batch []validationRequest) {
 	for len(batch) != 0 && batch[0].generation != generation {
 		batch = batch[1:]
 	}
+	if len(batch) == 0 {
+		return
+	}
+
+	current := batch[:0]
+	for _, req := range batch {
+		if !rp.validationSourceAdmitted(req) {
+			continue
+		}
+		current = append(current, req)
+	}
+	batch = current
 	if len(batch) == 0 {
 		return
 	}
@@ -1120,7 +1174,7 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		invalidAction, unknownAction := gInvalidAction, gUnknownAction
 		var blackholeExempt bool
 		if perPeer != nil {
-			if set, ok := configjson.LookupPeerConfig(perPeer, req.peerAddr, "", req.peerGroup); ok {
+			if set, ok := configjson.LookupPeerConfig(perPeer, req.peerAddr, req.peerName, req.peerGroup); ok {
 				originInvalidAction = set.OriginInvalid.Action
 				originNotFoundAction = set.OriginNotFound.Action
 				invalidAction = set.ASPAInvalid.Action
@@ -1179,10 +1233,11 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 			Ineligible: reject,
 			MsgID:      req.msgID,
 			PeerAddr:   req.peerAddr,
-			Family:     req.family,
-			Prefix:     req.prefix,
-			PathID:     req.pathID,
-			ValState:   req.state,
+			PeerOwner:  req.source.owner, ConnectionID: req.source.connection,
+			Family:   req.family,
+			Prefix:   req.prefix,
+			PathID:   req.pathID,
+			ValState: req.state,
 		}
 	}
 	return decisions
@@ -1200,7 +1255,7 @@ func originASFromParsed(asPath []uint32) uint32 {
 // trackNLRIs walks wire NLRI bytes and tracks each route in the ASPA tracker.
 // Called after ASPA verification to enable re-validation when cache data changes (AC-5).
 func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN uint32, msgID uint64,
-	fam string, nlriData []byte, addPath, isIPv6 bool, normalizedPath []uint32, aspaState uint8) {
+	fam string, nlriData []byte, addPath, isIPv6 bool, normalizedPath []uint32, aspaState uint8, source rpkiSource, noLLGR bool) {
 
 	addrLen := 4
 	if isIPv6 {
@@ -1239,26 +1294,26 @@ func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN u
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 
 		rp.aspaTracker.Track(trackedRoute{
-			key:       routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID},
+			key:       routeKey{peerAddr: peerAddr, source: source, family: fam, prefix: prefix, pathID: pathID},
 			peerName:  peerName,
 			peerGroup: peerGroup,
 			peerASN:   peerASN,
 			msgID:     msgID,
 			path:      normalizedPath,
-			aspaState: aspaState,
-			mode:      rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
-			neighbor:  rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN),
+			aspaState: aspaState, noLLGR: noLLGR,
+			mode:     rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
+			neighbor: rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN),
 		})
 	}
 }
 
 // removeWithdrawnFromTracker removes withdrawn routes from the ASPA tracker.
-func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, msgID uint64, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
+func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, msgID uint64, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext, source rpkiSource) {
 	// IPv4 withdrawn routes.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
-		rp.removeTrackedNLRIs(peerAddr, msgID, "ipv4/unicast", wdData, addPath, false)
+		rp.removeTrackedNLRIs(peerAddr, msgID, "ipv4/unicast", wdData, addPath, false, source)
 	}
 
 	// MP_UNREACH_NLRI withdrawn routes.
@@ -1268,13 +1323,13 @@ func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, msgID uint64, 
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			rp.removeTrackedNLRIs(peerAddr, msgID, fam.String(), wdBytes, addPath, fam.AFI == 2)
+			rp.removeTrackedNLRIs(peerAddr, msgID, fam.String(), wdBytes, addPath, fam.AFI == 2, source)
 		}
 	}
 }
 
 // removeTrackedNLRIs walks wire NLRI bytes and removes each from the ASPA tracker.
-func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr string, msgID uint64, fam string, nlriData []byte, addPath, isIPv6 bool) {
+func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr string, msgID uint64, fam string, nlriData []byte, addPath, isIPv6 bool, source rpkiSource) {
 	addrLen := 4
 	if isIPv6 {
 		addrLen = 16
@@ -1311,7 +1366,7 @@ func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr string, msgID uint64, fam stri
 		}
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 
-		key := routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID}
+		key := routeKey{peerAddr: peerAddr, source: source, family: fam, prefix: prefix, pathID: pathID}
 		rp.aspaTracker.Remove(key, msgID)
 		rp.originTracker.Remove(key, msgID)
 	}
@@ -1330,13 +1385,13 @@ func (rp *rPKIPlugin) handleROAChange() {
 	}
 	affected := make(map[rpkiUpdateKey]struct{})
 	for _, c := range changed {
-		affected[rpkiUpdateKey{peerAddr: c.key.peerAddr, msgID: c.msgID}] = struct{}{}
+		affected[rpkiUpdateKey{peerAddr: c.key.peerAddr, source: c.key.source, msgID: c.msgID}] = struct{}{}
 		if !c.decisionRequired {
 			continue
 		}
 		select {
 		case rp.validateCh <- validationRequest{
-			peerAddr:   c.key.peerAddr,
+			peerAddr: c.key.peerAddr, source: c.key.source, peerName: c.peerName,
 			peerGroup:  c.peerGroup,
 			family:     c.key.family,
 			prefix:     c.key.prefix,
@@ -1372,10 +1427,11 @@ func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 		if !ok {
 			continue
 		}
-		affected[rpkiUpdateKey{peerAddr: current.key.peerAddr, msgID: current.msgID}] = struct{}{}
+		affected[rpkiUpdateKey{peerAddr: current.key.peerAddr, source: current.key.source, msgID: current.msgID}] = struct{}{}
 		select {
 		case rp.validateCh <- validationRequest{
 			peerAddr: current.key.peerAddr, peerGroup: current.peerGroup,
+			source: current.key.source, peerName: current.peerName,
 			family: current.key.family, prefix: current.key.prefix, pathID: current.key.pathID,
 			state: current.state, aspaState: current.aspaState, originAS: current.originAS,
 			blackhole: current.blackhole, msgID: current.msgID,
@@ -1390,13 +1446,36 @@ func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 	}
 }
 
-// removePeer prunes received-route metadata when the corresponding Adj-RIB-In
-// is cleared, so later cache changes cannot issue decisions for an old session.
-func (rp *rPKIPlugin) removePeer(peerAddr string) {
+// handlePeerDown prunes exactly the original receive-store lifetime.
+// A terminal owner removal is distinct from an ordinary physical DOWN.
+func (rp *rPKIPlugin) handlePeerDown(peerAddr string, source rpkiSource, reason string) {
 	rp.validationMu.Lock()
 	defer rp.validationMu.Unlock()
-	rp.aspaTracker.removePeer(peerAddr)
-	rp.originTracker.removePeer(peerAddr)
+	rp.dispatchMu.Lock()
+	defer rp.dispatchMu.Unlock()
+	if reason == rpc.ReasonPeerRemoved {
+		if source.owner != 0 {
+			// Peer removal has no physical Session. Its original nonzero
+			// owner terminates all of that Peer's still tracked connections.
+			if err := rp.retentionVerdicts.End(source.owner); err != nil {
+				return
+			}
+			rp.aspaTracker.removeOwner(source.owner)
+			rp.originTracker.removeOwner(source.owner)
+			return
+		}
+	}
+	// An unowned observation matches only other unowned observations; a
+	// missing original physical token is never an owner-wide DOWN wildcard.
+	retained, err := rp.retentionVerdicts.Take(source.owner, source.connection)
+	if source.owner == 0 {
+		retained = nil
+		err = nil
+	}
+	if err != nil {
+		return
+	}
+	rp.removeUnretainedValidation(peerAddr, source, retained)
 }
 
 // rpkiASPathFromWire extracts the full *attribute.ASPath from AttrsWire.

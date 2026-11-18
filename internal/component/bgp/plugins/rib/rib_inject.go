@@ -46,9 +46,9 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 		return nil
 	}
 	if protoID == bgpProtocolID {
-		// BGP Adj-RIB-In is keyed by netip.Addr in bgpPeers and fed by UPDATE
-		// events; protocol namespaces hold composite string keys. Reject so
-		// routes cannot land in a slot invisible to best-path selection.
+		// Authenticated received BGP lives in the owner-keyed bgpPeers.
+		// Its BGP protocol slot is reserved for explicit manual forwarding
+		// input, never an alternate raw receive path.
 		logger().Warn("inject-wire-route rejected: protocol \"bgp\" must use the BGP UPDATE path, not protocol injection", "peer", peerKey)
 		return errInjectWireRouteBGPProtocol
 	}
@@ -190,8 +190,8 @@ func registerInjectCommands() {
 }
 
 // showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
-// Protocol "bgp" reads from the netip.Addr-keyed bgpPeers map; every other
-// protocol reads its string-keyed ribInPool namespace.
+// Protocol "bgp" reads exact received owners and explicit synthetic forwarding
+// inputs; every other protocol reads its string-keyed ribInPool namespace.
 //
 // The peer selector arrives inside args as `peer <selector>`, the pipeline's
 // own word for it, so nothing here guesses whether a bare token is a selector
@@ -213,8 +213,10 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 	// RWMutex makes a later RLock wait behind a waiting writer, so the two
 	// together deadlock the moment an UPDATE arrives between them.
 	r.peerMu.RLock()
-	empty := (protoID != bgpProtocolID && len(r.ribInPool[protoID]) == 0) ||
-		(protoID == bgpProtocolID && len(r.bgpPeers) == 0)
+	empty := len(r.ribInPool[protoID]) == 0
+	if protoID == bgpProtocolID {
+		empty = empty && len(r.bgpPeers) == 0
+	}
 	r.peerMu.RUnlock()
 
 	// The empty answer carries the SAME shape as a populated one: flat rows

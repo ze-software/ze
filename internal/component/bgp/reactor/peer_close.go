@@ -35,6 +35,7 @@ type sessionClose struct {
 	// destinationSession is read from the ended Session, never the peer's
 	// current connection. A delayed DOWN cannot retire a replacement worker.
 	destinationSession uint64
+	connectionID       uint64 // original ended Session, never a replacement
 }
 
 // closeCause returns the first close reason recorded on session

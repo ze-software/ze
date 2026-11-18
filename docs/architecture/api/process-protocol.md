@@ -1,5 +1,43 @@
 # Plugin Process Protocol
 
+`EmitEvent` confirms queue admission. `EmitEventApplied` is the opt-in lifecycle
+form of the same engine operation: `await-applied: true` and a positive absolute
+`deadline-ms` request captured subscriber application and declared deferred-work
+settlement. Ordinary inputs omit both new fields and retain their old behavior.
+Its completion receipt explicitly confirms `applied` and the same absolute
+deadline; an older queue-only host cannot satisfy it. The applied SDK method
+uses the common cancellable RPC in both placements; the
+legacy typed emit slot remains queue-only.
+
+The host captures each matching Process and its original connection, refuses an
+actual self subscription before publication, and obtains one application result
+per receiver. It joins all handlers first, then calls `SettleEventsApplied` on
+each captured receiver. This second pass includes events published between those
+receivers by cleanup itself. A successor process or connection cannot satisfy
+that receipt. Engine subscribers still run synchronously. A zero subscriber
+count describes an empty captured population, never a fallback to a current
+process by name.
+
+Callers must avoid recipient locks and cyclic synchronous event dependencies.
+Cancellation uses the existing remote request cancellation/join protocol. Partial
+application is not rolled back; a refused handler, changed connection, timeout or
+unsettled callback reports failure with remaining cleanup/output explicitly owed.
+The caller must not proceed as if the lifecycle barrier succeeded. Frame-size
+accounting includes the optional mode and its widest deadline.
+<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
+<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied, emitEventCancellationScope -->
+<!-- source: internal/component/plugin/server/dispatch.go -- deliverEventCaptured -->
+
+GR's internal source lifecycle dispatch uses `request bgp rib source`
+commands with explicit original Peer `owner` and physical `connection`. Their
+registered RIB handlers narrow received references and existing pending leases;
+those identifiers do not mint source rights. A release or purge command's
+success joins the original captured output and source lease release. Partial
+mutation followed by a failed join is an error with completion still owed, not
+successful cleanup; the replacement physical connection cannot settle it.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- ribSourceCommands -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalSource -->
+
 **Purpose:** Document Ze's plugin communication protocol and process lifecycle.
 
 ---
@@ -149,11 +187,15 @@ the interval before the daemon's startup-complete signal closes.
 <!-- source: internal/component/plugin/process/peer_declarations.go -- HoldPeerDeclarations, RequirePeerDeclarations, AdmitPeerDeclarations -->
 <!-- source: internal/component/plugin/server/restart.go -- admitPeerDeclarationReplacement -->
 
-State events carry `destination-session`, an opaque decimal string naming the
-captured connection for its entire lifetime. It remains present after initial
-End-of-RIB, and a DOWN names the ended Session rather than a replacement at the
-same address. It is independent of `initial-replay`, which retains its initial
-routing-update meaning. The typed event carries the same uint64 value.
+State and received ROUTE-REFRESH events carry `destination-session`, an opaque
+decimal string naming the captured connection for its entire lifetime. It
+remains present after initial End-of-RIB, and a DOWN names the ended Session
+rather than a replacement at the same address. A delayed refresh retains its
+original receiving Session's token and cannot acquire the replacement's output
+eligibility. An observation without a captured Session remains unrecorded. The
+token is independent of `initial-replay`, which retains its initial routing-
+update meaning; refresh never asserts another initial replay. The typed event
+carries the same uint64 value.
 
 For each actual recipient, `selected-destination: true` says that this process
 is the resolved ordinary output owner with the complete explicit destination
@@ -163,9 +205,14 @@ ordinary owner receives its captured connection token as `initial-replay` so
 it can seed a current selected snapshot. Legacy attached observers keep zero.
 These fields describe the captured delivery; they grant no permission to an
 RPC, whose final writer rechecks its own authenticated authority. Text state
-events carry the same destination-session and selected-destination fields.
-<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedStateDestination -->
-<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer -->
+and refresh events carry the same destination-session and selected-destination
+fields. Refresh eligibility is projected for each actual recipient on typed and
+JSON/text delivery; a sent control observation grants no received-refresh
+eligibility. Cached renderings distinguish owner from observer. A cache miss
+renders that recipient's exact event without growing the fixed cache.
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedStateDestination, selectedDestinationForSession -->
+<!-- source: internal/component/bgp/reactor/source_session.go -- sourceMessageCallback, messageReceiverForPeer -->
+<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer, selectedRefreshPeer -->
 <!-- source: internal/component/bgp/server/events.go -- deliverPeerState, getStructuredStateEvent -->
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent, PutStructuredEvent -->
 
@@ -332,12 +379,20 @@ per process, set by the first block.
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- dispatchText -->
 
 A `bgp-rib/validation-change` payload is a JSON array of received paths, each
-`{"peer-address", "peer-owner", "family", "prefix", "path-id", "nlri"}`.
+`{"peer-address", "peer-owner", "connection-id", "family", "prefix", "path-id", "nlri"}`.
 `peer-owner` is the original stable engine Peer identity, kept apart from its
 address and source Session receipt. Zero means unrecorded provenance; an exact
 lookup refuses it and never substitutes a current peer at that address. The
 receive store captures this value with the stored or pending route, and both
-typed queries and the JSON codec preserve it. `nlri` is the hex of
+typed queries and the JSON codec preserve it. `connection-id` is the original
+physical connection, encoded as an exact decimal uint64 string. The key keeps
+it apart from the stable owner and the received message ID. Pending and stored
+paths preserve it through validation changes; a current UP cannot relabel old
+bytes. An exact query with a missing or different connection does not match.
+<!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute, MarshalJSON, UnmarshalJSON -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- validationSourceMatches -->
+
+`nlri` is the hex of
 the native NLRI of a non-CIDR route (FlowSpec), absent for a CIDR one, and a
 path whose `nlri` is not hex refuses the whole batch
 (`ribevents.DecodeValidationChange`). `bgp-adj-rib-in` emits it through
@@ -2184,6 +2239,15 @@ source Session; knowing its number grants no permission.
 when that Peer is created. It is the same value as
 `SourcePolicyIdentity.PeerOwner` and the original received event's `peer-owner`.
 It survives reconnects of that Peer; the reconnect gets a new `source-receipt`.
+`connection-id` independently identifies the physical Session from its birth,
+before either OPEN. It remains unchanged when the initial replay receipt
+rotates at establishment and crosses both event transports as a read-only
+fact. On a sent UPDATE, root `connection-id` names the destination connection.
+The engine-reserved `route-meta.source-connection-id` decimal uint64 string
+and structured `RawMessage.SourceConnectionID` instead retain the original
+received source connection; route policy cannot supply or replace that scalar.
+Local and API origins have no received connection. The original source-receipt snapshot and RIB source reference retain it;
+a replacement UP never changes the identity of old retained routes.
 Removing and recreating a peer creates another owner. Addresses, AS numbers and
 TCP ports are metadata, never substitutes for this identity.
 
@@ -2512,6 +2576,57 @@ Ordinary non-opt-in RPC methods keep their existing cancellation behavior.
 <!-- source: pkg/plugin/rpc/write_cancel.go -- Conn.armWriteCancellation -->
 <!-- source: internal/component/plugin/server/request_cancel.go -- runtimeRequests, selectedCancellationScope, opCancelRequest -->
 <!-- source: internal/component/plugin/server/request_runtime.go -- serveRuntimeRequests -->
+
+Stored-route replay preserves `source-owner`, `source-connection-id` and
+`source-receipt` as lossless uint64 strings. The engine resolves recorded source
+facts through that original receipt, never through a peer at the same address.
+The receipt belongs to one source Session, not one route or UPDATE: checking it
+must not invent a per-route retention decision. Original policy admission and
+current route eligibility remain separate checks. A malformed or partial
+recorded source tuple refuses reconstruction. Explicit unowned operator input
+keeps its separate manual contract; losing part of a recorded tuple never turns
+it into manual input. Cached forwarding likewise uses the cached original Peer,
+Session receipt, encoding and generation before examining destinations.
+<!-- source: internal/component/bgp/reactor/relay_original_source.go -- originalRelaySource, originalCachedSource -->
+
+The existing `RelayStoredRoute(ctx, RelayStoredRouteInput)` SDK method carries
+an optional `destination-owner` and `destination-session` tuple. Both scalars
+use lossless uint64 JSON strings. An explicitly present null, zero-only or
+partial constraint refuses; it never becomes an unbound operator request.
+The bounded deadline is positive, live and at most thirty seconds ahead. Both omitted
+preserves explicit unbound selectors; both supplied narrow to that exact Peer
+and UP token. `ForwardCached(ctx, ForwardCachedInput)` carries the complete
+`targets` set described below. A partial or stale tuple is never rebound by
+address or TCP port preference.
+The SDK adds the positive absolute `deadline-ms` for bound work. Typed and
+framed callers use the same evaluator, ordinary send grant, original source
+facts and shared final socket writer. Bound success carries `completed: true`
+and the request's exact `deadline-ms`; nil, enqueue-only, false or mismatched
+answers cannot complete replay or cleanup. Framed cancellation uses the existing
+connection-owned cancel-and-join mechanism.
+
+Live legacy replay enrolls a transient write in the existing source-receipt
+lease table. It retains that write's original generation even if an explicit
+acquisition later upgrades the shared lease for retention. The transient row
+leaves when its last actual write settles, and grant rollback does not restore
+completed transient authority. Retained replay requires an already acquired
+lease of the actual authenticated process, plus the caller's per-route retained
+membership; the Session-wide receipt alone does not supply that membership.
+
+A receipt-free owned withdrawal carries its original `source-owner`,
+`source-connection-id` and native PrefixOnly NLRI plus original path ID, including
+zero. It may retire only a current acknowledged SENT slot matching those facts
+and its nonzero original received generation. Its current SENT record
+keeps the physical source identity, with no completed-source history. A newer
+physical source, newer named generation, selected stream, or unknown original
+survives. Such a request cannot announce, use a sibling's source facts, or turn
+into manual input. SourceWire input without its original Session receipt is
+refused because its ADD-PATH framing cannot be guessed.
+<!-- source: pkg/plugin/rpc/cached_bound.go -- ValidateCachedWrite, CachedWriteOutput -->
+<!-- source: internal/component/plugin/server/dispatch_cached_bound.go -- forwardCachedRequest, relayStoredRouteRequest -->
+<!-- source: internal/component/bgp/reactor/relay_bound.go -- boundForwardRequest, boundForwardStage -->
+<!-- source: internal/component/bgp/reactor/source_receipt_live.go -- beginLive -->
+<!-- source: internal/component/bgp/reactor/relay_retire_original.go -- retireOriginalStoredRoute -->
 
 The reactor's source-receipt storage separates three lifetimes. An issued
 receipt owns the immutable forwarding facts of its original source session:
@@ -3219,8 +3334,13 @@ current-table behavior.
 <!-- source: internal/core/rib/locrib/prospective.go -- PreviewSelected -->
 
 `batch-validate` carries `ValidationDecision.MsgID` as the received UPDATE
-generation. A zero explicitly selects the current route, or the next route when
-none is stored. A rejected route marked `Ineligible` remains stored for later
+generation. `peer-owner` and `connection-id` are decimal-string uint64 fields
+captured on that received source, never resolved by address when a callback
+arrives. Both must be supplied together; both zero identify observations only.
+A zero message ID selects the current or next generation within that exact
+source, never a same-address sibling. The explicit text batch command carries
+nine fields per decision: action, peer address, family, prefix, path ID, validation
+state, received message ID, original peer owner and original connection ID. A rejected route marked `Ineligible` remains stored for later
 validation; `Accept` and `Ineligible` cannot both be true. A successful call
 returns `BatchValidateResult`, including for an empty batch; an empty or null
 result is an error at the SDK boundary.
@@ -3434,7 +3554,7 @@ quoted text payload:
 | `source-policy-epoch` | uint64 | The payload's original policy admission, including an explicit unrecorded zero |
 | `source-receipt` | uint64 | The payload's original source session identity, including an explicit unrecorded zero |
 | `reactor-forwarded` | bool | The reactor fast path has already decided the eligible destinations |
-| `fast-path-skipped` | address:port list | Destinations handed back to the forwarding plugin; omitted when empty |
+| `fast-path-skipped` | captured target list | Destinations handed back to the forwarding plugin; omitted when empty |
 
 `peer`, `peer-owner`, `message-id`, `source-policy-epoch`, `source-receipt` and `reactor-forwarded` are mandatory
 and non-null. An explicit zero ID or unrecorded policy epoch and an explicit
@@ -3596,6 +3716,19 @@ their own.
 <!-- source: internal/component/bgp/server/events.go -- formatMessageForSubscription, onPeerStateChange, onEORReceived, onPeerCongestionChange -->
 
 ### Event Subscription
+
+A sent UPDATE's routing publication is pinned to its original configured
+Peer before capturing process recipients. Permanent Peer removal seals that
+original Peer, joins its admitted SENT enqueues outside reactor and peer locks,
+then delivers the terminal DOWN through each process's same FIFO queue and
+awaits its applied acknowledgement. Late callbacks cannot enqueue routing SENT
+after that acknowledgement. Physical DOWN keeps reconnect inventory, and a
+SENT may still precede UP or receipt capture. The pin is only an observation lifetime:
+it issues no received-source lease, forwarding grant or retention right. A
+refused late callback remains visible to wire monitors. The internal callback
+handle never enters event JSON, StructuredEvent, SDK values or peer queries.
+<!-- source: internal/component/bgp/reactor/source_sent_observation.go -- BeginSentObservation, EndSentObservation -->
+<!-- source: internal/component/bgp/server/events.go -- onMessageSent -->
 
 Plugins subscribe to events using either:
 
@@ -5102,3 +5235,237 @@ Plugin reads decode requests from stdin, writes responses to stdout, exits on EO
 ---
 
 **Last Updated:** 2026-03-22
+
+
+### Accepted redistribution at BGP input
+
+The BGP redistribution consumer registers its independent
+`origin-admission-lookup` callback before SDK startup. Factory construction
+therefore precedes `Run`; consumer publication and source replay still wait
+for `Started`. A full `update-route` request carries `origin-admission-id` as
+its own scalar field. Replay markers refuse a nonzero accepted-origin ID,
+so a mixed request cannot discard route provenance. Zero follows ordinary local/API behavior. A nonzero ID
+must resolve on the authenticated accepting Process connection captured for
+that request. Route metadata and the process name cannot declare source kind.
+
+The consumer owns one immutable accepted record per original protocol,
+source instance, table, native family/prefix and admitted peer scope. A new
+version gets a new opaque ID. The snapshot preserves the original preference
+metric separately from transformed wire MED, an explicit zero distance
+override, and the evaluator generation, including initial generation zero.
+An unchanged rule reload advances the evaluator without resending unchanged
+routes. A later targeted replay with identical source/build facts and a generation
+at least as new reuses the original all-peer admission ID and immutable snapshot,
+including its original generation. Different source/build facts and an older
+generation refuse this reuse; a full accepted replacement creates a new ID.
+Lookup copies caller-owned communities and performs no election or I/O while
+holding its leaf lock. The independent worker can answer while the original
+route request waits for its deciding plugin and final output.
+
+The reactor validates the native key and original attribute/next-hop choices
+against that record before classifying it as redistributed. It checks the
+same snapshot again before intake and final writing, outside election and
+issuer locks, then rechecks the existing write/grant lease. Peer grants remain
+separate authority. An unknown ID, changed record, wrong native key or a
+same-name replacement connection cannot authorize output.
+
+Exact source withdrawal marks only that source's records as retiring. Such a
+record may answer its exact withdrawal while that operation joins; it cannot
+authorize an announcement. Completed records leave no withdrawal history.
+The adapter mutation gate orders record replacement with the actual route
+results. An admitted loser retains the existing full-result receipt and is
+not reported as a zero-peer failure. When the accepting Process ends, the
+engine retires its redistributed contributions through the live deciding
+connection. Ordinary local/API keep-and-reoffer behavior is unchanged.
+
+This boundary consumes already-accepted redistribution data. Upstream kernel,
+IPsec, OSPF and IS-IS producer lifetime and replay mechanisms remain owned by
+redistribution. The shared removal value includes exact source identity;
+native OSPF/IS-IS consumers continue applying their existing prefix removal.
+
+Validation-triggered `request bgp adj-rib-in replay-path` takes destination,
+source address, family, prefix, path ID, original peer owner and original
+connection ID. The last two come from the original `ValidationRoute`; the
+receive store never substitutes a sibling's path when that original is absent.
+<!-- source: internal/core/bgp/ribevents/replay.go -- RelayReplayPath -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
+
+A stored replay route carries `source-owner`, `source-receipt` and
+`source-connection-id` as lossless
+uint64 decimal strings. They are the original received facts retained with the
+current route, not a source selected by its address at replay. The engine must
+verify its original issuing record before treating them as learned-source
+authority. Storing or echoing them acquires no lease or permission. Explicit
+manual or observation values can carry zero; zero never requests that the
+engine supply a current learned owner or receipt.
+<!-- source: pkg/plugin/rpc/types.go -- StoredRoute -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- replayStoredRoute -->
+
+An absent exact path still returns a withdrawal carrying its original owner and
+source connection, even when its receipt was released. The engine can then
+restrict it to acknowledged output of that same owner and physical connection.
+It must not retire a newer connection or classify the withdrawal as a fresh
+manual announcement. On an announcement the physical echo is checked against
+the original receipt; the echo grants no authority by itself. Source connection
+is independent of the request's captured destination tuple.
+
+
+### Original physical peer flow control
+
+A plugin dispatching pause or resume can bind the existing `dispatch-command`
+request to its original `peer-owner` and immutable `connection-id`. Both fields
+are required together, with a positive bounded `deadline-ms`. The command's
+registration must explicitly accept this constraint; every other command is
+refused before its handler runs. The native value and framed paths use the same
+dispatch evaluator and authenticated process. Bound requests use acknowledged
+request cancellation and return the exact owner, connection and deadline after
+the handler completes. An absent or different receipt is refused by the SDK.
+
+The peer controller finds the original owner, then checks the original physical
+connection and request context while holding the peer's session lock. It pauses
+or resumes that captured session under the same lock. An old request therefore
+cannot look up a replacement session by address. Unbound operator pause and
+resume retain their existing address/name semantics.
+<!-- source: pkg/plugin/rpc/dispatch_peer.go -- ValidatePeer, ValidatePeerAnswer -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch_peer.go -- DispatchPeerCommand -->
+<!-- source: internal/component/plugin/server/dispatch_peer.go -- dispatchPeerCommand -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- peerReadControl -->
+
+
+### Captured cached forwarding targets
+
+The existing `forward-cached` input carries either unbound `destinations` or
+bound `targets`, never both. Each target contains `destination`,
+`destination-owner` and `destination-session`; both identifiers are lossless
+uint64 strings in JSON. The address is a constraint, never identity. The
+reactor captures this same tuple when producing `fast-path-skipped`. Typed
+delivery, enveloped TEXT and full JSON preserve the whole tuple. A reader
+clones the list before asynchronous use and never finds an owner by address.
+Missing identifiers, duplicate owners, invalid destinations and empty bound
+sets are refused, including when the ID list is empty.
+<!-- source: pkg/plugin/rpc/forward_targets.go -- ForwardTarget, ForwardCachedInput.Validate -->
+
+A bound cache call dispatches its complete target set once. Every target uses
+the existing egress pipeline and its captured final writer. The evaluator
+attempts every target on the existing bounded per-peer worker queues before
+joining any writer; a held target cannot prevent a ready sibling from writing.
+A full queue leaves an explicit unsettled failure. No extra target goroutine
+or unbounded overflow queue is created. The existing cache
+consumer is acknowledged once for each unique ID, after all target writes
+have joined, also on partial refusal or cancellation. A target failure does not
+turn another target's useful output into absence. No per-target call can
+acknowledge shared cached IDs early. A final completion receipt confirms the
+whole call settled; it does not grant send or retained-source authority.
+<!-- source: internal/component/bgp/reactor/relay_bound.go -- ForwardUpdatesBound, boundForwardStage.flush -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- forwardUpdates -->
+
+
+### Original destination readiness
+
+The existing `dispatch-command` operation accepts `destination-owner` and
+`destination-session` only for commands whose registration opts in. These are
+the configured Peer and original UP token, independent of physical pause/resume
+`peer-owner` and `connection-id`. Mixing the two constraints is refused.
+`DispatchDestinationCommand` adds the bounded deadline, joins cancellation and
+checks the exact owner/session/deadline receipt on either transport.
+<!-- source: pkg/plugin/rpc/dispatch_destination.go -- ValidateDestination, ValidateDestinationAnswer -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch_destination.go -- DispatchDestinationCommand -->
+
+Readiness still checks the reporting process and its initial-replay token, with
+no send-update grant. The reactor resolves the original owner, then under the
+peer's session lock checks both original destination and replay tokens and the
+request context before crediting the reporter. A state observer may report as
+before; a reporter outside the expected set changes no fence. Explicit unbound
+operator commands keep their existing behavior.
+<!-- source: internal/component/bgp/plugins/cmd/peer/session.go -- handlePeerSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- creditAPIReadyContext -->
+
+
+### Published source generation
+
+An ordinary or targeted attached UP publishes the forward generation assigned
+when that exact Session entered Established, beside its independent physical
+connection identity. A delayed targeted UP retains the captured Session's
+generation after replacement. DOWN names that same generation. A source-policy
+transaction matches the original peer owner and published generation; callers
+may map this pair to the immutable connection they observed in the same UP.
+Neither number is converted into the other, and no current-peer lookup can
+replace this published pair.
+<!-- source: internal/component/bgp/reactor/peer.go -- setState -->
+<!-- source: internal/component/bgp/reactor/peer_bound_info.go -- boundPeerInfo -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo -->
+
+
+Live bound replay rechecks the authenticated reporter's received-UPDATE grant
+on the original Peer before enrolling its existing source-receipt write. It
+holds that Peer's settings read lock until enrollment, then releases the lock
+before any output. A config cut either follows an enrolled write, which the
+existing grant cleanup must cancel and join, or precedes admission and refuses
+it. The receipt table is retaken under its lock after obtaining the Peer lock;
+no stale record pointer can resurrect a released delivery. Retained replay
+continues to use its previously acquired, actual process-owned lease.
+<!-- source: internal/component/bgp/reactor/source_receipt_live.go -- beginLive, liveSourceReceiveGranted -->
+
+
+The normal `request peer <peer> refresh <family>` registration also accepts
+the destination constraint. Its captured variant uses the same capability and
+refresh-send grant checks, then the shared request-bound socket writer. It
+checks the original tuple under that final write lock and joins the flush; it
+never queues refresh for a successor session. The explicit unbound form keeps
+its existing operator behavior.
+<!-- source: internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefresh -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- SendRefreshBound, sendRouteRefreshContext -->
+
+The RIB's `clear bgp rib out-excluding-owner owner <id> [family <afi/safi>]`
+consumer preserves this destination constraint for every output operation.
+It captures each remaining owner's UP receipt, keeps same-address owners
+distinct and joins the captured ordinary selected-refresh worker. Auxiliary
+SENT replay uses bounded `update-route` requests carrying that same captured
+`destination-owner` and `destination-session` for markers and immutable raw
+route groups. Each write rechecks the observation; no address lookup may
+borrow a successor session. This operational replay sends no initial replay
+or readiness claim.
+<!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- resend, resendExcludedSent -->
+
+
+### Cached-write errors and joined output
+
+A bound writer's failure is returned in the same completion output only after
+all admitted target carriers join, or after refusal before writer admission.
+`completed: true`, the exact `deadline-ms`, `failure` and `failure-cause` let the
+SDK return `CachedWriteJoinedError`; this proves no request-owned target writer
+remains. It does not prove the requested advertisement or cleanup succeeded.
+A local shape/deadline refusal before the SDK calls the engine returns
+`CachedWriteNotDispatchedError`.
+`CachedWriteNotDispatched` requires that actual refusal cause. A nil cause
+returns an ordinary error, not success or either settlement class; it cannot
+prove that dispatch was avoided or that target writers joined.
+<!-- source: pkg/plugin/rpc/cached_settlement.go -- CachedWriteJoinedError, CachedWriteNotDispatchedError -->
+<!-- source: internal/component/plugin/server/dispatch_cached_bound.go -- forwardCachedRequest, relayStoredRouteRequest -->
+
+Generic cancel-request confirms request-handler completion only. It is not a
+cached target-writer completion receipt. Plain context cancellation and deadline
+errors remain unknown even after acknowledged request cancellation.
+`CancellationUnsettledError`, transport failure, malformed
+or absent completion, false completion and mismatched deadline prove no such
+join. Every other generic error remains unknown. Lifecycle owners must preserve
+their current unknown or required cleanup/replay obligations; they must not
+read a generic error or a cache ACK as completion. Ordinary completed forward
+refusals need no separate output history.
+<!-- source: pkg/plugin/rpc/mux_cancel.go -- CallRPCCancellable, cancelAndJoin -->
+<!-- source: pkg/plugin/sdk/sdk_cached_bound.go -- cachedWriteCall -->
+
+
+Actual SENT UPDATE events carry the original producing session's
+`destination-session` as descriptive provenance on both the structured and
+full JSON transports. The engine captures it from that exact writer's Session;
+RIB rows retain it beside their sent message. This field grants no selected
+ownership. An old cleanup cannot borrow a replacement destination's session
+from current metadata. The existing constrained update-route request carries
+that original destination owner/session and the original sent-owner-message;
+its bound maintenance path joins synchronously after that destination's FIFO.
+
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyOneMessage -->
+<!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
+<!-- test: internal/component/bgp/reactor/sent_destination_capture_test.go TestSentDestinationCaptureKeepsOriginalSession -->
+<!-- test: internal/component/bgp/server/events_sent_destination_test.go TestStructuredSentKeepsCapturedDestinationSession -->

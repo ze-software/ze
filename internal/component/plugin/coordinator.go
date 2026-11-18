@@ -378,17 +378,17 @@ func (c *Coordinator) EnablePeer(addr netip.Addr) error {
 }
 
 // PausePeer pauses reading from a specific peer's session.
-func (c *Coordinator) PausePeer(addr netip.Addr) error {
+func (c *Coordinator) PausePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
 	if r := c.getReactor(); r != nil {
-		return r.PausePeer(addr)
+		return r.PausePeer(ctx, addr, owner, connection)
 	}
 	return ErrNoReactor
 }
 
 // ResumePeer resumes reading from a specific peer's session.
-func (c *Coordinator) ResumePeer(addr netip.Addr) error {
+func (c *Coordinator) ResumePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
 	if r := c.getReactor(); r != nil {
-		return r.ResumePeer(addr)
+		return r.ResumePeer(ctx, addr, owner, connection)
 	}
 	return ErrNoReactor
 }
@@ -483,9 +483,9 @@ func (c *Coordinator) OnPostStartup(fn func() error) {
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete. No-op without reactor.
-func (c *Coordinator) SignalPeerAPIReady(peerAddr string, sender Sender, initialReplay uint64) error {
+func (c *Coordinator) SignalPeerAPIReady(ctx context.Context, peerAddr string, sender Sender, initialReplay uint64) error {
 	if r := c.getReactor(); r != nil {
-		return r.SignalPeerAPIReady(peerAddr, sender, initialReplay)
+		return r.SignalPeerAPIReady(ctx, peerAddr, sender, initialReplay)
 	}
 	return nil
 }

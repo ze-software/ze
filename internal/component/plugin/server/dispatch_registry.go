@@ -89,8 +89,10 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodDispatchCommand,
-		handle: (*Server).opDispatchCommand,
+		method:            rpc.MethodDispatchCommand,
+		handle:            (*Server).opDispatchCommand,
+		cancellationScope: dispatchPeerCancellationScope,
+		native:            (*Server).nativeDispatchPeerCommand,
 		// Two typed slots ride this one entry, because dispatch-command has one
 		// wire method and two readings of its answer: the built value a caller
 		// holds whole, and the records a caller walks. The registry is keyed by
@@ -134,11 +136,12 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodForwardCached,
-		handle: (*Server).opForwardCached,
+		method:            rpc.MethodForwardCached,
+		handle:            (*Server).opForwardCached,
+		cancellationScope: forwardCachedCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {
-				return s.forwardCached(proc, ids, destinations)
+			b.SetForwardCached(func(ctx context.Context, input rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) {
+				return s.forwardCachedRequest(ctx, proc, input)
 			})
 		},
 	},
@@ -152,14 +155,15 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodRelayStoredRoute,
-		handle: (*Server).opRelayStoredRoute,
+		method:            rpc.MethodRelayStoredRoute,
+		handle:            (*Server).opRelayStoredRoute,
+		cancellationScope: relayStoredRouteCancellationScope,
 		// proc names the sender here for the same reason opRelayStoredRoute does:
 		// the Direct bridge is the in-process rail of the same RPC, so leaving it
 		// unnamed would gate the forked plugin and let an in-process one through.
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
-				return s.relayStoredRouteForProcess(proc, destination, routes)
+			b.SetRelayStoredRoute(func(ctx context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+				return s.relayStoredRouteRequest(ctx, proc, input)
 			})
 		},
 	},
@@ -424,6 +428,11 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid update-route params: ").Err(err).String()}
 	}
+	sender, err := plugin.ProcessSender(proc.Name()).WithDestination(input.DestinationOwner, input.DestinationSession)
+	if err != nil {
+		return nil, err
+	}
+	ctx = plugin.WithOriginAdmissionID(ctx, input.OriginAdmissionID)
 	peer := input.PeerSelector
 	if peer == "" {
 		peer = "*"
@@ -441,11 +450,14 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 		// configured, hits the now-fail-closed "denied: empty identity" branch --
 		// silently breaking route propagation (RS/OSPF/IS-IS `update text`).
 		Username: internalPluginIdentity(proc.Name()),
-		Sender:   plugin.ProcessSender(proc.Name()),
+		Sender:   sender,
 	}
 	// Route injection commands are always forms under `send bgp <selector>`
 	// (e.g., "update text ...", "unicast ..."). Prepend unconditionally.
-	dispatchCmd := tb.Str("send bgp ").Str(peer).Byte(' ').Str(input.Command).String()
+	dispatchCmd, err := updateRouteDispatchCommand(input, peer)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -467,6 +479,9 @@ func (s *Server) opDispatchCommand(ctx context.Context, proc *process.Process, p
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
+	}
+	if input.PeerBound() || input.DestinationBound() {
+		return s.dispatchPeerCommand(ctx, proc, input)
 	}
 	resp, err := s.dispatchCommandResponse(ctx, proc, input.Command)
 	if err != nil {

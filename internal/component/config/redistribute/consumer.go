@@ -24,7 +24,18 @@ var ErrConsumerConflict = errors.New("redistribute: consumer already registered"
 type RedistConsumer interface {
 	Name() string
 	InjectRoute(ctx context.Context, fam family.Family, entry RouteEntry)
-	WithdrawRoute(ctx context.Context, fam family.Family, prefix string)
+	WithdrawRoute(ctx context.Context, fam family.Family, removal RouteRemoval)
+}
+
+// RouteRemoval identifies the accepted source contribution being removed.
+// Zero SourceInstance and Table are explicit aggregate/native-table values.
+// Prefix-only protocols use Prefix; BGP MUST match all original source fields.
+type RouteRemoval struct {
+	Prefix         string
+	Source         string
+	Protocol       redistevents.ProtocolID
+	SourceInstance uint32
+	Table          uint32
 }
 
 // RouteEntry carries the fields needed to inject a redistributed route.
@@ -43,7 +54,11 @@ type RouteEntry struct {
 	// SourceInstance is the producer's contribution to this native prefix;
 	// zero is an explicit aggregate rather than a missing instance.
 	SourceInstance uint32 `json:"source-instance"`
-	Table          uint32 `json:"table"`
+	// SourceMetric is captured before import transforms; Metric is wire MED.
+	SourceMetric uint32 `json:"source-metric"`
+	// AdmissionGeneration is the accepting evaluator generation, including zero.
+	AdmissionGeneration uint64 `json:"admission-generation"`
+	Table               uint32 `json:"table"`
 	// HasDistanceOverride preserves a configured distance of zero.
 	DistanceOverride    uint8 `json:"distance-override"`
 	HasDistanceOverride bool  `json:"has-distance-override"`

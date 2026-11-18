@@ -209,7 +209,7 @@ func pathsLimitHeldState(owner adjOutPath, record *adjOutOwed) (rankable, depart
 	if adjOutOwnerSessionCurrent(owner) {
 		return true, false
 	}
-	_, excluded := record.exclusionOf(owner.source.Settings().Address)
+	_, excluded := record.exclusionOf(owner.source.sourceOwner)
 	return false, excluded
 }
 
@@ -307,7 +307,7 @@ func pathsLimitHeldIndex(held []pathsLimitHeldPath, survivor *ribevents.Recovery
 		if owner.source == nil {
 			continue
 		}
-		if owner.source.Settings().Address != survivor.Source {
+		if owner.source.sourceOwner != survivor.SourceOwner {
 			continue
 		}
 		if owner.received != survivor.PathID {
@@ -374,7 +374,7 @@ func (a *reactorAPIAdapter) queuePathsLimitElection(outcome *ribevents.RecoveryO
 			SourcePolicyEpoch: survivor.SourcePolicyEpoch,
 			NLRIFraming:       rpc.NLRIFramingSourceWire}
 		start := len(admission.items)
-		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources.receipts, sender)
+		err := a.queueRecovery(admission.peer, &stored, survivor, admission, admission.sources.receipts, sender)
 		if pathsLimitSurvivorSkipped(err) {
 			continue
 		}

@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"bytes"
-	"net/netip"
 	"sync"
 	"sync/atomic"
 
@@ -119,6 +118,7 @@ type adjOutPath struct {
 	// compared with this field (recoveryAdmission.admit). Equality ignores it.
 	message       uint64
 	sourceReceipt uint64
+	connectionID  uint64 // Original physical source on this current SENT slot, never history.
 }
 
 // adjOutAnnouncer is one source session that announced an owed key: the
@@ -140,7 +140,7 @@ type adjOutAnnouncer struct {
 // a departure says a path is gone, so only it lets a write withdraw one. A
 // survivor that could not be written says only that it cannot be sent.
 type adjOutExclusion struct {
-	source     netip.Addr
+	source     uint64 // original Peer owner, never address identity
 	generation uint64
 	departed   uint64
 }
@@ -225,7 +225,7 @@ func (o *adjOutOwed) exclude(exclusion adjOutExclusion) {
 }
 
 // exclusionOf returns the record's exclusion of source, and whether it has one.
-func (o *adjOutOwed) exclusionOf(source netip.Addr) (adjOutExclusion, bool) {
+func (o *adjOutOwed) exclusionOf(source uint64) (adjOutExclusion, bool) {
 	for _, exclusion := range o.excluded {
 		if exclusion.source == source {
 			return exclusion, true
@@ -245,7 +245,7 @@ func (o *adjOutOwed) spares(owner adjOutPath) bool {
 	if owner.source == nil {
 		return false
 	}
-	exclusion, excluded := o.exclusionOf(owner.source.Settings().Address)
+	exclusion, excluded := o.exclusionOf(owner.source.sourceOwner)
 	if !excluded {
 		return false
 	}
@@ -268,7 +268,7 @@ func (o *adjOutOwed) noteAnnouncer(owner adjOutPath, mover bool) {
 		}
 	}
 	o.announcers = append(o.announcers, adjOutAnnouncer{source: owner.source, generation: owner.generation})
-	if _, excluded := o.exclusionOf(owner.source.Settings().Address); excluded {
+	if _, excluded := o.exclusionOf(owner.source.sourceOwner); excluded {
 		o.epoch++
 	}
 }
@@ -280,8 +280,8 @@ func (o *adjOutOwed) noteAnnouncer(owner adjOutPath, mover bool) {
 // retained is one too, and the RIB already released or replaced the departed
 // session's paths unless GR retained them. The result is a fresh slice the
 // caller may append to. MUST be called with adjRIBOut.mu held.
-func (o *adjOutOwed) electableExcluded() []netip.Addr {
-	excluded := make([]netip.Addr, 0, len(o.excluded))
+func (o *adjOutOwed) electableExcluded() []uint64 {
+	excluded := make([]uint64, 0, len(o.excluded))
 	for _, exclusion := range o.excluded {
 		if o.announcerLifts(exclusion) {
 			continue
@@ -298,7 +298,7 @@ func (o *adjOutOwed) electableExcluded() []netip.Addr {
 func (o *adjOutOwed) announcerLifts(exclusion adjOutExclusion) bool {
 	for i := range o.announcers {
 		announcer := &o.announcers[i]
-		if announcer.source.Settings().Address != exclusion.source {
+		if announcer.source.sourceOwner != exclusion.source {
 			continue
 		}
 		if forwardSourceCurrent(announcer.source, announcer.generation) {

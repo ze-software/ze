@@ -37,10 +37,11 @@ type sourcePolicyPin struct {
 
 // sourcePolicySent is a forwarded copy the apply withdrew from a destination.
 // It keeps the sent entry's pool reference, so abort can announce it again and
-// return it to the sent inventory; finalize, abort and peer down release every
-// reference the inventory did not take back, exactly once.
+// return it to the sent inventory. Finalize, abort, source down and permanent
+// destination removal release every reference the inventory did not take back,
+// exactly once. Physical destination DOWN retains these reconnect candidates.
 type sourcePolicySent struct {
-	destination netip.Addr
+	destination uint64
 	fam         family.Family
 	key         ribOutKey
 	entry       ribOutEntry
@@ -75,8 +76,8 @@ func (txn *sourcePolicyTxn) releaseSent() {
 }
 
 // handleSourcePolicy is bgp-rib's source-policy lifecycle handler. Source.Peer
-// is matched as the peer address the received-UPDATE events carry, parsed to the
-// netip.Addr that keys bgpPeers. It runs on the SDK source-policy worker,
+// remains display metadata; Source.PeerOwner selects the exact received store.
+// It runs on the SDK source-policy worker,
 // concurrently with event delivery: each phase changes state under peerMu, then
 // releases it before any engine RPC, election or best-change publication, so
 // no lock is held while downstream settles. Each phase returns only after its
@@ -99,9 +100,15 @@ func (r *RIBManager) settleSourcePolicyPhase(ctx context.Context,
 	phase func(netip.Addr, rpc.SourcePolicyInput) error,
 ) func(netip.Addr, rpc.SourcePolicyInput) error {
 	return func(peer netip.Addr, input rpc.SourcePolicyInput) error {
+		// The phase can remove the old current winner before it ever gets a
+		// wire receipt. Capture affected worker incarnations before mutation.
+		receipts := r.sourceLeases.receiptsForPeer(input.Source.PeerOwner)
+		active, captureErr := r.selectedDispatch.sourceDestinations(receipts)
+		release := r.sourceLeases.holdSourceOutput(receipts, active)
+		defer release()
 		err := phase(peer, input)
-		receipts := r.sourceLeases.receiptsForPeer(peer)
-		return errors.Join(err, r.sourceLeases.settleReceipts(ctx, receipts))
+		receipts = append(receipts, r.sourceLeases.receiptsForPeer(input.Source.PeerOwner)...)
+		return errors.Join(err, captureErr, r.settleSourceOutput(ctx, active, receipts, release))
 	}
 }
 
@@ -111,12 +118,13 @@ func (r *RIBManager) settleSourcePolicyPhase(ctx context.Context,
 // transaction holds, before pinning anything. A pin copies the path's NLRI key
 // and its identity numbers; no route, attribute or UPDATE is copied.
 func (r *RIBManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
+	owner := input.Source.PeerOwner
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
-	if done, err := sourcePolicyOwner.Reprepare(r.sourcePolicy[peer].ledgerOf(), input); done {
+	if done, err := sourcePolicyOwner.Reprepare(r.sourcePolicy[owner].ledgerOf(), input); done {
 		return err
 	}
-	if !r.peerUp[peer] {
+	if !r.peerUp[owner] {
 		return errors.New("bgp-rib: source " + input.Source.Peer + " has no established session to prepare")
 	}
 	txn := &sourcePolicyTxn{
@@ -124,19 +132,19 @@ func (r *RIBManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourcePolicy
 		addPath:  make(map[family.Family]bool),
 		received: make(map[family.Family]map[string]sourcePolicyPin),
 	}
-	if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+	if peerRIB := r.bgpPeers[owner]; peerRIB != nil {
 		if stale := pinSourcePolicy(peerRIB, txn, input.Source.PolicyEpoch); stale {
 			return errors.New("bgp-rib: transaction " + input.TransactionID + " captured policy epoch of source " +
 				input.Source.Peer + " is older than a path already admitted; capture the source again")
 		}
 	}
-	if old := r.sourcePolicy[peer]; old != nil {
+	if old := r.sourcePolicy[owner]; old != nil {
 		old.releaseSent()
 	}
 	if r.sourcePolicy == nil {
-		r.sourcePolicy = make(map[netip.Addr]*sourcePolicyTxn)
+		r.sourcePolicy = make(map[uint64]*sourcePolicyTxn)
 	}
-	r.sourcePolicy[peer] = txn
+	r.sourcePolicy[owner] = txn
 	return txn.ledger.Record(input, sourcepolicy.StagePrepared, nil)
 }
 
@@ -173,8 +181,9 @@ func pinSourcePolicy(peerRIB *storage.PeerRIB, txn *sourcePolicyTxn, captured ui
 // EBGP peer SHALL NOT be considered eligible in the Decision Process if no
 // explicit Import Policy has been applied."
 func (r *RIBManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
+	owner := input.Source.PeerOwner
 	r.peerMu.Lock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[owner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		r.peerMu.Unlock()
@@ -184,7 +193,7 @@ func (r *RIBManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 		r.peerMu.Unlock()
 		return nil
 	}
-	if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+	if peerRIB := r.bgpPeers[owner]; peerRIB != nil {
 		txn.previousBound = peerRIB.SourcePolicyDeniedThrough()
 		peerRIB.DenySourcePolicyThrough(txn.ledger.Source().PolicyEpoch)
 	}
@@ -194,7 +203,7 @@ func (r *RIBManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 			denied.add(fam, []byte(raw), txn.addPath[fam], pin.message)
 		}
 	}
-	writes := r.pinDeniedSentLocked(peer, denied, txn)
+	writes := r.pinDeniedSentLocked(owner, denied, txn)
 	err = txn.ledger.Record(input, sourcepolicy.StageApplied, nil)
 	received, addPath := txn.received, txn.addPath
 	r.peerMu.Unlock()
@@ -231,15 +240,14 @@ func sourcePolicyRestoreRefused(source netip.Addr, refused error) error {
 // pinDeniedSentLocked withdraws the forwarded copies the denied received
 // owners hold and keeps their sent entries in the transaction for abort.
 // MUST hold peerMu and dispatch the writes after releasing it.
-func (r *RIBManager) pinDeniedSentLocked(source netip.Addr, denied removedReceivedOwners, txn *sourcePolicyTxn) []sentLifecycleWrite {
+func (r *RIBManager) pinDeniedSentLocked(source uint64, denied removedReceivedOwners, txn *sourcePolicyTxn) []sentLifecycleWrite {
 	r.fenceSentLifecycleLocked(source)
 	var writes []sentLifecycleWrite
-	sourcePeer := source.String()
 	for destination, destinations := range r.ribOut {
 		for fam, owners := range denied {
 			routes := destinations[fam]
 			for key, entry := range routes {
-				if entry.SourcePeer != sourcePeer {
+				if entry.SourceOwner != source {
 					continue
 				}
 				owner, ok := sentReceivedOwner(fam, key, &entry)
@@ -249,7 +257,7 @@ func (r *RIBManager) pinDeniedSentLocked(source netip.Addr, denied removedReceiv
 				if _, deny := owners[owner]; !deny {
 					continue
 				}
-				writes = append(writes, sentRemoval(destination, fam, key, &entry))
+				writes = append(writes, r.sentRemoval(destination, fam, key, &entry))
 				delete(routes, key)
 				txn.sent = append(txn.sent, sourcePolicySent{destination: destination, fam: fam, key: key, entry: entry})
 			}
@@ -275,8 +283,9 @@ func (r *RIBManager) pinDeniedSentLocked(source netip.Addr, denied removedReceiv
 //
 // RFC 8212 Section 3 (the decision this abort reverses).
 func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
+	owner := input.Source.PeerOwner
 	r.peerMu.Lock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[owner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		r.peerMu.Unlock()
@@ -299,7 +308,7 @@ func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 	applied := txn.ledger.Stage() == sourcepolicy.StageApplied
 	var restored removedReceivedOwners
 	affected := make(map[family.Family]map[string]sourcePolicyPin, len(txn.received))
-	if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+	if peerRIB := r.bgpPeers[owner]; peerRIB != nil {
 		for fam, pins := range txn.received {
 			addPath := txn.addPath[fam]
 			changed := make(map[string]sourcePolicyPin)
@@ -350,6 +359,7 @@ func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 	for _, write := range announces {
 		var digits [20]byte
 		meta := map[string]any{metaKeyReplay: true,
+			"destination-owner":           strconv.FormatUint(write.owner, 10),
 			bgptypes.SentOwnerMessageMeta: string(strconv.AppendUint(digits[:0], write.message, 10))}
 		if sendErr := r.updateRouteWithProvenance(write.peer, write.command, meta, target); sendErr != nil {
 			refused = append(refused, sentWriteRefused(write.peer, sendErr))
@@ -387,7 +397,8 @@ func (r *RIBManager) restoreSentLocked(txn *sourcePolicyTxn, restored removedRec
 			kept = append(kept, s)
 			continue
 		}
-		write := sentLifecycleWrite{peer: s.destination.String(),
+		address, _ := r.peerAddressLocked(s.destination)
+		write := sentLifecycleWrite{owner: s.destination, peer: address.String(),
 			command: bgp.FormatAnnounceCommand(reconstructRoute(s.entry, s.fam, s.key)), message: s.entry.MsgID}
 		destinations := r.ribOut[s.destination]
 		if _, taken := destinations[s.fam][s.key]; taken {
@@ -424,9 +435,10 @@ func (r *RIBManager) restoreSentLocked(txn *sourcePolicyTxn, restored removedRec
 // eligible again. The paths were already excluded and re-elected at apply, so
 // no election runs here.
 func (r *RIBManager) finalizeSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
+	owner := input.Source.PeerOwner
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[owner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		return err
@@ -434,7 +446,7 @@ func (r *RIBManager) finalizeSourcePolicy(peer netip.Addr, input rpc.SourcePolic
 	if duplicate {
 		return nil
 	}
-	if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+	if peerRIB := r.bgpPeers[owner]; peerRIB != nil {
 		bound := txn.ledger.Source().PolicyEpoch
 		for _, fam := range peerRIB.Families() {
 			peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
@@ -475,7 +487,7 @@ func (r *RIBManager) reelectSourcePolicy(keys map[family.Family]map[string]sourc
 // coordinator's later abort is refused, and the coordinator reports the
 // compensation incomplete, naming the peer and this owner (fail-closed).
 // MUST hold peerMu.
-func (r *RIBManager) dropSourcePolicyLocked(peer netip.Addr) {
+func (r *RIBManager) dropSourcePolicyLocked(peer uint64) {
 	if txn := r.sourcePolicy[peer]; txn != nil {
 		txn.releaseSent()
 		delete(r.sourcePolicy, peer)

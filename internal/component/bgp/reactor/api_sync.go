@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -221,7 +222,25 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // expectation set is a SET of route-pushing process names, so a report is
 // credited to the one that sent it
 // and to nothing else (Peer.SignalAPIReady).
-func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, initialReplay uint64) error {
+func (r *Reactor) SignalPeerAPIReady(ctx context.Context, peerAddr string, sender plugin.Sender, initialReplay uint64) error {
+	owner, session := sender.Destination()
+	if owner != 0 {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		for _, peer := range r.peers {
+			if peer.sourceOwner != owner {
+				continue
+			}
+			if parsePeerAddrToKey(peerAddr).Addr() != peer.settings.Address {
+				return errAdjOutSession
+			}
+			if session == 0 {
+				return errAdjOutSession
+			}
+			return peer.signalAPIReadyContext(ctx, sender, initialReplay)
+		}
+		return ErrPeerNotFound
+	}
 	peer, ok := r.lookupPeer(peerAddr)
 	if !ok {
 		slog.Warn("api ready signal for unknown peer; no replay barrier was credited",
@@ -230,7 +249,7 @@ func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, init
 	}
 
 	slog.Debug("peer api ready signal", "peer", peerAddr, "process", sender.String())
-	return peer.SignalAPIReady(sender, initialReplay)
+	return peer.signalAPIReadyContext(ctx, sender, initialReplay)
 }
 
 // SetPeerUpBarrier declares how many barrier-declaring plugins the peer-up

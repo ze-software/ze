@@ -54,6 +54,7 @@ func init() {
 		RFCs:          []string{"4271"},
 		Features:      "yang",
 		ConfigRoots:   []string{configRootBGP},
+		ConfigReads:   []string{"rib"},
 		YANG:          ribyang.ZeRibYANG,
 		RunEngine:     runRIBPlugin,
 		Commands:      commandDecls(),

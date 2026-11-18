@@ -31,7 +31,7 @@ func (r *RIBManager) flowSpecGateAnswerCommand(_ string, args []string) (string,
 	if len(args) != 1 {
 		return statusError, nil, errors.New(flowSpecGateCommand + " requires one argument: the JSON FlowSpec request")
 	}
-	answer, err := ribevents.AnswerFlowSpec(args[0])
+	answer, err := ribevents.AnswerFlowSpecFor(args[0], r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes, r.flowSpecRedirectRefusedFor, r.sourceProgress)
 	if err != nil {
 		return statusError, nil, fmt.Errorf("%s: %w", flowSpecGateCommand, err)
 	}

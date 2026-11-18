@@ -974,9 +974,24 @@ origin admission receipts where an admission owner produced them. A receipt
 is not forwarding authority. The peer selector defaults to every peer.";
         ze:help "Plugin injects a route update to matching peers.";
         input {
+            leaf destination-owner {
+                type uint64 { range "1..max"; }
+                must "../destination-session";
+                description "Original destination Peer owner. Narrows existing selector and send authority. MUST occur together with destination-session; it grants no route authority.";
+                ze:help "Captured destination owner";
+            }
+            leaf destination-session {
+                type uint64 { range "1..max"; }
+                must "../destination-owner";
+                description "Original destination replay session. MUST occur together with destination-owner. A stale tuple is refused rather than resolved to a successor.";
+                ze:help "Captured destination session";
+            }
+
             leaf deadline-ms {
                 type int64 { range "0..max"; }
                 default 0;
+                must "../command or ../peer-marker";
+                must "not(../destination-owner) or . > 0";
                 ze:help "Opt into acknowledged route-request cancellation";
                 description "Absolute Unix milliseconds for new SDK requests, bounded to thirty seconds by the enrolled receiver. Zero preserves the legacy ordinary request contract. Parallel identical commands remain independently correlated.";
             }
@@ -988,13 +1003,37 @@ is not forwarding authority. The peer selector defaults to every peer.";
                      it dispatches. An empty value is read as *.";
                 ze:help "Peer selector (* for all, or specific IP)";
             }
+            // Exactly one route command or explicitly bound peer marker.
             leaf command {
-                type string;
-                mandatory true;
+                type string { length "1..max"; }
+                must "not(../peer-marker)";
+                must "not(../marker-family)";
                 description
                     "The text is appended to send bgp <selector> and dispatched as one command.
                      It is the part after the selector, for example update text announce ....";
                 ze:help "Route command (e.g., announce/withdraw text)";
+            }
+            leaf origin-admission-id {
+                type uint64;
+                default 0;
+                must "not(../peer-marker) or . = 0";
+                description "Opaque accepted redistribution record on the authenticated original connection. A nonzero value is independently checked against its source, native route and concrete destination. It grants no peer permission. Zero denotes ordinary local/API input.";
+                ze:help "Original accepted redistribution record";
+            }
+            leaf peer-marker {
+                type enumeration { enum borr; enum eorr; }
+                must "not(../command)";
+                must "../marker-family";
+                must "../destination-owner and ../destination-session";
+                must "not(../source-policy-epoch) or ../source-policy-epoch = 0";
+                description "A replay bracket on the captured destination. Uses the same admitted cancellation and final socket completion as update-route; grants no refresh permission.";
+                ze:help "Bound route refresh marker";
+            }
+            leaf marker-family {
+                type zt:address-family;
+                must "../peer-marker";
+                description "Negotiated address family of the bound replay marker.";
+                ze:help "Replay marker address family";
             }
             leaf source-policy-epoch {
                 type uint64;
@@ -1077,6 +1116,83 @@ is not forwarding authority. The peer selector defaults to every peer.";
         }
     }
 
+    // Runtime: source-owned cached and stored UPDATE forwarding.
+    grouping cached-write-destination {
+        description "Optional original destination constraints; neither field grants permission.";
+        leaf destination-owner {
+            type uint64 { range "1..max"; }
+            must "../destination-session and ../deadline-ms > 0" {
+                error-message "A bound cached write needs both original destination identifiers and a positive deadline.";
+            }
+            ze:help "Original configured Peer owner";
+        }
+        leaf destination-session {
+            type uint64 { range "1..max"; }
+            must "../destination-owner" { error-message "A destination session needs its original Peer owner."; }
+            ze:help "Original destination UP token";
+        }
+        leaf deadline-ms {
+            type int64 { range "1..max"; }
+            must "../destination-owner and ../destination-session" { error-message "A cached write deadline needs its original destination tuple."; }
+            ze:help "Absolute bound-write deadline in Unix milliseconds";
+        }
+    }
+    grouping cached-write-completion {
+        leaf failure { type string { length "1..65535"; } ze:help "Joined refusal or writer failure; no owned target remains queued"; }
+        leaf failure-cause { type uint8 { range "0..2"; } ze:help "Zero for other failure, one for cancellation, two for deadline"; }
+        leaf completed { type boolean; ze:help "Whether the bound final writer completed"; }
+        leaf deadline-ms { type int64; ze:help "Exact deadline of the completed request"; }
+    }
+    rpc forward-cached {
+        ze:method "ze-plugin-engine:forward-cached";
+        description "Forward retained engine UPDATE identifiers through the shared forwarding writer.";
+        ze:help "Forward cached UPDATEs to explicitly selected peers";
+        input {
+            leaf deadline-ms { type int64 { range "1..max"; } must "../targets"; ze:help "Absolute bound-write deadline"; }
+            list targets {
+                key "destination-owner";
+                max-elements 4096;
+                must "not(../destinations) and ../deadline-ms > 0";
+                leaf destination-owner { type uint64 { range "1..max"; } ze:help "Original configured Peer owner"; }
+                leaf destination-session { type uint64 { range "1..max"; } mandatory true; ze:help "Original UP token"; }
+                leaf destination { type string { length "1..128"; } mandatory true; ze:help "Original destination address or address:port"; }
+            }
+            leaf-list ids { type uint64; ze:help "Retained engine UPDATE identifiers"; }
+            leaf-list destinations { type string; ze:help "Destination peer address or address and port"; }
+        }
+        output { uses cached-write-completion; }
+    }
+    rpc relay-stored-route {
+        ze:method "ze-plugin-engine:relay-stored-route";
+        description "Reconstruct source-owned stored wire routes through the existing forwarding writer.";
+        ze:help "Relay stored wire routes to one explicit destination";
+        input {
+            uses cached-write-destination;
+            leaf destination { type zt:ip-address; mandatory true; ze:help "Destination peer address"; }
+            list routes {
+                description "Original stored route facts; copied scalars grant no authority.";
+                leaf source-peer { type zt:ip-address; mandatory true; ze:help "Original source display address"; }
+                leaf source-owner { type uint64; ze:help "Original configured source Peer owner"; }
+                leaf source-receipt { type uint64; ze:help "Original engine-issued source Session receipt"; }
+                leaf source-connection-id { type uint64; ze:help "Original physical source connection"; }
+                leaf family { type string; mandatory true; ze:help "Registered address family"; }
+                leaf attr-hex { type string; ze:help "Original path attribute bytes"; }
+                leaf next-hop-hex { type string; ze:help "Original next hop bytes"; }
+                leaf nlri-hex { type string; mandatory true; ze:help "Native route NLRI bytes"; }
+                leaf msg-id { type uint64; ze:help "Original received UPDATE generation"; }
+                leaf source-policy-epoch { type uint64; ze:help "Original import-policy admission"; }
+                leaf withdraw { type boolean; default false; ze:help "Retire this source-owned path"; }
+                leaf initial-update { type boolean; default false; ze:help "Part of the captured destination initial replay"; }
+                leaf path-id { type uint32; ze:help "Original source ADD-PATH identifier, including zero"; }
+                leaf nlri-framing {
+                    type enumeration { enum prefix-only { ze:help "Native NLRI without a path identifier"; } enum source-wire { ze:help "Original source-framed NLRI bytes"; } }
+                    ze:help "Recorded framing of the native NLRI";
+                }
+            }
+        }
+        output { uses cached-write-completion; }
+    }
+
     // Runtime: Command dispatch (inter-plugin communication).
 
     rpc dispatch-command {
@@ -1087,6 +1203,28 @@ the full {status, data} response. Unlike update-route, which
 extracts only route counters, this preserves structured responses.";
         ze:help "Plugin dispatches a command through the engine's command dispatcher.";
         input {
+            leaf destination-owner {
+                type uint64 { range "1..max"; }
+                must "../destination-session and ../deadline-ms > 0 and not(../peer-owner) and not(../connection-id)";
+                description "Original destination Peer, independent of a physical control pair.";
+            }
+            leaf destination-session {
+                type uint64 { range "1..max"; }
+                must "../destination-owner";
+                description "Original destination UP token.";
+            }
+            leaf peer-owner {
+                type uint64;
+                description "Original peer owner for an explicitly bound physical peer command.";
+            }
+            leaf connection-id {
+                type uint64;
+                description "Original immutable physical connection; requires peer-owner.";
+            }
+            leaf deadline-ms {
+                type int64;
+                description "Absolute Unix millisecond deadline of a bound peer command.";
+            }
             leaf command {
                 type string;
                 mandatory true;
@@ -1098,6 +1236,11 @@ extracts only route counters, this preserves structured responses.";
             }
         }
         output {
+            leaf destination-owner { type uint64; description "Settled original destination owner."; }
+            leaf destination-session { type uint64; description "Settled original destination UP token."; }
+            leaf peer-owner { type uint64; description "Settled original peer owner."; }
+            leaf connection-id { type uint64; description "Settled original physical connection."; }
+            leaf deadline-ms { type int64; description "Exact settled request deadline."; }
             leaf status {
                 type string;
                 description

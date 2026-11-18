@@ -150,12 +150,20 @@ func (store *originReceiptStore) endOwner(ctx context.Context, owner plugin.Sele
 		if !scopeOriginOwner(record.originScope, owner) {
 			continue
 		}
-		if record.key.producer.kind == originProducerProcess {
-			if record.key.producer.owner.SameIncarnation(owner) {
-				record.retained = true
-			}
+		producing := record.key.producer.kind == originProducerProcess
+		if producing {
+			producing = record.key.producer.owner.SameIncarnation(owner)
 		}
-		store.park(record)
+		if producing {
+			if record.source.identity.kind == originSourceRedistributed {
+				store.invalidate(record)
+			} else {
+				record.retained = true
+				store.park(record)
+			}
+		} else {
+			store.park(record)
+		}
 		records = append(records, record)
 	}
 	var pending []<-chan struct{}
@@ -348,6 +356,18 @@ func (a *reactorAPIAdapter) EndOriginOwner(ctx context.Context, owner plugin.Sel
 	}
 	var failures []error
 	for _, record := range records {
+		if record.source.identity.kind == originSourceRedistributed {
+			if record.key.producer.owner.SameIncarnation(owner) {
+				if !record.provider.SameIncarnation(owner) {
+					if record.provider.Current() == nil {
+						if err := a.retireOriginCandidate(ctx, record); err != nil {
+							failures = append(failures, err)
+						}
+					}
+				}
+				continue
+			}
+		}
 		if record.provider.SameIncarnation(owner) {
 			continue
 		}

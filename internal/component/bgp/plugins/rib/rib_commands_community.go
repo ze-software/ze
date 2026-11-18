@@ -79,33 +79,34 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) 
 
 	r.peerMu.Lock()
 
-	peerRIB := r.bgpPeers[peerAddr]
-	if peerRIB == nil {
-		r.peerMu.Unlock()
-		return statusDone, map[string]any{"attached": 0}, nil
-	}
+	owners := r.sourceOwnersAtAddressLocked(peerAddr)
 
 	type affectedNLRI struct {
 		nlri    []byte
 		addPath bool
 	}
 	var affected []affectedNLRI
-	ap := peerRIB.IsAddPath(fam)
-
 	attached := 0
-	peerRIB.ModifyFamilyAllKeyed(fam, func(nlriBytes []byte, entry *storage.RouteEntry) {
-		if entry.StaleLevel == storage.StaleLevelFresh {
-			return
+	for _, owner := range owners {
+		peerRIB := r.bgpPeers[owner]
+		if peerRIB == nil {
+			continue
 		}
-		if r.attachCommunity(entry, commBytes) {
-			entry.StaleLevel = storage.DepreferenceThreshold
-			attached++
-			cp := make([]byte, len(nlriBytes))
-			copy(cp, nlriBytes)
-			affected = append(affected, affectedNLRI{nlri: cp, addPath: ap})
-		}
-	})
-	r.attachSentSourceCommunityLocked(peerAddr, fam, commBytes)
+		ap := peerRIB.IsAddPath(fam)
+		peerRIB.ModifyFamilyAllKeyed(fam, func(nlriBytes []byte, entry *storage.RouteEntry) {
+			if entry.StaleLevel == storage.StaleLevelFresh {
+				return
+			}
+			if r.attachCommunity(entry, commBytes) {
+				entry.StaleLevel = storage.DepreferenceThreshold
+				attached++
+				cp := make([]byte, len(nlriBytes))
+				copy(cp, nlriBytes)
+				affected = append(affected, affectedNLRI{nlri: cp, addPath: ap})
+			}
+		})
+		r.attachSentSourceCommunityLocked(owner, fam, commBytes)
+	}
 
 	r.peerMu.Unlock()
 
@@ -149,34 +150,39 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, err
 
 	r.peerMu.Lock()
 
-	peerRIB := r.bgpPeers[peerAddr]
-	if peerRIB == nil {
-		r.peerMu.Unlock()
-		return statusDone, map[string]any{"deleted": 0}, nil
-	}
+	owners := r.sourceOwnersAtAddressLocked(peerAddr)
+	defer func() { r.settleSourceLeases(owners...) }()
 
 	type deletedNLRI struct {
 		nlri    []byte
 		addPath bool
 	}
 	var toDelete []deletedNLRI
-	var removed removedReceivedOwners
-	deleted := peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
-		if entry.StaleLevel == storage.StaleLevelFresh {
-			return false
+	var writes []sentLifecycleWrite
+	deleted := 0
+	for _, owner := range owners {
+		peerRIB := r.bgpPeers[owner]
+		if peerRIB == nil {
+			continue
 		}
-		eb := entry.GetBundle()
-		if eb.HasCommunities() {
-			if data, getErr := pool.Communities.Get(eb.Communities); getErr == nil {
-				return containsCommunity(data, commBytes)
+		var removed removedReceivedOwners
+		deleted += peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
+			if entry.StaleLevel == storage.StaleLevelFresh {
+				return false
 			}
-		}
-		return false
-	}, func(raw []byte, message uint64, addPath bool) {
-		toDelete = append(toDelete, deletedNLRI{nlri: raw, addPath: addPath})
-		removed.add(fam, raw, addPath, message)
-	})
-	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
+			eb := entry.GetBundle()
+			if eb.HasCommunities() {
+				if data, getErr := pool.Communities.Get(eb.Communities); getErr == nil {
+					return containsCommunity(data, commBytes)
+				}
+			}
+			return false
+		}, func(raw []byte, message uint64, addPath bool) {
+			toDelete = append(toDelete, deletedNLRI{nlri: raw, addPath: addPath})
+			removed.add(fam, raw, addPath, message)
+		})
+		writes = append(writes, r.withdrawRemovedSentLocked(owner, removed)...)
+	}
 
 	r.peerMu.Unlock()
 	refused := r.dispatchSentLifecycle(writes)

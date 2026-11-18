@@ -1252,7 +1252,7 @@ Receive UPDATE → Assign msg-id → Ingress filter pipeline → Cache WireUpdat
                                                                                  ▼
                      ┌──────────────────── slow path (text RPC) ───────┬──── fast path (typed SDK) ────┐
                      ▼                                                  ▼                              ▼
-          "send bgp <sel> cached 123" → tokenise → command registry → ForwardUpdate       Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
+          "send bgp <sel> cached 123" → tokenise → command registry → ForwardUpdate       Plugin.ForwardCached(ctx, input) → DirectBridge → ForwardUpdatesDirect
                      │                                                                                  │
                      └──────────────────────────── ForwardUpdate (shared core) ─────────────────────────┘
                                                                 │
@@ -1318,15 +1318,15 @@ to `ForwardUpdate`.
 
 **Fast path** (rs-fastpath-3) is used by high-throughput plugin forwarders (route
 server today; route reflector / redistribute next). `Plugin.ForwardCached(ctx,
-ids, destinations)` goes through `DirectBridge` when the plugin is in-process
-(zero socket I/O, zero tokenisation, zero registry walk) and falls back to
-`ze-plugin-engine:forward-cached` over the newline-framed plugin RPC connection
-for out-of-process plugins. The engine entry point is `reactorAPIAdapter.ForwardUpdatesDirect`, which
-builds a selector from the `netip.AddrPort` list once, de-dupes IDs, and calls
-`ForwardUpdate` per id. Symmetric `ReleaseCached` handles the "decided not to
-forward" ack path. Destinations are capped at `ze.fwd.dest.cap` (default 4096).
-Both paths share the same egress filter chain, AS-PATH prepend, next-hop policy,
-and replay-on-new-peer invariants.
+rpc.ForwardCachedInput)` goes through `DirectBridge` in-process and the same
+`ze-plugin-engine:forward-cached` operation over the framed connection externally.
+An intentional unbound input uses `Destinations`; a bound input supplies the
+complete original `Targets` set. Both use the ordinary egress pipeline. The bound
+operation dispatches all target carriers through the existing bounded peer
+workers, then joins them before its one cache acknowledgment. `ReleaseCached`
+handles an UPDATE the consumer will not forward.
+<!-- source: internal/component/bgp/reactor/relay_bound.go -- ForwardUpdatesBound, boundForwardStage.flush -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- ForwardCached, ReleaseCached -->
 
 All output rails converge at the final session writer's ownership admission.
 The existing per-peer `adjOut` is bound to one destination Session and records
@@ -1976,7 +1976,7 @@ an in-process BGP evaluator (`policychain/register.go`).
   `filterapi.RegisterAttrModHandler`, and a later member reads the set
   value.
 - **Session facts are fields of the same view.** `policyview` registers
-  `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
+  `peer-name`, `peer-group`, `peer-address`, `peer-owner`, `connection-id`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the
   session's peer, and the `source-peer-*`, `source-ibgp`,
   `source-rs-client` and `source-llgr-advertised` facts of an exported
@@ -1986,7 +1986,13 @@ an in-process BGP evaluator (`policychain/register.go`).
   `policyview.ImportSession` on the received path, `policyview.ExportSession`
   on each export rail. A fact the session does not hold answers absent, never
   a zero, and a forked filter receives the facts it declared in `fields`, so
-  both transports read one value.
+  both transports read one value. `peer-owner` is the original runtime Peer
+  identity, serialized as an exact unsigned 64-bit integer. `connection-id` is
+  the captured physical Session, with the same exact numeric Fields
+  representation; unlike the stable owner it changes on reconnect. Configuration-only
+  facts omit it. It is read-only and is not an insertion condition or authority
+  to receive or send. Consumers of `ibgp` use the reactor's classification,
+  including configured RFC 7705 migration sessions, rather than comparing ASNs.
 - **Export authority belongs to one run.** The mandatory final argument of
   `ExportSession` supplies engine-derived authority independently of `SourceKnown`; missing source
   facts cannot stand for a local origin. `Session.UnconfiguredAccepts` reads
@@ -3422,6 +3428,45 @@ that destination -- so an import under `destination bgp` no longer satisfies
 <!-- source: internal/core/replay/replay.go -- shared Request token, Broadcast sentinel, IsReplay marker (all three replay hops) -->
 <!-- source: internal/core/redistevents/events.go -- ReplayRequest (alias of replay.Request) + RouteChangeBatch.ReplayID + IsReplay -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
+
+### BGP accepted redistribution boundary
+
+The orchestrator captures original protocol/instance/table and preference
+metric before applying wire transforms. The BGP-facing consumer publishes
+that accepted snapshot over its independent lookup callback and sends its
+opaque ID through the full update-route request. The engine resolves the ID
+on the original accepting Process connection, validates the native build and
+scope, then classifies the contribution as redistributed. Distance overrides,
+including explicit zero, and the evaluator generation survive this boundary.
+
+Consumer factories are constructed before SDK startup so callbacks are
+declared at stage one; registry publication and replay wait for Started.
+Exact removal includes protocol, source instance and table. BGP removes only
+that accepted contribution; native OSPF/IS-IS consumers retain prefix removal.
+The accepting adapter's exit retires its redistributed contributions while
+the existing local/API keep-and-reoffer contract remains unchanged. Upstream
+producer lifetime and replay stay within redistribution. The process protocol
+documents the independent lookup and final-use checks.
+<!-- source: internal/component/bgp/redistribute/admission.go -- accepted records -->
+<!-- source: internal/component/bgp/reactor/origin_admission.go -- original connection and build checks -->
+<!-- source: internal/plugins/redistribute/register.go -- construction and publication -->
+A withdrawal with no registered source protocol leaves the destination
+consumer unchanged and reports `doctor-redistribute-source-unregistered`.
+Its bounded report queue belongs to the original SDK runtime, including
+configuration apply and rollback; a replacement runtime supplies no reporter.
+The queue worker sends accepted offers through the SDK in either placement;
+reports the daemon accepts are listed by its recent-events doctor check. A
+refused publication is logged under the same code. After the run
+goroutine joins, queue stop closes reporting admission and drains accepted
+reports before the original connection closes. This does not join every
+copied event callback. An already copied late callback retains the stopped
+original queue: its refused offer is logged with `report-error`, rather than
+sent through a replacement runtime.
+<!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnknownWithdrawal -->
+<!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
+<!-- test: internal/plugins/redistribute/withdrawal_diagnostic_test.go TestUnknownWithdrawalReportsOriginalRuntime -->
+<!-- test: internal/plugins/redistribute/withdrawal_diagnostic_test.go TestUnknownWithdrawalAfterReporterStopRefusesOriginalQueue -->
+
 
 ### Redistribute Origin ASN and Community
 

@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"errors"
 	"maps"
 	"net/netip"
 	"slices"
@@ -18,9 +19,13 @@ import (
 // Routes are stored individually with RouteEntry containing per-attr handles.
 type PeerRIB struct {
 	peerAddr string
-	mu       sync.RWMutex
-	families map[family.Family]*FamilyRIB
-	addPath  map[family.Family]bool // ADD-PATH negotiated per family
+	// peerAddress is immutable display/selection metadata of an IP-based
+	// store. Composite protocol names keep the invalid, unrecorded value.
+	// It is never a configured Peer owner or a source-session receipt.
+	peerAddress netip.Addr
+	mu          sync.RWMutex
+	families    map[family.Family]*FamilyRIB
+	addPath     map[family.Family]bool // ADD-PATH negotiated per family
 
 	// policyDeniedThrough is the source-policy epoch at or below which an
 	// applied import denial makes this peer's routes ineligible. Zero is no
@@ -28,6 +33,24 @@ type PeerRIB struct {
 	// captured epoch, so no denial can be recorded as zero.
 	policyDeniedThrough atomic.Uint64
 }
+
+// NewAddressPeerRIB captures a concrete address once at an IP input boundary.
+// Invalid input returns no store. The owner MUST call Release when the store
+// is no longer needed. Retained route snapshots own independent references
+// that their holders MUST release separately.
+func NewAddressPeerRIB(address netip.Addr) (*PeerRIB, error) {
+	if !address.IsValid() {
+		return nil, errors.New("RIB source address is invalid; supply a concrete IP address")
+	}
+	routes := NewPeerRIB(address.String())
+	routes.peerAddress = address
+	return routes, nil
+}
+
+// PeerAddress returns this store's original typed display metadata, never an
+// address parsed from a protocol name. Invalid means no IP observation was
+// recorded by the generic constructor. It is immutable and safe concurrently.
+func (r *PeerRIB) PeerAddress() netip.Addr { return r.peerAddress }
 
 // NewPeerRIB creates a new PeerRIB for the given peer.
 func NewPeerRIB(peerAddr string) *PeerRIB {
@@ -534,7 +557,9 @@ func (r *PeerRIB) Clear() {
 	r.families = make(map[family.Family]*FamilyRIB)
 }
 
-// Release frees all pool handles and clears the RIB.
+// Release frees the store's pool references and clears the RIB.
+// The owner MUST call it when the store is no longer needed. Retained route
+// snapshots keep their own references, which their holders MUST release separately.
 func (r *PeerRIB) Release() {
 	r.Clear()
 }

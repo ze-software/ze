@@ -27,8 +27,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"net/netip"
-
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
@@ -36,7 +34,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -101,17 +98,13 @@ type grPlugin struct {
 	sdk *sdk.Plugin
 
 	mu           sync.Mutex
-	peerCaps     map[string]*grPeerCap   // peerAddr -> last seen GR capability from OPEN
-	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> last seen LLGR capability from OPEN
+	peerCaps     map[uint64]*grPeerCap   // original owner -> last seen GR capability from OPEN
+	peerLLGRCaps map[uint64]*llgrPeerCap // original owner -> last seen LLGR capability from OPEN
 	// sentLLGRFamilies holds, per peer, the AFI/SAFI Ze declared in the LLGR Capability
 	// of the OPEN it last sent. A received LLGR family is honored only when it is here
 	// (exchangedLLGRLocked, gr_llgr_exchange.go). A nil map reads as "nothing declared".
-	sentLLGRFamilies map[string]map[family.Family]bool
-	// removedPeers tombstones peers deconfigured via a SessionStateDown with
-	// reason rpc.ReasonPeerRemoved, so a racing teardown "down" for the same
-	// peer does not re-activate GR. Cleared when the peer re-establishes.
-	removedPeers map[string]bool
-	state        *grStateManager // RFC 4724 Receiving Speaker state machine
+	sentLLGRFamilies map[uint64]grSentLLGR
+	state            *grStateManager // RFC 4724 Receiving Speaker state machine
 
 	// dispatchHook, when non-nil, intercepts dispatchCommand for test
 	// inspection instead of issuing the dispatch-command RPC. Production
@@ -126,6 +119,8 @@ type grPlugin struct {
 	// inspection instead of emitting it. Production leaves it nil, as it does
 	// dispatchHook.
 	emitHook func(payload string)
+	// cleanupHook observes the existing source command completion in tests.
+	cleanupHook func(string)
 }
 
 // runGRPlugin runs the GR plugin using the SDK RPC protocol.
@@ -144,9 +139,8 @@ func runGRPlugin(conn net.Conn) int {
 
 	gp := &grPlugin{
 		sdk:          p,
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		removedPeers: make(map[string]bool),
+		peerCaps:     make(map[uint64]*grPeerCap),
+		peerLLGRCaps: make(map[uint64]*llgrPeerCap),
 	}
 
 	gp.wireStateCallbacks()
@@ -214,7 +208,9 @@ func runGRPlugin(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			gp.handleStructuredEvent(se)
+			if err := gp.handleStructuredEvent(se); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -262,38 +258,40 @@ func runGRPlugin(conn net.Conn) int {
 // It is a method rather than inline setup in runGRPlugin so a test can install
 // the production callbacks without a plugin connection.
 func (gp *grPlugin) wireStateCallbacks() {
-	gp.state = newGRStateManager(func(peerAddr string) {
-		gp.onTimerExpired(peerAddr)
+	gp.state = newGRStateManager(func(source grSource) {
+		gp.onTimerExpired(source)
 	})
 	// RFC 9494: LLGR callbacks compose generic RIB commands.
 	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
-	gp.state.onLLGREnter = func(peerAddr string, fam family.Family, llst uint32) {
-		famStr := fam.String()
-		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("request bgp rib delete-with-community", peerAddr, famStr, "ffff0007")
-		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("request bgp rib attach-community", peerAddr, famStr, "ffff0006")
-		// 3. Raise stale level to 2 (depreference threshold) via mark-stale
-		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2", famStr)
-	}
-	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
-		addr, err := netip.ParseAddr(peerAddr)
-		if err != nil {
-			logger().Error("gr: invalid peer address in LLGR entry done", "peer", peerAddr, "error", err)
+	gp.state.onLLGREnter = func(source grSource, fam family.Family, llst uint32) {
+		if !gp.state.llgrFamilyActive(source, fam) {
 			return
 		}
-		excludeSel := selector.ExcludeAddr(addr).String()
-		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
+		famStr := fam.String()
+		// 1. Delete routes with NO_LLGR community
+		gp.dispatchSource(source, "request bgp rib source delete-with-community", "family", famStr, "community", "ffff0007")
+		if !gp.state.llgrFamilyActive(source, fam) {
+			return
+		}
+		// 2. Attach LLGR_STALE community to remaining stale routes
+		gp.dispatchSource(source, "request bgp rib source attach-community", "family", famStr, "community", "ffff0006")
+		if !gp.state.llgrFamilyActive(source, fam) {
+			return
+		}
+		// 3. Raise stale level to 2 (depreference threshold) via mark-stale
+		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
+		gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", "0", "stale-level", "2", "family", famStr)
+	}
+	gp.state.onLLGREntryDone = func(source grSource, families []family.Family) {
 		for _, fam := range families {
-			gp.dispatchCommand("clear bgp rib out", excludeSel, fam.String())
+			gp.dispatchCommand("clear bgp rib out-excluding-owner", "owner", strconv.FormatUint(source.owner, 10), "family", fam.String())
 		}
 	}
-	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
-		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
+	gp.state.onLLGRFamilyExpired = func(source grSource, fam family.Family) {
+		gp.dispatchSource(source, "request bgp rib source purge-stale", "family", fam.String())
 	}
-	gp.state.onLLGRComplete = func(peerAddr string) {
-		gp.dispatchCommand("request bgp rib release-routes", peerAddr)
+	gp.state.onLLGRComplete = func(source grSource) {
+		gp.dispatchSource(source, "request bgp rib source release-routes")
 	}
 }
 
@@ -301,43 +299,61 @@ func (gp *grPlugin) wireStateCallbacks() {
 // State events use metadata fields directly (no JSON parsing needed).
 // OPEN events decode raw wire bytes via message.UnpackOpen (no format import needed).
 // EOR events are delivered as text via OnEvent (onEORReceived uses text-only delivery).
-func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) error {
+	// A terminal Peer removal is owner-scoped, including retained earlier
+	// connections. A never-connected peer truthfully has no ConnectionID.
+	if se.EventType == rpc.EventKindState {
+		if se.State == rpc.SessionStateDown {
+			if se.Reason == rpc.ReasonPeerRemoved {
+				peer, err := newGRPeer(se.PeerAddress, se.PeerOwner)
+				if err != nil {
+					return err
+				}
+				gp.onPeerRemoved(peer)
+				return nil
+			}
+		}
+	}
 	switch se.EventType {
-	case rpc.EventKindState:
-		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
-	case rpc.EventKindOpen:
+	case rpc.EventKindState, rpc.EventKindOpen:
+		source, err := newGRSource(se.PeerAddress, se.PeerOwner, se.ConnectionID)
+		if err != nil {
+			return err
+		}
+		if se.EventType == rpc.EventKindState {
+			gp.handleStructuredState(source, se.State, se.Reason)
+			return nil
+		}
 		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 			if se.Direction == rpc.DirectionSent {
-				gp.handleStructuredSentOpen(se.PeerAddress, msg)
-				return
+				gp.handleStructuredSentOpen(source, msg)
+				return nil
 			}
-			gp.handleStructuredOpen(se.PeerAddress, msg)
+			gp.handleStructuredOpen(source, msg)
 		} else if se.RawMessage != nil {
-			logger().Warn("gr: unexpected RawMessage type for open event",
-				"peer", se.PeerAddress,
-				"type", fmt.Sprintf("%T", se.RawMessage))
+			logger().Warn("gr: unexpected RawMessage type for open event", "peer", source, "type", fmt.Sprintf("%T", se.RawMessage))
 		}
 	case rpc.EventKindUnspecified, rpc.EventKindUpdate, rpc.EventKindNotification,
-		rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR,
-		rpc.EventKindBoRR, rpc.EventKindEoRR, rpc.EventKindSent,
-		rpc.EventKindNegotiated, rpc.EventKindCount:
-		// These structured events do not change graceful-restart state.
+		rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR,
+		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These events do not change this subscriber's GR state; EOR uses JSON.
 	default:
-		// The plugin event set is open; unknown events leave GR state unchanged.
+		// The event kind is open; unrelated kinds leave GR state unchanged.
 	}
+	return nil
 }
 
 // handleStructuredOpen extracts GR (code 64) and LLGR (code 71) capabilities
 // from a received OPEN message's raw wire bytes. Same logic as handleOpenEvent
 // but reads wire bytes directly instead of JSON.
-func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessage) {
+func (gp *grPlugin) handleStructuredOpen(source grSource, msg *bgptypes.RawMessage) {
 	if msg.RawBytes == nil {
-		logger().Debug("gr: open event with nil raw bytes, skipping", "peer", peerAddr)
+		logger().Debug("gr: open event with nil raw bytes, skipping", "peer", source)
 		return
 	}
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
-		logger().Debug("gr: failed to unpack OPEN", "peer", peerAddr, "err", err)
+		logger().Debug("gr: failed to unpack OPEN", "peer", source, "err", err)
 		return
 	}
 
@@ -346,44 +362,44 @@ func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessa
 	// width, so an extended OPEN's GR capability is read, not misframed.
 	err = capability.WalkOptionalParams(open.OptionalParams, open.ExtendedParams, func(paramType uint8, value []byte) error {
 		if paramType == 2 {
-			foundGR = gp.extractGRCaps(peerAddr, value, foundGR)
+			foundGR = gp.extractGRCaps(source, value, foundGR)
 		}
 		return nil
 	})
 	if err != nil {
 		// The reactor refuses the same OPEN (rejectOpenCapabilityError), so no
 		// session follows it and the earlier capability is left as it was.
-		logger().Debug("gr: failed to read OPEN optional parameters", "peer", peerAddr, "err", err)
+		logger().Debug("gr: failed to read OPEN optional parameters", "peer", source, "err", err)
 		return
 	}
 
 	// RFC 4724 Section 4.2, RFC 9494 Section 4.5.
 	if !foundGR {
-		gp.forgetGRCapability(peerAddr)
+		gp.forgetGRCapability(source)
 	}
 }
 
-// forgetGRCapability drops what an earlier OPEN from peerAddr advertised, for an OPEN that
+// forgetGRCapability drops what an earlier OPEN from source advertised, for an OPEN that
 // carries no Graceful Restart Capability. The session-up handler then reads no capability
 // and purges every retained family, and a later session drop retains nothing. Safe for
 // concurrent use: it takes gp.mu.
-func (gp *grPlugin) forgetGRCapability(peerAddr string) {
+func (gp *grPlugin) forgetGRCapability(source grSource) {
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
 	// RFC 4724 Section 4.2: "if the Graceful Restart Capability is not received in the
 	// re-established session at all, then the Receiving Speaker MUST immediately remove all
 	// the stale routes from the peer that it is retaining for that address family."
-	delete(gp.peerCaps, peerAddr)
+	delete(gp.peerCaps, source.owner)
 	// RFC 9494 Section 4.5: "If the LLGR Capability is received without an accompanying GR
 	// Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST
 	// behave as though no LLGR Capability has been received."
-	delete(gp.peerLLGRCaps, peerAddr)
+	delete(gp.peerLLGRCaps, source.owner)
 }
 
 // extractGRCaps walks raw capability bytes looking for codes 64 (GR) and 71 (LLGR).
 // Returns true if GR (code 64) was found (including prior calls via foundGR).
-func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bool {
+func (gp *grPlugin) extractGRCaps(source grSource, data []byte, foundGR bool) bool {
 	off := 0
 	for off < len(data) {
 		if off+2 > len(data) {
@@ -402,31 +418,33 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 		case 64: // GR capability
 			result, err := decodeGR(capValue)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
+				logger().Debug("gr: failed to decode cap 64", "peer", source, "err", err)
 				continue
 			}
 			peerCap := grResultToPeerCap(result)
+			peerCap.connectionID = source.connectionID
 			gp.mu.Lock()
-			gp.peerCaps[peerAddr] = peerCap
+			gp.peerCaps[source.owner] = peerCap
 			gp.mu.Unlock()
 			foundGR = true
 			logger().Debug("gr: stored peer GR capability",
-				"peer", peerAddr,
+				"peer", source,
 				"restart-time", peerCap.RestartTime,
 				"families", len(peerCap.Families))
 
 		case 71: // LLGR capability
 			result, err := decodeLLGR(capValue)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 71", "peer", peerAddr, "err", err)
+				logger().Debug("gr: failed to decode cap 71", "peer", source, "err", err)
 				continue
 			}
 			peerCap := llgrResultToPeerCap(result)
+			peerCap.connectionID = source.connectionID
 			gp.mu.Lock()
-			gp.peerLLGRCaps[peerAddr] = peerCap
+			gp.peerLLGRCaps[source.owner] = peerCap
 			gp.mu.Unlock()
 			logger().Debug("gr: stored peer LLGR capability",
-				"peer", peerAddr,
+				"peer", source,
 				"families", len(peerCap.Families))
 		}
 	}
@@ -439,37 +457,30 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 // RFC 9494 Section 4.2: "After the session goes down, and before the session is
 // re-established, the stale routes for an AFI/SAFI MUST be retained."
 // Retention starts before the forwarding owner handles peer-down.
-func (gp *grPlugin) retainPeerFamilies(peerAddr string) {
-	gp.state.mu.Lock()
-	state := gp.state.peers[peerAddr]
-	if state == nil {
-		gp.state.mu.Unlock()
+func (gp *grPlugin) retainPeerFamilies(source grSource) {
+	families := gp.state.retainedFamilies(source)
+	if len(families) == 0 {
 		return
 	}
-	args := make([]string, 2, 2+len(state.staleFamilies))
-	args[0] = peerAddr
-	args[1] = "on-down"
-	for fam := range state.staleFamilies {
+	args := make([]string, 2, 2+len(families))
+	args[0] = "on-down"
+	args[1] = "families"
+	for _, fam := range families {
 		args = append(args, fam.String())
 	}
-	gp.state.mu.Unlock()
-	gp.dispatchCommand("request bgp rib retain-routes", args...)
+	gp.dispatchSource(source, "request bgp rib source retain-routes", args...)
 }
 
 // handleStructuredState processes a structured state event.
-func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
+func (gp *grPlugin) handleStructuredState(source grSource, state rpc.SessionState, reason string) {
 	switch state {
 	case rpc.SessionStateDown:
 		// Every DOWN this handler takes ends with its verdict on the bus, an
 		// empty one included, so the askers never read an earlier DOWN's.
-		defer gp.emitRetention(peerAddr)
+		defer gp.emitRetention(source)
 		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
 		if reason == rpc.ReasonPeerRemoved {
-			gp.onPeerRemoved(peerAddr)
-			return
-		}
-		// A teardown "down" racing a just-processed removal must not re-activate GR.
-		if gp.consumeRemovedTombstone(peerAddr) {
+			gp.onPeerRemoved(source.grPeer)
 			return
 		}
 		// RFC 4724 Section 4: "It is noted that the normal BGP procedures
@@ -482,18 +493,30 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		normalProcedures := rpc.ReasonForbidsRetention(reason)
 
 		gp.mu.Lock()
-		cap := gp.peerCaps[peerAddr]
+		if !gp.connectionCurrentLocked(source) {
+			gp.mu.Unlock()
+			return
+		}
+		cap := gp.peerCaps[source.owner]
+		if cap != nil {
+			if cap.connectionID != source.connectionID {
+				cap = nil
+			}
+		}
 		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
 		// in order to enable them." Only the families both OPENs declared take part.
-		llgrCap := gp.exchangedLLGRLocked(peerAddr)
+		llgrCap := gp.exchangedLLGRLocked(source)
 		gp.mu.Unlock()
 
-		activated, completeDown := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, normalProcedures)
+		previous, hadPrevious := gp.state.retainedSource(source)
+		activated, completeDown := gp.state.onSessionDownDeferred(source, cap, llgrCap, normalProcedures)
+		if hadPrevious {
+			gp.dispatchSource(previous, "request bgp rib source purge-stale")
+		}
 		if activated {
-			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			// RFC 9494 Section 4.2.
-			gp.retainPeerFamilies(peerAddr)
-			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.retainPeerFamilies(source)
+			gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
 		// Retain and mark stale before GR expiry or immediate LLGR entry.
@@ -502,18 +525,26 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		}
 
 	case rpc.SessionStateUp:
-		gp.clearRemovedTombstone(peerAddr) // peer is back; allow future GR
 
 		gp.mu.Lock()
-		newCap := gp.peerCaps[peerAddr]
+		if !gp.connectionCurrentLocked(source) {
+			gp.mu.Unlock()
+			return
+		}
+		newCap := gp.peerCaps[source.owner]
+		if newCap != nil {
+			if newCap.connectionID != source.connectionID {
+				newCap = nil
+			}
+		}
 		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
 		// in order to enable them." Only the families both OPENs declared take part.
-		newLLGRCap := gp.exchangedLLGRLocked(peerAddr)
+		newLLGRCap := gp.exchangedLLGRLocked(source)
 		gp.mu.Unlock()
 
-		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		retainedSource, purged, _ := gp.state.onSessionReestablished(source, newCap, newLLGRCap)
 		for _, fam := range purged {
-			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
+			gp.dispatchSource(retainedSource, "request bgp rib source purge-stale", "family", fam.String())
 		}
 	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
 		// These states do not change graceful-restart state.
@@ -526,39 +557,59 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 // Events arrive as ze-bgp JSON: {"type":"bgp","bgp":{...}}.
 func (gp *grPlugin) handleEvent(event string) error {
 	var envelope map[string]any
-	if err := json.Unmarshal([]byte(event), &envelope); err != nil {
-		logger().Debug("gr: invalid event JSON", "err", err)
-		return nil // Don't fail on unparseable events
+	decoder := json.NewDecoder(strings.NewReader(event))
+	decoder.UseNumber()
+	if err := decoder.Decode(&envelope); err != nil {
+		return err
 	}
-
-	bgpPayload, ok := envelope["bgp"].(map[string]any)
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err != nil {
+			return err
+		}
+		return grExtraJSONValue()
+	}
+	payload, ok := envelope["bgp"].(map[string]any)
 	if !ok {
 		return nil
 	}
-
-	msgObj, _ := bgpPayload["message"].(map[string]any)
-	msgType, _ := msgObj["type"].(string)
-
-	peerObj, _ := bgpPayload["peer"].(map[string]any)
-	remoteObj, _ := peerObj["remote"].(map[string]any)
-	peerAddr, _ := remoteObj["address"].(string)
-	if peerAddr == "" {
-		return nil
+	message, _ := payload["message"].(map[string]any)
+	kind, _ := message["type"].(string)
+	if kind != "open" {
+		if kind != "state" {
+			if kind != "eor" {
+				return nil
+			}
+		}
 	}
-
-	switch msgType {
+	if kind == "state" {
+		if state, _ := payload["state"].(string); state == "down" {
+			if reason, _ := payload["reason"].(string); reason == rpc.ReasonPeerRemoved {
+				peer, err := grJSONPeer(payload)
+				if err != nil {
+					return err
+				}
+				gp.onPeerRemoved(peer)
+				return nil
+			}
+		}
+	}
+	source, err := grJSONSource(payload)
+	if err != nil {
+		return err
+	}
+	switch kind {
 	case "open":
-		if direction, _ := msgObj["direction"].(string); direction == rpc.DirectionSent.String() {
-			gp.handleSentOpenEvent(peerAddr, bgpPayload)
+		if direction, _ := message["direction"].(string); direction == rpc.DirectionSent.String() {
+			gp.handleSentOpenEvent(source, payload)
 			return nil
 		}
-		gp.handleOpenEvent(peerAddr, bgpPayload)
+		gp.handleOpenEvent(source, payload)
 	case "state":
-		gp.handleStateEvent(peerAddr, bgpPayload)
+		gp.handleStateEvent(source, payload)
 	case "eor":
-		gp.handleEOREvent(peerAddr, bgpPayload)
+		gp.handleEOREvent(source, payload)
 	}
-
 	return nil
 }
 
@@ -566,7 +617,7 @@ func (gp *grPlugin) handleEvent(event string) error {
 // a received OPEN message. Stores both for use when the peer's session drops or comes
 // back up. An OPEN without code 64 forgets both (forgetGRCapability), so a session that
 // re-establishes without the capability purges what it retained.
-func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
+func (gp *grPlugin) handleOpenEvent(source grSource, payload map[string]any) {
 	openObj, ok := payload["open"].(map[string]any)
 	if !ok {
 		return
@@ -583,7 +634,7 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 		if !ok {
 			continue
 		}
-		code, _ := capObj["code"].(float64)
+		code, _ := grCapabilityCode(capObj["code"])
 		hexValue, _ := capObj["value"].(string)
 		if hexValue == "" {
 			continue
@@ -593,129 +644,74 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 		case 64:
 			data, err := hex.DecodeString(hexValue)
 			if err != nil {
-				logger().Debug("gr: invalid cap 64 hex", "peer", peerAddr, "err", err)
+				logger().Debug("gr: invalid cap 64 hex", "peer", source, "err", err)
 				continue
 			}
 			result, err := decodeGR(data)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
+				logger().Debug("gr: failed to decode cap 64", "peer", source, "err", err)
 				continue
 			}
 			peerCap := grResultToPeerCap(result)
+			peerCap.connectionID = source.connectionID
 			gp.mu.Lock()
-			gp.peerCaps[peerAddr] = peerCap
+			gp.peerCaps[source.owner] = peerCap
 			gp.mu.Unlock()
 			foundGR = true
 			logger().Debug("gr: stored peer GR capability",
-				"peer", peerAddr,
+				"peer", source,
 				"restart-time", peerCap.RestartTime,
 				"families", len(peerCap.Families))
 
 		case 71:
 			data, err := hex.DecodeString(hexValue)
 			if err != nil {
-				logger().Debug("gr: invalid cap 71 hex", "peer", peerAddr, "err", err)
+				logger().Debug("gr: invalid cap 71 hex", "peer", source, "err", err)
 				continue
 			}
 			result, err := decodeLLGR(data)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 71", "peer", peerAddr, "err", err)
+				logger().Debug("gr: failed to decode cap 71", "peer", source, "err", err)
 				continue
 			}
 			peerCap := llgrResultToPeerCap(result)
+			peerCap.connectionID = source.connectionID
 			gp.mu.Lock()
-			gp.peerLLGRCaps[peerAddr] = peerCap
+			gp.peerLLGRCaps[source.owner] = peerCap
 			gp.mu.Unlock()
 			logger().Debug("gr: stored peer LLGR capability",
-				"peer", peerAddr,
+				"peer", source,
 				"families", len(peerCap.Families))
 		}
 	}
 
 	// RFC 4724 Section 4.2, RFC 9494 Section 4.5.
 	if !foundGR {
-		gp.forgetGRCapability(peerAddr)
+		gp.forgetGRCapability(source)
 	}
 }
 
 // handleStateEvent processes peer up/down state changes.
 // RFC 4724 Section 4.2:
 //   - Any close rpc.ReasonForbidsRetention allows, for a GR-capable peer →
-//     3-step sequence: purge-stale → retain → mark-stale
+//     retain → mark-stale, preceded by purge-stale only for a previous retained cycle
 //   - A close it forbids (rpc.ReasonNotification, rpc.ReasonAdjRIBInInvalid)
 //     → standard BGP (no retention)
 //   - Peer reconnects → validate new GR cap, purge non-forwarding families
-func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
+func (gp *grPlugin) handleStateEvent(source grSource, payload map[string]any) {
 	state, _ := payload["state"].(string)
-
+	reason, _ := payload["reason"].(string)
 	switch state {
-	case "down":
-		// handleStructuredState's reason: every DOWN ends with its verdict.
-		defer gp.emitRetention(peerAddr)
-		reason, _ := payload["reason"].(string)
-		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
-		if reason == rpc.ReasonPeerRemoved {
-			gp.onPeerRemoved(peerAddr)
-			return
-		}
-		// A teardown "down" racing a just-processed removal must not re-activate GR.
-		if gp.consumeRemovedTombstone(peerAddr) {
-			return
-		}
-		// RFC 4724 Section 4: "It is noted that the normal BGP procedures
-		// MUST be followed when the TCP session terminates due to the
-		// sending or receiving of a BGP NOTIFICATION message." The reactor
-		// names a NOTIFICATION close rpc.ReasonNotification, and a session
-		// whose received UPDATEs it could not publish
-		// rpc.ReasonAdjRIBInInvalid (reactor/peer_close.go, sessionCloseFor);
-		// rpc.ReasonForbidsRetention keeps no route for either.
-		normalProcedures := rpc.ReasonForbidsRetention(reason)
-
-		gp.mu.Lock()
-		cap := gp.peerCaps[peerAddr]
-		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
-		// in order to enable them." Only the families both OPENs declared take part.
-		llgrCap := gp.exchangedLLGRLocked(peerAddr)
-		gp.mu.Unlock()
-
-		activated, completeDown := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, normalProcedures)
-		if activated {
-			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
-			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
-			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
-			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			// RFC 9494 Section 4.2.
-			gp.retainPeerFamilies(peerAddr)
-			// 3. Mark remaining routes as stale for new GR cycle
-			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
-		}
-		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
-		// Retain and mark stale before GR expiry or immediate LLGR entry.
-		if completeDown != nil {
-			completeDown()
-		}
-
 	case "up":
-		gp.clearRemovedTombstone(peerAddr) // peer is back; allow future GR
-
-		gp.mu.Lock()
-		newCap := gp.peerCaps[peerAddr]
-		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
-		// in order to enable them." Only the families both OPENs declared take part.
-		newLLGRCap := gp.exchangedLLGRLocked(peerAddr)
-		gp.mu.Unlock()
-
-		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
-		for _, fam := range purged {
-			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
-		}
+		gp.handleStructuredState(source, rpc.SessionStateUp, reason)
+	case "down":
+		gp.handleStructuredState(source, rpc.SessionStateDown, reason)
 	}
 }
 
 // handleEOREvent processes End-of-RIB markers.
 // RFC 4724 Section 4.2: On EOR receipt, remove stale routes for that family.
-func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
+func (gp *grPlugin) handleEOREvent(source grSource, payload map[string]any) {
 	eorObj, ok := payload["eor"].(map[string]any)
 	if !ok {
 		return
@@ -727,40 +723,53 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 	}
 	fam, ok := family.LookupFamily(famStr)
 	if !ok {
-		logger().Debug("gr: EOR for unregistered family", "peer", peerAddr, "family", famStr)
+		logger().Debug("gr: EOR for unregistered family", "peer", source, "family", famStr)
 		return
 	}
 
-	shouldPurge := gp.state.onEORReceived(peerAddr, fam)
+	retainedSource, shouldPurge := gp.state.onEORReceived(source, fam)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, famStr)
-		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", famStr)
+		gp.dispatchSource(retainedSource, "request bgp rib source purge-stale", "family", famStr)
+		logger().Debug("gr: EOR received, purging stale routes", "peer", source, "family", famStr)
 	}
 }
 
 // onTimerExpired is called when a peer's restart timer fires.
 // RFC 4724 Section 4.2: delete all stale routes from the peer.
-func (gp *grPlugin) onTimerExpired(peerAddr string) {
+func (gp *grPlugin) onTimerExpired(source grSource) {
 	if m := grMetricsPtr.Load(); m != nil {
-		m.timerExpired.With(peerAddr).Inc()
+		m.timerExpired.With(source.peer()).Inc()
 	}
-	gp.releaseRoutes(peerAddr)
+	gp.releaseRoutes(source)
 }
 
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
 // Also prunes the cached peer capabilities since GR/LLGR is fully complete.
-func (gp *grPlugin) releaseRoutes(peerAddr string) {
-	gp.dispatchCommand("request bgp rib release-routes", peerAddr)
-
+func (gp *grPlugin) releaseRoutes(source grSource) {
+	gp.dispatchSource(source, "request bgp rib source release-routes")
 	gp.mu.Lock()
-	delete(gp.peerCaps, peerAddr)
-	delete(gp.peerLLGRCaps, peerAddr)
-	delete(gp.sentLLGRFamilies, peerAddr)
-	gp.mu.Unlock()
+	defer gp.mu.Unlock()
+	// The RPC can finish after OPEN/UP of a successor. Its original scope
+	// remains valid, but its local completion MUST NOT erase that new OPEN.
+	if cap := gp.peerCaps[source.owner]; cap != nil {
+		if cap.connectionID == source.connectionID {
+			delete(gp.peerCaps, source.owner)
+		}
+	}
+	if cap := gp.peerLLGRCaps[source.owner]; cap != nil {
+		if cap.connectionID == source.connectionID {
+			delete(gp.peerLLGRCaps, source.owner)
+		}
+	}
+	if sent, ok := gp.sentLLGRFamilies[source.owner]; ok {
+		if sent.source.connectionID == source.connectionID {
+			delete(gp.sentLLGRFamilies, source.owner)
+		}
+	}
 }
 
-// emitRetention emits the bgp-gr/retention verdict for the DOWN of peerAddr
+// emitRetention emits the bgp-gr/retention verdict for the DOWN of source
 // that the caller has just handled: the families whose routes this DOWN
 // retains, read after every transition the DOWN made (GR entry, immediate LLGR
 // entry). The engine delivers the DOWN to bgp-rr and bgp-rs only after this
@@ -775,11 +784,11 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 // received in the Graceful Restart Capability and MUST mark them as stale
 // routing information." The forwarding owners hold copies of those routes,
 // so they are told which families to keep rather than send a departure for.
-func (gp *grPlugin) emitRetention(peerAddr string) {
-	payload, err := retention.Encode(peerAddr, gp.state.retainedFamilies(peerAddr))
+func (gp *grPlugin) emitRetention(source grSource) {
+	payload, err := retention.Encode(source.owner, source.connectionID, source.peer(), gp.state.retainedFamilies(source))
 	if err != nil {
 		logger().Error("gr: retention verdict not encoded; route reflector and route server will withdraw this peer's routes",
-			"peer", peerAddr, "err", err)
+			"peer", source, "err", err)
 		return
 	}
 	if gp.emitHook != nil {
@@ -791,27 +800,50 @@ func (gp *grPlugin) emitRetention(peerAddr string) {
 	}
 	if _, err := gp.sdk.EmitEvent(context.Background(), retention.Namespace, retention.EventType, "", "", payload); err != nil {
 		logger().Error("gr: retention verdict not emitted; route reflector and route server will withdraw this peer's routes",
-			"peer", peerAddr, "err", err)
+			"peer", source, "err", err)
 	}
 }
 
-// dispatchCommand sends a command to the engine for inter-plugin coordination.
-// Logs errors but does not fail — the GR state machine proceeds regardless.
-func (gp *grPlugin) dispatchCommand(command string, args ...string) {
-	if gp.dispatchHook != nil {
-		gp.dispatchHook(command, args...)
+// dispatchSource narrows a registered lifecycle command to the captured
+// original owner and physical connection. Callers MUST supply newGRSource's result, never an address
+// lookup. The RIB owns target validation; this value grants no authority.
+func (gp *grPlugin) dispatchSource(source grSource, command string, tail ...string) {
+	args := []string{"owner", strconv.FormatUint(source.owner, 10), "connection", strconv.FormatUint(source.connectionID, 10)}
+	args = append(args, tail...)
+	if gp.sdk == nil && gp.dispatchHook == nil {
 		return
 	}
+	if !gp.prepareValidationCleanup(source, command, tail) {
+		return
+	}
+	gp.dispatchCommand(command, args...)
+}
+
+// dispatchCommand sends a command to the engine for inter-plugin coordination.
+// The result distinguishes applied cleanup from a refusal; the state machine
+// still proceeds, and passive validation notification requires applied success.
+func (gp *grPlugin) dispatchCommand(command string, args ...string) bool {
+	if gp.dispatchHook != nil {
+		gp.dispatchHook(command, args...)
+		return true
+	}
 	if gp.sdk == nil {
-		return // unit test — no SDK available
+		return false // No production command was applied without an SDK.
 	}
 	ctx := context.Background()
 	status, _, err := gp.sdk.DispatchCommandArgs(ctx, command, args, "")
 	if err != nil {
 		logger().Warn("gr: dispatch failed", "command", command, "args", args, "err", err)
-	} else {
+		return false
+	}
+	if status != "done" {
+		gp.reportValidationCleanupFailure(sourceCommandSubject(command, args), errGRSourceCommandRefused)
+		return false
+	}
+	{
 		logger().Debug("gr: dispatch ok", "command", command, "args", args, "status", status)
 	}
+	return true
 }
 
 // grResultToPeerCap converts a decoded GR wire result to the state machine's

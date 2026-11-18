@@ -70,49 +70,66 @@ func SourcePolicyEpoch(text string) (uint64, error) {
 // SourceProvenance reads only the reserved pairs immediately after an UPDATE's
 // eight-token header. Absent values are unrecorded zero, never current authority.
 // Route attributes or metadata after that header cannot supply any value.
-// At most three distinct pairs are accepted; a fourth pair repeats and refuses.
+// All four reserved pairs are checked by the same physical provenance parser.
 func SourceProvenance(text string) (uint64, uint64, uint64, error) {
+	epoch, receipt, owner, _, err := SourcePhysicalProvenance(text)
+	return epoch, receipt, owner, err
+}
+
+// SourcePhysicalProvenance reads the four reserved numeric pairs immediately
+// after an UPDATE's fixed eight-token header. The original owner and connection
+// are independent of its replay receipt. Zero means unrecorded, never a current
+// authority. A caller needing a physical source MUST refuse either zero value.
+// The scan is bounded by four distinct pairs; a repeated fifth pair refuses.
+func SourcePhysicalProvenance(text string) (uint64, uint64, uint64, uint64, error) {
 	s := NewScanner(text)
 	for range 8 {
 		if _, ok := s.Next(); !ok {
-			return 0, 0, 0, fmt.Errorf("source provenance requires a complete UPDATE header")
+			return 0, 0, 0, 0, fmt.Errorf("source provenance requires a complete UPDATE header")
 		}
 	}
-	var epoch, receipt, owner uint64
-	var epochSeen, receiptSeen, ownerSeen bool
+	var epoch, receipt, owner, connection uint64
+	var epochSeen, receiptSeen, ownerSeen, connectionSeen bool
 	for {
 		token, _ := s.Next()
 		switch token {
 		case KWSourcePolicyEpoch:
 			if epochSeen {
-				return 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
+				return 0, 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
 			}
 		case KWSourceReceipt:
 			if receiptSeen {
-				return 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
+				return 0, 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
 			}
 		case KWPeerOwner:
 			if ownerSeen {
-				return 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
+				return 0, 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
+			}
+		case KWConnectionID:
+			if connectionSeen {
+				return 0, 0, 0, 0, fmt.Errorf("duplicate UPDATE provenance field %s", token)
 			}
 		default:
 			// Header names are open text; the first route token ends provenance.
-			return epoch, receipt, owner, nil
+			return epoch, receipt, owner, connection, nil
 		}
 		value, ok := s.Next()
 		if !ok {
-			return 0, 0, 0, fmt.Errorf("%s requires a decimal uint64", token)
+			return 0, 0, 0, 0, fmt.Errorf("%s requires a decimal uint64", token)
 		}
 		parsed, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("%s: %w", token, err)
+			return 0, 0, 0, 0, fmt.Errorf("%s: %w", token, err)
 		}
-		if token == KWSourcePolicyEpoch {
+		switch token {
+		case KWSourcePolicyEpoch:
 			epoch, epochSeen = parsed, true
-		} else if token == KWSourceReceipt {
+		case KWSourceReceipt:
 			receipt, receiptSeen = parsed, true
-		} else {
+		case KWPeerOwner:
 			owner, ownerSeen = parsed, true
+		case KWConnectionID:
+			connection, connectionSeen = parsed, true
 		}
 	}
 }

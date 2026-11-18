@@ -28,8 +28,9 @@ type aigpNLRI struct {
 }
 
 type aigpSourceKey struct {
-	peer netip.Addr
-	nlri aigpNLRI
+	peer   netip.Addr
+	source aigpSourceIdentity
+	nlri   aigpNLRI
 }
 
 type aigpRoute struct {
@@ -57,8 +58,9 @@ type aigpAdvertisement struct {
 	hasMetric bool
 	// source is the peer whose route the write carried, invalid for a write
 	// with no source. withdrawal marks a write that took the key back.
-	source     netip.Addr
-	withdrawal bool
+	source         aigpSourceIdentity
+	receivedSource bool // A missing received identity never becomes local removal authority.
+	withdrawal     bool
 	// A cost-withheld withdrawal retains this recipient for recovery, whether
 	// or not the adj-out filter let it reach the wire (writeUpdateBody).
 	costWithheld bool
@@ -177,6 +179,19 @@ func (s *aigpState) removeLocked(key aigpSourceKey) {
 // invalidateAIGPReceived runs before import policy, so a rejected replacement
 // cannot leave its previous generation available to metric replay.
 func (r *Reactor) invalidateAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate) {
+	original, err := aigpOriginalSource(peer, wu)
+	if err != nil {
+		// An unrecorded observation cannot invalidate any authenticated source.
+		// Only retained AIGP input needs a refusal report; ordinary UPDATEs do not.
+		if wu != nil {
+			if len(payloadAIGP(wu.Payload())) == 0 {
+				return
+			}
+		}
+		reportAIGPOriginalSourceFailure(peer, err)
+		return
+	}
+	identity := aigpIdentity(original)
 	s := &r.aigp
 	s.dispatch.Lock()
 	defer s.dispatch.Unlock()
@@ -185,7 +200,9 @@ func (r *Reactor) invalidateAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate) 
 	if len(s.routes) == 0 {
 		return
 	}
-	walkAIGPNLRI(wu, func(key aigpNLRI, _, _ []byte, _ bool) { s.removeLocked(aigpSourceKey{peer: peer, nlri: key}) })
+	walkAIGPNLRI(wu, func(key aigpNLRI, _, _ []byte, _ bool) {
+		s.removeLocked(aigpSourceKey{peer: peer, source: identity, nlri: key})
+	})
 	s.signalLocked()
 }
 
@@ -193,10 +210,18 @@ func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta
 	if len(payloadAIGP(wu.Payload())) == 0 {
 		return
 	}
+	original, err := aigpOriginalSource(peer, wu)
+	if err != nil {
+		reportAIGPOriginalSourceFailure(peer, err)
+		return
+	}
+	identity := aigpIdentity(original)
 	body := bytes.Clone(wu.Payload())
 	retained := wireu.NewWireUpdate(body, wu.SourceCtxID())
 	retained.SetMessageID(wu.MessageID())
 	retained.SetSourceID(wu.SourceID())
+	retained.SetSourceReceipt(wu.SourceReceipt())
+	retained.SetSourceOwner(wu.SourceOwner())
 	s := &r.aigp
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -210,7 +235,7 @@ func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta
 		if withdrawn {
 			return
 		}
-		key := aigpSourceKey{peer: peer, nlri: nlri}
+		key := aigpSourceKey{peer: peer, source: identity, nlri: nlri}
 		s.removeLocked(key)
 		order++
 		route := &aigpRoute{key: key, wire: retained, raw: raw, nextHop: nh, meta: meta, order: order}
@@ -252,7 +277,19 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	metric, hasMetric := aigpMetricValue(payloadAIGP(body))
 	localNextHop := isLocalAIGPNextHop(payloadNextHop(body), s.settings.LocalAddress, s.nextHopScope.Load())
 
-	sourcePeer, _ := netip.ParseAddr(s.sentSourcePeerStr)
+	var sourceIdentity aigpSourceIdentity
+	var sourceAddress netip.Addr
+	receivedSource := s.sentSourcePeerStr != ""
+	if s.sentForward != nil {
+		if original := s.sentForward.receivedPeer; original != nil {
+			receivedSource = true
+			source := sourceReceipts.recoverySource(s.sentForward.sourceReceipt, original.sourceOwner)
+			if source.ok {
+				sourceIdentity = aigpIdentity(source)
+				sourceAddress = source.addr
+			}
+		}
+	}
 	sources := state.messages[s.sentSourceMessageID]
 	sendCtx := bgpctx.Registry.Get(s.sendCtxID)
 	var mapped map[aigpNLRI]*aigpRoute
@@ -268,14 +305,19 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 			key := route.key.nlri
 			key.pathID = 0
 			if destAdd {
+				origin, err := newFwdPathOrigin(&ReceivedUpdate{WireUpdate: route.wire, SourceReceipt: route.wire.SourceReceipt(), SourceOwner: route.wire.SourceOwner()})
+				if err != nil {
+					reportForwardPathOriginFailure(route.key.peer.String(), err)
+					continue
+				}
 				if sourceAdd {
 					var pathKey fwdPathKey
 					if fwdPathKeyFor(&pathKey, key.family, route.key.nlri.pathID, route.raw, false, keyScratch[:]) != nil {
 						continue
 					}
-					key.pathID = fwdPathIDs.generatePath(route.wire.SourceID(), &pathKey)
+					key.pathID = fwdPathIDs.generatePath(origin, &pathKey)
 				} else {
-					key.pathID = fwdPathIDs.generate(route.wire.SourceID(), 0)
+					key.pathID = fwdPathIDs.generate(origin, 0)
 				}
 			}
 			if mapped == nil {
@@ -290,14 +332,14 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	out := wireu.NewWireUpdate(body, s.sendCtxID)
 	walkAIGPNLRI(out, func(key aigpNLRI, _, nextHop []byte, withdrawn bool) {
 		entry := aigpAdvertisement{key: aigpRecipientKey{peer: s.aigpPeer, nlri: key}, session: s, sender: s.sentAIGPOrigin.sender, revision: s.sentAIGPRevision, metric: metric, hasMetric: hasMetric}
-		entry.source, entry.withdrawal = sourcePeer, withdrawn
+		entry.source, entry.receivedSource, entry.withdrawal = sourceIdentity, receivedSource, withdrawn
 		entry.costWithheld = withdrawn && s.sentAIGPCostWithheld
 		track := !withdrawn && localNextHop
 		if entry.costWithheld {
 			track = true
 		}
 		if track && s.sentAIGPOrigin.sender.IsSet() && s.settings.AIGPEnabled() {
-			route := sources[aigpSourceKey{peer: sourcePeer, nlri: key}]
+			route := sources[aigpSourceKey{peer: sourceAddress, source: sourceIdentity, nlri: key}]
 			if remapped := mapped[key]; remapped != nil {
 				route = remapped
 			}
@@ -337,7 +379,7 @@ func (s *Session) commitAIGPWrites(ok bool) {
 			// one source, withheld or written, decides nothing about the live
 			// record of another: replacing it would stop that route's
 			// re-advertisement when its own distance changes.
-			if sent.withdrawal && live && sent.source.IsValid() && current.route.key.peer != sent.source {
+			if sent.withdrawal && live && sent.receivedSource && current.route.key.source != sent.source {
 				continue
 			}
 			delete(state.advertised, sent.key)
@@ -352,19 +394,32 @@ func (s *Session) commitAIGPWrites(ok bool) {
 	s.aigpPending = s.aigpPending[:0]
 }
 
-func (r *Reactor) forgetAIGPPeer(peer *Peer) {
+func (r *Reactor) forgetAIGPPeer(peer *Peer, session *Session) {
 	s := &r.aigp
 	s.dispatch.Lock()
 	defer s.dispatch.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for key := range s.routes {
-		if key.peer == peer.Settings().Address {
-			s.removeLocked(key)
+		if session == nil {
+			continue
 		}
+		if key.source.owner != peer.sourceOwner {
+			continue
+		}
+		if key.source.connection != session.connectionID {
+			continue
+		}
+		s.removeLocked(key)
 	}
 	for key, ad := range s.advertised {
-		if key.peer == peer || s.routes[ad.route.key] != ad.route {
+		if key.peer == peer {
+			if ad.session == session {
+				delete(s.advertised, key)
+				continue
+			}
+		}
+		if s.routes[ad.route.key] != ad.route {
 			delete(s.advertised, key)
 		}
 	}
@@ -424,8 +479,12 @@ func (r *Reactor) readvertiseAIGP() {
 
 func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	adapter := &reactorAPIAdapter{r: r}
-	src := adapter.resolveRelaySource(ad.route.key.peer)
-	if !src.ok || ad.key.peer.currentSession() != ad.session {
+	src, sourceErr := aigpOriginalSource(ad.route.key.peer, ad.route.wire)
+	if sourceErr != nil {
+		reportAIGPOriginalSourceFailure(ad.route.key.peer, sourceErr)
+		return
+	}
+	if ad.key.peer.currentSession() != ad.session {
 		return
 	}
 	var result forwardResult
@@ -445,7 +504,7 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	// A family can arrive in either legacy or MP framing. The retained route
 	// records the next hop from the field that carried this particular NLRI.
 	nextHop, _, _ := nextHopAddr(ad.route.nextHop, ad.route.key.nlri.family)
-	distance := aigpIncrement(nextHop, src.addr, r.sourceAIGPLinkMetric(src.addr))
+	distance := aigpIncrement(nextHop, src.addr, sourceAIGPLinkMetric(src.info.peer))
 	costWithheld := present && !distance.Resolved && !distance.MissingAIGP
 	present = present && distance.Resolved && !distance.MissingAIGP
 	if present {
@@ -497,7 +556,8 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	route := rpc.StoredRoute{SourcePeer: ad.route.key.peer.String(), Family: ad.route.key.nlri.family.String(),
 		MsgID: wu.MessageID(), PathID: ad.route.key.nlri.pathID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
 		SourcePolicyEpoch: ad.route.sourcePolicyEpoch,
-		NLRIHex:           hex.EncodeToString(ad.route.raw), AttrHex: hex.EncodeToString(wu.Payload()[start:end]), NextHopHex: hex.EncodeToString(ad.route.nextHop)}
+		SourceOwner:       ad.route.key.source.owner, SourceReceipt: wu.SourceReceipt(), SourceConnectionID: ad.route.key.source.connection,
+		NLRIHex: hex.EncodeToString(ad.route.raw), AttrHex: hex.EncodeToString(wu.Payload()[start:end]), NextHopHex: hex.EncodeToString(ad.route.nextHop)}
 	var spans []relayAttrSpan
 	update, id, _, err := adapter.buildRelayUpdate([]rpc.StoredRoute{route}, src, &spans)
 	if err != nil {

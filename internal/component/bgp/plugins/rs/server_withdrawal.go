@@ -21,6 +21,7 @@ import (
 func (rs *routeServer) processForward(key workerKey, item workItem) {
 	if item.barrier != nil {
 		rs.flushWorkerBatch(key)
+		rs.releaseParkedValidations(key)
 		close(item.barrier)
 		return
 	}
@@ -30,6 +31,7 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	}
 	// Deferred first, so it runs last: a FlowSpec relay parked for this UPDATE
 	// leaves after the UPDATE is batched (parkValidation).
+	defer rs.finishSourceUpdate(key)
 	defer rs.markProcessed(key, item.msgID)
 	// Guard: release cache entry on any early return or panic.
 	// forwardUpdate handles the entry when reached (forward or release),
@@ -40,34 +42,6 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 			rs.releaseCache(item.msgID)
 		}
 	}()
-
-	// If the source peer is DOWN, skip withdrawal map update and forward --
-	// handleStateDown will withdraw all its routes anyway. This prevents PeerDown
-	// from blocking while workers process queued UPDATEs for a peer that is
-	// already gone.
-	//
-	// "Down" is StateSeen && !Up, not the bare !Up this used to test. A peer whose
-	// state event has not arrived yet is also !Up, and discarding its UPDATE lost
-	// the route for good: no rail replays it (dispatchStructured has already
-	// advanced seenMsgID past the message, so handleStateUp's cut excludes it
-	// too). The engine relays a message only for a session it considers
-	// established, so an UPDATE from a not-yet-up source is a real route on a
-	// healthy session and is forwarded. Target selection is unaffected either
-	// way: selectForwardTargets requires Up of the TARGETS, never of the source.
-	rs.mu.RLock()
-	peer := rs.peers[item.sourcePeer]
-	peerDown := peer != nil && peer.StateSeen && !peer.Up
-	known := peer != nil
-	rs.mu.RUnlock()
-	if peerDown {
-		// A guard that neither denies nor speaks does not exist
-		// (ai/rules/evidence.md). This arm drops the whole UPDATE --
-		// every withdrawal and every announcement in it -- and no rail replays
-		// it later, so the silence here hid permanent route loss.
-		logger().Warn("forward dropped: source peer is down",
-			"source-peer", item.sourcePeer, "msg-id", item.msgID, "peer-known", known)
-		return
-	}
 
 	// Extract families for forward target selection.
 	// Structured path (DirectBridge): read directly from wire, no text parsing.
@@ -87,8 +61,10 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// deferred to the withdrawal map update after forwarding.
 	var wireRecords *nlriRecords
 	var recordsErr error
+	noLLGR := false
 	if item.msg != nil {
 		wireRecords, recordsErr = extractWireNLRIRecords(item.msg)
+		noLLGR = wireNoLLGR(item.msg.AttrsWire)
 	}
 
 	// Both transports carry the same owned delivery receipt. The reactor
@@ -116,8 +92,18 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	if wireRecords != nil {
 		rs.applyNLRIRecords(item.sourcePeer, wireRecords)
 	} else {
-		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), item.sourcePolicyEpoch)
+		noLLGR = textNoLLGR(item.textPayload)
+		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), item.sourcePolicyEpoch, item.sourceReceipt, item.sourceOwner, key.connectionID)
 	}
+	rs.stampCurrentRowsLocked(key, item.msgID, item.sourceReceipt, noLLGR)
+	// Current source progress is recorded only after every parsed route mutation,
+	// including withdrawals. Another source's larger MessageID proves nothing.
+	rs.mu.RLock()
+	if actor := rs.peers[key]; actor != nil {
+		actor.inventoryRevision++
+		actor.processedMsgID = max(actor.processedMsgID, item.msgID)
+	}
+	rs.mu.RUnlock()
 	rs.withdrawalMu.Unlock()
 
 	returnNLRIRecords(wireRecords)
@@ -158,28 +144,30 @@ func isUnicast(f family.Family) bool {
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
 // Caller must hold rs.withdrawalMu.
-func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, sourcePolicyEpoch uint64) {
-	for famName, familyOps := range ops {
-		fam, _ := family.LookupFamily(famName)
-		for _, op := range familyOps {
-			switch op.Action {
-			case actionAdd:
-				if rs.withdrawals[sourcePeer] == nil {
-					rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
+func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, epoch, receipt, owner, connection uint64) {
+	for famName, operations := range ops {
+		fam, known := family.LookupFamily(famName)
+		if !known {
+			continue
+		}
+		for _, operation := range operations {
+			for _, value := range operation.NLRIs {
+				text, ok := value.(string)
+				if !ok {
+					continue
 				}
-				for _, n := range op.NLRIs {
-					if s, ok := n.(string); ok && s != "" {
-						wk := withdrawalKey{fam: fam, nlriStr: s}
-						rs.withdrawals[sourcePeer][wk] = withdrawalEntry{sourcePolicyEpoch: sourcePolicyEpoch}
-					}
+				native, entry, err := textInventoryEntry(fam, text, operation.PathID, operation.AddPath, operation.Action == actionDel, epoch, receipt, owner, connection)
+				if err != nil {
+					rs.warnLifecycle("original text NLRI inventory refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+					continue
 				}
-			case actionDel:
-				if rs.withdrawals[sourcePeer] != nil {
-					for _, n := range op.NLRIs {
-						if s, ok := n.(string); ok && s != "" {
-							delete(rs.withdrawals[sourcePeer], withdrawalKey{fam: fam, nlriStr: s})
-						}
+				if operation.Action == actionAdd {
+					if rs.withdrawals[sourcePeer] == nil {
+						rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 					}
+					rs.withdrawals[sourcePeer][native] = entry
+				} else if old, exists := rs.withdrawals[sourcePeer][native]; exists && old.connectionID == connection {
+					delete(rs.withdrawals[sourcePeer], native)
 				}
 			}
 		}

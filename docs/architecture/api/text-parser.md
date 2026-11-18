@@ -79,7 +79,7 @@ attributes cannot impersonate it. Duplicate, missing-value and malformed owner
 pairs are refused just like malformed source-receipt pairs.
 
 The same parsed header carries `source-receipt <uint64>` after the policy epoch
-when the engine recorded an original source session. These three pairs are reserved
+when the engine recorded an original source session. These four pairs are reserved
 provenance; none can be supplied by a route attribute or `route-meta`.
 `textparse.SourceProvenance` reads only the reserved pairs immediately after the
 eight header tokens and rejects malformed or repeated pairs. It never searches
@@ -125,7 +125,7 @@ NLRI tokens are collected until `textparse.IsTopLevelKeyword` sees the next attr
 
 ### State Parser: parseTextState
 
-`parseTextState(text string) *Event` scans the uniform state line. `remote as <value>` sets `PeerASN`; `state <value>` sets the state string; `reason <value>` sets `Reason`, which names why a session went down, or is `attached` on an up a reload sent to a process it attached to a session already up; `initial-replay <receipt>` sets `InitialReplay`; `session-generation <n>` sets `SessionGeneration`, the ended session a down names.
+`parseTextState(text string) *Event` scans the uniform state line. `remote as <value>` sets `PeerASN`; `state <value>` sets the state string; `reason <value>` sets `Reason`, which names why a session went down, or is `attached` on an up a reload sent to a process it attached to a session already up; `initial-replay <receipt>` sets `InitialReplay`; `session-generation <n>` sets `SessionGeneration`, the original forward generation published by UP and named again by DOWN. It is independent of the immutable physical connection identifier.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState -->
 
 ### Refresh Parser: parseTextRefresh
@@ -159,3 +159,63 @@ Full parsers are tolerant of partial bodies. Missing mandatory peer address retu
 | `parseTextRefresh` | `strings.TrimRight`, `textparse.Scanner`, `strings.SplitN` for family split |
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextUpdateFamilies, parseTextNLRIOps, buildNLRIEntries, parseTextOpen, parseTextState, parseTextRefresh -->
 <!-- source: internal/component/bgp/textparse/scanner.go -- Scanner -->
+
+
+### Physical source identity
+
+The reserved UPDATE header carries the original `connection-id` beside the
+source policy epoch, source receipt and peer owner. `SourcePhysicalProvenance`
+reads those four independent values before the first route token. It refuses a
+malformed or repeated reserved pair as a whole; attribute and metadata values
+later in a route cannot supply any of them. `SourceProvenance` and
+`SourcePolicyEpoch` use the same parser, so asking for fewer fields still checks
+the complete reserved header. A missing physical identity stays unrecorded;
+forwarding callers must refuse it rather than deriving it from an address or
+from the replay receipt.
+<!-- source: internal/component/bgp/textparse/scanner.go -- SourcePhysicalProvenance, SourceProvenance -->
+
+
+### RS physical lifecycle fields
+
+RS state, OPEN and refresh readers preserve the original `peer-owner` and
+`connection-id` independently of `destination-session` and `initial-replay`.
+Missing original identity refuses actor mutation. Peer removal with an owner
+and no physical connection is an owner-terminal event; a transport DOWN never
+uses that terminal path. UPDATE admission uses the complete reserved physical
+header parser and carries its owner and connection into the actual worker key.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState, parseTextOpen, parseTextRefresh -->
+
+
+### RS current native route keys
+
+A text UPDATE preserves each ADD-PATH identifier, including zero, in the
+family section's `info` pair. A native `raw` value is one individual NLRI with
+its source path identifier removed. RS uses the registered family framer and
+key function, then stores the independent identifier and command framing in
+its existing withdrawal inventory. Plain prefix sections use the same current
+key as the structured UPDATE path.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps -->
+<!-- source: internal/component/bgp/plugins/rs/retained_membership.go -- textInventoryEntry, storedKey -->
+
+
+### Original native routes in TEXT
+
+A plain INET section keeps its compact comma-separated prefix form. Each
+ADD-PATH route gets its own existing `nlri <family> info <id> add|del` section,
+including identifier zero. A complex route uses `raw <hex>` in that section;
+the bytes are its native PrefixOnly payload, with no ADD-PATH header. They
+retain native framing, labels and route distinguisher bytes. A summary string
+is never a retained route identity. TEXT owners must retain the section's path
+identifier separately from its native bytes.
+<!-- source: internal/component/bgp/format/text_human.go -- appendTextFamilyNLRIs, appendTextNativeNLRI -->
+
+With no attribute filter, the actual received TEXT path requests all attributes
+through `AttributeFilter.ApplyToUpdate` and `AttributesWire.All` before rendering.
+The standard community member therefore carries NO_LLGR when present. A
+selective attribute view does not establish its absence and must not authorize
+a retention decision. OPEN uses the same original peer-owner and connection-id
+header projection as other messages. These fields describe the captured event;
+raw peer bytes are unchanged.
+<!-- source: internal/component/bgp/format/text_update.go -- appendMessageTyped -->
+<!-- source: internal/component/bgp/filter/filter.go -- AttributeFilter.Apply, ApplyToUpdate -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen -->

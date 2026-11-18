@@ -322,6 +322,17 @@ UPDATE cache. It records a recipient only after that recipient's final UPDATE
 passes egress processing and its buffered socket write succeeds. Routing changes
 recompute advertisements only for those recipients. Replay uses the original
 received metric and current egress policy under the original sender's authority.
+Retained input and pending withdrawal records distinguish the original peer
+owner and physical connection, including two configured peers at one address.
+Replay reads its original receipt's immutable source facts and its original
+Peer's configured link metric; a current peer found by address supplies neither.
+Missing or mismatched originals refuse replay with
+`doctor-bgp-aigp-original-source`; `ze show diagnostic
+doctor-bgp-aigp-original-source` explains the refusal and `ze request restart`
+rebuilds source-session facts.
+An old connection's cleanup removes only that connection's retained records.
+These facts grant no output permission: existing sender, source-generation,
+policy and final-writer checks still govern every metric replay.
 Its distance comes from the next hop retained for that route, including IPv4
 unicast received in MP_REACH. Four-octet IPv4 next hops can be reconstructed in
 legacy framing, replacing any sibling NEXT_HOP from the stored attribute block

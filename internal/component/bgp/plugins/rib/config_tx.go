@@ -24,12 +24,13 @@ type ribConfig struct {
 	blackhole    map[configjson.PeerConfigKey]blackholeConfig
 	notation     asn.Notation
 	redirect     flowSpecRedirectConfig
+	distances    map[string]uint8
 }
 
 // unconfiguredRIB is what the rib runs before any config: one best path, no
 // relaxed AS_PATH, no blackhole honoring, asplain.
 func unconfiguredRIB() ribConfig {
-	return ribConfig{maximumPaths: defaultMultipathPaths, notation: asn.NotationPlain, redirect: flowSpecRedirectConfig{base: true}}
+	return ribConfig{maximumPaths: defaultMultipathPaths, notation: asn.NotationPlain, redirect: flowSpecRedirectConfig{base: true}, distances: originDefaultDistances()}
 }
 
 // newConfigTx returns the rib's config transaction: Stage 2 installs at once,
@@ -42,8 +43,7 @@ func unconfiguredRIB() ribConfig {
 // notation in force.
 func (r *RIBManager) newConfigTx(recordsNotation bool) *sdk.ConfigTx[ribConfig] {
 	install := func(cfg ribConfig) error {
-		r.installConfig(cfg, recordsNotation)
-		return nil
+		return r.installConfig(cfg, recordsNotation)
 	}
 	return sdk.NewConfigTx(unconfiguredRIB(), parseRIBConfig, install)
 }
@@ -57,6 +57,10 @@ func (r *RIBManager) newConfigTx(recordsNotation bool) *sdk.ConfigTx[ribConfig] 
 // discard traffic, and a rejected edit that silently keeps running with the
 // old answer is the worst of the three outcomes.
 func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
+	distances, readDistances, distanceError := parseOriginPreferences(sections)
+	if distanceError != nil {
+		return ribConfig{}, false, distanceError
+	}
 	for _, section := range sections {
 		if section.Root != configRootBGP {
 			continue
@@ -66,6 +70,7 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 			return ribConfig{}, false, errRibInvalidBgpConfigJson
 		}
 		var cfg ribConfig
+		cfg.distances = distances
 		var err error
 		cfg.maximumPaths, cfg.relaxASPath, err = extractMultipathConfig(bgpCfg)
 		if err != nil {
@@ -85,6 +90,11 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 		}
 		return cfg, true, nil
 	}
+	if readDistances {
+		cfg := unconfiguredRIB()
+		cfg.distances = distances
+		return cfg, true, nil
+	}
 	return ribConfig{}, false, nil
 }
 
@@ -93,7 +103,10 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 // further UPDATE still answers under the new rule: its multipath set, and its
 // blackhole route type, which the reselect publishes even when the winner
 // stays (checkBestPathChange compares the route type).
-func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) {
+func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
+	if err := r.installOriginPreferenceConfig(cfg.distances); err != nil {
+		return err
+	}
 	rulesChanged := r.maximumPaths.Load() != cfg.maximumPaths ||
 		r.relaxASPath.Load() != cfg.relaxASPath ||
 		!r.sameBlackholeRules(cfg.blackhole)
@@ -123,6 +136,7 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) {
 	if previousRedirect == nil || !reflect.DeepEqual(*previousRedirect, redirect) {
 		r.reconcileFlowSpecs()
 	}
+	return nil
 }
 
 // sameBlackholeRules reports whether the installed rules equal the candidate

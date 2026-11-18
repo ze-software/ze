@@ -726,7 +726,10 @@ func (p *Peer) readDynamicTemplate() dynamicTemplateRead {
 func (p *Peer) dynamicSessionFacts(remoteAS uint32) filterapi.PeerFilterInfo {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.SessionFacts(remoteAS)
+	facts := p.settings.SessionFacts(remoteAS)
+	facts.PeerOwner = p.sourceOwner
+	facts.ConnectionID = connectionIDOf(p.session)
+	return facts
 }
 
 // publishDynamicResolution publishes the AS learned from the OPEN and the
@@ -783,6 +786,8 @@ func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
 	localAS := p.settings.LocalAS
 	remoteIP := p.settings.Address.String()
 	facts := p.settings.SessionFacts(remoteAS)
+	facts.PeerOwner = p.sourceOwner
+	facts.ConnectionID = connectionIDOf(p.session)
 	p.settings.ImportPolicy = resolveDynamicPolicy(next.ImportPolicy, facts, localAS, remoteIP, "import")
 	p.settings.ExportPolicy = resolveDynamicPolicy(next.ExportPolicy, facts, localAS, remoteIP, "export")
 }

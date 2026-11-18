@@ -5,6 +5,7 @@ package format
 import (
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -96,6 +97,9 @@ func (e *JSONEncoder) message(peer *plugin.PeerInfo, msgType string) (outer, inn
 	}
 	if peer.PeerOwner != 0 {
 		outer["peer-owner"] = peer.PeerOwner
+	}
+	if peer.ConnectionID != 0 {
+		outer["connection-id"] = strconv.FormatUint(peer.ConnectionID, 10)
 	}
 	return outer, inner
 }
@@ -265,6 +269,12 @@ func (e *JSONEncoder) routeRefreshPayload(peer *plugin.PeerInfo, decoded Decoded
 	// methods (fallback to "afi-N" / "safi-N" for unregistered values).
 	inner["afi"] = decoded.Family.AFI.String()
 	inner["safi"] = decoded.Family.SAFI.String()
+	if peer.DestinationSession != 0 {
+		outer["destination-session"] = strconv.FormatUint(peer.DestinationSession, 10)
+	}
+	if peer.SelectedDestination {
+		outer["selected-destination"] = true
+	}
 	return outer
 }
 

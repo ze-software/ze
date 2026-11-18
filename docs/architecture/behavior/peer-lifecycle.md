@@ -15,6 +15,26 @@ drops?", "where does backoff come from?", "where does the FSM state
 callback fire?", or "where are inbound connection collisions resolved?",
 this is the page.
 
+A Session keeps an immutable `connectionID` from the existing message-ID
+issuance at its construction. Its initial replay starts with that value and
+can rotate independently on establishment. Events carry `connection-id` from
+the exact captured Session through OPEN, UP, UPDATE/EOR and DOWN; a delayed
+callback never borrows a replacement connection's identity. Peer removal
+captures the original Session before publishing its departure. The ID is
+read-only provenance and grants no source or destination permission.
+<!-- source: internal/component/bgp/reactor/session.go -- Session, NewSession -->
+<!-- source: internal/component/bgp/reactor/connection_events.go -- connectionIDOf -->
+
+A hot reload can capture a session before it waits for an old process binding.
+Its targeted UP and negotiated event retain that captured session's physical
+ID, destination replay token, admitted OPEN identifiers and socket endpoints.
+They never combine old capabilities with a replacement connection's identity.
+An ordinary selected owner is reported only when its published snapshot names
+that same captured session. A targeted attach still carries no initial-replay
+receipt; it does not repeat the session's initial routing update.
+<!-- source: internal/component/bgp/reactor/peer_bound_info.go -- boundPeerInfo -->
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedDestinationForSession -->
+
 A peer outlives its sessions, so the `Peer` also carries the two counters
 that fence its forwarded routes across them. `forwardGeneration` advances
 when a new session reaches Established and when the peer is stopped, and it

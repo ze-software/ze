@@ -659,3 +659,11 @@ entries. Visitor slices alias the input and retain the ADD-PATH identifier where
 the family uses it; callers MUST copy bytes they retain beyond the callback.
 `Split` and `SplitWithdrawn` materialize all entries using the same framing.
 <!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- per-family NLRI split -->
+
+Scoped BGP origin selection reuses `PreferenceFor` and `Preference.Before` for
+the same override, declared distance and metric ordering. Its own admission
+order breaks exact ties. It compares admitted origins with the single learned
+BGP winner in each authorized Peer scope; it does not insert those origins into
+the system table or apply the system import/FIB gate to ordinary output.
+<!-- source: internal/core/rib/locrib/preference.go -- PreferenceFor, Preference.Before -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- electOriginLocked -->

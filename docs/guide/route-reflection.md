@@ -292,6 +292,33 @@ error-handling rules.
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- forwardWire, buildFwdBody -->
 
+### Original source workers
+
+Route-server source work is ordered by the original peer owner and captured
+physical connection. An address is display and explicit-selector data: two
+owners at one address, and an old connection beside its successor, have separate
+queues, batches and pressure state. An original transport DOWN joins only its
+captured worker; an actual terminal peer removal joins all current workers of
+that original owner. It leaves every other owner alone.
+<!-- source: internal/component/bgp/plugins/rs/worker.go -- workerKey, newWorkerKey, PeerDown, endOwner -->
+
+A source-policy receipt joins every physical worker already admitted for its
+captured original owner. The pool takes that bounded snapshot and enqueues its
+markers under the same lock, then waits without a route-server lock. An idle
+worker cannot disappear between capture and enqueue and cause a new lane to be
+created from an old key. Each handler flushes its batch before acknowledging its
+marker. Another owner's held work does not delay that receipt. Physical DOWN,
+terminal removal and plugin stop share each worker's stop signal; concurrent
+retirement closes its queue once and all callers join its actual handler.
+Captured worker references stay registered until their handler and close callback
+finish, including when terminal removal overlaps plugin stop. The channel closes
+only after its overflow producer is joined; an empty queue alone is not completion.
+Both close exits complete the last handled forward batch before the close callback
+and retirement acknowledgment. A batch already flushed earns no repeated callback.
+An idle callback that meets a physical retirement takes the same close path.
+A later repeated join cannot remove a replacement or clear its pressure state.
+<!-- source: internal/component/bgp/plugins/rs/worker.go -- settleOwner, dispatchLocked, captureRetirementLocked, finishRetirement, runWorker, Stop -->
+
 ### Forwarding and Congestion
 
 Each destination peer has a dedicated forwarding worker (long-lived goroutine with a buffered channel). When a destination peer is slower than the update rate:
@@ -321,6 +348,17 @@ route server preserves its received-generation cut, and both roles check the
 destination's reconnect generation. Reconstructed routes still pass ordinary
 authorization, reflection and export policy.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- replayForPeer -->
+
+The role process admits a peer-up replay before starting its lifecycle
+goroutine. Its replay join covers stored-route reads, relays, the FlowSpec
+phase and the final readiness report. A reconnect can replace the
+peer's current replay gate without removing the older active lifecycle from
+that join. Settlement captures only active lifecycles; completed replays leave
+no history. Stopping the role seals admission, cancels those lifecycles and
+joins them before closing the engine connection.
+<!-- source: internal/component/bgp/plugins/rs/replay_lifecycle.go -- replayLifetimes -->
+<!-- source: internal/component/bgp/plugins/rr/replay_lifecycle.go -- replayLifetimes -->
+
 
 The route server splits the UPDATEs for a peer that comes up at a message-id
 cut. The replay delivers every UPDATE at or below the cut, and the live forward
@@ -353,12 +391,15 @@ follows it removes it.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- replayFlowSpecs -->
 
-The reflector also completes its readiness report when the optional receive
-store's replay returns an error. It first attempts the independent mandatory
-FlowSpec replay, then reports the original peer-UP session token. Completion
-means its attempts ended, not that every route was delivered: a send-permission
-refusal stays a refusal. The reactor rejects a late token from an old Session,
-so that error exit cannot release a replacement Session's queued live work.
+The reflector completes its readiness report when an optional receive-store
+page read fails, after successfully completing the independent mandatory
+FlowSpec replay and its required output. Earlier successful pages have already
+joined their output. A current-eligibility admission failure instead leaves
+replay owed on the original destination actor; a later finite settlement
+rereads current state without requiring a process restart. A required relay,
+End-of-RIB or readiness failure withholds completion and keeps its original
+output obligation named. The reactor rejects a late token from an old Session,
+so an old lifecycle cannot release a replacement Session's queued live work.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer, signalSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer.go -- creditAPIReady -->
 
@@ -411,7 +452,9 @@ source is queued or running, no received UPDATE is still being reflected, and
 every revalidation relay `bgp-adj-rib-in` queued for `bgp-rr` when it changed
 the paths' eligibility has reached the engine. A phase whose work does not
 finish before the transaction's deadline fails, naming the peer, and the
-transaction rolls back.
+transaction rolls back. A prepare that expires keeps the work-specific cause
+in its error and pins no routes. `ze show doctor` reports the reflector's
+current unresolved work.
 <!-- source: internal/component/bgp/plugins/rr/source_policy.go -- prepareSourcePolicy, applySourcePolicy, abortSourcePolicy, finalizeSourcePolicy, settleSource -->
 <!-- source: internal/component/bgp/plugins/rr/departure_wait.go -- awaitDepartures -->
 <!-- source: internal/component/bgp/plugins/rr/forward_gate.go -- forwardGate -->
@@ -477,5 +520,15 @@ Routes in transit can be managed via cache commands:
 
 ## Without Route Reflection
 
-When `bgp-rs` is not loaded, received routes are not forwarded to other peers. The `bgp-rib` plugin stores routes and performs best-path selection, but does not re-advertise them. To forward routes between peers, load the `bgp-rs` plugin.
-<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
+For ordinary BGP transit, explicitly attach the same `bgp-rib` process to the
+source and destination peers. The source grants received UPDATEs and state;
+the destination grants state, received refresh and sent UPDATE observations,
+plus permission to send UPDATEs. The RIB advertises the selected learned
+route. Each destination also needs an export policy for learned routes;
+an absent export policy rejects them. Local origins keep their separate
+policy rules.
+
+Use `bgp-rs` for an explicit route-server role or `bgp-rr` for a reflector
+role. Those roles retain their own route population and replay behavior.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- runDestination -->
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedDestinationForSession -->

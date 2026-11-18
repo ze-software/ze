@@ -303,7 +303,8 @@ func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry conf
 // the source through the withdraw path), so the consumer recovers the source label
 // it recorded at inject time (forgetSource), mirroring the inject path's
 // sourceLabel(entry.Source). A prefix it never injected resolves to "unknown".
-func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, prefixStr string) {
+func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) {
+	prefixStr := removal.Prefix
 	c.offerMu.Lock()
 	defer c.offerMu.Unlock()
 

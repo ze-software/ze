@@ -139,11 +139,52 @@ insertions clear it. Releasing the last reference only wakes the RIB's one lease
 worker. The worker performs the engine release and joins final writes outside
 peer, storage and attribute-pool locks. The lease registry retains current leases
 and pending releases only, with no withdrawn-route or source-session history.
-The same shared reference captures the original stable Peer owner after that
-successful acquire. Owned clones read it through `SourcePeerOwner`; there is no
-owner copied into every route or recovered from current address metadata. A nil
+The same shared reference captures the original stable Peer owner and the
+original received event's nonzero physical connection ID after that successful
+acquire. Owned clones read them through `SourcePeerOwner` and
+`SourceConnectionID`; neither is copied into every route or recovered from
+current address metadata. A later connection's UPDATE gets another reference;
+its UP cannot rewrite the connection on retained routes from the old session.
+A connection-constrained lifecycle command judges those original references,
+so it can clean up old retained routes while preserving new routes of the same
+Peer. Missing or mismatched connection provenance completes no such command. A nil
 reference yields explicitly unrecorded zero. This scalar is provenance, while
 the engine's receipt and grant checks remain the authorization to send.
+The containing received store is keyed by the nonzero configured Peer owner.
+Its metadata holds the observed address and current Session token. Selection
+uses that containing owner to read protocol metadata while the candidate keeps
+the entry's original owner and receipt for dissemination. A passive byte-only
+entry can therefore remain useful to forwarding without acquiring authority.
+
+The internal GR source commands carry both immutable identifiers explicitly.
+Received mutations match `SourcePeerOwner` and `SourceConnectionID` under the
+storage lock; sent mutations match the corresponding original source fields
+beside each advertisement's own receipt. The existing active `peerGRState`
+captures that physical pair once, and its safety callback checks the same state
+pointer before capturing output and again before mutation. An old callback or
+an old release therefore cannot act on a successor's GR cycle. Explicit
+peer-wide operator commands keep an unscoped active state.
+
+The pending source-lease population supplies original receipts; no address
+lookup, completed-source ledger or replacement metadata supplies those rights.
+Cleanup holds the original selected destinations before removing input,
+reconciles the affected native keys, joins captured and resulting output, then
+settles only that physical source's receipts. A failed join is returned with
+output still owed on the existing leases. Empty LLGR intermediate steps keep
+the same active GR cycle until release or safety expiry, so deleting the last
+NO_LLGR route does not make the following decoration and stale mark unknown.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- registerSourceCommands, sourceCommandDecls -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalEntriesLocked, removePhysicalSource, receiptsForPhysical -->
+<!-- test: internal/component/bgp/plugins/rib/rib_source_commands_test.go TestGRSourceCommandsPreserveOtherPhysicalRoutes -->
+<!-- test: internal/component/bgp/plugins/rib/rib_source_commands_test.go TestGRSourceEmptyLLGRContinuation -->
+
+Manual injection uses the existing BGP synthetic-source slot in `ribInPool`.
+It participates in forwarding and system-RIB election, alongside received
+candidates, but has no source lease. Ordinary output separately elects from
+admitted received candidates before applying destination export policy. A
+manual forwarding winner cannot suppress a change in that learned selection.
+Both selections share one retained candidate snapshot; no historical route
+store is added.
 GR and LLGR retention explicitly retain the matching leases before permitting
 the candidates to survive physical DOWN. Passive storage can keep an untrusted
 receipt without a lease; that receipt alone never authorizes dissemination.
@@ -153,6 +194,13 @@ Attribute grouping keeps different epochs separate. Initial and refresh replay
 commands carry it in the typed update-route request, not in user route metadata.
 RS and RR retain the admitted epoch in their existing accepted-route inventories,
 including work queued before forwarding; no separate permanent store is added.
+Their existing route inventories also retain the original received Peer owner
+and source receipt. Route keys include that numeric owner, so identical routes
+from same-address peers coexist. A DOWN takes only entries with its captured
+owner; a repeated old DOWN cannot take another owner's route or transaction.
+Withdrawal grouping preserves the retained owner rather than borrowing the
+DOWN's identity. Source-policy pins and purge operations use that same original
+owner; address buckets remain observations and settlement serialization only.
 These fields transport provenance. The source-policy lifecycle owners below
 read them to invalidate and restore a source in place.
 
@@ -243,11 +291,44 @@ commands are unchanged.
 <!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
 
-Ordinary Route Refresh still requires the receiving Session's captured facts
-on its public event and current-selection replay before its end marker. The
-legacy refresh handlers presently read SENT history; they do not establish
-ordinary refresh support. This remaining integration belongs to the linked
-release spec.
+Ordinary Route Refresh carries its receiving Peer owner and exact Session
+through both public event rails. The existing destination worker coalesces at
+most one pending request per registered family beside one active replay. It
+awaits Begin, captures that family's current desired keys and possible output,
+then awaits each fresh selected-route receipt before End. It never replays SENT
+history for an ordinary destination. Source/recipient locks are not held across
+these operations; other recipients continue independently.
+
+The initial cut bounds keys and source receipt identities. Replacement writes
+outside that cut retain one conservative uncertainty bit until End rather than
+growing source history. Initial readiness and event/source settlement include
+the final End receipt. Status exposes pending and active refresh obligations.
+Non-selected recipients retain their legacy SENT replay and marker order under
+the engine's existing grants. Before that fallback, the RIB compares a captured
+refresh with the latest live owner and Session stored in its existing peer
+metadata. A stale observation cannot replay SENT to a replacement. A current
+ordinary observation without eligibility also cannot borrow legacy replay.
+
+Source-policy phases, explicit stale purge and safety-net expiry capture affected
+worker incarnations before removing input. They publish replacements and join
+both that captured set and remaining source obligations before releasing source
+leases. This includes an old winner that disappeared before any wire receipt.
+Command/timer settlement is bounded by the process lifetime and the existing
+cancellable-operation budget. Before mutation, a transient operation hold blocks
+the existing last-reference release worker. While that hold remains active,
+post-mutation capture adds workers admitted after the first capture to the same
+coalesced lease obligations, even when the foreground join has been refused or
+canceled. After publication and an attempted join, the release worker checks
+those obligations without waiting, so a refused foreground join cannot release
+the source. Each live lease coalesces
+one pointer per unjoined worker; a retry prunes only workers whose done channel
+has closed, never a worker merely replaced by a new Session. These obligations
+end with the source lease and add no source or destination history. Unrelated
+source releases continue independently. Lease and dispatcher mutexes never nest.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh, refreshStep, replayLegacyRefresh, currentRefreshSession, rememberRefreshSession -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_barrier.go -- sourceDestinations, sourceReleaseReady -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_lease.go -- holdSourceOutput, settleReceipts -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_output.go -- settleSourceOutput, settlePurgedSource -->
 <!-- source: internal/component/bgp/plugins/rib/rib_event_settlement.go -- settleEvents -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
 <!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
@@ -272,15 +353,53 @@ leave that list; retrying quiesce must still join the actual writers.
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_barrier.go -- barrier, barrierSource -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_diagnostic.go -- doctorFailures -->
 
+### Route-server physical actors
+
+RS keys its peer state, capabilities, UPDATE workers, validation workers and
+pause bookkeeping by the original nonzero Peer owner and physical connection.
+The address stays display and selector data. Two named peers sharing an address
+have independent actors; a delayed old DOWN cannot close a successor actor or
+consume its retention verdict. The source-policy barrier joins every already
+admitted physical lane of its original owner rather than creating a lane from
+the source address.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText, dispatchStructured, wireFlowControl -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleState, handleStateDown -->
+<!-- source: internal/component/bgp/plugins/rs/source_policy.go -- settleSource -->
+
 ### Source-policy lifecycle owners
 
 `bgp-rib`, `bgp-adj-rib-in` and `bgp-rs` register an `OnSourcePolicy` handler, so each
 declares itself a source-policy owner at Stage 1 and answers the four phases of
 an RFC 8212 Section 3 import invalidation (`docs/architecture/api/process-protocol.md`).
-Both match `source.peer` as the peer address their received-UPDATE events
-carry, parsed to the `netip.Addr` that keys their stores. Each phase changes
-state under the store lock, releases it, and returns only after its downstream
-work is done.
+`bgp-rib` selects its received store and transaction by the captured
+`source.peer-owner`. Its `source.peer` address is observed display data.
+`bgp-adj-rib-in` keys source-policy ledgers and denial bounds by the captured
+original `source.peer-owner`, independently of the diagnostic address. Prepare
+requires that owner's captured established physical connection; a same-address
+sibling supplies no authority. Typed and full-JSON DOWN retire only the captured
+owner and current physical connection, leaving a sibling and a newer connection
+untouched. Address-only DOWN clears only unowned observations; it authorizes
+no physical lifecycle or source-policy phase. The auxiliary installed, pending and early-decision stores qualify their outer
+source key by the original owner and address. The native route key remains
+48 bytes. An unowned byte observation has a distinct observational outer key;
+it never matches an owned eligibility query or source-policy transaction.
+One current value per owner/native path retains its original physical connection,
+ingress message and unchanged source receipt. The receipt remains passive data;
+this optional store acquires no lease or dissemination grant merely by storing it. Older physical callbacks, withdrawals and late UPDATEs
+cannot replace or retire the successor; a same-address owner holds an independent
+store. OPEN metadata is keyed by that same original owner and physical connection
+and is retained only while current installed or pending paths refer to it.
+
+Broad replay, explicit replay and operator address selectors retain their
+existing aggregate behavior, traversing all matching outer stores. Exact
+validation replay instead carries the changed path's original owner and physical
+connection, so a missing original returns a withdrawal even if a sibling holds
+the same prefix. The output caller still owes its existing source and destination
+authorization; these storage keys acquire no engine authority. No observational
+limit, eviction policy, current-address source fallback or completed-lifetime
+history is added. Each phase
+changes state under the store lock, releases it, and returns only after its
+downstream work is done.
 
 | Phase | `bgp-rib` | `bgp-adj-rib-in` |
 |-------|-----------|------------------|
@@ -292,7 +411,15 @@ work is done.
 The ledger both owners keep (stage, captured identity, recorded outcome of
 each phase, and the admission of a phase) is one package,
 `internal/core/bgp/sourcepolicy`; what a phase does to a store stays in each
-owner. `bgp-adj-rib-in` holds no FlowSpec rule, so for FlowSpec it defers to
+owner. For a live original reflector actor, a target-zero abort of a transaction
+that never prepared is a successful no-op, including when another transaction
+holds the ledger. It changes no pins, epochs or output. An abort carrying a
+target still requires its prepared transaction. The reflector asks the shared
+ledger before inspecting the held transaction's pins.
+<!-- source: internal/component/bgp/plugins/rr/source_policy.go -- abortSourcePolicy -->
+<!-- test: internal/component/bgp/plugins/rr/source_policy_abort_unprepared_test.go TestRRUnpreparedAbortPreservesLiveSource -->
+
+`bgp-adj-rib-in` holds no FlowSpec rule, so for FlowSpec it defers to
 the FlowSpec provider `ribevents.RouteEligible` asks first, `bgp-rib`, which
 applies the denial to FlowSpec authorization. For every other family a query
 for a route the store does not hold is answered ineligible.
@@ -1310,10 +1437,11 @@ type FamilyKey struct {
 // RIBManager.ribInPool is a two-level map:
 //   map[redistevents.ProtocolID]map[string]*PeerRIB
 // The outer key is the source protocol (BGP, BMP, etc.); the inner key
-// is the peer address. bgpPeers caches ribInPool[bgpProtocolID] so the
-// BGP hot path has zero extra indirection. Best-path selection
-// (gatherCandidatesLocked) iterates only the BGP slot; show commands
-// and metrics iterate all protocol slots.
+// is the protocol's source label. The BGP slot holds manual injection.
+// Authenticated received stores are separate: bgpPeers is keyed by
+// nonzero uint64 Peer owner. Forwarding gathers both populations;
+// ordinary learned output gathers only admitted received candidates.
+// Show commands and metrics iterate both plus every other protocol slot.
 
 // PeerRIB is the Adj-RIB-In for one peer
 // Each peer has its own RIB, but all share the global pool
@@ -1335,6 +1463,13 @@ type FamilyRIB struct {
 }
 ```
 
+The generic `storage.NewPeerRIB(name)` keeps the supplied source label opaque,
+even when it looks like an IP address. `storage.NewAddressPeerRIB(address)`
+accepts a validated typed address, caches its canonical spelling once and
+returns an error without allocating a store for an invalid address.
+`PeerAddress()` exposes that optional immutable display value. Received owner
+maps and engine leases supply identity and authorization independently of it.
+
 ### Adj-RIB-In route keys
 
 On the bridge ingest path (`handleReceivedStructured`, the in-process plugin),
@@ -1355,11 +1490,11 @@ decoded identity as an interned `unique.Handle[string]` rather than a string, so
 the key of the plain prefix families does not grow, and a refreshed or withdrawn
 route whose identity is already held costs no allocation.
 
-The JSON ingest path (`handleReceived`, taken by a forked plugin) does not do
-this yet: it keys a family other than plain unicast and multicast on the
-event's `prefix` string, so a VPN key drops the RD, and it stores only the first
-NLRI of a section, under the whole raw section. That defect is an open row in
-`plan/journal/declared-format-contradicts-payload.md`.
+The full-JSON ingest path (`handleReceived`, taken by a forked plugin) reads
+the event's raw NLRI and withdrawal bytes through those same registered splitters.
+VPN routes retain their RD, per-route native bytes and ADD-PATH identifier zero;
+withdrawals use the family's actual withdrawal identity. It therefore stores
+each decoded native path independently on both event transports.
 
 The peer-up replay (`walkReplayRoutes`) covers every stored route of every
 source peer other than the target, within the requested from-index and
@@ -1389,17 +1524,31 @@ left out are deleted before the next read, which costs the owner one empty page.
 
 ### Selecting a session by its name
 
-`bgp-rib` keys every BGP session by its address, in `bgpPeers`, `ribOut` and
-`peerUp`. A peer selector that names a session (`show bgp rib received peer
-injector`, and the `request bgp rib` actions that take a selector) cannot be
-answered from an address, so `selector.Matches` answers false for it. The RIB
-records the configured name each state event carries (`StructuredEvent.PeerName`,
-or `peer.name` in a JSON event) in `peerNames`, and `selectsPeer` matches a name
-selector against it. Like `peerUp`, the record outlives the session, so a name
-still selects a down session's retained and sent routes. A session configured
-with no name is selected by no name, the way `show bgp` lists it under its
-address. Before 2026-10-23 every name selector matched nothing, and `show bgp
-rib received peer <name>` answered 0 routes for a session holding routes.
+`bgp-rib` keys received stores, protocol metadata, liveness, configured names,
+source-policy transactions and GR state by the configured Peer owner. A state
+event records its observed address and current Session. A physical DOWN must
+match that Session before it can remove received state, so a late predecessor
+DOWN cannot purge a replacement or another configured Peer at the same address.
+
+Operator address selectors deliberately match every owner with that observed
+address. Name selectors match the configured name recorded by the state event.
+An internal lifecycle operation carries its captured owner directly. Route
+counts remain an address-based display and sum owners sharing an address.
+`gr-state` uses decimal owner keys and includes `peer-address` in each value.
+The SENT destination index also uses the original destination Peer owner.
+Recovery requests carry that owner separately from the display address;
+excluded sources carry their original numeric owners, and survivors preserve
+both their original source owner and issuing Session receipt. Same-address
+announcers cannot lift one another's exclusions. Replay and lifecycle commands
+can restrict route writes to the captured destination owner through typed batch
+metadata; that field narrows the existing send grants and grants nothing itself.
+A physical destination DOWN retains its SENT inventory for that configured
+owner's reconnect. Permanent Peer removal instead releases that exact
+destination's inventory and its undo copies held by any open source-policy
+transaction before forgetting metadata. Abort restores only surviving
+destinations, so an old transaction cannot recreate removed-owner history or
+send to an invalid address. Same-address siblings keep their own inventory.
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_destination.go -- retireSentDestinationLocked -->
 <!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- recordPeerName, selectsPeer -->
 
 ### Validation eligibility
@@ -1410,12 +1559,52 @@ validation's ordinary rejection, which removes the stored route. A retained path
 does not enter the timeout queue and cannot become eligible through fail-open.
 It becomes usable when a later decision accepts the same received generation.
 
+RPKI's origin and ASPA trackers retain the original numeric Peer owner and
+physical connection with every route key. Both UPDATE delivery rails, queued
+decisions, VRP/ASPA callbacks and configuration snapshots preserve that pair.
+`rpc.ValidationDecision` carries it as lossless string-valued `peer-owner` and
+`connection-id` JSON fields; the fields are explicit zero for an unowned
+observation, never a wildcard for an owned route. The captured configured name
+also survives the queue so named peers sharing an address keep their own
+policy. Tracker DOWN cleanup matches one original physical connection;
+terminal Peer removal names one original owner without inventing a Session.
+
+For an actual GR-retained family, the received store and both RPKI trackers
+preserve their existing original rows through physical DOWN. A private retained
+bit lives on those rows; it is not a completed-connection ledger. The existing
+configuration snapshot carries `gr-retained` with its original owner,
+connection, message ID and raw attributes so validator disable, re-enable and
+rollback preserve that lifetime. New received bytes replace the mark with their
+own actual lifetime. GR supplies no validation verdict.
+
+The `bgp-gr/validation-cleanup` event narrows removal by original owner,
+physical connection and native family, with NO_LLGR as an optional additional
+predicate. Its codec validates the entire scope before mutation. Current
+received events carry the accepted effective attributes after import policy:
+`notifyOneMessage` replaces RawMessage's bytes, WireUpdate and AttrsWire before
+publishing to every received consumer. Thus an imported NO_LLGR community is
+visible to the selecting RIB, Adj store and RPKI trackers alike; this is not a
+claim of pre-policy retention.
+
+Cleanup closes Adj replay admission and joins a direct replay's snapshot through
+its actual relay without holding the received-store mutation lock across I/O.
+Applied emission joins the captured consumers' event application and declared
+deferred work before the existing final RIB source purge/output barrier. Escaped
+replay pages belong to their role's deferred-work join. A session-wide receipt
+still held by a sibling is not evidence that a removed path remains admitted.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/retained_validation.go -- retireValidationConnectionLocked, cleanupValidationConnectionLocked -->
+<!-- source: internal/component/bgp/plugins/rpki/retained_validation.go -- removeUnretainedValidation, handleRetainedValidationEvent -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyOneMessage -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- validationRequest, handlePeerDown, buildDecisions -->
+<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_reload.go -- configRouteSnapshot, revalidateConfigSnapshot -->
+
 `rpc.ValidationDecision.MsgID` identifies that generation. A stale decision is
 ignored; a decision for a newer UPDATE waits for its route and removes the
 previous path from selection immediately. Zero explicitly means an unversioned
 decision for the current route, or the next arrival if no route is stored. The
-text batch command uses seven fields per decision:
-`action peer family prefix pathID state msgID`. Its actions are `a` (accept),
+text batch command uses nine fields per decision:
+`action peer family prefix pathID state msgID peerOwner connectionID`. Its actions are `a` (accept),
 `r` (remove), and `i` (retain ineligible); accepted and retained routes carry the
 origin state, 1 (Valid), 2 (NotFound), or 3 (Invalid).
 
@@ -1479,14 +1668,42 @@ in flight therefore contributes its failure to the owner's result.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_publication_owner.go -- admitMutation, failValidationOwner, removeValidationOwner, releaseValidationOwner -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- runAdjRIBInPlugin -->
 
+Validation keys include the stored original physical connection beside the
+stable Peer owner. The receive store captures both from the same original
+UPDATE event, and changes and queries retain them through the typed and JSON
+paths. The selecting RIB reads the connection from its held source reference;
+sent replay reads its immutable original-source connection. FlowSpec path
+snapshots and comparable eligibility keys require that same connection.
+A replacement connection cannot supply the missing identity of older bytes.
+<!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, routePresent, noteValidationChange -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- flowSpecKey, flowSpecPath, reconcileFlowSpecs -->
+
+A first pending arrival also emits `ValidationChange` after storing the path,
+with its original owner and physical connection. Subscribers can then observe
+present but ineligible membership without waiting for a validation decision
+or another UPDATE. Before a gate has ever enabled, normal installed arrivals
+still emit no validation change.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- installStructuredNLRIs, handleReceived -->
+<!-- test: internal/component/bgp/plugins/adj_rib_in/rib_pending_admission_test.go -- TestPendingAdmissionPublishesOriginalMembershipBothRails -->
+
 `ribevents.RoutePresent` separately reports pending or installed ownership,
 including ineligible paths. Cache eviction uses it to preserve the regenerated
 ADD-PATH identifier across a temporary validation withdrawal; an actual route
 removal releases that ownership. Eligibility and presence callbacks are registered
-together, and both read the same receive-store lock without invoking the cache.
+together. In-process providers read the receive-store lock without invoking the
+cache; remote providers dispatch the registered gate command and can wait. The
+forward identifier allocator therefore snapshots a compare-release claim, drops
+its lock before RoutePresent, and compares the claim under its lock afterward.
+The query names the original connection retained on the current mapping. Any
+intervening allocation/reuse invalidates the claim, including same-generation
+replay, so a remote answer cannot release a reused or reminted mapping.
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- releasePath -->
+<!-- source: internal/core/bgp/ribevents/gate_remote.go -- remoteValidation -->
+<!-- source: internal/core/bgp/ribevents/flowspec_remote.go -- remoteFlowSpec -->
 
-The internal `replay-path` command takes destination, source, family, prefix and
-path identifier. It answers the current path, including pending or ineligible
+The internal `replay-path` command takes destination, source address, family,
+prefix, path identifier, original peer owner and original physical connection. It answers the current path, including pending or ineligible
 state, as a one-route replay page, and relays nothing: the caller (`bgp-rs`,
 `bgp-rr`) relays it under its own send grant to the reactor's validation gate for
 reconciliation, because the operator gives the store no `send [ update ]`
@@ -1828,11 +2045,15 @@ their clear survive after the underlying source state has gone.
 A synchronous source-policy phase and stale purge settle only their source's
 explicit receipt list, including its pending final releases. They do not retry
 or join another source's failed release. The background lease worker retains
-the global retry scan. The current RIB source selector is still the received
-peer address; this scoping does not establish distinct ownership for two
-configured sources sharing an address. A stable source identity must reach
-those selectors before that distinction can be claimed. Release authority
-itself remains the authenticated process incarnation and exact receipt ID.
+the global retry scan. These source selectors, failures and reports are keyed
+by the captured Peer owner, so one configured source does not settle another
+source's receipts at the same address. Release authority remains the
+authenticated process incarnation and exact receipt ID.
+
+A withdrawal election keeps the departed peer slot until its synchronous
+Loc-RIB removal finishes. A concurrent DOWN can therefore join that original
+writer after its final best record has left the table.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, purgeBestPrevForOwner -->
 
 The deciding process owns its received stores and their pooled references even
 when it runs inside the daemon. SDK event delivery drains before shutdown;
@@ -3230,3 +3451,356 @@ most attributes but differ in one (e.g., MED varies, rest identical).
 
 **Created:** 2026-01-01
 **Updated:** 2026-01-03 - Fixed design: decomposed attrs+NLRIs, RIB-bound refcounting, pool.Lookup()
+
+### Admitted scoped origins
+
+The real RIB registers the generic `OnOriginIntake` callback on both SDK
+transports. Its shared contribution table retains engine-authorized source,
+instance, native key, original path-identifier presence, configured Peer owner
+and origin receipt. Origin build attributes and engine encoding context remain
+opaque. A contribution competes only at its admitted Peer scope, alongside the
+same common learned BGP winner. No recipient can nominate a second learned path.
+
+Cross-source comparison uses the Loc-RIB's shared distance/metric preference
+function and stable admission order. Explicit BGP origins use the configured
+static class; admitted redistribution keeps its original registered protocol and
+accepted override. A zero override is present and meaningful. The existing
+`rib` read root supplies the declaration to internal and forked RIB config
+transactions. Apply and rollback publish new scoped revisions and join output.
+System-RIB visibility alone never admits an origin or applies FIB import policy.
+
+Dispatch, refresh, completion and CurrentSelection use the same immutable scoped
+winner. Recipient export acts after election: exclusion retires prior output
+without trying a loser. Removing a losing origin leaves another winner intact;
+a retained loser becomes useful only after genuine reselection. Receipts
+explicitly distinguish retained selection/export suppression with Announced
+zero. Real failures retain their cause. Cancellation removes only its own issued
+generation and cancels its accepted sender calls. Completion requires their join
+and current output confirmation; a bounded failure reports unresolved obligations
+while retaining the uncertain frontier. Unrelated destinations are not canceled. Storage keeps current memberships and
+selected state plus actual acknowledged/in-flight obligations, without withdrawn
+history. Physical reconnect replays the configured owner's current selection.
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- originIntake, reelectOriginLocked -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origin_preferences.go -- installOriginPreferences -->
+<!-- source: internal/core/rib/locrib/preference.go -- PreferenceFor, Preference.Before -->
+
+Origin settlement separates a captured accepted sender call from current desired
+replacement. The existing worker closes that call's completion only after its
+send/receipt operation returns. Failed current revisions retain their exact
+failure and uncertain frontier, so intake reports an unresolved cause instead
+of waiting indefinitely for retry. Candidate withdrawal preserves the passed
+cleanup deadline and does not acknowledge completion while output remains owed.
+Failed announce compensation has at most the existing cancellation-join budget;
+preference restoration uses the original apply context and reports broken config
+when the desired old declaration cannot be confirmed on output. SDK shutdown
+therefore does not depend on a replacement retry completing before Run returns.
+The engine issuer still owns final physical write revocation and joining.
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- joinOriginWrites, originBarrier -->
+
+<!-- source: internal/component/bgp/plugins/adj_rib_in/received_peer.go -- receivedPeer, receivedPeerOf, receivedBefore -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation_config.go -- rememberValidationPeer, validationPeerPresentLocked -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/received_operator.go -- applyOperatorDecisionLocked -->
+
+
+### Reflector original sessions and retained membership
+
+The reflector keeps peer actors under the original nonzero Peer owner and
+physical connection. The address is an observation and an operator field.
+Capabilities, the replay lifecycle and the destination owner/session snapshot
+belong to that actor; an old DOWN or OPEN cannot mutate its successor.
+The existing withdrawal inventory keeps the original connection, ingress,
+receipt and effective NO_LLGR flag with each route. A retained Session receipt
+does not make every route from that Session replayable: the exact route must
+still belong to this inventory and its retained family.
+
+The reflector acquires its own source lease while handling live received
+input, before ordered DOWN. Retention keeps that same lease. It never borrows
+the receive store's lease or acquires a new lease for a source already down.
+Stored-page relays, validation relays and cached forwarding use captured
+destination owner/session values on the existing SDK requests.
+
+The cleanup path validates the complete original removal predicate and
+seals matching inventory rows without waiting for I/O. It removes them only
+after already admitted cached, native and deferred output has joined. The registered
+event-settlement callback joins admitted and superseded peer-UP replays,
+validation batches, live forwards and departures under its finite application
+deadline, then releases leases whose last retained route was removed. Failed
+settlement keeps its obligations pending. Final source and SENT purge follows
+successful applied cleanup; a replay-only join cannot confirm that cleanup.
+Native TEXT OPEN and state use the original physical metadata, and malformed
+or duplicate reserved fields refuse the whole event. Departures keep the
+destination owner/session captured at original DOWN, including same-address
+siblings. Live Adj-RIB-In page adoption first checks current receive eligibility
+and acquires this role process's own live lease under the actor lock. A DOWN
+actor cannot adopt an escaped row, even while another retained route keeps
+its Session-wide receipt valid. Async output failure remains an owed error
+through settlement; an exited local waiter never proves remote cancellation.
+The normal-DOWN worker releases an ended source's last lease and prunes its
+actor after actual departure completion, without waiting for another barrier.
+
+For an Adj-RIB-In row, a cold read also names the original source
+UPDATE frontier this actor has applied. The receive store answers pending,
+not rejected, while that exact physical projection is behind. Before admitting
+output, the reflector rechecks its local inventory revision under the same
+lock used by received withdrawals. A racing withdrawal repeats only the current
+eligibility read within the replay deadline; it never replays an admitted write.
+Unseen current routes remain admissible after catch-up, while a withdrawn route
+cannot borrow another route's Session receipt.
+FlowSpec asks its selecting RIB through the same context-bound lookup and
+requires the copied path's original message, receipt and policy epoch to match.
+A pending selecting projection does not mean that the rule is absent.
+<!-- source: internal/component/bgp/plugins/rr/stored_admission.go -- admitStoredRoute, waitStoredEligibility -->
+<!-- source: internal/component/bgp/plugins/rr/stored_flow_query.go -- currentStoredFlowSpec -->
+<!-- source: internal/component/bgp/plugins/rr/actor.go -- peerIdentity, relayToPeer -->
+<!-- source: internal/component/bgp/plugins/rr/source_cleanup.go -- cleanupSource, settleEvents -->
+
+### Reflector optional replay reads and current replay obligations
+
+The reflector distinguishes a refused optional Adj-RIB-In page read from a
+failure admitting or writing that page. Successfully relayed earlier pages
+have already joined their output. A page-read refusal is warned about and
+mandatory selecting-RIB FlowSpec replay, End-of-RIB and readiness continue.
+A failed current-eligibility admission withholds readiness and remains on the
+original destination actor. A later finite applied settlement rereads the
+current snapshot and clears that obligation only after all required phases
+succeed. Normal projection churn therefore needs no process restart.
+
+An actual relay or final marker failure keeps the existing unresolved output
+obligation. Settlement refuses before retrying current reads while that
+writer outcome is unknown; a read retry never certifies writer completion.
+<!-- source: internal/component/bgp/plugins/rr/replay_retry.go -- retryPeerReplays -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
+
+Unknown cached and stored output is kept on its original physical source actor.
+After physical delivery has ended, all original membership is closing, and the
+local enrollment gate has joined, an exact successful source-lease Release
+can discharge that actor's debt: Release invalidates its lease and waits its
+admitted carriers. A live source or a useful retained row cannot use that
+operation as a reconciliation shortcut. A different owner/receipt never
+clears it. Final destination markers have their own target-actor obligation;
+without positive exact completion evidence that obligation remains named.
+<!-- source: internal/component/bgp/plugins/rr/output_obligation.go -- reconcileEndedOutput -->
+
+A revalidation read failure remains in the reflector's existing coalescing
+validation queue. The next input or finite settlement retries the current
+path; the worker does not wake itself repeatedly after a failure. A successful
+batch clears that queue's current error. An unknown actual output blocks its
+retry until the corresponding original output obligation is settled.
+<!-- source: internal/component/bgp/plugins/rr/validation.go -- runValidation, settleValidation -->
+
+An admitted reflector replay also pins its original destination actor through
+its final marker/readiness return. Ordinary source-side DOWN cleanup cannot
+erase that actor while a final request is still held. On healthy completion,
+the existing departure worker prunes the ended actor; an unknown final result
+keeps only that captured actor's target obligation named.
+<!-- source: internal/component/bgp/plugins/rr/replay_retry.go -- pinPeerReplay, finishPeerReplay -->
+
+
+### Route-server current retained membership
+
+RS acquires its own source lease before it queues an UPDATE. Physical DOWN
+seals new source admission and queues its existing departure worker. That
+worker joins the captured UPDATE lane, including overflow and its final cached
+flush, before it changes the current inventory. Only the actual GR family
+verdict and a successful retain action keep that source's rows. The rows keep
+the original owner, physical connection, message, policy epoch and NO_LLGR bit.
+<!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- dispatchSourceUpdate, finishSourceDown -->
+
+A source receipt identifies a session; it does not establish current route
+membership. Every stored-route relay checks the exact current path and original
+provenance at output admission. Cold replay can adopt an authenticated received
+row only while its original actor is live and its own lease was acquired.
+Cleanup closes that actor's cold admission. Removing one path cannot be undone
+by a captured old page while another retained path keeps the same receipt.
+<!-- source: internal/component/bgp/plugins/rs/retained_membership.go -- currentStoredRouteLocked, adoptStoredRouteLocked -->
+
+Native departure work keeps its original destination owner and output session.
+A failed required departure stays current and is retried with those same
+identities. Pending departure keys outlive the final empty actor until the
+actual queue handler returns; completion removes them. The last current path
+releases only its original existing source lease, after admitted output joins.
+<!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- sourceDeparture, settleDeparture, releaseEmptySource, sendDepartureWork -->
+
+
+### Route-server cold replay admission
+
+A copied receive-store page is not current route authority. An RS actor records
+its applied UPDATE frontier and inventory revision in its existing current
+state, after applying the whole UPDATE, withdrawals included. Before adopting
+an unseen live row, RS asks the family's current owner for that exact original
+owner, physical connection and route generation. The receive store's announced
+eligibility command answers other families; the mandatory selecting RIB's
+announced FlowSpec command answers rules even when the optional store is absent.
+The request carries the actor's applied frontier. A store still behind it
+answers Pending without a route verdict; another source's progress cannot
+satisfy it. A FlowSpec path also matches the original message, receipt and
+policy epoch. RS rechecks the same
+inventory revision under the membership lock before adoption and output
+enrollment. A changed revision retries the current query within the existing
+finite replay deadline, before any output is admitted.
+An old removed row is excluded while an unseen current sibling remains useful.
+<!-- source: internal/component/bgp/plugins/rs/retained_membership.go -- checkColdRoutes, admitStoredRoutesLocked -->
+<!-- source: internal/component/bgp/plugins/rs/server_withdrawal.go -- processForward -->
+
+RS marks its process-owned source lease revoked before sending Release. A
+failed or unacknowledged Release leaves one current join obligation on the
+original actor, never an active lease. Live admission first retries that exact
+release, then acquires the original live source again. DOWN cannot acquire.
+<!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- acquireSourceLocked, releaseEmptySource -->
+
+
+### Route-server optional replay read failure
+
+A failed optional receive-store page read does not suppress the selecting RIB's
+mandatory FlowSpec phase or the original destination's End-of-RIB/readiness
+report. Already successful page outputs have joined. RS keeps the refused
+read as one obligation on that current original UP; successful current
+reconciliation clears it. A relay or final-writer failure remains required
+output work and withholds readiness. Unknown remote completion prevents a
+write retry until its actual original output joins. Neither condition is a
+process-lifetime history or permission to write a destination successor.
+<!-- source: internal/component/bgp/plugins/rs/replay_read.go -- relayReplayRead, finishOptionalReplayRead -->
+
+The registered `plugin/bgp-best-route-rs-lifetime` functional driver uses real
+BGP sockets with both internal and forked RS. A and B first reach the original
+destination; B's ordinary withdrawal reaches it before it closes. The successor
+receives A, then End-of-RIB, and useful live C. The original source's real DOWN
+must withdraw A and C on that same successor socket before local API output
+passes a final useful-output fence. It checks exact AS_PATH and native NLRIs,
+not mock evaluator acknowledgements. Packet grouping is immaterial; duplicate
+or unrelated withdrawals and any obsolete announcement are refused.
+<!-- source: internal/test/fixture/bgp_best_route_rs_lifetime.go -- bgpBestRouteRSLifetime, bgpBestRouteRSWithdrawals -->
+
+
+RS subscribes to the retained-cleanup namespace and registers one combined
+applied-event settlement callback. The ordinary event loop only decodes and
+seals exact current admission; the off-loop callback joins workers, superseded
+replays, native departures and enrolled outputs before purging membership or
+releasing a lease. An unresolved original remote completion refuses the barrier
+with the captured destination owner/session and the current source cleanup obligation.
+A live source cannot use a failed release/reacquire to make that uncertainty
+disappear. This is a failed completion result, not permission to retry the old
+write or a successful acknowledgement. A healthy original scope still joins,
+releases and permits useful fresh live work.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, dispatchText -->
+<!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- releaseEmptySource, acquireSourceLocked -->
+<!-- source: internal/component/bgp/plugins/rs/retained_settlement.go -- settleRetainedEvents -->
+
+
+### Original source catch-up before cold membership
+
+The existing eligibility request may carry `after-msg-id` on a query naming
+the original peer owner and physical connection. The receive store checks its
+current `sourceLive.processedMsgID`, advanced only after the whole typed or
+JSON UPDATE has committed its effects. Withdraw-only and empty UPDATEs advance
+that position too. An unrelated source's larger message ID cannot satisfy it.
+Duplicate UP on the same physical connection preserves the position; a new
+physical connection starts at zero. There is no retained route-removal history.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/source_state.go -- sourceLive, noteSourceProcessed -->
+
+If an original source is live but its processing has not reached the requested
+minimum, the whole existing eligibility answer is `pending: true` with no
+answers. This is neither eligible nor absent. A caller retries only its current
+query within its existing request context before adopting a cold stored route.
+Missing or mismatched original source identity is an error. A provider without
+an authoritative progress reader refuses a nonzero minimum.
+The mandatory selecting FlowSpec provider has the same whole-request contract:
+`FlowSpecQuery.AfterMsgID` and `FlowSpecAnswer.Pending`. It reads one scalar
+`processedMsgID` on the existing RIB `peerMeta` physical actor, after the whole
+original typed or full JSON UPDATE's mutation and selection effects. The command
+answers from its actual manager instance. Every query tuple is checked before
+Pending, which carries neither results nor route snapshots. Both local lookup
+and framed command paths retain Pending rather than infer absence.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_progress.go -- sourceProgress, noteSourceProcessed -->
+<!-- source: internal/core/bgp/ribevents/flowspec_remote.go -- AnswerFlowSpecFor, LookupFlowSpecRequest -->
+
+Bound cold stored relay captures only its original live physical source's
+receive publication cut, waits before dispatch or writer locks, then checks
+the actual provider's applied floor under the original finite context. Live
+cached forwarding and ordinary selection never wait on their own callbacks.
+An ended original needs its existing process-owned retained lease; it never
+waits on or reads processing authority from the same Peer's successor.
+<!-- source: internal/component/bgp/reactor/relay_cold_source.go -- coldBoundRelaySource, retainedColdRelaySource -->
+
+An unappliable original UPDATE records a failed processing gap on that same
+physical RIB actor. The scalar position does not advance across it, and a later
+higher valid message cannot certify current absence through the missing input.
+Duplicate UP preserves the failure; only a new physical actor resets it. This
+is explicit unknown application state, separate from retryable Pending lag.
+ Once caught up,
+the ordinary exact route/message verdicts retain their existing meaning.
+<!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityQuery, EligibilityAnswer, AnswerEligibility -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- eligibilityProgress, eligibilityAnswerCommand -->
+
+
+### Original source terminal removal and late validation
+
+`removed` (`rpc.ReasonPeerRemoved`) is an owner-terminal state event: its original nonzero
+`peer-owner` ends every current and retained connection of that logical peer,
+even when no physical session is active. Adj-RIB-In joins its direct replay
+before removing that owner's installed routes, pending routes, early decisions,
+source-policy transaction and denial bound, current state and validation
+metadata. Another owner at the same address and manual observations remain.
+Connection zero never selects all physical connections on an ordinary DOWN.
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonPeerRemoved -->
+
+A validation decision can precede an UPDATE while its original connection is
+UP. After source cleanup, a decision is admitted only for the exact original
+generation of bytes still held in the receive store, including retained GR
+input. An absent source cannot recreate early decisions or policy metadata.
+The store keeps no completed-owner history to make this refusal.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/source_state.go -- endSourceOwner, sourceDecisionAdmittedLocked -->
+
+An address-wide stale purge captures original retained lease addresses before
+taking the mutation lock, including independently owned sources at one address.
+The current stable-owner population determines which candidates it removes;
+the address lookup grants no send or source authority. Post-mutation capture
+and final writer joins retain their existing source-operation holds. Lease
+and dispatch calls run outside the peer lock.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_lease.go -- receiptsAtAddress, receiptsForPeer -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- purgeStaleCommand -->
+
+Learned-only export-policy reoffers read each destination's elected scoped
+winner. A common learned key displaced by a local origin in that scope does
+not cause the local origin to be sent again. Other learned keys remain
+eligible for the existing reoffer, and unrelated scopes keep their output.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- runDestination -->
+
+
+An original physical GR cleanup also keeps auxiliary SENT withdrawal debt on
+its existing live source leases. Before input removal, every such row must
+carry its original destination session; current peer metadata cannot fill a
+missing session. One shared batch owns its encoded native commands, original
+destination owner/session and sent-owner-message. The command and existing
+lease worker join that same batch outside RIB/storage locks. Lease release is
+refused until every original auxiliary withdrawal and selected worker has
+joined. A positively completed batch immediately clears its owned commands and detaches
+from every attached live lease, including untouched references that settlement
+skips. Ready, held and UNKNOWN batches remain. There is no completed-source
+ledger or separate retry worker; pruning takes only the existing lease mutex,
+after releasing the batch mutex, and performs no engine I/O.
+
+A positive original constrained SDK answer follows the engine's synchronous
+bound-maintenance path. Zero withdrawals or a missing answer is not proof.
+A known local NotDispatched or validated joined failure can retry the original
+target. UNKNOWN retains the original request and deadline, refuses cleanup and
+blocks blind retry: another target's DOWN, current absence, cancellation ACK or
+a later call's NotDispatched cannot settle an earlier original writer.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_source_sent_output.go -- ribSourceSentOutput -->
+<!-- test: internal/component/bgp/plugins/rib/rib_source_auxiliary_test.go TestGRSourceAuxiliaryOutputOwnsOriginalLease -->
+<!-- test: internal/component/bgp/plugins/rib/rib_source_auxiliary_pruning_test.go TestGRSourceAuxiliaryDebtPrunesOnlyCompletedBatches -->
+
+### Owner-excluded operational replay
+
+`clear bgp rib out-excluding-owner owner <id> [family <afi/safi>]` omits one
+configured destination owner, including when another owner shares its address.
+It captures each remaining live owner's current UP receipt before output.
+Ordinary destinations use their existing selected refresh worker and its final
+End receipt, rather than an auxiliary SENT projection. Auxiliary destinations
+replay immutable SENT attributes through bound markers and route requests; a
+replaced destination cannot lend its successor to the rest of that bracket.
+No same-session replay emits an initial readiness report. The command reports
+refreshed and refused destination counts and returns an error when any captured
+operation is unresolved; another destination's success does not clear it.
+<!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, resend, resendExcludedSent -->

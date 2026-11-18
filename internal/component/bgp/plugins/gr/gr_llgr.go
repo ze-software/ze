@@ -38,7 +38,8 @@ type llgrResult struct {
 // llgrPeerCap holds LLGR capability data extracted from a peer's OPEN message.
 // Used by the state machine to determine LLST per family.
 type llgrPeerCap struct {
-	Families []llgrCapFamily
+	connectionID uint64 // immutable OPEN physical connection
+	Families     []llgrCapFamily
 }
 
 // llgrCapFamily represents one AFI/SAFI entry in a peer's LLGR capability.

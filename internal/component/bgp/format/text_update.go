@@ -70,6 +70,21 @@ func appendSourceReceiptJSON(buf []byte, receipt uint64) []byte {
 	return strconv.AppendUint(buf, receipt, 10)
 }
 
+// appendSentDestinationJSON preserves the producing Session's original replay
+// receipt on sent UPDATEs. Zero is unrecorded; received UPDATEs carry no such
+// output provenance. This is descriptive metadata, never send authority.
+func appendSentDestinationJSON(buf []byte, session uint64, direction rpc.MessageDirection) []byte {
+	if direction != rpc.DirectionSent {
+		return buf
+	}
+	if session == 0 {
+		return buf
+	}
+	buf = append(buf, `,"destination-session":"`...)
+	buf = strconv.AppendUint(buf, session, 10)
+	return append(buf, '"')
+}
+
 // appendSourceReceiptText preserves the fixed header positions and adds the
 // original session identity before attributes, independently of route metadata.
 func appendSourceReceiptText(buf []byte, receipt uint64) []byte {
@@ -88,6 +103,16 @@ func appendPeerOwnerText(buf []byte, owner uint64) []byte {
 	}
 	buf = append(buf, " peer-owner "...)
 	return strconv.AppendUint(buf, owner, 10)
+}
+
+// appendConnectionIDText adds immutable physical provenance after the fixed
+// text header. Zero explicitly carries no physical-session identity.
+func appendConnectionIDText(buf []byte, connectionID uint64) []byte {
+	if connectionID == 0 {
+		return buf
+	}
+	buf = append(buf, " connection-id "...)
+	return strconv.AppendUint(buf, connectionID, 10)
 }
 
 // AppendMessage appends a RawMessage to buf based on ContentConfig.
@@ -245,6 +270,7 @@ func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = appendPeerJSON(buf, peer)
 	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
+	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 	buf = append(buf, `,"update":{"eor":{"family":"`...)
 	buf = fam.AppendTo(buf)
 	buf = append(buf, `"}}`...)
@@ -280,6 +306,7 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 		buf = appendPeerJSON(buf, peer)
 		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
+		buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 		buf = append(buf, `,"nlri":{}`...)
 		if content.Format == plugin.FormatFull || content.Format == plugin.FormatRaw || content.Format == plugin.FormatHex {
 			buf = append(buf, `,"raw":{"update":"`...)
@@ -381,6 +408,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 		buf = appendPeerJSON(buf, peer)
 		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
+		buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 		buf = append(buf, `,"raw":{"update":"`...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, `"}}}`...)
@@ -424,6 +452,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 	buf = appendPeerJSON(buf, peer)
 	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
+	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
 
 	buf = append(buf, `,"update":{`...)
 
@@ -810,7 +839,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	// event carries what the ingress steps decided (docs/architecture/meta/README.md,
 	// Key Registry). A value of a type appendRouteMetaValue cannot write drops its
 	// key: only a Ze defect puts one there, never external input.
-	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != "" || msg.SourceOwner != 0 || msg.SourceLocal || len(msg.SentPathSources) != 0
+	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != "" || msg.SourceOwner != 0 || msg.SourceConnectionID != 0 || msg.SourceLocal || len(msg.SentPathSources) != 0
 	if hasMeta {
 		buf = append(buf, `,"route-meta":{`...)
 		first := true
@@ -845,6 +874,15 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 			buf = append(buf, '"')
 			first = false
 		}
+		if msg.SourceConnectionID != 0 {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"source-connection-id":"`...)
+			buf = strconv.AppendUint(buf, msg.SourceConnectionID, 10)
+			buf = append(buf, '"')
+			first = false
+		}
 		if msg.SourceLocal {
 			if !first {
 				buf = append(buf, ',')
@@ -874,7 +912,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 		}
 		for k, v := range msg.Meta {
 			if k == "source-peer" || k == "source-message-id" || k == "source-id" ||
-				k == bgptypes.SourceOwnerMeta || k == bgptypes.SourceLocalMeta || k == bgptypes.SentPathSourcesMeta {
+				k == bgptypes.SourceConnectionMeta || k == bgptypes.SourceOwnerMeta || k == bgptypes.SourceLocalMeta || k == bgptypes.SentPathSourcesMeta {
 				continue // Transport provenance cannot be replaced by route policy.
 			}
 			mark := len(buf)

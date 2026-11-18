@@ -40,11 +40,15 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 
 	r.peerMu.Lock()
 	snaps := make([]peerSnapshot, 0, len(r.bgpPeers))
-	for addr, peerRIB := range r.bgpPeers {
+	for owner, peerRIB := range r.bgpPeers {
+		addr, known := r.peerAddressLocked(owner)
+		if !known {
+			continue
+		}
 		// PeerRIB caches the canonical address string for the visitor label;
 		// the typed key answers the IPv6 question without re-parsing.
 		s := peerSnapshot{addr: peerRIB.PeerAddr(), rib: peerRIB}
-		if meta := r.peerMeta[addr]; meta != nil {
+		if meta := r.peerMeta[owner]; meta != nil {
 			s.asn = meta.PeerASN
 			// RFC 6396 Section 4.3.1: a PEER_INDEX_TABLE entry carries the
 			// PEER's BGP Identifier. RouterID is this speaker's, so every entry
@@ -53,6 +57,9 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		}
 		s.ipv6 = !addr.Unmap().Is4()
 		snaps = append(snaps, s)
+	}
+	for _, peerRIB := range r.ribInPool[bgpProtocolID] {
+		snaps = append(snaps, peerSnapshot{addr: peerRIB.PeerAddr(), rib: peerRIB, ipv6: peerRIB.PeerAddress().Is6()})
 	}
 	r.peerMu.Unlock()
 

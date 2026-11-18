@@ -25,8 +25,9 @@ func (p *Peer) emitConnected(session *Session) {
 	}
 	settings := session.openSettingsSnapshot()
 	info := plugin.PeerInfo{
-		PeerOwner: p.sourceOwner,
-		Address:   settings.Address, AddressStr: p.addrString,
+		PeerOwner:    p.sourceOwner,
+		ConnectionID: connectionIDOf(session),
+		Address:      settings.Address, AddressStr: p.addrString,
 		LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 		Name: settings.Name, GroupName: settings.GroupName,
 		LocalAS: settings.LocalAS, RouterID: settings.RouterID,

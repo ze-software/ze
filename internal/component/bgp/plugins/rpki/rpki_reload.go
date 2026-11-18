@@ -87,16 +87,19 @@ func (rp *rPKIPlugin) replaceConfig(previous, next *rpkiConfig) error {
 }
 
 type configRouteSnapshot struct {
-	Peer       string `json:"peer"`
-	PeerName   string `json:"peer-name"`
-	PeerGroup  string `json:"peer-group"`
-	PeerAS     uint32 `json:"peer-as"`
-	LocalAS    uint32 `json:"local-as"`
-	Family     string `json:"family"`
-	Prefix     string `json:"prefix"`
-	Attributes string `json:"attr-hex"`
-	PathID     uint32 `json:"path-id"`
-	MsgID      uint64 `json:"msg-id"`
+	Retained     bool   `json:"gr-retained"`
+	PeerOwner    uint64 `json:"peer-owner,string"`
+	ConnectionID uint64 `json:"connection-id,string"`
+	Peer         string `json:"peer"`
+	PeerName     string `json:"peer-name"`
+	PeerGroup    string `json:"peer-group"`
+	PeerAS       uint32 `json:"peer-as"`
+	LocalAS      uint32 `json:"local-as"`
+	Family       string `json:"family"`
+	Prefix       string `json:"prefix"`
+	Attributes   string `json:"attr-hex"`
+	PathID       uint32 `json:"path-id"`
+	MsgID        uint64 `json:"msg-id"`
 }
 
 // revalidateConfigSnapshot is a config-time replay of authoritative received
@@ -146,24 +149,26 @@ func (rp *rPKIPlugin) revalidateConfigSnapshot(ctx context.Context, data json.Ra
 				aspa = rp.verifyASPANeighbor(neighbor, aspa, normalized, route.Peer)
 			}
 		}
-		blackhole := rp.carriesAgreedBlackhole(route.Peer, route.PeerGroup, attrs)
-		key := routeKey{peerAddr: route.Peer, family: route.Family, prefix: route.Prefix, pathID: route.PathID}
+		blackhole := rp.carriesAgreedBlackhole(route.Peer, route.PeerName, route.PeerGroup, attrs)
+		noLLGR := rpkiCarriesBlackhole(attrs, []attribute.Community{attribute.CommunityNoLLGR})
+		key := routeKey{peerAddr: route.Peer, source: rpkiSource{owner: route.PeerOwner, connection: route.ConnectionID}, family: route.Family, prefix: route.Prefix, pathID: route.PathID}
 		tracked := originRoute{
 			peerGroup: route.PeerGroup, peerName: route.PeerName, peerASN: route.PeerAS,
-			originAS: originAS, state: origin, aspaState: aspa, blackhole: blackhole,
+			originAS: originAS, state: origin, aspaState: aspa, blackhole: blackhole, noLLGR: noLLGR, retained: route.Retained,
 			msgID: route.MsgID, unavailable: v4+v6 == 0,
 		}
 		rp.originTracker.Track(key, tracked)
 		collectRPKIUpdate(updates, key, tracked)
 		if aspa != aspaStateNone {
 			rp.aspaTracker.Track(trackedRoute{
-				key: key, peerName: route.PeerName, peerGroup: route.PeerGroup, peerASN: route.PeerAS,
+				key: key, noLLGR: noLLGR, retained: route.Retained, peerName: route.PeerName, peerGroup: route.PeerGroup, peerASN: route.PeerAS,
 				msgID: route.MsgID, path: normalized, aspaState: aspa, mode: mode,
 				neighbor: neighbor,
 			})
 		}
 		batch = append(batch, validationRequest{
 			peerAddr: route.Peer, peerGroup: route.PeerGroup, family: route.Family, prefix: route.Prefix,
+			peerName: route.PeerName, source: key.source,
 			pathID: route.PathID, msgID: route.MsgID, state: origin, aspaState: aspa,
 			originAS: originAS, blackhole: blackhole, generation: rp.validationGeneration.Load(),
 		})

@@ -50,6 +50,9 @@ func init() {
 // source-peer forms describe the peer an exported route came from.
 var (
 	FieldPeerName = policy.MustRegisterField("peer-name", policy.RouteView{})
+	// FieldPeerOwner is runtime identity, not a configuration insertion fact.
+	FieldPeerOwner    = policy.MustRegisterField("peer-owner", policy.RouteView{})
+	FieldConnectionID = policy.MustRegisterField("connection-id", policy.RouteView{})
 	// FieldRebuilt is the route metadata key the reactor sets on a route it
 	// rebuilt (metadata.go).
 	FieldRebuilt        = policy.MustRegisterField(filterapi.MetaKeyRebuilt, policy.RouteView{})
@@ -90,6 +93,8 @@ var TreatmentPreserveOpaqueAttributes = MustRegisterTreatment(FieldPreserveOpaqu
 // registers a reader and a writer per row, and each peer fact as a fact a
 // filter insertion's session condition may name (registry.RegisterSessionFact).
 var sessionFacts = []sessionFact{
+	{FieldPeerOwner, answerPeerOwner, writeNumber, false},
+	{FieldConnectionID, answerConnectionID, writeNumber, false},
 	{FieldPeerName, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText, true},
 	{FieldPeerGroup, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText, true},
 	{FieldPeerAddress, addressFact((*Session).peerFacts), writeAddress, true},

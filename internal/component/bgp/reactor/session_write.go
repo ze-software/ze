@@ -277,7 +277,7 @@ func (s *Session) writeMessageHeld(msg message.Message) error {
 		// s.sentSourcePeerStr is read here inside writeMu, its owning critical section
 		// (session.go contract), and carried to notifyMessageReceiver as an argument so
 		// the receiver never re-reads peer.session unlocked. "" for non-forward sends.
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
+		_ = s.onMessageReceived(s, s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	return nil
@@ -967,9 +967,10 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		s.sentOrigin.SourceReceipt = ownership.sourceReceipt
 		if ownership.source != nil {
 			s.sentOrigin.SourceOwner = ownership.source.sourceOwner
+			s.sentOrigin.SourceConnectionID = sourceReceipts.originalConnectionID(ownership.sourceReceipt, ownership.source.sourceOwner)
 		}
 		s.sentReceipt.SetSentOrigin(&s.sentOrigin)
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, &s.sentReceipt, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, sourcePeer, s.sentSourceMessageID)
+		_ = s.onMessageReceived(s, s.settings.Address, msgtype.TypeUPDATE, body, &s.sentReceipt, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, sourcePeer, s.sentSourceMessageID)
 		s.sentReceipt.SetSentOrigin(nil)
 		s.sentOrigin = wireu.SentOrigin{}
 	}

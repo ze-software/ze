@@ -254,6 +254,11 @@ func (applied *appliedSourceGrant) restore(server *pluginserver.Server, proc *pr
 		}
 	}
 	for _, pin := range grant.pins {
+		// A transient live guard has joined. Abort restores configured grants,
+		// never completed write authority or old Session history.
+		if pin.lease.transient {
+			continue
+		}
 		record := pin.lease.record
 		current := record.leases[owner]
 		if current == nil {

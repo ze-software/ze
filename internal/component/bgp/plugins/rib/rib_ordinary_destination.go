@@ -13,7 +13,7 @@ import (
 // facts. Callers MUST invoke it on every state delivery, before taking peer or
 // election locks. An ordinary UP MUST bypass legacy SENT-history replay; the
 // selected worker owns its current snapshot and final-receipt readiness.
-func (r *RIBManager) updateSelectedDestination(peer netip.Addr, up, eligible bool, session uint64) bool {
+func (r *RIBManager) updateSelectedDestination(peer netip.Addr, up, eligible bool, owner, session uint64) bool {
 	d := r.selectedDispatch
 	if d == nil {
 		return false
@@ -22,7 +22,7 @@ func (r *RIBManager) updateSelectedDestination(peer netip.Addr, up, eligible boo
 		if !eligible {
 			return false
 		}
-		if err := d.destinationUp(peer, session); err != nil {
+		if err := d.destinationOwnerUp(peer, owner, session); err != nil {
 			// A claimed ordinary destination without a valid captured Session
 			// cannot safely fall back to the legacy forwarding authority.
 			d.fail(err)

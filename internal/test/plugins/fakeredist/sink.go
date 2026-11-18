@@ -61,7 +61,8 @@ func (s *sink) InjectRoute(_ context.Context, _ family.Family, entry configredis
 	s.prefixes[entry.Prefix] = struct{}{}
 }
 
-func (s *sink) WithdrawRoute(_ context.Context, _ family.Family, prefix string) {
+func (s *sink) WithdrawRoute(_ context.Context, _ family.Family, removal configredist.RouteRemoval) {
+	prefix := removal.Prefix
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.prefixes, prefix)

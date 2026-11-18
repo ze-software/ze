@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net/netip"
 	"slices"
 	"strconv"
 
@@ -22,6 +21,8 @@ import (
 // sentLifecycleWrite owns encoded command bytes, never borrowed pool storage.
 // The collecting caller MUST hold peerMu; it MUST dispatch after releasing it.
 type sentLifecycleWrite struct {
+	owner   uint64
+	session uint64 // original SENT event, never a lookup of the current recipient
 	peer    string
 	command string
 	message uint64
@@ -87,15 +88,14 @@ func sentReceivedOwner(fam family.Family, key ribOutKey, entry *ribOutEntry) (re
 // removed. A fresh received revision can precede both forwarding and sent
 // projection; absence of an old revision alone is not a purge instruction.
 // Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
-func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed removedReceivedOwners) []sentLifecycleWrite {
+func (r *RIBManager) withdrawRemovedSentLocked(source uint64, removed removedReceivedOwners) []sentLifecycleWrite {
 	r.fenceSentLifecycleLocked(source)
 	var writes []sentLifecycleWrite
-	sourcePeer := source.String()
 	for destination, destinations := range r.ribOut {
 		for fam, owners := range removed {
 			routes := destinations[fam]
 			for key, entry := range routes {
-				if entry.SourcePeer != sourcePeer {
+				if entry.SourceOwner != source {
 					continue
 				}
 				owner, ok := sentReceivedOwner(fam, key, &entry)
@@ -105,7 +105,7 @@ func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed remove
 				if _, removed := owners[owner]; !removed {
 					continue
 				}
-				writes = append(writes, sentRemoval(destination, fam, key, &entry))
+				writes = append(writes, r.sentRemoval(destination, fam, key, &entry))
 				delete(routes, key)
 				entry.release()
 			}
@@ -123,20 +123,19 @@ func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed remove
 // pruneSentSourceLocked removes whole source families, not selected received
 // generations. An empty keep list is the explicit release-routes operation.
 // Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
-func (r *RIBManager) pruneSentSourceLocked(source netip.Addr, keep []family.Family) []sentLifecycleWrite {
+func (r *RIBManager) pruneSentSourceLocked(source uint64, keep []family.Family) []sentLifecycleWrite {
 	r.fenceSentLifecycleLocked(source)
 	var writes []sentLifecycleWrite
-	sourcePeer := source.String()
 	for destination, destinations := range r.ribOut {
 		for fam, routes := range destinations {
 			if slices.Contains(keep, fam) {
 				continue
 			}
 			for key, entry := range routes {
-				if entry.SourcePeer != sourcePeer {
+				if entry.SourceOwner != source {
 					continue
 				}
-				writes = append(writes, sentRemoval(destination, fam, key, &entry))
+				writes = append(writes, r.sentRemoval(destination, fam, key, &entry))
 				delete(routes, key)
 				entry.release()
 			}
@@ -153,16 +152,17 @@ func (r *RIBManager) pruneSentSourceLocked(source netip.Addr, keep []family.Fami
 
 // sentRemoval MUST encode owned command bytes before the caller releases entry.
 // It preserves the actual sent receipt for final-writer admission.
-func sentRemoval(destination netip.Addr, fam family.Family, key ribOutKey, entry *ribOutEntry) sentLifecycleWrite {
+func (r *RIBManager) sentRemoval(destination uint64, fam family.Family, key ribOutKey, entry *ribOutEntry) sentLifecycleWrite {
+	address, _ := r.peerAddressLocked(destination)
 	withdraw := ribOutEntry{NativeNLRI: entry.NativeNLRI, AddPath: entry.AddPath}
-	return sentLifecycleWrite{peer: destination.String(),
+	return sentLifecycleWrite{owner: destination, session: entry.DestinationSession, peer: address.String(),
 		command: bgp.FormatWithdrawCommand(reconstructRoute(withdraw, fam, key)), message: entry.MsgID}
 }
 
 // attachSentSourceCommunityLocked decorates only matching stale received paths.
 // The command deletes no received entry, so it MUST NOT infer withdrawals from
 // an asynchronous sent projection. Caller MUST hold peerMu.
-func (r *RIBManager) attachSentSourceCommunityLocked(source netip.Addr, fam family.Family, community []byte) {
+func (r *RIBManager) attachSentSourceCommunityLocked(source uint64, fam family.Family, community []byte) {
 	received := r.bgpPeers[source]
 	if received == nil {
 		return
@@ -176,11 +176,10 @@ func (r *RIBManager) attachSentSourceCommunityLocked(source netip.Addr, fam fami
 		}
 		return true
 	})
-	sourcePeer := source.String()
 	for _, destinations := range r.ribOut {
 		routes := destinations[fam]
 		for key, entry := range routes {
-			if entry.SourcePeer != sourcePeer {
+			if entry.SourceOwner != source {
 				continue
 			}
 			owner, ok := sentReceivedOwner(fam, key, &entry)
@@ -295,6 +294,7 @@ func sentWriteRefused(destination string, err error) error {
 func sentLifecycleMeta(write sentLifecycleWrite) map[string]any {
 	var digits [20]byte
 	return map[string]any{"rib-lifecycle": true, metaKeyReplay: true,
+		"destination-owner":           strconv.FormatUint(write.owner, 10),
 		bgptypes.SentOwnerMessageMeta: string(strconv.AppendUint(digits[:0], write.message, 10))}
 }
 
@@ -306,7 +306,7 @@ func sentLifecycleMeta(write sentLifecycleWrite) map[string]any {
 // stored it, and the removal the purge would have emitted is queued for the
 // recovery-removal dispatcher, never sent on the event path. Caller MUST hold
 // peerMu.
-func (r *RIBManager) projectRecoveryWriteLocked(destination netip.Addr, fam family.Family, key ribOutKey) {
+func (r *RIBManager) projectRecoveryWriteLocked(destination uint64, fam family.Family, key ribOutKey) {
 	entry, stored := r.ribOut[destination][fam][key]
 	if !stored {
 		return
@@ -335,7 +335,7 @@ func (r *RIBManager) projectRecoveryWriteLocked(destination netip.Addr, fam fami
 // removal the lifecycle would have emitted is queued for the R-12 dispatcher.
 // The caller MUST call it only for an event lifecycleFollowedLocked reported
 // true for. Caller MUST hold peerMu.
-func (r *RIBManager) projectForwardedWriteLocked(destination netip.Addr, fam family.Family, key ribOutKey) {
+func (r *RIBManager) projectForwardedWriteLocked(destination uint64, fam family.Family, key ribOutKey) {
 	entry, stored := r.ribOut[destination][fam][key]
 	if !stored {
 		return
@@ -349,8 +349,8 @@ func (r *RIBManager) projectForwardedWriteLocked(destination netip.Addr, fam fam
 // removeProjectedLocked deletes one just-projected entry whose source path is
 // gone and queues the removal for the R-12 dispatcher, never sending it on the
 // event path. Caller MUST hold peerMu.
-func (r *RIBManager) removeProjectedLocked(destination netip.Addr, fam family.Family, key ribOutKey, entry ribOutEntry) {
-	r.queueRecoveryRemovalLocked(sentRemoval(destination, fam, key, &entry))
+func (r *RIBManager) removeProjectedLocked(destination uint64, fam family.Family, key ribOutKey, entry ribOutEntry) {
+	r.queueRecoveryRemovalLocked(r.sentRemoval(destination, fam, key, &entry))
 	// The family map stays even when empty: storeSentEntries is still
 	// writing into it for the rest of the UPDATE.
 	delete(r.ribOut[destination][fam], key)
@@ -371,9 +371,9 @@ type sourceApplied struct {
 
 // noteReceivedLocked records that the received UPDATE message of source was
 // applied. Message IDs grow in receipt order, so the highest is kept. The
-// entry lives as long as peerUp's: one per source address. Caller MUST hold
+// entry lives as long as peerUp's: one per configured source owner. Caller MUST hold
 // peerMu.
-func (r *RIBManager) noteReceivedLocked(source netip.Addr, message uint64) {
+func (r *RIBManager) noteReceivedLocked(source uint64, message uint64) {
 	applied := r.sourceApplied[source]
 	if message <= applied.received {
 		return
@@ -386,7 +386,7 @@ func (r *RIBManager) noteReceivedLocked(source netip.Addr, message uint64) {
 // a write of any received message applied so far can now have lost its path
 // to this removal before its sent event was projected. Caller MUST hold
 // peerMu.
-func (r *RIBManager) fenceSentLifecycleLocked(source netip.Addr) {
+func (r *RIBManager) fenceSentLifecycleLocked(source uint64) {
 	applied, known := r.sourceApplied[source]
 	if !known {
 		return
@@ -402,12 +402,11 @@ func (r *RIBManager) fenceSentLifecycleLocked(source netip.Addr) {
 // and one lookup per section and no inventory walk. A
 // write with no source (a local origination) or no received message answers
 // false. Caller MUST hold peerMu.
-func (r *RIBManager) lifecycleFollowedLocked(sourcePeer string, message uint64) bool {
+func (r *RIBManager) lifecycleFollowedLocked(source uint64, message uint64) bool {
 	if message == 0 {
 		return false
 	}
-	source, err := netip.ParseAddr(sourcePeer)
-	if err != nil {
+	if source == 0 {
 		return false
 	}
 	return message <= r.sourceApplied[source].lifecycle

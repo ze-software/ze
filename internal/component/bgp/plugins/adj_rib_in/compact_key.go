@@ -41,8 +41,8 @@ type compactRouteKey struct {
 // Replaces string pendingKey ("peerAddr|routeKey") with a comparable struct that
 // costs no allocation to build.
 type compactPendingKey struct {
-	PeerAddr netip.Addr
-	Route    compactRouteKey
+	Peer  receivedPeer
+	Route compactRouteKey
 }
 
 var errRouteKey = errors.New("adj-rib-in: NLRI names no route of its family")

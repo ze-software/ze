@@ -245,7 +245,7 @@ func prefixToFamily(prefix netip.Prefix) family.Family {
 
 func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string, sender plugin.Sender) (*plugin.Response, error) {
 	if _, named := sender.Process(); named {
-		if owner, err := plugin.OriginProducerFromContext(ctx); err == nil && owner.Sender() == sender {
+		if owner, err := plugin.OriginProducerFromContext(ctx); err == nil && owner.Sender().SameIssuer(sender) {
 			batch.OriginOwner = owner
 		}
 	}

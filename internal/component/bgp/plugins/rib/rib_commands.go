@@ -49,8 +49,15 @@ const grTimerMargin = 5 * time.Second
 // The owner parameter is the peerGRState that created this timer. If a consecutive
 // restart replaced it (new mark-stale created a new state), the callback is stale
 // and must be a no-op — otherwise it would purge the new cycle's routes.
-func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
-	defer r.settleSourceLeases(peerAddr)
+func (r *RIBManager) autoExpireStale(peerOwner uint64, owner *peerGRState) {
+	if owner.source != nil {
+		r.expirePhysicalSource(owner)
+		return
+	}
+	receipts := r.sourceLeases.receiptsForPeer(peerOwner)
+	active, captureErr := r.selectedDispatch.sourceDestinations(receipts)
+	release := r.sourceLeases.holdSourceOutput(receipts, active)
+	defer release()
 	type staleNLRI struct {
 		fam     family.Family
 		nlri    []byte
@@ -62,12 +69,21 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 	r.peerMu.Lock()
 
 	// Guard: skip if grState was replaced by a consecutive restart.
-	if r.grState[peerAddr] != owner {
+	if r.grState[peerOwner] != owner {
 		r.peerMu.Unlock()
 		return
 	}
+	// Only this timer's actual expiry owes completion. A superseded timer
+	// above MUST NOT wait on output belonging to its successor.
+	defer func() {
+		receipts = append(receipts, r.sourceLeases.receiptsForPeer(peerOwner)...)
+		if err := errors.Join(captureErr, r.settlePurgedSource(active, receipts, release)); err != nil && r.sourceLeases != nil {
+			r.sourceLeases.notify()
+		}
+		r.sourceLeases.reportFailures(context.Background())
+	}()
 
-	peerRIB := r.bgpPeers[peerAddr]
+	peerRIB := r.bgpPeers[peerOwner]
 	if peerRIB != nil {
 		purged := 0
 		for _, fam := range peerRIB.Families() {
@@ -78,11 +94,11 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 				removed.add(fam, raw, addPath, message)
 			})
 		}
-		logger().Info("auto-expire stale", "peer", peerAddr, "purged", purged)
+		logger().Info("auto-expire stale", "peer-owner", peerOwner, "purged", purged)
 	}
 
-	delete(r.grState, peerAddr)
-	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
+	delete(r.grState, peerOwner)
+	writes := r.withdrawRemovedSentLocked(peerOwner, removed)
 	r.peerMu.Unlock()
 	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 
@@ -175,6 +191,7 @@ func doRegisterBuiltinCommands() {
 				}
 				return statusDone, r.outboundResend(args[0], family), nil
 			}},
+		{[]string{ownerExcludedResendCommand}, "Replay to captured destinations except one original owner", (*RIBManager).ownerExcludedResendCommand},
 		{[]string{"request bgp rib retain-routes"}, "Retain peer routes: <selector> [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
@@ -264,6 +281,7 @@ func doRegisterBuiltinCommands() {
 	// to implement protocol-specific behavior (e.g., GR/LLGR stale handling).
 	registerCommunityCommands()
 
+	registerSourceCommands()
 	registerInjectCommands()
 }
 
@@ -399,12 +417,22 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	}
 
 	r.peerMu.Lock()
-	if r.bgpPeers[peer] == nil {
-		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
-		// and metric labels, which must match netip.Addr.String() everywhere.
-		r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
+	manual := r.ribInPool[bgpProtocolID]
+	if manual == nil {
+		manual = make(map[string]*storage.PeerRIB)
+		r.ribInPool[bgpProtocolID] = manual
 	}
-	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes)
+	key := peer.String()
+	routes := manual[key]
+	if routes == nil {
+		routes, err = storage.NewAddressPeerRIB(peer)
+		if err != nil {
+			r.peerMu.Unlock()
+			return statusError, nil, err
+		}
+		manual[key] = routes
+	}
+	routes.Insert(fam, attrBytes, nlriBytes)
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)
@@ -419,29 +447,34 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 // Acquires r.peerMu.RLock for the brief peerMeta read.
 func (r *RIBManager) validateIPv6NextHop(peer netip.Addr, fam family.Family) error {
 	r.peerMu.RLock()
-	meta := r.peerMeta[peer]
+	var contexts []bgpctx.ContextID
+	for _, meta := range r.peerMeta {
+		if meta.Address == peer {
+			contexts = append(contexts, meta.ContextID)
+		}
+	}
 	r.peerMu.RUnlock()
-	if meta == nil {
+	if len(contexts) == 0 {
 		// Unknown peer (injected, no prior session). Accept any valid IP.
 		logger().Warn("peer not known, accepting IPv6 next-hop without capability check", "peer", peer)
 		return nil
 	}
 
-	if meta.ContextID == 0 {
-		// Peer seen via JSON events (no structured event yet). Accept with warning.
-		logger().Warn("peer has no encoding context, accepting IPv6 next-hop without capability check", "peer", peer)
-		return nil
-	}
-
-	// RFC 8950 Section 4: check negotiated ExtendedNextHop for this family.
-	ctx := bgpctx.Registry.Get(meta.ContextID)
-	if ctx == nil {
-		logger().Warn("encoding context not found, accepting IPv6 next-hop", "peer", peer, "context-id", meta.ContextID)
-		return nil
-	}
-
-	if ctx.ExtendedNextHopFor(fam) == 0 {
-		return fmt.Errorf("peer %s has not negotiated extended-nexthop (RFC 8950) for %s", peer, formatFamily(fam))
+	for _, context := range contexts {
+		if context == 0 {
+			logger().Warn("peer has no encoding context, accepting IPv6 next-hop without capability check", "peer", peer)
+			continue
+		}
+		// The explicit address-wide operator check must honor every observed
+		// session at that address, without choosing one as source authority.
+		ctx := bgpctx.Registry.Get(context)
+		if ctx == nil {
+			logger().Warn("encoding context not found, accepting IPv6 next-hop", "peer", peer, "context-id", context)
+			continue
+		}
+		if ctx.ExtendedNextHopFor(fam) == 0 {
+			return fmt.Errorf("peer %s has not negotiated extended-nexthop (RFC 8950) for %s", peer, formatFamily(fam))
+		}
 	}
 
 	return nil
@@ -474,7 +507,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 	}
 
 	r.peerMu.RLock()
-	peerRIB := r.bgpPeers[peer]
+	peerRIB := r.ribInPool[bgpProtocolID][peer.String()]
 	r.peerMu.RUnlock()
 
 	if peerRIB == nil {
@@ -482,6 +515,19 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 	}
 
 	removed := peerRIB.Remove(fam, nlriBytes)
+	r.peerMu.Lock()
+	manual := r.ribInPool[bgpProtocolID]
+	key := peer.String()
+	if manual[key] == peerRIB {
+		if peerRIB.Len() == 0 {
+			delete(manual, key)
+			peerRIB.Release()
+			if len(manual) == 0 {
+				delete(r.ribInPool, bgpProtocolID)
+			}
+		}
+	}
+	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)
 
@@ -630,7 +676,8 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 	cleared := 0
-	var purgedPeers []netip.Addr
+	var purgedPeers []uint64
+	var sourceKeys []affectedPrefix
 	defer func() { r.settleSourceLeases(purgedPeers...) }()
 
 	for peer, peerRIB := range r.bgpPeers {
@@ -638,14 +685,37 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 			continue
 		}
 		cleared += peerRIB.Len()
+		sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 		peerRIB.Release()
 		delete(r.bgpPeers, peer)
-		delete(r.peerMeta, peer)
+		r.clearPeerRouteMetadataLocked(peer)
 		purgedPeers = append(purgedPeers, peer)
+	}
+	var manualKeys []affectedPrefix
+	for address, routes := range r.ribInPool[bgpProtocolID] {
+		if !sel.Matches(routes.PeerAddress()) {
+			continue
+		}
+		cleared += routes.Len()
+		flags := routes.AddPathFamilies()
+		for _, fam := range routes.Families() {
+			routes.IterateFamily(fam, func(raw []byte, _ storage.RouteEntry) bool {
+				manualKeys = append(manualKeys, affectedPrefix{fam: fam, nlriBytes: slices.Clone(raw), addPath: flags[fam]})
+				return true
+			})
+		}
+		routes.Release()
+		delete(r.ribInPool[bgpProtocolID], address)
 	}
 	r.peerMu.Unlock()
 
 	r.reconcileBestPathBulk(purgedPeers)
+	r.reconcileSourceKeys(sourceKeys)
+	for _, key := range manualKeys {
+		if change, changed := r.checkBestPathChange(key.fam, key.nlriBytes, key.addPath, nil); changed {
+			publishBestChanges([]bestChangeEntry{change}, key.fam)
+		}
+	}
 
 	return map[string]any{"cleared": cleared}
 }
@@ -658,16 +728,22 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.RLock()
-	var peersToResend []netip.Addr
-	groupsToResend := make(map[netip.Addr][]replayGroup)
+	var peersToResend []uint64
+	groupsToResend := make(map[uint64][]replayGroup)
+	destinations := make(map[uint64]netip.Addr)
 
 	for peer := range r.ribOut {
-		if !r.selectsPeer(sel, peer) {
+		if !r.selectsDestination(sel, peer) {
 			continue
 		}
 		if !r.peerUp[peer] {
 			continue // Only resend to up peers
 		}
+		address, known := r.peerAddressLocked(peer)
+		if !known {
+			continue
+		}
+		destinations[peer] = address
 		var groups []replayGroup
 		if famStr == "" {
 			groups = r.collectGroupedRibOutRoutes(peer)
@@ -686,7 +762,7 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	resent, refused := 0, 0
 	for _, peer := range peersToResend {
 		// RPC selector is a string boundary: one conversion per resent peer.
-		peerResent, peerRefused := r.resendFamiliesBracketed(peer.String(), groupsToResend[peer])
+		peerResent, peerRefused := r.resendFamiliesBracketed(destinations[peer].String(), groupsToResend[peer])
 		resent += peerResent
 		refused += peerRefused
 	}
@@ -812,20 +888,33 @@ func (r *RIBManager) status(famFilter string) any {
 
 	routesIn := 0
 	staleRoutes := 0
-	for addr, peerRIB := range r.bgpPeers {
+	for owner, peerRIB := range r.bgpPeers {
 		peerIn := peerRIB.Len()
 		routesIn += peerIn
 		staleRoutes += peerRIB.StaleCount()
+		addr, known := r.peerAddressLocked(owner)
+		if !known {
+			continue
+		}
+		counts := perPeer(addr)
 		if scoped {
-			perPeer(addr)["in"] = peerRIB.FamilyLen(scopeFam)
+			counts["in"] = counts["in"].(int) + peerRIB.FamilyLen(scopeFam)
 		} else {
-			perPeer(addr)["in"] = peerIn
+			counts["in"] = counts["in"].(int) + peerIn
 		}
 	}
-	for _, protoPeers := range r.ribInPool {
+	for proto, protoPeers := range r.ribInPool {
 		for _, peerRIB := range protoPeers {
 			routesIn += peerRIB.Len()
 			staleRoutes += peerRIB.StaleCount()
+			if proto == bgpProtocolID {
+				counts := perPeer(peerRIB.PeerAddress())
+				count := peerRIB.Len()
+				if scoped {
+					count = peerRIB.FamilyLen(scopeFam)
+				}
+				counts["in"] = counts["in"].(int) + count
+			}
 		}
 	}
 
@@ -842,7 +931,11 @@ func (r *RIBManager) status(famFilter string) any {
 				peerOut += len(familyRoutes)
 			}
 		}
-		perPeer(addr)["out"] = peerOut
+		address, known := r.peerAddressLocked(addr)
+		if known {
+			counts := perPeer(address)
+			counts["out"] = counts["out"].(int) + peerOut
+		}
 	}
 
 	result := map[string]any{
@@ -861,7 +954,12 @@ func (r *RIBManager) status(famFilter string) any {
 	if len(r.grState) > 0 {
 		grPeers := make(map[string]any, len(r.grState))
 		for peer, state := range r.grState {
-			grPeers[peer.String()] = map[string]any{
+			address, known := r.peerAddressLocked(peer)
+			if !known {
+				continue
+			}
+			grPeers[strconv.FormatUint(peer, 10)] = map[string]any{
+				"peer-address": address.String(),
 				"stale-at":     state.StaleAt.Format(time.RFC3339),
 				"restart-time": state.RestartTime,
 				"expires-at":   state.ExpiresAt.Format(time.RFC3339),
@@ -884,7 +982,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	// Retention is an engine authorization operation. Capture selector matches
 	// under the peer lock and settle it before marking any routes retained.
 	r.peerMu.RLock()
-	var peers []netip.Addr
+	var peers []uint64
 	for peer := range r.bgpPeers {
 		if r.selectsPeer(sel, peer) {
 			peers = append(peers, peer)
@@ -892,7 +990,13 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	}
 	r.peerMu.RUnlock()
 	for _, peer := range peers {
-		if err := r.sourceLeases.retain(context.Background(), peer); err != nil {
+		r.peerMu.RLock()
+		address, known := r.peerAddressLocked(peer)
+		r.peerMu.RUnlock()
+		if !known {
+			continue
+		}
+		if err := r.sourceLeases.retain(context.Background(), address, peer); err != nil {
 			return nil, err
 		}
 	}
@@ -900,7 +1004,8 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	r.peerMu.Lock()
 
 	retained := 0
-	var affected []netip.Addr
+	var affected []uint64
+	var sourceKeys []affectedPrefix
 	var writes []sentLifecycleWrite
 	for peer := range r.bgpPeers {
 		if !r.selectsPeer(sel, peer) {
@@ -908,6 +1013,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 		}
 		r.retainedPeers[peer] = true
 		if len(families) != 0 {
+			sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(r.bgpPeers[peer])...)
 			r.bgpPeers[peer].RetainFamilies(families)
 			if !onDown {
 				writes = append(writes, r.pruneSentSourceLocked(peer, families)...)
@@ -921,6 +1027,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	r.peerMu.Unlock()
 	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 	r.reconcileBestPathBulk(affected)
+	r.reconcileSourceKeys(sourceKeys)
 
 	return map[string]any{"retained-peers": retained}, nil
 }
@@ -933,7 +1040,8 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 	r.peerMu.Lock()
 
 	released := 0
-	var purgedPeers []netip.Addr
+	var purgedPeers []uint64
+	var sourceKeys []affectedPrefix
 	defer func() { r.settleSourceLeases(purgedPeers...) }()
 	var writes []sentLifecycleWrite
 	for peer := range r.retainedPeers {
@@ -942,11 +1050,12 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 		}
 		delete(r.retainedPeers, peer)
 		if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+			sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 			peerRIB.Release()
 			delete(r.bgpPeers, peer)
 			purgedPeers = append(purgedPeers, peer)
 		}
-		delete(r.peerMeta, peer)
+		r.clearPeerRouteMetadataLocked(peer)
 		r.stopGRExpiryLocked(r.grState[peer])
 		delete(r.grState, peer)
 		writes = append(writes, r.pruneSentSourceLocked(peer, nil)...)
@@ -956,6 +1065,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 
 	r.reconcileBestPathBulk(purgedPeers)
+	r.reconcileSourceKeys(sourceKeys)
 
 	return map[string]any{"released-peers": released}
 }
@@ -1006,67 +1116,73 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 		return statusError, nil, errRIBStopped
 	}
 	defer r.reconcileFlowSpecs()
-	defer r.reelectAdvertiseStale(peerAddr, selected)
+	owners := r.sourceOwnersAtAddressLocked(peerAddr)
+	defer func() {
+		for _, owner := range owners {
+			r.reelectAdvertiseStale(owner, selected)
+		}
+	}()
 	defer r.peerMu.Unlock()
 
 	marked := 0
-	peerRIB := r.bgpPeers[peerAddr]
-	if peerRIB != nil {
-		if selected == (family.Family{}) {
-			peerRIB.MarkAllStale(staleLevel)
-			marked = peerRIB.StaleCount()
-		} else {
-			peerRIB.ModifyFamilyAll(selected, func(entry *storage.RouteEntry) {
-				entry.StaleLevel = staleLevel
-				marked++
-			})
-		}
-	}
-
-	// RFC 9494: Propagate stale level to ribOut routes sourced from the restarting peer.
-	// Only routes originally received from peerAddr are marked; routes from other
-	// peers are left fresh. During LLGR readvertisement, sendRoutes carries
-	// meta["stale"] through ForwardUpdate to egress filters.
-	// SourcePeer belongs to each destination's advertisement, so two destinations
-	// may retain the same native key from different source peers independently.
-	peerStr := peerAddr.String()
-	for _, peerFamilies := range r.ribOut {
-		for fam, familyRoutes := range peerFamilies {
-			if selected != (family.Family{}) && fam != selected {
-				continue
+	for _, owner := range owners {
+		peerRIB := r.bgpPeers[owner]
+		if peerRIB != nil {
+			if selected == (family.Family{}) {
+				peerRIB.MarkAllStale(staleLevel)
+				marked += peerRIB.StaleCount()
+			} else {
+				peerRIB.ModifyFamilyAll(selected, func(entry *storage.RouteEntry) {
+					entry.StaleLevel = staleLevel
+					marked++
+				})
 			}
-			for key, entry := range familyRoutes {
-				if entry.SourcePeer != peerStr {
+		}
+
+		// RFC 9494: Propagate stale level to ribOut routes sourced from the restarting peer.
+		// Only routes originally received from peerAddr are marked; routes from other
+		// peers are left fresh. During LLGR readvertisement, sendRoutes carries
+		// meta["stale"] through ForwardUpdate to egress filters.
+		// SourcePeer belongs to each destination's advertisement, so two destinations
+		// may retain the same native key from different source peers independently.
+		for _, peerFamilies := range r.ribOut {
+			for fam, familyRoutes := range peerFamilies {
+				if selected != (family.Family{}) && fam != selected {
 					continue
 				}
-				entry.StaleLevel = staleLevel
-				familyRoutes[key] = entry
+				for key, entry := range familyRoutes {
+					if entry.SourceOwner != owner {
+						continue
+					}
+					entry.StaleLevel = staleLevel
+					familyRoutes[key] = entry
+				}
 			}
 		}
+
+		// Cancel existing expiry timer if consecutive restart.
+		r.stopGRExpiryLocked(r.grState[owner])
+
+		// Store GR state for status display and conditionally start expiry timer.
+		// When restart-time is 0 (used by LLGR to raise stale level without a new
+		// safety timer), skip the timer -- the LLST per-family timer handles expiry.
+		now := time.Now()
+		restartTime := uint16(restartSec)
+		state := &peerGRState{
+			StaleAt:     now,
+			RestartTime: restartTime,
+			ExpiresAt:   now.Add(time.Duration(restartTime) * time.Second),
+		}
+		if restartTime > 0 {
+			expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
+			r.startGRExpiryLocked(state, expiryDuration, func() {
+				r.autoExpireStale(owner, state)
+			})
+		}
+		r.grState[owner] = state
 	}
 
-	// Cancel existing expiry timer if consecutive restart.
-	r.stopGRExpiryLocked(r.grState[peerAddr])
-
-	// Store GR state for status display and conditionally start expiry timer.
-	// When restart-time is 0 (used by LLGR to raise stale level without a new
-	// safety timer), skip the timer -- the LLST per-family timer handles expiry.
-	now := time.Now()
-	restartTime := uint16(restartSec)
-	state := &peerGRState{
-		StaleAt:     now,
-		RestartTime: restartTime,
-		ExpiresAt:   now.Add(time.Duration(restartTime) * time.Second),
-	}
-	if restartTime > 0 {
-		expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
-		r.startGRExpiryLocked(state, expiryDuration, func() {
-			r.autoExpireStale(peerAddr, state)
-		})
-	}
-	r.grState[peerAddr] = state
-
-	logger().Debug("mark-stale", "peer", peerAddr, "marked", marked, "restart-time", restartTime)
+	logger().Debug("mark-stale", "peer", peerAddr, "marked", marked, "restart-time", uint16(restartSec))
 
 	return statusDone, map[string]any{"marked": marked}, nil
 }
@@ -1099,12 +1215,21 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		filtered = fam
 	}
 
+	// Capture old selected destinations before input removal can erase an
+	// unsent winner. No publication or peer lock is held across settlement.
+	receipts := r.sourceLeases.receiptsAtAddress(peerAddr)
+	active, err := r.selectedDispatch.sourceDestinations(receipts)
+	if err != nil {
+		return statusError, nil, purgeStaleRefused(peerAddr, err)
+	}
+	release := r.sourceLeases.holdSourceOutput(receipts, active)
+	defer release()
 	// peerMu protects sent inventory and GR state. Received INSERT runs outside
 	// that lock, so selection and deletion share the PeerRIB storage lock.
 	r.peerMu.Lock()
 
 	purged := 0
-	peerRIB := r.bgpPeers[peerAddr]
+	owners := r.sourceOwnersAtAddressLocked(peerAddr)
 
 	type staleNLRI struct {
 		fam     family.Family
@@ -1112,34 +1237,37 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		addPath bool
 	}
 	var affected []staleNLRI
-	var removed removedReceivedOwners
-
-	if peerRIB != nil {
-		var families []family.Family
-		if familyFilter == "" {
-			families = peerRIB.Families()
-		} else {
-			families = []family.Family{filtered}
+	var writes []sentLifecycleWrite
+	for _, owner := range owners {
+		var removed removedReceivedOwners
+		peerRIB := r.bgpPeers[owner]
+		if peerRIB != nil {
+			var families []family.Family
+			if familyFilter == "" {
+				families = peerRIB.Families()
+			} else {
+				families = []family.Family{filtered}
+			}
+			for _, fam := range families {
+				purged += peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
+					return entry.StaleLevel > storage.StaleLevelFresh
+				}, func(raw []byte, message uint64, addPath bool) {
+					affected = append(affected, staleNLRI{fam: fam, nlri: raw, addPath: addPath})
+					removed.add(fam, raw, addPath, message)
+				})
+			}
 		}
-		for _, fam := range families {
-			purged += peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
-				return entry.StaleLevel > storage.StaleLevelFresh
-			}, func(raw []byte, message uint64, addPath bool) {
-				affected = append(affected, staleNLRI{fam: fam, nlri: raw, addPath: addPath})
-				removed.add(fam, raw, addPath, message)
-			})
+		if peerRIB != nil && peerRIB.StaleCount() == 0 {
+			r.stopGRExpiryLocked(r.grState[owner])
+			delete(r.grState, owner)
 		}
+		writes = append(writes, r.withdrawRemovedSentLocked(owner, removed)...)
 	}
-
-	if peerRIB != nil && peerRIB.StaleCount() == 0 {
-		r.stopGRExpiryLocked(r.grState[peerAddr])
-		delete(r.grState, peerAddr)
-	}
-	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
 	refused := r.dispatchSentLifecycle(writes)
-	receipts := r.sourceLeases.receiptsForPeer(peerAddr)
-	refused = errors.Join(refused, r.sourceLeases.settleReceipts(context.Background(), receipts))
+	for _, owner := range owners {
+		receipts = append(receipts, r.sourceLeases.receiptsForPeer(owner)...)
+	}
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
@@ -1147,6 +1275,7 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 			publishBestChanges([]bestChangeEntry{change}, a.fam)
 		}
 	}
+	refused = errors.Join(refused, r.settlePurgedSource(active, receipts, release))
 	if refused != nil {
 		return statusError, nil, purgeStaleRefused(peerAddr, refused)
 	}
@@ -1289,7 +1418,11 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 		gate = acquireCandidateGate()
 		defer releaseCandidateGate(gate)
 	}
-	for peer, peerRIB := range r.bgpPeers {
+	for owner, peerRIB := range r.bgpPeers {
+		peer, known := r.peerAddressLocked(owner)
+		if !known {
+			continue
+		}
 		paths, peerAddPath := peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
 		for i := range paths {
 			path := &paths[i]
@@ -1297,7 +1430,7 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 				path.Release()
 				continue
 			}
-			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
+			c := r.extractCandidate(fam, owner, peer, peerRIB.PeerAddr(), path.Entry)
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
 			c.entry, c.labelHandle = path.Entry, path.Labels
@@ -1311,7 +1444,7 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 			candidates = append(candidates, c)
 			if gate != nil {
 				gate.queries = append(gate.queries, ribevents.EligibilityQuery{
-					Route: ribevents.ValidationRoute{Peer: peer, PeerOwner: path.Entry.SourcePeerOwner(), Family: fam, Prefix: pfx, PathID: path.PathID},
+					Route: ribevents.ValidationRoute{Peer: peer, PeerOwner: path.Entry.SourcePeerOwner(), ConnectionID: path.Entry.SourceConnectionID(), Family: fam, Prefix: pfx, PathID: path.PathID},
 					MsgID: path.Entry.MsgID,
 				})
 			}
@@ -1319,6 +1452,9 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 	}
 	if gate != nil {
 		candidates = gate.filter(candidates)
+	}
+	if admission == candidateAdmissionForwarding {
+		candidates = r.appendManualCandidatesLocked(candidates, fam, pfx, selfNextHops)
 	}
 	return candidates
 }
@@ -1351,13 +1487,17 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
 	var pathsArray [4]storage.PrefixPath
 	var nlriBuf [opaqueKeyOctetsInline]byte
-	for peer, peerRIB := range r.bgpPeers {
+	for owner, peerRIB := range r.bgpPeers {
+		peer, known := r.peerAddressLocked(owner)
+		if !known {
+			continue
+		}
 		paths, peerAddPath := peerRIB.AppendKeyPathsRetained(fam, routeKey, pathsArray[:0])
 		for i := range paths {
 			path := &paths[i]
 			// Validation keys a route by the NLRI its own session sent.
 			nlri := framedRouteNLRI(nlriBuf[:0], path.Route, path.PathID, peerAddPath)
-			if !r.validationEligible(peer, path.Entry.SourcePeerOwner(), peerRIB, fam, nlri, path.Entry.MsgID) {
+			if !r.validationEligible(peer, path.Entry.SourcePeerOwner(), path.Entry.SourceConnectionID(), peerRIB, fam, nlri, path.Entry.MsgID) {
 				path.Release()
 				continue
 			}
@@ -1365,9 +1505,8 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 				path.Release()
 				continue
 			}
-			// The map key gives the typed address; PeerRIB caches the canonical
-			// string, so the hot path performs no parse and no conversion.
-			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
+			// The exact owner selects metadata; the address is observed data.
+			c := r.extractCandidate(fam, owner, peer, peerRIB.PeerAddr(), path.Entry)
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
 			c.Route = path.Route
@@ -1385,9 +1524,11 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 	return candidates
 }
 
-// releaseCandidates returns snapshots acquired by the gather functions. The
-// extracted scalar values remain available for the show-best reason terminal,
-// but no caller may compare or dereference ASPathHandle after this release.
+// releaseCandidates returns snapshots acquired by the gather functions. It MUST
+// follow each gather or appendManualCandidatesLocked after the caller finishes
+// with the snapshots. The extracted scalar values remain available for the
+// show-best reason terminal, but no caller may compare or dereference
+// ASPathHandle after this release.
 func releaseCandidates(candidates []*Candidate) {
 	for _, c := range candidates {
 		c.entry.Release()
@@ -1443,19 +1584,23 @@ func (r *RIBManager) candidateAdmitted(fam family.Family, peerRIB *storage.PeerR
 
 // extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
 // Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
-// peerAddr is the typed map key; peerStr is PeerRIB's cached canonical string
-// (kept alongside to avoid a per-candidate Addr.String() allocation).
-func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
+// owner is the exact containing source store; peerAddr and peerStr are its
+// observed address and cached canonical spelling. Passive fixtures can carry
+// unrecorded entries: that zero is not promoted into source authority.
+func (r *RIBManager) extractCandidate(fam family.Family, owner uint64, peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
 	c := &Candidate{
-		PeerAddr:  peerStr,
-		PeerIP:    peerAddr,
-		PeerOwner: entry.SourcePeerOwner(),
-		LocalPref: 100, // RFC 4271 default
-		IGPCost:   ^uint64(0),
+		origin:     candidateOriginFor(entry),
+		storeOwner: owner,
+		PeerAddr:   peerStr,
+		PeerIP:     peerAddr,
+		PeerOwner:  entry.SourcePeerOwner(),
+		LocalPref:  100, // RFC 4271 default
+		IGPCost:    ^uint64(0),
 	}
 
-	// Peer metadata for eBGP/iBGP detection.
-	if meta := r.peerMeta[peerAddr]; meta != nil {
+	// Protocol metadata comes from this exact containing observation. The
+	// original entry owner above remains the only source provenance fact.
+	if meta := r.peerMeta[owner]; meta != nil {
 		c.PeerASN = meta.PeerASN
 		c.LocalASN = meta.LocalASN
 	}
@@ -1506,7 +1651,7 @@ func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, pe
 	// this speaker's own, so every candidate carried it, the step tied on every
 	// comparison, and selection fell through to step g).
 	if !c.OriginatorIP.IsValid() {
-		if meta := r.peerMeta[peerAddr]; meta != nil && meta.RemoteRouterID != 0 {
+		if meta := r.peerMeta[owner]; meta != nil && meta.RemoteRouterID != 0 {
 			id := meta.RemoteRouterID
 			c.OriginatorIP = netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)})
 		}

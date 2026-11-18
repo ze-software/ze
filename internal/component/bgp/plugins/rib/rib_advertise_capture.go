@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -65,6 +66,8 @@ type advertiseRoute struct {
 	labels          []uint32
 	wireRoute       string
 	redirectRefused bool
+	metric          uint32
+	isEBGP          bool
 }
 
 // advertiseSnapshot returns the current immutable selections, never withdrawn
@@ -120,6 +123,7 @@ func (r *RIBManager) prepareAdvertise(fam family.Family, prefix netip.Prefix, na
 		keyNLRI = keyNLRI[4:]
 	}
 	return &advertiseRoute{key: key, keyNLRI: keyNLRI, route: owned,
+		metric: best.MED, isEBGP: r.protocolType(best) == routeaction.ProtocolEBGP,
 		staleLevel: stale, fingerprint: best.entry.AttrFingerprint,
 		attrLen: best.entry.AttrLen, labels: slices.Clone(labels), wireRoute: best.Route}
 }
@@ -264,7 +268,7 @@ func (r *RIBManager) prepareFlowSpecAdvertise(flow *flowSpecRoute, redirectRefus
 // reelectAdvertiseStale refreshes affected native keys after a GR/LLGR mark.
 // The caller MUST release peerMu before returning through this deferred call.
 // A second candidate election belongs to checkBestPathChange, never capture.
-func (r *RIBManager) reelectAdvertiseStale(peer netip.Addr, selected family.Family) {
+func (r *RIBManager) reelectAdvertiseStale(peer uint64, selected family.Family) {
 	r.peerMu.RLock()
 	routes := r.bgpPeers[peer]
 	if routes == nil {

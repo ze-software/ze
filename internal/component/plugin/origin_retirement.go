@@ -72,7 +72,7 @@ func (retirement *OriginRetirement) HasPeer(sender Sender, peerOwner uint64) boo
 	if retirement == nil {
 		return false
 	}
-	if retirement.sender != sender {
+	if !retirement.sender.SameIssuer(sender) {
 		return false
 	}
 	for _, admission := range retirement.admissions {
@@ -90,7 +90,7 @@ func (retirement *OriginRetirement) HasDestination(sender Sender, destination st
 	if retirement == nil {
 		return false
 	}
-	if retirement.sender != sender {
+	if !retirement.sender.SameIssuer(sender) {
 		return false
 	}
 	for _, admission := range retirement.admissions {

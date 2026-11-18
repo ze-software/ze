@@ -18,15 +18,38 @@ import (
 func (s *Session) Pause() {
 	s.pauseMu.Lock()
 	defer s.pauseMu.Unlock()
-	s.publicPause = true
-	s.paused.Store(true)
+	s.setPublicPauseLocked(true)
 }
 
 // Resume MUST release only the public Pause claim, never an admission receipt.
 func (s *Session) Resume() {
 	s.pauseMu.Lock()
 	defer s.pauseMu.Unlock()
-	s.publicPause = false
+	s.setPublicPauseLocked(false)
+}
+
+// peerReadControl is the final mutation guard for a captured physical source.
+// Its caller MUST hold that source Peer's session lock until this call returns.
+// Cancellation is checked under pauseMu because another read-gate owner can
+// hold it after the caller checked its own deadline. Safe for concurrent use.
+func (s *Session) peerReadControl(ctx context.Context, pause bool) error {
+	s.pauseMu.Lock()
+	defer s.pauseMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.setPublicPauseLocked(pause)
+	return nil
+}
+
+// setPublicPauseLocked updates the existing public flow-control claim. The
+// caller MUST hold pauseMu. Admission receipts remain independent on resume.
+func (s *Session) setPublicPauseLocked(pause bool) {
+	s.publicPause = pause
+	if pause {
+		s.paused.Store(true)
+		return
+	}
 	s.paused.Store(s.admissionClaims != 0)
 	s.signalAdmissionLocked()
 }

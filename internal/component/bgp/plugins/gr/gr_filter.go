@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -83,7 +84,7 @@ func grFilterDecls() []sdk.FilterDecl {
 			Direction: sdk.FilterExport,
 			Reads: []string{
 				rpc.FilterFieldRaw, fieldStale.String(), policyview.FieldSourceLLGRAdvertised.String(),
-				policyview.FieldPeerAddress.String(), policyview.FieldPeerAS.String(), policyview.FieldLocalAS.String(),
+				policyview.FieldPeerAddress.String(), policyview.FieldPeerOwner.String(), policyview.FieldConnectionID.String(), policyview.FieldIBGP.String(), policyview.FieldPeerAS.String(), policyview.FieldLocalAS.String(),
 				policy.FieldCommunity.String(),
 			},
 			Sets:        []string{policy.FieldCommunity.String(), policy.FieldLocalPreference.String()},
@@ -170,6 +171,13 @@ func evaluateLLGREgress(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error)
 	if !session.governed() {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 	}
+	// refuse-by-default: guards stale egress -- a missing classification cannot
+	// authorize the internal partial-deployment procedure or invent an external peer.
+	if !session.classificationKnown {
+		return nil, opererr.New("The stale route's destination session classification is unavailable",
+			"LLGR needs the reactor's actual internal-session fact; AS-number inference loses migration sessions",
+			"Supply the destination's read-only ibgp fact on the export filter call")
+	}
 	meta, _ := llgrEgressMeta.Get().(map[string]any) //nolint:forcetypeassert // the pool's New makes this type
 	if session.stale > 0 {
 		meta["stale"] = session.stale
@@ -197,13 +205,14 @@ func evaluateLLGREgress(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error)
 // rebuilt from storage, the destination's address and AS facts, and which of the
 // communities the egress step writes the route holds as the chain left it.
 type llgrSession struct {
-	llgrAdvertised bool
-	stale          uint8
-	sourceKnown    bool // source-llgr-advertised is present: the route was rebuilt
-	sourceLLGR     bool
-	dest           filterapi.PeerFilterInfo
-	holdsLLGRStale bool
-	holdsNoExport  bool
+	llgrAdvertised      bool
+	stale               uint8
+	sourceKnown         bool // source-llgr-advertised is present: the route was rebuilt
+	sourceLLGR          bool
+	dest                filterapi.PeerFilterInfo
+	classificationKnown bool // absent classification is not an external-session answer
+	holdsLLGRStale      bool
+	holdsNoExport       bool
 }
 
 // lostLLGRStale reports whether the chain took LLGR_STALE off a route the RFC
@@ -292,7 +301,7 @@ func (s llgrSession) governed() bool {
 // llgrReaders are the view readers of the fields llgrSession holds, resolved
 // once by resolveLLGRReaders from init, after the stale field is registered.
 var llgrReaders struct {
-	llgrAdvertised, stale, sourceLLGR, peerAddress, peerAS, localAS, community policyview.Reader
+	llgrAdvertised, stale, sourceLLGR, peerAddress, peerOwner, connectionID, ibgp, peerAS, localAS, community policyview.Reader
 }
 
 func resolveLLGRReaders() {
@@ -300,6 +309,9 @@ func resolveLLGRReaders() {
 	llgrReaders.stale = mustLLGRReader(fieldStale)
 	llgrReaders.sourceLLGR = mustLLGRReader(policyview.FieldSourceLLGRAdvertised)
 	llgrReaders.peerAddress = mustLLGRReader(policyview.FieldPeerAddress)
+	llgrReaders.peerOwner = mustLLGRReader(policyview.FieldPeerOwner)
+	llgrReaders.connectionID = mustLLGRReader(policyview.FieldConnectionID)
+	llgrReaders.ibgp = mustLLGRReader(policyview.FieldIBGP)
 	llgrReaders.peerAS = mustLLGRReader(policyview.FieldPeerAS)
 	llgrReaders.localAS = mustLLGRReader(policyview.FieldLocalAS)
 	llgrReaders.community = mustLLGRReader(policy.FieldCommunity)
@@ -340,7 +352,7 @@ func viewLLGRSession(view *policyview.View, egress bool) (llgrSession, error) {
 		s.llgrAdvertised = value.Flag()
 		return s, nil
 	}
-	var errs [6]error
+	var errs [9]error
 	var value policyview.Value
 	value, errs[0] = view.Read(llgrReaders.stale)
 	s.stale = viewOctet(value)
@@ -355,6 +367,12 @@ func viewLLGRSession(view *policyview.View, egress bool) (llgrSession, error) {
 	s.dest.PeerAS = viewASN(value)
 	value, errs[4] = view.Read(llgrReaders.localAS)
 	s.dest.LocalAS = viewASN(value)
+	value, errs[6] = view.Read(llgrReaders.peerOwner)
+	s.dest.PeerOwner, _ = value.Number() // absent owner is explicitly incapable; hasLLGR guards zero
+	value, errs[8] = view.Read(llgrReaders.connectionID)
+	s.dest.ConnectionID, _ = value.Number() // absent physical identity cannot borrow an OPEN capability
+	value, errs[7] = view.Read(llgrReaders.ibgp)
+	s.classificationKnown, s.dest.IsIBGP = value.Present(), value.Flag()
 	value, errs[5] = view.Read(llgrReaders.community)
 	communities := value.Wire()
 	// RFC 1997: "The attribute consists of a set of four octet values, each of which specify a community."
@@ -387,6 +405,9 @@ type llgrFieldsJSON struct {
 	Stale          uint8    `json:"stale"`
 	SourceLLGR     *bool    `json:"source-llgr-advertised"`
 	PeerAddress    string   `json:"peer-address"`
+	PeerOwner      uint64   `json:"peer-owner"`
+	ConnectionID   uint64   `json:"connection-id"`
+	IBGP           *bool    `json:"ibgp"`
 	PeerAS         uint32   `json:"peer-as"`
 	LocalAS        uint32   `json:"local-as"`
 	Community      []string `json:"community"`
@@ -404,6 +425,11 @@ func fieldsLLGRSession(raw []byte) (llgrSession, error) {
 		s.sourceKnown, s.sourceLLGR = true, *fields.SourceLLGR
 	}
 	s.dest.PeerAS, s.dest.LocalAS = fields.PeerAS, fields.LocalAS
+	s.dest.PeerOwner = fields.PeerOwner
+	s.dest.ConnectionID = fields.ConnectionID
+	if fields.IBGP != nil {
+		s.classificationKnown, s.dest.IsIBGP = true, *fields.IBGP
+	}
 	if s.governed() {
 		// As viewLLGRSession does: a route the filter accepts whatever it holds
 		// costs no parse of its communities.

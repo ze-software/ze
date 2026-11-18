@@ -165,8 +165,14 @@ func (c CloseCause) String() string {
 // Use these methods instead of accessing AddressStr/LocalAddressStr directly
 // so test code and edge cases (missing cache) produce correct output.
 type PeerInfo struct {
+	// SentObservation pins only the original Session's event publication.
+	// It grants no forwarding or retention right and never enters wire JSON.
+	SentObservation SentObservation `json:"-"`
 	// PeerOwner is the immutable engine Peer incarnation; zero is unrecorded.
-	PeerOwner       uint64
+	PeerOwner uint64
+	// ConnectionID is the exact physical Session captured by this event.
+	// Zero is unrecorded; it grants no source or selected-output authority.
+	ConnectionID    uint64
 	Address         netip.Addr
 	LocalAddress    netip.Addr
 	AddressStr      string // Cached Address.String(); avoids per-event allocation
@@ -205,13 +211,13 @@ type PeerInfo struct {
 	// Zero is not a replay receipt.
 	InitialReplay uint64
 	// DestinationSession identifies the captured connection for its entire
-	// lifetime, including DOWN and a process attached after initial sync.
+	// lifetime, including DOWN, actual SENT UPDATE, received refresh and attachment after initial sync.
 	// SelectedOwner is the resolved ordinary owner, before per-process event
 	// projection. It is internal metadata, never a grant or wire field.
 	DestinationSession uint64
 	SelectedOwner      string
-	// SelectedDestination is filled by the per-recipient state projection.
-	// A process receiving state alone does not thereby become a destination.
+	// SelectedDestination is filled by the per-recipient state/refresh projection.
+	// An observer subscription alone does not thereby become a destination.
 	SelectedDestination bool
 	// OrdinaryReplayOwned is advisory: automatic auxiliary replay stands down.
 	// It grants no selected-output authority and is derived from captured UP facts.
@@ -602,11 +608,11 @@ type ReactorPeerController interface {
 
 	// PausePeer pauses reading from a specific peer's session.
 	// Used by flow control to apply backpressure when a plugin's worker pool saturates.
-	PausePeer(addr netip.Addr) error
+	PausePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error
 
 	// ResumePeer resumes reading from a specific peer's session.
 	// Used by flow control to release backpressure when a plugin's worker pool drains.
-	ResumePeer(addr netip.Addr) error
+	ResumePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error
 
 	// AddDynamicPeer adds a peer from a YANG-parsed config tree.
 	// The addr is from the peer selector; tree is the peer-fields config.

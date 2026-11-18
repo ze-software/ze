@@ -4,6 +4,8 @@
 
 package plugin
 
+import "github.com/ze-software/ze/internal/core/opererr"
+
 // Sender says who issued a command that puts a message on a peer's wire: one
 // attached process, or the operator.
 //
@@ -14,12 +16,14 @@ package plugin
 // operator authority to any dispatch path that forgot to say who it was, so a
 // guard MUST refuse a Sender whose IsSet reports false (ai/rules/evidence.md).
 //
-// One field carries all three states, so no two fields can disagree about who
-// sent the command. The field is unexported and the two constructors below are
-// the only way to fill it, so the zero value is the one Sender a caller can
-// build without naming a state.
+// The private who field carries all three issuer states. The two private
+// destination fields only narrow a request; they never change its issuer.
+// Constructors establish both-or-none destination validity. The zero value
+// still names nobody and cannot acquire operator authority by omission.
 type Sender struct {
-	who string
+	who                string
+	destinationOwner   uint64
+	destinationSession uint64
 }
 
 // operatorName is the reserved name a Sender holds for the operator. It carries
@@ -78,3 +82,43 @@ func (s Sender) String() string {
 	}
 	return s.who
 }
+
+// WithDestination narrows an existing issuer to one original destination.
+// Both zero retains the explicit unbounded command contract. Every other
+// successful value holds both nonzero identifiers; neither grants permission.
+func (s Sender) WithDestination(owner, session uint64) (Sender, error) {
+	if owner == 0 {
+		if session == 0 {
+			s.destinationOwner = 0
+			s.destinationSession = 0
+			return s, nil
+		}
+		return Sender{}, destinationConstraintRefused()
+	}
+	if session == 0 {
+		return Sender{}, destinationConstraintRefused()
+	}
+	if !s.IsSet() {
+		return Sender{}, destinationConstraintRefused()
+	}
+	s.destinationOwner = owner
+	s.destinationSession = session
+	return s, nil
+}
+
+func destinationConstraintRefused() error {
+	return opererr.New("Destination constraint is incomplete",
+		"No destination was selected and the command grants no send permission.",
+		"Supply both destination-owner and destination-session as nonzero uint64 values, or omit both for an explicit unbounded command.")
+}
+
+// Destination returns the immutable narrowing tuple. Both zero is the existing
+// unbounded operation. A nonzero tuple still needs the issuer's ordinary grant.
+func (s Sender) Destination() (owner, session uint64) {
+	return s.destinationOwner, s.destinationSession
+}
+
+// SameIssuer compares authenticated identity only. A destination restriction
+// cannot create another producer or change an accepted entry's original owner.
+// It does not compare Process incarnations; SelectedOwner owns that contract.
+func (s Sender) SameIssuer(other Sender) bool { return s.who == other.who }

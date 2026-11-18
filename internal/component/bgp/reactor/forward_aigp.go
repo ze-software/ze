@@ -115,23 +115,17 @@ func aigpIncrement(nh, sourcePeer netip.Addr, sourceLinkMetric uint64) igpcost.D
 
 // sourceAIGPLinkMetric belongs to the link toward the received next hop, never
 // to the destination peer. Settings snapshots are immutable between reloads.
-func (r *Reactor) sourceAIGPLinkMetric(addr netip.Addr) uint64 {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	peer, ok := r.findPeerByAddr(addr)
-	if !ok {
+// sourceAIGPLinkMetric reads the original Peer's current configured link.
+// A nil source has no configured link fallback; the IGP distance still decides.
+// RFC 7311 Section 3.4.3: "This distance is either the IGP-computed distance from R1
+// to R2 or some value determined by policy."
+func sourceAIGPLinkMetric(peer *Peer) uint64 {
+	if peer == nil {
 		return 0
-	}
-	return peer.Settings().AIGPLinkMetric
+	} // Guarded: an explicit local origin has no received-source link.
+	return peer.settingsSnapshot().AIGPLinkMetric
 }
 
-// applyFactsAIGP runs after policy and next-hop edits on both forward rails.
-// It uses the received value as the accumulation base, not a previously sent
-// value, so replay or a metric change cannot add the same distance twice.
-// A true result means this announcement was withheld only for its unavailable
-// cost. The caller MUST carry that reason to the final writer, which records
-// the recipient even when no withdrawal reaches the wire, so a later metric
-// change can recover it without a new received UPDATE.
 func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, base []byte, sourcePeer netip.Addr, sourceLinkMetric uint64, mods *filterapi.ModAccumulator) bool {
 	if mods.IsWithdraw() {
 		return false

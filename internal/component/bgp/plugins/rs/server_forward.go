@@ -1,331 +1,259 @@
-// Design: docs/architecture/core-design.md — forward routing for route server
-// Overview: server.go — route server plugin orchestration
-// Related: server_withdrawal.go — withdrawal tracking
-
+// Design: docs/architecture/plugin/rib-storage-design.md -- original RS output snapshots.
+// Related: worker.go -- one source lane owns each batch through final flush.
 package rs
 
 import (
 	"context"
-	"net/netip"
-	"slices"
-
+	"errors"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"slices"
+	"strings"
 )
 
-// batchForwardUpdateSkipped forwards a cached UPDATE the reactor fast path
-// already served, to the peers it did not serve:
-//   - the peers it handed back (a rejecting export final, an export chain that
-//     could not run, a chain refusal withdrawn one NLRI-bearing field at a
-//     time, a panicked egress filter, a replay fence up), listed in skipped;
-//   - the peers whose session was established after the UPDATE was numbered
-//     (msgID below PeerState.InitialReplay). The fast path may have run before
-//     such a peer was a destination, so it neither served it nor handed it
-//     back, and it hands back every UPDATE numbered below the receipt rather
-//     than serve it (reactor Peer.replayOwns).
-//
-// Either way the peer-up cut decides between this rail and the replay.
-// Called when ReactorForwarded is true.
-func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
-	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
-	batch, ok := val.(*forwardBatch)
-	if !ok {
-		rs.releaseCache(msgID)
-		return
-	}
-
-	// Build target list from the peers the fast path did not serve (excluding source).
-	rs.mu.RLock()
-	batch.targetBuf = batch.targetBuf[:0]
-	for _, addrPort := range skipped {
-		addr := addrPort.Addr().String()
-		if rs.fastPathOwedTarget(addr, sourcePeer, msgID, families) {
-			batch.targetBuf = append(batch.targetBuf, addr)
-		}
-	}
-	for addr, peer := range rs.peers {
-		if msgID >= peer.InitialReplay {
-			continue
-		}
-		if slices.Contains(batch.targetBuf, addr) {
-			continue
-		}
-		if rs.fastPathOwedTarget(addr, sourcePeer, msgID, families) {
-			batch.targetBuf = append(batch.targetBuf, addr)
-		}
-	}
-	rs.mu.RUnlock()
-	targets := batch.targetBuf
-
-	if len(targets) == 0 {
-		rs.releaseCache(msgID)
-		return
-	}
-
-	slices.Sort(targets)
-	sel := textbuf.Join(targets, ",")
-
-	if batch.selector != "" && batch.selector != sel {
-		rs.flushBatch(batch)
-		batch.ids = batch.ids[:0]
-		batch.selector = ""
-		batch.targets = batch.targets[:0]
-	}
-
-	batch.ids = append(batch.ids, msgID)
-	batch.selector = sel
-	if len(batch.targets) == 0 {
-		batch.targets = append(batch.targets[:0], targets...)
-	}
-
-	if len(batch.ids) >= maxBatchSize {
-		rs.flushBatch(batch)
-		batch.ids = batch.ids[:0]
-		batch.selector = ""
-		batch.targets = batch.targets[:0]
-	}
-}
-
-// fastPathOwedTarget reports whether peer addr takes the UPDATE msgID from
-// this rail once the fast path did not serve it. Caller MUST hold rs.mu.
-func (rs *routeServer) fastPathOwedTarget(addr, sourcePeer string, msgID uint64, families map[family.Family]bool) bool {
-	if addr == sourcePeer {
-		return false
-	}
-	peer := rs.peers[addr]
-	if peer == nil {
-		return false
-	}
-	if !peer.Up {
-		return false
-	}
-	// Same peer-up cut as selectForwardTargets: this rail carries the peers
-	// the reactor fast path did not serve, not a different forwarding policy.
-	if msgID != 0 && msgID <= peer.ForwardFrom {
-		return false
-	}
-	if peer.Families == nil {
-		return true
-	}
-	for fam := range families {
-		if peer.SupportsFamily(fam) {
-			return true
-		}
-	}
-	return false
-}
-
-// forwardBatch accumulates forward items for batch RPC.
-// Per-worker state: no concurrent access for a given workerKey.
-//
-// Invariants:
-//   - targetBuf is a scratch buffer reused by selectForwardTargets each call;
-//     its contents are valid only until the next selectForwardTargets call.
-//   - targets is the immutable destination snapshot that applies to every id
-//     in the current batch. Populated on the first accumulate of a new batch
-//     and cleared (together with ids + selector) on every flush. The snapshot
-//     is independent of targetBuf's backing array, so a later targetBuf
-//     refresh cannot corrupt in-flight batch state.
 type forwardBatch struct {
 	ids       []uint64
-	selector  string   // comma-joined target peers (batch.targets joined for equality check)
-	targetBuf []string // scratch buffer for selectForwardTargets (not batch state)
-	targets   []string // immutable destination snapshot for this batch (rs-fastpath-3)
-
-	// processed is the highest MessageID this worker has handled for its
-	// source, forwarded or not, and parked the FlowSpec relays waiting for an
-	// UPDATE above it (parkValidation). Neither is reset by a flush.
+	targetBuf []rpc.ForwardTarget
+	targets   []rpc.ForwardTarget
 	processed uint64
 	parked    []parkedValidation
 }
 
-// selectForwardTargets returns peers that should receive an UPDATE with the given families.
-// A peer is included if it is up, is not the source, supports at least one family
-// in the UPDATE (or has nil Families, meaning unknown/all-accepted), and the UPDATE
-// is NEWER than the peer's peer-up cut.
-//
-// msgID is the reactor MessageID of the UPDATE being forwarded. A peer whose
-// ForwardFrom is at or above it was not yet a live forward target when this
-// UPDATE was taken delivery of, so the UPDATE belongs to that peer's Adj-RIB-In
-// replay instead. Excluding it here is what makes the two rails disjoint: the
-// same route reaching a peer twice, in scheduling order, was the duplicate; a
-// replayed announcement overtaking a live withdrawal of the same prefix would
-// have resurrected a withdrawn route.
-func (rs *routeServer) selectForwardTargets(buf []string, sourcePeer string, msgID uint64, families map[family.Family]bool) []string {
+// Selection captures the complete original target tuple while mu is held.
+// A named sibling sharing the source address remains a separate recipient.
+func (rs *routeServer) selectForwardTargets(buf []rpc.ForwardTarget, source workerKey, msgID uint64, families map[family.Family]bool) []rpc.ForwardTarget {
 	buf = buf[:0]
-	for addr, peer := range rs.peers {
-		if addr == sourcePeer || !peer.Up {
+	for key, peer := range rs.peers {
+		if key.owner == source.owner {
 			continue
 		}
-		if msgID != 0 && msgID <= peer.ForwardFrom {
+		if !peer.Up {
 			continue
 		}
-		if peer.Families != nil {
-			hasAny := false
-			for fam := range families {
-				if peer.SupportsFamily(fam) {
-					hasAny = true
-					break
-				}
-			}
-			if !hasAny {
+		if msgID != 0 {
+			if msgID <= peer.ForwardFrom {
 				continue
 			}
 		}
-		buf = append(buf, addr)
+		if peer.Families != nil {
+			any := false
+			for fam := range families {
+				if peer.SupportsFamily(fam) {
+					any = true
+					break
+				}
+			}
+			if !any {
+				continue
+			}
+		}
+		target, err := targetOf(key, peer)
+		if err != nil {
+			rs.warnLifecycle("cached forward target refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err, "peer-owner", key.owner)
+			continue
+		}
+		buf = append(buf, target)
 	}
-	slices.Sort(buf)
+	slices.SortFunc(buf, compareForwardTarget)
 	return buf
 }
 
-// explainNoTarget names, per peer, why selectForwardTargets returned nothing.
-//
-// Caller must hold rs.mu. Built only on the discard path, so the cost is paid
-// only when an UPDATE is about to be dropped for every destination.
-func (rs *routeServer) explainNoTarget(sourcePeer string, msgID uint64, families map[family.Family]bool) string {
-	var b textbuf.Buffer
-	first := true
-	for addr, peer := range rs.peers {
-		if !first {
-			b.Str(", ")
-		}
-		first = false
-		b.Str(addr).Byte('=')
-		switch {
-		case addr == sourcePeer:
-			b.Str("source")
-		// The two !Up cases are split because the log line exists to tell them
-		// apart (see the caller: "the two causes need opposite fixes"), and
-		// PeerState.StateSeen is what distinguishes them. Printing one label for
-		// both sent a reader chasing a peer-up/replay ordering bug when the peer
-		// had simply closed the session and there was no destination left --
-		// which is what a check-mode test peer does the moment its rule matches.
-		case !peer.Up && peer.StateSeen:
-			b.Str("down")
-		case !peer.Up:
-			b.Str("not-yet-up")
-		case msgID != 0 && msgID <= peer.ForwardFrom:
-			b.Str("below-cut(").Uint(peer.ForwardFrom).Byte(')')
-		default:
-			b.Str("family-mismatch(")
-			for fam := range families {
-				b.Str(fam.String()).Byte(' ')
-			}
-			b.Byte(')')
-		}
+func compareForwardTarget(a, b rpc.ForwardTarget) int {
+	if order := strings.Compare(a.Destination, b.Destination); order != 0 {
+		return order
 	}
-	if first {
-		return "no peers registered"
+	if a.DestinationOwner < b.DestinationOwner {
+		return -1
 	}
-	return b.String()
+	if a.DestinationOwner > b.DestinationOwner {
+		return 1
+	}
+	if a.DestinationSession < b.DestinationSession {
+		return -1
+	}
+	if a.DestinationSession > b.DestinationSession {
+		return 1
+	}
+	return 0
 }
 
-// batchForwardUpdate accumulates a forward item into the per-worker batch.
-// Selects targets, then appends to the current batch. Flushes the old batch
-// if the target selector changes (different peer set). Flushes when the batch
-// reaches maxBatchSize items. Partial batches are flushed by the onDrained
-// callback when the worker channel empties.
-func (rs *routeServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool) {
-	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
-	batch, ok := val.(*forwardBatch)
-	if !ok {
-		rs.releaseCache(msgID)
-		return
+func (rs *routeServer) explainNoTarget(source workerKey, msgID uint64, families map[family.Family]bool) string {
+	var message textbuf.Buffer
+	for key, peer := range rs.peers {
+		message.Str(key.address.String()).Str(" owner=").Uint(key.owner).Str(" session=").Uint(peer.DestinationSession).Str(" up=")
+		if peer.Up {
+			message.Str("true")
+		} else {
+			message.Str("false")
+		}
+		message.Byte(' ')
 	}
+	if message.Len() == 0 {
+		return "no original peer actors recorded"
+	}
+	return message.String()
+}
 
+func (rs *routeServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool) {
+	batch := rs.workerBatch(key)
 	rs.mu.RLock()
-	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, msgID, families)
-	known := len(rs.peers)
-	var why string
+	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, key, msgID, families)
+	var reason string
 	if len(batch.targetBuf) == 0 {
-		why = rs.explainNoTarget(sourcePeer, msgID, families)
+		reason = rs.explainNoTarget(key, msgID, families)
 	}
 	rs.mu.RUnlock()
-	targets := batch.targetBuf
+	if len(batch.targetBuf) == 0 {
+		logger().Warn("forward matched no target", "source-peer", sourcePeer, "peer-owner", key.owner, "message-id", msgID, "why", reason)
+	}
+	rs.accumulateForward(batch, msgID, batch.targetBuf)
+}
 
+// A skip receipt already names the exact original UP. Its endpoint is display
+// data; only owner plus destination session selects the actor under mu.
+func (rs *routeServer) fastPathOwedTarget(target rpc.ForwardTarget, source workerKey, msgID uint64, families map[family.Family]bool) bool {
+	if target.DestinationOwner == source.owner {
+		return false
+	}
+	address, err := target.Address()
+	if err != nil {
+		return false
+	}
+	for key, peer := range rs.peers {
+		if key.owner != target.DestinationOwner {
+			continue
+		}
+		if peer.DestinationSession != target.DestinationSession {
+			continue
+		}
+		if key.address != address {
+			return false
+		}
+		if !peer.Up {
+			return false
+		}
+		if msgID != 0 {
+			if msgID <= peer.ForwardFrom {
+				return false
+			}
+		}
+		if peer.Families == nil {
+			return true
+		}
+		for fam := range families {
+			if peer.SupportsFamily(fam) {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []rpc.ForwardTarget) {
+	batch := rs.workerBatch(key)
+	rs.mu.RLock()
+	targets := batch.targetBuf[:0]
+	for _, target := range skipped {
+		if rs.fastPathOwedTarget(target, key, msgID, families) {
+			if !slices.Contains(targets, target) {
+				targets = append(targets, target)
+			}
+		}
+	}
+	for targetKey, peer := range rs.peers {
+		if msgID >= peer.InitialReplay {
+			continue
+		}
+		target, err := targetOf(targetKey, peer)
+		if err != nil {
+			continue
+		}
+		if slices.Contains(targets, target) {
+			continue
+		}
+		if rs.fastPathOwedTarget(target, key, msgID, families) {
+			targets = append(targets, target)
+		}
+	}
+	batch.targetBuf = targets
+	rs.mu.RUnlock()
+	slices.SortFunc(targets, compareForwardTarget)
+	rs.accumulateForward(batch, msgID, targets)
+}
+
+func (rs *routeServer) accumulateForward(batch *forwardBatch, msgID uint64, targets []rpc.ForwardTarget) {
 	if len(targets) == 0 {
-		// Say it: this arm discards the UPDATE for every destination, and the
-		// only rail that can recover it is the announce-only Adj-RIB-In replay,
-		// so a withdrawal discarded here is lost outright
-		// (ai/rules/evidence.md).
-		//
-		// "peers-known" alone was not enough to act on: it says how many peers
-		// exist, not why each was skipped, and the two causes need opposite
-		// fixes. Not-yet-Up means the peer-up event has not reached rs, so the
-		// replay owns the UPDATE. Below-cut means rs had already advanced past
-		// this MessageID when it registered, which is the cut doing its job.
-		logger().Warn("forward matched no target",
-			"source-peer", sourcePeer, "msg-id", msgID, "peers-known", known, "why", why)
 		rs.releaseCache(msgID)
 		return
 	}
-
-	sel := textbuf.Join(targets, ",")
-
-	// Selector changed — flush old batch, start fresh.
-	if batch.selector != "" && batch.selector != sel {
+	if !slices.Equal(batch.targets, targets) {
 		rs.flushBatch(batch)
 		batch.ids = batch.ids[:0]
-		batch.selector = ""
-		batch.targets = batch.targets[:0]
-	}
-
-	batch.ids = append(batch.ids, msgID)
-	batch.selector = sel
-	// Snapshot the destination list for the current selector. Reuse the
-	// underlying array across flushes via batch.targets (reset on flush).
-	if len(batch.targets) == 0 {
 		batch.targets = append(batch.targets[:0], targets...)
 	}
-
-	// Flush on batch full.
+	batch.ids = append(batch.ids, msgID)
 	if len(batch.ids) >= maxBatchSize {
 		rs.flushBatch(batch)
 		batch.ids = batch.ids[:0]
-		batch.selector = ""
 		batch.targets = batch.targets[:0]
 	}
 }
 
-// flushBatch sends the accumulated IDs via the reactor-owned ForwardCached
-// primitive (rs-fastpath-3). Bypasses the text-command tokenise path; the
-// engine dispatches directly to the reactor adapter.
-//
-// A destination still inside its peer-up replay is a target like any other.
-// The engine holds the forward for that one destination behind its replay (the
-// replay fence, released by signalSessionReady), so this call never waits for a
-// replay and other destinations are never delayed by one.
+// ONE request carries all captured recipients. The engine performs one cache
+// acknowledgement after their work joins; repeating IDs per target is invalid.
 func (rs *routeServer) flushBatch(batch *forwardBatch) {
 	if len(batch.ids) == 0 {
 		return
 	}
-
-	if rs.forwardCachedHook != nil {
-		rs.forwardCachedHook(batch.ids, batch.targets)
+	ctx, cancel := context.WithTimeout(rs.replayParent(), forwardCachedTimeout)
+	defer cancel()
+	done := make(chan struct{})
+	work, admitted := rs.outputs.begin(ctx, done)
+	if !admitted {
+		rs.rememberUnknownOutput(batch.targets, errors.New("actual cached output was not admitted before process stop"))
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
-	defer cancel()
-	err := rs.plugin.ForwardCached(ctx, batch.ids, batch.targets)
-	if err != nil {
-		rs.logEngineCallFailure("forward-cached failed", err, "ids", len(batch.ids))
+	rs.outputMu.Lock()
+	if rs.outputTargets == nil {
+		rs.outputTargets = make(map[chan struct{}][]rpc.ForwardTarget)
+	}
+	rs.outputTargets[done] = slices.Clone(batch.targets)
+	rs.outputMu.Unlock()
+	defer func() {
+		rs.outputMu.Lock()
+		delete(rs.outputTargets, done)
+		rs.outputMu.Unlock()
+		rs.outputs.finish(done)
+	}()
+	if rs.forwardCachedHook != nil {
+		addresses := make([]string, 0, len(batch.targets))
+		for _, target := range batch.targets {
+			addresses = append(addresses, target.Destination)
+		}
+		rs.forwardCachedHook(batch.ids, addresses)
+		return
+	}
+	if err := rs.plugin.ForwardCached(work, rpc.ForwardCachedInput{IDs: batch.ids, Targets: batch.targets}); err != nil {
+		rs.rememberUnknownOutput(batch.targets, err)
+		rs.logEngineCallFailure("captured cached forward failed", err, "ids", len(batch.ids))
 	}
 }
 
-// flushWorkerBatch flushes the batch for a given worker key.
-// Called by the onDrained callback when the worker's channel empties.
 func (rs *routeServer) flushWorkerBatch(key workerKey) {
-	val, loaded := rs.batches.Load(key)
-	if !loaded {
+	value, present := rs.batches.Load(key)
+	if !present {
 		return
 	}
-	batch, ok := val.(*forwardBatch)
+	batch, ok := value.(*forwardBatch)
 	if !ok {
 		return
 	}
 	rs.flushBatch(batch)
 	batch.ids = batch.ids[:0]
-	batch.selector = ""
 	batch.targets = batch.targets[:0]
+	if err := rs.releaseEmptySource(rs.replayParent(), key); err != nil {
+		rs.warnLifecycle("empty original source release remains owed", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+	}
 }

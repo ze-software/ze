@@ -138,7 +138,7 @@ func (r *RIBManager) blackholeRouteTypeForBest(prefix netip.Prefix, best *Candid
 	// and carries no config name for it. It answers a peer whose config key IS
 	// its own name, and configjson.PeerKey stores one there only when the name
 	// parses as an address, which config.validatePeerName refuses.
-	cfg, ok := configjson.LookupPeerConfig(*p, best.PeerAddr, "", r.peerGroupName(best.PeerIP))
+	cfg, ok := configjson.LookupPeerConfig(*p, best.PeerAddr, "", r.peerGroupName(best.storeOwner))
 	if !ok {
 		return 0
 	}
@@ -152,8 +152,8 @@ func (r *RIBManager) blackholeRouteTypeForBest(prefix netip.Prefix, best *Candid
 // a standalone peer, and for a peer no event has been received from yet.
 //
 // Caller MUST hold peerMu.RLock.
-func (r *RIBManager) peerGroupName(peerAddr netip.Addr) string {
-	meta := r.peerMeta[peerAddr]
+func (r *RIBManager) peerGroupName(peerOwner uint64) string {
+	meta := r.peerMeta[peerOwner]
 	if meta == nil {
 		return ""
 	}

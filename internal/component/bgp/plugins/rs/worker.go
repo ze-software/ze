@@ -4,6 +4,8 @@
 package rs
 
 import (
+	"context"
+	"errors"
 	"net/netip"
 	"runtime"
 	"sync"
@@ -12,11 +14,31 @@ import (
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// workerKey identifies a per-source-peer worker goroutine.
+// workerKey names one captured physical source connection. Its zero value is
+// invalid. Callers MUST construct it from the original delivered event; neither
+// an address nor a replay receipt can substitute for either numeric identity.
+// The address is immutable display/legacy selector data, never the identity.
 type workerKey struct {
-	sourcePeer string
+	owner        uint64
+	connectionID uint64
+	address      netip.Addr
+}
+
+func newWorkerKey(address string, owner, connectionID uint64) (workerKey, error) {
+	if owner == 0 {
+		return workerKey{}, errors.New("route-server source worker has no original peer owner")
+	}
+	if connectionID == 0 {
+		return workerKey{}, errors.New("route-server source worker has no original physical connection")
+	}
+	peer, err := netip.ParseAddr(address)
+	if err != nil {
+		return workerKey{}, err
+	}
+	return workerKey{owner: owner, connectionID: connectionID, address: peer}, nil
 }
 
 // workItem represents a unit of work dispatched to a worker.
@@ -26,6 +48,8 @@ type workerKey struct {
 type workItem struct {
 	msgID             uint64
 	sourcePolicyEpoch uint64
+	sourceReceipt     uint64
+	sourceOwner       uint64
 	sourcePeer        string
 	msg               *bgptypes.RawMessage
 	validation        ribevents.ValidationRoute
@@ -33,7 +57,7 @@ type workItem struct {
 	// The delivery receipt is owned by this item on both transports. It is
 	// independent of the borrowed message wrapper and publisher's slice.
 	reactorForwarded bool
-	fastPathSkipped  []netip.AddrPort
+	fastPathSkipped  []rpc.ForwardTarget
 	// barrier, when set, makes the item a settle marker: the worker flushes
 	// its batch and closes it, so every item queued before it was handled
 	// (settleSource). It carries no UPDATE.
@@ -46,14 +70,9 @@ type poolConfig struct {
 	idleTimeout        time.Duration
 	bpReminderInterval time.Duration
 
-	// onItemDrop is called for each work item discarded during PeerDown or Stop
-	// when overflow items remain. Callers use this to clean up associated state
-	// (e.g., cache refs). Nil means no cleanup.
-	onItemDrop func(workItem)
-
-	// onDrained is called after processing an item when the channel and overflow
-	// are both empty — no more items pending for this worker. Used by batch
-	// accumulation to flush partial batches on channel drain.
+	// onDrained completes an outstanding handled batch when both queues empty,
+	// including final retirement after its overflow producer joins. The callback
+	// MUST finish before onClose; already completed batches earn no repeat call.
 	onDrained func(key workerKey)
 
 	// onIdle is called on the worker goroutine when the idle timer fires,
@@ -64,14 +83,17 @@ type poolConfig struct {
 	// onClose is called on the worker goroutine as it exits on PeerDown or
 	// Stop, after its last item. PeerDown keeps the closing worker registered
 	// until then, so per-worker state is not shared yet. Nil means none.
+	// onClose MUST run after the final owed onDrained callback has completed.
 	onClose func(key workerKey)
 }
 
 // worker is a single long-lived goroutine processing items for one source-peer key.
 type worker struct {
-	ch      chan workItem
-	done    chan struct{} // closed when goroutine exits
-	closeCh chan struct{} // closed on PeerDown/Stop to signal drain goroutine
+	stopOnce   sync.Once // all shutdown callers share the closeCh signal
+	retireOnce sync.Once // concurrent physical/terminal callers close ch once
+	ch         chan workItem
+	done       chan struct{} // closed when goroutine exits
+	closeCh    chan struct{} // closed on PeerDown/Stop to signal drain goroutine
 
 	// overflow is an unbounded FIFO buffer for items that arrive when the
 	// channel is full. A temporary drain goroutine moves items from overflow
@@ -169,6 +191,12 @@ func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *
 func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
+	return wp.dispatchLocked(key, item)
+}
+
+// dispatchLocked enqueues into the exact original key while mu is held.
+// Dispatch and settleOwner MUST hold mu throughout this call.
+func (wp *workerPool) dispatchLocked(key workerKey, item workItem) bool {
 	if wp.stopped {
 		return false
 	}
@@ -234,7 +262,8 @@ func (wp *workerPool) ensureDraining(_ workerKey, w *worker) {
 }
 
 // drainLoop is a temporary goroutine that moves items from the overflow buffer
-// into the channel as space opens. Exits when overflow is empty or closeCh fires.
+// into the channel as space opens. Retirement seals admission and MUST join
+// this producer after it sends every admitted item, before closing the channel.
 func (wp *workerPool) drainLoop(w *worker) {
 	defer w.drainWg.Done()
 	defer func() {
@@ -263,26 +292,7 @@ func (wp *workerPool) drainLoop(w *worker) {
 		w.overflow = w.overflow[1:]
 		w.overflowMu.Unlock()
 
-		select {
-		case w.ch <- item: // Item moved from overflow to channel.
-		case <-w.closeCh: // Worker shutting down — drop remaining overflow.
-			wp.dropItem(item)
-			w.overflowMu.Lock()
-			for _, remaining := range w.overflow {
-				wp.dropItem(remaining)
-			}
-			w.overflow = nil
-			w.draining = false
-			w.overflowMu.Unlock()
-			return
-		}
-	}
-}
-
-// dropItem calls the onItemDrop callback if configured.
-func (wp *workerPool) dropItem(item workItem) {
-	if wp.cfg.onItemDrop != nil {
-		wp.cfg.onItemDrop(item)
+		w.ch <- item // The captured retirement joins every admitted overflow item.
 	}
 }
 
@@ -308,7 +318,7 @@ func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
 		}
 		if shouldLog {
 			logger().Warn("backpressure",
-				"source-peer", key.sourcePeer,
+				"source-peer", key.address, "source-owner", key.owner, "connection-id", key.connectionID,
 				"queue-depth", w.depth(),
 				"capacity", cap(w.ch),
 			)
@@ -317,80 +327,153 @@ func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
 	}
 }
 
-// PeerDown closes the worker for the given source peer.
-// Signals the drain goroutine to stop, waits for it, then closes the channel.
-// The worker drains remaining channel items and exits.
-func (wp *workerPool) PeerDown(sourcePeer string) {
-	wp.mu.Lock()
-	key := workerKey{sourcePeer: sourcePeer}
-	w, ok := wp.workers[key]
-	if ok {
-		select {
-		case <-w.closeCh:
-		default:
-			close(w.closeCh)
-		}
-	}
-	wp.mu.Unlock()
+// workerRetirement owns one already-sealed original worker. Its zero value is
+// invalid; captureRetirementLocked is its only producer. Keeping the reference
+// makes a concurrent pool stop independent of a later map lookup.
+type workerRetirement struct {
+	key      workerKey
+	original *worker
+}
 
-	if !ok {
-		return
-	}
-
-	// Clean up backpressure state for this peer. Without this, a reconnecting
-	// peer inherits stale inBackpressure/bpLastLog from the previous session,
-	// suppressing the initial backpressure log or causing immediate reminders.
+// captureRetirementLocked seals the actual mapped worker under mu. Callers
+// MUST hold mu and MUST finish the returned retirement outside that lock.
+// The worker MUST remain registered until its real handler and close callback
+// finish, so a late same-key dispatch cannot create a competing incarnation.
+func (wp *workerPool) captureRetirementLocked(key workerKey, original *worker) workerRetirement {
+	original.stopOnce.Do(func() { close(original.closeCh) })
 	wp.inBackpressure.Delete(key)
 	wp.backpressure.Delete(key)
 	wp.bpLastLog.Delete(key)
+	return workerRetirement{key: key, original: original}
+}
 
-	// Keep the closing worker registered until it finishes. Concurrent
-	// validation callbacks must not create a second worker for this source.
-	w.drainWg.Wait()
-	close(w.ch)
-	<-w.done
+// finishRetirement MUST receive the captured original reference, with its
+// admission already sealed, and MUST be called without mu held. Concurrent
+// callers join the same drain, handler and onClose; only the matching mapped
+// incarnation can be removed or have its pressure state cleared afterward.
+func (wp *workerPool) finishRetirement(retirement workerRetirement) {
+	retirement.original.retireOnce.Do(func() {
+		retirement.original.drainWg.Wait()
+		close(retirement.original.ch)
+	})
+	<-retirement.original.done
 	wp.mu.Lock()
-	if wp.workers[key] == w {
-		delete(wp.workers, key)
+	if wp.workers[retirement.key] == retirement.original {
+		delete(wp.workers, retirement.key)
+		wp.inBackpressure.Delete(retirement.key)
+		wp.backpressure.Delete(retirement.key)
+		wp.bpLastLog.Delete(retirement.key)
 	}
 	wp.mu.Unlock()
 }
 
-// Stop closes all workers and waits for them to drain.
-// Closes stopCh first, then signals each worker's drain goroutine to stop.
+// PeerDown joins only the worker for the captured physical source key.
+// Callers MUST use its original delivered key, never the current peer address,
+// and MUST call without route-server locks held. Absence means no mapped work
+// remains; sealed workers stay mapped until every original obligation finishes.
+func (wp *workerPool) PeerDown(key workerKey) {
+	wp.mu.Lock()
+	original := wp.workers[key]
+	if original == nil {
+		wp.mu.Unlock()
+		return
+	}
+	retirement := wp.captureRetirementLocked(key, original)
+	wp.mu.Unlock()
+	wp.finishRetirement(retirement)
+}
+
+// settleOwner appends one marker to every already-admitted physical worker
+// of the original owner and waits for those markers. The snapshot and enqueue
+// share mu, so an idle exit cannot make a replacement lane from a stale key.
+// No address lookup or new worker is involved. Callers MUST finish upstream
+// source admission and MUST call without route-server locks held. The callback
+// MUST flush the lane's forward batch before closing its marker.
+func (wp *workerPool) settleOwner(ctx context.Context, owner uint64) error {
+	if owner == 0 {
+		return errWorkerOwnerMissing
+	}
+	wp.mu.Lock()
+	stopped := wp.stopped
+	pending := make([]chan struct{}, 0, len(wp.workers))
+	for key, original := range wp.workers {
+		if key.owner != owner {
+			continue
+		}
+		select {
+		case <-original.closeCh:
+			// Retirement has sealed admission. Its actual completion also joins the
+			// overflow producer, final batch flush and close callback.
+			pending = append(pending, original.done)
+		default:
+			marker := make(chan struct{})
+			if !wp.dispatchLocked(key, workItem{barrier: marker}) {
+				wp.mu.Unlock()
+				return errWorkerPoolClosing
+			}
+			pending = append(pending, marker)
+		}
+	}
+	wp.mu.Unlock()
+	for _, done := range pending {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if stopped {
+		return errWorkerPoolClosing
+	}
+	return nil
+}
+
+// endOwner joins the current physical workers of an actual terminal Peer
+// removal. The event caller MUST have ended that original owner's admission
+// before calling. A transport DOWN MUST instead call PeerDown with its one
+// captured physical key, and MUST NOT end the original owner's successor.
+func (wp *workerPool) endOwner(owner uint64) error {
+	if owner == 0 {
+		return errWorkerOwnerMissing
+	}
+	wp.mu.Lock()
+	retirements := make([]workerRetirement, 0, len(wp.workers))
+	for key, original := range wp.workers {
+		if key.owner != owner {
+			continue
+		}
+		retirements = append(retirements, wp.captureRetirementLocked(key, original))
+	}
+	wp.mu.Unlock()
+	for _, retirement := range retirements {
+		wp.finishRetirement(retirement)
+	}
+	return nil
+}
+
+var errWorkerOwnerMissing = errors.New("route-server worker operation has no original peer owner")
+var errWorkerPoolClosing = errors.New("route-server source worker is closing or the pool is stopping")
+
+// Stop seals pool admission and every mapped worker before joining any of
+// them. It MUST finish each captured retirement without mu held. Repeated or
+// concurrent Stop calls join the same registered obligations; no caller sees
+// pending work disappear merely because another shutdown began.
 func (wp *workerPool) Stop() {
 	wp.mu.Lock()
 	wp.stopped = true
-
 	select {
 	case <-wp.stopCh:
-		// Already closed — Stop called twice (idempotent).
-	default: // First Stop call — close to signal shutdown.
+		// An earlier Stop already sealed the pool; its workers still join below.
+	default:
 		close(wp.stopCh)
 	}
-
-	all := make([]*worker, 0, len(wp.workers))
-	for key, w := range wp.workers {
-		all = append(all, w)
-		delete(wp.workers, key)
+	retirements := make([]workerRetirement, 0, len(wp.workers))
+	for key, original := range wp.workers {
+		retirements = append(retirements, wp.captureRetirementLocked(key, original))
 	}
 	wp.mu.Unlock()
-
-	// Signal all drain goroutines and workers to stop via closeCh.
-	for _, w := range all {
-		select {
-		case <-w.closeCh:
-		default:
-			close(w.closeCh)
-		}
-	}
-	// Wait for all drain goroutines to exit.
-	for _, w := range all {
-		w.drainWg.Wait()
-	}
-	// Wait for all worker goroutines to exit (they detect closeCh).
-	for _, w := range all {
-		<-w.done
+	for _, retirement := range retirements {
+		wp.finishRetirement(retirement)
 	}
 }
 
@@ -426,7 +509,7 @@ func (wp *workerPool) safeHandle(key workerKey, item workItem) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("worker handler panic",
-				"source-peer", key.sourcePeer,
+				"source-peer", key.address, "source-owner", key.owner, "connection-id", key.connectionID,
 				"msgID", item.msgID,
 				"panic", r,
 			)
@@ -464,18 +547,37 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 	idle := time.NewTimer(wp.cfg.idleTimeout)
 	defer idle.Stop()
 
+	// Only this worker goroutine owns the outstanding handled-batch fact.
+	// Every handling path MUST owe it; every flush MUST clear it. Retirement
+	// MUST finish that obligation before onClose and the deferred done signal.
+	drainOwed := false
+	flush := func() {
+		if !drainOwed {
+			return
+		}
+		drainOwed = false
+		if wp.cfg.onDrained != nil {
+			wp.cfg.onDrained(key)
+		}
+	}
+	finish := func() {
+		flush()
+		wp.closeWorker(key)
+	}
+
 	for {
 		select {
 		case item, ok := <-w.ch:
 			if !ok {
-				// Channel closed (PeerDown) -- exit.
-				wp.closeWorker(key)
+				// Both close exits MUST settle the same final batch.
+				finish()
 				return
 			}
 			if !idle.Stop() {
 				drainTimer(idle)
 			}
 			wp.safeHandle(key, item)
+			drainOwed = true
 
 			// Flow control low-water: if depth dropped below 10%, fire resume.
 			// Wide hysteresis band (full / 10% low) minimizes pause/resume
@@ -490,30 +592,24 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			}
 
 			// Channel drain check: flush partial batches when no items pending.
-			if wp.cfg.onDrained != nil && len(w.ch) == 0 && w.overflowLen() == 0 {
-				wp.cfg.onDrained(key)
+			if len(w.ch) == 0 {
+				if w.overflowLen() == 0 {
+					flush()
+				}
 			}
 
 			idle.Reset(wp.cfg.idleTimeout)
 
 		case <-w.closeCh:
-			// Drain remaining items before exiting.
-			for {
-				select {
-				case item, ok := <-w.ch:
-					if !ok {
-						wp.closeWorker(key)
-						return
-					}
-					wp.safeHandle(key, item)
-				default:
-					if wp.cfg.onDrained != nil {
-						wp.cfg.onDrained(key)
-					}
-					wp.closeWorker(key)
-					return
-				}
+			// The captured retirement MUST join the overflow producer before
+			// closing ch. A momentarily empty channel is not completion: its
+			// producer may still own an admitted in-flight item.
+			for item := range w.ch {
+				wp.safeHandle(key, item)
+				drainOwed = true
 			}
+			finish()
+			return
 
 		case <-idle.C:
 			if wp.cfg.onIdle != nil {
@@ -523,6 +619,16 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			// Check channel AND overflow under lock: if either has items
 			// or overflow is draining, we must not exit.
 			wp.mu.Lock()
+			// A retirement may have sealed this worker while onIdle was out
+			// of the lock. It MUST reach the ordinary close path and finish
+			// onClose before its exact registration can be replaced.
+			select {
+			case <-w.closeCh:
+				wp.mu.Unlock()
+				continue
+			default:
+				// Admission is still open; only a genuinely idle worker exits.
+			}
 			w.overflowMu.Lock()
 			pending := len(w.overflow) > 0 || w.draining
 			w.overflowMu.Unlock()
@@ -531,9 +637,12 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 				idle.Reset(wp.cfg.idleTimeout)
 				continue
 			}
-			// Only delete if this worker is still the registered one
-			// (Stop may have already removed it).
+			// A sealed worker never reaches this idle deletion. Remove only
+			// this still-open incarnation, before any replacement can enter.
 			if wp.workers[key] == w {
+				wp.inBackpressure.Delete(key)
+				wp.backpressure.Delete(key)
+				wp.bpLastLog.Delete(key)
 				delete(wp.workers, key)
 			}
 			wp.mu.Unlock()

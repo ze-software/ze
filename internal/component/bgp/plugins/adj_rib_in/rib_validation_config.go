@@ -3,10 +3,10 @@ package adj_rib_in
 
 import (
 	"encoding/json"
-	"net/netip"
 	"time"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -21,22 +21,37 @@ type validationPeer struct {
 	LocalAS uint32
 }
 
-func (r *AdjRIBInManager) rememberValidationPeer(address netip.Addr, peer validationPeer) {
-	if r.validationPeers == nil {
-		r.validationPeers = make(map[netip.Addr]validationPeer)
+func (r *AdjRIBInManager) rememberValidationPeer(source receivedPeer, connection uint64, identity validationPeer) {
+	for key := range r.validationPeers {
+		if key.source != source {
+			continue
+		}
+		if !r.validationPeerPresentLocked(key) {
+			delete(r.validationPeers, key)
+		}
 	}
-	r.validationPeers[address] = peer
+	key := validationPeerKey{source: source, connection: connection}
+	if !r.validationPeerPresentLocked(key) {
+		return
+	}
+	if r.validationPeers == nil {
+		r.validationPeers = make(map[validationPeerKey]validationPeer)
+	}
+	r.validationPeers[key] = identity
 }
 
-func (r *AdjRIBInManager) validationRouteData(peer netip.Addr, key compactRouteKey, route *RawRoute) map[string]any {
-	identity := r.validationPeers[peer]
+func (r *AdjRIBInManager) validationRouteData(peer receivedPeer, key compactRouteKey, route *RawRoute) map[string]any {
+	identity := r.validationPeers[validationPeerKey{source: peer, connection: route.ConnectionID}]
 	data := map[string]any{
-		"peer": peer.String(), "peer-name": identity.Name, "peer-group": identity.Group,
+		"peer": peer.address.String(), "peer-name": identity.Name, "peer-group": identity.Group,
 		"local-as":     identity.LocalAS,
 		routeKeyFamily: route.Family.String(), "prefix": key.Prefix.String(),
 		routeKeyAttrHex: route.AttrHex, routeKeyNHopHex: route.NHopHex, routeKeyNLRIHex: route.NLRIHex,
 		routeKeyValidationState: route.ValidationState, routeKeyIneligible: route.Ineligible,
 		"path-id": route.PathID, "msg-id": route.MsgID,
+		"peer-owner": textbuf.StringUint(route.SourceOwner), "connection-id": textbuf.StringUint(route.ConnectionID),
+		"source-receipt": textbuf.StringUint(route.SourceReceipt),
+		"gr-retained":    route.retainedForValidation,
 	}
 	// Absent, never 0, while the peer's AS is not known (rpc.RemoteAS).
 	if peerAS, known := identity.ASN.ASN(); known {
@@ -103,7 +118,7 @@ func (r *AdjRIBInManager) disableValidationCommand() (status string, data any, e
 				return true
 			}
 			newer := r.earlyDecisions[pendingKey(peer, key)]
-			blocked := newer != nil && newer.msgID > route.MsgID
+			blocked := newer != nil && receivedBefore(route.ConnectionID, route.MsgID, newer.connectionID, newer.msgID)
 			if route.Ineligible && !blocked {
 				recovered = append(recovered, key)
 			}
@@ -121,8 +136,8 @@ func (r *AdjRIBInManager) disableValidationCommand() (status string, data any, e
 		}
 	}
 	for key, decision := range r.earlyDecisions {
-		if routes := r.ribIn[key.PeerAddr]; routes != nil {
-			if route, ok := routes.Get(key.Route); ok && decision.msgID > route.MsgID {
+		if routes := r.ribIn[key.Peer]; routes != nil {
+			if route, ok := routes.Get(key.Route); ok && receivedBefore(route.ConnectionID, route.MsgID, decision.connectionID, decision.msgID) {
 				decision.action = earlyAccept
 				decision.state = ValidationNotValidated
 				continue
@@ -149,4 +164,38 @@ func validationPeerFromEvent(event *bgp.Event) (validationPeer, error) {
 		peer.LocalAS = identity.Local.AS
 	}
 	return peer, nil
+}
+
+// validationPeerKey holds the received OPEN identity, never a current lookup.
+// Zero connection is only observational and authorizes no received source.
+type validationPeerKey struct {
+	source     receivedPeer
+	connection uint64
+}
+
+// validationPeerPresentLocked keeps metadata only while original received bytes
+// use it. Caller MUST hold mu; current stored/pending paths bound both loops.
+func (r *AdjRIBInManager) validationPeerPresentLocked(key validationPeerKey) bool {
+	present := false
+	if routes := r.ribIn[key.source]; routes != nil {
+		routes.Range(func(_ compactRouteKey, _ uint64, route *RawRoute) bool {
+			if route.ConnectionID == key.connection {
+				present = true
+				return false
+			}
+			return true
+		})
+	}
+	if present {
+		return true
+	}
+	for candidate, pending := range r.pending {
+		if candidate.Peer != key.source {
+			continue
+		}
+		if pending.route.ConnectionID == key.connection {
+			return true
+		}
+	}
+	return false
 }

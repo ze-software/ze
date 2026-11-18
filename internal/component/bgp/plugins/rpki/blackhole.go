@@ -32,12 +32,12 @@ import (
 // peer. A session a listen-range group accepted has an address the config
 // document never mentions, so the group's stated agreement is the only one it
 // can resolve. What the peer states beats what its group states.
-func (rp *rPKIPlugin) carriesAgreedBlackhole(peerAddr, peerGroup string, attrs *attribute.AttributesWire) bool {
+func (rp *rPKIPlugin) carriesAgreedBlackhole(peerAddr, peerName, peerGroup string, attrs *attribute.AttributesWire) bool {
 	p := rp.perPeerActions.Load()
 	if p == nil {
 		return false
 	}
-	set, ok := configjson.LookupPeerConfig(*p, peerAddr, "", peerGroup)
+	set, ok := configjson.LookupPeerConfig(*p, peerAddr, peerName, peerGroup)
 	if !ok || len(set.BlackholeCommunities) == 0 {
 		return false
 	}

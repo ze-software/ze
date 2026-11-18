@@ -26,6 +26,9 @@ import (
 // destinations of the routes marked as invalid."
 // The existing election therefore supplies each surviving replacement.
 func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+	if request.DestinationOwner == 0 {
+		return nil, errors.New("recovery destination owner is absent; preserve the original destination Peer owner")
+	}
 	identities := make([]ribOutKey, len(request.Keys))
 	for i := range request.Keys {
 		identity, err := recoveryIdentity(request.Family, request.Keys[i].NLRI, request.AddPath)
@@ -45,7 +48,7 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 		// RFC 7911 Section 3: ADD-PATH already advertised the surviving paths,
 		// so no election runs; each excluded source's sent identifiers,
 		// including zero, are withdrawn. A limited request elects below.
-		if err := recoverySentAddPathLocked(&request, identities, r.ribOut[request.Destination][request.Family], outcomes); err != nil {
+		if err := recoverySentAddPathLocked(&request, identities, r.ribOut[request.DestinationOwner][request.Family], outcomes); err != nil {
 			return nil, err
 		}
 		return outcomes, nil
@@ -90,7 +93,7 @@ func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []
 		}
 		var sent []byte
 		for _, i := range indexes {
-			if !recoveryExcludes(&request.Keys[i], entry.SourcePeer) {
+			if !recoveryExcludes(&request.Keys[i], entry.SourceOwner) {
 				continue
 			}
 			if sent == nil {
@@ -107,13 +110,8 @@ func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []
 }
 
 // recoveryExcludes reports whether the sent owner is in the key's excluded set.
-func recoveryExcludes(key *ribevents.RecoveryKey, sourcePeer string) bool {
-	owner, err := netip.ParseAddr(sourcePeer)
-	if err != nil {
-		// An entry without parsable provenance names no source to exclude.
-		return false
-	}
-	return slices.Contains(key.Excluded, owner)
+func recoveryExcludes(key *ribevents.RecoveryKey, sourceOwner uint64) bool {
+	return sourceOwner != 0 && slices.Contains(key.Excluded, sourceOwner)
 }
 
 // recoveryIdentity normalizes each affected native identity once per batch.
@@ -166,8 +164,9 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 		candidates = r.gatherKeyCandidatesForLocked(request.Family, receiveKey, candidateAdmissionRecovery)
 	}
 	defer releaseCandidates(candidates)
+	received := partitionReceivedCandidates(candidates)
 	eligible := 0
-	for i, candidate := range candidates {
+	for i, candidate := range candidates[:received] {
 		if !r.recoveryEligibleLocked(request, key, candidate) {
 			continue
 		}
@@ -214,13 +213,13 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 // recoveryEligibleLocked keeps a candidate electable for the key. The
 // destination never receives its own path back (RFC 4271 Section 9.2).
 func (r *RIBManager) recoveryEligibleLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, candidate *Candidate) bool {
-	if candidate.PeerIP == request.Destination {
+	if candidate.PeerOwner == request.DestinationOwner {
 		return false
 	}
-	if slices.Contains(key.Excluded, candidate.PeerIP) {
+	if slices.Contains(key.Excluded, candidate.PeerOwner) {
 		return false
 	}
-	if up, known := r.peerUp[candidate.PeerIP]; known && !up {
+	if up, known := r.peerUp[candidate.PeerOwner]; known && !up {
 		return false
 	}
 	return true
@@ -272,7 +271,7 @@ func recoveryCandidateWithLabels(fam family.Family, prefix netip.Prefix, best *C
 	} else {
 		raw = framedRouteNLRI(nil, best.Route, best.PathID, best.AddPath)
 	}
-	route := ribevents.RecoveryRoute{Source: best.PeerIP, NLRI: raw, Attributes: attrs,
+	route := ribevents.RecoveryRoute{Source: best.PeerIP, SourceOwner: best.PeerOwner, NLRI: raw, Attributes: attrs,
 		MessageID: best.entry.MsgID, SourcePolicyEpoch: best.entry.SourcePolicyEpoch,
 		SourceReceipt: best.entry.SourceReceipt,
 		PathID:        best.PathID, AddPath: best.AddPath}

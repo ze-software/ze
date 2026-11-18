@@ -842,15 +842,28 @@ func (s *Server) dispatchCommandAnswer(ctx context.Context, proc *process.Proces
 // with the response the dispatcher produced rather than its wire projection.
 // See dispatchCommandArgsResponse for why the record path needs it unprojected.
 func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Process, command string) (*plugin.Response, error) {
+	return s.dispatchCommandPeerResponse(ctx, proc, command, 0, 0, 0, 0)
+}
+
+func (s *Server) dispatchCommandPeerResponse(ctx context.Context, proc *process.Process, command string, owner, connection, destinationOwner, destinationSession uint64) (*plugin.Response, error) {
 	if err := proc.RequirePeerDeclarations(); err != nil {
 		return nil, err
+	}
+	sender := plugin.ProcessSender(proc.Name())
+	if destinationOwner != 0 {
+		var err error
+		sender, err = sender.WithDestination(destinationOwner, destinationSession)
+		if err != nil {
+			return nil, err
+		}
 	}
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
 		RequestContext: ctx,
-		Username:       internalPluginIdentity(proc.Name()),
-		Sender:         plugin.ProcessSender(proc.Name()),
+		PeerOwner:      owner, ConnectionID: connection,
+		Username: internalPluginIdentity(proc.Name()),
+		Sender:   sender,
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)

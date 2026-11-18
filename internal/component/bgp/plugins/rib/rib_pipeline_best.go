@@ -204,7 +204,10 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		// from a handle this construction happened to see.
 		// Caller bestPipeline holds r.peerMu.RLock; this bgpPeers read is
 		// protected by that outer lock.
-		peerRIB := r.bgpPeers[best.PeerIP]
+		peerRIB := r.bgpPeers[best.storeOwner]
+		if best.origin == candidateOriginManual {
+			peerRIB = r.ribInPool[bgpProtocolID][best.PeerAddr]
+		}
 
 		// Populate MultipathPeers with sibling peer addresses so the output
 		// terminal can render the full ECMP set. nil when multipath is off.

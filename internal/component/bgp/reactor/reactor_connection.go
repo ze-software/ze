@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -393,32 +394,75 @@ func rejectPendingConnection(conn net.Conn, clk clock.Clock, subcode uint8) {
 
 // PausePeer pauses reading from a specific peer's session.
 // Returns ErrPeerNotFound if the peer address is unknown.
-func (r *Reactor) PausePeer(addr netip.Addr) error {
-	r.mu.RLock()
-	_, peer, ok := r.findPeerKeyByAddr(addr)
-	r.mu.RUnlock()
-
-	if !ok {
-		return ErrPeerNotFound
-	}
-
-	peer.pauseReading()
-	return nil
+func (r *Reactor) PausePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
+	return r.peerReadControl(ctx, addr, owner, connection, true)
 }
 
 // ResumePeer resumes reading from a specific peer's session.
 // Returns ErrPeerNotFound if the peer address is unknown.
-func (r *Reactor) ResumePeer(addr netip.Addr) error {
-	r.mu.RLock()
-	_, peer, ok := r.findPeerKeyByAddr(addr)
-	r.mu.RUnlock()
+func (r *Reactor) ResumePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
+	return r.peerReadControl(ctx, addr, owner, connection, false)
+}
 
-	if !ok {
-		return ErrPeerNotFound
+// peerReadControl resolves an original owner before touching any Session. The
+// reactor and peer locks keep that original map entry and physical session
+// current until Pause/Resume finishes. An address is only a constraint beside
+// numeric identity. The explicit zero pair retains operator address selection.
+func (r *Reactor) peerReadControl(ctx context.Context, addr netip.Addr, owner, connection uint64, pause bool) error {
+	if owner == 0 {
+		if connection != 0 {
+			return errors.New("physical peer flow control requires its original peer-owner")
+		}
+	} else {
+		if connection == 0 {
+			return errors.New("physical peer flow control requires its original connection-id")
+		}
 	}
-
-	peer.resumeReading()
-	return nil
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var original *Peer
+	if owner == 0 {
+		_, peer, ok := r.findPeerKeyByAddr(addr)
+		if !ok {
+			return ErrPeerNotFound
+		}
+		original = peer
+	} else {
+		for key, peer := range r.peers {
+			if peer.sourceOwner != owner {
+				continue
+			}
+			if key.Addr() != addr {
+				continue
+			}
+			original = peer
+			break
+		}
+		if original == nil {
+			return errors.New("physical peer flow control refused: the original peer owner is no longer present")
+		}
+	}
+	original.mu.RLock()
+	defer original.mu.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	session := original.session
+	if owner != 0 {
+		if original.stopping.Load() {
+			return errors.New("physical peer flow control refused: the original peer is stopping")
+		}
+		if session == nil {
+			return errors.New("physical peer flow control refused: the original physical session has ended")
+		}
+		if session.connectionID != connection {
+			return errors.New("physical peer flow control refused: the original physical connection was replaced")
+		}
+	}
+	if session == nil {
+		return nil
+	} // Explicit unbound operator form keeps its historical no-active-session no-op.
+	return session.peerReadControl(ctx, pause)
 }
 
 // pauseAllReads pauses reading from all peers' sessions.

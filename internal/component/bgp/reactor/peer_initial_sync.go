@@ -1289,6 +1289,8 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.Wire
 	// peer-as judges this peer. The default route is originated here, so
 	// no source peer is known and the source fields answer absent.
 	destination := p.settings.SessionFacts(peerAS)
+	destination.PeerOwner = p.sourceOwner
+	destination.ConnectionID = connectionIDOf(p.session)
 	p.mu.RUnlock()
 	if peerAS == 0 {
 		return false

@@ -54,35 +54,12 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 // configured local IP is "auto". Settings describe the request, not necessarily
 // the address selected by the kernel for this live session.
 func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
-	s := peer.Settings()
-	local, localString := s.LocalAddress, peer.localAddrString
-	local, localString = connectedLocalEndpoint(peer, local, localString)
-	localPort, remotePort := peer.tCPPorts()
-	destinationSession, selectedOwner := peer.selectedStateDestination()
-	return plugin.PeerInfo{
-		PeerOwner:       peer.sourceOwner,
-		Address:         s.Address,
-		LocalAddress:    local,
-		AddressStr:      peer.addrString,
-		LocalAddressStr: localString,
-		LocalPort:       localPort,
-		RemotePort:      remotePort,
-		Name:            s.Name,
-		GroupName:       s.GroupName,
-		LocalAS:         s.LocalAS,
-		PeerAS:          rpc.RemoteASOf(s.PeerAS),
-		RouterID:        s.RouterID,
-		// The OPEN has been read by the time a peer is Established, so this is
-		// the identifier RFC 4271 Section 9.1.2.2 step f) compares. It is a
-		// different number from RouterID above, which is this speaker's own.
-		RemoteRouterID:     peer.RemoteRouterID(),
-		Connect:            s.Connection.Connect,
-		Accept:             s.Connection.Accept,
-		State:              peer.State().PluginState(),
-		InitialReplay:      peer.initialReplayToken(),
-		DestinationSession: destinationSession,
-		SelectedOwner:      selectedOwner,
+	session := peer.currentSession()
+	info := boundPeerInfo(peer, session)
+	if session != nil {
+		info.InitialReplay = session.initialReplay.Load()
 	}
+	return info
 }
 
 func connectedLocalEndpoint(peer *Peer, local netip.Addr, localString string) (netip.Addr, string) {
@@ -137,6 +114,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// the engine owes none of a newer session's routes.
 		SessionGeneration:  closed.generation,
 		DestinationSession: closed.destinationSession,
+		ConnectionID:       closed.connectionID,
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, closed.reason)
 }
@@ -1659,13 +1637,13 @@ func (a *reactorAPIAdapter) EnablePeer(addr netip.Addr) error {
 }
 
 // PausePeer pauses reading from a specific peer's session.
-func (a *reactorAPIAdapter) PausePeer(addr netip.Addr) error {
-	return a.r.PausePeer(addr)
+func (a *reactorAPIAdapter) PausePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
+	return a.r.PausePeer(ctx, addr, owner, connection)
 }
 
 // ResumePeer resumes reading from a specific peer's session.
-func (a *reactorAPIAdapter) ResumePeer(addr netip.Addr) error {
-	return a.r.ResumePeer(addr)
+func (a *reactorAPIAdapter) ResumePeer(ctx context.Context, addr netip.Addr, owner, connection uint64) error {
+	return a.r.ResumePeer(ctx, addr, owner, connection)
 }
 
 // FlushForwardPool blocks until all forward pool workers have drained their queued items.
@@ -1917,6 +1895,9 @@ func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector, origin s
 		return nil, fmt.Errorf("%w: selector %s, send type %s", errSendNoSender, sel, origin.sendType)
 	}
 
+	if owner, _ := origin.sender.Destination(); owner != 0 {
+		return a.matchBoundDestination(sel, origin)
+	}
 	var matched []*Peer
 	if sel.IsExclude() {
 		included := a.matchPositive(sel)
@@ -2059,8 +2040,8 @@ func (a *reactorAPIAdapter) SignalPluginStartupComplete() error {
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is
 // complete. sender names the process that reported it.
-func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, initialReplay uint64) error {
-	return a.r.SignalPeerAPIReady(peerAddr, sender, initialReplay)
+func (a *reactorAPIAdapter) SignalPeerAPIReady(ctx context.Context, peerAddr string, sender plugin.Sender, initialReplay uint64) error {
+	return a.r.SignalPeerAPIReady(ctx, peerAddr, sender, initialReplay)
 }
 
 // SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is

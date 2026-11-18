@@ -40,8 +40,8 @@ func (txn *sourcePolicyTxn) ledgerOf() *sourcepolicy.Ledger {
 }
 
 // handleSourcePolicy is this owner's source-policy lifecycle handler. Source.Peer
-// is matched as the peer address the received-UPDATE events carry, parsed to the
-// netip.Addr that keys ribIn. It runs on the SDK source-policy worker
+// remains diagnostic address metadata. Source.PeerOwner selects the original
+// authenticated owner; an address shared by another owner conveys no authority. It runs on the SDK source-policy worker
 // concurrently with OnEvent, so every phase works under mu. A successful
 // receipt MUST follow the validation notification hand-off, including a
 // duplicate phase whose earlier hand-off failed. No store lock crosses that
@@ -64,11 +64,15 @@ func (r *AdjRIBInManager) handleSourcePolicy(_ context.Context, input rpc.Source
 func (r *AdjRIBInManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if done, err := sourcePolicyOwner.Reprepare(r.sourcePolicy[peer].ledgerOf(), input); done {
+	if done, err := sourcePolicyOwner.Reprepare(r.sourcePolicy[input.Source.PeerOwner].ledgerOf(), input); done {
 		return err
 	}
-	if !r.peerUp[peer] {
+	live, established := r.sourceLive[input.Source.PeerOwner]
+	if !established {
 		return errors.New("bgp-adj-rib-in: source " + input.Source.Peer + " has no established session to prepare")
+	}
+	if live.address != peer {
+		return errors.New("bgp-adj-rib-in: captured owner does not belong to source " + input.Source.Peer)
 	}
 	txn := &sourcePolicyTxn{
 		ledger:    sourcepolicy.NewLedger(input),
@@ -76,8 +80,11 @@ func (r *AdjRIBInManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourceP
 		pending:   make(map[compactPendingKey]*RawRoute),
 	}
 	stale := false
-	if routes := r.ribIn[peer]; routes != nil {
+	if routes := r.ribIn[receivedPeer{address: peer, owner: input.Source.PeerOwner}]; routes != nil {
 		routes.Range(func(key compactRouteKey, _ uint64, route *RawRoute) bool {
+			if route.SourceOwner != input.Source.PeerOwner {
+				return true
+			}
 			if route.SourcePolicyEpoch > input.Source.PolicyEpoch {
 				stale = true
 				return false
@@ -87,7 +94,10 @@ func (r *AdjRIBInManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourceP
 		})
 	}
 	for key, pending := range r.pending {
-		if pending.peerAddr != peer {
+		if pending.peerAddr.address != peer {
+			continue
+		}
+		if pending.peerAddr.owner != input.Source.PeerOwner {
 			continue
 		}
 		if pending.route.SourcePolicyEpoch > input.Source.PolicyEpoch {
@@ -99,16 +109,16 @@ func (r *AdjRIBInManager) prepareSourcePolicy(peer netip.Addr, input rpc.SourceP
 		return errors.New("bgp-adj-rib-in: transaction " + input.TransactionID + " captured policy epoch of source " +
 			input.Source.Peer + " is older than a route already admitted; capture the source again")
 	}
-	r.setSourcePolicyLocked(peer, txn)
+	r.setSourcePolicyLocked(input.Source.PeerOwner, txn)
 	return txn.ledger.Record(input, sourcepolicy.StagePrepared, nil)
 }
 
 // setSourcePolicyLocked installs txn as the source's transaction. MUST hold mu.
-func (r *AdjRIBInManager) setSourcePolicyLocked(peer netip.Addr, txn *sourcePolicyTxn) {
+func (r *AdjRIBInManager) setSourcePolicyLocked(owner uint64, txn *sourcePolicyTxn) {
 	if r.sourcePolicy == nil {
-		r.sourcePolicy = make(map[netip.Addr]*sourcePolicyTxn)
+		r.sourcePolicy = make(map[uint64]*sourcePolicyTxn)
 	}
-	r.sourcePolicy[peer] = txn
+	r.sourcePolicy[owner] = txn
 }
 
 // applySourcePolicy makes every route the source held at or below the
@@ -122,7 +132,7 @@ func (r *AdjRIBInManager) setSourcePolicyLocked(peer netip.Addr, txn *sourcePoli
 // explicit Import Policy has been applied."
 func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
 	r.mu.Lock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		r.mu.Unlock()
@@ -133,11 +143,11 @@ func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePol
 		return r.flushValidationChanges(true)
 	}
 	if r.policyDenied == nil {
-		r.policyDenied = make(map[netip.Addr]uint64)
+		r.policyDenied = make(map[uint64]uint64)
 	}
-	txn.previousBound = r.policyDenied[peer]
+	txn.previousBound = r.policyDenied[input.Source.PeerOwner]
 	if bound := txn.ledger.Source().PolicyEpoch; bound > txn.previousBound {
-		r.policyDenied[peer] = bound
+		r.policyDenied[input.Source.PeerOwner] = bound
 	}
 	r.noteSourcePolicyChangesLocked(peer, txn)
 	err = txn.ledger.Record(input, sourcepolicy.StageApplied, nil)
@@ -155,7 +165,7 @@ func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePol
 // RFC 8212 Section 3 (the decision this abort reverses).
 func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
 	r.mu.Lock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		r.mu.Unlock()
@@ -174,7 +184,7 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 		return err
 	}
 	bound := txn.ledger.Source().PolicyEpoch
-	routes := r.ribIn[peer]
+	routes := r.ribIn[receivedPeer{address: peer, owner: input.Source.PeerOwner}]
 	if routes != nil {
 		for key, pinned := range txn.installed {
 			if current, held := routes.Get(key); held && current == pinned && current.SourcePolicyEpoch <= bound {
@@ -188,8 +198,8 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 		}
 	}
 	if txn.ledger.Stage() == sourcepolicy.StageApplied {
-		r.dropDeniedLocked(peer, bound)
-		r.restoreDenialLocked(peer, txn.previousBound)
+		r.dropDeniedLocked(peer, input.Source.PeerOwner, bound)
+		r.restoreDenialLocked(input.Source.PeerOwner, txn.previousBound)
 	}
 	r.noteSourcePolicyChangesLocked(peer, txn)
 	txn.installed, txn.pending = nil, nil
@@ -205,7 +215,7 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 // can never become eligible again.
 func (r *AdjRIBInManager) finalizeSourcePolicy(peer netip.Addr, input rpc.SourcePolicyInput) error {
 	r.mu.Lock()
-	txn := r.sourcePolicy[peer]
+	txn := r.sourcePolicy[input.Source.PeerOwner]
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		r.mu.Unlock()
@@ -216,7 +226,7 @@ func (r *AdjRIBInManager) finalizeSourcePolicy(peer netip.Addr, input rpc.Source
 		return r.flushValidationChanges(true)
 	}
 	// The ledger admits finalize only after apply.
-	r.dropDeniedLocked(peer, txn.ledger.Source().PolicyEpoch)
+	r.dropDeniedLocked(peer, input.Source.PeerOwner, txn.ledger.Source().PolicyEpoch)
 	txn.installed, txn.pending = nil, nil
 	err = txn.ledger.Record(input, sourcepolicy.StageFinalized, nil)
 	r.mu.Unlock()
@@ -225,31 +235,40 @@ func (r *AdjRIBInManager) finalizeSourcePolicy(peer netip.Addr, input rpc.Source
 
 // restoreDenialLocked puts back the source's bound from before an aborted
 // apply: zero means the source held none. MUST hold mu.
-func (r *AdjRIBInManager) restoreDenialLocked(peer netip.Addr, previous uint64) {
+func (r *AdjRIBInManager) restoreDenialLocked(owner uint64, previous uint64) {
 	if previous == 0 {
-		delete(r.policyDenied, peer)
+		delete(r.policyDenied, owner)
 		return
 	}
-	r.policyDenied[peer] = previous
+	r.policyDenied[owner] = previous
 }
 
 // dropDeniedLocked removes the source's installed and pending routes at or
 // below bound. MUST hold mu and finish with unlockValidation.
-func (r *AdjRIBInManager) dropDeniedLocked(peer netip.Addr, bound uint64) {
-	if routes := r.ribIn[peer]; routes != nil {
+func (r *AdjRIBInManager) dropDeniedLocked(peer netip.Addr, owner, bound uint64) {
+	if routes := r.ribIn[receivedPeer{address: peer, owner: owner}]; routes != nil {
 		var denied []compactRouteKey
 		routes.Range(func(key compactRouteKey, _ uint64, route *RawRoute) bool {
+			if route.SourceOwner != owner {
+				return true
+			}
 			if route.SourcePolicyEpoch <= bound {
 				denied = append(denied, key)
 			}
 			return true
 		})
 		for _, key := range denied {
-			r.removeInstalled(peer, key)
+			r.removeInstalled(receivedPeer{address: peer, owner: owner}, key)
 		}
 	}
 	for key, pending := range r.pending {
-		if pending.peerAddr == peer && pending.route.SourcePolicyEpoch <= bound {
+		if pending.peerAddr.address != peer {
+			continue
+		}
+		if pending.peerAddr.owner != owner {
+			continue
+		}
+		if pending.route.SourcePolicyEpoch <= bound {
 			delete(r.pending, key)
 		}
 	}
@@ -259,7 +278,7 @@ func (r *AdjRIBInManager) dropDeniedLocked(peer netip.Addr, bound uint64) {
 // eligibility. MUST hold mu and finish with unlockValidation.
 func (r *AdjRIBInManager) noteSourcePolicyChangesLocked(peer netip.Addr, txn *sourcePolicyTxn) {
 	for key := range txn.installed {
-		r.noteValidationChange(peer, key)
+		r.noteValidationChange(receivedPeer{address: peer, owner: txn.ledger.Source().PeerOwner}, key)
 	}
 }
 
@@ -267,8 +286,8 @@ func (r *AdjRIBInManager) noteSourcePolicyChangesLocked(peer netip.Addr, txn *so
 // excluded by an applied source-policy denial. MUST hold mu (read or write).
 //
 // RFC 8212 Section 3.
-func (r *AdjRIBInManager) sourcePolicyDeniedLocked(peer netip.Addr, epoch uint64) bool {
-	bound, denied := r.policyDenied[peer]
+func (r *AdjRIBInManager) sourcePolicyDeniedLocked(owner, epoch uint64) bool {
+	bound, denied := r.policyDenied[owner]
 	return denied && epoch <= bound
 }
 
@@ -277,7 +296,7 @@ func (r *AdjRIBInManager) sourcePolicyDeniedLocked(peer netip.Addr, epoch uint64
 // for that transaction is refused rather than applied to a successor session.
 // Nothing is restored locally: the coordinator's later abort is refused and it
 // reports the compensation incomplete (fail-closed). MUST hold mu.
-func (r *AdjRIBInManager) dropSourcePolicyLocked(peer netip.Addr) {
-	delete(r.sourcePolicy, peer)
-	delete(r.policyDenied, peer)
+func (r *AdjRIBInManager) dropSourcePolicyLocked(owner uint64) {
+	delete(r.sourcePolicy, owner)
+	delete(r.policyDenied, owner)
 }

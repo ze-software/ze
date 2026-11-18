@@ -325,6 +325,21 @@ current action (RFC 6811 Section 4). A rejection marks the received route
 ineligible rather than deleting it. A later valid authorization can make that
 same received path eligible again, without another UPDATE or a route refresh.
 
+RPKI tracks received paths by their original engine Peer owner and physical
+connection, alongside their native route key and received message ID. Two peers
+sharing a remote address remain independent. Cache and configuration
+revalidation preserve those original facts and the source's configured name;
+they never look up a replacement session by address. A physical DOWN removes
+that connection's unretained tracker entries. GR's pre-DOWN verdict preserves
+only its retained families and their existing validation outcomes. Those inputs
+remain available to ROA/ASPA cache changes until the original GR lifetime is
+purged; a duplicate old DOWN cannot erase them or a fresh connection. Terminal
+Peer removal removes only that original owner's entries. An unowned observation stays separate and
+cannot acquire a received route's authority.
+<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey, removePeer, removeOwner -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handlePeerDown, buildDecisions -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_reload.go -- configRouteSnapshot, revalidateConfigSnapshot -->
+
 RPKI events also report cache availability changes. A route received before a
 nonempty ROA load initially reports `unavailable`; synchronization publishes its
 current origin and ASPA verdicts even if both verdicts are unchanged. Cache
@@ -333,7 +348,10 @@ expiry publishes `unavailable` again. No second UPDATE is required.
 Changing validation policy re-evaluates retained received attributes while
 Adj-RIB-In holds the affected routes pending. Disabling RPKI removes only
 RPKI's denial, not another validator's decision or a newer UPDATE's generation
-fence. Rolling back the configuration re-applies the previous policy.
+fence. Rolling back the configuration re-applies the previous policy. The
+snapshot also preserves a current route's original GR retained mark and its
+effective NO_LLGR community. Those facts select cleanup scope, never acceptance
+or a replacement session's authority.
 The retained-route snapshot also publishes current RPKI verdicts. This covers
 an UPDATE that arrived before RPKI's asynchronous startup callback, without
 waiting for another UPDATE or a later cache change. Each event groups all
@@ -738,6 +756,23 @@ When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | Cache empty or RTR synchronization failed | Check `show bgp rpki status` and plugin logs; for TLS, check the named credentials, certificate chains, and DNS reference name |
 | Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config; the change applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Plugin Bindings) |
+
+
+### Decisions queued across source cleanup
+
+RPKI's worker checks the original owner and connection again when it dispatches
+its copied batch. An admitted current UP-to-DOWN lifetime permits an initial
+decision, including one that could not acquire a tracker slot. Otherwise the
+decision must still match the current original route in the origin tracker.
+GR-retained routes remain revalidatable, while terminal removal, physical DOWN
+and GR expiry remove the inputs they actually retire. These transitions join
+an already admitted `BatchValidate` request before acknowledging cleanup.
+Cleanup does not increment the configuration generation or invalidate useful
+siblings. The existing lifetime ledger and route trackers supply the check;
+no completed-source registry or tombstone is kept. The typed SDK slot and the
+framed `batch-validate` request use the same admission and join.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- dispatchBatch, handlePeerDown -->
+<!-- source: internal/component/bgp/plugins/rpki/retained_validation.go -- validationSourceAdmitted, handleRetainedValidationEvent -->
 
 ### Driving complete mock RTR sets
 

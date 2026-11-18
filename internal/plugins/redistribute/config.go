@@ -102,11 +102,14 @@ func compileRuleChains(rules []configredist.ImportRule, policyCfg map[string]any
 // evaluator an apply replaced until the transaction commits or rolls back.
 // Safe for concurrent use: the SDK may run the stages on different goroutines.
 type ruleState struct {
-	mu       sync.Mutex
-	pending  []configredist.ImportRule
-	verified bool
-	previous *configredist.Evaluator
-	replaced bool
+	// runtimeContext keeps this original SDK instance's report queue on
+	// apply and rollback. A zero-value test state has no running reporter.
+	runtimeContext context.Context
+	mu             sync.Mutex
+	pending        []configredist.ImportRule
+	verified       bool
+	previous       *configredist.Evaluator
+	replaced       bool
 }
 
 // configure installs the startup rules. A config this plugin cannot turn into
@@ -151,7 +154,7 @@ func (s *ruleState) apply() error {
 	ev := configredist.NewEvaluator(s.pending)
 	consumerHeld.install(ev)
 	s.pending, s.verified = nil, false
-	reconcileConsumers(ev)
+	reconcileConsumers(s.runtimeContext, ev)
 	return nil
 }
 
@@ -163,7 +166,7 @@ func (s *ruleState) rollback() error {
 	defer s.mu.Unlock()
 	if s.replaced {
 		consumerHeld.install(s.previous)
-		reconcileConsumers(s.previous)
+		reconcileConsumers(s.runtimeContext, s.previous)
 	}
 	s.previous, s.replaced = nil, false
 	s.pending, s.verified = nil, false
@@ -178,10 +181,14 @@ func (s *ruleState) rollback() error {
 // sets another tag or metric is sent again with it. The withdraw runs first,
 // so the replay never races a withdraw of the route it re-sends.
 //
-// The config stages carry no context, and the withdraw is the same dispatch an
-// accepted Remove makes.
-func reconcileConsumers(ev *configredist.Evaluator) {
-	withdrawRejectedHeld(context.Background(), ev)
+// The config stages carry no request context, so their original SDK runtime
+// supplies reporting scope. The withdraw is the dispatch an accepted Remove
+// makes. A nil runtime is a zero-value test state with no running reporter.
+func reconcileConsumers(ctx context.Context, ev *configredist.Evaluator) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	withdrawRejectedHeld(ctx, ev)
 	replayConsumers(getEventBus(), getReplayCoordinator())
 }
 

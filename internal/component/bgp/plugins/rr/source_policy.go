@@ -13,6 +13,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/sourcepolicy"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -26,7 +27,8 @@ const sourcePolicyOwner sourcepolicy.Owner = "bgp-rr"
 // Guarded by routeReflector.withdrawalMu.
 type sourcePolicyTxn struct {
 	ledger sourcepolicy.Ledger
-	pins   map[string]withdrawalInfo
+	actor  peerIdentity
+	pins   map[withdrawalKey]withdrawalInfo
 }
 
 // ledgerOf is the transaction's ledger, nil when the source holds none.
@@ -38,8 +40,8 @@ func (txn *sourcePolicyTxn) ledgerOf() *sourcepolicy.Ledger {
 }
 
 // handleSourcePolicy is bgp-rr's source-policy lifecycle handler. Source.Peer
-// is matched as the peer address the received-UPDATE events carry, which keys
-// the withdrawal map. It runs on the SDK source-policy worker, concurrently
+// identifies the observed address bucket; Source.PeerOwner selects the original
+// received owner within it and keys transactions. It runs on the SDK worker, concurrently
 // with event delivery: each phase changes state under withdrawalMu and waits
 // for the reflector's work with no lock held.
 //
@@ -79,30 +81,51 @@ func (rr *routeReflector) handleSourcePolicy(ctx context.Context, input rpc.Sour
 // the coordinator's to drain (sdk.OnSourcePolicy).
 func (rr *routeReflector) prepareSourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) error {
 	source := input.Source.Peer
+	actor, known := rr.sourcePolicyActor(input.Source.PeerOwner, input.Source.SessionGeneration)
+	if !known {
+		return errors.New("bgp-rr: source " + source + " has no established session for the captured original physical actor")
+	}
 	rr.withdrawalMu.Lock()
-	done, err := sourcePolicyOwner.Reprepare(rr.sourcePolicy[source].ledgerOf(), input)
+	done, err := sourcePolicyOwner.Reprepare(rr.sourcePolicy[input.Source.PeerOwner].ledgerOf(), input)
 	rr.withdrawalMu.Unlock()
 	if done {
 		return err
 	}
-	if !rr.peerUp(source) {
+	if !rr.peerUp(input.Source.PeerOwner, input.Source.SessionGeneration) {
 		return errors.New("bgp-rr: source " + source + " has no established session to prepare")
 	}
-	if err := rr.settleSource(ctx, source); err != nil {
-		return err
-	}
+	settleErr := rr.settleSource(ctx, input.Source.PeerOwner)
 	// The coordinator stops waiting at the request's deadline, and a settle
 	// that finished at it must not pin: the coordinator has already sent
 	// this transaction's abort or moved on, and a pin recorded now would hold
 	// the source against every later transaction.
 	if err := ctx.Err(); err != nil {
-		return errors.New("bgp-rr: transaction " + input.TransactionID + " for source " + source +
-			" reached its deadline while settling, so nothing was pinned: " + err.Error())
+		cause := err
+		if settleErr != nil {
+			// Keep the work-specific refusal instead of hiding it behind the
+			// request deadline; the no-pin guard still runs for every timeout.
+			cause = settleErr
+		}
+		return opererr.Wrap(cause, "bgp-rr: transaction "+input.TransactionID+" for source "+source+
+			" reached its deadline while settling",
+			"No routes were pinned because this request ended before preparation finished.", replayDoctorFix)
+	}
+	if settleErr != nil {
+		return settleErr
 	}
 
 	rr.withdrawalMu.Lock()
-	txn := &sourcePolicyTxn{ledger: sourcepolicy.NewLedger(input), pins: make(map[string]withdrawalInfo)}
+	txn := &sourcePolicyTxn{actor: actor, ledger: sourcepolicy.NewLedger(input), pins: make(map[withdrawalKey]withdrawalInfo)}
 	for key, info := range rr.withdrawals[source] {
+		if key.connection != actor.connection {
+			continue
+		}
+		if info.Closing {
+			continue
+		}
+		if info.SourceOwner != input.Source.PeerOwner {
+			continue
+		}
 		if info.SourcePolicyEpoch > input.Source.PolicyEpoch {
 			rr.withdrawalMu.Unlock()
 			return errors.New("bgp-rr: transaction " + input.TransactionID + " captured policy epoch of source " +
@@ -111,18 +134,18 @@ func (rr *routeReflector) prepareSourcePolicy(ctx context.Context, input rpc.Sou
 		txn.pins[key] = info
 	}
 	if rr.sourcePolicy == nil {
-		rr.sourcePolicy = make(map[string]*sourcePolicyTxn)
+		rr.sourcePolicy = make(map[uint64]*sourcePolicyTxn)
 	}
-	rr.sourcePolicy[source] = txn
+	rr.sourcePolicy[input.Source.PeerOwner] = txn
 	err = txn.ledger.Record(input, sourcepolicy.StagePrepared, nil)
 	rr.withdrawalMu.Unlock()
 
 	// A down that ran between the check above and the install found no
 	// transaction to drop; this one would outlive its session.
-	if !rr.peerUp(source) {
+	if !rr.peerUp(input.Source.PeerOwner, input.Source.SessionGeneration) {
 		rr.withdrawalMu.Lock()
-		if rr.sourcePolicy[source] == txn {
-			delete(rr.sourcePolicy, source)
+		if rr.sourcePolicy[input.Source.PeerOwner] == txn {
+			delete(rr.sourcePolicy, input.Source.PeerOwner)
 		}
 		rr.withdrawalMu.Unlock()
 		return errors.New("bgp-rr: source " + source + " went down while its transaction was prepared")
@@ -131,11 +154,42 @@ func (rr *routeReflector) prepareSourcePolicy(ctx context.Context, input rpc.Sou
 }
 
 // peerUp reports whether the reflector last saw peer's session up.
-func (rr *routeReflector) peerUp(peer string) bool {
+// policyActorCurrent is called under withdrawalMu. Its actor is the one
+// prepare captured, never a generation-to-address lookup after a wait.
+func (rr *routeReflector) policyActorCurrent(txn *sourcePolicyTxn, input rpc.SourcePolicyInput) bool {
 	rr.mu.RLock()
 	defer rr.mu.RUnlock()
-	state := rr.peers[peer]
-	return state != nil && state.Up
+	state := rr.peers[txn.actor]
+	if state == nil {
+		return false
+	}
+	if !state.Up {
+		return false
+	}
+	if txn.actor.owner != input.Source.PeerOwner {
+		return false
+	}
+	return state.PublishedGeneration == input.Source.SessionGeneration
+}
+
+func (rr *routeReflector) peerUp(owner, generation uint64) bool {
+	if generation == 0 {
+		return false
+	}
+	rr.mu.RLock()
+	defer rr.mu.RUnlock()
+	for identity, state := range rr.peers {
+		if identity.owner != owner {
+			continue
+		}
+		if state.PublishedGeneration != generation {
+			continue
+		}
+		if state.Up {
+			return true
+		}
+	}
+	return false
 }
 
 // applySourcePolicy records the denial of every route the source held at or
@@ -151,9 +205,19 @@ func (rr *routeReflector) peerUp(peer string) bool {
 // EBGP peer SHALL NOT be considered eligible in the Decision Process if no
 // explicit Import Policy has been applied."
 func (rr *routeReflector) applySourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) error {
-	source := input.Source.Peer
+	if !rr.peerUp(input.Source.PeerOwner, input.Source.SessionGeneration) {
+		return errors.New("bgp-rr: source-policy physical actor is no longer live")
+	}
 	rr.withdrawalMu.Lock()
-	txn := rr.sourcePolicy[source]
+	txn := rr.sourcePolicy[input.Source.PeerOwner]
+	if txn == nil {
+		rr.withdrawalMu.Unlock()
+		return errors.New("bgp-rr: source-policy transaction is no longer held")
+	}
+	if !rr.policyActorCurrent(txn, input) {
+		rr.withdrawalMu.Unlock()
+		return errors.New("bgp-rr: source-policy captured actor is no longer current")
+	}
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		rr.withdrawalMu.Unlock()
@@ -166,9 +230,15 @@ func (rr *routeReflector) applySourcePolicy(ctx context.Context, input rpc.Sourc
 	rr.withdrawalMu.Unlock()
 
 	// RFC 8212 Section 3: the denied routes' relays reach the engine before the receipt.
-	settled := rr.settleSource(ctx, source)
+	settled := rr.settleSource(ctx, input.Source.PeerOwner)
 	rr.withdrawalMu.Lock()
 	defer rr.withdrawalMu.Unlock()
+	if rr.sourcePolicy[input.Source.PeerOwner] != txn {
+		return errors.New("bgp-rr: source-policy actor ended while settling")
+	}
+	if !rr.policyActorCurrent(txn, input) {
+		return errors.New("bgp-rr: source-policy physical snapshot changed while settling")
+	}
 	return txn.ledger.Record(input, sourcepolicy.StageApplied, settled)
 }
 
@@ -188,8 +258,13 @@ func (rr *routeReflector) applySourcePolicy(ctx context.Context, input rpc.Sourc
 // explicit Import Policy has been applied."
 func (rr *routeReflector) abortSourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) error {
 	source := input.Source.Peer
+	if !rr.peerUp(input.Source.PeerOwner, input.Source.SessionGeneration) {
+		return errors.New("bgp-rr: source-policy physical actor is no longer live")
+	}
 	rr.withdrawalMu.Lock()
-	txn := rr.sourcePolicy[source]
+	txn := rr.sourcePolicy[input.Source.PeerOwner]
+	// The coordinator also aborts an owner whose prepare never completed.
+	// Let the shared ledger acknowledge that no-op before inspecting pins.
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		rr.withdrawalMu.Unlock()
@@ -198,6 +273,10 @@ func (rr *routeReflector) abortSourcePolicy(ctx context.Context, input rpc.Sourc
 	if duplicate {
 		rr.withdrawalMu.Unlock()
 		return nil
+	}
+	if !rr.policyActorCurrent(txn, input) {
+		rr.withdrawalMu.Unlock()
+		return errors.New("bgp-rr: source-policy captured actor is no longer current")
 	}
 	if input.NextPolicyEpoch == 0 {
 		// The ledger admits a zero target only before apply: nothing was
@@ -216,15 +295,21 @@ func (rr *routeReflector) abortSourcePolicy(ctx context.Context, input rpc.Sourc
 		}
 	}
 	if txn.ledger.Stage() == sourcepolicy.StageApplied {
-		rr.dropDeniedLocked(source, bound)
+		rr.dropDeniedLocked(source, txn.actor, bound)
 	}
 	txn.pins = nil
 	rr.withdrawalMu.Unlock()
 
 	// RFC 8212 Section 3: the restored routes' relays reach the engine before the receipt.
-	settled := rr.settleSource(ctx, source)
+	settled := rr.settleSource(ctx, input.Source.PeerOwner)
 	rr.withdrawalMu.Lock()
 	defer rr.withdrawalMu.Unlock()
+	if rr.sourcePolicy[input.Source.PeerOwner] != txn {
+		return errors.New("bgp-rr: source-policy actor ended while settling")
+	}
+	if !rr.policyActorCurrent(txn, input) {
+		return errors.New("bgp-rr: source-policy physical snapshot changed while settling")
+	}
 	return txn.ledger.Record(input, sourcepolicy.StageAborted, settled)
 }
 
@@ -237,7 +322,13 @@ func (rr *routeReflector) abortSourcePolicy(ctx context.Context, input rpc.Sourc
 func (rr *routeReflector) finalizeSourcePolicy(input rpc.SourcePolicyInput) error {
 	rr.withdrawalMu.Lock()
 	defer rr.withdrawalMu.Unlock()
-	txn := rr.sourcePolicy[input.Source.Peer]
+	txn := rr.sourcePolicy[input.Source.PeerOwner]
+	if txn == nil {
+		return errors.New("bgp-rr: source-policy transaction is no longer held")
+	}
+	if !rr.policyActorCurrent(txn, input) {
+		return errors.New("bgp-rr: source-policy physical snapshot changed before finalize")
+	}
 	duplicate, err := sourcePolicyOwner.Admit(txn.ledgerOf(), input)
 	if err != nil {
 		return err
@@ -245,16 +336,22 @@ func (rr *routeReflector) finalizeSourcePolicy(input rpc.SourcePolicyInput) erro
 	if duplicate {
 		return nil
 	}
-	rr.dropDeniedLocked(input.Source.Peer, txn.ledger.Source().PolicyEpoch)
+	rr.dropDeniedLocked(input.Source.Peer, txn.actor, txn.ledger.Source().PolicyEpoch)
 	txn.pins = nil
 	return txn.ledger.Record(input, sourcepolicy.StageFinalized, nil)
 }
 
 // dropDeniedLocked removes the source's routes at or below bound from the
 // withdrawal map. MUST hold withdrawalMu.
-func (rr *routeReflector) dropDeniedLocked(source string, bound uint64) {
+func (rr *routeReflector) dropDeniedLocked(source string, actor peerIdentity, bound uint64) {
 	routes := rr.withdrawals[source]
 	for key, info := range routes {
+		if key.connection != actor.connection {
+			continue
+		}
+		if info.SourceOwner != actor.owner {
+			continue
+		}
 		if info.SourcePolicyEpoch <= bound {
 			delete(routes, key)
 		}
@@ -266,18 +363,20 @@ func (rr *routeReflector) dropDeniedLocked(source string, bound uint64) {
 // when it was called has been relayed. It refuses, naming the source and the
 // work, when ctx ends first. MUST NOT be called with withdrawalMu or mu held:
 // the work it waits for takes both.
-func (rr *routeReflector) settleSource(ctx context.Context, source string) error {
-	if err := rr.awaitDepartures(ctx, source); err != nil {
+func (rr *routeReflector) settleSource(ctx context.Context, owner uint64) error {
+	if err := rr.settleReplays(ctx); err != nil {
+		return err
+	}
+	if err := rr.awaitDepartures(ctx, owner); err != nil {
 		return err
 	}
 	if err := rr.forwards.wait(ctx); err != nil {
-		return errors.New("bgp-rr: source " + source + ": an UPDATE being reflected did not reach the engine " +
-			"before the source-policy deadline: " + err.Error())
+		return err
 	}
 	if err := rr.settleValidation(ctx); err != nil {
-		return errors.New("bgp-rr: source " + source + ": " + err.Error())
+		return err
 	}
-	return nil
+	return rr.unsettledWork()
 }
 
 // dropSourcePolicyLocked is the ordinary cleanup when the source's session
@@ -285,6 +384,6 @@ func (rr *routeReflector) settleSource(ctx context.Context, source string) error
 // for that transaction is refused rather than applied to a successor session.
 // Nothing is restored locally: the coordinator's later abort is refused and it
 // reports the compensation incomplete (fail-closed). MUST hold withdrawalMu.
-func (rr *routeReflector) dropSourcePolicyLocked(source string) {
-	delete(rr.sourcePolicy, source)
+func (rr *routeReflector) dropSourcePolicyLocked(owner uint64) {
+	delete(rr.sourcePolicy, owner)
 }

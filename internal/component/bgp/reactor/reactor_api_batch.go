@@ -149,11 +149,13 @@ func announceFactsFor(peer *Peer, fam family.Family, nextHop netip.Addr, isIBGP 
 // announceTarget keeps a build's socket identity out of its byte-equivalence
 // key: peers may share bytes, but a replacement session cannot inherit them.
 type announceTarget struct {
-	peer             *Peer
-	session          *Session
-	source           *Peer
-	sourceGeneration uint64
-	sourceState      PeerState
+	destinationOwner   uint64
+	destinationSession uint64
+	peer               *Peer
+	session            *Session
+	source             *Peer
+	sourceGeneration   uint64
+	sourceState        PeerState
 	// exportGeneration stamps the write with the generation of the chain a caller
 	// ran ahead of it (fwdItem.exportGeneration).
 	exportGeneration uint64
@@ -273,7 +275,10 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 // (sentOwnerCurrent). Its withdrawal is never fenced.
 // RFC 8212 Section 3 (sentOwnerCurrent).
 func (target announceTarget) sendBatchUpdate(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch bgptypes.NLRIBatch) error {
-	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
+	if err := target.settlePriorDestinationWrites(ctx); err != nil {
+		return err
+	}
+	if target.queueExpectedBatch(batch.InitialReplay, batch.SentOwnerMessage) {
 		// RFC 8212 Section 3 (sentOwnerCurrent): the queued item
 		// carries the request's epoch to the same final writer.
 		return target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxSize, addPath)
@@ -290,7 +295,7 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 // originated ownership or waive initial-replay admission.
 func (target announceTarget) initBatchOwner(ctx context.Context, owner *fwdItem, batch *bgptypes.NLRIBatch) error {
 	_, retirement := plugin.OriginRetirementFromContext(ctx)
-	*owner = fwdItem{peer: target.peer, session: target.session, originated: true, exportGeneration: target.exportGeneration, registryRetirement: retirement}
+	*owner = fwdItem{peer: target.peer, session: target.session, originated: true, exportGeneration: target.exportGeneration, registryRetirement: retirement, destinationOwner: target.destinationOwner, destinationSession: target.destinationSession}
 	if batch.SentOwnerMessage != 0 {
 		owner.authority = adjOutExpected
 		owner.expectedMessage = batch.SentOwnerMessage
@@ -336,6 +341,9 @@ func (target announceTarget) initBatchOwner(ctx context.Context, owner *fwdItem,
 // Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST
 // be withdrawn from service by means of an UPDATE message (see 9.2)."
 func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) (bool, error) {
+	if err := target.settlePriorDestinationWrites(ctx); err != nil {
+		return false, err
+	}
 	var owner fwdItem
 	if err := target.initBatchOwner(ctx, &owner, batch); err != nil {
 		return false, err
@@ -352,6 +360,9 @@ func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update 
 // The caller MUST keep borrowed storage alive, and dispatchOverflow MUST own
 // queued bytes before returning.
 func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch, removals [][]byte) error {
+	if err := target.settlePriorDestinationWrites(ctx); err != nil {
+		return err
+	}
 	var owner fwdItem
 	if err := target.initBatchOwner(ctx, &owner, batch); err != nil {
 		return err
@@ -366,7 +377,7 @@ func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, upd
 		return err
 	}
 	var sendErr error
-	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
+	if target.queueExpectedBatch(batch.InitialReplay, batch.SentOwnerMessage) {
 		if batch.Replay {
 			owner.meta = map[string]any{metaKeyReplay: true}
 		}
@@ -485,6 +496,9 @@ func (target announceTarget) queueBatchBodyPreFiltered(ctx context.Context, upda
 // is gated on `send [ update ]`: this rail originates routes, which
 // is the permission an operator grants when they write that word.
 func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
+	if batch.OriginAdmissionID == 0 {
+		batch.OriginAdmissionID = plugin.OriginAdmissionID(ctx)
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -493,6 +507,9 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 	}
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
+	if batch.DestinationOwner != 0 {
+		peers = slices.DeleteFunc(peers, func(peer *Peer) bool { return peer.sourceOwner != batch.DestinationOwner })
+	}
 	var initialSource *Peer
 	var initialGeneration uint64
 	var initialState PeerState
@@ -616,6 +633,9 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 		isIBGP := peer.IsIBGP()
 
 		queued := peer.shouldQueue()
+		if owner, _ := sender.Destination(); owner != 0 {
+			queued = false
+		}
 		if batch.SentOwnerMessage != 0 {
 			// A maintenance receipt names an existing session advertisement;
 			// it MUST NOT enter the local origination queue for a later session.
@@ -666,6 +686,10 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 		}
 		target := announceTarget{peer: peer, source: initialSource, sourceGeneration: initialGeneration, sourceState: initialState}
 		target.session = peer.currentSession()
+		if err := destinationCurrent(peer, target.session, sender); err != nil {
+			return err
+		}
+		target.destinationOwner, target.destinationSession = sender.Destination()
 		// Resolve next-hop per peer using RouteNextHop policy. A family that
 		// names no forwarding hop is not asked for one: RFC 8955 Section 4 sets
 		// the FlowSpec next-hop length to zero, so there is nothing to resolve
@@ -888,7 +912,7 @@ func withdrawFactsFor(peer *Peer, batch bgptypes.NLRIBatch, isIBGP bool, nc *Neg
 // has no route for any withdrawal to name, so nothing is written to it and the
 // peers it happened to are ANSWERED (route.ErrWithdrawWithheld). The third
 // return is those peers, by address, in the order they were met.
-func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, []string, error) {
+func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts, sender plugin.Sender) (int, []string, error) {
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
 	attrHandle := getBuildBuf()
@@ -943,8 +967,12 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 				return sent, withheld, err
 			}
 			target := announceTarget{peer: peer, session: peer.currentSession()}
+			if err := destinationCurrent(peer, target.session, sender); err != nil {
+				return sent, withheld, err
+			}
+			target.destinationOwner, target.destinationSession = sender.Destination()
 			var sendErr error
-			if peer.withdrawBehindForwards() {
+			if target.queueExpectedWrite() {
 				sendErr = target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxMsgSize, facts.addPath)
 			} else {
 				sendErr = target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
@@ -988,7 +1016,7 @@ func (target announceTarget) queueBehindForwards(expectedMessage, sourcePolicyEp
 		s := message.GetSplitter()
 		defer message.PutSplitter(s)
 		return s.Split(update, maxMsgSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
-			item := fwdItem{updates: []*message.Update{chunk}, peer: target.peer, session: target.session, originated: true, registryRetirement: retirement}
+			item := fwdItem{updates: []*message.Update{chunk}, peer: target.peer, session: target.session, originated: true, registryRetirement: retirement, destinationOwner: target.destinationOwner, destinationSession: target.destinationSession}
 			if expectedMessage != 0 {
 				item.authority = adjOutExpected
 				item.expectedMessage = expectedMessage
@@ -1095,11 +1123,15 @@ func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer
 // takes: a withdrawal is an UPDATE, and a program allowed to put a route into a
 // peer must be allowed to take it out again.
 func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
+	destinationOwner, _ := sender.Destination()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
+	if batch.DestinationOwner != 0 {
+		peers = slices.DeleteFunc(peers, func(peer *Peer) bool { return peer.sourceOwner != batch.DestinationOwner })
+	}
 	a.r.mu.RUnlock()
 	if permErr != nil {
 		return permErr
@@ -1190,7 +1222,7 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 				partial = true
 			}
 		}
-		if batch.SentOwnerMessage == 0 && peer.shouldQueue() && !peer.withdrawBehindForwards() {
+		if destinationBatchQueues(peer, destinationOwner, batch.SentOwnerMessage) {
 			// Session not established or queue draining: queue to preserve order
 			// A dropped withdrawal is worse than a dropped announce: the peer
 			// keeps forwarding to a prefix this speaker has taken back. Same
@@ -1249,7 +1281,7 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 			// Per-peer path (update groups disabled). peers[i:i+1] is a view
 			// of the slice already in hand, so the one-peer set costs no
 			// allocation on the fan-out (ai/rules/performance.md).
-			n, peerWithheld, sendErr := a.withdrawBatchFromPeers(ctx, peers[i:i+1], peerBatch, facts)
+			n, peerWithheld, sendErr := a.withdrawBatchFromPeers(ctx, peers[i:i+1], peerBatch, facts, sender)
 			acceptedCount += n
 			withheld = append(withheld, peerWithheld...)
 			if sendErr != nil {
@@ -1262,7 +1294,7 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 	// and the send invariant are withdrawBatchFromPeers's, so a group of peers
 	// and a single peer cannot be framed differently.
 	for _, wg := range wdGroups {
-		n, groupWithheld, sendErr := a.withdrawBatchFromPeers(ctx, wg.peers, batch, wg.facts)
+		n, groupWithheld, sendErr := a.withdrawBatchFromPeers(ctx, wg.peers, batch, wg.facts, sender)
 		acceptedCount += n
 		withheld = append(withheld, groupWithheld...)
 		if sendErr != nil {
@@ -2440,9 +2472,11 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 	// and the destination peer's LLGR capability; it writes into mods.
 	body := fwdPackUpdateBody(update)
 	dest := filterapi.PeerFilterInfo{
-		Address: peer.Settings().Address,
-		PeerAS:  peer.PeerAS(), // guarded: dest may be a dynamic peer still resolving its ASN
-		LocalAS: facts.prepend.primary,
+		PeerOwner:    peer.sourceOwner,
+		ConnectionID: connectionIDOf(target.session),
+		Address:      peer.Settings().Address,
+		PeerAS:       peer.PeerAS(), // guarded: dest may be a dynamic peer still resolving its ASN
+		LocalAS:      facts.prepend.primary,
 		// Name/GroupName complete the destination identity. The other six
 		// PeerFilterInfo fills in this package carry them
 		// (reactor_api_forward.go, reactor_api_forward_batch.go,
@@ -2658,4 +2692,25 @@ func batchRedirectsToNextHop(batch bgptypes.NLRIBatch, nextHop netip.Addr) bool 
 		return false
 	}
 	return attribute.FlowSpecRedirectsToNextHop(value)
+}
+
+// Bound maintenance writes synchronously after its captured destination FIFO.
+// Only legacy unbound maintenance may enter the existing future-write queue.
+func (target announceTarget) queueExpectedBatch(initialReplay, receipt uint64) bool {
+	if initialReplay != 0 || receipt == 0 {
+		return false
+	}
+	return target.queueExpectedWrite()
+}
+func (target announceTarget) queueExpectedWrite() bool {
+	if target.destinationOwner != 0 {
+		return false
+	}
+	return target.peer.withdrawBehindForwards()
+}
+func destinationBatchQueues(peer *Peer, owner, receipt uint64) bool {
+	if owner != 0 || receipt != 0 {
+		return false
+	}
+	return peer.shouldQueue() && !peer.withdrawBehindForwards()
 }

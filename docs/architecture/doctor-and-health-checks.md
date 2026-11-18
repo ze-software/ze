@@ -1727,3 +1727,41 @@ host read failure and offers `ze show interface brief` as the next inspection.
 |-----------|----------------|----------|
 | Unit test | The check fires only when its config block is present, and emits the registered code | The owning package beside the registration, or `internal/component/doctor` when there is no narrower owner |
 | Functional test | `ze doctor --json config <file>` exposes the behavior through the user entry point | `internal/component/doctor`, or the existing functional suite for that entry point |
+
+
+BGP identifier forwarding records `doctor-bgp-forward-path-origin` in the bounded
+recent-event ring when an original source receipt, stable owner, physical
+connection or SourceID does not resolve. The refused operation guesses no source
+facts. The event retains its exact cause and `ze request restart` recovery
+command, is rate-limited per peer, and leaves no active warning after recovery.
+<!-- source: internal/component/bgp/reactor/forward_path_origin_diagnostic.go -- reportForwardPathOriginFailure -->
+
+The reflector declares the runtime `bgp-rr-replay` check under
+`doctor-bgp-rr-replay`. It reads current original-source/destination output,
+peer replay and validation obligations where the reflector runs. An optional
+page-read refusal is a warning and is also raised through the SDK report bus;
+required unresolved work is an error. A successful read clears the current
+optional finding, and exact ended-source lease settlement clears only the
+matching source output finding. No doctor read applies a repair or confers
+forwarding authority.
+<!-- source: internal/component/bgp/plugins/rr/replay_diagnostic.go -- replayDoctorCheck, reportOptionalReplay -->
+
+
+The route server declares `bgp-rs-lifecycle` under `doctor-bgp-rs-lifecycle`.
+Its runtime callback reads the existing original-source replay failures,
+unfinished source-lease releases, unknown captured outputs and failed settlement
+where that plugin runs. It never retries or clears work. The corresponding
+status command is `ze show bgp rs status`.
+
+Refused RS input and lifecycle operations also enter the daemon's report bus
+through one bounded SDK issue queue, on internal and forked transports. One
+transient event per report window bounds repeated refusal traffic; each log
+keeps its original cause and says whether reporting was queued, rate-limited
+or refused. The worker starts before the RS engines and drains only after they
+stop, before the SDK connection closes. No SDK request runs under an RS lock.
+The reflector's replay code is likewise registered as a transient event code,
+so the daemon accepts its existing SDK reports rather than refusing a code
+that has only descriptive metadata.
+<!-- source: internal/component/bgp/plugins/rs/lifecycle_diagnostic.go -- lifecycleDoctorDeclaration, lifecycleDoctorCheck, warnLifecycle -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, routeServerRegistration -->
+<!-- source: internal/component/bgp/plugins/rr/replay_diagnostic.go -- init -->

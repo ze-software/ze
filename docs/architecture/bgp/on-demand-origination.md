@@ -234,3 +234,17 @@ as read-only.
 
 **`globalRegistry` is guarded by a mutex, not by a lazy nil check.** Handler
 goroutines run concurrently and race on first access without it.
+
+
+### Original redistributed preference
+
+Accepted redistribution reaches BGP with its original protocol, instance,
+table, pre-transform preference metric and explicit distance override. The
+BGP-facing consumer retains those facts before formatting its wire request;
+MED remains an independently accepted transform. The reactor uses an opaque
+record ID on the authenticated accepting connection to recover these facts
+and distinguish redistributed input from an explicit local BGP origin.
+Source instance and table together name the contribution. Replacing accepted
+data fences the old build, while removing one source cannot remove another
+source's route with the same prefix. See the process protocol's accepted
+redistribution input contract for lookup, lifetime and full-result behavior.

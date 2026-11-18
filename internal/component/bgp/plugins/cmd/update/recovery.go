@@ -2,10 +2,31 @@
 package update
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
 )
+
+// recoveryOwnerFromMeta carries the exact original Peer independently of
+// its address and the departed Session's forward generation.
+func recoveryOwnerFromMeta(meta map[string]any) (uint64, error) {
+	if _, recovery := meta["recovery-source"]; !recovery {
+		return 0, nil
+	}
+	text, ok := meta["recovery-source-owner"].(string)
+	if !ok {
+		return 0, errors.New("recovery-source-owner must name the original nonzero Peer owner as a decimal string")
+	}
+	owner, err := strconv.ParseUint(text, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if owner == 0 {
+		return 0, errors.New("recovery-source-owner 0 grants no departure authority")
+	}
+	return owner, nil
+}
 
 // recoveryFromMeta distinguishes an ordinary withdrawal from the forwarding
 // owner's DOWN inventory. The request names the departed source and the

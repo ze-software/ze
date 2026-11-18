@@ -8,7 +8,6 @@ package adj_rib_in
 
 import (
 	"encoding/hex"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -29,7 +28,7 @@ import (
 // nhopHex is the MP_REACH next-hop field as the source framed it. It used to be
 // an address STRING, which lost the link-local half of an RFC 2545 Section 3
 // pair before it ever reached storage.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner uint64) {
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64) {
 	if attrHex == "" {
 		return
 	}
@@ -39,7 +38,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 	split := nlrisplit.Get(fam)
 	if split == nil {
 		logger().Warn("received routes not stored: the family has no registered NLRI splitter, so its routes cannot be told apart; register one in nlrisplit",
-			"peer", peerAddr, "family", fam)
+			"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam)
 		return
 	}
 	_, err := split(data, addPath, func(raw []byte) bool {
@@ -51,7 +50,10 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 		rk, err := r.routeKeyFromNLRI(fam, payload, pathID, false)
 		if err != nil {
 			logger().Debug("received NLRI not stored: it names no route of its family",
-				"peer", peerAddr, "family", fam, "error", err)
+				"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam, "error", err)
+			return true
+		}
+		if !r.receiveCurrentLocked(peerAddr, rk, connectionID, msgID) {
 			return true
 		}
 		if r.ribIn[peerAddr] == nil {
@@ -69,12 +71,14 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceOwner:       sourceOwner,
+			SourceReceipt:     sourceReceipt,
+			ConnectionID:      connectionID,
 		})
 		return true
 	})
 	if err != nil {
 		logger().Warn("received NLRI section is malformed: the routes after the corruption are not stored",
-			"peer", peerAddr, "family", fam, "error", err)
+			"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam, "error", err)
 	}
 }
 
@@ -82,11 +86,11 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 // stores, framed by the family's withdrawal splitter and keyed the same way, so
 // a withdrawal names exactly the route its announcement stored.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool) {
+func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, connectionID, msgID uint64) {
 	split := nlrisplit.GetWithdraw(fam)
 	if split == nil {
 		logger().Warn("received withdrawals not applied: the family has no registered NLRI splitter; register one in nlrisplit",
-			"peer", peerAddr, "family", fam)
+			"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam)
 		return
 	}
 	_, err := split(data, addPath, func(raw []byte) bool {
@@ -106,17 +110,14 @@ func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Fam
 		rk, err := r.routeKeyFromNLRI(fam, payload, pathID, true)
 		if err != nil {
 			logger().Debug("withdrawn NLRI ignored: it names no route of its family",
-				"peer", peerAddr, "family", fam, "error", err)
+				"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam, "error", err)
 			return true
 		}
-		r.removePending(peerAddr, rk)
-		if r.ribIn[peerAddr] != nil {
-			r.ribIn[peerAddr].Delete(rk)
-		}
+		r.removeReceivedLocked(peerAddr, rk, connectionID, msgID)
 		return true
 	})
 	if err != nil {
 		logger().Warn("withdrawn NLRI section is malformed: the withdrawals after the corruption are not applied",
-			"peer", peerAddr, "family", fam, "error", err)
+			"peer", peerAddr.address, "peer-owner", peerAddr.owner, "family", fam, "error", err)
 	}
 }

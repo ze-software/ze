@@ -30,14 +30,9 @@ func (s *Server) opForwardCached(ctx context.Context, proc *process.Process, par
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid forward-cached params: ").Err(err).String()}
 	}
-	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
-		return nil, err
-	}
-	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+	return s.forwardCachedRequest(ctx, proc, input)
 }
 
-// opReleaseCached is the shared handler for release-cached (JSON + Direct),
-// registered as the engineOp for rpc.MethodReleaseCached. rs-fastpath-3.
 func (s *Server) opReleaseCached(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ReleaseCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
@@ -63,16 +58,9 @@ func (s *Server) opRelayStoredRoute(ctx context.Context, proc *process.Process, 
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid relay-stored-route params: ").Err(err).String()}
 	}
-	if err := s.relayStoredRouteForProcess(proc, input.Destination, input.Routes); err != nil {
-		return nil, err
-	}
-	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+	return s.relayStoredRouteRequest(ctx, proc, input)
 }
 
-// relayStoredRouteForProcess is the authenticated boundary shared by typed and
-// JSON callers. A same-name replacement cannot inherit unreconciled grants.
-// An unnamed caller retains the legacy zero Sender: the reactor refuses that
-// sender without granting operator or process authority.
 func (s *Server) relayStoredRouteForProcess(proc *process.Process, destination string, routes []rpc.StoredRoute) error {
 	if proc != nil {
 		if err := proc.RequirePeerDeclarations(); err != nil {

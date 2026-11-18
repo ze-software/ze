@@ -64,7 +64,7 @@ func (r *RIBManager) reselectAIGPRoutes() {
 	elected := make(map[reselectKey]struct{})
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	r.peerMu.RLock()
-	for _, routes := range r.bgpPeers {
+	collect := func(routes *storage.PeerRIB) {
 		addPath := routes.AddPathFamilies()
 		routes.Iterate(func(fam family.Family, nlri []byte, entry storage.RouteEntry) bool {
 			key, ok := newReselectKey(fam, nlri, addPath[fam], scratch[:])
@@ -77,6 +77,12 @@ func (r *RIBManager) reselectAIGPRoutes() {
 			keys = append(keys, affectedPrefix{fam: fam, nlriBytes: bytes.Clone(nlri), addPath: addPath[fam]})
 			return true
 		})
+	}
+	for _, routes := range r.bgpPeers {
+		collect(routes)
+	}
+	for _, routes := range r.ribInPool[bgpProtocolID] {
+		collect(routes)
 	}
 	r.peerMu.RUnlock()
 	for _, key := range keys {

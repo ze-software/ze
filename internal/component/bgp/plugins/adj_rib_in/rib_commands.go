@@ -37,7 +37,7 @@ var (
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
-	errBatchValidateStride                  = errors.New("batch-validate requires args in groups of 7: action peer family prefix pathID state msgID")
+	errBatchValidateStride                  = errors.New("batch-validate requires args in groups of 9: action peer family prefix pathID state msgID peerOwner connectionID")
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -81,7 +81,7 @@ const (
 )
 
 const (
-	batchValidateStride   = 7
+	batchValidateStride   = 9
 	maxBatchValidateCount = 256 // higher than rpki sender's 128: external plugins may batch up to 256
 )
 
@@ -112,6 +112,16 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 			decisions[i].ValState != ValidationInvalid {
 			return nil, fmt.Errorf("batch-validate: invalid validation state %d at index %d (expected 1=Valid, 2=NotFound, or 3=Invalid)", decisions[i].ValState, i)
 		}
+		if decisions[i].PeerOwner == 0 {
+			if decisions[i].ConnectionID != 0 {
+				return nil, fmt.Errorf("batch-validate: source connection at index %d has no original owner; submit the received peer-owner", i)
+			}
+		}
+		if decisions[i].PeerOwner != 0 {
+			if decisions[i].ConnectionID == 0 {
+				return nil, fmt.Errorf("batch-validate: source owner at index %d has no original connection; submit the received connection-id", i)
+			}
+		}
 		addr, err := netip.ParseAddr(decisions[i].PeerAddr)
 		if err != nil {
 			return nil, fmt.Errorf("batch-validate: invalid peer address %q at index %d: %w (expected an IP address)", decisions[i].PeerAddr, i, err)
@@ -128,7 +138,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 		peerAddr := peerAddrs[i]
 		dFam, _ := family.LookupFamily(d.Family)
 		rKey := routeKeyFromStrings(dFam, d.Prefix, d.PathID)
-		if r.applyDecision(peerAddr, rKey, d) {
+		if r.applyDecision(receivedPeerOf(peerAddr, d.PeerOwner, d.ConnectionID), rKey, d) {
 			early++
 		}
 		if d.Accept {
@@ -142,7 +152,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 }
 
 // batchValidateCommand processes multiple accept/reject decisions under a single lock.
-// Args are groups of 7: action("a"|"r"|"i"), peer, family, prefix, pathID, state, msgID.
+// Args are groups of 9: action("a"|"r"|"i"), peer, family, prefix, pathID, state, msgID, owner, connection.
 // State is 1=Valid, 2=NotFound, 3=Invalid for accepted or retained routes.
 //
 // Pre-validates the entire args slice before mutating state so a parse error
@@ -181,9 +191,17 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 		if err != nil {
 			return statusError, "", fmt.Errorf("batch-validate: invalid msgID %q at index %d: %w", args[off+6], off+6, err)
 		}
+		owner, err := strconv.ParseUint(args[off+7], 10, 64)
+		if err != nil {
+			return statusError, "", fmt.Errorf("batch-validate: original source owner: %w", err)
+		}
+		connection, err := strconv.ParseUint(args[off+8], 10, 64)
+		if err != nil {
+			return statusError, "", fmt.Errorf("batch-validate: original source connection: %w", err)
+		}
 		decisions[i] = rpc.ValidationDecision{
 			Accept: act == "a", Ineligible: act == "i", PeerAddr: args[off+1], Family: args[off+2],
-			Prefix: args[off+3], PathID: uint32(pathID), ValState: valState, MsgID: msgID,
+			Prefix: args[off+3], PathID: uint32(pathID), ValState: valState, MsgID: msgID, PeerOwner: owner, ConnectionID: connection,
 		}
 	}
 
@@ -212,7 +230,7 @@ func (r *AdjRIBInManager) status() any {
 	totalRoutes := 0
 	peers := make(map[string]int)
 	for peer, routes := range r.ribIn {
-		peers[peer.String()] = routes.Len()
+		peers[peer.address.String()] += routes.Len()
 		totalRoutes += routes.Len()
 	}
 
@@ -232,7 +250,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 	result := make(map[string][]map[string]any)
 
 	for peer, routes := range r.ribIn {
-		if !sel.Matches(peer) {
+		if !sel.Matches(peer.address) {
 			continue
 		}
 		routeList := make([]map[string]any, 0, routes.Len())
@@ -244,12 +262,13 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 				keyStr += ":" + textbuf.StringUint32(key.PathID)
 			}
 			routeMap := map[string]any{
-				routeKeyFamily:          rt.Family.String(),
-				"key":                   keyStr,
-				routeKeyNHopHex:         rt.NHopHex,
-				routeKeyAttrHex:         rt.AttrHex,
-				routeKeyNLRIHex:         rt.NLRIHex,
-				"seq-index":             seq,
+				routeKeyFamily:  rt.Family.String(),
+				"key":           keyStr,
+				routeKeyNHopHex: rt.NHopHex,
+				routeKeyAttrHex: rt.AttrHex,
+				routeKeyNLRIHex: rt.NLRIHex,
+				"seq-index":     seq,
+				"peer-owner":    textbuf.StringUint(rt.SourceOwner), "connection-id": textbuf.StringUint(rt.ConnectionID),
 				routeKeyValidationState: rt.ValidationState,
 				routeKeyIneligible:      rt.Ineligible,
 			}
@@ -257,7 +276,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 			return true
 		})
 		if len(routeList) > 0 {
-			result[peer.String()] = routeList
+			result[peer.address.String()] = append(result[peer.address.String()], routeList...)
 		}
 	}
 
@@ -281,6 +300,8 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 // of its first UPDATE (cut 0, the ordinary case) receive every route twice --
 // once replayed here, once forwarded live. See replay_cut.go.
 func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
+	r.replayGuard.RLock()
+	defer r.replayGuard.RUnlock()
 	if len(args) == 0 {
 		return statusError, "", errAdjRibInReplayRequiresTarget
 	}
@@ -414,7 +435,7 @@ func (r *AdjRIBInManager) enableValidationCommand(args []string) (status string,
 	// process reaches it through eligibilityCommand, which the announcement
 	// names, so its verdict changes are worth noting either way.
 	if r.ingestTracked {
-		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent)
+		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent, r.eligibilityProgress)
 	}
 	r.validationGate = true
 	answer := map[string]any{"validation-enabled": true}
@@ -456,7 +477,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (status string, dat
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
 	d := rpc.ValidationDecision{Accept: true, ValState: valState}
-	if r.applyDecision(peerAddr, rKey, &d) {
+	if r.applyOperatorDecisionLocked(peerAddr, rKey, &d) {
 		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
 	return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
@@ -490,7 +511,7 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (status string, dat
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
 	d := rpc.ValidationDecision{}
-	if r.applyDecision(peerAddr, rKey, &d) {
+	if r.applyOperatorDecisionLocked(peerAddr, rKey, &d) {
 		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
 
@@ -526,7 +547,7 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 				return true
 			}
 			routes = append(routes, map[string]any{
-				"peer":                  peer.String(),
+				"peer":                  peer.address.String(),
 				routeKeyFamily:          famStr,
 				"prefix":                key.routeName(),
 				routeKeyAttrHex:         rt.AttrHex,
@@ -536,6 +557,8 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 				routeKeyIneligible:      rt.Ineligible,
 				"path-id":               rt.PathID,
 				"msg-id":                rt.MsgID,
+				"peer-owner":            textbuf.StringUint(rt.SourceOwner), "connection-id": textbuf.StringUint(rt.ConnectionID),
+				"source-receipt": textbuf.StringUint(rt.SourceReceipt),
 			})
 			return true
 		})

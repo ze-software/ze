@@ -20,10 +20,12 @@ import (
 // source excluded) and an owner withdrawal (nobody excluded) differ only in
 // data: there is no mode field.
 type RecoveryRequest struct {
-	Destination netip.Addr    `json:"destination"`
-	Family      family.Family `json:"family"`
-	Keys        []RecoveryKey `json:"keys"`
-	AddPath     bool          `json:"add-path"`
+	Destination netip.Addr `json:"destination"`
+	// DestinationOwner is the original configured Peer, never resolved from Address.
+	DestinationOwner uint64        `json:"destination-owner"`
+	Family           family.Family `json:"family"`
+	Keys             []RecoveryKey `json:"keys"`
+	AddPath          bool          `json:"add-path"`
 	// SentAddPath selects the destination's negotiated sent identity space.
 	SentAddPath bool `json:"sent-add-path"`
 	// Limit bounds each key's survivors, and zero bounds nothing. On a
@@ -40,8 +42,8 @@ type RecoveryRequest struct {
 // election skips for it. An empty set keeps every source eligible, including
 // the withdrawing owner's other received paths.
 type RecoveryKey struct {
-	NLRI     []byte       `json:"nlri"`
-	Excluded []netip.Addr `json:"excluded"`
+	NLRI     []byte   `json:"nlri"`
+	Excluded []uint64 `json:"excluded"` // original source Peer owners
 }
 
 // RecoveryOutcome is the RIB's one answer for one requested key. Exactly one
@@ -68,6 +70,7 @@ type RecoveryOutcome struct {
 // reports it as the entry's source message ID.
 type RecoveryRoute struct {
 	Source            netip.Addr `json:"source"`
+	SourceOwner       uint64     `json:"source-owner"`
 	NLRI              []byte     `json:"nlri"`
 	Attributes        []byte     `json:"attributes"`
 	NextHop           []byte     `json:"next-hop"`
@@ -92,7 +95,7 @@ func FormatRecoveryKey(key *RecoveryKey) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(excluded.String())
+		b.WriteString(strconv.FormatUint(excluded, 10))
 	}
 	return b.String()
 }
@@ -115,11 +118,11 @@ func ParseRecoveryKey(encoded string) (RecoveryKey, error) {
 		return key, nil
 	}
 	for source := range strings.SplitSeq(sources, ",") {
-		addr, err := netip.ParseAddr(source)
+		owner, err := parseRecoveryOwner(source)
 		if err != nil {
 			return RecoveryKey{}, fmt.Errorf("recovery key excluded source: %w", err)
 		}
-		key.Excluded = append(key.Excluded, addr)
+		key.Excluded = append(key.Excluded, owner)
 	}
 	return key, nil
 }
@@ -129,7 +132,7 @@ const recoveryLimitKeyword = "limit"
 
 // recoveryUsage is the `request bgp rib recovery` argument form, quoted by
 // every refusal so the caller sees the shape it must write.
-const recoveryUsage = "usage: request bgp rib recovery <destination> <family> <add-path> <sent-add-path> " +
+const recoveryUsage = "usage: request bgp rib recovery <destination> <destination-owner> <family> <add-path> <sent-add-path> " +
 	"[limit <paths>] <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]"
 
 // AppendRecoveryArgs writes request in the `request bgp rib recovery` form
@@ -138,7 +141,7 @@ const recoveryUsage = "usage: request bgp rib recovery <destination> <family> <a
 // for a nonzero Limit: an unlimited request carries none.
 // Draft-abraitis-idr-addpath-paths-limit Section 1.
 func AppendRecoveryArgs(args []string, request *RecoveryRequest) []string {
-	args = append(args, request.Destination.String(), request.Family.String(),
+	args = append(args, request.Destination.String(), strconv.FormatUint(request.DestinationOwner, 10), request.Family.String(),
 		strconv.FormatBool(request.AddPath), strconv.FormatBool(request.SentAddPath))
 	if request.Limit > 0 {
 		args = append(args, recoveryLimitKeyword, strconv.Itoa(int(request.Limit)))
@@ -154,27 +157,31 @@ func AppendRecoveryArgs(args []string, request *RecoveryRequest) []string {
 // pair, so "limit 0" is a malformed request, never an unbounded one.
 // Draft-abraitis-idr-addpath-paths-limit Section 1.
 func ParseRecoveryArgs(args []string) (RecoveryRequest, error) {
-	if len(args) < 5 {
-		return RecoveryRequest{}, fmt.Errorf("request bgp rib recovery needs at least 5 arguments, got %d: %s", len(args), recoveryUsage)
+	if len(args) < 6 {
+		return RecoveryRequest{}, fmt.Errorf("request bgp rib recovery needs at least 6 arguments, got %d: %s", len(args), recoveryUsage)
 	}
 	destination, err := netip.ParseAddr(args[0])
 	if err != nil {
 		return RecoveryRequest{}, fmt.Errorf("recovery destination: %w", err)
 	}
-	fam, known := family.LookupFamily(args[1])
-	if !known {
-		return RecoveryRequest{}, fmt.Errorf("recovery: unknown family %q", args[1])
+	owner, err := parseRecoveryOwner(args[1])
+	if err != nil {
+		return RecoveryRequest{}, fmt.Errorf("recovery destination owner: %w", err)
 	}
-	addPath, err := strconv.ParseBool(args[2])
+	fam, known := family.LookupFamily(args[2])
+	if !known {
+		return RecoveryRequest{}, fmt.Errorf("recovery: unknown family %q", args[2])
+	}
+	addPath, err := strconv.ParseBool(args[3])
 	if err != nil {
 		return RecoveryRequest{}, fmt.Errorf("recovery ADD-PATH: %w", err)
 	}
-	sentAddPath, err := strconv.ParseBool(args[3])
+	sentAddPath, err := strconv.ParseBool(args[4])
 	if err != nil {
 		return RecoveryRequest{}, fmt.Errorf("recovery sent ADD-PATH: %w", err)
 	}
-	request := RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath, SentAddPath: sentAddPath}
-	keys := args[4:]
+	request := RecoveryRequest{Destination: destination, DestinationOwner: owner, Family: fam, AddPath: addPath, SentAddPath: sentAddPath}
+	keys := args[5:]
 	if keys[0] == recoveryLimitKeyword {
 		if request.Limit, err = parseRecoveryLimit(keys[1:]); err != nil {
 			return RecoveryRequest{}, err
@@ -193,6 +200,18 @@ func ParseRecoveryArgs(args []string) (RecoveryRequest, error) {
 		request.Keys = append(request.Keys, key)
 	}
 	return request, nil
+}
+
+// parseRecoveryOwner refuses absent authority rather than resolving an address.
+func parseRecoveryOwner(text string) (uint64, error) {
+	owner, err := strconv.ParseUint(text, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if owner == 0 {
+		return 0, errors.New("original Peer owner must be nonzero")
+	}
+	return owner, nil
 }
 
 // parseRecoveryLimit reads the value after the limit keyword.

@@ -21,9 +21,12 @@ type ValidationRoute struct {
 	// PeerOwner is the original stable engine Peer identity. Zero is
 	// unrecorded provenance; exact lookups MUST NOT infer it from Peer.
 	PeerOwner uint64
-	Family    family.Family
-	Prefix    netip.Prefix
-	PathID    uint32
+	// ConnectionID names the original received physical connection. Zero is
+	// unrecorded; consumers MUST NOT infer it from a current peer.
+	ConnectionID uint64
+	Family       family.Family
+	Prefix       netip.Prefix
+	PathID       uint32
 	// NLRI is the full native wire encoding for a non-CIDR route, without
 	// ADD-PATH. FlowSpec uses FlowSpecKey's shortest length encoding.
 	// A string keeps the key comparable and owns its bytes.
@@ -34,12 +37,13 @@ type ValidationRoute struct {
 // ValidationChange receives it: kebab-case keys, and the NLRI as hex, because
 // JSON replaces bytes that are not valid UTF-8 and a FlowSpec key is binary.
 type validationRouteJSON struct {
-	Peer      netip.Addr    `json:"peer-address"`
-	PeerOwner uint64        `json:"peer-owner"`
-	Family    family.Family `json:"family"`
-	Prefix    netip.Prefix  `json:"prefix"`
-	PathID    uint32        `json:"path-id"`
-	NLRI      string        `json:"nlri,omitempty"`
+	Peer         netip.Addr    `json:"peer-address"`
+	PeerOwner    uint64        `json:"peer-owner"`
+	ConnectionID uint64        `json:"connection-id,string"`
+	Family       family.Family `json:"family"`
+	Prefix       netip.Prefix  `json:"prefix"`
+	PathID       uint32        `json:"path-id"`
+	NLRI         string        `json:"nlri,omitempty"`
 }
 
 var validationRouteJSONFixed = validationRouteJSONFixedSize()
@@ -47,7 +51,7 @@ var validationRouteJSONFixed = validationRouteJSONFixedSize()
 func validationRouteJSONFixedSize() int {
 	// Unkeyed and nonempty on purpose: a schema addition MUST update the byte
 	// bound before compilation succeeds. Keep the optional NLRI key present.
-	probe := validationRouteJSON{netip.Addr{}, math.MaxUint64, family.IPv4Unicast, netip.Prefix{}, math.MaxUint32, "x"}
+	probe := validationRouteJSON{netip.Addr{}, math.MaxUint64, math.MaxUint64, family.IPv4Unicast, netip.Prefix{}, math.MaxUint32, "x"}
 	encoded, err := json.Marshal(probe)
 	if err != nil {
 		panic("BUG: validation route size probe is not encodable")
@@ -60,7 +64,7 @@ func validationRouteJSONFixedSize() int {
 // prefix text need at most 46 and 49 ASCII bytes excluding a peer's zone;
 // arbitrary zone/family names may need six bytes per source byte. Native NLRI
 // is hex, exactly twice its source width. The probe includes maximum PathID
-// and PeerOwner.
+// and both original identity fields.
 // The receiver MUST be non-nil.
 func (r *ValidationRoute) JSONSizeBound() int {
 	bound := validationRouteJSONFixed + 46 + 49
@@ -79,12 +83,13 @@ func (r *ValidationRoute) JSONSizeBound() int {
 // MarshalJSON writes the route in the form validationRouteJSON names.
 func (r ValidationRoute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(validationRouteJSON{
-		Peer:      r.Peer,
-		PeerOwner: r.PeerOwner,
-		Family:    r.Family,
-		Prefix:    r.Prefix,
-		PathID:    r.PathID,
-		NLRI:      hex.EncodeToString([]byte(r.NLRI)),
+		Peer:         r.Peer,
+		PeerOwner:    r.PeerOwner,
+		ConnectionID: r.ConnectionID,
+		Family:       r.Family,
+		Prefix:       r.Prefix,
+		PathID:       r.PathID,
+		NLRI:         hex.EncodeToString([]byte(r.NLRI)),
 	})
 }
 
@@ -100,7 +105,7 @@ func (r *ValidationRoute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*r = ValidationRoute{Peer: wire.Peer, PeerOwner: wire.PeerOwner, Family: wire.Family, Prefix: wire.Prefix, PathID: wire.PathID, NLRI: string(nlri)}
+	*r = ValidationRoute{Peer: wire.Peer, PeerOwner: wire.PeerOwner, ConnectionID: wire.ConnectionID, Family: wire.Family, Prefix: wire.Prefix, PathID: wire.PathID, NLRI: string(nlri)}
 	return nil
 }
 
@@ -110,6 +115,8 @@ func (r *ValidationRoute) UnmarshalJSON(data []byte) error {
 type ValidationLookup func(route ValidationRoute, msgID uint64) bool
 
 type validationProvider struct {
+	progress EligibilityProgress
+	command  string
 	eligible ValidationLookup
 	present  func(ValidationRoute) bool
 	// batch answers many queries at once. It MUST write every answer.
@@ -123,12 +130,15 @@ var validationLookup atomic.Pointer[validationProvider]
 
 // RegisterValidationLookup installs the receive gate before peer events start.
 // The owner MUST unregister with nil after stopping event delivery.
-func RegisterValidationLookup(fn ValidationLookup, present func(ValidationRoute) bool) {
+func RegisterValidationLookup(fn ValidationLookup, present func(ValidationRoute) bool, progress ...EligibilityProgress) {
 	if fn == nil {
 		validationLookup.Store(nil)
 		return
 	}
 	provider := &validationProvider{eligible: fn, present: present}
+	if len(progress) > 0 {
+		provider.progress = progress[0]
+	}
 	provider.batch = provider.answerEach
 	validationLookup.Store(provider)
 }

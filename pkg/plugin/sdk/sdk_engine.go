@@ -134,20 +134,31 @@ func updateRouteCounts(output *rpc.UpdateRouteOutput, err error) (uint32, uint32
 // pooled read buffer for minutes. So do NOT retry a failed call with the same
 // ids, and do not call ReleaseCached for them afterwards -- both act on entries
 // that are already gone.
-func (p *Plugin) ForwardCached(ctx context.Context, updateIDs []uint64, destinations []string) error {
-	// Fast path: typed DirectBridge dispatch (no JSON serialization).
-	if p.bridge != nil && p.bridge.HasForwardCached() {
-		return p.bridge.ForwardCached(ctx, updateIDs, destinations)
+func (p *Plugin) ForwardCached(ctx context.Context, input rpc.ForwardCachedInput) error {
+	bound := input.Bound()
+	work, cancel := ctx, context.CancelFunc(func() {})
+	var err error
+	if bound {
+		work, cancel, err = rpc.BoundCachedWriteContext(ctx, &input.DeadlineMS)
 	}
-	// Slow path: JSON-based RPC (external plugins or pre-startup).
-	input := &rpc.ForwardCachedInput{IDs: updateIDs, Destinations: destinations}
-	_, err := p.callEngineWithResult(ctx, rpc.MethodForwardCached, input)
-	return err
+	if err != nil {
+		return rpc.CachedWriteNotDispatched(err)
+	}
+	defer cancel()
+	if err := work.Err(); err != nil {
+		return rpc.CachedWriteNotDispatched(err)
+	}
+	if err := input.Validate(); err != nil {
+		return rpc.CachedWriteNotDispatched(err)
+	}
+	if p.bridge != nil {
+		if p.bridge.HasForwardCached() {
+			return p.bridge.ForwardCached(work, input)
+		}
+	}
+	return p.cachedWriteCall(work, rpc.MethodForwardCached, input, bound, input.DeadlineMS)
 }
 
-// ReleaseCached acks the listed cached updateIDs for this plugin without
-// forwarding to peers. Symmetric with ForwardCached for the "decided not to
-// forward" path. rs-fastpath-3.
 func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 	if p.bridge != nil && p.bridge.HasReleaseCached() {
 		return p.bridge.ReleaseCached(ctx, updateIDs)
@@ -176,25 +187,26 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 // Returns an error when the destination cannot be resolved to an established
 // peer or the request cannot be dispatched. Per-route failures are logged and
 // do not fail the call.
-func (p *Plugin) RelayStoredRoute(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
-	// Fast path: typed DirectBridge dispatch (no JSON serialization).
-	if p.bridge != nil && p.bridge.HasRelayStoredRoute() {
-		return p.bridge.RelayStoredRoute(ctx, destination, routes)
+func (p *Plugin) RelayStoredRoute(ctx context.Context, input rpc.RelayStoredRouteInput) error {
+	work, cancel, err := rpc.CachedWriteContext(ctx, input.DestinationOwner, input.DestinationSession, &input.DeadlineMS)
+	if err != nil {
+		return rpc.CachedWriteNotDispatched(err)
 	}
-	// Slow path: JSON-based RPC (external plugins or pre-startup).
-	input := &rpc.RelayStoredRouteInput{Destination: destination, Routes: routes}
-	_, err := p.callEngineWithResult(ctx, rpc.MethodRelayStoredRoute, input)
-	return err
+	defer cancel()
+	if err := input.Validate(); err != nil {
+		return rpc.CachedWriteNotDispatched(err)
+	}
+	if err := work.Err(); err != nil {
+		return rpc.CachedWriteNotDispatched(err)
+	}
+	if p.bridge != nil {
+		if p.bridge.HasRelayStoredRoute() {
+			return p.bridge.RelayStoredRoute(work, input)
+		}
+	}
+	return p.cachedWriteCall(work, rpc.MethodRelayStoredRoute, input, input.Bound(), input.DeadlineMS)
 }
 
-// RouteInstall inserts a batch of computed routes into the engine's process-wide
-// Loc-RIB. It is the cross-process bridge for a FORKED route-installing plugin
-// (OSPF, IS-IS): in-process the plugin writes locrib.Default() directly, but a
-// forked subprocess gets a nil Loc-RIB (default.go returns nil under
-// ze.plugin.hub.token), so it ships the ops here and the engine applies them to
-// the real singleton, where sysrib's OnChange programs the kernel. Returns the
-// number of routes applied. Each entry carries the protocol NAME; the engine
-// re-resolves it to its own numeric ProtocolID.
 func (p *Plugin) RouteInstall(ctx context.Context, routes []rpc.RouteInstallEntry) (installed uint32, err error) {
 	input := &rpc.RouteInstallInput{Routes: routes}
 	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteInstall, input)

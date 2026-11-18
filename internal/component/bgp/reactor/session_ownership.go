@@ -111,13 +111,31 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 		return nil, errAdjOutSession
 	}
 	if item := s.sentForward; item != nil {
+		if item.destinationOwner != 0 {
+			if item.peer == nil {
+				return nil, errAdjOutSession
+			}
+			if item.peer.sourceOwner != item.destinationOwner {
+				return nil, errAdjOutSession
+			}
+			if item.peer.establishedSession.Load() != s {
+				return nil, errAdjOutSession
+			}
+			if s.initialReplay.Load() != item.destinationSession {
+				return nil, errAdjOutSession
+			}
+		}
 		if item.session != s {
 			return nil, errAdjOutSession
 		}
 		if item.authority == adjOutUnspecified && !item.originated && item.endOfRIB == nil {
 			return nil, errAdjOutProvenance
 		}
-		if item.authority == adjOutForwarded && !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
+		if item.bound != nil {
+			if err := item.bound.current(item.peer, s); err != nil {
+				return nil, err
+			}
+		} else if item.authority == adjOutForwarded && !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
 			return nil, errAdjOutProvenance
 		}
 		if item.authority == adjOutInitial {
@@ -252,6 +270,12 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		owner.generation = item.receivedGeneration
 		owner.policyEpoch = item.sourcePolicyEpoch
 		owner.sourceReceipt = item.sourceReceipt
+		if owner.source != nil {
+			source := sourceReceipts.recoverySource(item.sourceReceipt, owner.source.sourceOwner)
+			if source.ok {
+				owner.connectionID = source.info.filterInfo.ConnectionID
+			}
+		}
 		if owner.source != nil {
 			owner.revocation = owner.source.forwardRevocation.Load()
 		}

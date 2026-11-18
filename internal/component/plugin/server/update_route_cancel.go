@@ -20,13 +20,21 @@ func updateRouteCancellationScope(_ *Server, proc *process.Process, raw json.Raw
 		return requestScope{}, err
 	}
 	if input.DeadlineMS == 0 {
+		if input.DestinationOwner != 0 {
+			return requestScope{}, errors.New("bound update-route requires a positive deadline-ms for acknowledged cancellation")
+		}
+		if input.PeerMarker != "" {
+			return requestScope{}, errors.New("bound replay marker requires a positive deadline-ms for acknowledged cancellation")
+		}
 		return requestScope{}, nil
 	}
 	if proc == nil {
 		return requestScope{}, errors.New("update-route cancellation requires its authenticated process")
 	}
 	if input.Command == "" {
-		return requestScope{}, errors.New("update-route command is missing")
+		if input.PeerMarker == "" {
+			return requestScope{}, errors.New("update-route command or bound marker is missing")
+		}
 	}
 	return rpc.NewRequestCancellationScope(rpc.MethodUpdateRoute, time.UnixMilli(input.DeadlineMS)), nil
 }

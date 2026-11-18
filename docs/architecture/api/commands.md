@@ -1706,16 +1706,18 @@ The cache commands enable route reflection via API:
 The text-RPC `send bgp <sel> cached <id>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
 
 ```go
-Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
+Plugin.ForwardCached(ctx, input rpc.ForwardCachedInput) error
 Plugin.ReleaseCached(ctx, ids []uint64) error
 ```
 
 Both methods round-trip via `DirectBridge` when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the `ze-plugin-engine:forward-cached` / `:release-cached` methods over the newline-framed plugin RPC connection when the plugin is out-of-process. The engine handler is `reactorAPIAdapter.ForwardUpdatesDirect` / `ReleaseUpdates`.
 
-Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any peer
-instance with the same address. A call accepts up to 4096 destinations, configurable
-through `ze.fwd.dest.cap`, and returns an error if the list exceeds that limit.
-An empty destination list also returns an error to prevent an accidental broadcast.
+An intentional unbound call uses `ForwardCachedInput.Destinations`. A bound
+call instead supplies the complete `Targets` set of original destination address,
+Peer owner and UP session, with a bounded deadline. The two forms are exclusive.
+The bound server joins every admitted target writer before acknowledging the
+unique cached IDs once. An exact positive completion receipt proves settlement;
+a transport error or generic cancellation receipt leaves the output unknown.
 Use `ReleaseCached` to acknowledge an UPDATE without forwarding it.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 
@@ -1931,9 +1933,10 @@ show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out <selector> [family <family>] # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib out-excluding-owner owner <id> [family <family>] # Replay except one exact configured owner
 clear bgp rib advertised <selector> [family <family>] # Withdraw Adj-RIB-Out (* for all, optional family)
-request bgp rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
-request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
+request bgp rib inject <peer> <family> <prefix> [attrs] # Insert synthetic forwarding candidate (no session needed)
+request bgp rib withdraw <peer> <family> <prefix>       # Remove matching synthetic forwarding candidate
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 

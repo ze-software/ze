@@ -14,11 +14,15 @@ import (
 )
 
 type ribSourceLease struct {
-	peer      netip.Addr
-	peerOwner uint64
-	ref       *storage.SourceReference
-	busy      chan struct{}
-	failure   error
+	peer         netip.Addr
+	peerOwner    uint64
+	connectionID uint64
+	ref          *storage.SourceReference
+	busy         chan struct{}
+	failure      error
+	outputHolds  uint32                 // Active source operations, not route history.
+	outputs      []*selectedDestination // Coalesced live worker obligations after a refused operation.
+	sentOutputs  []*ribSourceSentOutput // Exact live auxiliary batches, never reconstructed from current metadata.
 }
 
 // ribSourceLeases owns current original-source leases, not routes or history.
@@ -31,10 +35,10 @@ type ribSourceLeases struct {
 	manager     *RIBManager
 	mu          sync.Mutex
 	leases      map[uint64]*ribSourceLease
-	admission   map[netip.Addr]error
+	admission   map[uint64]error
 	reportMu    sync.Mutex
-	reported    map[netip.Addr]string
-	reportAfter map[netip.Addr]time.Time
+	reported    map[uint64]string
+	reportAfter map[uint64]time.Time
 	wake        chan struct{}
 	cancel      context.CancelFunc
 	done        chan struct{}
@@ -43,8 +47,8 @@ type ribSourceLeases struct {
 
 func newRIBSourceLeases(manager *RIBManager) *ribSourceLeases {
 	return &ribSourceLeases{manager: manager, leases: make(map[uint64]*ribSourceLease),
-		admission: make(map[netip.Addr]error), reported: make(map[netip.Addr]string),
-		reportAfter: make(map[netip.Addr]time.Time), wake: make(chan struct{}, 1)}
+		admission: make(map[uint64]error), reported: make(map[uint64]string),
+		reportAfter: make(map[uint64]time.Time), wake: make(chan struct{}, 1)}
 }
 
 func (s *ribSourceLeases) notify() {
@@ -54,20 +58,25 @@ func (s *ribSourceLeases) notify() {
 	}
 }
 
-func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwner, receipt uint64) (*storage.SourceReference, error) {
+func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwner, receipt, connectionID uint64) (*storage.SourceReference, error) {
 	if s == nil {
 		// Passive storage has no lease owner and intentionally grants no
 		// authority; its callers retain the route without a SourceReference.
 		return nil, nil //nolint:nilnil // Nil denotes passive storage, not a failed lease acquisition.
 	}
+	if connectionID == 0 {
+		err := s.operationError(errors.New("the received UPDATE has no original physical connection"), peer, receipt, rpc.SourceLeaseAcquire)
+		s.setAdmission(peerOwner, err)
+		return nil, err
+	}
 	if receipt == 0 {
 		err := s.operationError(errors.New("the received UPDATE has no original source receipt or peer owner"), peer, receipt, rpc.SourceLeaseAcquire)
-		s.setAdmission(peer, err)
+		s.setAdmission(peerOwner, err)
 		return nil, err
 	}
 	if peerOwner == 0 {
 		err := s.operationError(errors.New("the received UPDATE has no original source receipt or peer owner"), peer, receipt, rpc.SourceLeaseAcquire)
-		s.setAdmission(peer, err)
+		s.setAdmission(peerOwner, err)
 		return nil, err
 	}
 	for {
@@ -80,13 +89,19 @@ func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwne
 			if lease.peer != peer {
 				s.mu.Unlock()
 				err := s.operationError(errors.New("the receipt belongs to another peer"), peer, receipt, rpc.SourceLeaseAcquire)
-				s.setAdmission(peer, err)
+				s.setAdmission(peerOwner, err)
 				return nil, err
 			}
 			if lease.peerOwner != peerOwner {
 				s.mu.Unlock()
 				err := s.operationError(errors.New("the receipt belongs to another peer"), peer, receipt, rpc.SourceLeaseAcquire)
-				s.setAdmission(peer, err)
+				s.setAdmission(peerOwner, err)
+				return nil, err
+			}
+			if lease.connectionID != connectionID {
+				s.mu.Unlock()
+				err := s.operationError(errors.New("the receipt belongs to another physical connection"), peer, receipt, rpc.SourceLeaseAcquire)
+				s.setAdmission(peerOwner, err)
 				return nil, err
 			}
 			if lease.busy != nil {
@@ -105,20 +120,20 @@ func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwne
 				return nil, err // A revoked lease awaiting settlement cannot be resurrected.
 			}
 			lease.ref.AddRef()
-			_, cleared := s.admission[peer]
-			delete(s.admission, peer)
+			_, cleared := s.admission[peerOwner]
+			delete(s.admission, peerOwner)
 			s.mu.Unlock()
 			if cleared {
 				s.notify()
 			}
 			return lease.ref, nil
 		}
-		lease := &ribSourceLease{peer: peer, peerOwner: peerOwner, busy: make(chan struct{})}
+		lease := &ribSourceLease{peer: peer, peerOwner: peerOwner, connectionID: connectionID, busy: make(chan struct{})}
 		s.leases[receipt] = lease
 		s.mu.Unlock()
 		_, err := s.manager.plugin.SourceLease(ctx, rpc.SourceLeaseInput{Action: rpc.SourceLeaseAcquire, SourceReceipt: receipt, PeerOwner: peerOwner})
 		s.mu.Lock()
-		_, changed := s.admission[peer]
+		_, changed := s.admission[peerOwner]
 		if s.stopped {
 			delete(s.leases, receipt)
 			close(lease.busy)
@@ -128,13 +143,13 @@ func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwne
 		}
 		if err != nil {
 			err = s.operationError(err, peer, receipt, rpc.SourceLeaseAcquire)
-			previous := s.admission[peer]
+			previous := s.admission[peerOwner]
 			changed = previous == nil || previous.Error() != err.Error()
 			delete(s.leases, receipt)
-			s.admission[peer] = err
+			s.admission[peerOwner] = err
 		} else {
-			lease.ref = storage.NewSourceReference(lease.peerOwner, s.notify)
-			delete(s.admission, peer)
+			lease.ref = storage.NewSourceReference(lease.peerOwner, lease.connectionID, s.notify)
+			delete(s.admission, peerOwner)
 		}
 		close(lease.busy)
 		lease.busy = nil
@@ -148,22 +163,23 @@ func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwne
 
 // retain is the explicit RIB GR/LLGR decision, never inferred from attributes
 // or source DOWN. The reference registry includes alternate current candidates.
-func (s *ribSourceLeases) retain(ctx context.Context, peer netip.Addr) error {
+func (s *ribSourceLeases) retain(ctx context.Context, peer netip.Addr, peerOwner uint64) error {
+	return s.retainReceipts(ctx, peer, peerOwner, s.receiptsForPeer(peerOwner))
+}
+
+// retainReceipts performs the real SDK decision on an already captured scope.
+// No peer or storage lock may be held; it serializes each existing lease with
+// the acquire/release worker. It never scans an address or mints a receipt.
+func (s *ribSourceLeases) retainReceipts(ctx context.Context, peer netip.Addr, peerOwner uint64, receipts []uint64) error {
 	if s == nil {
 		return nil
 	}
 	s.mu.Lock()
-	if s.stopped {
-		s.mu.Unlock()
+	stopped := s.stopped
+	s.mu.Unlock()
+	if stopped {
 		return s.operationError(context.Canceled, peer, 0, rpc.SourceLeaseRetain)
 	}
-	var receipts []uint64
-	for receipt, lease := range s.leases {
-		if lease.peer == peer {
-			receipts = append(receipts, receipt)
-		}
-	}
-	s.mu.Unlock()
 	for _, receipt := range receipts {
 		for {
 			s.mu.Lock()
@@ -202,13 +218,13 @@ func (s *ribSourceLeases) retain(ctx context.Context, peer netip.Addr) error {
 			s.mu.Unlock()
 			s.notify()
 			if err != nil {
-				s.setAdmission(peer, err)
+				s.setAdmission(peerOwner, err)
 				return err
 			}
 			break
 		}
 	}
-	s.forgetAdmission(peer)
+	s.forgetAdmission(peerOwner)
 	return nil
 }
 
@@ -236,9 +252,9 @@ func (s *ribSourceLeases) settle(ctx context.Context) error {
 }
 
 // receiptsForPeer snapshots this source's current and pending original-source
-// receipts. The address is the existing RIB source selector, not release
-// authority: settlement operates on the returned receipt IDs only.
-func (s *ribSourceLeases) receiptsForPeer(peer netip.Addr) []uint64 {
+// receipts. It matches the immutable original Peer owner, so one address alias
+// cannot settle another's receipts. Settlement still uses exact receipt IDs.
+func (s *ribSourceLeases) receiptsForPeer(peer uint64) []uint64 {
 	if s == nil {
 		return nil
 	}
@@ -246,7 +262,7 @@ func (s *ribSourceLeases) receiptsForPeer(peer netip.Addr) []uint64 {
 	defer s.mu.Unlock()
 	var receipts []uint64
 	for receipt, lease := range s.leases {
-		if lease.peer == peer {
+		if lease.peerOwner == peer {
 			receipts = append(receipts, receipt)
 		}
 	}
@@ -284,13 +300,33 @@ func (s *ribSourceLeases) settleReceipts(ctx context.Context, receipts []uint64)
 					return errors.Join(refused, s.operationError(ctx.Err(), lease.peer, receipt, rpc.SourceLeaseRelease))
 				}
 			}
-			if lease.ref.References() != 0 {
+			if lease.ref.References() != 0 || lease.outputHolds != 0 {
 				s.mu.Unlock()
 				break
 			}
 			lease.busy = make(chan struct{})
+			kept := lease.outputs[:0]
+			for _, destination := range lease.outputs {
+				select {
+				case <-destination.done:
+				default:
+					kept = append(kept, destination)
+				}
+			}
+			clear(lease.outputs[len(kept):])
+			lease.outputs = kept
+			active := append([]*selectedDestination(nil), kept...)
+			auxiliary := append([]*ribSourceSentOutput(nil), lease.sentOutputs...)
 			s.mu.Unlock()
-			_, err := s.manager.plugin.SourceLease(ctx, rpc.SourceLeaseInput{Action: rpc.SourceLeaseRelease, SourceReceipt: receipt, PeerOwner: lease.peerOwner})
+			// The running retry worker takes this same nonblocking guard. It
+			// MUST NOT release a source before publication or final output.
+			err := s.manager.selectedDispatch.sourceReleaseReady(active)
+			if err == nil {
+				err = joinPhysicalSentOutputs(ctx, s.manager, auxiliary)
+			}
+			if err == nil {
+				_, err = s.manager.plugin.SourceLease(ctx, rpc.SourceLeaseInput{Action: rpc.SourceLeaseRelease, SourceReceipt: receipt, PeerOwner: lease.peerOwner})
+			}
 			s.mu.Lock()
 			if err != nil {
 				lease.failure = s.operationError(err, lease.peer, receipt, rpc.SourceLeaseRelease)
@@ -361,16 +397,37 @@ func (s *ribSourceLeases) stop() {
 // retainSourceOnDown runs while the ordered Session delivery reference is still
 // open. It repeats the explicit retention decision so a later received UPDATE
 // cannot leave a fresh lease outside the earlier retain-routes command.
-func (r *RIBManager) retainSourceOnDown(peer netip.Addr) {
+func (r *RIBManager) retainSourceOnDown(peer netip.Addr, peerOwner uint64) {
 	r.peerMu.RLock()
-	retained := r.retainedPeers[peer]
+	retained := r.retainedPeers[peerOwner]
+	state := r.grState[peerOwner]
+	var source *ribPhysicalSource
+	if state != nil {
+		source = state.source
+	}
+	if source != nil {
+		metadata := r.peerMeta[peerOwner]
+		if metadata == nil {
+			retained = false
+		} else if metadata.ConnectionID != source.connection {
+			retained = false
+		}
+	}
 	r.peerMu.RUnlock()
 	if !retained {
 		return
 	}
-	if err := r.sourceLeases.retain(context.Background(), peer); err != nil {
+	var err error
+	if source != nil {
+		err = r.sourceLeases.retainPhysical(context.Background(), *source)
+	} else {
+		err = r.sourceLeases.retain(context.Background(), peer, peerOwner)
+	}
+	if err != nil {
 		r.peerMu.Lock()
-		delete(r.retainedPeers, peer)
+		if r.grState[peerOwner] == state {
+			delete(r.retainedPeers, peerOwner)
+		}
 		r.peerMu.Unlock()
 		r.sourceLeases.reportFailures(context.Background())
 	}
@@ -378,7 +435,7 @@ func (r *RIBManager) retainSourceOnDown(peer netip.Addr) {
 
 // settleSourceLeases completes a best-effort lifecycle operation's sources.
 // The background worker alone scans the entire pending registry.
-func (r *RIBManager) settleSourceLeases(peers ...netip.Addr) {
+func (r *RIBManager) settleSourceLeases(peers ...uint64) {
 	if r.sourceLeases != nil {
 		r.sourceLeases.mu.Lock()
 		stopped := r.sourceLeases.stopped
@@ -395,4 +452,88 @@ func (r *RIBManager) settleSourceLeases(peers ...netip.Addr) {
 		r.sourceLeases.notify()
 	}
 	r.sourceLeases.reportFailures(context.Background())
+}
+
+// holdSourceOutput MUST precede source mutation; its caller MUST release the
+// hold after publication and the attempted output join. It stores no history:
+// every existing lease keeps only a coalesced set of unjoined workers.
+// A worker is pruned only when done closes, never merely on replacement UP.
+// The worker done channel needs no dispatcher mutex; leaf locks never nest.
+func (s *ribSourceLeases) holdSourceOutput(receipts []uint64, active []*selectedDestination) func() {
+	if s == nil {
+		return func() {}
+	}
+	s.mu.Lock()
+	var held []*ribSourceLease
+	seen := make(map[uint64]struct{}, len(receipts))
+	for _, receipt := range receipts {
+		if _, duplicate := seen[receipt]; duplicate {
+			continue
+		}
+		seen[receipt] = struct{}{}
+		lease := s.leases[receipt]
+		if lease == nil {
+			continue
+		}
+		lease.outputHolds++
+		held = append(held, lease)
+		kept := lease.outputs[:0]
+		for _, destination := range lease.outputs {
+			select {
+			case <-destination.done:
+			default:
+				kept = append(kept, destination)
+			}
+		}
+		clear(lease.outputs[len(kept):])
+		lease.outputs = kept
+		for _, destination := range active {
+			select {
+			case <-destination.done:
+				continue
+			default:
+			}
+			duplicate := false
+			for _, previous := range lease.outputs {
+				if previous == destination {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				lease.outputs = append(lease.outputs, destination)
+			}
+		}
+	}
+	s.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			s.mu.Lock()
+			for _, lease := range held {
+				lease.outputHolds--
+			}
+			s.mu.Unlock()
+			s.notify()
+		})
+	}
+}
+
+// receiptsAtAddress captures current retained rights for an explicit
+// address-wide operator purge. It reads the original lease's address without
+// peerMu, so capture MUST precede the mutation lock and final joins MUST follow
+// its unlock. It grants no source or output authority and stores no history.
+func (s *ribSourceLeases) receiptsAtAddress(peer netip.Addr) []uint64 {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var receipts []uint64
+	for receipt, lease := range s.leases {
+		if lease.peer == peer {
+			receipts = append(receipts, receipt)
+		}
+	}
+	return receipts
 }

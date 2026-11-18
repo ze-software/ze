@@ -456,8 +456,10 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		maxMsgSize:  int(message.MaxMessageLength(msgtype.TypeUPDATE, extendedMsg)),
 
 		filterInfo: filterapi.PeerFilterInfo{
-			Address: s.Address,
-			PeerAS:  peerAS,
+			PeerOwner:    p.sourceOwner,
+			ConnectionID: connectionIDOf(session),
+			Address:      s.Address,
+			PeerAS:       peerAS,
 			// LocalAS is the effective per-peer local AS (per-peer local-as
 			// override when set, otherwise the global local-as). Filling it here
 			// lets egress filters read dest.LocalAS instead of re-parsing the raw

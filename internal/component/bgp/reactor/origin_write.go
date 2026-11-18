@@ -114,9 +114,22 @@ func (write originWrite) current() error {
 	}
 	store := write.record.store
 	store.mu.Lock()
+	if _, active := write.record.writes[write.id]; !active {
+		store.mu.Unlock()
+		return errors.New("origin final write has completed")
+	}
+	err := write.accepts()
+	store.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if err := write.record.source.acceptedCurrent(write.record.ctx, write.record.peer); err != nil {
+		return err
+	}
+	store.mu.Lock()
 	defer store.mu.Unlock()
 	if _, active := write.record.writes[write.id]; !active {
-		return errors.New("origin final write has completed")
+		return errors.New("origin final write completed during accepted-source lookup")
 	}
 	return write.accepts()
 }

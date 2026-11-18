@@ -12,6 +12,11 @@ func (r *RIBManager) updateSelectedMetrics(m *ribMetrics) {
 	if d := r.selectedDispatch; d != nil {
 		d.mu.Lock()
 		current, destinations = len(d.current), len(d.destinations)
+		for key := range d.origins {
+			if d.current[key] == nil {
+				current++
+			}
+		}
 		for _, destination := range d.destinations {
 			pending += len(destination.pending)
 			inFlight += len(destination.inFlight)

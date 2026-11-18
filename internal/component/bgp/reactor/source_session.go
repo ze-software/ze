@@ -38,7 +38,7 @@ func (s *Session) captureSourceReceipt(peer *Peer, store *sourceReceiptStore) er
 	if !context.ASN4() {
 		return errors.New("source receipt: normalized four-octet receive encoding could not be registered")
 	}
-	facts, err := newSourceReceiptFacts(relaySourceForPeer(peer, contextID, s.advertisedLLGR()))
+	facts, err := newSourceReceiptFacts(relaySourceForPeer(peer, contextID, s.advertisedLLGR()), s.connectionID)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (s *Session) sourceMessageCallback(next MessageCallback) MessageCallback {
 	if next == nil {
 		return nil
 	}
-	return func(address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
+	return func(_ *Session, address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
 		direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
 		if direction == rpc.DirectionReceived {
 			if kind == msgtype.TypeUPDATE {
@@ -89,7 +89,7 @@ func (s *Session) sourceMessageCallback(next MessageCallback) MessageCallback {
 				}
 			}
 		}
-		return next(address, kind, body, update, context, direction, buffer, meta, source, id)
+		return next(s, address, kind, body, update, context, direction, buffer, meta, source, id)
 	}
 }
 
@@ -97,8 +97,8 @@ func (s *Session) sourceMessageCallback(next MessageCallback) MessageCallback {
 // Peer, because two sessions can share an address and use different TCP ports.
 // The caller installs this once before constructing the Peer's first Session.
 func (r *Reactor) messageReceiverForPeer(peer *Peer) MessageCallback {
-	return func(address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
+	return func(captured *Session, address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
 		direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
-		return r.notifyMessageReceiverFrom(peer, address, kind, body, update, context, direction, buffer, meta, source, id)
+		return r.notifyMessageReceiverFrom(peer, captured, address, kind, body, update, context, direction, buffer, meta, source, id)
 	}
 }

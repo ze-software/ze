@@ -92,10 +92,12 @@ Those commits do not close the spec or claim release readiness.
 | Learned-only export policy, reload and diagnostics | Committed in `067a0c5b302cca916135dc13dd0b55292af1cd54` | Scoped policy and diagnostics runs and four functional scenarios passed; final integrated regression remains owed |
 | Selected-only replacement-recipient replay, AC-27 | Committed in `96dc0b610e` | Actual socket regression, useful FlowSpec controls and producing-code discrimination passed; final integrated regression remains owed |
 | Applied-event completion across plugin transports | Committed in `a2247ff49e190f4b61030a4bee932d472f858c50` and `824dc2284b21e5ab54b883b616c8ba48d9beb242` | Scoped unit, race and producing-code discrimination runs passed; the complete advertiser lifecycle is still being tested |
-| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined source integrated; wiring and test repairs continue | The named launcher builds with the new drivers. RIB and RS/RR scoped tests now run, with the broader results below. GR and reactor fixture migrations still need execution, and missing GR command wiring is being implemented. Independent source reviews do not substitute for execution |
+| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined source integrated; implementation checkpoint being committed | The named launcher builds with the new drivers. GR source commands are wired. RIB, RS/RR, GR and formatter scoped tests now run, with the broader results below. Remaining fixture repairs, functional execution and source-fault proof remain in scope. Independent source reviews do not substitute for execution |
 | Mutable mock RTR snapshots and query framing | Committed in `f8ebbaf49b6bd0a1f5a65e7154f3c7dbf13490de` | All seven mock-package roots passed. Removing the producing length guard fails the real TCP query test; the same healthy root then passed with race detection. Repeated race runs and the remaining snapshot discrimination are owed |
 | Shared source-preference comparison | Committed in `559acf8707db9bdfca411f4a03d0c7f6983f8926` | Four selected ranking roots and then all 74 Loc-RIB package roots passed with race detection; this does not establish the full advertiser lifecycle |
-| Reusable accepted-source snapshot validation and comparison | Implemented; publishing the independent provider | All five existing lookup roots passed with race detection after the extraction. The outer reply still checks exact identity, state and frame bounds; these helpers grant no source authority |
+| Reusable accepted-source snapshot validation and comparison | Committed in `20a28ca82f5656f547e683fc47966358214e306c` | All five original lookup roots passed with race detection after the extraction. The outer reply still checks exact identity, state and frame bounds; these helpers grant no source authority |
+| Cached-write settlement primitives | Committed in `bc88d02701e58c7d6c0d51d9f0c870d205eb977a` | Both standalone roots passed with race detection. Removing the nil-cause guard fails the same regression; the healthy source passed again afterward. Engine and SDK adoption remain part of the integration |
+| Internal source/owner metadata fields | Committed in `a3db9f5f1447cd830583ddb49af63a005049287b` | All 254 roots across BGP types and WireUpdate passed with race detection. These fields grant no authority and do not by themselves prove actual capture or output |
 | Registered route/marker variants and recovery grammar | Implemented in the combined working tree | Three route/marker roots and four recovery roots passed after fixture repairs; final source-fault and integration checks remain owed |
 | Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | The missing explicit destination `update-sent` grants and canonical ASN4 attribute expectation are corrected. All six GR-to-RIB source commands, owner-excluded refresh and auxiliary withdrawal debt are implemented in the working tree after independent source review. Scoped execution and the real route-lifecycle proof remain in progress |
 | FRR and BIRD user-outcome scenarios | Committed in `865c3e6543f117a3f560f69f653a51a125616e33` | Both checker branches and all three new oracle/preparation roots passed with race detection. Native source/backup/recipient configurations and ordered checkers are present. Both actual pinned-daemon scenarios, producing-code discrimination and final Review Gate remain owed |
@@ -127,6 +129,43 @@ missing notification, with a focused regression awaiting execution; the
 original route population and assertions remain intact. The new GR
 source-command tests now reach their expected pre-implementation failure at
 the missing command registration, rather than failing to compile.
+
+After the pending-admission fix, the unchanged 180,000-route burst and its
+focused typed/JSON regression passed. The next scoped race run passed 79
+roots and failed two new auxiliary-cleanup roots on their framed transport;
+their bridge cases passed and no race was reported. The original 24 RIB
+failures passed their targeted reruns. The framed failures were traced to
+missing original destination-session provenance in SENT JSON. After the
+formatter repair, all eleven selected regression roots passed with race
+detection, including every framed and bridge auxiliary-cleanup case.
+
+The subsequent full RS/RR/RIB/GR/formatter race run passed 1,499 roots and
+failed five, with no race reported. The complete RS and GR packages passed.
+The remaining failures concern one reflector deadline diagnostic, one RIB
+large-event request deadline, one structured-DOWN fixture and two native TEXT
+expectations. They remain active work; this implementation checkpoint does
+not claim that the whole affected test set passes. Four GR/RTR functional
+drafts, actual FRR/BIRD interoperability, current RFC proof records and final
+independent review also remain owed.
+
+The reflector deadline diagnostic and both TEXT expectations subsequently
+passed their targeted race checks after independent review. A new RIB
+regression reproduced DOWN returning before a concurrent withdrawal mirror
+completed; its reviewed source fix retains the peer reference through that
+completion. Both withdrawal roots then passed twenty race runs. Seven RS worker lifecycle roots also
+passed twenty race runs after unused discard plumbing was removed.
+
+The native implementation-commit gate then refused thirty RS warnings and
+one redistribution warning without declared doctor coverage, plus a refresh
+error without an operator fix. Their reviewed fixes are now implemented.
+The new diagnostic tests failed against the original warning paths, then all
+seven selected diagnostic/withdrawal roots passed with race detection.
+Twenty repeats passed 136 of 140 root executions, with no race reported;
+four failures came from a new doctor snapshot assertion comparing unordered
+status rows. That test-oracle correction remains active while the source
+checkpoint is retried. The fresh GR/RTR draft reached retained stale
+state but exposed an observer still reading status by address. Its reviewed
+repair reads the captured source owner; the actual lifecycle run remains owed.
 
 ### Observed evidence
 

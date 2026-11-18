@@ -1117,3 +1117,35 @@ and the source path layout, so a package move or a config-root change changes
 the generated site.
 
 <!-- source: internal/le/site/plugins.go -- renderPluginCatalog, pluginEntries -->
+
+
+### RS physical read control
+
+Route-server backpressure dispatches pause and resume through the existing
+bound `dispatch-command` operation. The request names the original Peer owner
+and physical connection captured by the source worker. Shutdown resumes that
+same captured tuple; an address-sharing sibling or replacement connection
+cannot inherit the read-gate mutation.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- peerReadAction, wireFlowControl, resumeAllPaused -->
+
+
+### RS cleanup admission and settlement
+
+The RS cleanup handler decodes and seals admission on the ordinary event rail.
+It does not wait there for held source workers, store pages or final output.
+Its combined settlement function uses the applied request's work deadline to
+join departures, UPDATE/validation workers, superseded replay lifetimes and
+actual captured output. It changes removed membership and releases empty
+source leases only after those joins succeed. The cleanup subscription and
+this combined callback must be registered together after the complete role
+integration is in place.
+<!-- source: internal/component/bgp/plugins/rs/retained_settlement.go -- sealCleanup, settleRetainedEvents -->
+
+A failed settlement keeps its current obligation and names captured target
+identities. Its bounded receipt refers to `ze show bgp rs status` for the full
+current cause, leases and active or unknown output. Completed ordinary refusal
+keeps its existing warning; a positive joined-failure receipt proves completion,
+not useful output success. Required replay and source-policy output failures
+remain current until their original useful work succeeds or its lifetime ends.
+<!-- source: internal/component/bgp/plugins/rs/retained_settlement.go -- settlementFailure, lifecycleStatus -->
+<!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- joinedOutputError, sourceRelayFailure, retryCurrentReplays -->

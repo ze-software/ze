@@ -25,8 +25,8 @@ import (
 // would be judged on this store's grant and refused toward a peer that
 // attached only the caller (ribevents.ReplayRoutesCommand).
 func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) {
-	if len(args) != 5 {
-		return statusError, nil, fmt.Errorf("replay-path requires: destination source family prefix pathID")
+	if len(args) != 7 {
+		return statusError, nil, fmt.Errorf("replay-path requires: destination source family prefix pathID peerOwner connectionID")
 	}
 	destination, err := netip.ParseAddr(args[0])
 	if err != nil {
@@ -48,21 +48,41 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 	if err != nil {
 		return statusError, nil, fmt.Errorf("replay-path pathID: %w", err)
 	}
+	owner, err := strconv.ParseUint(args[5], 10, 64)
+	if err != nil {
+		return statusError, nil, fmt.Errorf("replay-path original owner: %w", err)
+	}
+	connection, err := strconv.ParseUint(args[6], 10, 64)
+	if err != nil {
+		return statusError, nil, fmt.Errorf("replay-path original connection: %w", err)
+	}
+	if owner == 0 {
+		return statusError, nil, fmt.Errorf("replay-path has no original owner; submit peer-owner from the validation change")
+	}
+	if connection == 0 {
+		return statusError, nil, fmt.Errorf("replay-path has no original connection; submit connection-id from the validation change")
+	}
+	original := receivedPeerOf(source, owner, connection)
 	if destination == source {
 		return statusDone, ribevents.ReplayPage{Routes: []rpc.StoredRoute{}}, nil
 	}
 	key := compactRouteKey{Fam: fam, Prefix: prefix, PathID: uint32(pathID)}
 	route := rpc.StoredRoute{
-		SourcePeer: args[1], Family: args[2], PathID: uint32(pathID),
+		SourcePeer: args[1], SourceOwner: owner, SourceConnectionID: connection, Family: args[2], PathID: uint32(pathID),
 		NLRIHex: prefixToWireHex(fam, args[3]), NLRIFraming: rpc.NLRIFramingPrefixOnly,
 		Withdraw: true,
 	}
 	r.mu.RLock()
 	var stored *RawRoute
-	if pending := r.pending[pendingKey(source, key)]; pending != nil {
+	if pending := r.pending[pendingKey(original, key)]; pending != nil {
 		stored = pending.route
-	} else if routes := r.ribIn[source]; routes != nil {
+	} else if routes := r.ribIn[original]; routes != nil {
 		stored, _ = routes.Get(key)
+	}
+	if stored != nil {
+		if stored.ConnectionID != connection {
+			stored = nil
+		}
 	}
 	if stored != nil {
 		route.AttrHex = stored.AttrHex
@@ -70,12 +90,15 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		route.NLRIHex = stored.NLRIHex
 		route.NLRIFraming = stored.NLRIFraming
 		route.MsgID = stored.MsgID
+		route.SourceOwner = stored.SourceOwner
+		route.SourceReceipt = stored.SourceReceipt
+		route.SourceConnectionID = stored.ConnectionID
 		route.SourcePolicyEpoch = stored.SourcePolicyEpoch
 		route.Withdraw = false
 	}
-	if stored != nil && r.sourcePolicyDeniedLocked(source, stored.SourcePolicyEpoch) {
+	if stored != nil && r.sourcePolicyDeniedLocked(stored.SourceOwner, stored.SourcePolicyEpoch) {
 		// RFC 8212 Section 3: a denied path is answered as withdrawn.
-		route = rpc.StoredRoute{SourcePeer: route.SourcePeer, Family: route.Family, PathID: route.PathID,
+		route = rpc.StoredRoute{SourcePeer: route.SourcePeer, SourceOwner: route.SourceOwner, SourceReceipt: route.SourceReceipt, SourceConnectionID: route.SourceConnectionID, Family: route.Family, PathID: route.PathID,
 			NLRIHex: route.NLRIHex, NLRIFraming: route.NLRIFraming, Withdraw: true}
 	}
 	r.mu.RUnlock()
@@ -87,6 +110,10 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 // preserves source generation and delegates destination family/session checks
 // and export policy to the same reactor path used by RS and RR replay.
 func (r *AdjRIBInManager) replayFlowSpecs(targetPeer netip.Addr) error {
+	return r.replayFlowSpecsTo(targetPeer, rpc.RelayStoredRouteInput{Destination: targetPeer.String()})
+}
+
+func (r *AdjRIBInManager) replayFlowSpecsTo(targetPeer netip.Addr, input rpc.RelayStoredRouteInput) error {
 	var routes []rpc.StoredRoute
 	for _, key := range ribevents.FlowSpecRoutes() {
 		if key.Peer == targetPeer {
@@ -97,7 +124,7 @@ func (r *AdjRIBInManager) replayFlowSpecs(targetPeer netip.Addr) error {
 			continue
 		}
 		routes = append(routes, rpc.StoredRoute{
-			SourcePeer: key.Peer.String(), Family: key.Family.String(),
+			SourcePeer: key.Peer.String(), SourceOwner: key.PeerOwner, SourceReceipt: path.SourceReceipt, SourceConnectionID: key.ConnectionID, Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
 			SourcePolicyEpoch: path.SourcePolicyEpoch,
 			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
@@ -110,5 +137,6 @@ func (r *AdjRIBInManager) replayFlowSpecs(targetPeer netip.Addr) error {
 	if !up {
 		return nil
 	}
-	return r.relayRoutes(targetPeer.String(), routes)
+	input.Routes = routes
+	return r.relayRoutesTo(input)
 }

@@ -26,6 +26,8 @@ var ErrConsumerFactoryConflict = errors.New("redistribute: consumer factory alre
 type RouteUpdater interface {
 	UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error)
 	UpdateRouteResult(ctx context.Context, peerSelector, command string) (*rpc.UpdateRouteOutput, error)
+	UpdateRouteRequestResult(context.Context, rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error)
+	OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler)
 }
 
 // ConsumerFactory declares a destination whose consumer speaks to the engine

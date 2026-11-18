@@ -1021,11 +1021,24 @@ type ExecuteCommandOutput struct {
 
 // UpdateRouteInput is the input for ze-plugin-engine:update-route.
 type UpdateRouteInput struct {
+	// OriginAdmissionID names a record on this authenticated accepting connection.
+	// Zero is the explicit API/local rail; nonzero MUST pass independent lookup.
+	OriginAdmissionID uint64 `json:"origin-admission-id,omitempty"`
+	// PeerMarker is empty for a route command, or borr/eorr for one constrained
+	// replay marker. Its presence requires MarkerFamily and the complete original
+	// destination tuple; Command, Meta and source provenance MUST then be absent.
+	PeerMarker   string `json:"peer-marker,omitempty"`
+	MarkerFamily string `json:"marker-family,omitempty"`
+	// DestinationOwner and DestinationSession are optional narrowing constraints,
+	// never source/SENT ownership or send authority. Both MUST be supplied or
+	// both omitted. A stale tuple is refused, never rebound by address.
+	DestinationOwner   uint64 `json:"destination-owner,omitempty"`
+	DestinationSession uint64 `json:"destination-session,omitempty"`
 	// DeadlineMS opts the framed request into acknowledged cancellation. Zero
 	// retains the legacy caller contract; it never represents origin admission.
 	DeadlineMS   int64          `json:"deadline-ms,omitempty"`
 	PeerSelector string         `json:"peer-selector,omitempty"`
-	Command      string         `json:"command"`
+	Command      string         `json:"command,omitempty"`
 	Meta         map[string]any `json:"meta,omitempty"` // Optional route metadata; plumbed to CommandContext.Meta.
 	// SourcePolicyEpoch is the original received provenance for retained replay.
 	// Zero is unrecorded, never a request to use the source's current epoch.
@@ -1048,8 +1061,11 @@ type UpdateRouteOutput struct {
 // Destinations are peer IP addresses (strings); the engine parses them once
 // at the reactor boundary. Plugin name is taken from the caller process.
 type ForwardCachedInput struct {
-	IDs          []uint64 `json:"ids"`
-	Destinations []string `json:"destinations"`
+	targetsPresent bool            // Records an explicit empty/null raw constraint so it cannot become unbound.
+	Targets        []ForwardTarget `json:"targets,omitempty"`
+	DeadlineMS     int64           `json:"deadline-ms,omitempty"`
+	IDs            []uint64        `json:"ids"`
+	Destinations   []string        `json:"destinations"`
 }
 
 // ReleaseCachedInput is the input for ze-plugin-engine:release-cached.
@@ -1156,10 +1172,19 @@ func (f *NLRIFraming) UnmarshalText(text []byte) error {
 // the next hop in wire form, NLRIHex is this route's own NLRI bytes.
 type StoredRoute struct {
 	SourcePeer string `json:"source-peer"`
-	Family     string `json:"family"`
-	AttrHex    string `json:"attr-hex"`
-	NextHopHex string `json:"next-hop-hex"`
-	NLRIHex    string `json:"nlri-hex"`
+	// SourceOwner and SourceReceipt are unchanged original received facts.
+	// They acquire no lease: the engine verifies them against its issuing record.
+	// Both zero are explicit observation/manual data, never a current-source lookup.
+	SourceOwner   uint64 `json:"source-owner,string"`
+	SourceReceipt uint64 `json:"source-receipt,string"`
+	// SourceConnectionID is original ingress, never destination-session. On an
+	// announce the engine verifies it against SourceReceipt. A receipt-free
+	// withdrawal can constrain only acknowledged output of this owner/physical.
+	SourceConnectionID uint64 `json:"source-connection-id,string"`
+	Family             string `json:"family"`
+	AttrHex            string `json:"attr-hex"`
+	NextHopHex         string `json:"next-hop-hex"`
+	NLRIHex            string `json:"nlri-hex"`
 	// MsgID is the original received UPDATE generation, independent of any
 	// temporary message-cache identifier the relay allocates.
 	MsgID uint64 `json:"msg-id,omitempty"`
@@ -1190,8 +1215,12 @@ type StoredRoute struct {
 // route. Destination is that peer's IP address string; the engine resolves it at
 // the reactor boundary exactly as forward-cached does.
 type RelayStoredRouteInput struct {
-	Destination string        `json:"destination"`
-	Routes      []StoredRoute `json:"routes"`
+	constraintsPresent bool          // Remembers an explicitly attempted bound raw shape.
+	DestinationOwner   uint64        `json:"destination-owner,string,omitempty"`
+	DestinationSession uint64        `json:"destination-session,string,omitempty"`
+	DeadlineMS         int64         `json:"deadline-ms,omitempty"`
+	Destination        string        `json:"destination"`
+	Routes             []StoredRoute `json:"routes"`
 }
 
 // RouteInstallEntry is one route a forked route-installing plugin (OSPF, IS-IS,
@@ -1379,7 +1408,13 @@ type ResolveDNSOutput struct {
 // Plugins use this to invoke commands through the engine's command dispatcher,
 // enabling inter-plugin communication via the standard routing mechanism.
 type DispatchCommandInput struct {
-	Command string `json:"command"`
+	DestinationOwner   uint64 `json:"destination-owner,string,omitempty"`
+	DestinationSession uint64 `json:"destination-session,string,omitempty"`
+	Command            string `json:"command"`
+	// The optional pair binds only commands whose registration opts in.
+	PeerOwner    uint64 `json:"peer-owner,string,omitempty"`
+	ConnectionID uint64 `json:"connection-id,string,omitempty"`
+	DeadlineMS   int64  `json:"deadline-ms,omitempty"`
 }
 
 // DispatchCommandArgsInput is the input for ze-plugin-engine:dispatch-command-args.
@@ -1401,9 +1436,14 @@ type DispatchCommandArgsInput struct {
 // sharing the final command verdict vocabulary. Unlike update-route (which
 // extracts only route counters), it preserves the complete response.
 type DispatchCommandOutput struct {
-	Status string          `json:"status"`         // Final command verdict, including partial or aborted evaluation.
-	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
-	Error  string          `json:"error,omitempty"`
+	DestinationOwner   uint64          `json:"destination-owner,string,omitempty"`
+	DestinationSession uint64          `json:"destination-session,string,omitempty"`
+	PeerOwner          uint64          `json:"peer-owner,string,omitempty"`
+	ConnectionID       uint64          `json:"connection-id,string,omitempty"`
+	DeadlineMS         int64           `json:"deadline-ms,omitempty"`
+	Status             string          `json:"status"`         // Final command verdict, including partial or aborted evaluation.
+	Data               json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
+	Error              string          `json:"error,omitempty"`
 	// Warnings remain beside a partial or failed completed record answer.
 	Warnings []string `json:"warnings,omitempty"`
 	// RecordAnswer retains the original walk's terminator after collapse.

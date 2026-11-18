@@ -5,13 +5,16 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
@@ -19,9 +22,9 @@ var errMissingFamily = errors.New("missing family")
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-refresh", Handler: handleRefresh, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-borr", Handler: handleBoRR, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-eorr", Handler: handleEoRR, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-refresh", Handler: handleRefresh, RequiresSelector: true, AcceptsDestinationSession: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-borr", Handler: handleBoRR, RequiresSelector: true, AcceptsDestinationSession: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-eorr", Handler: handleEoRR, RequiresSelector: true, AcceptsDestinationSession: true},
 	)
 }
 
@@ -33,6 +36,18 @@ func handleRefresh(ctx *pluginserver.CommandContext, validated command.Validated
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
+	}
+	owner, _ := ctx.Sender.Destination()
+	if owner != 0 {
+		bound, ok := r.(plugin.ReactorBoundForwardCoordinator)
+		if !ok {
+			return nil, opererr.New("The route refresh cannot use its original destination session",
+				"This BGP reactor does not provide captured destination completion, so the request cannot safely send a refresh.",
+				"ze request restart")
+		}
+		return handleRefreshMarker(ctx, args, "refresh", func(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+			return bound.SendRefreshBound(ctx.OriginContext(), sel, afi, safi, sender)
+		})
 	}
 	return handleRefreshMarker(ctx, args, "refresh", r.SendRefresh)
 }
@@ -87,7 +102,27 @@ func handleRefreshMarker(
 
 	sel := selector.ParseDefault(ctx.PeerSelector())
 
-	if err := send(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender); err != nil {
+	var sendErr error
+	owner, _ := ctx.Sender.Destination()
+	if owner != 0 && cmd != "refresh" {
+		bounded, ok := ctx.Reactor().(interface {
+			SendBoundRefresh(context.Context, *selector.Selector, uint16, uint8, rpc.SelectedRefreshAction, plugin.Sender) error
+		})
+		if !ok {
+			return nil, errors.New("BGP reactor cannot complete the original replay marker; rebuild the BGP engine with its bound marker implementation")
+		}
+		action := rpc.SelectedRefreshUnspecified
+		if cmd == "borr" {
+			action = rpc.SelectedRefreshBegin
+		}
+		if cmd == "eorr" {
+			action = rpc.SelectedRefreshEnd
+		}
+		sendErr = bounded.SendBoundRefresh(ctx.OriginContext(), sel, uint16(fam.AFI), uint8(fam.SAFI), action, ctx.Sender)
+	} else {
+		sendErr = send(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender)
+	}
+	if err := sendErr; err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("%s failed: %v", cmd, err),

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -326,7 +325,7 @@ func (admission *recoveryAdmission) reowe(j int) {
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = adjOutExclusion{source: admission.items[j].receivedPeer.Settings().Address,
+	key.gone = adjOutExclusion{source: admission.items[j].receivedPeer.sourceOwner,
 		generation: admission.items[j].receivedGeneration}
 }
 
@@ -427,12 +426,12 @@ func (a *reactorAPIAdapter) recoverySources() recoverySourceSnapshot {
 // down (failReceivePublication), and the RIB still holds routes it will never
 // see withdrawn, so every key of the round excludes it. A failed source is
 // never a reason to retire the destination.
-func drainRecoverySources(ctx context.Context, sources map[*Peer]recoverySourceReceipt) ([]netip.Addr, error) {
-	var stopped []netip.Addr
+func drainRecoverySources(ctx context.Context, sources map[*Peer]recoverySourceReceipt) ([]uint64, error) {
+	var stopped []uint64
 	for peer, source := range sources {
 		err := source.cut.wait(ctx)
 		if errors.Is(err, errReceivePublicationFailed) {
-			stopped = append(stopped, peer.Settings().Address)
+			stopped = append(stopped, peer.sourceOwner)
 			continue
 		}
 		if err != nil {
@@ -517,10 +516,10 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 	if table.session != session {
 		return nil, nil
 	}
-	if batch.RecoveryGeneration == 0 {
+	if batch.RecoveryGeneration == 0 || batch.RecoverySourceOwner == 0 {
 		return nil, fmt.Errorf("departure of %s names no session generation", batch.RecoverySource)
 	}
-	departed := adjOutExclusion{source: batch.RecoverySource,
+	departed := adjOutExclusion{source: batch.RecoverySourceOwner,
 		generation: batch.RecoveryGeneration, departed: batch.RecoveryGeneration}
 	var owed []*adjOutOwed
 	for _, route := range batch.NLRIs {
@@ -595,7 +594,7 @@ func departedOwner(entry *adjRIBOutRoute, departure adjOutExclusion) bool {
 	if entry.owner.source == nil {
 		return false
 	}
-	if entry.owner.source.Settings().Address != departure.source {
+	if entry.owner.source.sourceOwner != departure.source {
 		return false
 	}
 	if entry.owner.generation > departure.departed {
@@ -790,7 +789,7 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			SourcePolicyEpoch: survivor.SourcePolicyEpoch,
 			NLRIFraming:       rpc.NLRIFramingSourceWire}
 		first := len(admission.items)
-		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources.receipts, sender)
+		err := a.queueRecovery(admission.peer, &stored, survivor, admission, admission.sources.receipts, sender)
 		if errors.Is(err, errAllDestinationsSuppressed) {
 			// The forward rail refused the candidate outright (AC-25), as
 			// reflection refuses a non-client route to a non-client. RFC 4456
@@ -859,7 +858,7 @@ func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, su
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = adjOutExclusion{source: survivor.Source, generation: admission.sources.issued}
+	key.gone = adjOutExclusion{source: survivor.SourceOwner, generation: admission.sources.issued}
 }
 
 // heldSurvivor returns the destination's path for key when it is survivor's
@@ -881,7 +880,7 @@ func (admission *recoveryAdmission) heldSurvivor(key adjOutKey, survivor *ribeve
 	if owner.source == nil {
 		return adjOutPath{}, false
 	}
-	if owner.source.Settings().Address != survivor.Source {
+	if owner.source.sourceOwner != survivor.SourceOwner {
 		return adjOutPath{}, false
 	}
 	if owner.received != survivor.PathID {
@@ -908,9 +907,13 @@ func (admission *recoveryAdmission) heldSurvivor(key adjOutKey, survivor *ribeve
 // explicit Import Policy has been applied."
 func (a *reactorAPIAdapter) recoverySurvivorPolicyStale(survivor *ribevents.RecoveryRoute) bool {
 	a.r.mu.RLock()
-	source, found := a.r.findPeerByAddr(survivor.Source)
-	a.r.mu.RUnlock()
-	return found && !sourcePolicyCurrent(source, survivor.SourcePolicyEpoch)
+	defer a.r.mu.RUnlock()
+	for _, source := range a.r.peers {
+		if source.sourceOwner == survivor.SourceOwner {
+			return !sourcePolicyCurrent(source, survivor.SourcePolicyEpoch)
+		}
+	}
+	return false // queueRecovery refuses an absent original owner.
 }
 
 // recoveryStagedAnnouncement reports whether a candidate's staged sections
@@ -937,12 +940,8 @@ func recoveryStagedAnnouncement(items []fwdItem) bool {
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."
 // Queue order retains earlier forwards before this replacement or withdrawal.
-func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
-	sourceAddr, err := netip.ParseAddr(route.SourcePeer)
-	if err != nil {
-		return err
-	}
-	source := a.resolveRelaySource(sourceAddr)
+func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, survivor *ribevents.RecoveryRoute, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
+	source := sourceReceipts.recoverySource(survivor.SourceReceipt, survivor.SourceOwner)
 	if !source.ok {
 		return errRelayNoSource
 	}

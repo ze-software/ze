@@ -41,23 +41,25 @@ type ribOutKey struct {
 // SourcePeer is authoritative for this destination, not for other peers carrying
 // the same route key. Replay feedback preserves it; a new advertisement replaces it.
 type ribOutEntry struct {
-	MsgID        uint64
-	AttrHandle   attrpool.Handle
-	StaleLevel   uint8
-	ConfigStatic bool
-	AddPath      bool
-	NativeNLRI   string
-	NextHop      string
-	SourcePeer   string
+	MsgID              uint64
+	DestinationSession uint64 // original actual SENT session; no authority by itself
+	AttrHandle         attrpool.Handle
+	StaleLevel         uint8
+	ConfigStatic       bool
+	AddPath            bool
+	NativeNLRI         string
+	NextHop            string
+	SourcePeer         string
 	// SourceMessageID identifies the received generation, independently of the
 	// destination's ADD-PATH identifier and this sent event's MsgID.
-	SourceMessageID   uint64
-	SourcePolicyEpoch uint64
-	SourceID          uint32
-	SourceOwner       uint64
-	SourcePath        uint32
-	SourceAddPath     bool
-	LocalOrigin       bool
+	SourceMessageID    uint64
+	SourcePolicyEpoch  uint64
+	SourceID           uint32
+	SourceOwner        uint64
+	SourceConnectionID uint64 // immutable original received connection; never destination/current metadata
+	SourcePath         uint32
+	SourceAddPath      bool
+	LocalOrigin        bool
 }
 
 // ribOutRouteKey identifies one framed announcement from the registered splitter.
@@ -260,8 +262,8 @@ func extractNextHopFromMPReach(value []byte) string {
 // collectRibOutRoutes reconstructs Routes from ribOut entries for a peer+family,
 // each at the stale level the refresh rail hands on (replayStaleLevel). Caller
 // holds peerMu.
-func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family) []*Route {
-	familyRoutes := r.ribOut[peerAddr][fam]
+func (r *RIBManager) collectRibOutRoutes(destinationOwner uint64, fam family.Family) []*Route {
+	familyRoutes := r.ribOut[destinationOwner][fam]
 	if familyRoutes == nil {
 		return nil
 	}

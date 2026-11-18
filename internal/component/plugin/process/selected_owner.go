@@ -48,6 +48,15 @@ func (p *Process) SelectedOwner() (plugin.SelectedOwner, error) {
 			return plugin.SelectedOwner{}, err
 		}
 	}
+	if registration != nil {
+		if registration.OriginAdmissionLookup {
+			owner, err = owner.WithOriginAdmissionLookup(p.conn.SendOriginAdmissionLookup)
+			if err != nil {
+				cancel()
+				return plugin.SelectedOwner{}, err
+			}
+		}
+	}
 	p.selectedCancel = cancel
 	p.selectedOwner = &owner
 	return owner, nil

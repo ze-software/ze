@@ -21,6 +21,7 @@ import (
 // been relayed. wake holds at most one signal; done is closed when the worker
 // returns. mu guards pending and settles. Safe for concurrent use.
 type validationQueue struct {
+	failed  error // Current queued obligation, guarded by mu; cleared only by a successful batch.
 	mu      sync.Mutex
 	pending map[ribevents.ValidationRoute]struct{}
 	settles []chan struct{}
@@ -94,7 +95,21 @@ func (rr *routeReflector) runValidation(ctx context.Context, q *validationQueue)
 			settles := q.settles
 			q.settles = nil
 			q.mu.Unlock()
-			rr.replayValidation(ctx, routes)
+			failed := rr.unsettledWork()
+			if failed == nil {
+				failed = rr.retryPeerReplays(ctx)
+			}
+			if failed == nil {
+				failed = rr.replayValidation(ctx, routes)
+			}
+			q.mu.Lock()
+			q.failed = failed
+			if failed != nil {
+				for _, route := range routes {
+					q.pending[route] = struct{}{}
+				}
+			}
+			q.mu.Unlock()
 			for _, settle := range settles {
 				close(settle)
 			}
@@ -120,7 +135,13 @@ func (rr *routeReflector) settleValidation(ctx context.Context) error {
 	q.signal()
 	select {
 	case <-settle:
-		return nil
+		q.mu.Lock()
+		failed := q.failed
+		q.mu.Unlock()
+		if failed != nil {
+			return failed
+		}
+		return rr.unsettledWork()
 	case <-q.done:
 		return errors.New("the revalidation worker stopped before it relayed its queued paths")
 	case <-ctx.Done():
@@ -129,66 +150,107 @@ func (rr *routeReflector) settleValidation(ctx context.Context) error {
 	}
 }
 
-func (rr *routeReflector) replayValidation(ctx context.Context, routes []ribevents.ValidationRoute) {
+func (rr *routeReflector) replayValidation(ctx context.Context, routes []ribevents.ValidationRoute) error {
+	var failed error
 	for _, key := range routes {
 		if !key.Prefix.IsValid() && !ribevents.IsFlowSpec(key.Family) {
 			continue
 		}
-		rr.mu.RLock()
-		var targets []string
-		for address, peer := range rr.peers {
-			if peer.Up && address != key.Peer.String() && peer.Families[key.Family] {
-				targets = append(targets, address)
-			}
+		source, sourceErr := newPeerIdentity(key.Peer.String(), key.PeerOwner, key.ConnectionID)
+		if sourceErr != nil {
+			return sourceErr
 		}
-		rr.mu.RUnlock()
+		targets := rr.targets(source, key.Family)
 		for _, target := range targets {
 			if key.Prefix.IsValid() {
 				// The store answers the path and this reflector relays it, under
 				// the `send [ update ]` grant the operator gave this reflector
 				// and not the store (ribevents.ReplayPathCommand).
 				callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-				_, err := ribevents.RelayReplayPath(callCtx, rr.dispatchCommand, rr.plugin.RelayStoredRoute,
-					target, key.Peer.String(), key.Family.String(), key.Prefix.String(),
-					strconv.FormatUint(uint64(key.PathID), 10))
+				_, err := ribevents.RelayReplayPath(callCtx, rr.dispatchCommand, func(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
+					return rr.relayToPeer(ctx, target, destination, routes)
+				},
+					target.identity.address.String(), key.Peer.String(), key.Family.String(), key.Prefix.String(),
+					strconv.FormatUint(uint64(key.PathID), 10), key.PeerOwner, key.ConnectionID)
 				cancel()
 				if err != nil {
-					logger().Warn("reflection revalidation failed", "source", key.Peer, "target", target, "error", err)
+					if failed == nil {
+						failed = err
+					}
 				}
 				continue
 			}
 			stored := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(), PathID: key.PathID,
+				SourceOwner: key.PeerOwner, SourceConnectionID: key.ConnectionID,
 				NLRIHex: hex.EncodeToString([]byte(key.NLRI)), NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: true}
 			if path, present := ribevents.LookupFlowSpecPath(key); present {
 				stored.AttrHex = hex.EncodeToString(path.Attributes)
 				stored.MsgID = path.MsgID
 				stored.SourcePolicyEpoch = path.SourcePolicyEpoch
+				stored.SourceReceipt = path.SourceReceipt
 				stored.Withdraw = false
 			}
+			rr.fillValidationReceipt(&stored)
 			callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			err := rr.plugin.RelayStoredRoute(callCtx, target, []rpc.StoredRoute{stored})
+			err := rr.relayToPeer(callCtx, target, target.identity.address.String(), []rpc.StoredRoute{stored})
 			cancel()
 			if err != nil && ctx.Err() == nil {
-				logger().Warn("FlowSpec reflection revalidation failed", "source", key.Peer, "target", target, "error", err)
+				if failed == nil {
+					failed = err
+				}
 			}
 		}
 	}
+	return failed
 }
 
 // replayFlowSpecs owns the peer-up snapshot for these families. RelayStoredRoute
 // preserves source authority and rechecks generation, reflection and export policy.
-func (rr *routeReflector) replayFlowSpecs(destination string, gen uint64) int {
+// fillValidationReceipt reads only the exact original inventory row. A
+// withdrawal whose receive-store row just disappeared still carries its old
+// receipt and ingress, without borrowing a current source at the same address.
+func (rr *routeReflector) fillValidationReceipt(route *rpc.StoredRoute) {
+	if route.SourceReceipt != 0 {
+		return
+	}
+	rr.withdrawalMu.Lock()
+	defer rr.withdrawalMu.Unlock()
+	for key, info := range rr.withdrawals[route.SourcePeer] {
+		if key.owner != route.SourceOwner {
+			continue
+		}
+		if key.connection != route.SourceConnectionID {
+			continue
+		}
+		if info.Family.String() != route.Family {
+			continue
+		}
+		if info.PathID != route.PathID {
+			continue
+		}
+		if info.NativeHex != route.NLRIHex {
+			continue
+		}
+		route.SourceReceipt = info.SourceReceipt
+		route.MsgID = info.MsgID
+		route.SourcePolicyEpoch = info.SourcePolicyEpoch
+		return
+	}
+}
+
+func (rr *routeReflector) replayFlowSpecs(parent context.Context, captured peerTarget) (int, error) {
+	destination := captured.identity.address.String()
 	// Keep mandatory replay independent of an expired optional-store request.
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	ctx, cancel := context.WithTimeout(parent, updateRouteTimeout)
 	defer cancel()
 	replayed := 0
 	for _, key := range ribevents.FlowSpecRoutes() {
-		if key.Peer.String() == destination {
+		if key.PeerOwner == captured.identity.owner {
 			continue
 		}
 		rr.mu.RLock()
-		target := rr.peers[destination]
-		current := target != nil && target.Up && target.ReplayGen == gen
+		target := rr.peers[captured.identity]
+		current := target != nil && target.Up && target.ReplayGen == captured.generation && target.DestinationSession == captured.session
 		supported := current && target.Families[key.Family]
 		rr.mu.RUnlock()
 		if !current {
@@ -203,16 +265,15 @@ func (rr *routeReflector) replayFlowSpecs(destination string, gen uint64) int {
 		}
 		stored := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			SourcePolicyEpoch: path.SourcePolicyEpoch,
-			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			SourcePolicyEpoch: path.SourcePolicyEpoch, SourceOwner: key.PeerOwner, SourceConnectionID: key.ConnectionID, SourceReceipt: path.SourceReceipt,
+			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 			InitialUpdate: true} // peer-up replay: passes the destination's replay fence
-		if err := rr.plugin.RelayStoredRoute(ctx, destination, []rpc.StoredRoute{stored}); err != nil {
-			logger().Warn("FlowSpec peer-up reflection failed", "source", key.Peer, "target", destination, "error", err)
-			break
+		if err := rr.relayToPeer(ctx, captured, destination, []rpc.StoredRoute{stored}); err != nil {
+			return replayed, err
 		}
 		replayed++
 	}
-	return replayed
+	return replayed, nil
 }
 
 // askFlowSpecGate emits a gate-query, so the selecting RIB announces its

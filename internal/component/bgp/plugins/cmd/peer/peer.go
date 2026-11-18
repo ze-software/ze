@@ -31,57 +31,6 @@ const (
 	cmdBgpPeerStatistics   = "show bgp peer statistics"
 )
 
-// cmdBgpChildren is every DIRECT child of `show bgp`, which is the shallowest
-// path of each branch beneath it. Each one declares itself empty, and that is
-// what stops the whole branch inheriting what registerColumns and
-// registerAliases declare on the parent.
-//
-// A column order and an alias resolve by the longest registered command path
-// that is a prefix of the command (commandRegistry.lookup in
-// internal/component/command/column_order.go), so what registerColumns and
-// registerAliases put on `show bgp` reaches every path below it. Declaring the
-// emptiness is the mechanism registerPipeFilters uses for the scalar rib
-// commands (internal/component/bgp/plugins/cmd/rib/rib.go).
-//
-// SHALLOWEST is load-bearing, and the reason is the SELECTOR. An operator types
-// `show bgp peer 192.0.2.1 detail`, and the dispatcher folds the address into a
-// selector to reach the `show bgp peer detail` handler (matchCommandTokens in
-// internal/component/plugin/server/command.go). This registry never sees that
-// folding: it resolves the string the operator typed, and `show bgp peer detail`
-// is NOT a prefix of `show bgp peer 192.0.2.1 detail`, so an entry per leaf
-// leaves every selector spelling resolving `show bgp` instead.
-// `show bgp peer` is a prefix of both, so one entry covers the branch.
-//
-// `./le cli list` reports only part of this list, so building it from the
-// inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and the
-// streaming prefixes alone (internal/le/cli/list/register.go), and reports
-// neither of these two kinds:
-//
-//   - `show bgp decode` and `show bgp encode`, offline handlers the CLI
-//     registers with command.MustRegisterLocal. The completer still offers
-//     pipe names for a path it can complete (TreeCompleter.Complete in
-//     internal/component/command/completer.go), so the aliases would be
-//     offered on a command that never reaches ApplyPipes.
-//   - the four plugin branches, which the rpki, rs, adj-rib-in and healthcheck
-//     plugins register as PLUGIN names.
-//
-// The lookup reads the command STRING and knows nothing about which registry
-// answers it, which is why a path being a plugin name or a local handler
-// exempts it from nothing.
-var cmdBgpChildren = []string{
-	"show bgp adj-rib-in",
-	"show bgp decode",
-	"show bgp encode",
-	"show bgp health",
-	"show bgp healthcheck",
-	"show bgp irr",
-	"show bgp peer",
-	"show bgp rib",
-	"show bgp rpki",
-	"show bgp rs",
-	cmdBgpUpdateDelay,
-}
-
 // cmdBgpUpdateDelayColumns is the order an operator reads the hold in: is the
 // feature on, is it holding, and if not why did it stop; then what it is still
 // waiting for; then the two bounds that decide when it gives up.
@@ -120,6 +69,11 @@ func messageCounters(opens, updates, notifications, keepalives, refresh, eor uin
 }
 
 func init() {
+	// Parent summary metadata describes this answer alone. A floor at the
+	// next typed keyword covers all registered branches and selector spellings
+	// without keeping a second inventory of commands owned by other packages.
+	// The overview handler's one accepted family argument keeps that summary.
+	command.RegisterChildBoundary(cmdBgp, isFamilyArg)
 	registerColumns()
 	registerShapes()
 	registerAliases()
@@ -131,8 +85,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-notify", Handler: handlePeerNotify, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-disable", Handler: handlePeerDisable, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-enable", Handler: handlePeerEnable, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true, AcceptsPeerConnection: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true, AcceptsPeerConnection: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-advertised", Handler: handleRibClearAdvertised, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
@@ -218,22 +172,7 @@ func registerColumns() {
 	command.RegisterColumns([]string{cmdBgpConfigSave},
 		command.ColumnOrder{fieldSaveAdded, fieldSaveRemoved, fieldSaveConfig, fieldMessage},
 	)
-	// Every branch under `show bgp` declares NO order of its own, which is what
-	// stops it inheriting the two above and rendering peer columns over an
-	// answer that carries no peer rows.
-	//
-	// `show bgp peer list` is not overwritten by the `show bgp peer` entry: it
-	// declares its own order above on a LONGER path, and the longest registered
-	// prefix is what resolves.
-	for _, child := range cmdBgpChildren {
-		if child == cmdBgpUpdateDelay {
-			// The one child that answers a record of its own rather than a
-			// branch's, so it declares an order instead of declaring none.
-			command.RegisterColumns([]string{child}, cmdBgpUpdateDelayColumns)
-			continue
-		}
-		command.RegisterColumns([]string{child})
-	}
+	command.RegisterColumns([]string{cmdBgpUpdateDelay}, cmdBgpUpdateDelayColumns)
 }
 
 // registerShapes declares what these commands' answers HOLD, which decides
@@ -243,12 +182,8 @@ func registerColumns() {
 // both are `tab`: `show bgp` carries its peer rows beside the aggregate keys,
 // and `show bgp peer list` carries rows keyed by peer address.
 //
-// Every branch under `show bgp` declares NONE, for the same reason it declares
-// no column order: `show bgp rpki` and its siblings answer their own shapes,
-// and inheriting `tab` from `show bgp` would publish row operators over an
-// answer that carries no rows. `show bgp update-delay` is the exception, and it
-// is the exception for the same reason it declares an order: this package
-// answers it, so this package knows its shape.
+// The parent inheritance boundary leaves each branch's shape to its owner.
+// `show bgp update-delay` answers a document here, so this package declares it.
 func registerShapes() {
 	command.RegisterShape([]string{cmdBgp}, command.ShapeTab)
 	command.RegisterShape([]string{cmdBgpPeerList}, command.ShapeTab)
@@ -264,16 +199,8 @@ func registerShapes() {
 	// nothing to decorate and publishing them would assert support the answer
 	// cannot honor.
 	//
-	// Every branch under `show bgp` declares none for the same reason it
-	// declares no shape: an address-field list resolves by the longest
-	// registered prefix, so a branch that declares nothing reads the
-	// "address" above and publishes both operators over an answer holding no
-	// such field. A branch that DOES hold one declares its own list in its own
-	// package, and the empty declaration here is a floor that never overrides
-	// it: the rib command plugin names "peer" and "next-hop" for
-	// `show bgp rib` (registerPipeFilters in
-	// internal/component/bgp/plugins/cmd/rib/rib.go), and registerHealthShape
-	// in health.go names "peer" for `show bgp health`.
+	// The parent boundary also stops "address" reaching a child. A branch
+	// that holds addresses declares its own fields, as rib and health do.
 	command.RegisterAddressFields([]string{cmdBgp}, fieldAddress)
 	command.RegisterAddressFields([]string{cmdBgpPeerList})
 
@@ -301,22 +228,9 @@ func registerShapes() {
 	command.RegisterShape([]string{cmdBgpConfigSave}, command.ShapeDoc)
 	command.RegisterAddressFields([]string{cmdBgpConfigSave})
 
-	for _, child := range cmdBgpChildren {
-		if child == cmdBgpUpdateDelay {
-			// The one child this package ANSWERS rather than routes to a
-			// plugin, so it is the one child whose shape is known here.
-			// `show bgp update-delay` answers one record of nine scalars and
-			// no rows (handleBgpUpdateDelay), which is `doc`. Declaring none
-			// would publish every row operator over it and refuse none of
-			// them before dispatch, because validateDeclaredShape skips its
-			// shape test on an undeclared command (pipe.go).
-			command.RegisterShape([]string{child}, command.ShapeDoc)
-			command.RegisterAddressFields([]string{child})
-			continue
-		}
-		command.RegisterShape([]string{child})
-		command.RegisterAddressFields([]string{child})
-	}
+	// An explicit document shape refuses row operators before dispatch.
+	command.RegisterShape([]string{cmdBgpUpdateDelay}, command.ShapeDoc)
+	command.RegisterAddressFields([]string{cmdBgpUpdateDelay})
 }
 
 // registerAliases names the two halves of the `show bgp` answer, so an operator
@@ -325,7 +239,7 @@ func registerShapes() {
 // The answer carries the aggregate keys and the peer rows as siblings, so each
 // half is a selection among them and `| display` states both. The aliases sit
 // on `show bgp` alone: the names mean nothing over an answer with no peer rows
-// in it, so every path under it declares no alias and inherits neither. That
+// in it, so the parent boundary stops their inheritance at each child. That
 // covers the plugin subtrees as well as the builtins, because the lookup reads
 // the command STRING and knows nothing about which registry answers it.
 //
@@ -351,10 +265,6 @@ func registerAliases() {
 			Expansion:   "display peers",
 		},
 	)
-	// Every branch under `show bgp` declares NO alias, which is what stops it
-	// inheriting the two above and offering `| summary` and `| peers` over an
-	// answer that carries no peer rows.
-	command.RegisterAliases(cmdBgpChildren)
 }
 
 func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugin.PeerInfo, *plugin.Response, error) {
@@ -811,7 +721,7 @@ func handleBgpPeerDelete(ctx *pluginserver.CommandContext, _ command.ValidatedAr
 // Pauses the peer's read loop for flow control (backpressure from plugins).
 func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
-		return r.PausePeer(addr)
+		return r.PausePeer(ctx.Context(), addr, ctx.PeerOwner, ctx.ConnectionID)
 	})
 }
 
@@ -819,7 +729,7 @@ func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 // Resumes the peer's read loop after a flow-control pause.
 func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
-		return r.ResumePeer(addr)
+		return r.ResumePeer(ctx.Context(), addr, ctx.PeerOwner, ctx.ConnectionID)
 	})
 }
 

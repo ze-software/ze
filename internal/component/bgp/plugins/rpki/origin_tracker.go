@@ -30,6 +30,8 @@ type originRoute struct {
 	// when the VRP set does, and re-validation carries it through unchanged. It
 	// is stored because re-validation has no UPDATE in hand to re-read it from.
 	blackhole bool
+	noLLGR    bool
+	retained  bool
 }
 
 // originRevalidation describes a verdict, exemption, or availability transition.
@@ -79,11 +81,26 @@ func (t *originTracker) Remove(key routeKey, msgID uint64) {
 	delete(t.routes, key)
 }
 
-func (t *originTracker) removePeer(peerAddr string) {
+func (t *originTracker) removePeer(peerAddr string, source rpkiSource) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for key := range t.routes {
 		if key.peerAddr == peerAddr {
+			if key.source != source {
+				continue
+			}
+			delete(t.routes, key)
+		}
+	}
+}
+
+// removeOwner is terminal Peer removal. The caller MUST supply the original
+// nonzero owner; ordinary DOWN instead removes one exact original connection.
+func (t *originTracker) removeOwner(owner uint64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for key := range t.routes {
+		if key.source.owner == owner {
 			delete(t.routes, key)
 		}
 	}
@@ -148,7 +165,7 @@ func (t *originTracker) updateResults(affected map[rpkiUpdateKey]struct{}) map[r
 	defer t.mu.Unlock()
 	updates := make(map[rpkiUpdateKey]*rpkiUpdateResults, len(affected))
 	for key, route := range t.routes {
-		if _, ok := affected[rpkiUpdateKey{peerAddr: key.peerAddr, msgID: route.msgID}]; ok {
+		if _, ok := affected[rpkiUpdateKey{peerAddr: key.peerAddr, source: key.source, msgID: route.msgID}]; ok {
 			collectRPKIUpdate(updates, key, *route)
 		}
 	}

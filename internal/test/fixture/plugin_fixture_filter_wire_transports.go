@@ -71,7 +71,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			if event.BGP.Peer.Name != filterWireTransportsSourcePeer {
 				return p.ReleaseCached(ctx, id)
 			}
-			if err := p.ForwardCached(ctx, id, []string{addrLoopbackSecond}); err != nil {
+			if err := p.ForwardCached(ctx, rpc.ForwardCachedInput{IDs: id, Destinations: []string{addrLoopbackSecond}}); err != nil {
 				return err
 			}
 			forwarded.Add(1)

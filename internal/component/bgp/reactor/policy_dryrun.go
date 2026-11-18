@@ -133,6 +133,8 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerOwner uint64, direction, filterOver
 		// peer-as, rs-client, ...) then answers in the dry-run what it
 		// answers on the session.
 		facts = p.settings.SessionFacts(peerAS)
+		facts.PeerOwner = p.sourceOwner
+		facts.ConnectionID = connectionIDOf(p.session)
 		if direction == directionImport && p.session != nil {
 			// RFC 9494 Section 4.3: the received direction reads whether
 			// this speaker advertised LLGR on the session, as the live

@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/source"
 )
 
 // fwdBodyResult holds the output of buildFwdBody.
@@ -176,6 +175,7 @@ func buildFwdBody(
 	peer *Peer,
 	peerAddr netip.Addr,
 	cache *fwdParseCache,
+	origin fwdPathOrigin,
 ) (result fwdBodyResult, ok bool) {
 	updateSize := message.HeaderLen + len(peerWire.Payload())
 	srcCtxID := peerWire.SourceCtxID()
@@ -219,9 +219,9 @@ func buildFwdBody(
 		// bound for a session that is being torn down. The parsed branch below
 		// takes the same reading for its split decision.
 		bodyOut := peerWire.Payload()
-		patched, patchBuf, patchErr := fwdRegenerateRawPathIDs(peerWire, peer.sendContext())
+		patched, patchBuf, patchErr := fwdRegenerateRawPathIDs(peerWire, peer.sendContext(), origin)
 		if patchErr != nil {
-			fwdLogger().Warn("forward path identifier rewrite failed", "peer", peerAddr, "err", patchErr)
+			reportForwardPathOriginFailure(peerAddr.String(), patchErr)
 			return result, false
 		}
 		if patched != nil {
@@ -294,7 +294,7 @@ func buildFwdBody(
 		// or RFC 6793 four-octet ASNs the destination did not negotiate. Convert
 		// to destination-context UPDATE sections before applying RFC 8654 size
 		// splitting so every emitted chunk is valid for the recipient.
-		destUpdate, transcodeBuf, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID, peerWire.SourceID())
+		destUpdate, transcodeBuf, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID, origin)
 		if encodeErr != nil {
 			fwdLogger().Warn("encoding update for forward",
 				"peer", peerAddr, "error", encodeErr)
@@ -428,7 +428,7 @@ func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, sendCtx *bgpct
 // ReceivedUpdate (adoptFwdHandle), which returns it exactly once at cache eviction. A
 // zero handle means there is nothing to adopt: either no transcode ran, or the transcode
 // wrote into a collector-owned buffer that needs no handle.
-func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID, srcID source.SourceID) (destUpdate *message.Update, transcodeBuf BufHandle, err error) {
+func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID, origin fwdPathOrigin) (destUpdate *message.Update, transcodeBuf BufHandle, err error) {
 	if srcCtxID == 0 || destCtxID == 0 || srcCtxID == destCtxID {
 		return update, BufHandle{}, nil
 	}
@@ -506,7 +506,7 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 	// One memo for every section of this UPDATE, so the identifier a withdrawn
 	// route leaves under is the one its announcement left under: both sections
 	// ask the same table with the same ingress key.
-	memo := fwdPathIDMemo{source: srcID}
+	memo := fwdPathIDMemo{origin: origin}
 
 	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx, &memo, true)
 	if err != nil {

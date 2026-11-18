@@ -3,7 +3,6 @@ package rib
 
 import (
 	"fmt"
-	"net/netip"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -64,6 +63,20 @@ func sentUint32(raw any) (uint32, bool) {
 	return 0, false
 }
 
+// sentSourceConnection reads only the engine-reserved exact scalar. Float64
+// route metadata cannot masquerade as a physical original source identity.
+func sentSourceConnection(meta map[string]any) uint64 {
+	text, ok := meta[bgptypes.SourceConnectionMeta].(string)
+	if !ok {
+		return 0
+	}
+	connectionID, err := strconv.ParseUint(text, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return connectionID
+}
+
 func sentSourceOwner(meta map[string]any) uint64 {
 	text, ok := meta[bgptypes.SourceOwnerMeta].(string)
 	if !ok {
@@ -111,11 +124,10 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 	if sent.LocalOrigin {
 		return sent.SourcePeer == "" && sent.SourceOwner == 0, false
 	}
-	source, err := netip.ParseAddr(sent.SourcePeer)
-	if err != nil {
+	if sent.SourceOwner == 0 {
 		return false, false
 	}
-	received := r.bgpPeers[source]
+	received := r.bgpPeers[sent.SourceOwner]
 	if received == nil {
 		return false, false
 	}
@@ -211,11 +223,7 @@ func (r *RIBManager) recoveryCandidateGone(fam family.Family, key ribOutKey, sen
 	if sent.SourceMessageID == 0 {
 		return false, false
 	}
-	source, err := netip.ParseAddr(sent.SourcePeer)
-	if err != nil {
-		return false, false
-	}
-	return r.sourcePathGone(source, fam, key, sent)
+	return r.sourcePathGone(sent.SourceOwner, fam, key, sent)
 }
 
 // forwardedSourceGone answers R-12 for one projected forwarded write whose
@@ -232,11 +240,10 @@ func (r *RIBManager) recoveryCandidateGone(fam family.Family, key ribOutKey, sen
 // admits it only while the destination still holds the same revision. An
 // invalid labeled key or FlowSpec route answers false. Caller holds peerMu.
 func (r *RIBManager) forwardedSourceGone(fam family.Family, key ribOutKey, sent ribOutEntry) bool {
-	source, err := netip.ParseAddr(sent.SourcePeer)
-	if err != nil {
+	if sent.SourceOwner == 0 {
 		return false
 	}
-	gone, valid := r.sourcePathGone(source, fam, key, sent)
+	gone, valid := r.sourcePathGone(sent.SourceOwner, fam, key, sent)
 	return valid && gone
 }
 
@@ -244,7 +251,7 @@ func (r *RIBManager) forwardedSourceGone(fam family.Family, key ribOutKey, sent 
 // the received path a sent copy names nor a newer revision of it. A source
 // with no received inventory holds nothing. valid is false when a labeled key
 // or a FlowSpec route does not parse. Caller holds peerMu.
-func (r *RIBManager) sourcePathGone(source netip.Addr, fam family.Family, key ribOutKey, sent ribOutEntry) (gone, valid bool) {
+func (r *RIBManager) sourcePathGone(source uint64, fam family.Family, key ribOutKey, sent ribOutEntry) (gone, valid bool) {
 	received := r.bgpPeers[source]
 	if received == nil {
 		return true, true

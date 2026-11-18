@@ -27,12 +27,12 @@ type flowSpecRedirectConfig struct {
 
 // flowSpecRedirectChecked answers whether the session at addr runs the check.
 // The caller MUST hold peerMu, which peerGroupName reads under.
-func (r *RIBManager) flowSpecRedirectChecked(addr netip.Addr) bool {
+func (r *RIBManager) flowSpecRedirectChecked(owner uint64, addr netip.Addr) bool {
 	cfg := r.flowSpecRedirectCfg.Load()
 	if cfg == nil {
 		return true
 	}
-	if enabled, ok := configjson.LookupPeerConfig(cfg.peers, addr.String(), "", r.peerGroupName(addr)); ok {
+	if enabled, ok := configjson.LookupPeerConfig(cfg.peers, addr.String(), "", r.peerGroupName(owner)); ok {
 		return enabled
 	}
 	return cfg.base
