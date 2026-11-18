@@ -58,6 +58,33 @@ this was written. Its edits change looking glass files after the proofs above,
 so rerun the package test and lint, and if it changed a capture or a test
 expectation, send that to a `ze-test-judge` agent before committing.
 
+## Update, later the same day
+
+- The selector fix is committed: `b379368e79`. `--pattern` now matches a
+  test's id and name only, and refuses a pattern that matches nothing. `--list`
+  still prints the whole suite whatever `--pattern` says, which the fix left
+  alone.
+- The three error-inventory sites are corrected, and the correction went
+  wider: `engineRefusal` in `internal/component/lg/server.go` gives every
+  engine-failure answer of the looking glass three lines (problem, reason,
+  fix), on the pages and in the birdwatcher JSON `error` body, whose first
+  line is unchanged. `docs/architecture/api/birdwatcher-compat.md` section 3.1
+  and `docs/guide/looking-glass.md` say so. Outside clients see the longer
+  text.
+- That left five expectations on the old one-line text: two assertions in
+  `handler_api_dispatch_test.go`, the `ask` table test in `handler_ui_test.go`,
+  `test/plugin/lg-dispatch-refused.ci` and `test/web/lg-stream-error.wb`. An
+  agent was updating them, through draft copies for the two functional files.
+- Owed before the looking glass commit: a `ze-test-judge` verdict on those
+  five, the looking glass package test and lint, the draft runs and promotion
+  of the two functional files, `./le arch operator-error check`, and the
+  prepared `./le commit create` line. Add
+  `internal/component/lg/server.go`, the two promoted functional files and
+  anything else the agent names to `lg-commit-files.txt`, and a sentence on
+  the engine-failure answers to `lg-commit-body.txt`.
+
+The section below describes the state before this update.
+
 ## In flight when this was written
 
 | Agent task | State | Owed after it reports |
