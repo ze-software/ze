@@ -7,7 +7,7 @@
 | Release reason | Fleet reconnect must not silently overwrite emergency device configuration. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-26 |
+| Updated | 2026-11-18 |
 
 ## Post-Compaction Recovery
 
@@ -336,3 +336,67 @@ Transport (TLS) and authentication (pre-declared per-client shared secret) are *
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-11-18 |
+| Checked at | `0e34a62474` |
+| Verdict | REWORK |
+| Evidence: defect still occurs | `internal/component/managed/client.go` `fetchAndProcess` calls `OnCommit` whenever the hub does not answer `current`. No baseline, no freeze and no fleet command exist at HEAD, and none of `951251d339`, `02921e203a`, `1c6a148bbc` adds one |
+| Evidence: targets gone | `internal/component/cli/session_factory.go` and `internal/plugins/fleet-cmd/` do not exist. The session editor is built in `cmd/ze/hub/session_factory.go` `buildSessionModelFactory`. The hub verb dispatch is `internal/component/plugin/server/managed_serve.go` `handleRequest`; `managed.go` is `ManagedConfigService`, fetch and hashing only. `Editor.Rollback` lives in `internal/component/cli/editor.go`. Every line number in this spec is stale |
+| Evidence: the baseline key is illegal | `meta/instance/managed` is a value key (`pkg/zefs/keys.go` `KeyInstanceManaged`), and the store refuses a key below a value: `pkg/zefs/tree.go` `set` answers "path conflict: segment ... is a file" (`TestStoreWriteFileLeafBecomesDirectory`, `TestStoreWriteFileConflictsWithDirectory`). The legal namespace is `meta/managed/`, as the hub bootstrap keys use |
+| Evidence: A-1 is false | The device has no single operator chokepoint. Beside the session commit functions, the active config is written by the web editor's full-content route (`internal/component/web/editor.go` `applyCommittedContent`), the SSH config upload and `update bgp config` (`cmd/ze/hub/config_upload.go` `configMutationOwner`), the API config sessions (`internal/component/api/config_session.go`), `update data config`, `request data restore` and the rollback RPC (`internal/component/config/storage/cli/`), a reload of a file-sourced config, and the confirmed-commit revert |
+| Evidence: A-2 is false | The first start writes the fetched config with a plain store write in `cmd/ze/ze_core_start.go` `cmdStartManaged`, not through `OnCommit`. A baseline written only on `OnCommit` is absent after the first boot, so the first reconnect would read as diverged |
+| Evidence: AC-9 contradicts two design pages | `docs/guide/fleet-config.md` has the operator write a new client's first config before the client has ever connected, and promises that a client that is not connected gets a change when it next connects. `docs/architecture/fleet-config.md`: "A client that is not connected is owed nothing: it fetches when it connects" |
+| Evidence: the hub has more than one writer | `client-<name>.conf` on a running hub is written by the session editor (no guard), `handleDataConfigUpdate`, `restoreConfigFromSource` and `handleDataConfigRollback`. The last three share `DataRPCTarget.ServesClient`, bound to `ManagedServer.Serves`, which means declared, not connected. `connectedClients` is unexported |
+| Evidence: sever and rejoin have no owner | `cmd/ze/hub/main.go` `run` holds one `managedCancel` for both the managed client and the managed server, and launches `RunManagedClient` once. Nothing can stop the client alone, and nothing restarts it after it returns |
+| Evidence: command shape predates the grammar | `docs/architecture/cli/command-verbs.md` puts the verb first, and `ai/META-DECISIONS.md` has every operator command run through the daemon on every surface. `ze fleet disable/enable/status` as a local command tree fits neither |
+| Evidence: R-1 is out of date | On a running daemon `update data key` refuses a configuration key (`internal/component/config/storage/store.go` `RuntimeKey`), so a raw write to the config bypasses the guards only with the daemon stopped. The same RPC does accept `meta/instance/managed`, so the flag itself can already be flipped at runtime, with no sever |
+| Evidence: no Existing Mechanisms table | The section is absent. Candidates: `confirm.WriteOutside` (refuses a write while a state is open, naming its owner, already applied to the hub push), `configMutationOwner` and its reload gate, the `ServesClient` guard, `fleet.VersionHash`, `zefs.KeyConfigActiveHash`, the doctor checks in `internal/component/managed/doctor.go`, `ClientConfig.adoptEndpoint` |
+
+The goal holds and is still owed by the first release: a managed device that
+rejoins its hub after a local emergency edit loses that edit, silently. The
+design under it does not fit `main`.
+
+Three things the skeleton took as given are false. It placed the freeze in two
+editor functions on the belief that every operator write passes through them;
+about ten routes change a device's active config, and they meet only at the
+store's config-version functions and at the daemon's reload admission, which
+the hub push uses too. So "exempt by construction" holds for the staging step
+alone, and the freeze has to be placed where a write is admitted, with the hub
+push as the one named exempt caller. It wrote the baseline where the hub push
+commits; the first start does not go through that, so the baseline must be
+written wherever a hub config becomes active. And it named a store key the
+store cannot hold.
+
+The hub-side rule is the part that needs the owner. As written, AC-9 forbids
+the documented way to provision a client and the documented behavior of an
+edit made while a client is away, and it would guard one of four writers. The
+connected-only rule comes from the umbrella's single-writer model, so changing
+it changes the umbrella too.
+
+Two states the skeleton does not know. A managed client that applies a config
+with no hub `client` block stops following its hub for good while its managed
+flag stays true: frozen, with no hub to unfreeze it. And the client cannot be
+stopped or restarted alone at runtime, so both the immediate sever and the
+rejoin need a lifecycle owner that does not exist yet.
+
+The smallest redesign that fits: a baseline under `meta/managed/`, written at
+every point a hub config becomes active; the hold decided before the push is
+committed, with a doctor code for `diverged`; the freeze at write admission on
+the device; the existing `ServesClient` guard extended to the session editor on
+the hub, with the connected-only question settled by the owner; verb-first
+daemon commands with a local route; and an owner for the client's own
+lifecycle. It adds no wire verb and changes no `pkg/fleet` envelope, and reload
+stays one path. A new key in `pkg/zefs/keys.go` is a deliberate addition to a
+public package.
+
+Unverified: what `ze config edit` does against a store a running hub holds
+when the hub's SSH is unreachable was read, not run. The reading is that the
+temporary daemon cannot take the store's exclusive lock and the editor reports
+a start timeout. A draft functional test would settle it.
+
+The redesign runs through `/ze-spec`, and its design is put to the owner before
+this spec moves to `ready`.

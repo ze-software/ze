@@ -7,7 +7,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | Depends | spec-fleet-6-config-freeze |
 | Phase | - |
-| Updated | 2026-06-26 |
+| Updated | 2026-11-18 |
 
 ## Post-Compaction Recovery
 
@@ -322,3 +322,56 @@ concerns.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-11-18 |
+| Checked at | `0e34a62474` |
+| Verdict | REWORK |
+| Evidence: nothing landed | `pkg/fleet/envelope.go` holds four verbs and none carries a config upstream. No `diverged` state exists in `internal/component/managed` or `internal/component/plugin/server` |
+| Evidence: targets gone | `internal/component/config/diff/` has never existed. `internal/component/plugin/server/registry.go` does not exist: fleet-1 is a skeleton. `plugin/server/managed.go` is `ManagedConfigService`, fetch and hashing; the one hub dispatch is `managed_serve.go` `handleRequest`, a switch over `config-fetch`, `config-ack` and `ping` |
+| Evidence: the dependency is unbuilt and is being redesigned | `plan/release/fixes/spec-fleet-6-config-freeze.md` carries a REWORK disposition of the same date. The baseline, the hold and how the hub learns `diverged` are not settled |
+| Evidence: the candidate pointer is the wrong home | `storage.WriteCandidateVersionWithGuard` (`internal/component/config/storage/pointer.go`) refuses with `ErrCandidateExists` while a candidate is staged, and `restoreConfigLocked` (`restore.go`), the body of `RestoreConfig` and `CommitConfigWithGuard`, stages one first. A pushed config held in that pointer would block every editor commit, import and restore of that client's config, under a refusal that tells the operator to discard a staged change |
+| Evidence: the hub keeps nothing about a client | `ManagedServer.conns`, `pending` and the doctor record of `managed_doctor.go` are in memory. The `config-ack` arm of `handleRequest` logs and updates the doctor record, and stores no version |
+| Evidence: the web view moved | The umbrella's Direction Update of 2026-11-18 gives every fleet web view to the `fleet-ui` set (`spec-fleet-ui-6-config-rollout-audit-admin.md`). This spec keeps the data, the protocol and the commands |
+| Evidence: the command breaks the grammar | `ai/rules/cli.md`: commands are verb-first and no `--flag` reaches the daemon. `ze fleet resolve --adopt` is neither |
+| Evidence: the verb name is taken | `config-push` already names delivery from the hub to a device: `test/managed/config-push-transactional.ci`, "Live `config-push`" in `docs/architecture/core-design.md`, `cmd/ze/pushed_config.go` |
+| Evidence: A-2 is false as worded | The web editor's diff is bound to one user's session. Two functions take two arbitrary config texts: `compareDiffInputs` (`internal/component/config/cli/cmd_diff.go`), behind `show config diff`, and `computeTreeAnnotatedDiff` (`internal/component/cli/diff_tree.go`), unexported |
+| Evidence: transport bounds hold, citations moved | `defaultWriteDeadline` is 30 seconds and is applied in `writeFrame` (`pkg/plugin/rpc/conn.go`); `MaxMessageSize` is 16 MiB (`framing.go`). The line numbers in "Post-wave corrections" are stale |
+| Evidence: no Existing Mechanisms table | The section is absent. Candidates: the managed listener and its dispatch, the `pkg/fleet` envelopes and version hash, the hub write observer and `NotifyConfigChanged`, `storage.RestoreConfig`, the per-config intent record of `confirm.StoreRecorder` under `meta/config/{name}/`, the two-text diff, the managed doctor record, the command registry |
+
+The goal holds: once fleet-6 makes a device hold instead of losing a local
+edit, somebody has to be able to end the hold from the hub. Nothing landed
+does that. The design does not fit `main`, and it cannot be redone before
+fleet-6 is, because three of its requirements are requirements on fleet-6's
+shape.
+
+Those three. The hub must learn that a device is holding; the skeleton reports
+it in the acknowledgement, which today would show in doctor as a rejected
+config and needs its own cause and code. A revert must reach a holding device
+as a revert: the change notification carries a version and nothing else, so a
+device that holds cannot tell the operator's decision from any other hub
+write. And after an adopt the device is still dirty under fleet-6's check
+unless something resets its baseline to the config it is running.
+
+The record question has a smaller answer than fleet-1. The hub needs the
+pushed config to survive a restart, and its presence is the `diverged` flag.
+A per-config record under `meta/config/{name}/`, as the confirmed-commit
+window keeps one, gives both without a device registry. Whether fleet-7
+carries that record itself or waits for fleet-1 is the owner's decision.
+
+Smaller corrections: the up-verb needs a name that does not reverse the
+meaning `config-push` already has; the resolve and show commands are
+registered daemon commands in the verb grammar, and the web page that renders
+them belongs to `fleet-ui`; the hold must not be built as an error, or the
+device reconnects about once a second.
+
+Unverified: `internal/component/web/fleetui/` and
+`docs/architecture/fleet-interface.md` are another session's uncommitted work.
+They name this spec as the answerer of a divergence view and want a time of
+the local edit, which only the device can report. That shape is a proposal
+until it is committed.
+
+The redesign runs through `/ze-spec` after fleet-6's design is approved.
