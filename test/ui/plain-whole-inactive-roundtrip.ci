@@ -1,0 +1,25 @@
+# Test: Native config migration preserves whole-leaf inactivity through saved files
+# VALIDATES: spec-web-cli-config-one-off-defects AC-6 at the shipped config CLI.
+# Unit serializers cannot prove that migrate writes and rereads both file forms
+# through the registered command while keeping member inactivity independent.
+# PREVENTS: persisted plain leaf-lists reopening with only per-member inactivity.
+
+tmpfs=whole.conf:terminator=EOF_WHOLE
+control-plane-protection {
+    bgp {
+        inactive: protected-port [ 179 443 ];
+        inactive: protected-port 443;
+    }
+}
+EOF_WHOLE
+
+cmd=foreground:seq=1:exec=ze config migrate -o whole.set whole.conf
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config migrate -o reread.conf format hierarchical whole.set
+expect=exit:code=0
+
+cmd=foreground:seq=3:exec=ze config migrate reread.conf
+expect=exit:code=0
+expect=stdout:contains=nop control-plane-protection bgp protected-port [ 179 443 ]
+expect=stdout:contains=nop control-plane-protection bgp protected-port 443

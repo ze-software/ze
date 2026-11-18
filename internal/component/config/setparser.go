@@ -347,7 +347,11 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// Add-member merge: each line appends missing members (JunOS set
 		// semantics); members land in the multi-value store the serializers
 		// read, with the scalar map kept in sync for Get() callers.
-		p.storeValueOrArrayMembers(tree, valueOrArray, name, clean)
+		if p.wholeLeafListNop(tokens) {
+			p.storeWholeLeafListNop(tree, valueOrArray, name, clean)
+		} else {
+			p.storeValueOrArrayMembers(tree, valueOrArray, name, clean)
+		}
 		for _, member := range deactivated {
 			_ = tree.DeactivateMultiValue(name, member)
 		}
@@ -433,6 +437,27 @@ func (p *SetParser) storeValueOrArrayMembers(tree *Tree, node *ValueOrArrayNode,
 	for _, item := range items {
 		tree.AddMultiValueMember(name, item)
 	}
+}
+
+// wholeLeafListNop reports the bracket form whose inactivity belongs to the
+// complete leaf, rather than to the one member a bare nop names.
+func (p *SetParser) wholeLeafListNop(tokens []string) bool {
+	if !p.nopLine {
+		return false
+	}
+	return len(bracketItems(tokens)) != len(tokens)
+}
+
+// storeWholeLeafListNop keeps the node's set/sequence policy: ordinary lists
+// add missing members, while an ordered whole spelling restores its sequence.
+// SetLeafListMembers retains older independently inactive members; a whole
+// activation marker must not erase that independent intent.
+func (p *SetParser) storeWholeLeafListNop(tree *Tree, node *ValueOrArrayNode, name string, items []string) {
+	if node.Ordered {
+		tree.SetLeafListMembers(name, items)
+		return
+	}
+	p.storeValueOrArrayMembers(tree, node, name, items)
 }
 
 // parseNop handles: nop <path...> [<value>].
@@ -546,6 +571,10 @@ func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
 	}
 
 	if _, ok := node.(*ValueOrArrayNode); ok {
+		if len(bracketItems(tokens)) != len(tokens) {
+			tree.SetLeafInactive(name, true)
+			return
+		}
 		for _, item := range bracketItems(tokens) {
 			_ = tree.DeactivateMultiValue(name, item)
 		}

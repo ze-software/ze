@@ -437,9 +437,14 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			}
 		}
 		whole := p.replaceMembersLine
-		if whole {
+		switch {
+		case whole:
 			tree.SetLeafListMembers(name, items)
-		} else {
+		case p.wholeLeafListNop(tokens):
+			// Activation scope is independent of metadata ownership: a bracket
+			// nop carries the full sequence but does not become replace-members.
+			p.storeWholeLeafListNop(tree, valueOrArray, name, items)
+		default:
 			p.storeValueOrArrayMembers(tree, valueOrArray, name, items)
 		}
 		if hasMetadata {

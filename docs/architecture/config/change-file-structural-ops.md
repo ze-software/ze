@@ -228,6 +228,16 @@ their existing `set` spelling.
 <!-- source: internal/component/config/setparser_meta.go -- parseLineWithMeta, walkAndSetWithMeta -->
 <!-- source: internal/component/config/serialize_set.go -- writeValueOrArrayAssignments, serializeSetMetaChild -->
 
+Whole-leaf inactivity stays separate from member-operation ownership. Annotated
+session assignments and per-member operations keep an `inactive <path>` marker
+alongside their existing commands. Ordinary plain leaf-list set output uses
+`nop <path> [ members ]`, followed by member `nop` lines only for independently
+inactive members. Saving and reloading either form preserves the whole-leaf
+flag, member flags and ordered repeats; activating the leaf leaves independent
+member deactivations in place.
+<!-- source: internal/component/config/serialize_set.go -- emitValueOrArrayNop, emitMetaValueOrArrayNop, serializeSetMetaChild -->
+<!-- source: internal/component/config/setparser.go -- wholeLeafListNop, markNopInactive -->
+
 The shared token codec records quoting for candidate reads. A bracket inside
 a quoted member remains data, including when that member fails its leaf
 constraints. A bare delimiter run that the strict parser refuses keeps that

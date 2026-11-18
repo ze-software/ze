@@ -257,16 +257,21 @@ func splitInactiveMembers(items []string, inactiveSet map[string]bool) (bare, in
 	return bare, inactive
 }
 
-// emitValueOrArrayNop emits individual set/nop lines for a leaf-list
-// that has deactivated members or is wholly inactive.
+// emitValueOrArrayNop writes whole-leaf inactivity as one bracket nop, with
+// separate member nops for independent member intent. An active leaf keeps
+// its individual set/nop lines.
 func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bare, inactive []string) {
+	if tree.inactiveValues[name] {
+		writeWholeLeafListNop(b, name, prefix, bare)
+		writeInactiveMemberLines(b, tree, name, prefix)
+		return
+	}
 	inactiveSet := make(map[string]bool, len(inactive))
 	for _, m := range inactive {
 		inactiveSet[m] = true
 	}
-	wholeInactive := tree.inactiveValues[name]
 	for _, member := range bare {
-		if inactiveSet[member] || wholeInactive {
+		if inactiveSet[member] {
 			b.Str("nop ")
 		} else {
 			b.Str("set ")
@@ -279,15 +284,19 @@ func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bar
 	}
 }
 
-// emitMetaValueOrArrayNop emits individual set/nop lines with the
-// leaf-level metadata prefix preserved on each line.
+// writeWholeLeafListNop distinguishes the whole leaf from a member nop. The
+// full sequence is written, including repeats and independently inactive members.
+func writeWholeLeafListNop(b *textbuf.Buffer, name, prefix string, members []string) {
+	b.Str("nop ").Str(prefix).Str(name).Byte(' ').Str(bracketValue(JoinLeafListMembers(members))).Byte('\n')
+}
+
+// emitMetaValueOrArrayNop preserves the leaf annotation on a whole bracket nop
+// or on each member line, with independent member inactivity kept separate.
 func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name, prefix string, bare, inactive []string) {
 	inactiveSet := make(map[string]bool, len(inactive))
 	for _, m := range inactive {
 		inactiveSet[m] = true
 	}
-	wholeInactive := tree.inactiveValues[name]
-
 	var entry MetaEntry
 	hasEntry := false
 	if meta != nil {
@@ -296,12 +305,20 @@ func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name
 			hasEntry = true
 		}
 	}
+	if tree.inactiveValues[name] {
+		if hasEntry {
+			writeMetaPrefix(b, entry)
+		}
+		writeWholeLeafListNop(b, name, prefix, bare)
+		writeInactiveMemberLines(b, tree, name, prefix)
+		return
+	}
 
 	for _, member := range bare {
 		if hasEntry {
 			writeMetaPrefix(b, entry)
 		}
-		if inactiveSet[member] || wholeInactive {
+		if inactiveSet[member] {
 			b.Str("nop ")
 		} else {
 			b.Str("set ")
@@ -674,6 +691,12 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 		}
 		if hasMemberEntries(entries) {
 			writeLeafListMemberLines(b, name, prefix, items, tree.inactiveMembers[name], entries)
+			if tree.inactiveValues[name] {
+				// As for a session whole assignment, this marker changes only
+				// activation. Replacing the members here would discard member
+				// operations the metadata retained beside the tree's current view.
+				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
+			}
 			return
 		}
 		if len(items) > 0 {

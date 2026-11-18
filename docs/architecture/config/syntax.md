@@ -641,6 +641,26 @@ set interface ethernet eth0 unit 0 ipv4 address [ 192.0.2.1/24 192.0.2.3/30 ]
 nop interface ethernet eth0 unit 0 ipv4 address 192.0.2.3/30
 ```
 
+A wholly inactive plain leaf-list also uses the bracket form, including when
+it holds one member. Separate member `nop` lines retain independent member
+inactivity, so activating the whole leaf later restores only its active members:
+
+```
+nop system name-server [ 8.8.8.8 1.1.1.1 ]
+nop system name-server 1.1.1.1
+```
+
+An unordered plain list's bracket `nop` adds missing members and deduplicates
+values, like its `set` form. An ordered list's whole spelling restores the
+supplied sequence, including repeated values. Both preserve older independently
+inactive members, so activating the whole leaf does not activate those members.
+Metadata
+that owns session assignments or individual member operations retains those
+operations and uses a separate `inactive <path>` marker for whole-leaf state;
+that marker changes activation without replacing membership or ownership.
+<!-- source: internal/component/config/serialize_set.go -- emitValueOrArrayNop, emitMetaValueOrArrayNop, serializeSetMetaChild, writeValueOrArrayAssignments -->
+<!-- source: internal/component/config/setparser.go -- wholeLeafListNop, markNopInactive -->
+
 `delete <path> <member>` removes that one member, of a plain or a bracket
 leaf-list alike; `delete <path>` removes the whole leaf.
 
@@ -656,8 +676,9 @@ set bgp neighbor 192.0.2.1 peer-as 65001
 **Backward compatibility:** the `inactive <path>` keyword from older
 configs is still accepted by the parser, and so is `inactive <path>
 <member>` after a bracket leaf-list's list line, the spelling an older
-release wrote for a deactivated bracket member. On save, `inactive` lines
-are migrated to the `nop` form automatically. An older draft could also
+release wrote for a deactivated bracket member. Ordinary configuration output
+migrates `inactive` lines to the `nop` form; session metadata keeps the separate
+whole-leaf marker described above. An older draft could also
 spell a bracket list as one quoted value (`address "192.0.2.1/24
 192.0.2.3/30"`): when that value fails as one member but each of its words
 is a valid member, the parser reads the words as the members.
