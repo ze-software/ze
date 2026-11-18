@@ -1,11 +1,14 @@
 # Test: SSH `restart` runs the drain with kind restart and cause in-place
-# Exercises: SSH exec `restart` -> the SSH restart function
-#            (cmd/ze/hub/service_ssh.go) -> requestRestartStop(in-place) ->
+# QUESTION: Does real SSH restart finish the declared drain and exit for restart
+# without sending Cease? A unit cannot prove process exit and BGP wire delivery.
+# Exercises: SSH exec `restart` -> shared `request restart` dispatch
+#            (internal/component/plugin/server/daemon_restart.go) ->
+#            installed requestRestartStop(in-place) ->
 #            stopForRestart -> runStopDrain (cmd/ze/hub/drain.go) with
 #            stopDrainInput -> drain-responder's OnDrain.
 # VALIDATES: spec-daemon-drain-before-stop AC-7 (SSH restart half): the
 #            drain-registered plugin receives kind restart with cause
-#            in-place, answers, and the daemon exits 0.
+#            in-place, answers, and the foreground daemon exits 75.
 #            The peer lingers, so it holds the session through the restart
 #            and fails on any Cease NOTIFICATION (type 3, code 6) the daemon
 #            sends before it closes the session in silence.
@@ -93,8 +96,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=le test fixture plugin/drain-ssh-restart $PORT2:timeout=30s
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
-expect=exit:code=0
-expect=stderr:contains=drain-fixture: sent restart output=restarting daemon error=none
+expect=exit:code=75
+expect=stderr:contains=drain-fixture: sent restart output=message  restart initiated error=none
 expect=stderr:contains=drain-fixture: drain received kind=restart cause=in-place
 expect=stderr:contains=drain-fixture: drain answered
 reject=stderr:contains=drain-fixture: FAIL

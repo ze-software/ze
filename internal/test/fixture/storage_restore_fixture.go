@@ -18,6 +18,7 @@ import (
 	"syscall"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -27,12 +28,8 @@ import (
 // one proves replay invents none of its own.
 const storageRestoreRetired = storageTreeName + ".replaced-20260101T000000.000000000"
 
-// storageRestoreEndpoint is the SSH endpoint the seed records, as host/port;
-// storageRestoreDialed is how an owner refusal prints it, as host:port.
-const (
-	storageRestoreEndpoint = "127.0.0.1/2222"
-	storageRestoreDialed   = "127.0.0.1:2222"
-)
+// storageRestoreEndpoint is the SSH endpoint the seed records, as host/port.
+const storageRestoreEndpoint = "127.0.0.1/2222"
 
 // The keys and interrupted states the restore scenarios share.
 const (
@@ -171,14 +168,16 @@ func storageRequireOutput(output []byte, wants ...string) error {
 // a corrupt artifact, the canonical seed and an owned store are each refused
 // with the tree untouched; then the restore replaces the tree, retires the old
 // tree and an unrelated seed at recorded names, and leaves the artifact as it was.
-func storageRestoreFullScenario(ctx context.Context) error {
+func storageRestoreFullScenario(ctx context.Context, port int) error {
+	endpoint := fmt.Sprintf("127.0.0.1/%d", port)
+	dialed := fmt.Sprintf("127.0.0.1:%d", port)
 	old := map[string][]byte{
-		zefs.KeySSHDefault.Pattern: []byte(storageRestoreEndpoint),
+		zefs.KeySSHDefault.Pattern: []byte(endpoint),
 		storageKeyActive:           []byte("old config\n"),
 	}
 	historyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("history")))
 	backup := map[string][]byte{
-		zefs.KeySSHDefault.Pattern:        []byte(storageRestoreEndpoint),
+		zefs.KeySSHDefault.Pattern:        []byte(endpoint),
 		storageKeyActive:                  []byte("bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n"),
 		storageKeyPassword:                {0, 1, 2, 0xff},
 		"custom/unregistered/nested/key":  []byte("unknown keys survive"),
@@ -208,12 +207,14 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	output, err := restore("backup.zefs")
+	environ := env.Without(os.Environ(), "ze.ssh.host", "ze.ssh.port")
+	output, err := storageCommandEnviron(ctx, environ, "", "data", "--path", storageTreeName, "restore", "backup.zefs", "full")
 	closeErr := owner.Close()
 	if err == nil {
 		return errors.Join(fmt.Errorf("restore ran beside the owner:\n%s", output), closeErr)
 	}
-	if err := storageRequireOutput(output, storageRestoreDialed, "stop the daemon"); err != nil {
+	if err := storageRequireOutput(output, dialed, "store is owned by another process",
+		"nothing more was changed", "no daemon listens at "+dialed, "fix: ze status"); err != nil {
 		return errors.Join(err, closeErr)
 	}
 	if closeErr != nil {

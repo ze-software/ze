@@ -236,10 +236,9 @@ func storageLiveBackupRefused(ctx context.Context, args []string) error {
 	return storageLiveOK("data-backup-refused-live")
 }
 
-// storageLiveRestoreFullRefused proves AC-6's live arm: the offline full
-// restore refuses while a daemon owns the store, names the daemon, and writes
-// nothing: the source stays, no previous tree is retired, and the active
-// config is unchanged.
+// storageLiveRestoreFullRefused proves the busy-store forwarding route refuses
+// explicit invalid credentials at the real daemon. The source stays, no
+// previous tree is retired, and the active config remains unchanged.
 func storageLiveRestoreFullRefused(ctx context.Context, args []string) error {
 	if _, err := storageLiveClient(ctx, args); err != nil {
 		return err
@@ -252,14 +251,23 @@ func storageLiveRestoreFullRefused(ctx context.Context, args []string) error {
 	if err := storageLiveSource(source, map[string][]byte{zefs.KeyFileActive.Key("other.conf"): []byte(config)}); err != nil {
 		return err
 	}
-	output, err := storageCommand(ctx, "", "data", "restore", source, "full")
+	environ := overrideEnv04(os.Environ(),
+		"ZE_SSH_USERNAME=admin", "ZE_SSH_PASSWORD=restore-refusal-invalid-password")
+	output, err := storageCommandEnviron(ctx, environ, "", "data", "restore", source, "full")
 	if err == nil {
 		return fmt.Errorf("ze data restore full ran beside a live daemon:\n%s", output)
 	}
-	for _, want := range []string{"a daemon owns the store at 127.0.0.1:" + args[0], "stop the daemon"} {
+	for _, want := range []string{
+		"store is owned by another process", "127.0.0.1:" + args[0],
+		"did not answer request data restore path " + source + " full", "unable to authenticate",
+		`fix: ze cli --user <name> -c "request data restore path ` + source + ` full"`,
+	} {
 		if !bytes.Contains(output, []byte(want)) {
 			return fmt.Errorf("ze data restore full refused without %q:\n%s", want, output)
 		}
+	}
+	if bytes.Contains(output, []byte("full recovery accepted")) {
+		return fmt.Errorf("the unauthenticated restore reported acceptance:\n%s", output)
 	}
 	if _, err := os.Stat(source); err != nil {
 		return fmt.Errorf("the refused restore moved its source: %w", err)

@@ -60,9 +60,16 @@ func storageEmptyTree(_ context.Context, _ []string) error {
 // so the authored budget was inert and a command slowed by contention failed on a
 // number nobody wrote.
 func storageCommand(ctx context.Context, input string, args ...string) ([]byte, error) {
+	return storageCommandEnviron(ctx, nil, input, args...)
+}
+
+// storageCommandEnviron uses the same command and budget with an explicit
+// child environment. A nil environment retains the process's inherited one.
+func storageCommandEnviron(ctx context.Context, environ []string, input string, args ...string) ([]byte, error) {
 	deadline, cancel := context.WithTimeout(ctx, WaitBudget(75, 25*time.Second))
 	defer cancel()
 	command := exec.CommandContext(deadline, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
+	command.Env = environ
 	command.Stdin = strings.NewReader(input)
 	return command.CombinedOutput()
 }
@@ -103,8 +110,13 @@ bgp { router-id 1.2.3.4; session { asn { local 65000; } } }
 `
 
 func storageTreeScenario(ctx context.Context, args []string) error {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		return errors.New("storage/tree requires one scenario name")
+	}
+	if args[0] != "data-restore-full" {
+		if len(args) != 1 {
+			return errors.New("storage/tree requires one scenario name")
+		}
 	}
 	var err error
 	switch args[0] {
@@ -133,7 +145,14 @@ func storageTreeScenario(ctx context.Context, args []string) error {
 	case "data-backup":
 		err = storageBackupScenario(ctx)
 	case "data-restore-full":
-		err = storageRestoreFullScenario(ctx)
+		if len(args) != 2 {
+			return errors.New("storage/tree data-restore-full requires the runner's unused SSH port")
+		}
+		port, parseErr := parsePort(args, 1)
+		if parseErr != nil {
+			return parseErr
+		}
+		err = storageRestoreFullScenario(ctx, port)
 	case "data-restore-full-resume":
 		err = storageRestoreResumeScenario(ctx)
 	case "data-restore-config":

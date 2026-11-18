@@ -1,5 +1,8 @@
 # Test: data-restore-full-refused-live
-# VALIDATES: AC-6 -- `ze data restore <file> full` while a daemon owns the store is refused naming the daemon; the source stays, the tree is not retired, the active config is unchanged.
+# QUESTION: Does the local CLI forward a busy full restore to its actual owner
+# and preserve the store after authentication fails? A unit cannot prove the
+# real owner lock, SSH login and unchanged live configuration together.
+# VALIDATES: A busy-store full restore with explicit invalid credentials reaches the daemon and is refused; the source stays, the tree is not retired, and the active config is unchanged.
 # PREVENTS: a full restore replacing the tree under a running daemon.
 
 option=timeout:value=60s
