@@ -436,6 +436,16 @@ read; a pre-network capture has no baseline. The L2TP accounting callback captur
 its baseline during address publication, before PPP enables forwarding.
 Accounting-Start runs asynchronously, so PPP does not wait for a RADIUS server
 response.
+
+The L2TP event schema provides a typed `NetworkLifetime` to distinguish network
+phases within the same logical Birth. Its sequence is nonzero and cannot wrap;
+it grants no authority to change a session. `TrafficSample` carries all four raw
+traffic totals or an explicit unavailability cause. Its JSON representation
+preserves measured zero and rejects missing or null counter fields without
+changing an existing sample.
+<!-- source: internal/component/l2tp/events/network_lifetime.go -- NetworkLifetime -->
+<!-- source: internal/component/l2tp/events/traffic_sample.go -- TrafficSample -->
+
 Clearing display counters does not change accounting. Unavailable counter values
 are omitted and logged, not reported as zero.
 

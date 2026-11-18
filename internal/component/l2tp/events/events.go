@@ -60,12 +60,14 @@ const SessionDownEvent = "session-down"
 // release the address; the CQM observer uses Username to transition the
 // login's bucket state to "down".
 type SessionDownPayload struct {
-	Birth        subscriberid.L2TPBirth `json:",omitzero"`
-	SubscriberID string                 `json:",omitempty"`
-	Generation   ObservationGeneration  `json:",omitzero"`
-	TunnelID     uint16
-	SessionID    uint16
-	Username     string
+	Birth            subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID     string                 `json:",omitempty"`
+	NetworkLifetime  NetworkLifetime        `json:"network-lifetime,omitzero"`
+	TerminalCounters TrafficSample          `json:"terminal-counters,omitzero"`
+	Generation       ObservationGeneration  `json:",omitzero"`
+	TunnelID         uint16
+	SessionID        uint16
+	Username         string
 	// Cause is why the session ended, as an RFC 2866 Section 5.10 value. The
 	// RADIUS accounting plugin reports it as Acct-Terminate-Cause on the Stop
 	// record. TerminateCauseUnspecified means no teardown site named one.
@@ -184,14 +186,16 @@ const SessionIPAssignedEvent = "session-ip-assigned"
 // SessionIPAssignedPayload carries session identity and assigned IP
 // for RADIUS accounting start and other subscribers.
 type SessionIPAssignedPayload struct {
-	Birth        subscriberid.L2TPBirth `json:",omitzero"`
-	SubscriberID string                 `json:",omitempty"`
-	Generation   ObservationGeneration  `json:",omitzero"`
-	FramedRoutes []FramedRoute          `json:",omitempty"`
-	TunnelID     uint16
-	SessionID    uint16
-	Username     string
-	PeerAddr     string
+	Birth            subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID     string                 `json:",omitempty"`
+	NetworkLifetime  NetworkLifetime        `json:"network-lifetime,omitzero"`
+	BaselineCounters TrafficSample          `json:"baseline-counters,omitzero"`
+	Generation       ObservationGeneration  `json:",omitzero"`
+	FramedRoutes     []FramedRoute          `json:",omitempty"`
+	TunnelID         uint16
+	SessionID        uint16
+	Username         string
+	PeerAddr         string
 	// CallingStationID is the L2TP Calling Number AVP (RFC 2661 Section
 	// 4.4.3), which RADIUS accounting reports as Calling-Station-Id (RFC 2865
 	// Section 5.31). Empty when neither side named one.
