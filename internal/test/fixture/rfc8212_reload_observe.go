@@ -26,6 +26,11 @@ type rfc8212ReloadWire struct {
 	adds    map[string]int
 	downs   int
 	failure error
+	// The diagnostic clock is local callback receive time, not event production
+	// time. Sequence counts every callback, including events outside the sink.
+	diagnosticSequence   uint64
+	diagnosticPhase      string
+	diagnosticTranscript []string
 	// snapshot, when set, names the file each change of routes is written
 	// to, one prefix per line in sorted order, so a process whose own event
 	// loop is blocked can still read the downstream (rfc8212DownstreamSettled).
@@ -80,10 +85,59 @@ func rfc8212DownstreamSettled(ctx context.Context, prefixes ...string) error {
 }
 
 func newRFC8212ReloadWire() *rfc8212ReloadWire {
-	return &rfc8212ReloadWire{routes: make(map[string]string), adds: make(map[string]int)}
+	return &rfc8212ReloadWire{routes: make(map[string]string), adds: make(map[string]int), diagnosticPhase: "startup"}
+}
+
+const (
+	rfc8212DiagnosticRecords    = 32
+	rfc8212DiagnosticEventBytes = 4096
+)
+
+// markDiagnosticPhase records a boundary and its lifetime DOWN count under
+// the same lock, without discarding earlier events. The scenario records a
+// drained boundary only after request quiesce succeeds.
+func (s *rfc8212ReloadWire) markDiagnosticPhase(phase string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.diagnosticPhase = phase
+	s.recordDiagnosticLocked(time.Now().UTC(), "phase", "")
+	return s.downs
+}
+
+// checkDiagnosticDownWindow checks only the successful drained scenario
+// boundaries. Startup removals remain in the lifetime counter and transcript.
+func (s *rfc8212ReloadWire) checkDiagnosticDownWindow(start, end int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if end != start {
+		return fmt.Errorf("policy reload observed %d DOWN events between drained scenario boundaries (before=%d after=%d absolute=%d)", end-start, start, end, s.downs)
+	}
+	return s.failure
+}
+
+// recordDiagnosticLocked retains phase markers and raw fixture state events.
+// UP and DOWN retain the original connection tokens for exact correlation.
+// Native state JSON has no timestamp; receivedAt is the callback's local time.
+func (s *rfc8212ReloadWire) recordDiagnosticLocked(receivedAt time.Time, kind, event string) {
+	if len(s.diagnosticTranscript) >= rfc8212DiagnosticRecords || len(event) > rfc8212DiagnosticEventBytes {
+		if s.failure == nil {
+			s.failure = fmt.Errorf("RFC8212 state diagnostic bound exceeded: records=%d event-bytes=%d", len(s.diagnosticTranscript), len(event))
+		}
+		return
+	}
+	s.diagnosticTranscript = append(s.diagnosticTranscript, fmt.Sprintf("sequence=%d local-receive-time=%s phase=%s kind=%s raw=%q",
+		s.diagnosticSequence, receivedAt.Format(time.RFC3339Nano), s.diagnosticPhase, kind, event))
+}
+
+func (s *rfc8212ReloadWire) reportDiagnostics() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, _ = fmt.Fprintf(os.Stderr, "RFC8212 state diagnostic: callbacks=%d absolute-downs=%d records=%q\n",
+		s.diagnosticSequence, s.downs, s.diagnosticTranscript)
 }
 
 func (s *rfc8212ReloadWire) receive(event string) error {
+	receivedAt := time.Now().UTC()
 	var e struct {
 		BGP struct {
 			Message struct {
@@ -109,12 +163,16 @@ func (s *rfc8212ReloadWire) receive(event string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.diagnosticSequence++
 	if err := json.Unmarshal([]byte(event), &e); err != nil {
 		s.failure = err
 		return nil
 	}
 	if e.BGP.State == "down" {
 		s.downs++
+	}
+	if e.BGP.Message.Type == eventState {
+		s.recordDiagnosticLocked(receivedAt, "state", event)
 	}
 	if e.BGP.Peer.Remote.Address != addrLoopbackSecond {
 		return nil

@@ -26,6 +26,7 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 			p.SetStartupSubscriptions([]string{eventUpdate, eventState}, []string{"*"}, "full")
 			return nil
 		}, func(ctx context.Context, p *sdk.Plugin) error {
+			defer wire.reportDiagnostics()
 			data, err := os.ReadFile(fileBGPConf)
 			if err != nil {
 				return err
@@ -44,17 +45,46 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 			if err := rfc8212ReloadTopology(ctx, p); err != nil {
 				return err
 			}
-			if err := scenario(ctx, p, wire, tree, schema); err != nil {
+			if err := quiesce03(ctx, p); err != nil {
+				return fmt.Errorf("before reload scenario event barrier: %w", err)
+			}
+			downStart := wire.markDiagnosticPhase("scenario-start-after-event-barrier")
+			if err := rfc8212ReloadDiagnosticPeers(ctx, p, "before-scenario-after-event-barrier"); err != nil {
 				return err
 			}
-			wire.mu.Lock()
-			defer wire.mu.Unlock()
-			if wire.downs != 0 {
-				return fmt.Errorf("policy reload synthesized %d DOWN events", wire.downs)
+			downEnd := downStart
+			scenarioErr := scenario(ctx, p, wire, tree, schema)
+			wire.markDiagnosticPhase("scenario-returned")
+			if scenarioErr == nil {
+				if err := quiesce03(ctx, p); err != nil {
+					scenarioErr = fmt.Errorf("after reload scenario event barrier: %w", err)
+				} else {
+					downEnd = wire.markDiagnosticPhase("scenario-complete-after-event-barrier")
+				}
 			}
-			return wire.failure
+			peerErr := rfc8212ReloadDiagnosticPeers(ctx, p, "after-scenario")
+			if err := errors.Join(scenarioErr, peerErr); err != nil {
+				return err
+			}
+			return wire.checkDiagnosticDownWindow(downStart, downEnd)
 		})
 	}
+}
+
+// rfc8212ReloadDiagnosticPeers retains the three synthetic fixture peer rows,
+// including the session endpoints and counters already used by the assertions.
+// The error path captures the same rows without claiming a completed drain.
+func rfc8212ReloadDiagnosticPeers(ctx context.Context, p *sdk.Plugin, phase string) error {
+	rows, err := peerRows03(ctx, p, "*")
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "RFC8212 peer diagnostic: phase=%s read-error=%v\n", phase, err)
+		return err
+	}
+	if len(rows) != 3 || rows[addrLoopback] == nil || rows[addrLoopbackSecond] == nil || rows[addrLoopbackThird] == nil {
+		return fmt.Errorf("RFC8212 peer diagnostic: phase=%s got %d peer rows, want the three fixture addresses", phase, len(rows))
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "RFC8212 peer diagnostic: phase=%s peers=%v\n", phase, rows)
+	return nil
 }
 
 // rfc8212ReloadTopology supplies the original wire next hops through real
