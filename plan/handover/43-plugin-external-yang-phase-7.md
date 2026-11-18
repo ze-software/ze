@@ -4,7 +4,15 @@ Written 2026-11-16. It replaces `42-plugin-external-yang-phase-5.md` for what
 comes next. The session that ran phases 5 and 6 is too large to supervise
 phase 7.
 
-## Where the work is
+**Read the last section first.** "State at the end of the session,
+2026-11-18" is the current state, and it alone says what to do next. Every
+section above it is the history of the session, kept for its reasons and
+evidence. Where a section above says something is pending, owed,
+uncommitted, planned, being written, being built or held on a branch, the
+last section supersedes it.
+The owner's rulings below and the tooling traps still hold.
+
+## Where the work is (superseded: history of 2026-11-16)
 
 | Item | Value |
 |------|-------|
@@ -40,7 +48,7 @@ phase 7.
 5. He agreed that `show plugin declarations config <file>` follows ruling 4,
    and to the order of work below.
 
-## Outstanding items, every one
+## Outstanding items, every one (superseded: the list of 2026-11-16, every item since done or moved)
 
 | # | Item | Detail |
 |---|------|--------|
@@ -271,7 +279,7 @@ In `./internal/le/`: `TestNoPythonLeRemains`, `TestCensusActionsDeclareHeavy`,
 `TestBuildTag_Gate12_AbsentBinaryDropsSymbols` (an L2TP symbol in the bare
 `ze_core` binary).
 
-## Carrying work to the laptop
+## Carrying work to the laptop (superseded by "The carry routine" in the last section)
 
 A commit cannot be created on the laptop from a remote pane: signing fails
 there (`gpg failed to sign the data`). The routine that worked twice: fetch the
@@ -479,9 +487,11 @@ top-level redefinition refusal, the idle-module refusal, the stricter
 "YANG wins" help rule, and the command path clash. Each is settled by the
 rule or brought to the owner before closure.
 
-## State at 2026-11-17, end of the second part of phase 11
+## State at 2026-11-17, end of the second part of phase 11 (superseded by the last section)
 
-This section replaces the lists above for what comes next. The spec's
+This section replaced the lists above for what came next on 2026-11-17. Its
+"What remains" table and its "being written" and "being built" items are
+done: see the last section. The spec's
 "What this spec still owes before it can close" is the full record; this is
 the summary for the next session.
 
@@ -573,3 +583,115 @@ lines before anything else.
 | Lint refuses when its inputs change during the run | Run it when no agent is editing the files it reads |
 | Agents stop at 100 tool calls | Plan each package so a continuation can take it over |
 | The Go edit hook refuses until the style guide and the doors are read in the session | Name them in every code agent's brief, from the main checkout |
+
+## State at the end of the session, 2026-11-18
+
+This section is the current state. A fresh session can act on it alone, with
+the spec. Every statement is read from `git log`, the commit bodies and the
+tree on the server, except the laptop facts, which the supervising session
+reported.
+
+### Where everything is
+
+| Item | Value |
+|------|-------|
+| The work | All on the laptop's `main`. The last carry is `7504b8c5d2`: one commit holding the server commits `9e0949eadb`, `ca5d2d0588` (plan), `6448a74128` (external commands on every surface, one rule: 84 files, 18 of them deleted) and `0dc2d4f173` (the regenerated provider list). Earlier carries: `a529b75fd9` as `81567bab05`, `c40ca5fb09` as `f98ca55702`, `adc03a69ac` as `af22d6f7be`, `6f127569c1` as `c370011e55` |
+| Checked | The supervising session compared every file this work changed since its base `e7e5900786` (213 files) with the laptop's committed `main`: 202 identical, 11 differing only by other sessions' later commits, and in each of the 11 every line this work added is present |
+| Server | Nothing uncommitted. The branch `worktree-yang-finish` (worktree `.claude/worktrees/yang-finish`) and the older branches `worktree-spec-external-yang`, `worktree-validate-client` and `worktree-yang-phase8` are redundant copies. Nothing on them is needed. Removing them is the owner's call |
+| Spec | `plan/post-release/features/spec-plugin-external-yang-at-startup.md`, `in-progress`, phases 1 to 11 built. Its "What remains before closure, in order" is the plan, and its gap table G-1 to G-11 names what closure will check that is not in place |
+| Claim | Held by session `99a3a802-6ea0-45ad-a7f7-a342c1f9baae` in the server worktree. The supervising session releases it when it ends. The next session claims the spec where it works: `./le spec claim plan/post-release/features/spec-plugin-external-yang-at-startup.md` |
+
+### What is built
+
+Every acceptance criterion the spec still owns is built; the spec's evidence
+tables name each carrier and the commit that records its runs.
+
+| Criteria | State |
+|----------|-------|
+| AC-1 to AC-29 | Proven, some at unit level by design (the spec's table under Acceptance Criteria) |
+| AC-30, help | The YANG help wins over the Stage 1 help, for every plugin (`external-yang-command-help.ci`). **Not met in one point:** no session surface shows an argument leaf's own `ze:help`, for any command, compiled-in included (`TreeCompleter.matchChildren`). It needs a design of its own and no spec holds it |
+| AC-31, AC-38 | Completion and pipes proven (`-completion.ci`, `-pipes.ci`). `\| count` is refused on a one-document answer exactly as on a compiled-in command with the same shape; `\| text \| count` works on both |
+| AC-41 | MCP and REST proven (`-api-parameters.ci`); gRPC has no functional harness and is carried by unit tests of the shared source. Product fix: a command only a plugin serves was listed with no parameters (`buildCommandMeta`) |
+| AC-11, AC-45 | An unheld `ze:validate` refuses the start, external (`external-yang-unheld-registration-refused.ci`) and compiled-in (`refuseWronglyBuilt`, doctor code `doctor-build-registration-unheld`). No shipped build-tag combination can hold an unheld name. The compiled-in refusal sits at daemon start only, by the supervising session's choice |
+| AC-42, AC-43 | `pkg/plugin/plugin.go` removed; the six empty modules removed; an empty module refused for an external plugin too; `TestNoShippedModuleAddsNothing` green |
+| AC-44 | Moved to `plan/release/fixes/spec-config-yang-one-definer-per-node.md` (`design`) |
+| AC-46, AC-47 | Found and fixed outside the subject: a command sent over SSH in one shot lost its quotes (`execMiddleware`, `exec_quotes_test.go`); `ze plugin <name> --yang` for a plugin with no YANG now says so |
+
+The owner's decisions of 2026-11-17, answered "It seems you have all the
+answers.": D-5a (remove `pkg/plugin/plugin.go`) was later confirmed
+explicitly, after he was shown the 33 deleted tests of the dead type: "it iz
+ok, i was only unclear". D-5b (the six empty modules) and D-7 (unheld names)
+still rest on the supervising session's reading of his first answer. D-6
+moved to its own spec by his "ok".
+
+The independent test judge ruled on every existing test this work changed or
+deleted: 38 `Weakening-approved:` trailers on `6448a74128`, and a
+`Test-judge:` paragraph for the snapshot on both commits. One process lapse:
+two test changes, the renamed join test and the deletion of the dead type's
+test file, reached the commit gate without a prior ruling; the gate refused,
+and the judge ruled before the commit.
+
+### Next steps, in order
+
+| # | Step | Command or skill |
+|---|------|------------------|
+| 1 | Work on the laptop's `main`, where the work is. Check the checkout is not behind its upstream before the first edit | `git fetch`, then `git rev-list --count HEAD..@{u}` |
+| 2 | Claim the spec | `./le spec claim plan/post-release/features/spec-plugin-external-yang-at-startup.md` |
+| 3 | Check the change set the review must cover. The review artifact covers the commits that carry `Spec-work: plugin-external-yang-at-startup`; whether the laptop's carry commits (`7504b8c5d2` and the earlier four) carry that trailer was not read from the server | `git log -1 --format=%B 7504b8c5d2` |
+| 4 | The Review Gate on the whole spec, by an independent agent, round 1 over the whole change set with at least two lenses, its scope written into the spec's Review Gate section first | `/ze-review` with `/ze-review-spec` in agents, or `/ze-review-deep` in the main thread (`ai/rules/planning.md`) |
+| 5 | The fixes the review asks for, each with its scoped tests run by the main thread, then a review of only the fixes, until a round finds no BLOCKER and no ISSUE | `/ze-implement` discipline for each fix; `./le test unit pkg path <dir>`; `./le go lint run scope "<pkg>"` |
+| 6 | The gaps G-1 to G-11 of the spec: decide each as a fix before closure or a Work Not Done row in an existing spec, and ask the owner whether a new spec for the argument leaf help runs | The spec, "What remains before closure, in order" |
+| 7 | Closure: the closure template, the news fragment, commits A and B from one script | `/ze-close` in one agent |
+
+### Open items and their homes
+
+| Item | Home |
+|------|------|
+| An argument leaf's own `ze:help` in a session (AC-30) | **None yet.** A new spec is needed; the spec's Work Not Done row and still-owes row 22 say so |
+| The refusal of a missing argument names no fix, for every command | `plan/release/fixes/spec-web-cli-config-one-off-defects.md`, AC-31 there |
+| The compiled-in redefinition rule and the CoS-over-interface defect | `plan/release/fixes/spec-config-yang-one-definer-per-node.md` |
+| `ze:decorate` and `ze:backend` names of an external module | `plan/post-release/features/spec-plugin-external-yang-judges-decorate-and-backend.md` |
+| The second schema build of a start with an external plugin, and its figure | `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` |
+| `PluginSchemas` on the registration, written and never read; the uncached schema build of a command-line selection; the Go example built by no gate; AC-39's help and shell parts on the Python example; the six pages of the documentation checklist | This spec, gaps G-3 to G-5 |
+| Journal row `green-that-could-not-have-been-red.md` 2026-11-17 | This spec, until an owner that outlives it is found (gap G-8) |
+
+### Leads, not defects
+
+Nobody investigated these. Each goes to whoever next works on its area.
+
+| Lead | What is known |
+|------|---------------|
+| The ExaBGP bridge's Ze-facing startup | `internal/exabgp/bridge/bridge.go` (`startupProtocol`, `sendDeclarations`) still writes the retired text declaration lines, which no daemon reader was found for |
+| A stale citation on the website | `website/compare/nos.md` cites a line range of the removed module `ze-cli-log-cmd.yang`; it should cite `internal/plugins/log/yang/ze-log-cmd.yang` |
+| Push debt on the laptop | The commit tool printed `debt=3 person act(s) owed` at the last preparation there. The supervising session could not establish what the three acts are; it concerns a push |
+| Another session's work on the laptop | Uncommitted work in `internal/component/config/cli`: a new `register_artifact_maintenance.go` and about a dozen modified files, `cmd_validate.go` and `config_data.go` among them, which this work changed earlier. Its tree did not build at that moment |
+
+### The carry routine
+
+Needed only if work is done on the server again. It supersedes "Carrying
+work to the laptop" above.
+
+1. On the server, commit on a branch of a worktree, and write an apply script
+   for the commit; the laptop pulls the script and runs it on its working tree.
+2. When a file the commit touches holds another session's adjacent
+   uncommitted edit on the laptop, the apply refuses that file. Merge it by
+   hand on the server into a `resolved` copy; the apply uses it only if the
+   laptop's copy is still unchanged.
+3. The test-judge approvals and the commit preparation (`./le commit create`)
+   run in the owner's shell, because approvals are keyed to the shell session.
+4. The owner runs the printed script and signs. Then compare every changed
+   file with the laptop's committed `main`, as was done for `7504b8c5d2`.
+
+### Traps of the session
+
+| Trap | What to do |
+|------|------------|
+| The commit gate refuses a test change that has no prior ruling of the test judge | Run `/ze-test-judge` on every changed or deleted existing test before the commit is prepared |
+| A generator reads the disk, so the commit that deletes files cannot carry the generators' output | Write the generated files by hand to the generators' output in that commit, and carry the generators' own output in the next, as `6448a74128` and `0dc2d4f173` did |
+| A snapshot test refreshed to turn a red green is a weakening | Regenerate it only by the test's own `-update` switch, with the judge's ruling on the exact difference |
+| A bare `go test` lacks the build tags | `./le test unit pkg path <dir>` |
+| Lint refuses when its inputs change during the run | Run it when no agent is editing the files it reads |
+| Agents stop at 100 tool calls | Plan each package so a continuation can take it over |
+| An edit is refused until the style guide and the doors are read in the session | Name them in every agent's brief, from the main checkout |
+| `-pattern` of the functional runner matches a test's path | Use a full test name or the numeric ids from `-list` |
+| This server's disk stalls under a live reload | Run live daemon checks on a memory-backed directory (`/dev/shm`) |
