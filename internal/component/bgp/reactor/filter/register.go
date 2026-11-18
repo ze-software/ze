@@ -25,9 +25,10 @@ func init() {
 	// as its own protocol-stage ingress step and binds loop-detection chain
 	// members through loopdetect.BindLoopDetection, so it registers no filter.
 	_ = registry.Register(registry.Registration{
-		Name:        loopdetect.LoopName,
-		Description: "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
-		RFCs:        []string{"4271", "4456"},
+		Name:              loopdetect.LoopName,
+		Description:       "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
+		RFCs:              []string{"4271", "4456"},
+		HideFromSelection: true,
 		// Loop detection registers the loop-detection filter type into the
 		// policy library above, so it names policy the way every filter type
 		// plugin does (policy.PluginName).

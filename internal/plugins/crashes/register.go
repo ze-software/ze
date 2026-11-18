@@ -75,11 +75,12 @@ func init() {
 	// root, event or data-plane need, so nothing ever auto-loads its no-op
 	// engine; it exists to carry the boot effect.
 	if err := pluginregistry.Register(pluginregistry.Registration{
-		Name:        componentName,
-		Description: "Crash capture: kernel crash record harvest at daemon start, crash reports",
-		RunEngine:   func(_ net.Conn) int { return 0 },
-		CLIHandler:  func(_ []string) int { return 0 },
-		BootEffect:  harvestAtDaemonStart,
+		Name:              componentName,
+		Description:       "Crash capture: kernel crash record harvest at daemon start, crash reports",
+		RunEngine:         func(_ net.Conn) int { return 0 },
+		CLIHandler:        func(_ []string) int { return 0 },
+		BootEffect:        harvestAtDaemonStart,
+		HideFromSelection: true,
 	}); err != nil {
 		// A lost registration loses the boot harvest, and a kernel crash
 		// record nobody recovers is gone at the next fault. Fail loudly, as

@@ -699,9 +699,7 @@ func RegisteredProtocolValidator() yang.CustomValidator {
 }
 
 func sortedInternalPluginNames() []string {
-	// registry.Names already returns a freshly-allocated, alphabetically
-	// sorted slice, so no further sorting is needed here.
-	return registry.Names()
+	return registry.SelectableNames()
 }
 
 // ExternalPluginNameValidator returns the validator for the key of a
