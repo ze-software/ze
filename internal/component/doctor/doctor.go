@@ -35,6 +35,8 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+const doctorConfigParse = "doctor-config-parse"
+
 // Run answers `ze doctor` the way its local route does, drawn by
 // renderDoctor: the running daemon's show doctor answer when a daemon answers
 // the SSH ask, otherwise the local checks of the caller's own host plus the
@@ -92,7 +94,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 	if declaredErr != nil {
 		message, fix := configRefusalParts(declaredErr, configName)
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-config-parse",
+			Code:     doctorConfigParse,
 			Severity: diagnostic.SeverityError,
 			Message:  message,
 			Fix:      fix,
@@ -106,7 +108,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 	if parseErr != nil {
 		message, fix := configRefusalParts(parseErr, configName)
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-config-parse",
+			Code:     doctorConfigParse,
 			Severity: diagnostic.SeverityError,
 			Message:  message,
 			Fix:      fix,
@@ -121,7 +123,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 			if unchecked := declared.Unchecked(configName); unchecked != nil {
 				message, fix = configRefusalParts(unchecked, configName)
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-config-parse",
+					Code:     doctorConfigParse,
 					Severity: diagnostic.SeverityError,
 					Message:  message,
 					Fix:      fix,
@@ -135,10 +137,12 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 
 	result, loadErr := config.ReadConfig(string(configData), configName, nil)
 	if loadErr != nil {
+		message, fix := configRefusalParts(loadErr, configName)
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-config-parse",
+			Code:     doctorConfigParse,
 			Severity: diagnostic.SeverityError,
-			Message:  loadErr.Error(),
+			Message:  message,
+			Fix:      fix,
 		})
 		return diags, nil
 	}
@@ -317,7 +321,7 @@ const configKeyword = "config"
 // doctorHelpPage is the usage page of ze doctor.
 func doctorHelpPage() helpfmt.Page {
 	return helpfmt.Page{
-		Command:   "ze doctor",
+		Command:   fixAskActiveConfig,
 		ShortHelp: "Check system readiness for running Ze",
 		Usage: []string{
 			"ze doctor [--json] [config <file>]",
@@ -331,7 +335,7 @@ func doctorHelpPage() helpfmt.Page {
 			}},
 		},
 		Examples: []string{
-			"ze doctor",
+			fixAskActiveConfig,
 			"ze doctor --json",
 			"ze doctor --json config /etc/ze/ze.conf",
 			"ze doctor --json kernel-capabilities",
