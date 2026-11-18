@@ -287,6 +287,78 @@ kernel has been proven.
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_XEN, CONFIG_XEN_NETDEV_FRONTEND -->
 <!-- source: internal/appliance/kernelconfig_pairing_test.go -- unverifiedRuntimeSymbols -->
 
+## PPP original-resource ABI
+
+`LL-PPP-ORIGINAL-RESOURCE` in the [Linux limitations register](../linux-limitations.md#ll-ppp-original-resource)
+records why stock Linux 7.3 requires Ze's carried PPP original-resource patches.
+Kernel configuration alone cannot provide this ABI. Admit the reviewed link
+and address guard, route guard, family/alias correction, channel/unit guard and
+atomic PPPoX capture together, in their registered series order; the capture
+permission correction is part of that source set. A compiled artifact is not
+native acceptance until the matching running image proves these operations.
+
+Every ABI structure uses fixed 32-bit fields and alignment four. ABI is one;
+reserved fields and input feature fields are zero. `PPPIOCGOWNER` takes the
+captured positive ifindex and nonnegative unit on the original creator file
+and returns supported features. Its structure is 20 bytes. A separately opened
+file attached to the same unit is refused; a true duplicate remains useful.
+
+| Bit | Capability | Guarded operation |
+|-----|------------|-------------------|
+| 0 | SETLINK | MTU and IFF_UP through RTM_SETLINK |
+| 1, 2 | ADDR4, ADDR6 | Native IPv4 and IPv6 address changes |
+| 3, 4 | ROUTE4, ROUTE6 | Native IPv4 and IPv6 route add, replace and delete |
+| 5 | ALIAS | Existing IFLA_IFALIAS session metadata writer |
+| 6 | CONNECT | Exact channel/original-unit-file connect and disconnect |
+| 7 | BRIDGE | Exact original channel-file pair bridge and unbridge |
+| 8 | CAPTURE | Atomic original PPPoX channel capture into an unbound file |
+
+Only built-in address families are advertised. The unit probe advertises bits
+0–7 as implemented; the live channel probe `PPPIOCGCHANOWNER` advertises bits
+6–7. CAPTURE is advertised by the actual live transport's non-mutating
+`PPPIOCGTRANSPORTOWNER` probe, whose 20-byte layout is u32 abi/features,
+s32 channel/unit, u32 reserved. All input fields except abi are zero; output
+channel and unit (or -1 when unattached) are diagnostic labels only.
+The transport probe does not perform the PPPoX handoff or drain queued packets.
+
+`PPPIOCATTCHANOWNER` is invoked on that original PPPoX socket with a
+16-byte `ppp_fd_peer`: u32 abi, s32 fd, u32 flags/reserved. The fd names a
+new unbound /dev/ppp file and may be zero. The kernel pins the socket's actual
+native channel, checks its live state and socket namespace, preserves the
+target namespace's CAP_NET_ADMIN permission, and transfers its held native
+reference into the file before the usual queued-packet handoff. Unregister or
+reconnect cannot rebind that file to a replacement channel.
+
+The same peer layout supplies the original creator-unit file to
+`PPPIOCCONNECTOWNER`/`PPPIOCDISCONNECTOWNER`, and the retained original
+peer-channel file to `PPPIOCBRIDGEOWNER`/`PPPIOCUNBRIDGEOWNER`.
+Cleanup validates the actual old relationship before list, count or reference
+changes and joins native settlement. A retired original relationship may be
+cleaned; a different current relationship is preserved. Cleanup uses its
+retained initial capability receipt and files, rather than requiring a new
+live-only probe after retirement.
+
+Rtnetlink requests carry IFLA_OWNER_FD (70), IFA_OWNER_FD (13) or
+RTA_OWNER_FD (33), a signed 32-bit original creator descriptor. The native
+writer validates the exact file/device, socket namespace and captured index
+under its actual writer locks. Route replacement retains replacement
+semantics; every affected old and new leg is checked before effects.
+Unsupported multipath/nexthop-ID forms and owner-tagged unsupported message
+families are refused before dispatch or mutation. Unknown attributes on an
+older kernel are insufficient: require a successful positive ABI probe before
+any guarded write. ENOTTY, absent features or ABI rejection never permits a
+legacy numeric or unguarded fallback.
+
+Go producers must retain their strong original unit/channel owners through the
+actual short syscall or netlink send, without holding a descriptor borrow over
+an ACK wait. The shared setup supplier must replace PPPIOCGCHAN followed by
+PPPIOCATTCHAN with atomic capture; the relay must retain both original channel
+files through unbridge; the CPE CONNECT caller must supply the creator file.
+The native session alias stamp is also a guarded writer. These requirements
+do not claim that this ABI covers IPv6 carrier socket binding, multicast
+membership or packet I/O; those actual consumers need their own authority
+proof before shared PPP integration is accepted.
+
 ## Runtime requirements
 
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state

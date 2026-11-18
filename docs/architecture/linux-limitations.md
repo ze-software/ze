@@ -88,6 +88,49 @@ For a `library` entry, read the module in the module cache:
 
 ## Entries
 
+### LL-PPP-ORIGINAL-RESOURCE
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-18
+- **Limitation:** Stock PPP control selects devices, units and peer channels by
+  reusable names or numbers. It has no creator-file condition on rtnetlink
+  writes, no original-unit-file CONNECT condition and no atomic PPPoX-to-file
+  channel capture. Keeping a PPPoX socket open does not keep its registered
+  channel live through device-down.
+- **Blocks:** Safe shared PPP session setup, mutation and cleanup when a device
+  or transport is renamed, moved, unregistered or replaced while its original
+  file remains open. This is a carried-ABI design constraint, not an RFC
+  impossibility claim.
+- **Evidence:** `drivers/net/ppp/ppp_generic.c` `ppp_unattached_ioctl` selects
+  the unit with `ppp = ppp_find_unit(pn, unit);` and the channel with
+  `chan = ppp_find_channel(pn, unit);`; its CONNECT path also selects the
+  requested numeric unit. `drivers/net/ppp/pppox.c` `pppox_ioctl` returns
+  `index = ppp_channel_index(&po->chan);`, then performs the userspace handoff.
+  `drivers/net/ppp/pppoe.c` `pppoe_flush_dev` holds `lock_sock(sk);` and
+  calls `pppox_unbind_sock(sk);`; `pppox_unbind_sock` calls
+  `ppp_unregister_channel(&pppox_sk(sk)->chan);` before setting the socket
+  dead. `net/core/rtnetlink.c` `do_setlink` selects the request device and
+  applies its fields without a PPP creator-file predicate. These statements
+  were read at the upstream `v7.3` tag, before Ze's original-resource patches.
+- **Alternatives:** A name/index readback or PPPIOCGUNIT readback checks a label
+  before a later writer. A separately opened file attached to the same unit is
+  not its creator file. Retaining only the transport socket cannot prevent the
+  unregister path above. None supplies the missing native atomic condition.
+- **Re-check:** Read the PPP ioctl UAPI, those selection and unregister
+  producers, rtnetlink family dispatch, address writers and IPv4/IPv6 FIB
+  writers. Lift this entry only when upstream supplies equivalent original
+  file/device validation at every actual affected writer and atomic transport
+  capture; a new label query alone does not lift it.
+- **Ze meanwhile:** The carried original-resource ABI requires positive
+  versioned creator/channel/transport probes and per-operation capabilities.
+  Unsupported kernels or operations are refused without numeric or unguarded
+  fallback. The ABI and integration requirements are documented in
+  [kernel profiles](appliance/kernel-profiles.md#ppp-original-resource-abi).
+  Source admission and a matching native kernel proof remain distinct from
+  this verified stock-source limitation.
+
 ### LL-XFRM-OUTER-DF-SET-DSCP
 
 - **Kind:** kernel

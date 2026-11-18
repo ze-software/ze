@@ -1,0 +1,371 @@
+From: Ze kernel maintainers
+Subject: [PATCH 11/11] pppox: capture the original transport channel into a held file
+
+Apply after 0007, 0008, 0009 and 0010. Pin the transport's actual native
+channel directly, before userspace handoff, without a reusable channel-ID
+lookup. Keep old ioctls unchanged and expose a non-mutating positive probe.
+
+diff --git a/include/uapi/linux/ppp-ioctl.h b/include/uapi/linux/ppp-ioctl.h
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -96,7 +96,8 @@
+ #define PPP_OWNER_ROUTE6  (1U << 4)
+ #define PPP_OWNER_ALIAS   (1U << 5)
+ #define PPP_OWNER_CONNECT (1U << 6)
+ #define PPP_OWNER_BRIDGE  (1U << 7)
++#define PPP_OWNER_CAPTURE (1U << 8)
+ 
+ /* Invoke on a bound /dev/ppp channel; fd names a held peer file, not an ID. */
+ struct ppp_fd_peer {
+@@ -119,7 +120,22 @@
+ #define PPPIOCBRIDGEOWNER _IOW('t', 48, struct ppp_fd_peer)
+ #define PPPIOCUNBRIDGEOWNER _IOW('t', 47, struct ppp_fd_peer)
+ #define PPPIOCGCHANOWNER _IOWR('t', 46, struct ppp_channel_owner)
+ #define PPPIOCGOWNER _IOWR('t', 51, struct ppp_owner)
+ 
++/* Query the original live PPPoX transport without performing its handoff.
++ * Input fields except abi are zero. channel/unit are diagnostic labels only.
++ */
++struct ppp_transport_owner {
++	__u32 abi;
++	__u32 features;
++	__s32 channel;
++	__s32 unit;
++	__u32 reserved;
++};
++
++/* Invoke on the original PPPoX socket; peer.fd is an unbound /dev/ppp file. */
++#define PPPIOCATTCHANOWNER _IOW('t', 45, struct ppp_fd_peer)
++#define PPPIOCGTRANSPORTOWNER _IOWR('t', 44, struct ppp_transport_owner)
++
+ /*
+  * Ioctl definitions.
+diff --git a/include/linux/ppp_channel.h b/include/linux/ppp_channel.h
+--- a/include/linux/ppp_channel.h
++++ b/include/linux/ppp_channel.h
+@@ -22,8 +22,10 @@
+ 
+ struct net_device_path;
+ struct net_device_path_ctx;
+ struct ppp_channel;
++struct file;
++struct ppp_transport_owner;
+ 
+ struct ppp_channel_ops {
+ 	/* Send a packet (or multilink fragment) on this channel.
+ 	   Returns 1 if it was accepted, 0 if not. */
+@@ -66,7 +68,17 @@
+ /* Detach a channel from its PPP unit (e.g. on hangup). */
+ extern void ppp_unregister_channel(struct ppp_channel *);
+ 
++/* Capture the exact original transport channel into an unbound /dev/ppp file.
++ * The transport MUST serialize its lifecycle around both calls. Neither call
++ * waits for ppp_mutex or chan_sem while the transport socket lock is held.
++ * The caller MUST keep file alive and unpublished until capture returns.
++ */
++extern int ppp_channel_attach_file(struct ppp_channel *, struct file *,
++				   struct net *);
++extern int ppp_channel_owner_info(struct ppp_channel *, struct net *,
++				  struct ppp_transport_owner *);
++
+ /* Get the channel number for a channel */
+ extern int ppp_channel_index(struct ppp_channel *);
+ 
+ /* Get the unit number associated with a channel, or -1 if none */
+diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -3215,8 +3215,7 @@
+ 
+ 	pch->chan = chan;
+ 	pch->chan_net = get_net_track(net, &pch->ns_tracker, GFP_KERNEL);
+-	chan->ppp = pch;
+ 	init_ppp_file(&pch->file, CHANNEL);
+ 	pch->file.hdrlen = chan->hdrlen;
+ #ifdef CONFIG_PPP_MULTILINK
+ 	pch->lastseq = -1;
+@@ -3228,15 +3227,115 @@
+ 	spin_lock_bh(&pn->all_channels_lock);
+ 	pch->file.index = ++pn->last_channel_index;
+ 	list_add(&pch->list, &pn->new_channels);
+ 	atomic_inc(&channel_count);
+ 	spin_unlock_bh(&pn->all_channels_lock);
+ 
+-	return 0;
+-}
++	/* Publish only after the refcount, locks and native identity are ready. */
++	smp_store_release(&chan->ppp, pch);
++	return 0;
++}
++
++/*
++ * Pin the original transport channel without looking up a reusable number.
++ * Final channel destruction is RCU deferred; a zero refcount cannot be revived.
++ */
++static struct channel *ppp_channel_get_original(struct ppp_channel *chan)
++{
++	struct channel *pch;
++
++	rcu_read_lock();
++	pch = smp_load_acquire(&chan->ppp);
++	if (pch && !refcount_inc_not_zero(&pch->file.refcnt))
++		pch = NULL;
++	rcu_read_unlock();
++	return pch;
++}
++
++int ppp_channel_attach_file(struct ppp_channel *chan, struct file *file,
++			    struct net *net)
++{
++	struct channel *pch;
++	int err = -ENOTCONN;
++
++	if (file->f_op != &ppp_device_fops)
++		return -EBADF;
++	pch = ppp_channel_get_original(chan);
++	if (!pch)
++		return err;
++
++	/* A PPPoX socket lock may nest inside RTNL during device shutdown.
++	 * Never wait here for the existing ppp_mutex -> RTNL unit-creation path.
++	 */
++	if (!mutex_trylock(&ppp_mutex)) {
++		err = -EBUSY;
++		goto out;
++	}
++	if (file->private_data) {
++		err = -EBUSY;
++		goto unlock;
++	}
++	spin_lock(&pch->upl);
++	if (READ_ONCE(pch->file.dead) || pch->chan != chan)
++		goto unlock_channel;
++	if (!net_eq(pch->chan_net, net)) {
++		err = -EXDEV;
++		goto unlock_channel;
++	}
++
++	/* Transfer the held native reference into the original file binding. */
++	file->private_data = &pch->file;
++	err = 0;
++unlock_channel:
++	spin_unlock(&pch->upl);
++unlock:
++	mutex_unlock(&ppp_mutex);
++out:
++	if (err)
++		ppp_release_channel(pch);
++	return err;
++}
++EXPORT_SYMBOL_GPL(ppp_channel_attach_file);
++
++int ppp_channel_owner_info(struct ppp_channel *chan, struct net *net,
++			   struct ppp_transport_owner *owner)
++{
++	struct channel *pch = ppp_channel_get_original(chan);
++	struct ppp *ppp;
++	int err = -ENOTCONN;
++
++	if (!pch)
++		return err;
++	/* Join settled disconnect/bridge operations without waiting while the
++	 * transport's socket lifecycle lock is held.
++	 */
++	if (!mutex_trylock(&pch->chan_sem)) {
++		err = -EBUSY;
++		goto out;
++	}
++	spin_lock(&pch->upl);
++	if (READ_ONCE(pch->file.dead) || pch->chan != chan)
++		goto unlock;
++	if (!net_eq(pch->chan_net, net)) {
++		err = -EXDEV;
++		goto unlock;
++	}
++	owner->features = PPP_OWNER_CAPTURE | PPP_OWNER_CONNECT | PPP_OWNER_BRIDGE;
++	owner->channel = pch->file.index;
++	ppp = rcu_dereference_protected(pch->ppp, lockdep_is_held(&pch->upl));
++	owner->unit = ppp ? ppp->file.index : -1;
++	err = 0;
++unlock:
++	spin_unlock(&pch->upl);
++	mutex_unlock(&pch->chan_sem);
++out:
++	ppp_release_channel(pch);
++	return err;
++}
++EXPORT_SYMBOL_GPL(ppp_channel_owner_info);
+ 
+ /*
+  * Return the index of a channel.
+  */
+ int ppp_channel_index(struct ppp_channel *chan)
+ {
+ 	struct channel *pch = chan->ppp;
+@@ -3303,8 +3402,8 @@
+ 	spin_lock(&pch->upl);
+ 	WRITE_ONCE(pch->file.dead, 1);
+ 	spin_unlock(&pch->upl);
+-	chan->ppp = NULL;
++	WRITE_ONCE(chan->ppp, NULL);
+ 
+ 	/*
+ 	 * This ensures that we have returned from any calls into
+ 	 * the channel's start_xmit or ioctl routine before we proceed.
+diff --git a/drivers/net/ppp/pppox.c b/drivers/net/ppp/pppox.c
+--- a/drivers/net/ppp/pppox.c
++++ b/drivers/net/ppp/pppox.c
+@@ -26,7 +26,8 @@
+ #include <linux/ppp_defs.h>
+ #include <linux/ppp-ioctl.h>
+ #include <linux/ppp_channel.h>
+ #include <linux/kmod.h>
++#include <linux/file.h>
+ 
+ #include <net/sock.h>
+ 
+@@ -64,56 +65,96 @@
+ EXPORT_SYMBOL(unregister_pppox_proto);
+ EXPORT_SYMBOL(pppox_unbind_sock);
+ 
+-int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+-{
+-	struct sock *sk = sock->sk;
+-	struct pppox_sock *po = pppox_sk(sk);
+-	int rc;
+-
+-	lock_sock(sk);
+-
+-	switch (cmd) {
+-	case PPPIOCGCHAN: {
+-		struct sk_buff *skb;
+-		int index;
+-
+-		rc = -ENOTCONN;
+-		if (!(sk->sk_state & PPPOX_CONNECTED))
+-			break;
+-
+-		rc = -EINVAL;
+-		index = ppp_channel_index(&po->chan);
+-		if (put_user(index , (int __user *) arg))
+-			break;
+-
+-		rc = 0;
+-		/* PPPIOCGCHAN historically marks the userspace handoff to
+-		 * generic PPP; pppd then attaches the returned channel to
+-		 * /dev/ppp.
+-		 */
+-		sk->sk_state |= PPPOX_BOUND;
+-		/* Let lockless receive paths finish queueing against the old
+-		 * state.
+-		 */
+-		synchronize_net();
+-		/* Drain packets queued before the handoff because a bound
+-		 * socket is no longer readable.
+-		 */
+-		while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
+-			skb_orphan(skb);
+-			ppp_input(&po->chan, skb);
+-		}
+-		break;
+-	}
+-	default:
+-		rc = pppox_protos[sk->sk_protocol]->ioctl ?
+-			pppox_protos[sk->sk_protocol]->ioctl(sock, cmd, arg) : -ENOTTY;
+-	}
+-
+-	release_sock(sk);
++/* Both legacy numeric discovery and atomic capture perform the same handoff. */
++static void pppox_bind_channel(struct sock *sk)
++{
++	struct pppox_sock *po = pppox_sk(sk);
++	struct sk_buff *skb;
++
++	sk->sk_state |= PPPOX_BOUND;
++	/* Let lockless receive paths finish queueing against the old state. */
++	synchronize_net();
++	/* A bound socket is no longer readable. Preserve queued PPP packets. */
++	while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
++		skb_orphan(skb);
++		ppp_input(&po->chan, skb);
++	}
++}
++
++int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
++{
++	struct sock *sk = sock->sk;
++	struct pppox_sock *po = pppox_sk(sk);
++	struct ppp_transport_owner owner;
++	struct ppp_fd_peer peer;
++	struct file *file = NULL;
++	int rc;
++
++	/* Faulting user copies and fput must not run under the socket lock. */
++	if (cmd == PPPIOCATTCHANOWNER) {
++		if (copy_from_user(&peer, (void __user *)arg, sizeof(peer)))
++			return -EFAULT;
++		if (peer.abi != PPP_OWNER_ABI || peer.fd < 0 ||
++		    peer.flags || peer.reserved)
++			return -EINVAL;
++		file = fget(peer.fd);
++		if (!file)
++			return -EBADF;
++	} else if (cmd == PPPIOCGTRANSPORTOWNER) {
++		if (copy_from_user(&owner, (void __user *)arg, sizeof(owner)))
++			return -EFAULT;
++		if (owner.abi != PPP_OWNER_ABI || owner.features ||
++		    owner.channel || owner.unit || owner.reserved)
++			return -EINVAL;
++	}
++
++	lock_sock(sk);
++
++	switch (cmd) {
++	case PPPIOCGCHAN: {
++		int index;
++
++		rc = -ENOTCONN;
++		if (!(sk->sk_state & PPPOX_CONNECTED))
++			break;
++
++		rc = -EINVAL;
++		index = ppp_channel_index(&po->chan);
++		if (put_user(index, (int __user *)arg))
++			break;
++
++		rc = 0;
++		/* Retain the historical userspace handoff before numeric attach. */
++		pppox_bind_channel(sk);
++		break;
++	}
++	case PPPIOCATTCHANOWNER:
++		rc = -ENOTCONN;
++		if (!(sk->sk_state & PPPOX_CONNECTED))
++			break;
++		rc = ppp_channel_attach_file(&po->chan, file, sock_net(sk));
++		if (!rc)
++			pppox_bind_channel(sk);
++		break;
++	case PPPIOCGTRANSPORTOWNER:
++		rc = -ENOTCONN;
++		if (sk->sk_state & PPPOX_CONNECTED)
++			rc = ppp_channel_owner_info(&po->chan, sock_net(sk), &owner);
++		break;
++	default:
++		rc = pppox_protos[sk->sk_protocol]->ioctl ?
++			pppox_protos[sk->sk_protocol]->ioctl(sock, cmd, arg) : -ENOTTY;
++	}
++
++	release_sock(sk);
++	if (file)
++		fput(file);
++	if (!rc && cmd == PPPIOCGTRANSPORTOWNER &&
++	    copy_to_user((void __user *)arg, &owner, sizeof(owner)))
++		rc = -EFAULT;
+ 	return rc;
+ }
+ 
+ EXPORT_SYMBOL(pppox_ioctl);
+ 
+ #ifdef CONFIG_COMPAT
+

@@ -1,0 +1,981 @@
+From: Ze kernel maintainers
+Subject: [PATCH] rtnetlink: guard original PPP route writers and affected legs
+
+Apply after the original-file link/address guard. The following link-family
+dispatch correction is also required before admitting guarded callers.
+
+RTA_OWNER_FD extends the same held original creator-file boundary. Require a
+positive PPPIOCGOWNER ABI and the implemented family's ROUTE4/ROUTE6 bit
+before submitting any guarded write. There is no fallback without a guard.
+Unsupported request shapes and unsupported route families refuse before
+their family writer; existing unguarded callers pass NULL authority.
+
+IPv4 checks the constructed next hop and actual replaced/deleted alias under
+RTNL before writes or notifications. Unsupported shared/native-nexthop-object
+routes refuse even when a first-hop OIF would match. IPv6 takes RTNL around
+the guarded operation to retain its original device, then validates actual
+old/new candidates under tb6_lock before tree, duplicate-lifetime, flags,
+PMTU, sibling, replacement or delete effects. Both gateway-qualified deletion
+and delete-all validate every sibling because fib6_del changes their metadata.
+No sleeping callback, fget, userspace read or fresh device lookup runs under
+tb6_lock. No borrowed authority pointer is stored in a retained route.
+
+RouteReplace semantics remain. Current native PPP's single-device unicast
+forms are supported; NH-ID, requested multipath, LWT/encap, cache/source
+routes and other unsupported forms refuse. Existing same-owner IPv6 siblings
+are supported only after every affected member passes validation.
+
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -91,7 +91,9 @@
+ #define PPP_OWNER_ABI 1
+ #define PPP_OWNER_SETLINK (1U << 0)
+ #define PPP_OWNER_ADDR4   (1U << 1)
+-#define PPP_OWNER_ADDR6   (1U << 2)
++#define PPP_OWNER_ADDR6   (1U << 2)
++#define PPP_OWNER_ROUTE4  (1U << 3)
++#define PPP_OWNER_ROUTE6  (1U << 4)
+ #define PPPIOCGOWNER _IOWR('t', 51, struct ppp_owner)
+ 
+ /*
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -1171,10 +1171,10 @@
+ 		goto unlock;
+ 	}
+ 	owner.features = PPP_OWNER_SETLINK;
+-	if (IS_BUILTIN(CONFIG_INET))
+-		owner.features |= PPP_OWNER_ADDR4;
+-	if (IS_BUILTIN(CONFIG_IPV6))
+-		owner.features |= PPP_OWNER_ADDR6;
++	if (IS_BUILTIN(CONFIG_INET))
++		owner.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
++	if (IS_BUILTIN(CONFIG_IPV6))
++		owner.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
+ unlock:
+ 	rtnl_unlock();
+ 	if (err)
+--- a/include/uapi/linux/rtnetlink.h
++++ b/include/uapi/linux/rtnetlink.h
+@@ -399,8 +399,9 @@
+ 	RTA_DPORT,
+ 	RTA_NH_ID,
+ 	RTA_FLOWLABEL,
+-	RTA_DEL_REASON,
+-	__RTA_MAX
++	RTA_DEL_REASON,
++	RTA_OWNER_FD,		/* s32 original creator-file guard for unicast routes */
++	__RTA_MAX
+ };
+ 
+ #define RTA_MAX (__RTA_MAX - 1)
+--- a/include/net/rtnetlink.h
++++ b/include/net/rtnetlink.h
+@@ -9,7 +9,8 @@
+ struct file;
+ 
+ /* Get before RTNL; validate under RTNL; put after RTNL is released. */
+-struct file *rtnl_owner_file_get(const struct nlattr *attr);
++struct file *rtnl_owner_file_get(const struct nlattr *attr);
++struct file *rtnl_owner_route_get(const struct nlmsghdr *nlh);
+ int rtnl_owner_validate(struct file *file, struct net_device *dev,
+ 			struct netlink_ext_ack *extack);
+ 
+--- a/net/core/rtnetlink.c
++++ b/net/core/rtnetlink.c
+@@ -2307,7 +2307,59 @@
+ 	file = fget(fd);
+ 	return file ? file : ERR_PTR(-EBADF);
+ }
+-EXPORT_SYMBOL_GPL(rtnl_owner_file_get);
++EXPORT_SYMBOL_GPL(rtnl_owner_file_get);
++
++/* Admit only the single-device unicast form. Do this before family parsers:
++ * unsupported LWT and nexthop forms must not reach their own producers.
++ */
++struct file *rtnl_owner_route_get(const struct nlmsghdr *nlh)
++{
++	struct nlattr *owner_attr, *attr;
++	const struct rtmsg *rtm;
++	int remaining, owners = 0;
++	bool has_oif = false;
++
++	if (nlmsg_len(nlh) < sizeof(*rtm))
++		return ERR_PTR(-EINVAL);
++	owner_attr = nlmsg_find_attr(nlh, sizeof(*rtm), RTA_OWNER_FD);
++	if (!owner_attr)
++		return NULL;
++	if (nla_len(owner_attr) != sizeof(s32))
++		return ERR_PTR(-EINVAL);
++	rtm = nlmsg_data(nlh);
++	if ((rtm->rtm_family != AF_INET && rtm->rtm_family != AF_INET6) ||
++	    (rtm->rtm_type != RTN_UNSPEC && rtm->rtm_type != RTN_UNICAST) ||
++	    rtm->rtm_src_len || rtm->rtm_tos || rtm->rtm_flags)
++		return ERR_PTR(-EOPNOTSUPP);
++
++	nlmsg_for_each_attr(attr, nlh, sizeof(*rtm), remaining) {
++		switch (nla_type(attr)) {
++		case RTA_OWNER_FD:
++			if (++owners != 1 || nla_len(attr) != sizeof(s32))
++				return ERR_PTR(-EINVAL);
++			break;
++		case RTA_OIF:
++			if (nla_len(attr) != sizeof(s32) || nla_get_s32(attr) <= 0)
++				return ERR_PTR(-EINVAL);
++			has_oif = true;
++			break;
++		case RTA_DST:
++		case RTA_GATEWAY:
++		case RTA_PRIORITY:
++		case RTA_TABLE:
++		case RTA_PREFSRC:
++		case RTA_METRICS:
++		case RTA_PAD:
++			break;
++		default:
++			return ERR_PTR(-EOPNOTSUPP);
++		}
++	}
++	if (remaining || !has_oif)
++		return ERR_PTR(-EINVAL);
++	return rtnl_owner_file_get(owner_attr);
++}
++EXPORT_SYMBOL_GPL(rtnl_owner_route_get);
+ 
+ int rtnl_owner_validate(struct file *file, struct net_device *dev,
+ 			struct netlink_ext_ack *extack)
+@@ -7134,10 +7186,18 @@
+ 	family = ((struct rtgenmsg *)nlmsg_data(nlh))->rtgen_family;
+ 	kind = rtnl_msgtype_kind(type);
+ 
+-	if (kind != RTNL_KIND_GET && !netlink_net_capable(skb, CAP_NET_ADMIN))
+-		return -EPERM;
+-
+-	rcu_read_lock();
++	if (kind != RTNL_KIND_GET && !netlink_net_capable(skb, CAP_NET_ADMIN))
++		return -EPERM;
++
++	/* Other route families must not dispatch an ignored creator guard. */
++	if ((type == RTM_NEWROUTE - RTM_BASE ||
++	     type == RTM_DELROUTE - RTM_BASE) &&
++	    family != AF_INET && family != AF_INET6 &&
++	    nlmsg_len(nlh) >= sizeof(struct rtmsg) &&
++	    nlmsg_find_attr(nlh, sizeof(struct rtmsg), RTA_OWNER_FD))
++		return -EOPNOTSUPP;
++
++	rcu_read_lock();
+ 	if (kind == RTNL_KIND_GET && (nlh->nlmsg_flags & NLM_F_DUMP)) {
+ 		struct sock *rtnl;
+ 		rtnl_dumpit_func dumpit;
+--- a/include/net/ip_fib.h
++++ b/include/net/ip_fib.h
+@@ -277,10 +277,10 @@
+ 
+ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
+ 		     struct fib_result *res, int fib_flags);
+-int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
+-		     struct netlink_ext_ack *extack);
+-int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
+-		     struct netlink_ext_ack *extack);
++int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
++		     struct netlink_ext_ack *extack, const struct net_device *owner);
++int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
++		     struct netlink_ext_ack *extack, const struct net_device *owner);
+ int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
+ 		   struct netlink_callback *cb, struct fib_dump_filter *filter);
+ int fib_table_flush(struct net *net, struct fib_table *table, bool flush_all);
+--- a/net/ipv4/fib_frontend.c
++++ b/net/ipv4/fib_frontend.c
+@@ -30,7 +30,8 @@
+ #include <linux/cache.h>
+ #include <linux/init.h>
+ #include <linux/list.h>
+-#include <linux/slab.h>
++#include <linux/slab.h>
++#include <linux/file.h>
+ 
+ #include <net/flow.h>
+ #include <net/inet_dscp.h>
+@@ -662,15 +663,15 @@
+ 			if (cmd == SIOCDELRT) {
+ 				tb = fib_get_table(net, cfg.fc_table);
+ 				if (tb)
+-					err = fib_table_delete(net, tb, &cfg,
+-							       NULL);
++					err = fib_table_delete(net, tb, &cfg,
++							       NULL, NULL);
+ 				else
+ 					err = -ESRCH;
+ 			} else {
+ 				tb = fib_new_table(net, cfg.fc_table);
+ 				if (tb)
+-					err = fib_table_insert(net, tb,
+-							       &cfg, NULL);
++					err = fib_table_insert(net, tb,
++							       &cfg, NULL, NULL);
+ 				else
+ 					err = -ENOBUFS;
+ 			}
+@@ -684,7 +685,8 @@
+ 	return -EINVAL;
+ }
+ 
+-const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
++const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
++	[RTA_OWNER_FD]		= { .type = NLA_S32 },
+ 	[RTA_UNSPEC]		= { .strict_start_type = RTA_DPORT + 1 },
+ 	[RTA_DST]		= { .type = NLA_U32 },
+ 	[RTA_SRC]		= { .type = NLA_U32 },
+@@ -898,14 +900,25 @@
+ {
+ 	struct net *net = sock_net(skb->sk);
+ 	struct fib_config cfg;
+-	struct fib_table *tb;
++	struct fib_table *tb;
++	struct file *owner;
++	struct net_device *owner_dev = NULL;
+ 	int err;
+ 
+-	err = rtm_to_fib_config(net, skb, nlh, &cfg, extack);
++	owner = rtnl_owner_route_get(nlh);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	err = rtm_to_fib_config(net, skb, nlh, &cfg, extack);
+ 	if (err < 0)
+ 		goto errout;
+ 
+-	rtnl_net_lock(net);
++	rtnl_net_lock(net);
++	if (owner) {
++		owner_dev = __dev_get_by_index(net, cfg.fc_oif);
++		err = rtnl_owner_validate(owner, owner_dev, extack);
++		if (err)
++			goto unlock;
++	}
+ 
+ 	if (cfg.fc_nh_id && !nexthop_find_by_id(net, cfg.fc_nh_id)) {
+ 		NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+@@ -920,11 +933,13 @@
+ 		goto unlock;
+ 	}
+ 
+-	err = fib_table_delete(net, tb, &cfg, extack);
++	err = fib_table_delete(net, tb, &cfg, extack, owner_dev);
+ unlock:
+ 	rtnl_net_unlock(net);
+-errout:
+-	return err;
++errout:
++	if (owner)
++		fput(owner);
++	return err;
+ }
+ 
+ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+@@ -932,14 +947,25 @@
+ {
+ 	struct net *net = sock_net(skb->sk);
+ 	struct fib_config cfg;
+-	struct fib_table *tb;
++	struct fib_table *tb;
++	struct file *owner;
++	struct net_device *owner_dev = NULL;
+ 	int err;
+ 
+-	err = rtm_to_fib_config(net, skb, nlh, &cfg, extack);
++	owner = rtnl_owner_route_get(nlh);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	err = rtm_to_fib_config(net, skb, nlh, &cfg, extack);
+ 	if (err < 0)
+ 		goto errout;
+ 
+-	rtnl_net_lock(net);
++	rtnl_net_lock(net);
++	if (owner) {
++		owner_dev = __dev_get_by_index(net, cfg.fc_oif);
++		err = rtnl_owner_validate(owner, owner_dev, extack);
++		if (err)
++			goto unlock;
++	}
+ 
+ 	tb = fib_new_table(net, cfg.fc_table);
+ 	if (!tb) {
+@@ -947,14 +973,16 @@
+ 		goto unlock;
+ 	}
+ 
+-	err = fib_table_insert(net, tb, &cfg, extack);
++	err = fib_table_insert(net, tb, &cfg, extack, owner_dev);
+ 	if (!err && cfg.fc_type == RTN_LOCAL)
+ 		net->ipv4.fib_has_custom_local_routes = true;
+ 
+ unlock:
+ 	rtnl_net_unlock(net);
+-errout:
+-	return err;
++errout:
++	if (owner)
++		fput(owner);
++	return err;
+ }
+ 
+ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
+@@ -1144,9 +1172,9 @@
+ 		cfg.fc_scope = RT_SCOPE_HOST;
+ 
+ 	if (cmd == RTM_NEWROUTE)
+-		fib_table_insert(net, tb, &cfg, NULL);
++		fib_table_insert(net, tb, &cfg, NULL, NULL);
+ 	else
+-		fib_table_delete(net, tb, &cfg, NULL);
++		fib_table_delete(net, tb, &cfg, NULL, NULL);
+ }
+ 
+ void fib_add_ifaddr(struct in_ifaddr *ifa)
+--- a/net/ipv4/fib_trie.c
++++ b/net/ipv4/fib_trie.c
+@@ -1189,8 +1189,23 @@
+ 			     struct key_vector *l, struct fib_alias *old);
+ 
+ /* Caller must hold RTNL. */
+-int fib_table_insert(struct net *net, struct fib_table *tb,
+-		     struct fib_config *cfg, struct netlink_ext_ack *extack)
++/* A non-NULL owner was validated against a held creator file under RTNL. */
++static int fib_owner_check(const struct fib_info *fi, u8 type,
++			   const struct net_device *owner)
++{
++	if (!owner)
++		return 0;
++	if (fi->nh || fi->fib_nhs != 1 || fi->fib_nh_is_v6 ||
++	    fi->fib_nh[0].fib_nh_lws)
++		return -EOPNOTSUPP;
++	if (type != RTN_UNICAST || fi->fib_nh[0].fib_nh_dev != owner)
++		return -ESTALE;
++	return 0;
++}
++
++int fib_table_insert(struct net *net, struct fib_table *tb,
++		     struct fib_config *cfg, struct netlink_ext_ack *extack,
++		     const struct net_device *owner)
+ {
+ 	struct trie *t = (struct trie *)tb->tb_data;
+ 	struct fib_alias *fa, *new_fa;
+@@ -1213,7 +1228,11 @@
+ 		goto err;
+ 	}
+ 
+-	dscp = cfg->fc_dscp;
++	err = fib_owner_check(fi, cfg->fc_type, owner);
++	if (err)
++		goto out;
++
++	dscp = cfg->fc_dscp;
+ 	l = fib_find_node(t, &tp, key);
+ 	fa = l ? fib_find_alias(&l->leaf, slen, dscp, fi->fib_priority,
+ 				tb->tb_id, false) : NULL;
+@@ -1262,8 +1281,17 @@
+ 			struct fib_info *fi_drop;
+ 			u8 state;
+ 
+-			nlflags |= NLM_F_REPLACE;
+-			fa = fa_first;
++			nlflags |= NLM_F_REPLACE;
++			fa = fa_first;
++			if (owner) {
++				int owner_err = fib_owner_check(fa->fa_info,
++								fa->fa_type, owner);
++
++				if (owner_err) {
++					err = owner_err;
++					goto out;
++				}
++			}
+ 			if (fa_match) {
+ 				if (fa == fa_match)
+ 					err = 0;
+@@ -1683,8 +1711,9 @@
+ }
+ 
+ /* Caller must hold RTNL. */
+-int fib_table_delete(struct net *net, struct fib_table *tb,
+-		     struct fib_config *cfg, struct netlink_ext_ack *extack)
++int fib_table_delete(struct net *net, struct fib_table *tb,
++		     struct fib_config *cfg, struct netlink_ext_ack *extack,
++		     const struct net_device *owner)
+ {
+ 	struct trie *t = (struct trie *) tb->tb_data;
+ 	struct fib_alias *fa, *fa_to_delete;
+@@ -1692,7 +1721,8 @@
+ 	u8 plen = cfg->fc_dst_len;
+ 	u8 slen = KEYLENGTH - plen;
+ 	dscp_t dscp;
+-	u32 key;
++	u32 key;
++	int err;
+ 
+ 	key = ntohl(cfg->fc_dst);
+ 
+@@ -1734,7 +1764,11 @@
+ 	if (!fa_to_delete)
+ 		return -ESRCH;
+ 
+-	fib_notify_alias_delete(net, key, &l->leaf, fa_to_delete, extack);
++	err = fib_owner_check(fa_to_delete->fa_info, fa_to_delete->fa_type, owner);
++	if (err)
++		return err;
++
++	fib_notify_alias_delete(net, key, &l->leaf, fa_to_delete, extack);
+ 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
+ 		  &cfg->fc_nlinfo, 0);
+ 
+--- a/include/net/ip6_fib.h
++++ b/include/net/ip6_fib.h
+@@ -466,8 +466,11 @@
+ 				int (*func)(struct fib6_info *, void *arg),
+ 				void *arg);
+ 
+-int fib6_add(struct fib6_node *root, struct fib6_info *rt,
+-	     struct nl_info *info, struct netlink_ext_ack *extack);
++/* The owner pointer is request-local and remains stable under held RTNL. */
++int fib6_owner_check(const struct fib6_info *rt, const struct net_device *owner);
++int fib6_add(struct fib6_node *root, struct fib6_info *rt,
++	     struct nl_info *info, struct netlink_ext_ack *extack,
++	     const struct net_device *owner);
+ int fib6_del(struct fib6_info *rt, struct nl_info *info,
+ 	     enum rt_del_reason del_reason);
+ 
+--- a/net/ipv6/ip6_fib.c
++++ b/net/ipv6/ip6_fib.c
+@@ -1086,9 +1086,54 @@
+  *	Insert routing information in a node.
+  */
+ 
+-static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
++/* No descriptor lookup, callback or sleeping operation occurs here. */
++int fib6_owner_check(const struct fib6_info *rt, const struct net_device *owner)
++{
++	if (!owner)
++		return 0;
++	if (rt->nh)
++		return -EOPNOTSUPP;
++	if (rt->fib6_type != RTN_UNICAST)
++		return -ESTALE;
++	if (rt->fib6_nh->nh_common.nhc_lwtstate)
++		return -EOPNOTSUPP;
++	if (rt->fib6_nh->nh_common.nhc_dev != owner)
++		return -ESTALE;
++	return 0;
++}
++
++/* Check the whole priority group: replacement, duplicate updates and sibling
++ * insertion can change existing members before the final route pointer write.
++ * The caller holds this table's tb6_lock over both selection and mutation.
++ */
++static int fib6_owner_node_check(struct fib6_node *fn, struct fib6_info *rt,
++				 const struct net_device *owner)
++{
++	struct fib6_info *iter;
++	int err;
++
++	err = fib6_owner_check(rt, owner);
++	if (err || !owner || !fn || !(fn->fn_flags & RTN_RTINFO))
++		return err;
++	for (iter = rcu_dereference_protected(fn->leaf,
++			lockdep_is_held(&rt->fib6_table->tb6_lock));
++	     iter;
++	     iter = rcu_dereference_protected(iter->fib6_next,
++			lockdep_is_held(&rt->fib6_table->tb6_lock))) {
++		if (iter == dev_net(owner)->ipv6.fib6_null_entry ||
++		    iter->fib6_metric != rt->fib6_metric)
++			continue;
++		err = fib6_owner_check(iter, owner);
++		if (err)
++			return err;
++	}
++	return 0;
++}
++
++static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
+ 			    struct nl_info *info, struct netlink_ext_ack *extack,
+-			    struct list_head *purge_list)
++			    struct list_head *purge_list,
++			    const struct net_device *owner)
+ {
+ 	struct fib6_info *leaf = rcu_dereference_protected(fn->leaf,
+ 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
+@@ -1105,7 +1150,11 @@
+ 	u16 nlflags = NLM_F_EXCL;
+ 	int err;
+ 
+-	if (info->nlh && (info->nlh->nlmsg_flags & NLM_F_APPEND))
++	err = fib6_owner_node_check(fn, rt, owner);
++	if (err)
++		return err;
++
++	if (info->nlh && (info->nlh->nlmsg_flags & NLM_F_APPEND))
+ 		nlflags |= NLM_F_APPEND;
+ 
+ 	ins = &fn->leaf;
+@@ -1359,7 +1408,8 @@
+ 
+ static int fib6_add_rt2node_nh(struct fib6_node *fn, struct fib6_info *rt,
+ 			       struct nl_info *info, struct netlink_ext_ack *extack,
+-			       struct list_head *purge_list)
++			       struct list_head *purge_list,
++			       const struct net_device *owner)
+ {
+ 	int err;
+ 
+@@ -1369,7 +1419,7 @@
+ 		NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
+ 		err = -EINVAL;
+ 	} else {
+-		err = fib6_add_rt2node(fn, rt, info, extack, purge_list);
++		err = fib6_add_rt2node(fn, rt, info, extack, purge_list, owner);
+ 		if (!err)
+ 			list_add(&rt->nh_list, &rt->nh->f6i_list);
+ 	}
+@@ -1421,8 +1471,9 @@
+  *	Need to own table->tb6_lock
+  */
+ 
+-int fib6_add(struct fib6_node *root, struct fib6_info *rt,
+-	     struct nl_info *info, struct netlink_ext_ack *extack)
++int fib6_add(struct fib6_node *root, struct fib6_info *rt,
++	     struct nl_info *info, struct netlink_ext_ack *extack,
++	     const struct net_device *owner)
+ {
+ 	struct fib6_table *table = rt->fib6_table;
+ 	LIST_HEAD(purge_list);
+@@ -1434,7 +1485,22 @@
+ 	int allow_create = 1;
+ 	int replace_required = 0;
+ 
+-	if (info->nlh) {
++	if (owner) {
++		if (rt->fib6_src.plen)
++			return -EOPNOTSUPP;
++		/* Exclude foreign old members before fib6_add_1 can edit the
++		 * tree. The later node check covers the actual selected node.
++		 */
++		rcu_read_lock();
++		fn = fib6_locate(root, &rt->fib6_dst.addr, rt->fib6_dst.plen,
++				 &rt->fib6_src.addr, 0, true);
++		err = fib6_owner_node_check(fn, rt, owner);
++		rcu_read_unlock();
++		if (err)
++			return err;
++	}
++
++	if (info->nlh) {
+ 		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
+ 			allow_create = 0;
+ 		if (info->nlh->nlmsg_flags & NLM_F_REPLACE)
+@@ -1530,9 +1596,9 @@
+ #endif
+ 
+ 	if (rt->nh)
+-		err = fib6_add_rt2node_nh(fn, rt, info, extack, &purge_list);
++		err = fib6_add_rt2node_nh(fn, rt, info, extack, &purge_list, owner);
+ 	else
+-		err = fib6_add_rt2node(fn, rt, info, extack, &purge_list);
++		err = fib6_add_rt2node(fn, rt, info, extack, &purge_list, owner);
+ 	if (!err) {
+ 		struct fib6_info *iter, *next;
+ 
+--- a/net/ipv6/route.c
++++ b/net/ipv6/route.c
+@@ -39,7 +39,8 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/nsproxy.h>
+-#include <linux/slab.h>
++#include <linux/slab.h>
++#include <linux/file.h>
+ #include <linux/jhash.h>
+ #include <linux/siphash.h>
+ #include <net/net_namespace.h>
+@@ -55,7 +56,8 @@
+ #include <net/dst_metadata.h>
+ #include <net/xfrm.h>
+ #include <net/netevent.h>
+-#include <net/netlink.h>
++#include <net/netlink.h>
++#include <net/rtnetlink.h>
+ #include <net/rtnh.h>
+ #include <net/lwtunnel.h>
+ #include <net/ip_tunnels.h>
+@@ -1346,15 +1348,16 @@
+  * Caller must hold dst before calling it.
+  */
+ 
+-static int __ip6_ins_rt(struct fib6_info *rt, struct nl_info *info,
+-			struct netlink_ext_ack *extack)
++static int __ip6_ins_rt(struct fib6_info *rt, struct nl_info *info,
++			struct netlink_ext_ack *extack,
++			const struct net_device *owner)
+ {
+ 	int err;
+ 	struct fib6_table *table;
+ 
+ 	table = rt->fib6_table;
+ 	spin_lock_bh(&table->tb6_lock);
+-	err = fib6_add(&table->tb6_root, rt, info, extack);
++	err = fib6_add(&table->tb6_root, rt, info, extack, owner);
+ 	spin_unlock_bh(&table->tb6_lock);
+ 
+ 	return err;
+@@ -1364,7 +1367,7 @@
+ {
+ 	struct nl_info info = {	.nl_net = net, };
+ 
+-	return __ip6_ins_rt(rt, &info, NULL);
++	return __ip6_ins_rt(rt, &info, NULL, NULL);
+ }
+ 
+ static struct rt6_info *ip6_rt_cache_alloc(const struct fib6_result *res,
+@@ -3955,8 +3958,9 @@
+ 	return err;
+ }
+ 
+-int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
+-		  struct netlink_ext_ack *extack)
++static int ip6_route_add_owner(struct fib6_config *cfg, gfp_t gfp_flags,
++			       struct netlink_ext_ack *extack,
++			       const struct net_device *owner)
+ {
+ 	struct fib6_info *rt;
+ 	int err;
+@@ -3973,14 +3977,21 @@
+ 	if (err)
+ 		return err;
+ 
+-	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo, extack);
++	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo, extack, owner);
+ 	fib6_info_release(rt);
+ 
+ 	return err;
+ }
+ 
+-static int __ip6_del_rt(struct fib6_info *rt, struct nl_info *info,
+-			enum rt_del_reason del_reason)
++int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
++		  struct netlink_ext_ack *extack)
++{
++	return ip6_route_add_owner(cfg, gfp_flags, extack, NULL);
++}
++
++static int __ip6_del_rt(struct fib6_info *rt, struct nl_info *info,
++			enum rt_del_reason del_reason,
++			const struct net_device *owner)
+ {
+ 	struct net *net = info->nl_net;
+ 	struct fib6_table *table;
+@@ -3993,7 +4004,19 @@
+ 
+ 	table = rt->fib6_table;
+ 	spin_lock_bh(&table->tb6_lock);
+-	err = fib6_del(rt, info, del_reason);
++	err = fib6_owner_check(rt, owner);
++	if (!err && owner && rt->fib6_nsiblings) {
++		struct fib6_info *member;
++
++		/* A one-leg delete also changes sibling counts and weights. */
++		list_for_each_entry(member, &rt->fib6_siblings, fib6_siblings) {
++			err = fib6_owner_check(member, owner);
++			if (err)
++				break;
++		}
++	}
++	if (!err)
++		err = fib6_del(rt, info, del_reason);
+ 	spin_unlock_bh(&table->tb6_lock);
+ 
+ out:
+@@ -4008,7 +4031,7 @@
+ 		.skip_notify = skip_notify
+ 	};
+ 
+-	return __ip6_del_rt(rt, &info, RT_DEL_REASON_UNSPEC);
++	return __ip6_del_rt(rt, &info, RT_DEL_REASON_UNSPEC, NULL);
+ }
+ 
+ int ip6_del_rt_reason(struct net *net, struct fib6_info *rt,
+@@ -4016,10 +4039,11 @@
+ {
+ 	struct nl_info info = { .nl_net = net };
+ 
+-	return __ip6_del_rt(rt, &info, del_reason);
++	return __ip6_del_rt(rt, &info, del_reason, NULL);
+ }
+ 
+-static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg)
++static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg,
++				 const struct net_device *owner)
+ {
+ 	struct nl_info *info = &cfg->fc_nlinfo;
+ 	struct net *net = info->nl_net;
+@@ -4038,7 +4062,21 @@
+ 	if (!fn)
+ 		goto out_unlock;
+ 
+-	if (rt->fib6_nsiblings && cfg->fc_delete_all_nh) {
++	err = fib6_owner_check(rt, owner);
++	if (err)
++		goto out_unlock;
++	if (owner && rt->fib6_nsiblings) {
++		struct fib6_info *member;
++
++		/* Validate every old leg before notifications or any deletion. */
++		list_for_each_entry(member, &rt->fib6_siblings, fib6_siblings) {
++			err = fib6_owner_check(member, owner);
++			if (err)
++				goto out_unlock;
++		}
++	}
++
++	if (rt->fib6_nsiblings && cfg->fc_delete_all_nh) {
+ 		struct fib6_info *sibling, *next_sibling;
+ 
+ 		/* prefer to send a single notification with all hops */
+@@ -4158,15 +4196,19 @@
+ 	return nexthop_for_each_fib6_nh(f6i->nh, fib6_nh_del_cached_rt, &arg);
+ }
+ 
+-static int ip6_route_del(struct fib6_config *cfg,
+-			 struct netlink_ext_ack *extack)
++static int ip6_route_del(struct fib6_config *cfg,
++			 struct netlink_ext_ack *extack,
++			 const struct net_device *owner)
+ {
+ 	struct fib6_table *table;
+ 	struct fib6_info *rt;
+ 	struct fib6_node *fn;
+ 	int err = -ESRCH;
+ 
+-	table = fib6_get_table(cfg->fc_nlinfo.nl_net, cfg->fc_table);
++	if (owner && (cfg->fc_flags & RTF_CACHE))
++		return -EOPNOTSUPP;
++
++	table = fib6_get_table(cfg->fc_nlinfo.nl_net, cfg->fc_table);
+ 	if (!table) {
+ 		NL_SET_ERR_MSG(extack, "FIB table does not exist");
+ 		return err;
+@@ -4215,8 +4257,8 @@
+ 				if (!fib6_info_hold_safe(rt))
+ 					continue;
+ 
+-				err = __ip6_del_rt(rt, &cfg->fc_nlinfo,
+-						   RT_DEL_REASON_UNSPEC);
++				err = __ip6_del_rt(rt, &cfg->fc_nlinfo,
++						   RT_DEL_REASON_UNSPEC, owner);
+ 				break;
+ 			}
+ 			if (cfg->fc_nh_id)
+@@ -4235,10 +4277,10 @@
+ 
+ 			/* if gateway was specified only delete the one hop */
+ 			if (cfg->fc_flags & RTF_GATEWAY)
+-				err = __ip6_del_rt(rt, &cfg->fc_nlinfo,
+-						   RT_DEL_REASON_UNSPEC);
++				err = __ip6_del_rt(rt, &cfg->fc_nlinfo,
++						   RT_DEL_REASON_UNSPEC, owner);
+ 			else
+-				err = __ip6_del_rt_siblings(rt, cfg);
++				err = __ip6_del_rt_siblings(rt, cfg, owner);
+ 			break;
+ 		}
+ 	}
+@@ -4616,7 +4658,7 @@
+ 		err = ip6_route_add(&cfg, GFP_KERNEL, NULL);
+ 		break;
+ 	case SIOCDELRT:
+-		err = ip6_route_del(&cfg, NULL);
++		err = ip6_route_del(&cfg, NULL, NULL);
+ 		break;
+ 	}
+ 
+@@ -5129,7 +5171,8 @@
+ 	fib6_clean_all(dev_net(dev), rt6_mtu_change_route, &arg);
+ }
+ 
+-static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
++static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
++	[RTA_OWNER_FD]		= { .type = NLA_S32 },
+ 	[RTA_UNSPEC]		= { .strict_start_type = RTA_DPORT + 1 },
+ 	[RTA_GATEWAY]           = { .len = sizeof(struct in6_addr) },
+ 	[RTA_PREFSRC]		= { .len = sizeof(struct in6_addr) },
+@@ -5527,7 +5570,7 @@
+ 
+ 	err_nh = NULL;
+ 	list_for_each_entry(nh, &rt6_nh_list, list) {
+-		err = __ip6_ins_rt(nh->fib6_info, info, extack);
++		err = __ip6_ins_rt(nh->fib6_info, info, extack, NULL);
+ 
+ 		if (err) {
+ 			if (replace && nhn)
+@@ -5597,7 +5640,7 @@
+ 	list_for_each_entry(nh, &rt6_nh_list, list) {
+ 		if (err_nh == nh)
+ 			break;
+-		ip6_route_del(&nh->r_cfg, extack);
++		ip6_route_del(&nh->r_cfg, extack, NULL);
+ 	}
+ 
+ cleanup:
+@@ -5640,7 +5683,7 @@
+ 			}
+ 		}
+ 
+-		err = ip6_route_del(&r_cfg, extack);
++		err = ip6_route_del(&r_cfg, extack, NULL);
+ 		if (err)
+ 			last_err = err;
+ 
+@@ -5650,54 +5693,97 @@
+ 	return last_err;
+ }
+ 
+-static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+-			      struct netlink_ext_ack *extack)
+-{
+-	struct fib6_config cfg;
+-	int err;
+-
+-	err = rtm_to_fib6_config(skb, nlh, &cfg, extack);
+-	if (err < 0)
+-		return err;
+-
+-	if (cfg.fc_nh_id) {
+-		rcu_read_lock();
+-		err = !nexthop_find_by_id(sock_net(skb->sk), cfg.fc_nh_id);
+-		rcu_read_unlock();
+-
+-		if (err) {
+-			NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+-			return -EINVAL;
+-		}
+-	}
+-
+-	if (cfg.fc_mp) {
+-		return ip6_route_multipath_del(&cfg, extack);
+-	} else {
+-		cfg.fc_delete_all_nh = 1;
+-		return ip6_route_del(&cfg, extack);
+-	}
+-}
+-
+-static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+-			      struct netlink_ext_ack *extack)
+-{
+-	struct fib6_config cfg;
+-	int err;
+-
+-	err = rtm_to_fib6_config(skb, nlh, &cfg, extack);
+-	if (err < 0)
+-		return err;
+-
+-	if (cfg.fc_metric == 0)
+-		cfg.fc_metric = IP6_RT_PRIO_USER;
+-
+-	if (cfg.fc_mp)
+-		return ip6_route_multipath_add(&cfg, extack);
+-	else
+-		return ip6_route_add(&cfg, GFP_KERNEL, extack);
+-}
+-
++static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
++			      struct netlink_ext_ack *extack)
++{
++	struct net *net = sock_net(skb->sk);
++	struct net_device *owner_dev = NULL;
++	struct file *owner;
++	struct fib6_config cfg;
++	int err;
++
++	owner = rtnl_owner_route_get(nlh);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	err = rtm_to_fib6_config(skb, nlh, &cfg, extack);
++	if (err < 0)
++		goto out;
++
++	if (owner) {
++		rtnl_net_lock(net);
++		owner_dev = __dev_get_by_index(net, cfg.fc_ifindex);
++		err = rtnl_owner_validate(owner, owner_dev, extack);
++		if (err)
++			goto unlock;
++	}
++
++	if (cfg.fc_nh_id) {
++		rcu_read_lock();
++		err = !nexthop_find_by_id(net, cfg.fc_nh_id);
++		rcu_read_unlock();
++
++		if (err) {
++			NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
++			err = -EINVAL;
++			goto unlock;
++		}
++	}
++
++	if (cfg.fc_mp) {
++		err = ip6_route_multipath_del(&cfg, extack);
++	} else {
++		cfg.fc_delete_all_nh = 1;
++		err = ip6_route_del(&cfg, extack, owner_dev);
++	}
++unlock:
++	if (owner)
++		rtnl_net_unlock(net);
++out:
++	if (owner)
++		fput(owner);
++	return err;
++}
++
++static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
++			      struct netlink_ext_ack *extack)
++{
++	struct net *net = sock_net(skb->sk);
++	struct net_device *owner_dev = NULL;
++	struct file *owner;
++	struct fib6_config cfg;
++	int err;
++
++	owner = rtnl_owner_route_get(nlh);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	err = rtm_to_fib6_config(skb, nlh, &cfg, extack);
++	if (err < 0)
++		goto out;
++
++	if (owner) {
++		rtnl_net_lock(net);
++		owner_dev = __dev_get_by_index(net, cfg.fc_ifindex);
++		err = rtnl_owner_validate(owner, owner_dev, extack);
++		if (err)
++			goto unlock;
++	}
++
++	if (cfg.fc_metric == 0)
++		cfg.fc_metric = IP6_RT_PRIO_USER;
++
++	if (cfg.fc_mp)
++		err = ip6_route_multipath_add(&cfg, extack);
++	else
++		err = ip6_route_add_owner(&cfg, GFP_KERNEL, extack, owner_dev);
++unlock:
++	if (owner)
++		rtnl_net_unlock(net);
++out:
++	if (owner)
++		fput(owner);
++	return err;
++}
++
+ /* add the overhead of this fib6_nh to nexthop_len */
+ static int rt6_nh_nlmsg_size(struct fib6_nh *nh, void *arg)
+ {

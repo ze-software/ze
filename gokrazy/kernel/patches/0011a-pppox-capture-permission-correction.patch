@@ -1,0 +1,17 @@
+From: Ze kernel maintainers
+Subject: [PATCH] pppox: preserve target-net permission at original channel capture
+
+Apply immediately after frozen0011 (e706df56). The legacy ATTCHAN producer
+requires CAP_NET_ADMIN in its target net's user namespace. Preserve that check
+for capture into an unbound file, whose open permission alone is insufficient.
+
+diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -3260,3 +3260,5 @@
+ 	if (file->f_op != &ppp_device_fops)
+ 		return -EBADF;
++	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
++		return -EPERM;
+ 	pch = ppp_channel_get_original(chan);
+

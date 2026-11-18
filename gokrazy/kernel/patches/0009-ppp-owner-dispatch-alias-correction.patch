@@ -1,0 +1,86 @@
+From: Ze kernel maintainers
+Subject: [PATCH] rtnetlink: close owner-family bypass and guard PPP birth alias
+
+Apply after the original-file link/address and route guards.
+
+Reject owner-tagged unsupported link/address families before handler
+dispatch. AF_BRIDGE SETLINK and DELLINK can otherwise ignore IFLA_OWNER_FD
+and mutate a foreign bridge port despite the generic link guard. Keep
+ordinary requests without a guard on their existing dispatch path.
+
+Also admit IFLA_IFALIAS in the guarded RTM_SETLINK form and advertise a
+distinct PPP_OWNER_ALIAS bit. The existing selected-device original-file
+check runs before do_setlink and its netif_set_alias write under RTNL and
+the existing netdev lock. The native PPP birth stamp must require this bit
+and submit through the retained original-file writer; its legacy numeric
+lookup and LinkSetAlias preflight are not an atomic owner guard.
+
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -93,7 +93,8 @@
+ #define PPP_OWNER_ADDR4   (1U << 1)
+ #define PPP_OWNER_ADDR6   (1U << 2)
+ #define PPP_OWNER_ROUTE4  (1U << 3)
+-#define PPP_OWNER_ROUTE6  (1U << 4)
++#define PPP_OWNER_ROUTE6  (1U << 4)
++#define PPP_OWNER_ALIAS   (1U << 5)
+ #define PPPIOCGOWNER _IOWR('t', 51, struct ppp_owner)
+ 
+ /*
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -1170,7 +1170,7 @@
+ 		err = -ESTALE;
+ 		goto unlock;
+ 	}
+-	owner.features = PPP_OWNER_SETLINK;
++	owner.features = PPP_OWNER_SETLINK | PPP_OWNER_ALIAS;
+ 	if (IS_BUILTIN(CONFIG_INET))
+ 		owner.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
+ 	if (IS_BUILTIN(CONFIG_IPV6))
+--- a/net/core/rtnetlink.c
++++ b/net/core/rtnetlink.c
+@@ -3666,14 +3666,15 @@
+ 		goto errout;
+ 
+ 	if (tb[IFLA_OWNER_FD]) {
+-		/* This revision implements only MTU and IFF_UP setters. */
++		/* This revision implements MTU, IFF_UP and alias setters. */
+ 		if (ifm->ifi_index <= 0 ||
+ 		    (ifm->ifi_change & ~IFF_UP) || (ifm->ifi_flags & ~IFF_UP)) {
+ 			err = -EOPNOTSUPP;
+ 			goto errout;
+ 		}
+ 		for (attr = 1; attr <= IFLA_MAX; attr++) {
+-			if (tb[attr] && attr != IFLA_OWNER_FD && attr != IFLA_MTU) {
++			if (tb[attr] && attr != IFLA_OWNER_FD &&
++			    attr != IFLA_MTU && attr != IFLA_IFALIAS) {
+ 				err = -EOPNOTSUPP;
+ 				goto errout;
+ 			}
+@@ -7189,7 +7190,24 @@
+ 	if (kind != RTNL_KIND_GET && !netlink_net_capable(skb, CAP_NET_ADMIN))
+ 		return -EPERM;
+ 
+-	/* Other route families must not dispatch an ignored creator guard. */
++	/* Family-specific bridge and other writers must not ignore a guard
++	 * implemented only by the generic link and IP address writers.
++	 */
++	if ((type == RTM_NEWLINK - RTM_BASE ||
++	     type == RTM_SETLINK - RTM_BASE ||
++	     type == RTM_DELLINK - RTM_BASE) &&
++	    family != AF_UNSPEC &&
++	    nlmsg_len(nlh) >= sizeof(struct ifinfomsg) &&
++	    nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_OWNER_FD))
++		return -EOPNOTSUPP;
++	if ((type == RTM_NEWADDR - RTM_BASE ||
++	     type == RTM_DELADDR - RTM_BASE) &&
++	    family != AF_INET && family != AF_INET6 &&
++	    nlmsg_len(nlh) >= sizeof(struct ifaddrmsg) &&
++	    nlmsg_find_attr(nlh, sizeof(struct ifaddrmsg), IFA_OWNER_FD))
++		return -EOPNOTSUPP;
++
++	/* Other route families must not dispatch an ignored creator guard. */
+ 	if ((type == RTM_NEWROUTE - RTM_BASE ||
+ 	     type == RTM_DELROUTE - RTM_BASE) &&
+ 	    family != AF_INET && family != AF_INET6 &&

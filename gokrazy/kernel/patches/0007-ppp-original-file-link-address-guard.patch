@@ -1,0 +1,601 @@
+From: Ze kernel maintainers
+Subject: [PATCH] ppp: validate original creator files for link and address writes
+
+Based on Linux v7.3 and Ze's preceding registered kernel patches.
+
+An explicit creator-only PPPIOCGOWNER validates the live original struct file
+and expected unit/index in the caller namespace. Its feature reply advertises
+only RTM_SETLINK MTU/IFF_UP and IPv4/IPv6 address guards. It advertises NO route
+guard. Route guards are introduced by the following patch.
+
+The optional signed descriptor attributes require a positive ABI reply first:
+old kernels can ignore unknown attributes. Guarded link NEWLINK/DELLINK and
+unsupported SETLINK forms refuse. A duplicate of the creator file is valid;
+a separately opened PPPIOCATTACH file is not. Hold fget across the native
+writer, validate under RTNL without ppp_mutex, and fput after unlocking.
+
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -79,9 +79,24 @@
+ 	__aligned_u64	rx_errors;
+ };
+ 
+-/*
+- * Ioctl definitions.
+- */
++/* Original creator-file validation; all fields have a fixed compat layout. */
++struct ppp_owner {
++	__u32 abi;
++	__u32 features;
++	__s32 ifindex;
++	__s32 unit;
++	__u32 reserved;
++};
++
++#define PPP_OWNER_ABI 1
++#define PPP_OWNER_SETLINK (1U << 0)
++#define PPP_OWNER_ADDR4   (1U << 1)
++#define PPP_OWNER_ADDR6   (1U << 2)
++#define PPPIOCGOWNER _IOWR('t', 51, struct ppp_owner)
++
++/*
++ * Ioctl definitions.
++ */
+ 
+ #define	PPPIOCGFLAGS	_IOR('t', 90, int)	/* get configuration flags */
+ #define	PPPIOCSFLAGS	_IOW('t', 89, int)	/* set configuration flags */
+--- a/include/uapi/linux/if_link.h
++++ b/include/uapi/linux/if_link.h
+@@ -380,8 +380,9 @@
+ 	IFLA_MAX_PACING_OFFLOAD_HORIZON,
+ 	IFLA_NETNS_IMMUTABLE,
+ 	IFLA_HEADROOM,
+-	IFLA_TAILROOM,
+-	__IFLA_MAX
++	IFLA_TAILROOM,
++	IFLA_OWNER_FD,		/* s32 creator-file guard, RTM_SETLINK only */
++	__IFLA_MAX
+ };
+ 
+ 
+--- a/include/uapi/linux/if_addr.h
++++ b/include/uapi/linux/if_addr.h
+@@ -36,7 +36,8 @@
+ 	IFA_RT_PRIORITY,	/* u32, priority/metric for prefix route */
+ 	IFA_TARGET_NETNSID,
+ 	IFA_PROTO,		/* u8, address protocol */
+-	IFA_MC_USERS,		/* u32, multicast group users */
++	IFA_MC_USERS,		/* u32, multicast group users */
++	IFA_OWNER_FD,		/* s32 creator-file guard */
+ 	__IFA_MAX,
+ };
+ 
+--- a/include/net/rtnetlink.h
++++ b/include/net/rtnetlink.h
+@@ -6,7 +6,14 @@
+ #include <linux/srcu.h>
+ #include <net/netlink.h>
+ 
+-typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
++struct file;
++
++/* Get before RTNL; validate under RTNL; put after RTNL is released. */
++struct file *rtnl_owner_file_get(const struct nlattr *attr);
++int rtnl_owner_validate(struct file *file, struct net_device *dev,
++			struct netlink_ext_ack *extack);
++
++typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
+ 			      struct netlink_ext_ack *);
+ typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
+ 
+@@ -121,7 +128,8 @@
+  *	@setup: net_device setup function
+  *	@newlink: Function for configuring and registering a new device
+  *	@changelink: Function for changing parameters of an existing device
+- *	@dellink: Function to remove a device
++ *	@dellink: Function to remove a device
++ *	@validate_owner: Check a held original creator file under RTNL; never sleep
+  *	@get_size: Function to calculate required room for dumping device
+  *		   specific netlink attributes
+  *	@fill_info: Function to dump device specific netlink attributes
+@@ -166,8 +174,10 @@
+ 					      struct nlattr *tb[],
+ 					      struct nlattr *data[],
+ 					      struct netlink_ext_ack *extack);
+-	void			(*dellink)(struct net_device *dev,
+-					   struct list_head *head);
++	void			(*dellink)(struct net_device *dev,
++					   struct list_head *head);
++	int			(*validate_owner)(const struct net_device *dev,
++						  const struct file *file);
+ 
+ 	size_t			(*get_size)(const struct net_device *dev);
+ 	int			(*fill_info)(struct sk_buff *skb,
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -258,7 +258,8 @@
+ #define seq_before(a, b)	((s32)((a) - (b)) < 0)
+ #define seq_after(a, b)		((s32)((a) - (b)) > 0)
+ 
+-/* Prototypes. */
++/* Prototypes. */
++static long ppp_owner_ioctl(struct file *file, void __user *argp);
+ static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
+ 			struct file *file, unsigned int cmd, unsigned long arg);
+ static void ppp_xmit_process(struct ppp *ppp, struct sk_buff *skb);
+@@ -720,9 +721,13 @@
+ 	int unit, cflags;
+ 	struct slcompress *vj;
+ 	void __user *argp = (void __user *)arg;
+-	int __user *p = argp;
+-
+-	mutex_lock(&ppp_mutex);
++	int __user *p = argp;
++
++	/* This command takes RTNL alone: ppp_mutex -> RTNL already exists. */
++	if (cmd == PPPIOCGOWNER)
++		return ppp_owner_ioctl(file, argp);
++
++	mutex_lock(&ppp_mutex);
+ 
+ 	pf = file->private_data;
+ 	if (!pf) {
+@@ -1121,7 +1126,63 @@
+ 	.llseek		= noop_llseek,
+ };
+ 
+-static void ppp_nl_dellink(struct net_device *dev, struct list_head *head);
++static int ppp_validate_owner(const struct net_device *dev,
++			      const struct file *file)
++{
++	const struct ppp *ppp = netdev_priv(dev);
++
++	ASSERT_RTNL();
++	if (dev->reg_state != NETREG_REGISTERED || ppp->file.dead ||
++	    ppp->owner != file || file->private_data != &ppp->file)
++		return -ESTALE;
++	return 0;
++}
++
++static long ppp_owner_ioctl(struct file *file, void __user *argp)
++{
++	struct ppp_owner owner;
++	struct ppp_file *pf;
++	struct net_device *dev;
++	int err = -ESTALE;
++
++	if (copy_from_user(&owner, argp, sizeof(owner)))
++		return -EFAULT;
++	if (owner.abi != PPP_OWNER_ABI || owner.features || owner.reserved ||
++	    owner.ifindex <= 0 || owner.unit < 0)
++		return -EINVAL;
++
++	/* The ioctl's file reference pins the original open-file description.
++	 * RTNL excludes creation publication, unregister, rename and movement.
++	 */
++	rtnl_lock();
++	pf = file->private_data;
++	if (!pf || pf->kind != INTERFACE)
++		goto unlock;
++	dev = netdev_from_priv(PF_TO_PPP(pf));
++	err = ppp_validate_owner(dev, file);
++	if (err)
++		goto unlock;
++	if (!net_eq(dev_net(dev), current->nsproxy->net_ns)) {
++		err = -EXDEV;
++		goto unlock;
++	}
++	if (owner.ifindex != dev->ifindex || owner.unit != pf->index) {
++		err = -ESTALE;
++		goto unlock;
++	}
++	owner.features = PPP_OWNER_SETLINK;
++	if (IS_BUILTIN(CONFIG_INET))
++		owner.features |= PPP_OWNER_ADDR4;
++	if (IS_BUILTIN(CONFIG_IPV6))
++		owner.features |= PPP_OWNER_ADDR6;
++unlock:
++	rtnl_unlock();
++	if (err)
++		return err;
++	return copy_to_user(argp, &owner, sizeof(owner)) ? -EFAULT : 0;
++}
++
++static void ppp_nl_dellink(struct net_device *dev, struct list_head *head);
+ 
+ static __net_init int ppp_init_net(struct net *net)
+ {
+@@ -1388,7 +1449,8 @@
+ 	.setup		= ppp_setup,
+ 	.validate	= ppp_nl_validate,
+ 	.newlink	= ppp_nl_newlink,
+-	.dellink	= ppp_nl_dellink,
++	.dellink	= ppp_nl_dellink,
++	.validate_owner	= ppp_validate_owner,
+ 	.get_size	= ppp_nl_get_size,
+ 	.fill_info	= ppp_nl_fill_info,
+ 	.get_link_net	= ppp_nl_get_link_net,
+--- a/net/core/rtnetlink.c
++++ b/net/core/rtnetlink.c
+@@ -24,7 +24,8 @@
+ #include <linux/net.h>
+ #include <linux/fcntl.h>
+ #include <linux/mm.h>
+-#include <linux/slab.h>
++#include <linux/slab.h>
++#include <linux/file.h>
+ #include <linux/interrupt.h>
+ #include <linux/capability.h>
+ #include <linux/skbuff.h>
+@@ -2292,7 +2293,43 @@
+ 	.max = S16_MAX,
+ };
+ 
+-static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
++/* Drop the held file only after RTNL: final PPP release takes RTNL too. */
++struct file *rtnl_owner_file_get(const struct nlattr *attr)
++{
++	struct file *file;
++	s32 fd;
++
++	if (!attr)
++		return NULL;
++	fd = nla_get_s32(attr);
++	if (fd < 0)
++		return ERR_PTR(-EBADF);
++	file = fget(fd);
++	return file ? file : ERR_PTR(-EBADF);
++}
++EXPORT_SYMBOL_GPL(rtnl_owner_file_get);
++
++int rtnl_owner_validate(struct file *file, struct net_device *dev,
++			struct netlink_ext_ack *extack)
++{
++	const struct rtnl_link_ops *ops;
++
++	ASSERT_RTNL();
++	if (!file)
++		return 0;
++	if (!dev)
++		return -ENODEV;
++	ops = dev->rtnl_link_ops;
++	if (!ops || !ops->validate_owner) {
++		NL_SET_ERR_MSG(extack, "device has no creator-file guard");
++		return -EOPNOTSUPP;
++	}
++	return ops->validate_owner(dev, file);
++}
++EXPORT_SYMBOL_GPL(rtnl_owner_validate);
++
++static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
++	[IFLA_OWNER_FD]		= { .type = NLA_S32 },
+ 	[IFLA_UNSPEC]		= { .strict_start_type = IFLA_DPLL_PIN },
+ 	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
+ 	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+@@ -3566,7 +3603,9 @@
+ 	struct nlattr *tb[IFLA_MAX+1];
+ 	struct net_device *dev = NULL;
+ 	struct rtnl_nets rtnl_nets;
+-	struct net *tgt_net;
++	struct net *tgt_net;
++	struct file *owner = NULL;
++	int attr;
+ 	int err;
+ 
+ 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
+@@ -3574,7 +3613,28 @@
+ 	if (err < 0)
+ 		goto errout;
+ 
+-	err = rtnl_ensure_unique_netns(tb, extack, false);
++	if (tb[IFLA_OWNER_FD]) {
++		/* This revision implements only MTU and IFF_UP setters. */
++		if (ifm->ifi_index <= 0 ||
++		    (ifm->ifi_change & ~IFF_UP) || (ifm->ifi_flags & ~IFF_UP)) {
++			err = -EOPNOTSUPP;
++			goto errout;
++		}
++		for (attr = 1; attr <= IFLA_MAX; attr++) {
++			if (tb[attr] && attr != IFLA_OWNER_FD && attr != IFLA_MTU) {
++				err = -EOPNOTSUPP;
++				goto errout;
++			}
++		}
++		owner = rtnl_owner_file_get(tb[IFLA_OWNER_FD]);
++		if (IS_ERR(owner)) {
++			err = PTR_ERR(owner);
++			owner = NULL;
++			goto errout;
++		}
++	}
++
++	err = rtnl_ensure_unique_netns(tb, extack, false);
+ 	if (err < 0)
+ 		goto errout;
+ 
+@@ -3597,15 +3657,20 @@
+ 	else
+ 		err = -EINVAL;
+ 
+-	if (dev)
+-		err = do_setlink(skb, dev, tgt_net, ifm, extack, tb, 0);
+-	else if (!err)
+-		err = -ENODEV;
++	if (dev) {
++		err = rtnl_owner_validate(owner, dev, extack);
++		if (!err)
++			err = do_setlink(skb, dev, tgt_net, ifm, extack, tb, 0);
++	} else if (!err) {
++		err = -ENODEV;
++	}
+ 
+ 	rtnl_nets_unlock(&rtnl_nets);
+ 	rtnl_nets_destroy(&rtnl_nets);
+-errout:
+-	return err;
++errout:
++	if (owner)
++		fput(owner);
++	return err;
+ }
+ 
+ static int rtnl_group_dellink(const struct net *net, int group)
+@@ -3677,7 +3742,10 @@
+ 	if (err < 0)
+ 		return err;
+ 
+-	err = rtnl_ensure_unique_netns(tb, extack, true);
++	if (tb[IFLA_OWNER_FD])
++		return -EOPNOTSUPP;
++
++	err = rtnl_ensure_unique_netns(tb, extack, true);
+ 	if (err < 0)
+ 		return err;
+ 
+@@ -4125,7 +4193,12 @@
+ 	if (ret < 0)
+ 		goto free;
+ 
+-	ret = rtnl_ensure_unique_netns(tb, extack, false);
++	if (tb[IFLA_OWNER_FD]) {
++		ret = -EOPNOTSUPP;
++		goto free;
++	}
++
++	ret = rtnl_ensure_unique_netns(tb, extack, false);
+ 	if (ret < 0)
+ 		goto free;
+ 
+--- a/net/ipv4/devinet.c
++++ b/net/ipv4/devinet.c
+@@ -47,7 +47,8 @@
+ #include <linux/inetdevice.h>
+ #include <linux/igmp.h>
+ #include "igmp_internal.h"
+-#include <linux/slab.h>
++#include <linux/slab.h>
++#include <linux/file.h>
+ #include <linux/hash.h>
+ #ifdef CONFIG_SYSCTL
+ #include <linux/sysctl.h>
+@@ -96,7 +97,8 @@
+ #define IPV4_DEVCONF_DFLT(net, attr) \
+ 	IPV4_DEVCONF((*net->ipv4.devconf_dflt), attr)
+ 
+-static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
++static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
++	[IFA_OWNER_FD]		= { .type = NLA_S32 },
+ 	[IFA_LOCAL]     	= { .type = NLA_U32 },
+ 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
+ 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
+@@ -657,7 +659,8 @@
+ 	struct nlattr *tb[IFA_MAX+1];
+ 	struct in_device *in_dev;
+ 	struct ifaddrmsg *ifm;
+-	struct in_ifaddr *ifa;
++	struct in_ifaddr *ifa;
++	struct file *owner;
+ 	int err;
+ 
+ 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+@@ -665,9 +668,15 @@
+ 	if (err < 0)
+ 		goto out;
+ 
+-	ifm = nlmsg_data(nlh);
+-
+-	rtnl_net_lock(net);
++	ifm = nlmsg_data(nlh);
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++
++	rtnl_net_lock(net);
++	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
++	if (err)
++		goto unlock;
+ 
+ 	in_dev = inetdev_by_index(net, ifm->ifa_index);
+ 	if (!in_dev) {
+@@ -700,9 +709,11 @@
+ 
+ 	NL_SET_ERR_MSG(extack, "ipv4: Address not found");
+ 	err = -EADDRNOTAVAIL;
+-unlock:
+-	rtnl_net_unlock(net);
+-out:
++unlock:
++	rtnl_net_unlock(net);
++	if (owner)
++		fput(owner);
++out:
+ 	return err;
+ }
+ 
+@@ -965,7 +976,9 @@
+ 	struct net *net = sock_net(skb->sk);
+ 	struct in_ifaddr *ifa_existing;
+ 	struct nlattr *tb[IFA_MAX + 1];
+-	struct in_ifaddr *ifa;
++	struct in_ifaddr *ifa;
++	struct file *owner;
++	struct ifaddrmsg *ifm = nlmsg_data(nlh);
+ 	int ret;
+ 
+ 	ret = inet_validate_rtm(nlh, tb, extack, &valid_lft, &prefered_lft);
+@@ -975,9 +988,16 @@
+ 	if (!nla_get_in_addr(tb[IFA_LOCAL]))
+ 		return 0;
+ 
+-	rtnl_net_lock(net);
+-
+-	ifa = inet_rtm_to_ifa(net, nlh, tb, extack);
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	rtnl_net_lock(net);
++
++	/* inet_rtm_to_ifa changes device config as well as allocating an ifa. */
++	ret = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
++	if (ret)
++		goto unlock;
++	ifa = inet_rtm_to_ifa(net, nlh, tb, extack);
+ 	if (IS_ERR(ifa)) {
+ 		ret = PTR_ERR(ifa);
+ 		goto unlock;
+@@ -1027,10 +1047,12 @@
+ 		rtmsg_ifa(RTM_NEWADDR, ifa, nlh, NETLINK_CB(skb).portid);
+ 	}
+ 
+-unlock:
+-	rtnl_net_unlock(net);
+-
+-	return ret;
++unlock:
++	rtnl_net_unlock(net);
++	if (owner)
++		fput(owner);
++
++	return ret;
+ }
+ 
+ /*
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -54,7 +54,8 @@
+ #include <linux/route.h>
+ #include <linux/inetdevice.h>
+ #include <linux/init.h>
+-#include <linux/slab.h>
++#include <linux/slab.h>
++#include <linux/file.h>
+ #ifdef CONFIG_SYSCTL
+ #include <linux/sysctl.h>
+ #endif
+@@ -78,7 +79,8 @@
+ #include <net/addrconf.h>
+ #include <net/tcp.h>
+ #include <net/ip.h>
+-#include <net/netlink.h>
++#include <net/netlink.h>
++#include <net/rtnetlink.h>
+ #include <net/pkt_sched.h>
+ #include <net/l3mdev.h>
+ #include <net/netdev_lock.h>
+@@ -4796,7 +4798,8 @@
+ 	return pfx;
+ }
+ 
+-static const struct nla_policy ifa_ipv6_policy[IFA_MAX+1] = {
++static const struct nla_policy ifa_ipv6_policy[IFA_MAX+1] = {
++	[IFA_OWNER_FD]		= { .type = NLA_S32 },
+ 	[IFA_ADDRESS]		= { .len = sizeof(struct in6_addr) },
+ 	[IFA_LOCAL]		= { .len = sizeof(struct in6_addr) },
+ 	[IFA_CACHEINFO]		= { .len = sizeof(struct ifa_cacheinfo) },
+@@ -4814,7 +4817,8 @@
+ 	struct ifaddrmsg *ifm;
+ 	struct nlattr *tb[IFA_MAX+1];
+ 	struct in6_addr *pfx, *peer_pfx;
+-	u32 ifa_flags;
++	u32 ifa_flags;
++	struct file *owner;
+ 	int err;
+ 
+ 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+@@ -4832,10 +4836,17 @@
+ 	/* We ignore other flags so far. */
+ 	ifa_flags &= IFA_F_MANAGETEMPADDR;
+ 
+-	rtnl_net_lock(net);
+-	err = inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
+-			     ifm->ifa_prefixlen, extack);
+-	rtnl_net_unlock(net);
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	rtnl_net_lock(net);
++	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
++	if (!err)
++		err = inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
++				     ifm->ifa_prefixlen, extack);
++	rtnl_net_unlock(net);
++	if (owner)
++		fput(owner);
+ 
+ 	return err;
+ }
+@@ -4989,7 +5000,8 @@
+ 	struct nlattr *tb[IFA_MAX+1];
+ 	struct in6_addr *peer_pfx;
+ 	struct inet6_ifaddr *ifa;
+-	struct net_device *dev;
++	struct net_device *dev;
++	struct file *owner;
+ 	struct inet6_dev *idev;
+ 	struct ifa6_config cfg;
+ 	struct ifaddrmsg *ifm;
+@@ -5060,16 +5072,23 @@
+ 		}
+ 	}
+ 
+-	rtnl_net_lock(net);
+-
+-	dev =  __dev_get_by_index(net, ifm->ifa_index);
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	rtnl_net_lock(net);
++
++	dev =  __dev_get_by_index(net, ifm->ifa_index);
+ 	if (!dev) {
+ 		NL_SET_ERR_MSG_MOD(extack, "Unable to find the interface");
+ 		err = -ENODEV;
+ 		goto unlock_rtnl;
+ 	}
+ 
+-	netdev_lock_ops(dev);
++	err = rtnl_owner_validate(owner, dev, extack);
++	if (err)
++		goto unlock_rtnl;
++
++	netdev_lock_ops(dev);
+ 	idev = ipv6_find_idev(dev);
+ 	if (IS_ERR(idev)) {
+ 		err = PTR_ERR(idev);
+@@ -5107,10 +5126,12 @@
+ 	in6_ifa_put(ifa);
+ unlock:
+ 	netdev_unlock_ops(dev);
+-unlock_rtnl:
+-	rtnl_net_unlock(net);
+-
+-	return err;
++unlock_rtnl:
++	rtnl_net_unlock(net);
++	if (owner)
++		fput(owner);
++
++	return err;
+ }
+ 
+ static void put_ifaddrmsg(struct nlmsghdr *nlh, u8 prefixlen, u32 flags,
