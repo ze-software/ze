@@ -377,21 +377,34 @@ in the spec or commit it applies to.
 
 ## Delegate to subagents
 
-- Every subagent runs on the development tier, the harness's high-capability
-  model: never on a cheaper tier, and never on the strongest tier unless the
-  spec's `Design tier` or `Implementation tier` row names it for that phase.
-  This holds for every phase, research and review included, and whatever model
-  the main session itself runs on. A harness hands the session's own model to
-  an agent whose spawn names none, so a session on the strongest tier puts
-  every agent on the strongest tier by saying nothing: each spawn names the
-  tier, and a spawn that leaves the model out is a defect.
+- The model follows the kind of work, never the model the main session runs
+  on, and never a cheaper tier than the development tier. Design runs on the
+  strongest tier, and so do the creative parts of implementation: the parts
+  where the agent decides the shape of something no spec, pattern or
+  neighbouring code already settles, such as a structure, an interface, an
+  algorithm, or the cause of a defect nobody has explained. Legwork runs on
+  the development tier, the harness's high-capability model: reading and
+  searching, audit, writing out a design that is already decided, a
+  mechanical change, tests, docs, bookkeeping and review.
+- The main thread cuts the work so that each agent holds one kind, and names
+  the tier in every spawn. A harness hands the session's own model to an
+  agent whose spawn names none, so a session on the strongest tier puts its
+  legwork there by saying nothing, and a session on the development tier
+  puts its design there: a spawn that leaves the model out is a defect. A
+  spec's `Design tier` or `Implementation tier` row, when present, fixes the
+  tier for every agent of that phase.
 - A rule, spec or skill names a model by tier (the development tier, the
   strongest tier), never by a vendor's model name, because more than one
   harness implements this repository's specs. Each harness maps the tiers to
-  its own models. On Claude Code the development tier is Opus and the
-  strongest tier is Fable: every `Agent` call passes `model: "opus"`, the
-  definitions in `ai/agents/` carry it as their default, and `"fable"` is
-  passed only for a phase whose spec row names the strongest tier.
+  its own models. On Claude Code the strongest tier is Fable and the
+  development tier is Opus: every `Agent` call passes `model: "fable"` for
+  design and creative work and `model: "opus"` for legwork, and the
+  definitions in `ai/agents/` carry Opus as their default because most
+  agents do legwork.
+- The split by kind of work holds only on a harness that runs Anthropic's
+  models. A harness that runs another vendor's models, OpenAI's or any
+  other, ignores it and a spec's tier rows with it: its agents run on the
+  model that harness was started with.
 - All testing and code execution runs in the main thread, serialized to avoid
   overloading the shared machine. Subagents read, review and edit sources, then
   hand the required commands to the main thread; they do not run tests, builds,

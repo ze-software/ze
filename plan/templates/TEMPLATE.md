@@ -23,7 +23,7 @@
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes. `-` closes in the same session. -->
 
-<!-- Design tier / Implementation tier: the model tier for the agents that design and review the design, and for the agents that implement, test and review the implementation. Name a tier, never a vendor's model name; each harness maps the tier to its own model. An absent row means the development tier. -->
+<!-- Design tier / Implementation tier: the model tier for the agents that design and review the design, and for the agents that implement, test and review the implementation. Name a tier, never a vendor's model name; each harness maps the tier to its own model. A row fixes the tier for every agent of that phase. An absent row leaves it to the kind of work: the strongest tier for design and the creative parts of implementation, the development tier for legwork. -->
 
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so

@@ -40,7 +40,8 @@ as full RFC support, and disclosure does not excuse a known defect.
 Each spec records `Priority`, `Release reason` and `Depends` in its header,
 and `RFC gaps` when it closes requirements of an RFC Ze implements.
 `Design tier` and `Implementation tier` name the model tier for its design and
-implementation agents; an absent row means the development tier. Every field is
+implementation agents; an absent row leaves the tier to the kind of work each
+agent is given (`ai/META-DECISIONS.md`, "Delegate to subagents"). Every field is
 described in `docs/contributing/spec-workflow.md`, "Spec status vocabulary".
 Priority orders attention within a category; a dependency takes precedence.
 Freeze the shipped capability and platform set first. Fix security and

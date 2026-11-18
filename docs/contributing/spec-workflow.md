@@ -18,8 +18,8 @@ validates it on every write.
 | Release reason | Why this work belongs in its release category | A concise rationale based on remaining work and evidence |
 | RFC gaps | The RFC gaps the spec closes | A comma list of requirement ids (`RFC3948-5.1-1`) and RFC summary stems (`rfc7947`), or `-` for none. An absent row also declares none |
 | Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
-| Design tier | The model tier for the agents that design the spec and review its design | `development tier` or `strongest tier`. A tier, never a vendor's model name. Optional: an absent row means the development tier, and no gate reads it |
-| Implementation tier | The model tier for the agents that implement, test and review the implementation | `development tier` or `strongest tier`, as for Design tier |
+| Design tier | The model tier for the agents that design the spec and review its design | `development tier` or `strongest tier`. A tier, never a vendor's model name. Optional: a row fixes the tier for every agent of the phase, an absent row means the strongest tier for design, and no gate reads it |
+| Implementation tier | The model tier for the agents that implement, test and review the implementation | `development tier` or `strongest tier`, as for Design tier. An absent row means each agent's tier follows its work: the strongest tier for the creative parts, the development tier for legwork (`ai/META-DECISIONS.md`, "Delegate to subagents") |
 | Depends | Blocking prerequisite | A spec filename, or `-` |
 | Phase | Multi-phase progress | `N/M`, or `-` for single-phase |
 | Updated | Date of the last status change | `YYYY-MM-DD`, not the last file edit |
@@ -521,8 +521,8 @@ closure commit's tree, through the one producer `specWorkPopulation`.
 <!-- source: internal/le/commit/owed_answers.go -- answerReviewed -->
 
 <!-- source: internal/le/spec/review.go -- recordReview, CheckReview -->
-The review gate checks no model: a reviewer agent runs on the development
-tier, as every agent does (`ai/META-DECISIONS.md`, "Delegate to subagents").
+The review gate checks no model: review is legwork, so a reviewer agent runs
+on the development tier (`ai/META-DECISIONS.md`, "Delegate to subagents").
 The artifact records the model when available; review independence comes from
 a fresh reviewer context.
 
