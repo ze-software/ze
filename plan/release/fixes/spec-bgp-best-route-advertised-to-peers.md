@@ -12,7 +12,7 @@
 | Handoff | `tmp/session/2026-11-14-210034/state/session-state-bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md` |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-17 |
+| Updated | 2026-11-18 |
 
 Bucket: `plan/release/fixes/`. `plan/README.md` puts incorrect shipped
 behaviour there, routing defects named, and `post-release/features/` holds
@@ -79,7 +79,40 @@ Thomas also ruled how far the requirement reaches (Q-5 below): it binds
 learned routes carried by ordinary selected output, and leaves local origins
 and explicit route-server and reflector roles on today's default.
 
+### Implementation progress, 2026-11-18
+
+This spec remains **in progress**. All 27 acceptance criteria remain in scope;
+the entries below distinguish landed work from source integration and proof.
+On 2026-11-18, Thomas asked for coherent implementation chunks to be committed
+as they become available, including work whose testing still needs updating.
+Those commits do not close the spec or claim release readiness.
+
+| Piece | Current state | Evidence and remaining work |
+|-------|---------------|-----------------------------|
+| Learned-only export policy, reload and diagnostics | Committed in `067a0c5b302cca916135dc13dd0b55292af1cd54` | Scoped policy and diagnostics runs and four functional scenarios passed; final integrated regression remains owed |
+| Selected-only replacement-recipient replay, AC-27 | Committed in `96dc0b610e` | Actual socket regression, useful FlowSpec controls and producing-code discrimination passed; final integrated regression remains owed |
+| Applied-event completion across plugin transports | Committed in `a2247ff49e190f4b61030a4bee932d472f858c50` and `824dc2284b21e5ab54b883b616c8ba48d9beb242` | Scoped unit, race and producing-code discrimination runs passed; the complete advertiser lifecycle is still being tested |
+| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined implementation applied in the main checkout | The named launcher builds with the new drivers. Old GR, RIB, RS/RR and reactor test fixtures still require migration to exact peer/connection identities before their scoped tests can run. Independent source reviews have cleared the reviewed corrections; they do not substitute for execution |
+| Mutable mock RTR snapshots and query framing | Implemented; publishing as a separate test-tooling chunk | All seven mock-package roots passed. Removing the producing length guard makes the real TCP query test fail at its malformed-query assertion. Repeated race runs and the remaining snapshot discrimination are owed |
+| Registered route/marker variants and recovery grammar | Implemented in the combined working tree | Three route/marker roots and four recovery roots passed after fixture repairs; final source-fault and integration checks remain owed |
+| Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | First purge/internal run reached daemon startup and was refused for a missing destination `update-sent` grant. Correct the draft's grants, then prove its route lifecycle and repeat before promotion |
+| FRR and BIRD user-outcome scenarios | Source work in progress | Both pinned-daemon scenarios, their producing-code discrimination and final Review Gate remain owed |
+
+The current execution evidence and exact source-review pins stay in the session
+state file named above. No acceptance criterion is marked complete solely
+because its source has been applied or committed.
+
 ### Observed evidence
+
+The 2026-11-18 replacement-recipient probe exposed a competing automatic
+Adj-RIB-In replay after ordinary selection had excluded an unresolved route.
+This spec owns that correctness repair. A non-authorizing
+`ordinary-replay-owned` state advisory stands both auxiliary received-route and
+FlowSpec peer-up replay down for the captured ordinary destination. Bookkeeping,
+session readiness, no-owner/RS/RR fallback and explicit replay commands remain.
+The existing failing `TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute`
+stays unchanged as the source regression; useful selected FlowSpec replay to a
+late and replacement recipient must survive the repair.
 
 | Evidence | What it shows | Where |
 |----------|---------------|-------|
@@ -1245,11 +1278,12 @@ resource-bound criteria below form one unapproved design for whole review.
 | AC-19 | An API/redistribution origin is admitted but loses to a useful selected route on both typed and external transports; later remove the winner, and separately inject a true failure | Initial receipt explicitly says retained/suppressed with Announced zero and no false failure/no-peer warning; winner removal advertises the retained origin. True admission/transport failure still reports its cause; completed withheld withdrawal retains its legacy count | Current winner survives loser admission; the retained loser survives until genuine re-election; unrelated origins remain unchanged |
 | AC-20 | Default config, no route-server plugin; A is eBGP under an accepting import policy, B is iBGP with an accepting export policy, C is iBGP with no export policy. A announces a prefix; an API announcement is also sent toward C. Then B's export policy is removed | B receives A's route and C never does. C still receives the API announcement. Removing B's export policy withdraws A's route from B | The API announcement toward C survives: the requirement binds learned routes carried by ordinary selected output (Q-5). A's route stays selected in the Loc-RIB. Role-served destinations are AC-22 |
 | AC-21 | The same config, with C Established | `ze config validate`, the Established log line and `ze doctor` each name C, say that it has no export policy so Ze passes it no route learned from other peers, and give the editor command that configures one. The report clears once C has an export policy | An external peer keeps its RFC 8212 wording; a peer with a configured export policy raises nothing, whatever that policy rejects |
-| AC-22 | The AC-20 config plus two role destinations, neither with an export policy: D is an internal reflector client served by an attached `bgp-rr`, E is an external route-server client served by an attached `bgp-rs`. A announces a prefix | D receives the reflected route with its RFC 4456 attributes. E receives nothing, because RFC 8212 Section 3 binds every route on an external session. `ze config validate`, the log and `ze doctor` raise the internal absence for C and not for D, and the RFC 8212 absence for E | D's reflected route survives: an attached role is the explicit decision. C stays without the route, so the exemption is tied to the role and is not unconditional |
+| AC-22 | The AC-20 config plus D, an internal client served by an attached `bgp-rr`, E, an external client served by an attached `bgp-rs`, both with no export policy, and an internal source S announcing a distinct prefix | D receives A's external-learned route without reflection attributes and receives S's internal-learned route with its RFC 4456 attributes. E receives nothing, because RFC 8212 Section 3 binds every route on an external session. `ze config validate`, the log and `ze doctor` raise the internal absence for C and not for D, and the RFC 8212 absence for E | D's useful role output survives for both sources. C stays without either route, so the exemption is tied to the attached role; an external-learned route is not falsely treated as iBGP reflection |
 | AC-23 | B is internal with an accepting export policy and holds a learned route and an API announcement. Its export policy is removed, restored, removed in an apply that is then rolled back, and a learned-route write queued before a removal is released after it | Removal withdraws the learned route only. Restoration sends the current selected winner once. The rolled-back removal leaves B holding both routes. The late write installs nothing | The API announcement is never withdrawn and never re-sent across the four steps; other recipients are untouched |
 | AC-24 | A process attached to no peer, and one attached to peer A with `receive [ update ]` only, beside the default transit config | The first receives no route event and every send it attempts is refused. The second receives A's routes and nothing from other peers. Neither changes when ordinary transit starts passing routes | `bgp-rib` is fed by the same rule: only the peers that attach it |
 | AC-25 | Three refused configs, each then completed: A's block for `bgp-rib` grants `receive [ state ]` only while B is a complete destination; B's block grants `send [ update ]` only while A is a complete source; A's source grants name process `rib-one` and B's destination grants name process `rib-two`, both running `bgp-rib` | Each is refused at validate, commit and start, naming the peer, the process under its configured name, the missing grants and the completed `attach process` line. Completed on one process, each loads: B receives the elected route, receives the selected snapshot when its session comes up, and has its route refreshed on request | No grant is derived or widened at any step |
 | AC-26 | Internal peers A and B with AIGP left at its RFC 7311 default (enabled), accepting export policies, an API process attached with `send [ update ]`, and no `bgp-rib` attached to any peer | The config loads at validate, commit and start. A and B receive the API announcements, and neither receives a route learned from the other | The config survives because neither an export policy nor a default-on capability asks for a RIB. The same config with `bgp-rib` attached as a partial set is refused under AC-25 |
+| AC-27 | An ordinary recipient is replaced while received P remains unresolved; an auxiliary Adj-RIB-In store can send UPDATEs | Only current selected routes replay. The replacement receives useful K and no P, then receives P after reachability recovery without another source UPDATE. Typed/JSON observers receive advisory ownership without selected eligibility; auxiliary readiness still names the captured session | Useful selected FlowSpec reaches late and replacement recipients. No-owner auxiliary replay, RS/RR unheld-role fallback and explicit replay commands remain permitted |
 
 ## End-to-End User Stories
 

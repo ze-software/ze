@@ -738,3 +738,27 @@ When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | Cache empty or RTR synchronization failed | Check `show bgp rpki status` and plugin logs; for TLS, check the named credentials, certificate chains, and DNS reference name |
 | Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config; the change applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Plugin Bindings) |
+
+### Driving complete mock RTR sets
+
+For tests which change ROAs while a BGP source is down, `le mock rtr
+--vrp-file retained-vrps.txt --refresh 1 --retry 1` reads a complete current
+snapshot. Its first line is a nonzero uint32 serial; each later line uses
+`prefix,maxlen,asn`. The file is limited to 64 KiB. Malformed ranges, duplicate
+records and a combination with `--vrp` or `--aspa` are refused. Write a new
+snapshot under a sibling name, then rename it over the current file so a query
+cannot read a partial write.
+
+File mode accepts only a 12-byte Serial Query or an 8-byte Reset Query.
+A malformed declared length closes that connection before reading a body or
+answering a query; a complete Serial Query carrying zero remains valid.
+Fixed mode keeps its whole-set responder for both normal query forms.
+<!-- source: internal/test/mock/rtr/rtr.go -- rtrMockHandleConn -->
+
+An unchanged Serial Query receives an empty delta. A changed serial receives
+Cache Reset, followed by the complete current set when the router sends Reset
+Query. This removes obsolete VRPs without keeping a second snapshot history.
+`--sync-release` still gates the first reply. Refresh and retry are the real
+protocol timers; the observer waits for `show bgp rpki cache` to publish the
+requested serial and checks the resulting received-route and socket state.
+<!-- source: internal/test/mock/rtr/current_vrps.go -- rtrMockReadVRPs, rtrMockFileQuery -->

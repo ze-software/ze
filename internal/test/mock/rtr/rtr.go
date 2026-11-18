@@ -125,6 +125,7 @@ func Run(args []string) int {
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
 	serialFlag := fs.Uint("serial", 1, "initial serial number")
+	vrpFile := fs.String("vrp-file", "", "complete snapshot file: nonzero serial line, then prefix,maxlen,asn lines (64 KiB maximum)")
 	// The observer releases this barrier only after it sees the initial
 	// NotFound route. Host scheduling cannot move the first sync ahead of it.
 	syncRelease := fs.String("sync-release", "", "wait for this file before answering a query")
@@ -138,9 +139,10 @@ func Run(args []string) int {
 
 	fs.Usage = func() {
 		fmt.Fprint(fs.Output(), "Usage: le mock rtr [flags]\n\n"+ //nolint:errcheck // help text: a failed terminal write has no one to report to
-			"Mock RTR cache server for RPKI testing. Every Reset Query and Serial Query is\n"+
+			"Mock RTR cache server for RPKI testing. In fixed mode every query is\n"+
 			"answered with the whole set: Cache Response, the --vrp and --aspa records, and\n"+
-			"End of Data carrying --serial, --refresh and --retry.\n\n"+
+			"End of Data carrying --serial, --refresh and --retry.\n"+
+			"With --vrp-file, changed serials receive Cache Reset before a full replacement.\n\n"+
 			"An outage (--outage-start START --outage-release RELEASE) closes the listener\n"+
 			"once START exists, so the router's next connection is refused, and listens again\n"+
 			"on the same address and port once RELEASE exists. Each file is waited for at\n"+
@@ -173,6 +175,20 @@ func Run(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: --outage-release needs --outage-start, the file that begins the outage")
 		return 1
 	}
+	if *vrpFile != "" {
+		if len(vrps) != 0 {
+			fmt.Fprintln(os.Stderr, "error: --vrp-file cannot be combined with --vrp")
+			return 1
+		}
+		if len(aspas) != 0 {
+			fmt.Fprintln(os.Stderr, "error: --vrp-file cannot be combined with --aspa")
+			return 1
+		}
+		if _, _, err := rtrMockReadVRPs(*vrpFile); err != nil {
+			fmt.Fprintln(os.Stderr, "error: --vrp-file:", err)
+			return 1
+		}
+	}
 	cache := &rtrMockCache{
 		vrps:        vrps,
 		aspas:       aspas,
@@ -180,6 +196,7 @@ func Run(args []string) int {
 		refresh:     uint32(*refresh),    //nolint:gosec // an interval in seconds fits uint32
 		retry:       uint32(*retry),      //nolint:gosec // an interval in seconds fits uint32
 		syncRelease: *syncRelease,
+		vrpFile:     *vrpFile,
 	}
 
 	ln, err := rtrMockListen(netip.AddrPortFrom(address, uint16(port))) //nolint:gosec // a port flag outside 0-65535 fails to bind
@@ -237,6 +254,7 @@ type rtrMockCache struct {
 	refresh     uint32
 	retry       uint32
 	syncRelease string
+	vrpFile     string // Optional complete current snapshot; all handlers only read this path.
 }
 
 func rtrMockListen(addrPort netip.AddrPort) (net.Listener, error) {
@@ -269,7 +287,28 @@ func rtrMockHandleConn(conn net.Conn, cache *rtrMockCache) {
 		pduType := header[1]
 		pduLen := binary.BigEndian.Uint32(header[4:8])
 
+		// File snapshots answer only complete query forms. Validate their declared
+		// size before body parsing: a missing serial is not serial zero.
+		if cache.vrpFile != "" {
+			switch pduType {
+			case rtrMockPDUSerialQuery:
+				if pduLen != rtrMockHeaderLen+4 {
+					return
+				}
+			case rtrMockPDUResetQuery:
+				if pduLen != rtrMockHeaderLen {
+					return
+				}
+			default:
+				// Other wire PDU types keep the existing mock handling below.
+			}
+		}
+
 		remaining := int(pduLen) - rtrMockHeaderLen
+		if remaining < 0 {
+			return
+		}
+		var querySerial uint32
 		if remaining > 4096 {
 			return
 		}
@@ -278,6 +317,12 @@ func rtrMockHandleConn(conn net.Conn, cache *rtrMockCache) {
 			if _, err := io.ReadFull(conn, discard); err != nil {
 				return
 			}
+			if pduType == rtrMockPDUSerialQuery {
+				if remaining != 4 {
+					return
+				}
+				querySerial = binary.BigEndian.Uint32(discard)
+			}
 		}
 
 		switch pduType {
@@ -285,6 +330,18 @@ func rtrMockHandleConn(conn net.Conn, cache *rtrMockCache) {
 			if err := rtrMockWaitRelease(cache.syncRelease); err != nil {
 				fmt.Fprintln(os.Stderr, "error: wait for RTR sync release:", err)
 				return
+			}
+			if cache.vrpFile != "" {
+				if pduType == rtrMockPDUResetQuery {
+					if remaining != 0 {
+						return
+					}
+				}
+				if err := rtrMockFileQuery(conn, cache, clientVersion, pduType, querySerial); err != nil {
+					fmt.Fprintln(os.Stderr, "error: current VRP snapshot:", err)
+					return
+				}
+				continue
 			}
 			if err := rtrMockSendResponse(conn, cache, clientVersion); err != nil {
 				return
@@ -319,7 +376,7 @@ func rtrMockWaitRelease(path string) error {
 	}
 }
 
-func rtrMockSendResponse(conn net.Conn, cache *rtrMockCache, version uint8) error {
+func rtrMockSendResponse(conn io.Writer, cache *rtrMockCache, version uint8) error {
 	vrps, aspas, serial := cache.vrps, cache.aspas, cache.serial
 	sessionID := uint16(1)
 
@@ -362,7 +419,7 @@ func rtrMockSendResponse(conn net.Conn, cache *rtrMockCache, version uint8) erro
 	return nil
 }
 
-func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag, version uint8) error {
+func rtrMockSendPrefixPDU(conn io.Writer, vrp vrpFlag, version uint8) error {
 	ip4 := vrp.prefix.IP.To4()
 	if ip4 != nil {
 		pdu := make([]byte, 20)
@@ -394,7 +451,7 @@ func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag, version uint8) error {
 	return err
 }
 
-func rtrMockSendASPAPDU(conn net.Conn, aspa aspaFlag) error {
+func rtrMockSendASPAPDU(conn io.Writer, aspa aspaFlag) error {
 	pduLen := 12 + 4*len(aspa.providers)
 	pdu := make([]byte, pduLen)
 	pdu[0] = rtrMockVersion2
