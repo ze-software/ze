@@ -131,37 +131,9 @@ func (w *currentSelectionWorker) lookup(ctx context.Context, input rpc.CurrentSe
 }
 
 func (w *currentSelectionWorker) run(ctx context.Context, transportDone <-chan struct{}) {
-	defer close(w.done)
-	defer w.refuseQueued()
-	defer w.stopAdmission()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-transportDone:
-			return
-		case job := <-w.requests:
-			if err := ctx.Err(); err != nil {
-				w.refuse(job)
-				return
-			}
-			query, err := w.decode(job)
-			if err != nil {
-				w.answer(ctx, job, nil, err)
-				continue
-			}
-			output, err, panicked := w.serve(ctx, query)
-			w.answer(ctx, job, output, err)
-			if panicked {
-				w.failure.Store(&err)
-				if w.plugin.bridge != nil {
-					w.plugin.bridge.FailCallbacks(err)
-				}
-				w.plugin.engineMux.Close() //nolint:errcheck // panic ends the connection; stop returns the cause
-				return
-			}
-		}
-	}
+	runReadSnapshotWorker[currentSelectionJob, currentSelectionQuery, rpc.CurrentSelectionOutput](ctx, transportDone, w.requests, w.done, w, func(err error) {
+		failReadSnapshotWorker(w.plugin, &w.failure, err)
+	})
 }
 
 func (w *currentSelectionWorker) decode(job currentSelectionJob) (currentSelectionQuery, error) {
@@ -175,28 +147,11 @@ func (w *currentSelectionWorker) decode(job currentSelectionJob) (currentSelecti
 	return newCurrentSelectionQuery(input)
 }
 
-func (w *currentSelectionWorker) serve(ctx context.Context, query currentSelectionQuery) (output *rpc.CurrentSelectionOutput, err error, panicked bool) {
-	ctx, cancel := context.WithDeadline(ctx, time.UnixMilli(query.input.DeadlineMS))
-	defer cancel()
-	if err := ctx.Err(); err != nil {
-		return nil, err, false
-	}
-	defer func() {
-		if value := recover(); value != nil {
-			output, err, panicked = nil, fmt.Errorf("plugin %s current-selection handler panicked: %v; restart the selecting plugin", w.plugin.name, value), true
-		}
-	}()
-	output, err = w.handler(ctx, query.input)
-	if err != nil {
-		return nil, err, false
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err, false
-	}
-	if err := output.Validate(query.input); err != nil {
-		return nil, err, false
-	}
-	return output, nil, false
+func (w *currentSelectionWorker) serve(ctx context.Context, query currentSelectionQuery) (*rpc.CurrentSelectionOutput, error, bool) {
+	return serveReadSnapshot(ctx, query.input, query.input.DeadlineMS, w.handler,
+		(*rpc.CurrentSelectionOutput).Validate, func(value any) error {
+			return fmt.Errorf("plugin %s current-selection handler panicked: %v; restart the selecting plugin", w.plugin.name, value)
+		})
 }
 
 func (w *currentSelectionWorker) answer(ctx context.Context, job currentSelectionJob, output *rpc.CurrentSelectionOutput, answerErr error) {
@@ -272,25 +227,6 @@ func (p *Plugin) startCurrentSelectionWorker(ctx context.Context) (func() error,
 	}
 	w := &currentSelectionWorker{plugin: p, handler: handler,
 		requests: make(chan currentSelectionJob, currentSelectionQueueDepth), done: make(chan struct{})}
-	workerCtx, cancel := context.WithCancel(ctx)
-	remove, err := p.engineMux.RegisterIndependentRequestHandler(rpc.MethodCurrentSelection, w.admitWire)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	var transportDone <-chan struct{}
-	if p.bridge != nil {
-		p.bridge.SetCurrentSelection(w.lookup)
-	} else {
-		transportDone = p.engineMux.Done()
-	}
-	go w.run(workerCtx, transportDone)
-	var once sync.Once
-	return func() error {
-		once.Do(func() { remove(); w.stopAdmission(); cancel(); <-w.done; w.refuseQueued() })
-		if failure := w.failure.Load(); failure != nil {
-			return *failure
-		}
-		return nil
-	}, nil
+	return p.startReadSnapshotWorker(ctx, rpc.MethodCurrentSelection, w, w.done, &w.failure,
+		func() { p.bridge.SetCurrentSelection(w.lookup) })
 }

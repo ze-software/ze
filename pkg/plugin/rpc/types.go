@@ -358,6 +358,8 @@ type DeclareRegistrationInput struct {
 	OriginIntake bool `json:"origin-intake,omitempty"`
 	// CurrentSelection declares the independent desired-selection snapshot handler.
 	CurrentSelection bool `json:"current-selection,omitempty"`
+	// OriginAdmissionLookup declares read-only original accepted-record lookup.
+	OriginAdmissionLookup bool `json:"origin-admission-lookup,omitempty"`
 	// EventSettlement declares acknowledged completion of asynchronous event work.
 	EventSettlement bool `json:"event-settlement,omitempty"`
 	VerifyBudget    int  `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).

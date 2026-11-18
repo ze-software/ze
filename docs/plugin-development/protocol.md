@@ -183,6 +183,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `source-policy` | `bool` | Whether the plugin answers the acknowledged source-policy lifecycle callbacks |
 | `origin-intake` | `bool` | Declares the scoped-origin mutation callback and joined cancellation. The SDK derives this flag from `OnOriginIntake`. |
 | `current-selection` | `bool` | Whether the plugin answers the desired-selection snapshot callback |
+| `origin-admission-lookup` | `bool` | Whether the plugin answers read-only original accepted-record lookup |
 | `event-settlement` | `bool` | Whether the plugin acknowledges when its asynchronous work on an event is complete |
 | `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
 | `apply-budget` | `int` | Estimated apply time in seconds (`0` means trivial) |
@@ -705,6 +706,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:origin-intake` | `OnOriginIntake` | `rpc.OriginIntakeInput` | `rpc.UpdateRouteOutput` | Retain or remove one exact engine-authorized local contribution, joining cancellation and output barriers |
 | `ze-plugin-callback:event-settlement` | `OnEventSettlement` | `rpc.EventSettlementInput` | `rpc.EventSettlementOutput` | Await asynchronous work after prior events were applied |
+| `ze-plugin-callback:origin-admission-lookup` | `OnOriginAdmissionLookup` | `rpc.OriginAdmissionLookupInput` | `rpc.OriginAdmissionLookupOutput` | Read the exact original accepted redistribution record |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
@@ -715,6 +717,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete, operation callback registration -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigCompleteInput, ConfigCompleteOutput -->
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup -->
 
 An `OnConfigComplete` handler automatically declares `config-completion` in
 Stage 1. Its context carries the absolute `deadline-ms` work bound. Complete
@@ -1511,6 +1514,41 @@ channel entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler dir
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
+
+### Original accepted redistribution records
+
+`OnOriginAdmissionLookup` registers a read-only handler before `Run`. Stage 1
+derives its support bit. The callback works through the typed bridge and the
+same framed public RPC, independently of an ordinary command that awaits it.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup, startOriginAdmissionLookupWorker -->
+
+Answer only from the original published accepted record. Echo the requested
+ID, canonical family and prefix, concrete peer and owner, and operation.
+Missing or stale records return an error. A retiring record answers only its
+exact withdrawal. Explicit peer scope, BGP class and distance presence prevent
+missing values from acquiring a different meaning.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionLookupOutput, OriginAdmissionSnapshot, Validate -->
+
+The original source metric differs from optional transformed wire MED. Zero
+distance and initial rule generation are valid explicit facts. Transfer output
+ownership to the SDK, including communities. The handler MUST honor its context,
+perform no engine call or I/O, and read no election state under a blocking lock.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionSnapshot -->
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OriginAdmissionLookupHandler -->
+
+A read deadline ends work, not the healthy connection. The SDK sends a refusal
+within a fresh bounded process budget. Stop still cancels replies, and a real
+writer failure still closes the connection. A snapshot permits at most 65535
+communities, as declared by both Go validation and YANG.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- answer -->
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionCommunityMax, Validate -->
+<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- origin-admission-snapshot -->
+
+A successful lookup grants no origination or send authority. The engine caller
+keeps the original process connection and separately verifies publisher,
+accepted lifetime, actual grants and route build. The complete value contract
+is in [the process protocol](../architecture/api/process-protocol.md#original-redistribution-admission-lookup).
+<!-- source: internal/component/plugin/ipc/origin_admission_lookup.go -- SendOriginAdmissionLookup -->
 
 ### Scoped origin intake
 

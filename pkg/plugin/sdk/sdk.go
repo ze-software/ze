@@ -116,9 +116,10 @@ type Plugin struct {
 	// onSourcePolicy is the source-policy lifecycle handler, run on the
 	// connection's source-policy worker (sdk_source_policy.go) and declared at
 	// Stage 1 as both source-policy owner and handler.
-	onSourcePolicy     SourcePolicyHandler
-	onOriginIntake     OriginIntakeHandler
-	onCurrentSelection CurrentSelectionHandler
+	onSourcePolicy          SourcePolicyHandler
+	onOriginIntake          OriginIntakeHandler
+	onCurrentSelection      CurrentSelectionHandler
+	onOriginAdmissionLookup OriginAdmissionLookupHandler
 
 	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
 	// the resolver caches whose clear this plugin answers.
@@ -500,6 +501,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 	reg.SourcePolicy = p.onSourcePolicy != nil
 	reg.OriginIntake = p.onOriginIntake != nil
 	reg.CurrentSelection = p.onCurrentSelection != nil
+	reg.OriginAdmissionLookup = p.onOriginAdmissionLookup != nil
 	reg.EventSettlement = p.asyncCallbacks[rpc.MethodEventSettlement] != nil
 	if reg.SourcePolicy {
 		reg.SourcePolicyOwner = true
@@ -562,6 +564,17 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 	}
 	defer func() {
 		if err := stopOriginIntake(); err != nil {
+			if runErr == nil {
+				runErr = err
+			}
+		}
+	}()
+	stopOriginAdmissionLookup, err := p.startOriginAdmissionLookupWorker(ctx)
+	if err != nil {
+		return startupFailure(5, "origin-admission-lookup", err)
+	}
+	defer func() {
+		if err := stopOriginAdmissionLookup(); err != nil {
 			if runErr == nil {
 				runErr = err
 			}

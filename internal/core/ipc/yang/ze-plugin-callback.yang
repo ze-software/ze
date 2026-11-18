@@ -126,6 +126,176 @@ module ze-plugin-callback {
         }
     }
 
+    grouping origin-admission-identity {
+        description "Exact original accepted-record query identity.";
+        leaf admission-id {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:help "Original accepted-record ID";
+            description "One opaque identity allocated before the original synchronous consumer call. It is not an origin receipt.";
+        }
+        leaf family {
+            type string { length "12..12"; pattern "ipv[46]/unicast"; }
+            mandatory true;
+            ze:help "Original unicast prefix family";
+            description "Only the current IPv4 or IPv6 unicast redistribution feed is represented.";
+        }
+        leaf prefix {
+            type string { length "1..43"; }
+            mandatory true;
+            ze:help "Original canonical source prefix";
+            description "A masked canonical network prefix of the stated family.";
+        }
+        leaf destination {
+            type string { length "1..256"; }
+            mandatory true;
+            ze:help "Concrete destination peer address";
+            description "The caller resolves and separately authenticates the original configured Peer.";
+        }
+        leaf peer-owner {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:help "Concrete configured Peer identity";
+            description "Engine-derived Peer incarnation, never an authority asserted by the producer.";
+        }
+        leaf operation {
+            type uint8 { range "1..2"; }
+            mandatory true;
+            ze:help "One announces; two removes";
+            description "The existing OriginIntakeOperation values. An exact retiring record can answer withdrawal only.";
+        }
+    }
+
+    grouping origin-admission-snapshot {
+        description "Original immutable accepted data, never publisher or send authority.";
+        leaf protocol {
+            type string { length "1..64"; pattern "[a-z0-9-]+"; }
+            mandatory true;
+            ze:help "Original source protocol";
+            description "The canonical producer protocol, separate from the BGP preference class.";
+        }
+        leaf bgp-class {
+            type uint8 { range "0..2"; }
+            mandatory true;
+            ze:help "Original BGP source class";
+            description "Zero for non-BGP, one internal BGP, two external BGP. BGP requires its explicit original class.";
+        }
+        leaf source-instance {
+            type uint32;
+            mandatory true;
+            ze:help "Original source instance";
+            description "Explicit zero is valid only for a real aggregate producer.";
+        }
+        leaf table {
+            type uint32;
+            mandatory true;
+            ze:help "Original source table";
+            description "The producer table, including an explicit zero.";
+        }
+        leaf source-metric {
+            type uint32;
+            mandatory true;
+            ze:help "Original source preference metric";
+            description "The original pre-transform metric, distinct from optional wire MED.";
+        }
+        leaf distance-override {
+            type uint8;
+            mandatory true;
+            ze:help "Original distance override";
+            description "Zero is valid when has-distance-override is true.";
+        }
+        leaf has-distance-override {
+            type boolean;
+            mandatory true;
+            ze:help "Whether original distance is present";
+            description "Explicit false distinguishes no override from a present zero override.";
+        }
+        leaf next-hop {
+            type string { length "0..256"; }
+            mandatory true;
+            ze:help "Accepted original next hop";
+            description "An original address, or an explicit empty value for the existing BGP local self choice.";
+        }
+        leaf origin-asn {
+            type uint32;
+            mandatory true;
+            ze:help "Accepted origin ASN";
+            description "Preserves the accepted route build; it confers no source authority.";
+        }
+        leaf tag {
+            type uint32;
+            mandatory true;
+            ze:help "Accepted route tag";
+            description "The accepted transformed tag, including zero.";
+        }
+        leaf metric {
+            type uint32;
+            mandatory true;
+            ze:help "Accepted optional wire MED";
+            description "Meaningful only when has-metric is true; not the original source preference metric.";
+        }
+        leaf has-metric {
+            type boolean;
+            mandatory true;
+            ze:help "Whether an import transform set wire MED";
+            description "A producer metric alone never implies MULTI_EXIT_DISC.";
+        }
+        leaf rule-generation {
+            type uint64;
+            mandatory true;
+            ze:help "Actual evaluator generation";
+            description "Explicit zero is valid for the initial evaluator. It is not another source identity.";
+        }
+        leaf peer-scope {
+            type uint8 { range "1..2"; }
+            mandatory true;
+            ze:help "All peers or exactly one peer";
+            description "One all peers, two exact peer. Missing or unknown scope never implies a wildcard.";
+        }
+        leaf peer {
+            type string { length "0..256"; }
+            mandatory true;
+            ze:help "Accepted exact peer scope";
+            description "Empty for all-peer scope; otherwise the exact canonical destination address.";
+        }
+        leaf-list community {
+            type uint32;
+            max-elements 65535;
+            ze:help "Accepted standard BGP communities";
+            description "Owned values; the callback also enforces the actual transport frame bound.";
+        }
+    }
+
+    rpc origin-admission-lookup {
+        ze:method "ze-plugin-callback:origin-admission-lookup";
+        ze:help "Read one original accepted redistribution record.";
+        description "The exact original accepting connection answers on an independent bounded read-only worker. The caller separately authenticates publisher, process, accepted lifetime and send grants. Stage 1 and supplied JSON facts grant no route authority.";
+        input {
+            uses origin-admission-identity;
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute bounded read deadline";
+                description "Unix milliseconds, no later than thirty seconds from admission.";
+            }
+        }
+        output {
+            uses origin-admission-identity;
+            leaf state {
+                type uint8 { range "1..2"; }
+                mandatory true;
+                ze:help "Current or exact retiring accepted record";
+                description "One current, two retiring. Retiring is valid only for the exact withdrawal operation.";
+            }
+            container snapshot {
+                presence "A successful lookup carries its original accepted snapshot.";
+                ze:help "Original immutable accepted source and build";
+                description "Missing or stale records return an explicit error, never an empty successful snapshot.";
+                uses origin-admission-snapshot;
+            }
+        }
+    }
+
     rpc origin-intake {
         ze:method "ze-plugin-callback:origin-intake";
         ze:help "Admit or remove one exact engine-authorized local contribution.";

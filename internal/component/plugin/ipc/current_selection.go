@@ -4,9 +4,6 @@ package ipc
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -23,21 +20,6 @@ func (pc *PluginConn) SendCurrentSelection(ctx context.Context, input rpc.Curren
 	if pc.mux != nil {
 		return pc.mux.CurrentSelection(ctx, input)
 	}
-	ctx, cancel := rpc.CurrentSelectionCallContext(ctx, &input)
-	defer cancel()
-	if err := input.Validate(time.Now()); err != nil {
-		return nil, err
-	}
-	data, err := pc.Conn.CallRPC(ctx, rpc.MethodCurrentSelection, input)
-	if err != nil {
-		return nil, err
-	}
-	var output rpc.CurrentSelectionOutput
-	if err := json.Unmarshal(data, &output); err != nil {
-		return nil, fmt.Errorf("current-selection reply: %w", err)
-	}
-	if err := output.Validate(input); err != nil {
-		return nil, err
-	}
-	return &output, nil
+	return callReadSnapshot(ctx, pc.Conn, input, rpc.CurrentSelectionCallContext,
+		rpc.MethodCurrentSelection, (*rpc.CurrentSelectionOutput).Validate)
 }

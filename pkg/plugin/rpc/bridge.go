@@ -50,58 +50,60 @@ type BridgeCallbackResult struct {
 }
 
 type DirectBridge struct {
-	deliverEvents         func(events []string) error
-	deliverStructured     func(events []any) error
-	hasStructured         atomic.Bool // set atomically when deliverStructured is written
-	filterSlot            FilterSlotHandler
-	hasFilterSlot         atomic.Bool // set atomically when filterSlot is written (filter_slot.go)
-	dispatchRPC           func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
-	dispatchNative        func(context.Context, string, any) (any, bool, error)
-	dispatchCommand       DispatchCommandHandler       // Typed fast path (no JSON)
-	hasDispatchCmd        atomic.Bool                  // set atomically when dispatchCommand is written
-	dispatchCommandArgs   DispatchCommandArgsHandler   // Typed fast path with pre-tokenized args (no JSON)
-	hasDispatchCmdArgs    atomic.Bool                  // set atomically when dispatchCommandArgs is written
-	dispatchCommandAnswer DispatchCommandAnswerHandler // Typed answer path: a head, its records, a terminator
-	hasDispatchCmdAnswer  atomic.Bool                  // set atomically when dispatchCommandAnswer is written
-	executeCommand        ExecuteCommandHandler        // Typed engine->plugin command handler (no JSON input)
-	hasExecuteCommand     atomic.Bool                  // set atomically when executeCommand is written
-	executeCommandCh      chan ExecuteCommandRequest   // Engine->plugin typed execute-command callbacks
-	emitEvent             EmitEventHandler             // Typed fast path (no JSON)
-	hasEmitEvent          atomic.Bool                  // set atomically when emitEvent is written
-	forwardCached         ForwardCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
-	hasForwardCached      atomic.Bool                  // set atomically when forwardCached is written
-	releaseCached         ReleaseCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
-	hasReleaseCached      atomic.Bool                  // set atomically when releaseCached is written
-	relayStoredRoute      RelayStoredRouteHandler      // Typed fast path (no JSON) -- egress-rail
-	hasRelayStoredRoute   atomic.Bool                  // set atomically when relayStoredRoute is written
-	selectRoutes          SelectRoutesHandler
-	hasSelectRoutes       atomic.Bool
-	originIntake          OriginIntakeHandler
-	hasOriginIntake       atomic.Bool
-	currentSelection      CurrentSelectionHandler
-	hasCurrentSelection   atomic.Bool
-	injectWireRoute       InjectWireRouteHandler      // Typed fast path (no JSON) -- bmp-6
-	hasInjectWireRoute    atomic.Bool                 // set atomically when injectWireRoute is written
-	updateRouteSel        UpdateRouteSelResultHandler // Typed fast path with *selector.Selector
-	hasUpdateRouteSel     atomic.Bool                 // set atomically when updateRouteSel is written
-	batchValidate         BatchValidateHandler        // Typed fast path (no string serialization) -- rpki batching
-	hasBatchValidate      atomic.Bool                 // set atomically when batchValidate is written
-	callbackCh            chan BridgeCallback         // Engine->plugin callbacks (replaces pipe after startup)
-	callbacksStopped      chan struct{}               // Wakes queue and result waiters before channel closure.
-	closeOnce             sync.Once                   // Guards callbackCh close (Stop may be called multiple times)
-	sendMu                sync.RWMutex                // Held for reading by senders, for writing by CloseCallbacks
-	sendClosed            bool                        // Guarded by sendMu: the callback channels are closed
-	dispatchMu            sync.Mutex                  // Serializes dispatch admission with StopDispatch.
-	dispatchClosed        bool
-	dispatchWG            sync.WaitGroup
-	deliveryMu            sync.Mutex // Serializes event admission with StopDelivery.
-	deliveryClosed        bool
-	deliveryWG            sync.WaitGroup
-	failed                atomic.Bool  // Set after callback loop failure; callers fail fast.
-	failureMu             sync.RWMutex // Guards failureErr, read only after failed is set.
-	failureErr            error        // First callback loop failure reported to later callers.
-	ready                 atomic.Bool
-	activated             atomic.Bool // Remains set after readiness is withdrawn during shutdown.
+	deliverEvents            func(events []string) error
+	deliverStructured        func(events []any) error
+	hasStructured            atomic.Bool // set atomically when deliverStructured is written
+	filterSlot               FilterSlotHandler
+	hasFilterSlot            atomic.Bool // set atomically when filterSlot is written (filter_slot.go)
+	dispatchRPC              func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchNative           func(context.Context, string, any) (any, bool, error)
+	dispatchCommand          DispatchCommandHandler       // Typed fast path (no JSON)
+	hasDispatchCmd           atomic.Bool                  // set atomically when dispatchCommand is written
+	dispatchCommandArgs      DispatchCommandArgsHandler   // Typed fast path with pre-tokenized args (no JSON)
+	hasDispatchCmdArgs       atomic.Bool                  // set atomically when dispatchCommandArgs is written
+	dispatchCommandAnswer    DispatchCommandAnswerHandler // Typed answer path: a head, its records, a terminator
+	hasDispatchCmdAnswer     atomic.Bool                  // set atomically when dispatchCommandAnswer is written
+	executeCommand           ExecuteCommandHandler        // Typed engine->plugin command handler (no JSON input)
+	hasExecuteCommand        atomic.Bool                  // set atomically when executeCommand is written
+	executeCommandCh         chan ExecuteCommandRequest   // Engine->plugin typed execute-command callbacks
+	emitEvent                EmitEventHandler             // Typed fast path (no JSON)
+	hasEmitEvent             atomic.Bool                  // set atomically when emitEvent is written
+	forwardCached            ForwardCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
+	hasForwardCached         atomic.Bool                  // set atomically when forwardCached is written
+	releaseCached            ReleaseCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
+	hasReleaseCached         atomic.Bool                  // set atomically when releaseCached is written
+	relayStoredRoute         RelayStoredRouteHandler      // Typed fast path (no JSON) -- egress-rail
+	hasRelayStoredRoute      atomic.Bool                  // set atomically when relayStoredRoute is written
+	selectRoutes             SelectRoutesHandler
+	hasSelectRoutes          atomic.Bool
+	originIntake             OriginIntakeHandler
+	hasOriginIntake          atomic.Bool
+	currentSelection         CurrentSelectionHandler
+	hasCurrentSelection      atomic.Bool
+	originAdmissionLookup    OriginAdmissionLookupHandler
+	hasOriginAdmissionLookup atomic.Bool
+	injectWireRoute          InjectWireRouteHandler      // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute       atomic.Bool                 // set atomically when injectWireRoute is written
+	updateRouteSel           UpdateRouteSelResultHandler // Typed fast path with *selector.Selector
+	hasUpdateRouteSel        atomic.Bool                 // set atomically when updateRouteSel is written
+	batchValidate            BatchValidateHandler        // Typed fast path (no string serialization) -- rpki batching
+	hasBatchValidate         atomic.Bool                 // set atomically when batchValidate is written
+	callbackCh               chan BridgeCallback         // Engine->plugin callbacks (replaces pipe after startup)
+	callbacksStopped         chan struct{}               // Wakes queue and result waiters before channel closure.
+	closeOnce                sync.Once                   // Guards callbackCh close (Stop may be called multiple times)
+	sendMu                   sync.RWMutex                // Held for reading by senders, for writing by CloseCallbacks
+	sendClosed               bool                        // Guarded by sendMu: the callback channels are closed
+	dispatchMu               sync.Mutex                  // Serializes dispatch admission with StopDispatch.
+	dispatchClosed           bool
+	dispatchWG               sync.WaitGroup
+	deliveryMu               sync.Mutex // Serializes event admission with StopDelivery.
+	deliveryClosed           bool
+	deliveryWG               sync.WaitGroup
+	failed                   atomic.Bool  // Set after callback loop failure; callers fail fast.
+	failureMu                sync.RWMutex // Guards failureErr, read only after failed is set.
+	failureErr               error        // First callback loop failure reported to later callers.
+	ready                    atomic.Bool
+	activated                atomic.Bool // Remains set after readiness is withdrawn during shutdown.
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -1100,6 +1102,7 @@ type StructuredEvent struct {
 	InitialReplay       uint64           // Exact peer-up replay session receipt; zero when absent.
 	DestinationSession  uint64           // Captured connection identity on every state event.
 	SelectedDestination bool             // This recipient is the complete ordinary output owner.
+	OrdinaryReplayOwned bool             // Captured UP has ordinary output; auxiliary automatic replay stands down, without granting authority.
 	// SessionGeneration is, for a down state event, the forward generation of
 	// the session the down ended. A forwarding plugin's departure for that
 	// down names it as recovery-generation meta, so the engine owes only
@@ -1155,6 +1158,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.InitialReplay = 0
 	se.DestinationSession = 0
 	se.SelectedDestination = false
+	se.OrdinaryReplayOwned = false
 	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.SourcePolicyEpoch = 0

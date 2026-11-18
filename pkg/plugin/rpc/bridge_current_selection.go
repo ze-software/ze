@@ -2,11 +2,7 @@
 // Related: bridge.go -- delivery lifetime fencing for typed callbacks.
 package rpc
 
-import (
-	"context"
-	"errors"
-	"time"
-)
+import "context"
 
 // CurrentSelectionHandler reads one consistent published desired-selection
 // snapshot. It MUST honor ctx and must not call the engine or perform I/O.
@@ -28,27 +24,8 @@ func (b *DirectBridge) HasCurrentSelection() bool {
 // CurrentSelection bypasses the ordinary callback queue. The SDK slot enqueues
 // on its independent worker; a blocked execute-command cannot prevent lookup.
 func (b *DirectBridge) CurrentSelection(ctx context.Context, input CurrentSelectionInput) (*CurrentSelectionOutput, error) {
-	ctx, cancel := CurrentSelectionCallContext(ctx, &input)
-	defer cancel()
-	if !b.beginDelivery() {
-		return nil, ErrBridgeClosed
-	}
-	defer b.deliveryWG.Done()
-	if !b.ready.Load() {
-		return nil, ErrBridgeClosed
-	}
-	if !b.hasCurrentSelection.Load() {
-		return nil, errors.New("current-selection handler is not installed; register OnCurrentSelection before Run")
-	}
-	if err := input.Validate(time.Now()); err != nil {
-		return nil, err
-	}
-	output, err := b.currentSelection(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-	if err := output.Validate(input); err != nil {
-		return nil, err
-	}
-	return output, nil
+	return bridgeReadSnapshot(b, ctx, input, CurrentSelectionCallContext,
+		&b.hasCurrentSelection, &b.currentSelection,
+		"current-selection handler is not installed; register OnCurrentSelection before Run",
+		(*CurrentSelectionOutput).Validate)
 }

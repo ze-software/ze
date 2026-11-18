@@ -390,6 +390,12 @@ module ze-plugin-engine {
                 ze:help "Declare joined scoped-origin mutation intake";
                 description "Derived from SDK OnOriginIntake before Run. Support grants no destination or source authority. An unavailable or undeclared configured owner is not a legacy provider.";
             }
+            leaf origin-admission-lookup {
+                type boolean;
+                default false;
+                ze:help "Declare original accepted redistribution lookup";
+                description "Derived from SDK OnOriginAdmissionLookup. The independent read-only callback grants no source or destination permission.";
+            }
             leaf current-selection {
                 type boolean;
                 default false;

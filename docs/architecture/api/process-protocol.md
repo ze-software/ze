@@ -2169,8 +2169,13 @@ cannot answer for it. Both `MuxConn.CurrentSelection` and
 `DirectBridge.CurrentSelection` use the same bounded contract.
 The engine's `PluginConn.SendCurrentSelection` selects those transports on that
 exact connection and never falls back to ordinary queued callbacks after bridge
-cutover.
+cutover. The typed bridge shares delivery admission, readiness and handler-presence
+checks between its two snapshot operations. It checks readiness before reading
+the installed handler; each operation retains its own deadline, missing-handler
+error and output validator.
 <!-- source: internal/component/plugin/ipc/current_selection.go -- SendCurrentSelection -->
+<!-- source: internal/component/plugin/ipc/read_snapshot.go -- callReadSnapshot -->
+<!-- source: pkg/plugin/rpc/bridge_read_snapshot.go -- bridgeReadSnapshot -->
 
 Each request carries the destination, its exact session token, an absolute
 deadline and native keys with the requested revisions. Each answer echoes that
@@ -2462,6 +2467,56 @@ turn a local injection into a received-source route.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequest -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
 
+
+#### Original redistribution admission lookup
+
+`OnOriginAdmissionLookup` registers a read-only accepted-record handler before
+`Run`. Stage 1 derives `origin-admission-lookup` from that handler. The declaration
+grants no publisher, source or peer permission.
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup -->
+
+The engine queries its captured original accepting connection with
+`ze-plugin-callback:origin-admission-lookup`. Each query names one opaque
+`admission-id` and a canonical `ipv4/unicast` or `ipv6/unicast` family and prefix.
+It also names the concrete destination, Peer owner, operation and deadline. A reply
+echoes that identity exactly. Missing or stale records return an error. A
+retiring record answers only its exact withdrawal, never another announcement.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionLookupInput, OriginAdmissionLookupOutput, Validate -->
+
+The snapshot preserves original protocol, BGP source class, instance, table and
+source metric. It also carries distance presence and value, accepted next hop,
+origin ASN, communities, tag and optional wire MED. The original source metric
+is separate from transformed `metric` and `has-metric`. Explicit zero distance
+and rule generation remain valid. Peer scope is explicit all or exact. A
+missing scope or peer never implies a wildcard.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionSnapshot, OriginAdmissionPeerScope, OriginAdmissionBGPClass -->
+
+Both transports validate complete values and frame bounds. A separate worker
+serves at most one active and sixteen queued requests, independently of ordinary
+commands and origin mutation. The handler reads a published snapshot, honors
+cancellation and performs no engine call or I/O. Stop refuses new work, cancels
+the handler and joins the worker.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- originAdmissionLookupWorker, startOriginAdmissionLookupWorker -->
+<!-- source: pkg/plugin/sdk/sdk_read_snapshot.go -- runReadSnapshotWorker, serveReadSnapshot, startReadSnapshotWorker -->
+
+An expired read keeps its strict work deadline. Its refusal uses a fresh bounded
+response budget from the same process lifetime, so expiry leaves the connection
+usable. Process stop still cancels that reply. An actual writer failure closes
+the unusable stream.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- answer, serve -->
+
+The snapshot carries at most 65535 communities. The shared validator and YANG
+declare the same cardinality, separate from the encoded-frame bound.
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionCommunityMax, Validate -->
+<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- origin-admission-snapshot -->
+
+The reply describes accepted data. It is neither an origin receipt nor send
+permission. The caller MUST retain the exact original process and separately
+verify publisher, accepted-record lifetime, grants and immutable route build.
+A published bridge never falls back to a socket if its slot is unavailable.
+<!-- source: internal/component/plugin/ipc/origin_admission_lookup.go -- SendOriginAdmissionLookup -->
+<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- Validate -->
 
 #### Mutating local-origin intake
 
@@ -3906,10 +3961,11 @@ Both loops use the same factory map for stop `drain`, `source-policy` and
 `event-settlement`; adding a worker changes no method list in either loop.
 Each worker owns its queue, execution and stop/join obligations.
 <!-- source: pkg/plugin/sdk/sdk_async_callback.go -- setAsyncCallback, startAsyncCallbacks -->
-Current-selection lookup uses a registered ingress lane before that loop and
-its queue, with the same independent worker on the typed bridge. Its snapshot
-read must complete even when an ordinary handler is waiting for selected
-dispatch; admitting it from the blocked ordinary loop would deadlock.
+Current-selection and original admission lookup use registered ingress lanes
+before that loop and its queue. Each has its own worker on both transports.
+Snapshot reads must complete even when an ordinary handler waits for engine
+dispatch. Admission through that blocked ordinary loop would deadlock.
+<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- startOriginAdmissionLookupWorker -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
 

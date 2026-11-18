@@ -80,17 +80,18 @@ type PluginRegistration struct {
 	// apply of a reader that owns no operation) and never counts it as the
 	// reader's for operation coverage (buildTxInputs,
 	// transaction.Participant.WantsConfig).
-	ConfigReads       []string
-	ConfigOperations  []rpc.ConfigOperationDecl
-	ConfigCompletion  bool // Retains undo until acknowledged whole-reload completion.
-	SourcePolicyOwner bool // Retains state whose source eligibility can change.
-	SourcePolicy      bool // Implements the acknowledged source-policy lifecycle.
-	OriginIntake      bool // Implements the joined scoped-origin mutation callback.
-	CurrentSelection  bool // Answers current desired selection independently of ordinary callbacks.
-	EventSettlement   bool // Acknowledges asynchronous work after event application.
-	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
-	ApplyBudget       int  // Estimated apply time in seconds (0 = trivial)
-	StartedHandler    bool // Post-ready initialization must complete before the next tier.
+	ConfigReads           []string
+	ConfigOperations      []rpc.ConfigOperationDecl
+	ConfigCompletion      bool // Retains undo until acknowledged whole-reload completion.
+	SourcePolicyOwner     bool // Retains state whose source eligibility can change.
+	SourcePolicy          bool // Implements the acknowledged source-policy lifecycle.
+	OriginIntake          bool // Implements the joined scoped-origin mutation callback.
+	CurrentSelection      bool // Answers current desired selection independently of ordinary callbacks.
+	OriginAdmissionLookup bool // Answers read-only original accepted redistribution records.
+	EventSettlement       bool // Acknowledges asynchronous work after event application.
+	VerifyBudget          int  // Estimated verify time in seconds (0 = trivial)
+	ApplyBudget           int  // Estimated apply time in seconds (0 = trivial)
+	StartedHandler        bool // Post-ready initialization must complete before the next tier.
 	// DrainBudget is the longest the plugin's stop drain handler may take,
 	// declared at Stage 1 and checked there against rpc.DrainCeilingSeconds.
 	// Zero means the plugin takes no part in the stop drain, so the server
