@@ -26,19 +26,29 @@ import (
 func readOneReport(t *testing.T, body func()) string {
 	t.Helper()
 	reportedOnce.Store(false)
-	reader, writer, err := os.Pipe()
+	// The synchronous callback is the finite writer. Its owned file is closed
+	// before reading, so a full pipe or one short read cannot lose the report.
+	capture := filepath.Join(t.TempDir(), "stderr")
+	func() {
+		writer, err := os.Create(capture)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if err := writer.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
+		previousStderr := os.Stderr
+		os.Stderr = writer
+		defer func() { os.Stderr = previousStderr }()
+		body()
+	}()
+	report, err := os.ReadFile(capture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	old := os.Stderr
-	os.Stderr = writer
-	body()
-	os.Stderr = old
-	_ = writer.Close()
-	report := make([]byte, 512)
-	n, _ := reader.Read(report)
-	_ = reader.Close()
-	return string(report[:n])
+	return string(report)
 }
 
 func TestRunDispatchesRegisteredDriver(t *testing.T) {
