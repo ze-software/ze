@@ -64,6 +64,11 @@ var retiredRecords = [...]retiredRecord{
 	{path: "rfc/audit/", why: "RFC audit verdicts record the carrier commands they judged, and the renames those carriers went through"},
 	{path: "rfc/discrimination/", why: "discrimination records carry the break the recorder applied on the day it ran, the halt text naming the command of that day included"},
 	{path: "plan/records/", why: "historical records retain the commands and paths of their day"},
+	{path: "plan/post-release/engineering/tooling-one-off-evidence.md", why: "recovered historical diagnostics explicitly retain original producers, not rerun instructions"},
+	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/bench_test.go.txt", why: retiredRebootSnapshotWhy},
+	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/unfinished/internal/le/perf/bench_test.go.txt", why: retiredRebootSnapshotWhy},
+	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/site/terminaldemo/terminaldemo_test.go.txt", why: retiredRebootSnapshotWhy},
+	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/unfinished/internal/le/site/terminaldemo/terminaldemo_test.go.txt", why: retiredRebootSnapshotWhy},
 	{
 		path: "internal/le/doc/check/testdata/doc_citation_baseline.txt",
 		why:  "the link gate's baseline lists the dead paths that historical records already carried",
@@ -90,6 +95,10 @@ var retiredRecords = [...]retiredRecord{
 	},
 }
 
+// The README and manifest beside these four snapshots identify their original
+// commits and digests. Those live instructions are still swept.
+const retiredRebootSnapshotWhy = "an inert source snapshot identified by original commit and digest, not an installed caller"
+
 // retiredException is one declared use of an old spelling that names
 // something else: a word that happens to be spelled as a retired name.
 type retiredException struct {
@@ -114,6 +123,122 @@ const discordChannelWhy = "the Discord channel named ze-test, not the harness bi
 const retiredHookNegativeWhy = "the hook test feeds the retired name to prove the deleted harness admission refuses nothing"
 
 var retiredExceptions = [...]retiredException{
+	{
+		file:  "internal/test/fixture/register_le_evidence_answers.go",
+		old:   "le evidence",
+		lines: []string{"// register_le_evidence_answers.go registers the le evidence and deployment"},
+		why:   "the evidence-answers scenario's description, not a command invocation",
+	},
+	{
+		file: "plan/post-release/engineering/spec-structure-checkin.md",
+		old:  "le functional",
+		lines: []string{
+			"- a le functional test for the command, beside the consistency fixture",
+			"the scoped package tests under `./le job run`, the le functional test,",
+		},
+		why: "functional describes the kind of test the spec requires, not a command spelling",
+	},
+	{
+		file:  "plan/release/fixes/spec-firewall-vpp-apply-before-connect.md",
+		old:   "le deployment",
+		lines: []string{"(the row's `./le deployment vpp-test` is a retired name for it)"},
+		why:   "the spec identifies the old spelling quoted by its journal row beside its current replacement",
+	},
+	{
+		file:  "internal/le/one_off_proof_test.go",
+		old:   "le verify status write",
+		lines: []string{"// write` to `update`, `le verify status write` to `record` and the `le test"},
+		why:   "the regression test records the defective rename its map assertions prevent",
+	},
+	{
+		file:  "internal/le/heavytool/lewords_test.go",
+		old:   retiredZeTest,
+		lines: []string{`{"/x/ze-test le exec go test", "exec go test", true},`},
+		why:   "the recognizer intentionally accepts the le personality under any ze-prefixed executable name",
+	},
+	{
+		file:  "internal/le/weekly/answer_test.go",
+		old:   retiredZeTest,
+		lines: []string{`{"source", "/posts/report.md", "channel", "ze-test", "confirm", "force", "date-stamp"},`},
+		why:   discordChannelWhy,
+	},
+	{
+		file:  "plan/post-release/engineering/spec-le-session-clean-preserves-active-harnesses.md",
+		old:   retiredZeTest,
+		lines: []string{"Planned. Read `ze-test` before authoring"},
+		why:   "the ze-test skill required before authoring a functional test, not the retired binary",
+	},
+	{
+		file:  "internal/le/hookruntime/bash_test.go",
+		old:   retiredLeTest,
+		lines: []string{`[]string{"./le job run label le-test quiet command ./le test functional gating\n"}},`},
+		why:   "le-test is the job label; the actual command is le test functional",
+	},
+	{
+		file:  "internal/le/job/overview.go",
+		old:   retiredLeTest,
+		lines: []string{"LeTestProcesses Reading `json:\"le-test-processes\"`"},
+		why:   "the JSON key of the measured le test process count, not an executable name",
+	},
+	{
+		file:  "internal/le/job/overview_test.go",
+		old:   retiredLeTest,
+		lines: []string{`"le-test-processes":      3,`},
+		why:   "the expected JSON measurement key, not an executable name",
+	},
+	{
+		file:  "internal/le/test/redwalk/probe/probe.go",
+		old:   retiredLeTest,
+		lines: []string{"// (test/ui/le-test-redwalk.ci): one function and the test that guards it."},
+		why:   "the retained functional-test filename, not the retired harness",
+	},
+	{
+		file: "plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md",
+		old:  retiredLeTest,
+		lines: []string{
+			"`test/ui/le-test-cost.ci`",
+			"`./le test ui --pattern le-test-cost`",
+		},
+		why: "the functional-test filename or selection pattern, not an executable name",
+	},
+	{
+		file:  "docs/architecture/testing/interop.md",
+		old:   retiredZePeer,
+		lines: []string{"A `ze-peer.conf` starts a second Ze daemon, the peer `ze-peer`, where no"},
+		why:   "the configured name of a second Ze daemon, not the retired runner exec head",
+	},
+	{
+		file:  "internal/test/peer/stop_reading_test.go",
+		old:   retiredZePeer,
+		lines: []string{`t.Fatal("ze-peer did not claim option=stop-reading")`},
+		why:   "the peer option parser's diagnostic, not a command invocation",
+	},
+	{
+		file: "plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md",
+		old:  retiredZePeer,
+		lines: []string{
+			"The runner's own parse of a `ze-peer` `expect=` line fails;",
+			"→ Constraint: `ze-peer` owns its peer block;",
+			"if `ze-peer` were not to refuse the same line,",
+			"| `ze-peer` expectation parser |",
+			"| Runner ↔ `ze-peer` |",
+			"A-1 | `ze-peer` refuses an `expect=` line",
+			"but `ze-peer` does |",
+		},
+		why: "the spec's dated observations and assumptions about the peer parser, not rerun commands",
+	},
+	{
+		file:  "test/reload/reload-add-peer-role-capability.ci",
+		old:   retiredZePeer,
+		lines: []string{"# ze announces Role customer; ze-peer would mirror it, so peer-b answers with"},
+		why:   "the peer's protocol behavior; the fixture runs through the current harness",
+	},
+	{
+		file:  "test/reload/reload-softver-removed-restarts.ci",
+		old:   retiredZePeer,
+		lines: []string{"# Initial config: peer1 advertises software-version; ze-peer mirrors it."},
+		why:   "the peer's protocol behavior; the fixture runs through the current harness",
+	},
 	{file: "internal/le/hookruntime/bash_test.go", old: retiredZeTest, lines: []string{"\"ze-test bgp plugin 42\","}, why: retiredHookNegativeWhy},
 	{file: "internal/le/hookruntime/bash_test.go", old: retiredLeTest, lines: []string{"\"grep -n 'le-test bgp' internal/le/hookruntime/bash.go\","}, why: retiredHookNegativeWhy},
 	{

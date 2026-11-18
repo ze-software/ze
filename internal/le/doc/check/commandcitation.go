@@ -128,6 +128,7 @@ var citationExceptions = [...]citationException{
 			"`le go lint`, not `le go-lint`",
 			"`le cli stdio`, not `le cli-stdio`",
 			"as in `le spec nosuch`, is a mistake",
+			"(`le unit test` names `le test unit`)",
 		},
 		why: citationRefusedWhy,
 	},
@@ -142,6 +143,19 @@ var citationExceptions = [...]citationException{
 		why:   citationSentenceWhy,
 	},
 	{file: "internal/le/verify/dispatch/dispatch.go", lines: []string{`"le does not own root "`}, why: citationSentenceWhy},
+	{
+		file:  "internal/le/feature/recordrun.go",
+		lines: []string{`testqemu.KeywordGuestLe, le, "timeout", guestCommandTimeout,`},
+		why:   "le is the value of the guest-le keyword in an argv already opened on the preceding line, not its program",
+	},
+	{
+		file: "internal/le/rfc/weekly_source.go",
+		lines: []string{
+			`fromLe, err := endpointLeOf(ctx, "from", events.FromDir, events.WorkDir)`,
+			`toLe, err := endpointLeOf(ctx, "to", events.ToDir, events.WorkDir)`,
+		},
+		why: "endpointLeOf builds an executable; from and to identify its endpoint rather than commands it runs",
+	},
 }
 
 // citationSentenceWhy is the reason of an error string that opens with le as

@@ -124,8 +124,10 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 	// that is too narrow making a rewrite falsify history.
 	const line = "./le test-unit all\n"
 	files := map[string]string{
-		"plan/post-release/engineering/spec-other.md": line,
-		"internal/le/le/root/retired_extra.go":        line,
+		"plan/post-release/engineering/spec-other.md":                                               line,
+		"internal/le/le/root/retired_extra.go":                                                      line,
+		"plan/post-release/engineering/tooling-one-off-reboot-assets/README.md":                     line,
+		"plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/live.go": line,
 	}
 	var skipped []string
 	for _, path := range retiredDeclarations {
@@ -147,7 +149,12 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, path := range []string{"plan/post-release/engineering/spec-other.md", "internal/le/le/root/retired_extra.go"} {
+	for _, path := range []string{
+		"plan/post-release/engineering/spec-other.md",
+		"internal/le/le/root/retired_extra.go",
+		"plan/post-release/engineering/tooling-one-off-reboot-assets/README.md",
+		"plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/live.go",
+	} {
 		if !retiredFound(report, "le test-unit", path, 1) {
 			t.Errorf("%s:1 is not listed; the file matched %v", path, retiredLinesOf(report, path))
 		}
@@ -336,6 +343,10 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 	// that does not carry its spelling) or that hides the spelling in every
 	// file. A new exception with no sample line fails here.
 	samples := map[string]string{
+		"le evidence":                 "./le evidence check",
+		"le functional":               "./le functional gating",
+		"le deployment":               "./le deployment vpp-test",
+		"le verify status write":      "./le verify status write",
 		"ze-test":                     "exec=ze-test bgp plugin",
 		"ze_test":                     "//go:build ze_test",
 		"le rules":                    "./le rules index-update",
@@ -406,31 +417,35 @@ func TestRetiredExceptionCoversOnlyItsLines(t *testing.T) {
 	// so a live `./le verify lock` added anywhere in running-commands.md, the
 	// page that quotes the refusal, would pass the gate.
 	samples := map[string]string{
-		"ze-test":               "exec=ze-test bgp plugin",
-		"ze_test":               "//go:build ze_test",
-		"le rules":              "./le rules index-update",
-		"le qemu":               "./le qemu run",
-		"ze-terminal-pty":       "go build -o bin/ze-terminal-pty ./cmd/ze-terminal-pty",
-		"le.test.bin":           "LE_TEST_BIN=/stale/harness",
-		"ze.test.bin":           "ZE_TEST_BIN=/stale/harness",
-		"le.qemu.test.bin":      "LE_QEMU_TEST_BIN=/stale/harness",
-		"ze.qemu.test.bin":      "ZE_QEMU_TEST_BIN=/stale/harness",
-		"le-test":               "exec=le-test bgp plugin",
-		"bin/le-test":           "run bin/le-test ospf",
-		"ze-perf":               "ze-perf report results.json",
-		"ze-perf-run":           "go build -o bin/ze-perf-run ./cmd/ze-perf-run",
-		"ze-analyze":            "bin/ze-analyze density",
-		"ze-chaos":              "exec=ze-chaos --quiet",
-		"ze_chaos":              "//go:build ze_chaos",
-		"ze.test.no.build":      "ZE_TEST_NO_BUILD=1",
-		"ze-peer":               "exec=ze-peer --mode sink",
-		"bin/ze-perf":           "run bin/ze-perf track --check",
-		"le tracked":            "./le tracked",
-		"le dash-stdio":         "./le dash-stdio",
-		"le verify lock":        "./le verify lock",
-		"le rollback newest":    "./le rollback newest",
-		"le spec session":       "./le spec session",
-		"le spec session claim": "./le spec session claim spec x",
+		"le evidence":            "./le evidence check",
+		"le functional":          "./le functional gating",
+		"le deployment":          "./le deployment vpp-test",
+		"le verify status write": "./le verify status write",
+		"ze-test":                "exec=ze-test bgp plugin",
+		"ze_test":                "//go:build ze_test",
+		"le rules":               "./le rules index-update",
+		"le qemu":                "./le qemu run",
+		"ze-terminal-pty":        "go build -o bin/ze-terminal-pty ./cmd/ze-terminal-pty",
+		"le.test.bin":            "LE_TEST_BIN=/stale/harness",
+		"ze.test.bin":            "ZE_TEST_BIN=/stale/harness",
+		"le.qemu.test.bin":       "LE_QEMU_TEST_BIN=/stale/harness",
+		"ze.qemu.test.bin":       "ZE_QEMU_TEST_BIN=/stale/harness",
+		"le-test":                "exec=le-test bgp plugin",
+		"bin/le-test":            "run bin/le-test ospf",
+		"ze-perf":                "ze-perf report results.json",
+		"ze-perf-run":            "go build -o bin/ze-perf-run ./cmd/ze-perf-run",
+		"ze-analyze":             "bin/ze-analyze density",
+		"ze-chaos":               "exec=ze-chaos --quiet",
+		"ze_chaos":               "//go:build ze_chaos",
+		"ze.test.no.build":       "ZE_TEST_NO_BUILD=1",
+		"ze-peer":                "exec=ze-peer --mode sink",
+		"bin/ze-perf":            "run bin/ze-perf track --check",
+		"le tracked":             "./le tracked",
+		"le dash-stdio":          "./le dash-stdio",
+		"le verify lock":         "./le verify lock",
+		"le rollback newest":     "./le rollback newest",
+		"le spec session":        "./le spec session",
+		"le spec session claim":  "./le spec session claim spec x",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
