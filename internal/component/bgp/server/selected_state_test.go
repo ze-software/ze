@@ -19,24 +19,26 @@ import (
 )
 
 type selectedStateObservation struct {
-	process  string
-	selected bool
-	session  uint64
-	replay   uint64
+	process             string
+	selected            bool
+	session             uint64
+	replay              uint64
+	ordinaryReplayOwned bool
 }
 
-func selectedStateObservationJSON(name string, value string) (selectedStateObservation, error) {
+func selectedStateObservationJSON(name, value string) (selectedStateObservation, error) {
 	var event struct {
 		BGP struct {
-			Selected bool   `json:"selected-destination"`
-			Session  uint64 `json:"destination-session,string"`
-			Replay   uint64 `json:"initial-replay,string"`
+			Selected            bool   `json:"selected-destination"`
+			Session             uint64 `json:"destination-session,string"`
+			Replay              uint64 `json:"initial-replay,string"`
+			OrdinaryReplayOwned bool   `json:"ordinary-replay-owned"`
 		} `json:"bgp"`
 	}
 	if err := json.Unmarshal([]byte(value), &event); err != nil {
 		return selectedStateObservation{}, err
 	}
-	return selectedStateObservation{process: name, selected: event.BGP.Selected, session: event.BGP.Session, replay: event.BGP.Replay}, nil
+	return selectedStateObservation{process: name, selected: event.BGP.Selected, session: event.BGP.Session, replay: event.BGP.Replay, ordinaryReplayOwned: event.BGP.OrdinaryReplayOwned}, nil
 }
 
 func selectedStateBridgeProcess(t *testing.T, name string, observations chan<- selectedStateObservation) *process.Process {
@@ -57,7 +59,7 @@ func selectedStateBridgeProcess(t *testing.T, name string, observations chan<- s
 						return errors.New("state delivery did not carry a structured event")
 					}
 					observations <- selectedStateObservation{process: name, selected: event.SelectedDestination,
-						session: event.DestinationSession, replay: event.InitialReplay}
+						session: event.DestinationSession, replay: event.InitialReplay, ordinaryReplayOwned: event.OrdinaryReplayOwned}
 				}
 				return nil
 			})
@@ -167,7 +169,7 @@ func TestSelectedDestinationDeliveryTransports(t *testing.T) {
 				var cache formatCache
 				var scratch [512]byte
 				deliverPeerState(s, &peer, processes, nil, state, reason, false, &cache, &scratch)
-				for range len(processes) {
+				for range processes {
 					select {
 					case observation := <-observations:
 						require.Equal(t, token, observation.session)

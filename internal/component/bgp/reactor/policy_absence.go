@@ -20,8 +20,12 @@ type PolicyAbsence struct {
 // A config caller supplies its validated graph result; a live caller supplies
 // its captured dissemination publication. Names and client flags grant nothing.
 func PolicyAbsences(settings *PeerSettings, owner pluginserver.DisseminationOwner) []PolicyAbsence {
-	var absences []PolicyAbsence
-	for _, absent := range RFC8212Absences(settings) {
+	rfcAbsences := RFC8212Absences(settings)
+	if len(rfcAbsences) == 0 {
+		return learnedExportAbsences(settings, owner)
+	}
+	absences := make([]PolicyAbsence, 0, len(rfcAbsences))
+	for _, absent := range rfcAbsences {
 		absences = append(absences, PolicyAbsence{Direction: absent.Direction, Message: absent.Message, Fix: absent.Fix,
 			Code: diagnostic.CodeDoctorBGPRFC8212NoPolicy})
 	}

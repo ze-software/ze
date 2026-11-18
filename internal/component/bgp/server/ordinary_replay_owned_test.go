@@ -52,7 +52,7 @@ func TestOrdinaryReplayOwnedDeliveryTransports(t *testing.T) {
 					var cache formatCache
 					var scratch [512]byte
 					deliverPeerState(s, &peer, processes, nil, scenario.state, rpc.ReasonAttached, false, &cache, &scratch)
-					for range len(processes) {
+					for range processes {
 						select {
 						case got := <-observations:
 							require.Equal(t, scenario.want, got.ordinaryReplayOwned)

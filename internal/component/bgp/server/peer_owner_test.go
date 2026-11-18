@@ -20,7 +20,9 @@ func TestStructuredEventsKeepEventPeerOwnerSeparate(t *testing.T) {
 	message := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, Direction: rpc.DirectionSent, SourceOwner: 702}
 	event := getStructuredEvent(&peer, &message)
 	require.Equal(t, peer.PeerOwner, event.PeerOwner)
-	require.Equal(t, uint64(702), event.RawMessage.(*bgptypes.RawMessage).SourceOwner)
+	raw, ok := event.RawMessage.(*bgptypes.RawMessage)
+	require.True(t, ok, "structured event must retain the typed raw message")
+	require.Equal(t, uint64(702), raw.SourceOwner)
 	rpc.PutStructuredEvent(event)
 	event = getStructuredStateEvent(&peer, rpc.SessionStateUp, "", nil)
 	require.Equal(t, peer.PeerOwner, event.PeerOwner)

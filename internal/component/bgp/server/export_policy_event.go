@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -35,16 +36,18 @@ func (d *EventDispatcher) OnPeerExportPolicy(ctx context.Context, peer *plugin.P
 	projected.InitialReplay = 0
 	results := make(chan process.EventResult, 1)
 	delivery := process.EventDelivery{Result: results}
+	var structured *rpc.StructuredEvent
 	if proc.HasStructuredHandler() {
-		delivery.Event = getStructuredStateEvent(&projected, rpc.SessionStateUp, rpc.ReasonExportPolicy, nil)
+		structured = getStructuredStateEvent(&projected, rpc.SessionStateUp, rpc.ReasonExportPolicy, nil)
+		delivery.Event = structured
 	} else {
 		var scratch [512]byte
 		delivery.Output = string(format.AppendStateChange(scratch[:0], &projected, rpc.SessionStateUp,
 			rpc.ReasonExportPolicy, nil, proc.Encoding()))
 	}
 	if !proc.DeliverContext(ctx, delivery) {
-		if delivery.Event != nil {
-			rpc.PutStructuredEvent(delivery.Event.(*rpc.StructuredEvent))
+		if structured != nil {
+			rpc.PutStructuredEvent(structured)
 		}
 		if err := ctx.Err(); err != nil {
 			return err
@@ -113,11 +116,9 @@ func (d *EventDispatcher) policyEventProcess(peer *plugin.PeerInfo, owner plugin
 	if !current.SameIncarnation(owner) {
 		return nil, opererr.New("selecting policy event process incarnation changed", "Policy reconciliation requires the current ready process and its explicit peer attachment", "ze request reload")
 	}
-	for _, subscribed := range d.server.PeerScopedProcs(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
-		events.DirUnspecified, peer.AddrStr(), peer.Name) {
-		if subscribed == proc {
-			return proc, nil
-		}
+	if slices.Contains(d.server.PeerScopedProcs(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
+		events.DirUnspecified, peer.AddrStr(), peer.Name), proc) {
+		return proc, nil
 	}
 	return nil, opererr.New("selecting policy event process has no granted destination state subscription", "Policy reconciliation requires the current ready process and its explicit peer attachment", "ze request reload")
 }
