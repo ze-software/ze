@@ -130,12 +130,15 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 // RFC 3162 Section 2.5: format is "prefix[/len] gateway metric...", and a
 // gateway of :: means the subscriber itself.
 // Malformed entries are silently skipped.
+// Keep one valid entry beyond the supported limit as an overflow witness.
+// The route owner must refuse the whole update, rather than accept a truncated
+// authorization. A witness reports at least this many routes, not the full count.
 func extractFramedRoutes(resp *radius.Packet) []l2tp.FramedRoute {
 	var routes []l2tp.FramedRoute
 	for _, raw := range resp.FindAllAttr(radius.AttrFramedRoute) {
 		if r, ok := parseFramedRoute(string(raw)); ok {
 			routes = append(routes, r)
-			if len(routes) >= maxFramedRoutesPerSession {
+			if len(routes) > maxFramedRoutesPerSession {
 				return routes
 			}
 		}
@@ -143,7 +146,7 @@ func extractFramedRoutes(resp *radius.Packet) []l2tp.FramedRoute {
 	for _, raw := range resp.FindAllAttr(radius.AttrFramedIPv6Route) {
 		if r, ok := parseFramedRoute(string(raw)); ok {
 			routes = append(routes, r)
-			if len(routes) >= maxFramedRoutesPerSession {
+			if len(routes) > maxFramedRoutesPerSession {
 				return routes
 			}
 		}

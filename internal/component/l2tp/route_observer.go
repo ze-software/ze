@@ -108,6 +108,10 @@ func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tu
 		reportSessionBirthRefusal(o.logger, "route assignment", tunnelID, sessionID)
 		return
 	}
+	if len(framedRoutes) > framedRoutesMax {
+		o.reportFramedRouteRefusal(birth, tunnelID, sessionID, len(framedRoutes))
+		return
+	}
 	var prev netip.Addr
 	o.mu.Lock()
 	r := o.records[birth]

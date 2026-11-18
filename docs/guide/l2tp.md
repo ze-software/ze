@@ -1660,6 +1660,23 @@ from the original actor's captured authorization profile.
 <!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
 
+One route update accepts at most 64 RADIUS framed routes. An oversized update
+is refused before any route, contribution token or counter changes, including
+when that Birth already has accepted routes. The earlier record and other
+Births remain available for replay. Ze refuses the whole update.
+<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp -->
+<!-- source: internal/component/l2tp/route_source.go -- framedRoutesMax -->
+
+The refusal logs `doctor-l2tp-framed-route-limit` and retains an error event
+with the original Birth, numeric tunnel and session IDs, observed minimum
+route count, cause and next command. The runtime doctor reports that history.
+Correct the affected subscriber's RADIUS profile to fit the limit. Before
+reconnecting that subscriber, inspect its current session and listener.
+The next command, `ze show l2tp sessions`, lists current numeric coordinates.
+It does not edit the RADIUS profile. Later updates do not erase the event.
+<!-- source: internal/component/l2tp/route_source.go -- reportFramedRouteRefusal -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents -->
+
 Each record also retains a separate native redistribution contribution token.
 Add, replay and remove carry that same nonzero token, so equal prefixes from
 different original sessions remain independent. Tokens are allocated once per
