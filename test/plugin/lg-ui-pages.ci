@@ -3,7 +3,7 @@
 #            each return HTTP 200 and their real rendered body:
 #              handleUIPeers       GET  /lg/peers            -> "BGP Peers"
 #              handleUISearchForm  GET  /lg/search           -> "Route Search"
-#              handleUISearch      POST /lg/search           -> "Route Search"
+#              handleUISearch      POST /lg/search           -> the result count
 #              handleUISearch      POST /lg/search (bad)     -> the error banner
 #              handleUIPeerRoutes  GET  /lg/peer/{address}   -> "Routes from <addr>"
 #              handleUIRouteDetail GET  /lg/route/detail     -> "Route Detail: <prefix>"
@@ -23,10 +23,13 @@
 #   route_detail.templ <h3>Route Detail: { v.Prefix }</h3>
 #   help.templ         <h3>AS Path Graph</h3>
 #   error.templ        <div class="error-banner">{ message }</div>
+#   route_table.templ  <p class="result-count">{ formatCount(v.Count) } routes
 #
-# The "Route Search" token above is supplied by the h1, so it holds whether or
-# not the banner renders. The invalid-prefix POST is the case that reads the
-# banner, and it is the case the page got wrong until 2026-08-14: searchPage
+# The "Route Search" token is supplied by the h1, so it holds whether the search
+# answered routes, a refusal or nothing. The two search POSTs therefore read
+# what only their outcome renders: the result count of a search that reached
+# bgp-rib and found the route, and the banner of a refused one. The
+# invalid-prefix POST is the case the page got wrong until 2026-08-14: searchPage
 # rendered the results panel only when there were routes, and the banner lives
 # inside that panel. A bad prefix therefore answered 200 with an empty form
 # (plan/journal/silent-fall-through.md).
@@ -38,17 +41,24 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# POST body for handleUISearch (a prefix with no matching route: still renders the
-# full search page and exercises validate+query+render, without depending on the
-# route_results fragment shape). x-www-form-urlencoded per handleUISearch's ParseForm.
-tmpfs=lg-search.body:mode=644:terminator=EOF_BODY
-prefix=198.51.100.0/24
+# The two POST bodies are x-www-form-urlencoded, per handleUISearch's ParseForm,
+# and written in base64 so the file holds exactly the bytes a browser sends.
+# A text tmpfs block ends every line with a newline (internal/test/tmpfs,
+# parseTmpfsBlock), and url.ParseQuery keeps that newline in the last field's
+# value: the page then answered for "not-a-prefix\n", and for
+# "198.51.100.0/24\n", which no browser sends from a one-line input.
+
+# prefix=10.20.3.0/24: one of the 15 prefixes the observer injects, so the
+# search validates, asks bgp-rib for exactly that prefix and renders its route.
+tmpfs=lg-search.body:mode=644:encoding=base64:terminator=EOF_BODY
+cHJlZml4PTEwLjIwLjMuMC8yNA==
 EOF_BODY
 
-# POST body carrying a prefix isValidPrefix rejects. handleUISearch answers it
-# through renderSearchError, so the response must carry the error banner.
-tmpfs=lg-search-invalid.body:mode=644:terminator=EOF_BAD_BODY
-prefix=not-a-prefix
+# prefix=not-a-prefix: neither an address nor a prefix, so parsePrefixLookup
+# refuses it and handleUISearch answers through renderSearchError, which
+# puts the operator error in the banner.
+tmpfs=lg-search-invalid.body:mode=644:encoding=base64:terminator=EOF_BAD_BODY
+cHJlZml4PW5vdC1hLXByZWZpeA==
 EOF_BAD_BODY
 
 # Native observer injects 15 distinct prefixes and stays attached until shutdown.
@@ -134,8 +144,10 @@ http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/peers:status=200:contains=BGP Peer
 # --- handleUISearchForm: search form page (GET) ---
 http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route Search
 
-# --- handleUISearch: search submission (POST) still renders the search page ---
-http=post:seq=3:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route Search:sendfile=lg-search.body:content-type=application/x-www-form-urlencoded
+# --- handleUISearch: a search for an injected prefix lists its one route.
+#     The result count renders only when bgp-rib answered routes, so a refused
+#     or empty search fails here. ---
+http=post:seq=3:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=result-count">1 routes:sendfile=lg-search.body:content-type=application/x-www-form-urlencoded
 
 # --- handleUIPeerRoutes: per-peer routes page (127.0.0.1 is the configured peer,
 #     so findPeer resolves it from `show bgp`); Title = "Routes from 127.0.0.1" ---
@@ -149,5 +161,7 @@ http=get:seq=6:url=http://127.0.0.1:$PORT2/lg/help:status=200:contains=AS Path G
 
 # --- handleUISearch: an invalid prefix reaches the operator as a banner.
 #     The token pins the banner element AND the message inside it, so a page
-#     that renders the form alone fails here. ---
-http=post:seq=7:url=http://127.0.0.1:$PORT2/lg/search:status=200:sendfile=lg-search-invalid.body:content-type=application/x-www-form-urlencoded:contains=error-banner">invalid prefix format
+#     that renders the form alone fails here. The message is the first line
+#     of the operator error parsePrefixLookup builds
+#     (internal/component/lg/prefix_lookup.go), which names the value. ---
+http=post:seq=7:url=http://127.0.0.1:$PORT2/lg/search:status=200:sendfile=lg-search-invalid.body:content-type=application/x-www-form-urlencoded:contains=error-banner">prefix not-a-prefix is not an IP address or a prefix

@@ -1,0 +1,110 @@
+# Test: Looking glass lists every route covering an address, most specific first
+# VALIDATES: against the real bgp-rib, with two peers holding nested prefixes
+#            (10.0.1.1: 10.0.0.0/8, 10.1.0.0/16, 0.0.0.0/0, 192.0.2.0/24,
+#            192.0.0.0/2, 192.0.0.0/24; 10.0.1.2: 10.0.0.0/8, 192.0.2.0/24),
+#            asked for the address 10.1.2.3, the search page (handleUISearch)
+#            and the birdwatcher endpoints routes/prefix and routes/search
+#            (handleAPIRoutesPrefix, internal/component/lg/handler_api.go) each
+#            list the four covering routes, 10.1.0.0/16 before 10.0.0.0/8
+#            before 0.0.0.0/0 for the peer holding all three, and never
+#            192.0.2.0/24; asked for 10.0.0.0/8 they list that prefix once per
+#            peer and nothing else; asked for 192.0.0.0/2, and for 192.0.0.1/2
+#            whose host bits the looking glass clears, they list 192.0.0.0/2
+#            and not 192.0.0.0/24.
+# PREVENTS: the looking glass sending a host address as the text filter
+#           `prefix 10.1.2.3`, which finds only a 10.1.2.3/32 route and never
+#           the prefix containing it, while its help, guide and API contract
+#           promise a containment lookup; and sending a prefix as the text
+#           filter `prefix 192.0.0.0/2`, which also lists 192.0.0.0/24
+#           (spec-lg-search-matches-what-the-pages-promise AC-1, AC-2, AC-3).
+#
+# WHY A FUNCTIONAL TEST: the package tests feed bgp-rib's answers through a
+# fake (internal/component/lg/ribfake_test.go). Only the real plugin proves
+# that `covering` and `exact` are keywords it accepts and that its rows come
+# in the order the pages describe.
+#
+# WHY A PLUGIN-DRIVEN HTTP CHECK (not an http= directive): the runner's http=
+# check matches a substring, and the assertion is an order of rows within each
+# peer and the absence of one prefix. The native fixture
+# (internal/test/fixture/lg_covering_lookup.go) injects the routes, asks each
+# question, and returns an error naming the rows it got when they differ.
+# ZE_LG_PORT reaches the external fixture through the daemon's inherited
+# environment (internal/component/plugin/process/process.go).
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+# ze bgp configuration with LG enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-covering {
+		run "le test fixture plugin/lg-covering-lookup"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out (spec-fixit-mgmt-listener-auth-guard AC-5).
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The fixture prints this only after every question answered as expected; a
+# failed one returns an error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: covering and exact lookups listed the expected rows

@@ -37,6 +37,8 @@ func init() {
 	Register("plugin/l2tp-statistics-show-peer", l2tpPeer09(false))
 	Register("plugin/l2tp-tunnel-detail-show-peer", l2tpPeer09(false))
 	Register("plugin/l2tp-tunnels-show-peer", l2tpPeer09(false))
+	Register("plugin/lg-aspath-search", lgASPathSearch, StopsDaemon)
+	Register("plugin/lg-covering-lookup", lgCoveringLookup, StopsDaemon)
 	Register("plugin/lg-csv-download", lgCSVDownload09, StopsDaemon)
 	Register("plugin/lg-paginate", lgInjectRoutes09("lg-paginate"))
 	Register("plugin/lg-ui-pages", lgInjectRoutes09("lg-ui-pages"))

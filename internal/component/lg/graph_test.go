@@ -1,6 +1,7 @@
 package lg
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
@@ -286,4 +287,55 @@ func TestRenderGraphText(t *testing.T) {
 	if !strings.Contains(text, "edge AS65001 -> AS65002") {
 		t.Error("should contain edge")
 	}
+}
+
+// TestGraphSendsCoveringForBareAddress proves the graph asks bgp-rib what the
+// search table asked for the same prefix field, so it draws the routes the
+// table lists.
+//
+// VALIDATES: a bare address is sent as `covering <address>` and draws the AS
+// path of the received route containing it (65001 then 65002); an address no
+// received route contains draws nothing; a prefix with its length is sent as
+// `exact <prefix>` and draws that prefix alone, so 10.0.0.0/2 draws nothing
+// while the text filter would have drawn 10.0.0.0/24; an IPv4 length of 33
+// answers 400 and sends nothing.
+// PREVENTS: an empty graph under a full result table
+// (spec-lg-search-matches-what-the-pages-promise AC-4).
+func TestGraphSendsCoveringForBareAddress(t *testing.T) {
+	cases := []struct {
+		name, prefix, command, body string
+	}{
+		{"bare address", "10.0.0.1", "show bgp rib received covering 10.0.0.1", "edge AS65001 -> AS65002"},
+		{"address no received route contains", "192.0.2.1", "show bgp rib received covering 192.0.2.1", "No routes found"},
+		{"prefix with its length", "10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", "edge AS65001 -> AS65002"},
+		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib received exact 0.0.0.0/2", "No routes found"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, commands := lookupRequest(t, "/lg/graph?format=text&prefix="+tc.prefix, "")
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+			}
+			rib := ribCommands(commands)
+			if len(rib) != 1 || rib[0] != tc.command {
+				t.Fatalf("rib commands = %q, want [%q]", rib, tc.command)
+			}
+			if !strings.Contains(rec.Body.String(), tc.body) {
+				t.Errorf("graph does not hold %q:\n%s", tc.body, rec.Body.String())
+			}
+		})
+	}
+
+	t.Run("ipv4 length past 32", func(t *testing.T) {
+		rec, commands := lookupRequest(t, "/lg/graph?format=text&prefix=10.0.0.0/33", "")
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400; body %s", rec.Code, rec.Body.String())
+		}
+		if rib := ribCommands(commands); len(rib) != 0 {
+			t.Fatalf("an invalid prefix reached bgp-rib: %q", rib)
+		}
+		if !strings.Contains(rec.Body.String(), "an IPv4 prefix length is 0 to 32") {
+			t.Errorf("refusal does not give the bound: %s", rec.Body.String())
+		}
+	})
 }

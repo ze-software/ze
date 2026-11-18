@@ -1,0 +1,108 @@
+# Test: Looking glass searches an AS path typed with spaces, in the engine's grammar
+# VALIDATES: against the real bgp-rib, with one peer holding 10.30.1.0/24
+#            (AS path 65001 65002 65003), 10.30.2.0/24 (64999 65001 65002),
+#            10.30.3.0/24 (65002 65001) and 10.30.4.0/24 (65001), the search
+#            page (handleUISearch, internal/component/lg/handler_ui.go) asked
+#            for "65001 65002" lists 10.30.1.0/24 and 10.30.2.0/24 and leaves
+#            out the reverse order; asked for "^65001" it lists 10.30.1.0/24
+#            and 10.30.4.0/24, the paths starting with 65001; asked for
+#            "^65001 65002" it lists 10.30.1.0/24; asked for "65001$" it
+#            answers the error banner that names the value, the form the
+#            field takes, and the example 65001 65002.
+# PREVENTS: the page sending a spaced AS path as several tokens, which
+#           bgp-rib refuses as an unknown keyword, and accepting characters
+#           the engine cannot match
+#           (spec-lg-search-matches-what-the-pages-promise AC-8, AC-9, AC-10).
+#
+# WHY A FUNCTIONAL TEST: the package tests feed bgp-rib's answers through a
+# fake (internal/component/lg/ribfake_test.go), and the page's check
+# (parseASPathPattern) cannot call the engine's validatePathPattern from the
+# looking glass, which imports no RIB package. Only the real plugin proves
+# that the comma form the page writes is the one matchASPath reads, and that
+# the run is ordered and anchored as the pages describe.
+#
+# WHY A PLUGIN-DRIVEN HTTP CHECK (not an http= directive): the runner's http=
+# check matches a substring, and the assertion is the set of rows each search
+# lists, absences included. The native fixture
+# (internal/test/fixture/lg_aspath_search.go) injects the routes, asks each
+# question, and returns an error naming the rows it got when they differ.
+# ZE_LG_PORT reaches the external fixture through the daemon's inherited
+# environment (internal/component/plugin/process/process.go).
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+# ze bgp configuration with LG enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-aspath {
+		run "le test fixture plugin/lg-aspath-search"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out (spec-fixit-mgmt-listener-auth-guard AC-5).
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The fixture prints this only after every search answered as expected; a
+# failed one returns an error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: AS path searches listed the routes of the run and refused the end anchor

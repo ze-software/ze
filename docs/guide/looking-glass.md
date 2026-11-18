@@ -102,10 +102,39 @@ set `tls false`). No authentication is required unless you set `token`.
 |------------|-----|-------------|
 | Peers tab | `/lg/peers` | All peers with state, ASN names (Team Cymru), route counts. Live SSE updates. |
 | Lookup tab | `/lg/lookup` | Prefix/IP lookup with inline all-peers AS path topology graph (SVG). |
-| Search tab | `/lg/search` | Unified search: prefix, AS path pattern, or community. Type selector. |
+| Search tab | `/lg/search` | Unified search: prefix, AS path, or community. Type selector. |
 | Per-peer routes | `/lg/peer/{address}` | Routes received from a specific peer (inline below peers table). |
 | Route detail | `/lg/route/detail` | Expanded route attributes (HTMX fragment, click-to-expand). |
 | AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology from all peers (auto-loaded on lookup). |
+
+The prefix field of the search, the graph and the API's `prefix` parameter
+read the value the same way:
+
+| You type | The looking glass lists | Sent to `bgp-rib` |
+|----------|------------------------|-------------------|
+| A prefix with its length, such as `10.0.0.0/8` | The routes of exactly that prefix, never a longer prefix inside it. Host bits are cleared first, so `10.0.0.1/8` asks for `10.0.0.0/8` | `show bgp rib received exact 10.0.0.0/8` |
+| A bare address, such as `10.1.2.3` or `2001:db8::1` | Every route whose prefix contains the address, the most specific prefix first for each peer, so a default route comes last | `show bgp rib received covering 10.1.2.3` |
+| Anything else, or a length past 32 (IPv4) or 128 (IPv6) | Nothing: the page shows the value, why it is refused, and a valid form | Nothing |
+
+An address finds IPv4 and IPv6 routes only. Routes keyed by a route
+distinguisher, such as VPN routes, are not searched this way.
+
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup, prefixLookup.receivedCommand -->
+
+The AS path field of the search takes AS numbers separated by spaces, as a
+router prints a path:
+
+| You type | The looking glass lists | Sent to `bgp-rib` |
+|----------|------------------------|-------------------|
+| `65001 65002` | The routes whose path holds 65001 directly followed by 65002, anywhere in the path. A path holding 65002 then 65001 is not listed | `path 65001,65002` |
+| `^65001` | The routes whose path starts with 65001 | `path ^65001` |
+| `^65001 65002` | The routes whose path starts with 65001 then 65002 | `path ^65001,65002` |
+| `65001$`, `(65001\|65002)`, or any other pattern character | Nothing: the page names the value and says the field takes AS numbers separated by spaces, with an optional leading `^` | Nothing |
+
+Commas work as separators too. An AS number may be written as `65546` or as
+`1.10`, and is sent as `65546`.
+
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 
 Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.
 
@@ -113,10 +142,18 @@ When the engine cannot answer, a page says so. The peers and search pages show
 a banner. The per-peer page, its download, the route detail and the graph
 answer 502 (the command failed) or 503 (the engine answered nothing usable)
 instead of a "not found" or an empty result. The message names the command and
-the kind of failure. The full reason is in the daemon log.
+the kind of failure on its first line, says why there is no answer on the
+second, and ends with the command that shows the full reason from the daemon
+log:
+
+```
+show bgp: engine error
+the engine failed or refused this command, so there is no answer to show
+fix: ze show log recent level warn component lg.server
+```
 
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
-<!-- source: internal/component/lg/server.go -- ask, engineFailure -->
+<!-- source: internal/component/lg/server.go -- ask, engineFailure, engineRefusal -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 
 ## Birdwatcher REST API
@@ -130,15 +167,15 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 | `GET /api/looking-glass/routes/protocol/{name}` | Routes from a named peer. |
 | `GET /api/looking-glass/routes/table/{family}` | Best routes by address family (URL-encode the `/` in family, e.g., `ipv4%2Funicast`). |
 | `GET /api/looking-glass/routes/filtered/{name}` | Filtered routes per peer. |
-| `GET /api/looking-glass/routes/search?prefix=X` | Prefix lookup across all peers. |
+| `GET /api/looking-glass/routes/search?prefix=X` | Prefix lookup across all peers: the routes of exactly one prefix given with its length, or every route covering a bare address, the most specific first for each peer. `routes/prefix` answers the same. |
 
 All API responses use `Content-Type: application/json` with birdwatcher-convention `snake_case` field names (not Ze's standard `kebab-case`).
 
 An endpoint whose command fails answers 502, or 503 when the engine answered
-nothing usable, with a JSON `error` naming the command, for example
-`{"error":"show bmp peers: engine error"}` from `/protocols/bmp` on a daemon
-that runs no BMP. It never answers 200 with an empty result. The full reason is
-in the daemon log.
+nothing usable, with a JSON `error` that carries the same three lines as the
+pages, for example `show bmp peers: engine error` on the first line from
+`/protocols/bmp` on a daemon that runs no BMP. It never answers 200 with an
+empty result. The last line names the command that shows the full reason.
 <!-- source: internal/component/lg/handler_api.go -- engineAnswer, writeEngineFailure -->
 
 The per-peer route counts on `/protocols/bgp` come from the `bgp-rib` plugin's

@@ -59,8 +59,8 @@ The server MUST expose the following. All are relative to
 | `routes/export/{name}` | `routes` | Routes Ze sent a session (Section 3.2) |
 | `routes/noexport/{name}` | `routes` | Routes withheld from a session |
 | `routes/count/protocol/{name}` | `routes` | A count only: `routes` is a number, not a list. It counts what `routes/protocol/{name}` lists |
-| `routes/prefix` | `routes` | Routes peers sent Ze matching a prefix query |
-| `routes/search` | `routes` | Routes peers sent Ze matching a free query |
+| `routes/prefix` | `routes` | Routes peers sent Ze for the `prefix` parameter: the routes of exactly one prefix given with its length, or every route covering a bare address, the most specific first within each peer (Section 3.3) |
+| `routes/search` | `routes` | The same lookup as `routes/prefix`, under a Ze-specific path (Section 3.3) |
 | `routes/bmp/{name}` | `routes` | Routes seen for a BMP-monitored peer. `{name}` is a key `protocols/bmp` lists |
 
 A `{name}` or `{peer}` path segment MUST be validated before use. The server
@@ -83,13 +83,16 @@ object from a command that failed.
 The server MUST answer `502 Bad Gateway` when the engine returns an error, and
 `503 Service Unavailable` when the engine returns nothing the server can parse.
 The body MUST be a JSON object carrying `error`, and that message MUST name the
-command that failed. It names it as `<command>: <class>`, where the class is
-`engine error` (the dispatch failed, or the engine answered its error object),
-`engine unavailable` (the engine answered nothing) or `unreadable reply` (the
-answer is not a JSON object). The message MUST NOT carry the dispatcher's own
-error: this API answers anybody who can reach it, and that text can name a
-socket path or another detail of the host. The server logs the full reason.
-<!-- source: internal/component/lg/server.go -- ask, engineFailure.message -->
+command that failed. It is an operator error of three lines. The first names
+the command as `<command>: <class>`, where the class is `engine error` (the
+dispatch failed, or the engine answered its error object), `engine unavailable`
+(the engine answered nothing) or `unreadable reply` (the answer is not a JSON
+object). The second says why there is no answer. The last is
+`fix: ze show log recent level warn component lg.server`, the command that
+shows the full reason, which the server logs. The message MUST NOT carry the
+dispatcher's own error: this API answers anybody who can reach it, and that
+text can name a socket path or another detail of the host.
+<!-- source: internal/component/lg/server.go -- ask, engineRefusal, failureWhy -->
 
 Before 2026-09-20 the endpoint asked for `bgp status`, which the daemon does not
 serve. The dispatch failed on every request, and the endpoint answered 200 with
@@ -139,7 +142,8 @@ scope and MUST NOT rely on the default.
 | `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib received peer <address>` |
 | `routes/count/protocol/{name}` | `received` | `show bgp rib received peer <address> count` |
 | `routes/export/{name}` | `sent` | `show bgp rib sent peer <address>` |
-| `routes/prefix`, `routes/search` | `received` | `show bgp rib received prefix <prefix>` |
+| `routes/prefix`, `routes/search`, given a prefix with its length | `received` | `show bgp rib received exact <prefix>` |
+| `routes/prefix`, `routes/search`, given a bare address | `received` | `show bgp rib received covering <address>` |
 | `routes_received`, `routes_imported` (Section 5) | `received` | `route-counts.in` of `show bgp rib status` |
 | `routes_exported` (Section 5) | `sent` | `route-counts.out` of `show bgp rib status` |
 | UI peer page, its route rows, histogram and CSV download | `received` | `show bgp rib received peer <address>` |
@@ -171,6 +175,35 @@ with `learnt_from` naming it, and counted as learned from it.
 <!-- source: internal/component/lg/handler_ui.go -- handleUIPeerRoutes, ribCount, handleUISearch, handleUIRouteDetail -->
 <!-- source: internal/component/lg/handler_graph.go -- handleGraph -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, scopeKeywords -->
+
+### 3.3 The prefix lookup
+
+`routes/prefix`, `routes/search`, the UI search and `/lg/graph` read their
+prefix value with one rule, so the graph draws the routes the table lists and
+the API answers what the page shows:
+
+| Value | Selector sent | Rows answered |
+|-------|---------------|---------------|
+| A prefix with its length (`10.0.0.0/8`, `2001:db8::/32`) | `exact <prefix>`, its host bits cleared: `10.0.0.1/8` sends `exact 10.0.0.0/8` | The routes of exactly that prefix, never a longer prefix inside it |
+| A bare address (`10.1.2.3`, `2001:db8::1`) | `covering <address>` | Every route whose prefix contains the address, the most specific prefix first within each peer |
+| Anything else | none | 400, with an `error` that names the value, says why it is refused, and ends on a valid form |
+
+The server MUST parse the value as an address or a prefix before it builds a
+command, and the value it sends MUST be the text the parser writes for it, not
+the text the client sent: a space, a pipe or a keyword in the parameter then
+cannot reach the engine. An IPv4 length above 32 and an IPv6 length above 128
+are refused, and so is an address with a zone, because no route prefix
+carries one. A bare address answers routes of the address-keyed families only:
+a route keyed by a route distinguisher has no single order of covering
+prefixes.
+
+Before 2026-11-18 both endpoints sent every value as `prefix <value>`, which
+`bgp-rib` reads as a text match on the start of the prefix: `10.1.2.3` found a
+`10.1.2.3/32` route and never `10.0.0.0/8`, while this table called
+`routes/prefix` a containing lookup, and `192.0.0.0/2` also listed
+`192.0.0.0/24`, whose text starts the same way.
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup, prefixLookup.receivedCommand -->
+<!-- source: internal/component/lg/handler_api.go -- handleAPIRoutesPrefix -->
 
 ## 4. Response envelope
 
@@ -391,4 +424,22 @@ real `bgp-rib` and checks the table and the count over HTTP, so it is the check
 that the fake still matches the plugin. `test/plugin/lg-received-sent.ci` drives
 a session that both sends and receives routes, and checks that each endpoint in
 Section 3.2 answers its own direction.
+
+The fake parses every filter, and applies the ones a lookup test reads, each
+with the plugin's meaning: `covering`, the rows whose prefix contains the
+address, the most specific first within each peer; `exact`, the rows of that
+one prefix; `prefix`, the rows whose prefix text starts with the value; and
+`path` and `aspath`, the rows `matchASPath` keeps, the `path` value checked as
+`validatePathPattern` checks it. It refuses `covering` and `exact` where the
+plugin does: on `show bgp rib best`, on every scope but `received`, together,
+and with a value that is not the address or the masked prefix each takes. A
+fake that accepted a keyword and returned its fixed rows would list a route
+the question excludes, and a test of the lookup would stay green over a
+plugin that ignored it. `test/plugin/lg-covering-lookup.ci` drives the real
+`bgp-rib` with two peers holding nested prefixes, and checks the rows and
+their order on the search page and on both endpoints of Section 3.3, a
+`192.0.0.0/2` and `192.0.0.0/24` pair included. `test/plugin/lg-aspath-search.ci`
+drives it with routes whose AS paths hold a run, its reverse and an anchor,
+and checks what the search page lists for each.
+<!-- source: internal/component/lg/ribfake_test.go -- fakeRIBPipeline, fakeRowSelected, fakeSelectedAnswer -->
 <!-- source: internal/component/lg/handler_ui.go -- normalizeBestPathRows -->

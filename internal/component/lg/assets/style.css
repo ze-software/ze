@@ -222,6 +222,12 @@ tbody tr.best-route { background: var(--best-bg); }
    when a handler refuses an htmx request, and htmx swaps it into the target. */
 .error-fragment { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; display: flex; align-items: baseline; gap: 0.5rem; }
 .error-fragment-reason { font-weight: 700; white-space: nowrap; }
+/* An operator error is several lines (what went wrong, why, the fix: opererr),
+   so every surface that shows one keeps its line breaks, as the web UI's do:
+   the banner, the refusal fragment and the peer stream's error row. */
+.error-banner,
+.error-fragment-message,
+.stream-error td { white-space: pre-wrap; }
 .empty-state { padding: 2rem; text-align: center; color: var(--state-unknown); font-style: italic; }
 
 /* HTMX loading */

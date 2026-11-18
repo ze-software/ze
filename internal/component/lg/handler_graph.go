@@ -27,7 +27,8 @@ const (
 
 // handleGraph renders a topology graph for the given prefix.
 // Query parameters:
-//   - prefix (required): CIDR prefix to look up.
+//   - prefix (required): a prefix with its length, or a bare address, which
+//     draws every route whose prefix contains it.
 //   - mode: "aspath" (default) for AS path topology, "nexthop" for internal forwarding.
 //   - format: "svg" (default) for SVG image, "text" for deterministic text output.
 func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
@@ -37,8 +38,11 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isValidPrefix(prefix) {
-		http.Error(w, "invalid prefix", http.StatusBadRequest)
+	// The graph asks what the search table asked for the same field, so it
+	// draws the routes the table lists (parsePrefixLookup).
+	lookup, err := parsePrefixLookup(prefix)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -60,16 +64,11 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The routes learned from peers: bgp-rib's `received` scope. With no scope
-	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
-	// route Ze sent a peer reads as learned from that peer.
-	var tb textbuf.Buffer
-	command := tb.Str("show bgp rib received prefix ").Str(prefix).String()
-	zeData, failure := s.ask(command)
+	zeData, failure := s.ask(lookup.receivedCommand())
 	if failure != nil {
 		// A refusal is not an empty graph: "No routes found" over a failed
 		// dispatch would tell the operator the prefix is absent.
-		http.Error(w, failure.message(), failure.status)
+		http.Error(w, engineRefusal(failure).Error(), failure.status)
 		return
 	}
 	routes := extractRoutes(zeData)

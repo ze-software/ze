@@ -56,10 +56,19 @@ templ helpPage() {
 	</template>
 	<template id="help-search">
 		<p>
-			<strong>Prefix</strong> -- CIDR (<code>10.0.0.0/24</code>) or host
-			(<code>10.0.0.1</code>). Host addresses match the most-specific covering prefix.
+			<strong>Prefix</strong> -- a prefix with its length (<code>10.0.0.0/24</code>)
+			lists the routes of exactly that prefix, never a longer one inside it. Host bits are
+			cleared, so <code>10.0.0.1/24</code> asks for <code>10.0.0.0/24</code>. An address (<code>10.0.0.1</code>)
+			lists every route whose prefix contains it, the most specific prefix first for
+			each peer. An address finds IPv4 and IPv6 routes only: routes keyed by a route
+			distinguisher, such as VPN routes, are not searched this way.
 		</p>
-		<p><strong>AS Path</strong> -- space-separated ASNs matched anywhere in the path.</p>
+		<p>
+			<strong>AS Path</strong> -- AS numbers separated by spaces (<code>65001 65002</code>),
+			matched as a run anywhere in the path: 65001 directly followed by 65002. A leading
+			<code>^</code> anchors the run at the start of the path (<code>^65001</code>). Other
+			pattern characters, such as <code>$</code>, <code>|</code> or brackets, are refused.
+		</p>
 		<p><strong>Community</strong> -- standard format <code>ASN:value</code>.</p>
 		<p><strong>Family</strong> -- IPv4 Unicast, IPv6 Unicast, or All.</p>
 		<p>All non-empty fields must match (AND logic).</p>
@@ -99,7 +108,7 @@ templ helpPage() {
 				<tr><td><code>protocols/bgp</code></td><td>All peers with state and route counts</td></tr>
 				<tr><td><code>routes/protocol/{ "{name}" }</code></td><td>Routes from a named peer</td></tr>
 				<tr><td><code>routes/table/{ "{family}" }</code></td><td>Routes for a given family</td></tr>
-				<tr><td><code>routes/search?prefix=X</code></td><td>Search by prefix</td></tr>
+				<tr><td><code>routes/search?prefix=X</code></td><td>Routes of exactly one prefix, or every route covering an address</td></tr>
 			</tbody>
 		</table>
 	</template>

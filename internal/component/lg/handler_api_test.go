@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -1028,6 +1029,100 @@ func TestAPIBMPProtocolsCountsUnavailableOverHTTP(t *testing.T) {
 		}
 		if m["routes_received"] != float64(0) {
 			t.Errorf("%s: routes_received = %v, want the compatibility zero", name, m["routes_received"])
+		}
+	}
+}
+
+// TestAPIPrefixSendsCoveringForBareAddress proves routes/prefix and
+// routes/search ask bgp-rib the question their prefix parameter holds.
+//
+// VALIDATES: on both endpoints a bare address is sent as `covering <address>`
+// and answers the received route whose prefix contains it, an address no
+// received route contains answers no route, and a prefix with its length is
+// sent as `exact <prefix>`, its host bits cleared, and answers that prefix
+// alone, with the IPv6 length bound accepted at 128.
+// PREVENTS: the "exact or containing prefix lookup" the contract names
+// answering only a text match: `prefix 10.0.0.0/2` would list 10.0.0.0/24
+// (spec-lg-search-matches-what-the-pages-promise AC-2, AC-3,
+// birdwatcher-compat.md).
+func TestAPIPrefixSendsCoveringForBareAddress(t *testing.T) {
+	cases := []struct {
+		name, query, command string
+		networks             []any
+	}{
+		{"bare address", "10.0.0.1", "show bgp rib received covering 10.0.0.1", []any{"10.0.0.0/24"}},
+		// 192.0.2.0/24 is a route Ze SENT; the received scope has no route
+		// containing the address.
+		{"address no received route contains", "192.0.2.1", "show bgp rib received covering 192.0.2.1", []any{}},
+		{"prefix with its length", "10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", []any{"10.0.0.0/24"}},
+		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib received exact 0.0.0.0/2", []any{}},
+		{"ipv6 last valid length", "2001:db8::1/128", "show bgp rib received exact 2001:db8::1/128", []any{}},
+	}
+	for _, endpoint := range []string{"routes/prefix", "routes/search"} {
+		for _, tc := range cases {
+			t.Run(endpoint+"/"+tc.name, func(t *testing.T) {
+				rec, commands := lookupRequest(t, "/api/looking-glass/"+endpoint+"?prefix="+tc.query, "")
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+				}
+				rib := ribCommands(commands)
+				if len(rib) != 1 || rib[0] != tc.command {
+					t.Fatalf("rib commands = %q, want [%q]", rib, tc.command)
+				}
+				if tc.networks == nil {
+					return
+				}
+				var body struct {
+					Routes []struct {
+						Network string `json:"network"`
+					} `json:"routes"`
+				}
+				if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+					t.Fatalf("decode: %v; body %s", err, rec.Body.String())
+				}
+				got := []any{}
+				for _, route := range body.Routes {
+					got = append(got, route.Network)
+				}
+				if !reflect.DeepEqual(got, tc.networks) {
+					t.Errorf("networks = %v, want %v", got, tc.networks)
+				}
+			})
+		}
+	}
+}
+
+// TestAPIPrefixRefusesAnInvalidPrefix proves a prefix parameter that is
+// neither an address nor a prefix is refused with 400 and never reaches
+// bgp-rib.
+//
+// VALIDATES: an IPv6 length of 129 and a word each answer 400 with a JSON
+// error naming the value and the reason, on both endpoints.
+func TestAPIPrefixRefusesAnInvalidPrefix(t *testing.T) {
+	cases := []struct {
+		name, query, why string
+	}{
+		{"ipv6 length past 128", "2001:db8::/129", "an IPv6 prefix length is 0 to 128"},
+		{"not an address", "not-a-prefix", "the field takes an address"},
+	}
+	for _, endpoint := range []string{"routes/prefix", "routes/search"} {
+		for _, tc := range cases {
+			t.Run(endpoint+"/"+tc.name, func(t *testing.T) {
+				rec, commands := lookupRequest(t, "/api/looking-glass/"+endpoint+"?prefix="+tc.query, "")
+				if rec.Code != http.StatusBadRequest {
+					t.Fatalf("status = %d, want 400; body %s", rec.Code, rec.Body.String())
+				}
+				if rib := ribCommands(commands); len(rib) != 0 {
+					t.Fatalf("an invalid prefix reached bgp-rib: %q", rib)
+				}
+				message := errorBody(t, rec)
+				if !strings.HasPrefix(message, "prefix "+tc.query) {
+					t.Errorf("error %q does not name %q first", message, tc.query)
+				}
+				if !strings.Contains(message, tc.why) {
+					t.Errorf("error %q does not say %q", message, tc.why)
+				}
+			})
 		}
 	}
 }

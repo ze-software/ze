@@ -159,9 +159,12 @@ unmarshal it back into a `map[string]any` for template rendering.
     copy of the same heartbeat/flusher pattern, not routed through
     `sseSnapshotStream`.
 13. **Looking glass query + graph.** `POST /lg/search` → `handleUISearch`
-    (`internal/component/lg/handler_ui.go`) validates every filter
-    (`isValidPrefix`/`isValidASPathPattern`/`isValidCommunity`/`isValidFamily`,
-    `internal/component/lg/handler_api.go` and neighbors), builds a
+    (`internal/component/lg/handler_ui.go`) parses or validates every filter
+    (`parsePrefixLookup` in `prefix_lookup.go`, which turns a prefix into
+    `exact` and an address into `covering`; `parseASPathPattern` in
+    `aspath_pattern.go`, which writes the engine's comma grammar;
+    `isValidCommunity`/`isValidFamily` in `handler_ui.go` and
+    `handler_api.go`), builds a
     `show bgp rib ...` pipeline string, and calls `s.query(cmd)`
     (`internal/component/lg/server.go`) → `s.dispatch(cmd)` (step 2's
     closure) → `parseJSON` (`internal/component/lg/handler_api.go`) →
@@ -180,14 +183,16 @@ unmarshal it back into a `map[string]any` for template rendering.
     (`renderGraphText`, `graph.go`).
 14. **Looking glass live peers.** `GET /lg/events` → `handleUIEvents`
     (`internal/component/lg/handler_ui.go`) is its own poll-and-render SSE
-    loop (not `sseSnapshotStream`): every 5s it re-dispatches `show bgp
-    summary`, renders `peersTableBody` to a string (`renderToString`,
+    loop (not `sseSnapshotStream`): every 5s it re-dispatches `show bgp`
+    (`cmdBGPOverview`, `internal/component/lg/handler_api.go`), renders `peersTableBody` to a string (`renderToString`,
     `internal/component/lg/render.go`), and pushes it as an UNNAMED message
     with each embedded newline continued as its own `data:` line. htmx 4 swaps
     an unnamed message into the `<tbody>` that opened the stream. When the
-    engine cannot answer, `peerStreamBody` sends the reason `engineError`
-    gives, as the body's only row (`peersStreamError`), because one stream
-    carries one kind of message.
+    engine cannot answer, `peerStreamBody` sends the three-line operator
+    error `engineRefusal` builds (`internal/component/lg/server.go`: the
+    command and its failure class, why there is no answer, and the fix
+    `ze show log recent level warn component lg.server`), as the body's only
+    row (`peersStreamError`), because one stream carries one kind of message.
 
 ## Key files
 | File | Role |

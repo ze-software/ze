@@ -97,14 +97,27 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate each provided filter.
-	if prefix != "" && !isValidPrefix(prefix) {
-		s.renderSearchError(w, r, "invalid prefix format", prefix, aspath, community, fam)
-		return
+	// Validate each provided filter. The prefix and AS path fields are parsed,
+	// not only checked: a bare address becomes a covering lookup and a prefix
+	// with its length an exact one (parsePrefixLookup), and an AS path is
+	// written in the engine's comma grammar (parseASPathPattern).
+	var lookup prefixLookup
+	if prefix != "" {
+		parsed, err := parsePrefixLookup(prefix)
+		if err != nil {
+			s.renderSearchError(w, r, err.Error(), prefix, aspath, community, fam)
+			return
+		}
+		lookup = parsed
 	}
-	if aspath != "" && !isValidASPathPattern(aspath) {
-		s.renderSearchError(w, r, "invalid AS path pattern", prefix, aspath, community, fam)
-		return
+	var pattern asPathPattern
+	if aspath != "" {
+		parsed, err := parseASPathPattern(aspath)
+		if err != nil {
+			s.renderSearchError(w, r, err.Error(), prefix, aspath, community, fam)
+			return
+		}
+		pattern = parsed
 	}
 	if community != "" && !isValidCommunity(community) {
 		s.renderSearchError(w, r, "invalid community format (use ASN:value)", prefix, aspath, community, fam)
@@ -122,10 +135,10 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	var tb textbuf.Buffer
 	tb.Str("show bgp rib received")
 	if prefix != "" {
-		tb.Str(" prefix ").Str(prefix)
+		lookup.appendTo(&tb)
 	}
 	if aspath != "" {
-		tb.Str(" path ").Str(aspath)
+		tb.Str(" path ").Str(pattern.engine)
 	}
 	if community != "" {
 		tb.Str(" community ").Str(community)
@@ -215,7 +228,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	// A refused overview is not an absent peer, so it is not a 404.
 	peerData, peerFailure := s.ask(cmdBGPOverview)
 	if peerFailure != nil {
-		http.Error(w, peerFailure.message(), peerFailure.status)
+		http.Error(w, engineRefusal(peerFailure).Error(), peerFailure.status)
 		return
 	}
 	peerInfo := findPeer(peerData, address)
@@ -295,7 +308,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 	// The routes the peer sent Ze, as the page lists them: `received` scope.
 	zeData, failure := s.ask(tb2.Str("show bgp rib received peer ").Str(address).String())
 	if failure != nil {
-		http.Error(w, failure.message(), failure.status)
+		http.Error(w, engineRefusal(failure).Error(), failure.status)
 		return
 	}
 
@@ -519,8 +532,13 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isValidPrefix(prefix) {
-		http.Error(w, "invalid prefix", http.StatusBadRequest)
+	// The detail is of one prefix, so it asks bgp-rib for exactly that
+	// prefix (parseExactPrefixLookup). The text filter `prefix 192.0.0.0/2`
+	// would also answer 192.0.0.0/24, and the row picked below could be the
+	// wrong prefix's.
+	lookup, err := parseExactPrefixLookup(prefix)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -529,15 +547,10 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The routes learned from peers: bgp-rib's `received` scope. With no scope
-	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
-	// route Ze sent a peer reads as learned from that peer.
-	var tb textbuf.Buffer
-	command := tb.Str("show bgp rib received prefix ").Str(prefix).String()
-	zeData, failure := s.ask(command)
+	zeData, failure := s.ask(lookup.receivedCommand())
 	if failure != nil {
 		// A refusal is not a route the prefix lacks.
-		http.Error(w, failure.message(), failure.status)
+		http.Error(w, engineRefusal(failure).Error(), failure.status)
 		return
 	}
 	routes := extractRoutes(zeData)
@@ -646,7 +659,7 @@ func (s *LGServer) peerStreamBody() (string, error) {
 	zeData, failure := s.ask(cmdBGPOverview)
 
 	if failure != nil {
-		return renderToString(peersStreamError(failure.message()))
+		return renderToString(peersStreamError(engineRefusal(failure).Error()))
 	}
 
 	return renderToString(peersTableBody(s.extractPeers(zeData)))
@@ -902,21 +915,6 @@ func findPeer(ze map[string]any, address string) map[string]any {
 // isHTMXRequest checks if the request was made by HTMX (HX-Request header).
 func isHTMXRequest(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true"
-}
-
-// isValidASPathPattern checks that an AS path pattern contains only safe characters.
-func isValidASPathPattern(pattern string) bool {
-	if pattern == "" || len(pattern) > 200 {
-		return false
-	}
-	for _, c := range pattern {
-		if (c < '0' || c > '9') && c != ' ' && c != '.' && c != '^' && c != '$' &&
-			c != '|' && c != '(' && c != ')' && c != '[' && c != ']' &&
-			c != '*' && c != '+' && c != '?' && c != '-' && c != '_' {
-			return false
-		}
-	}
-	return true
 }
 
 // isValidCommunity checks that a community string contains only safe characters.

@@ -55,7 +55,7 @@ var dispatchEndpoints = []struct {
 	{"/api/looking-glass/protocols/bgp", cmdBGPOverview, "protocols", false},
 	{"/api/looking-glass/protocols/short", cmdBGPOverview, "protocols", false},
 	{"/api/looking-glass/protocols/bmp", cmdShowBMPPeers, "protocols", false},
-	{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", "show bgp rib received prefix 10.0.0.0/24", "routes", false},
+	{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", "routes", false},
 	{"/api/looking-glass/routes/protocol/peer1", cmdBGPOverview, "routes", true},
 	{"/api/looking-glass/routes/peer/192.0.2.1", "show bgp rib received peer 192.0.2.1", "routes", true},
 	{"/api/looking-glass/routes/export/peer1", cmdBGPOverview, "routes", true},
@@ -81,12 +81,30 @@ func errorBody(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return message
 }
 
+// The text an engine failure shows, written out here rather than taken from
+// engineRefusal or failureWhy, so a test of the refusal cannot agree with
+// itself: a changed line in server.go turns these tests red until the page
+// that quotes it (docs/guide/looking-glass.md) and this copy agree again.
+const (
+	wantWhyEngineError       = "the engine failed or refused this command, so there is no answer to show"
+	wantWhyEngineUnavailable = "the engine sent no answer to this command, so there is nothing to show"
+	wantWhyUnreadableReply   = "the engine's answer to this command is not a JSON object, so the looking glass cannot read it"
+	wantEngineLogFixLine     = "fix: ze show log recent level warn component lg.server"
+)
+
+// wantEngineRefusal is the whole three-line operator error a failed command
+// answers: the command and its class, why there is no answer, and the fix.
+func wantEngineRefusal(command, class, why string) string {
+	return command + ": " + class + "\n" + why + "\n" + wantEngineLogFixLine
+}
+
 // TestAPIDispatchFailureIsRefused proves that a dispatch the engine fails is
 // answered as a failure, never as data.
 //
-// VALIDATES: each endpoint answers 502 with a JSON error naming the command it
-// sent and "engine error", and never the dispatcher's own error, which can
-// carry a host detail (birdwatcher-compat.md Section 3.1).
+// VALIDATES: each endpoint answers 502 with a JSON error that is exactly the
+// three-line operator error: the command it sent and "engine error", why there
+// is no answer, and the fix naming the log. It never carries the dispatcher's
+// own error, which can carry a host detail (birdwatcher-compat.md Section 3.1).
 // PREVENTS: query rendering the failure as {"error": ...}, which parsed, so
 // the handlers transformed the refusal into an empty protocols object or an
 // empty routes array and answered 200 over it
@@ -104,7 +122,7 @@ func TestAPIDispatchFailureIsRefused(t *testing.T) {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, http.StatusBadGateway, rec.Body.String())
 			}
 			message := errorBody(t, rec)
-			if want := endpoint.command + ": " + failureEngineError; message != want {
+			if want := wantEngineRefusal(endpoint.command, "engine error", wantWhyEngineError); message != want {
 				t.Errorf("error = %q, want %q", message, want)
 			}
 			if strings.Contains(message, errTestEngineDown.Error()) {
@@ -119,8 +137,8 @@ func TestAPIDispatchFailureIsRefused(t *testing.T) {
 // produces (bgp-rib answers a command it cannot parse with {"error": ...}).
 //
 // VALIDATES: protocols/bgp, protocols/short, protocols/bmp and routes/prefix
-// answer 502 naming the command and "engine error" when the answer is an
-// error envelope, and so do routes/protocol and routes/export when the
+// answer 502 with exactly the three-line operator error naming the command and
+// "engine error", its reason and the fix, when the answer is an error envelope, and so do routes/protocol and routes/export when the
 // envelope answers the `show bgp` they resolve their protocol id through.
 // PREVENTS: the protocols transforms rendering the envelope as an empty set.
 func TestAPIProtocolsRefusalEnvelopeIsRefused(t *testing.T) {
@@ -136,7 +154,7 @@ func TestAPIProtocolsRefusalEnvelopeIsRefused(t *testing.T) {
 			if rec.Code != http.StatusBadGateway {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, http.StatusBadGateway, rec.Body.String())
 			}
-			if want, message := endpoint.command+": "+failureEngineError, errorBody(t, rec); message != want {
+			if want, message := wantEngineRefusal(endpoint.command, "engine error", wantWhyEngineError), errorBody(t, rec); message != want {
 				t.Errorf("error = %q, want %q", message, want)
 			}
 		})

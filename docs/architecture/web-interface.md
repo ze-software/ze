@@ -1275,7 +1275,7 @@ case-sensitive.
 /api/looking-glass/routes/export/X     Routes Ze sent peer X (JSON)
 /api/looking-glass/routes/table/X      Best routes by family (JSON)
 /api/looking-glass/routes/filtered/X   Filtered routes per peer (JSON)
-/api/looking-glass/routes/search?prefix=X  Prefix lookup (JSON)
+/api/looking-glass/routes/search?prefix=X  Exact prefix lookup, or every route covering an address (JSON)
 /lg/peers                              Peer dashboard (HTML)
 /lg/lookup                             Route lookup form (HTML)
 /lg/search                             Unified search: prefix, AS path, community (HTML)
@@ -1289,6 +1289,33 @@ case-sensitive.
 ### LG Data Access
 
 All BGP data is queried via `CommandDispatcher` (same `func(string) (string, error)` as the web UI's admin handlers). The LG never imports RIB or peer plugin packages. The dispatcher routes commands to the engine, preserving plugin isolation.
+
+The prefix value of the search page, `/lg/graph`, `routes/prefix` and
+`routes/search` goes through one parser, `parsePrefixLookup`. A prefix with
+its length has its host bits cleared and is sent as bgp-rib's `exact`
+selector, which lists the routes of exactly that prefix. The text filter
+`prefix` is never sent: it matches the start of the prefix text, so
+`prefix 192.0.0.0/2` would also list 192.0.0.0/24. A bare address is sent as
+the `covering` selector and lists every route whose prefix contains it, the
+most specific first within each peer. The route detail reads its prefix
+through `parseExactPrefixLookup`, the same rule with a bare address refused,
+because a detail shows one prefix. Only the text `net/netip` writes for the
+parsed value reaches the command line. The contract is Section 3.3 of
+`docs/architecture/api/birdwatcher-compat.md`.
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup, parseExactPrefixLookup, prefixLookup.appendTo -->
+
+The AS path field of the search page goes through `parseASPathPattern`. It
+takes AS numbers separated by spaces, commas or both, in any of the three
+RFC 5396 spellings `asn.Parse` reads, with one optional leading `^`. It sends
+them after bgp-rib's `path` filter in the engine's one grammar: asplain
+numbers joined by commas, matched as a contiguous run anywhere in the path,
+anchored at its start by the `^`. Every other character (`$`, `|`, brackets,
+`*`, `+`, `?`, `_`, `-`) and a field with no AS number are refused at the page
+with an operator error naming the value and the form. The dispatcher's
+tokenizer keeps a double-quoted value as one token, but the engine's
+`validatePathPattern` reads commas only, so a spaced value would be refused
+even quoted: the page writes the comma form.
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 
 ### LG JSON Convention Exception
 

@@ -118,14 +118,15 @@ func (s *LGServer) engineAnswer(w http.ResponseWriter, command string) (map[stri
 }
 
 // writeEngineFailure writes the refusal one failed command owes: its status,
-// and a body naming the command and the failure class, never the
-// dispatcher's own error (engineFailure.message).
+// and a body whose error is the operator error engineRefusal builds: the
+// command and the failure class, why there is no answer, and the command that
+// shows the full reason, never the dispatcher's own error.
 //
 // The two codes name two different failures. 503 says the engine produced
 // nothing this server could parse. 502 says the engine answered, and its answer
 // was an error.
 func writeEngineFailure(w http.ResponseWriter, failure *engineFailure) {
-	writeJSONError(w, failure.status, failure.message())
+	writeJSONError(w, failure.status, engineRefusal(failure).Error())
 }
 
 // peerRoutesAnswer dispatches a peer-scoped routes command and returns the
@@ -532,6 +533,10 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleAPIRoutesPrefix searches routes by prefix (birdwatcher: /routes/prefix?prefix=...).
+// A prefix with its length answers the routes of exactly that prefix, its
+// host bits cleared. A bare address
+// answers every route whose prefix contains it, the most specific first within
+// each peer (parsePrefixLookup).
 func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	if prefix == "" {
@@ -539,8 +544,9 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if !isValidPrefix(prefix) {
-		writeJSONError(w, http.StatusBadRequest, "invalid prefix")
+	lookup, err := parsePrefixLookup(prefix)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -549,11 +555,7 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// The routes learned from peers: bgp-rib's `received` scope. With no scope
-	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
-	// route Ze sent a peer reads as learned from that peer.
-	var tb textbuf.Buffer
-	zeData, ok := s.engineAnswer(w, tb.Str("show bgp rib received prefix ").Str(prefix).String())
+	zeData, ok := s.engineAnswer(w, lookup.receivedCommand())
 	if !ok {
 		return
 	}
@@ -693,19 +695,6 @@ func isValidFamily(family string) bool {
 		return false
 	}
 	return parts[0] != "" && parts[1] != "" && isValidPeerName(parts[0]) && isValidPeerName(parts[1])
-}
-
-// isValidPrefix checks that a prefix looks like an IP or CIDR notation.
-func isValidPrefix(prefix string) bool {
-	if prefix == "" || len(prefix) > 50 {
-		return false
-	}
-	for _, c := range prefix {
-		if (c < '0' || c > '9') && c != '.' && c != ':' && c != '/' && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
-			return false
-		}
-	}
-	return true
 }
 
 // apiEnvelope wraps a payload with the standard birdwatcher api metadata.

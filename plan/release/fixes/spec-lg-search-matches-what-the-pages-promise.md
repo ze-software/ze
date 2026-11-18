@@ -2,20 +2,21 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P2 |
 | Release reason | The looking glass ships, and two of its searches do not do what its own help, guide and API contract say: a host address finds no covering route, and a multi-AS path search is refused by the engine. Incorrect shipped behavior on a public surface |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
 | Updated | 2026-11-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-The design below is a proposal. It was written without an approval gate and
-waits for the owner's review before the status moves to `ready`. The companion
+The owner ordered this spec implemented on 2026-11-18, in a worktree
+(`.claude/worktrees/lg-search-matches-pages`, branch `lg-search-matches-pages`),
+so its edits and its test runs happen there. The companion
 spec for new capabilities is
 `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md`.
 
@@ -31,6 +32,12 @@ product itself documents.
 |---|---------|--------------------|--------------|
 | 1 | A host address typed in the prefix field finds no covering route | The help page says a host address matches "the most-specific covering prefix". The feature page lists "Prefix and IP containment search". The API table calls `routes/prefix` an "exact or containing prefix lookup" | The RIB compares text. A route matches when its prefix string starts with what was typed, so `10.1.2.3` finds `10.1.2.3/32` and never `10.0.0.0/8` |
 | 2 | An AS path search with more than one AS is refused | The help page says "space-separated ASNs matched anywhere in the path". The page validator accepts spaces, `^`, `$`, `\|`, brackets and repetition characters | The engine reads one token as the pattern: comma-separated AS numbers with an optional leading `^`. The second AS arrives as a separate token and the engine answers `unknown keyword`. Every character beyond digits, dots, commas and a leading `^` is refused as an invalid AS number |
+
+| 3 | A prefix with a mask is not an exact lookup (found during implementation, 2026-11-18) | The pages call a prefix with its length the lookup of that prefix | The same text comparison keeps any prefix whose text starts with the value: `192.0.0.0/2` also lists `192.0.0.0/24`, and `2000::/3` lists `2000::/32`. Every such lookup also reads the whole table |
+
+Row 3 widened the scope: the RIB gains a second trie-backed selector, `exact`,
+and the looking glass sends it for every prefix with a mask, including the
+route detail panel.
 
 The goal: both searches return what the pages promise, through the web page and
 through the birdwatcher API, and each page states exactly what the search does.
@@ -156,7 +163,7 @@ through the birdwatcher API, and each page states exactly what the search does.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The trie type behind `FamilyRIB.direct` can enumerate the stored prefixes that contain an address | `familyrib.go` names it a BART; such a trie supports that walk | The walk is added to the store type first, in this spec | Reading the store type's methods before phase 2 | unvalidated |
+| A-1 | The trie type behind `FamilyRIB.direct` can enumerate the stored prefixes that contain an address | `familyrib.go` names it a BART; such a trie supports that walk | The walk is added to the store type first, in this spec | Reading the store type's methods before phase 2 | broken: `store.Store` (`internal/core/rib/store/store_bart.go`) offered only `LookupLPM`, the most specific covering prefix. The BART beneath it has the walk, `bart.Table.Supernets` (v0.30.0, reverse-CIDR order), so it was added as `store.Store.Covering` (map variant in `store_map.go`), then `FamilyRIB.iterateCovering` and `PeerRIB.IterateCovering` |
 | A-2 | A value with a mask and a bare address can be told apart by parsing alone | `isValidPrefix` already limits the characters | An ambiguous form needs a rule of its own | Unit test over IPv4 and IPv6 inputs, with and without a mask | unvalidated |
 | A-3 | The dispatcher passes the command line to `bgp-rib` split on spaces, with no quoting the page could use to send a spaced AS path as one value | `parsePipelineArgs` takes `args[i]` as the whole value | The page could send the spaced form unchanged and the engine would learn it | Reading the dispatcher's tokenizer | unvalidated |
 | A-4 | No caller relies on the page accepting `$`, `\|`, brackets or repetition characters | The engine refuses every one of them today | A user who typed them got an error before and gets a clearer one now | The search in the census found no such writer | unvalidated |
@@ -205,6 +212,11 @@ through the birdwatcher API, and each page states exactly what the search does.
 | AC-10 | The page is asked for AS path `65001$` or `(65001\|65002)` | The page answers an error that names the accepted form: AS numbers separated by spaces, with an optional leading `^` | A plain AS number search still succeeds, because only unsupported characters are refused |
 | AC-11 | The CLI sends `show bgp rib sent prefix 10.0 count` | The count is the same as before this change | None: the text filter is preserved whole |
 | AC-12 | The covering keyword is sent with a value that is not an address | The engine refuses with a message naming the value and showing a valid form | A valid address still answers, because only the value is at fault |
+| AC-14 | A peer holds `192.0.0.0/2` and `192.0.0.0/24`. The page, the API and the graph are asked for `192.0.0.0/2` | Each lists the `192.0.0.0/2` route alone | `192.0.0.0/24` stays out, because a prefix with a mask asks for that prefix and no other |
+| AC-15 | The page is asked for `10.0.0.1/8` | It lists the `10.0.0.0/8` routes: the host bits are masked before the question is sent | None |
+| AC-16 | `show bgp rib received exact 10.0.0.0/8` on a peer holding thousands of routes | The plugin reads one trie entry per peer, proven by a test that counts entries visited, and lists every ADD-PATH path of that prefix | None |
+| AC-17 | `exact` with a bare address, with host bits set, on the `sent` or `best` scope, or together with `covering` | Each is refused with a message naming the value or the scope and a form that works | `show bgp rib received exact <prefix>` answers, because only the unsupported forms are refused |
+| AC-18 | The route detail panel is opened for the `192.0.0.0/2` row | It shows the attributes of the `192.0.0.0/2` route | A `192.0.0.0/24` row from the same peer never fills the panel |
 | AC-13 | The help page, `docs/guide/looking-glass.md`, `docs/features/looking-glass.md` and `docs/architecture/api/birdwatcher-compat.md` | Each states that a bare address returns every covering route, most specific first, and that an AS path is a run of AS numbers with an optional leading `^` | Text on other subjects in those pages is unchanged |
 
 ## End-to-End User Stories
@@ -363,6 +375,12 @@ through the birdwatcher API, and each page states exactly what the search does.
 
 ## Design Insights
 
+- Assumptions as the implementation settled them (2026-11-18). A-2 confirmed: `parsePrefixLookup` tells a prefix from an address by parsing alone. A-3 broken, design unchanged: the dispatcher keeps a double-quoted value as one token (`command.ScanInvocation`), but `validatePathPattern` splits on commas only, so a spaced AS path is refused even when quoted and the page converts to the comma form. A-4 confirmed: nothing in the tree sent the refused pattern characters. A-5 stands: the end anchor is in the companion spec.
+- `covering` and `exact` became source selectors, parsed like `peer`, not filter stages. A filter stage sees every row its source yields, so a filter could never have met AC-5.
+- The existing `lg-ui-pages` test posted its search values with a trailing newline, because a text `tmpfs=` block ends every line with one. Its "search for a prefix" step was refused by the page and passed on the page title alone. It now posts exact bytes and expects the injected route.
+- The three-line operator error rendered as one run-on line in the looking glass. The stylesheet now keeps the line breaks, as the web UI's does.
+- `--pattern` on the functional runner matched each test's absolute file path, so in a checkout whose path contains the pattern text every test matched. Found when `--pattern lg-` ran the whole plugin suite in this worktree; fixed on this branch in a commit of its own.
+
 - The page promised containment in three places while the engine compared text. Each page was reviewed for its links and anchors, never against the function that answers the search.
 
 ## Owned journal rows
@@ -380,6 +398,8 @@ through the birdwatcher API, and each page states exactly what the search does.
 | The covering answer lists every covering route | Return only the most specific one, as the help text says today | A collector's user asks who announces the networks around an address, and the less specific routes are part of that answer. Most specific first keeps the old promise visible in the first row |
 | The page converts a spaced AS path to the engine's comma form | Teach the engine to take several tokens as one path. Tell users to type commas | Routers print AS paths with spaces, so that is what users paste. A multi-token value would change the pipeline's one rule, that a filter takes one value. The conversion is one function with one test table shared with the engine's validator |
 | The page refuses characters the engine cannot match | Keep accepting them and let the engine answer | The engine's answer is "invalid ASN", which names the wrong problem. The page knows the user tried a pattern and can say which forms exist |
+| A second selector, `exact`, for a prefix with a mask | Filter the rows in the looking glass after the text match. Make the text `prefix` filter exact when its value is a whole prefix | Filtering in the looking glass is the adapter reshaping engine output, which the door records as a trap, and it still reads the whole table. `prefix 10.0` is a documented partial form, so the filter cannot tell a partial value from a whole one. `exact` reads one trie entry and gives every surface the same answer |
+| `covering` and `exact` are source selectors, refused on the `sent` and `best` scopes | Accept them everywhere as row filters | The sent routes are held in maps and the best-path answer walks every peer's table, so both would bring back the full read the keywords exist to avoid. The refusal names the scope that answers |
 | No option to hide default routes | A checkbox that drops `0.0.0.0/0` and `::/0` from a covering answer | Most specific first puts a default route last, where it informs and does not mislead. An option can be added when someone needs it |
 
 ## Known Limitations

@@ -13,12 +13,15 @@ action=open:path=/lg/peers
 
 # POSITIVE CONTROL. The page rendered, and the engine really is unreachable:
 # the banner is the page's own render of the same producer the stream reads
-# (ask, internal/component/lg/server.go). It names the command and the
-# failure class. The dispatcher's own error, `bgp engine unavailable`
-# (internal/test/cli/cmd_lg.go), stays in the log: this page is public.
+# (ask, internal/component/lg/server.go). It is the three-line operator error
+# (engineRefusal): the command and the failure class, why there is no answer,
+# and the fix naming the daemon log. The dispatcher's own error,
+# `bgp engine unavailable` (internal/test/cli/cmd_lg.go), stays in the log:
+# this page is public.
 expect=element:text=BGP Peers
 expect=html:contains=error-banner
 expect=html:contains=show bgp: engine error
+expect=html:contains=fix: ze show log recent level warn component lg.server
 expect=html:not-contains=bgp engine unavailable
 
 # PRE-CONDITION. The table body is empty at load, so the assertion below reads
@@ -29,7 +32,15 @@ expect=html:not-contains=stream-error
 # The stream ticks every 5 seconds. The row can only have arrived through a
 # swapped unnamed message: nothing polls this table, and the page that produced
 # the DOM had no such row in it.
+#
+# The cell holds the three lines, and a .wb needle is one line, so three
+# needles pin it: the cell opens with the problem line, the reason is on the
+# page, and the cell closes with the fix line. The banner is not a table cell,
+# so the first and last needles, which hold the cell's own tags, read the
+# stream row and not the banner.
 action=wait:ms=8000
 expect=html:contains=<tr class="stream-error">
-expect=html:contains=>show bgp: engine error</td>
+expect=html:contains=<td colspan="10">show bgp: engine error
+expect=html:contains=the engine failed or refused this command, so there is no answer to show
+expect=html:contains=fix: ze show log recent level warn component lg.server</td>
 expect=html:not-contains=bgp engine unavailable

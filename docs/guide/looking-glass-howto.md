@@ -85,7 +85,23 @@ For a local test on the box:
 curl -fsS http://127.0.0.1:8443/api/looking-glass/status
 curl -fsS http://127.0.0.1:8443/api/looking-glass/protocols/bgp
 curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0/24'
+curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.1'
 ```
+
+The third line asks for a prefix with its length and lists the routes of
+exactly that prefix, never a longer one inside it. The last asks for a bare
+address and lists every route whose prefix contains it, the most specific
+first for each peer, so a `10.0.0.0/24` route comes before a `10.0.0.0/8` route
+and a default route comes last. The search page and the graph read their
+prefix field the same way.
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup -->
+
+The search page's AS path field takes AS numbers separated by spaces, as a
+router prints them. `65001 65002` lists the routes whose path holds 65001
+directly followed by 65002, anywhere in the path. `^65001` lists the routes
+whose path starts with 65001. The page refuses any other pattern character,
+such as `$` or `|`, and says which form the field takes.
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 
 ## 4. Birdwatcher-compatible API paths
 
@@ -99,8 +115,8 @@ The looking glass exposes birdwatcher-style read-only endpoints under `/api/look
 | `/api/looking-glass/routes/protocol/{name}` | routes for one protocol or peer |
 | `/api/looking-glass/routes/peer/{peer}` | routes learned from one peer |
 | `/api/looking-glass/routes/table/{family}` | routes for a family table |
-| `/api/looking-glass/routes/prefix?prefix=10.0.0.0/24` | exact or containing prefix lookup |
-| `/api/looking-glass/routes/search?prefix=10.0.0.0/24` | prefix search |
+| `/api/looking-glass/routes/prefix?prefix=10.0.0.0/24` | the routes of exactly that prefix, its host bits cleared (`192.0.0.0/2` never lists `192.0.0.0/24`); given a bare address (`?prefix=10.0.0.1`), every route covering it, most specific first |
+| `/api/looking-glass/routes/search?prefix=10.0.0.0/24` | the same lookup as `routes/prefix` |
 
 Additional endpoints exist for filtered, exported, and no-export routes, route counts, and BMP-derived tables.
 

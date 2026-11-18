@@ -47,6 +47,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/errorfragment"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
 )
@@ -674,7 +675,8 @@ type engineFailure struct {
 	// command is the command that produced no answer.
 	command string
 	// class is one of the failure constants above, the only part of the
-	// reason a client is shown.
+	// reason a client is shown: engineRefusal words the why from it
+	// (failureWhy) and names the log that holds the rest.
 	class string
 	// envelope is true when the engine answered done and the answer itself was
 	// an {"error": ...} object, which is how bgp-rib refuses a command it
@@ -685,14 +687,49 @@ type engineFailure struct {
 	refusal string
 }
 
-// message returns the text a page or an endpoint shows for the failure:
-// the command and the failure class. It returns the empty string when there is
-// no failure, which is what a view's Error field means by no error.
+// engineLogFix is the fix every engine failure names. ask and query log the
+// full reason at WARN under this server's logger, lgLogger, and the looking
+// glass shows none of it (the three classes above), so the operator reads it
+// in the daemon log.
+const engineLogFix = "ze show log recent level warn component lg.server"
+
+// engineRefusal is the operator error a failed command answers, on every
+// surface: the plain-text pages, the JSON API, the banners and the peer
+// stream. Its first line is the command and the failure class, the text
+// docs/architecture/api/birdwatcher-compat.md Section 3.1 names; the second
+// says why there is no answer; the last is the command that shows the full
+// reason (engineLogFix).
+//
+// failure MUST NOT be nil: a nil failure is an answer, and has no refusal.
+func engineRefusal(failure *engineFailure) *opererr.Error {
+	return opererr.New(failure.command+": "+failure.class, failureWhy(failure.class), engineLogFix)
+}
+
+// failureWhy says, for a failure class, why the command has no answer to
+// show. ask is the only producer of an engineFailure, and it sets class to
+// one of the three constants, so another value is a Ze defect.
+func failureWhy(class string) string {
+	switch class {
+	case failureEngineError:
+		return "the engine failed or refused this command, so there is no answer to show"
+	case failureEngineUnavailable:
+		return "the engine sent no answer to this command, so there is nothing to show"
+	case failureUnreadableReply:
+		return "the engine's answer to this command is not a JSON object, so the looking glass cannot read it"
+	default:
+		panic("BUG: engineFailure built with an unknown class: " + class)
+	}
+}
+
+// message returns the text a view shows for the failure: engineRefusal's
+// text. It returns the empty string when there is no failure, which is what a
+// view's Error field means by no error. A writer that answers a failure it
+// holds calls engineRefusal itself.
 func (f *engineFailure) message() string {
 	if f == nil {
 		return ""
 	}
-	return f.command + ": " + f.class
+	return engineRefusal(f).Error()
 }
 
 // ask dispatches one command and returns the answer it parsed, or the failure

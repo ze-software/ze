@@ -6,4 +6,6 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-invalid prefix
+prefix not-a-prefix is not an IP address or a prefix
+the field takes an address, such as 192.0.2.1, which lists every route that covers it, or a prefix with its length, which lists exactly that prefix
+fix: 192.0.2.0/24

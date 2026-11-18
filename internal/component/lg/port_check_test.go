@@ -94,9 +94,28 @@ const (
 	lgPortExportScope = "routes/export answers the sent scope, which the fake now tells apart from the received"
 )
 
+// The two below are one deliberate change: the search fields match what the
+// help page promises (spec-lg-search-matches-what-the-pages-promise). A prefix
+// with its length is an exact lookup and a bare address lists every covering
+// route, and the AS path field takes AS numbers separated by spaces with an
+// optional leading ^.
+const (
+	// lgPortSearchHelp covers the help page, which describes both fields as
+	// they now behave.
+	lgPortSearchHelp = "the help page describes the exact and covering prefix lookups and the AS path run with its optional ^"
+	// lgPortPrefixRefusal covers the search page's refusal of an invalid
+	// prefix. prefixRefusal (prefix_lookup.go) names the value, why it is
+	// refused and a fix, in place of the fixed "invalid prefix format" text.
+	// The route-detail refusals carry the same text but are newer than the
+	// pre-port capture, so they have no pre-port bytes to differ from.
+	lgPortPrefixRefusal = "an invalid prefix is refused with an operator error that names the value and a fix"
+)
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
+
+	"help.html": lgPortSearchHelp,
 
 	"peers--empty.html":         lgPortSSEAttribute,
 	"peers--full.html":          lgPortSSEAttribute,
@@ -120,11 +139,11 @@ var lgPortHandlers = map[string]string{
 	"api-status.txt":        lgPortStatusCommands,
 
 	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
-	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPrefixRefusal,
 	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 
 	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
-	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortSearchHelp,
 	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts,
 	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
 	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets,

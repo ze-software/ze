@@ -572,6 +572,75 @@ func TestAssetsCSS(t *testing.T) {
 	}
 }
 
+func TestAssetsCSSKeepsOperatorErrorLineBreaks(t *testing.T) {
+	// VALIDATES: the served stylesheet keeps the line breaks of an operator
+	// error in both places the looking glass shows one: the search page's error
+	// banner and the message of the refusal fragment (internal/core/errorfragment).
+	// opererr.Error writes what went wrong, why and the fix on three lines, and
+	// HTML collapses a line break to a space.
+	// PREVENTS: the three lines of a refusal reaching the operator as one
+	// run-on sentence, which the web UI's error surfaces already avoid.
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doGet(t, client, base+"/lg/assets/style.css")
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close() //nolint:errcheck // test cleanup
+	if err != nil {
+		t.Fatalf("read stylesheet: %v", err)
+	}
+
+	for _, selector := range []string{".error-banner", ".error-fragment-message"} {
+		if !cssRuleDeclares(string(body), selector, "white-space: pre-wrap") {
+			t.Errorf("no rule for %s declares white-space: pre-wrap, so its line breaks collapse", selector)
+		}
+	}
+}
+
+// cssRuleDeclares reports whether a top-level rule whose selector list names
+// selector carries declaration. Comments are removed first, so a declaration
+// that is only mentioned in a comment does not count. A rule nested in an
+// at-rule (@media) is not read: it applies only under its condition.
+func cssRuleDeclares(css, selector, declaration string) bool {
+	var plain strings.Builder
+	for {
+		start := strings.Index(css, "/*")
+		if start < 0 {
+			plain.WriteString(css)
+			break
+		}
+		plain.WriteString(css[:start])
+		end := strings.Index(css[start+2:], "*/")
+		if end < 0 {
+			break
+		}
+		css = css[start+2+end+2:]
+	}
+
+	rest := plain.String()
+	for {
+		open := strings.IndexByte(rest, '{')
+		if open < 0 {
+			return false
+		}
+		closing := strings.IndexByte(rest[open:], '}')
+		if closing < 0 {
+			return false
+		}
+		head := rest[:open]
+		if last := strings.LastIndexByte(head, '}'); last >= 0 {
+			head = head[last+1:]
+		}
+		block := rest[open+1 : open+closing]
+		for name := range strings.SplitSeq(head, ",") {
+			if strings.TrimSpace(name) == selector && strings.Contains(block, declaration) {
+				return true
+			}
+		}
+		rest = rest[open+closing+1:]
+	}
+}
+
 func TestAssetsUnknown(t *testing.T) {
 	// VALIDATES: /lg/assets/unknown returns 404.
 	srv, base, client := startTestServer(t)

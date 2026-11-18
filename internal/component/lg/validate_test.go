@@ -125,67 +125,141 @@ func TestIsValidFamily(t *testing.T) {
 	}
 }
 
-func TestIsValidPrefix(t *testing.T) {
-	// VALIDATES: prefix parameter validation for lookup/search endpoints.
-	// PREVENTS: command injection via prefix parameter.
+// TestParsePrefixLookupRefusesUnsafeInput carries the injection table the
+// character check isValidPrefix answered, now answered by the parse that
+// replaced it.
+//
+// VALIDATES: an address or a prefix is accepted, and becomes the selector
+// that asks for it; every value that is neither is refused, so no text the
+// user typed reaches the command line.
+// PREVENTS: command injection via the prefix parameter. The old check
+// accepted "max length", fifty hex characters that are no prefix, because it
+// read characters rather than an address; the parse refuses it.
+func TestParsePrefixLookupRefusesUnsafeInput(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  bool
+		name    string
+		input   string
+		keyword string // "" when the value is refused
 	}{
-		{"valid ipv4 cidr", "10.0.0.0/24", true},
-		{"valid ipv4 host", "10.0.0.1", true},
-		{"valid ipv6", "2001:db8::/32", true},
-		{"valid ipv6 host", "2001:db8::1", true},
-		{"empty", "", false},
-		{"too long", string(make([]byte, 51)), false},
-		{"max length", "2001:0db8:0000:0000:0000:0000:0000:0001/128aaaaaa", true}, // 50 chars, hex chars only
-		{"letters outside hex", "10.0.0.0/24g", false},
-		{"space injection", "10.0.0.0/24 rm", false},
-		{"semicolon", "10.0.0.0;rm", false},
-		{"pipe", "10.0.0.0|rm", false},
-		{"newline", "10.0.0.0\n", false},
+		{"valid ipv4 cidr", "10.0.0.0/24", filterExact},
+		{"valid ipv4 host", "10.0.0.1", filterCovering},
+		{"valid ipv6", "2001:db8::/32", filterExact},
+		{"valid ipv6 host", "2001:db8::1", filterCovering},
+		{"empty", "", ""},
+		{"too long", string(make([]byte, 51)), ""},
+		{"max length", "2001:0db8:0000:0000:0000:0000:0000:0001/128aaaaaa", ""},
+		{"letters outside hex", "10.0.0.0/24g", ""},
+		{"space injection", "10.0.0.0/24 rm", ""},
+		{"semicolon", "10.0.0.0;rm", ""},
+		{"pipe", "10.0.0.0|rm", ""},
+		{"newline", "10.0.0.0\n", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isValidPrefix(tt.input)
-			if got != tt.want {
-				t.Errorf("isValidPrefix(%q) = %v, want %v", tt.input, got, tt.want)
+			lookup, err := parsePrefixLookup(tt.input)
+			if tt.keyword == "" {
+				if err == nil {
+					t.Errorf("parsePrefixLookup(%q) = %s %s, want a refusal", tt.input, lookup.keyword, lookup.value)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parsePrefixLookup(%q) refused: %v", tt.input, err)
+			}
+			if lookup.keyword != tt.keyword {
+				t.Errorf("parsePrefixLookup(%q) keyword = %s, want %s", tt.input, lookup.keyword, tt.keyword)
 			}
 		})
 	}
 }
 
-func TestIsValidASPathPattern(t *testing.T) {
-	// VALIDATES: AS path pattern validation for search endpoint.
-	// PREVENTS: injection via pattern parameter.
-	tests := []struct {
-		name  string
-		input string
-		want  bool
+// TestParseASPathPattern proves the AS path field accepts the engine's
+// grammar and nothing else, and writes it in the engine's form.
+//
+// VALIDATES: AS numbers separated by spaces, commas or both, with one
+// optional leading ^, become the comma form bgp-rib's validatePathPattern and
+// matchASPath read (internal/component/bgp/plugins/rib/rib_pipeline.go),
+// every AS number written back as asplain; the AS number bound holds at
+// 4294967295. Every other value is refused with an operator error naming the
+// value, the form the field takes, and a valid example on the last line.
+// PREVENTS: a spaced path sent as several tokens the engine answers with
+// "unknown keyword", and a regular-expression character the page accepted
+// and the engine refused as an invalid ASN. The old check isValidASPathPattern
+// accepted "65001.*", "^65001$", "65001|65002", "(65001)+" and "[0-9]": the
+// engine matches none of them, so each is now refused at the page.
+//
+// The accepted outputs are the engine's input. lg imports no RIB package, so
+// this table cannot be fed to validatePathPattern from here; the agreement is
+// proven through a real bgp-rib by test/plugin/lg-aspath-search.ci.
+func TestParseASPathPattern(t *testing.T) {
+	accepted := []struct {
+		name, input, engine string
 	}{
-		{"simple numbers", "65001 65002", true},
-		{"single asn", "65001", true},
-		{"regex dot star", "65001.*", true},
-		{"regex anchors", "^65001$", true},
-		{"regex alternation", "65001|65002", true},
-		{"regex grouping", "(65001)+", true},
-		{"regex class", "[0-9]", true},
-		{"empty", "", false},
-		{"too long", string(make([]byte, 201)), false},
-		{"letters", "abc", false},
-		{"semicolon", "65001;rm", false},
-		{"backtick", "65001`rm`", false},
-		{"angle brackets", "<script>", false},
-		{"newline", "65001\n", false},
+		{"simple numbers", "65001 65002", "65001,65002"},
+		{"single asn", "65001", "65001"},
+		{"anchored", "^65001", "^65001"},
+		{"anchored run", "^65001 65002", "^65001,65002"},
+		{"engine comma form", "65001,65002", "65001,65002"},
+		{"spaces around commas", "65001 , 65002,65003", "65001,65002,65003"},
+		{"repeated spaces and surrounding spaces", "  65001   65002 ", "65001,65002"},
+		{"asdot spelling", "1.10 65002", "65546,65002"},
+		{"zero", "0", "0"},
+		{"last valid as number", "4294967295", "4294967295"},
+	}
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			pattern, err := parseASPathPattern(tt.input)
+			if err != nil {
+				t.Fatalf("parseASPathPattern(%q) refused: %v", tt.input, err)
+			}
+			if pattern.engine != tt.engine {
+				t.Errorf("parseASPathPattern(%q) = %q, want %q", tt.input, pattern.engine, tt.engine)
+			}
+		})
 	}
 
-	for _, tt := range tests {
+	refused := []struct {
+		name, input, problem string
+	}{
+		{"regex dot star", "65001.*", "holds 65001.*, which is not an AS number"},
+		{"regex anchors", "^65001$", "holds 65001$, which is not an AS number"},
+		{"end anchor", "65001$", "holds 65001$, which is not an AS number"},
+		{"regex alternation", "65001|65002", "holds 65001|65002, which is not an AS number"},
+		{"regex grouping", "(65001)+", "holds (65001)+, which is not an AS number"},
+		{"grouped alternation", "(65001|65002)", "holds (65001|65002), which is not an AS number"},
+		{"regex class", "[0-9]", "holds [0-9], which is not an AS number"},
+		{"question mark", "65001?", "holds 65001?, which is not an AS number"},
+		{"underscore", "_65001_", "holds _65001_, which is not an AS number"},
+		{"dash", "65001-65002", "holds 65001-65002, which is not an AS number"},
+		{"second anchor", "^65001 ^65002", "holds ^65002, which is not an AS number"},
+		{"first past the last as number", "4294967296", "holds 4294967296, which is not an AS number"},
+		{"empty", "", "holds no AS number"},
+		{"anchor alone", "^", "holds no AS number"},
+		{"separators alone", " , ", "holds no AS number"},
+		{"too long", string(make([]byte, 201)), "characters is longer than the 200 the field takes"},
+		{"letters", "abc", "holds abc, which is not an AS number"},
+		{"semicolon", "65001;rm", "holds 65001;rm, which is not an AS number"},
+		{"backtick", "65001`rm`", "holds 65001`rm`, which is not an AS number"},
+		{"angle brackets", "<script>", "holds <script>, which is not an AS number"},
+		{"newline", "65001\n", "holds 65001\n, which is not an AS number"},
+	}
+	for _, tt := range refused {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isValidASPathPattern(tt.input)
-			if got != tt.want {
-				t.Errorf("isValidASPathPattern(%q) = %v, want %v", tt.input, got, tt.want)
+			pattern, err := parseASPathPattern(tt.input)
+			if err == nil {
+				t.Fatalf("parseASPathPattern(%q) = %q, want a refusal", tt.input, pattern.engine)
+			}
+			message := err.Error()
+			if !strings.Contains(message, tt.problem) {
+				t.Errorf("refusal %q does not say %q", message, tt.problem)
+			}
+			if !strings.Contains(message, "separated by spaces") || !strings.Contains(message, "a leading ^ anchors") {
+				t.Errorf("refusal %q does not name the form the field takes", message)
+			}
+			lines := strings.Split(message, "\n")
+			if last := lines[len(lines)-1]; last != "fix: "+asPathPatternExample {
+				t.Errorf("last line = %q, want %q", last, "fix: "+asPathPatternExample)
 			}
 		})
 	}
