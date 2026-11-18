@@ -37,9 +37,12 @@ type PoolHandler func(req ppp.EventIPRequest) ppp.IPResponseArgs
 
 // PrefixRequest carries the parameters for an IPv6 prefix allocation.
 type PrefixRequest struct {
-	TunnelID  uint16
-	SessionID uint16
-	PoolName  string // from RADIUS Framed-IPv6-Pool; "" = default pool
+	// SubscriberID is supplied by the original caller. Consumers MUST preserve
+	// it; reusable numeric labels below MUST NOT select an allocation.
+	SubscriberID string
+	TunnelID     uint16
+	SessionID    uint16
+	PoolName     string // from RADIUS Framed-IPv6-Pool; "" = default pool
 }
 
 // PrefixResult carries the prefix allocation result.
@@ -56,4 +59,4 @@ type PrefixHandler func(req PrefixRequest) PrefixResult
 
 // PrefixReleaser releases a previously allocated IPv6 prefix back to
 // the pool. Called on session teardown or DHCPv6 Release.
-type PrefixReleaser func(tunnelID, sessionID uint16)
+type PrefixReleaser func(subscriberID string)

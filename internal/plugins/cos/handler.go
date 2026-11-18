@@ -106,6 +106,9 @@ func (h *cosHandler) stop() {
 }
 
 func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
+	if err := subscriber.RequireID(logger(), p.SubscriberID); err != nil {
+		return
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if p.AccessInterface == "" {
@@ -114,7 +117,7 @@ func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
 		return
 	}
 
-	meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(p.TunnelID), p.SessionID))
+	meta := l2tp.LoadSessionMetadata(p.SubscriberID)
 	if meta == nil || meta.CoSProfile == "" {
 		return
 	}

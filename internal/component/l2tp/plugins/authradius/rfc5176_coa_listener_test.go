@@ -472,6 +472,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{{
+				SubscriberID:   "l2tp-10-20",
 				LocalSID:       20,
 				TunnelLocalTID: 10,
 				Username:       "alice",

@@ -78,9 +78,10 @@ func TestShaperSessionUpAppliesTC(t *testing.T) {
 	})
 
 	s.onSessionUp(&l2tpevents.SessionUpPayload{
-		TunnelID:  1,
-		SessionID: 100,
-		Interface: "ppp0",
+		SubscriberID: "l2tp-1-100",
+		TunnelID:     1,
+		SessionID:    100,
+		Interface:    "ppp0",
 	})
 
 	qos, ok := mb.getApplied("ppp0")
@@ -188,9 +189,10 @@ func TestShaperNoConfig(t *testing.T) {
 	s := &shaperPlugin{} // no config stored
 
 	s.onSessionUp(&l2tpevents.SessionUpPayload{
-		TunnelID:  1,
-		SessionID: 100,
-		Interface: "ppp0",
+		SubscriberID: "l2tp-1-100",
+		TunnelID:     1,
+		SessionID:    100,
+		Interface:    "ppp0",
 	})
 
 	key := sessionKey{tunnelID: 1, sessionID: 100}
@@ -210,9 +212,10 @@ func TestBuildQoSForTBF(t *testing.T) {
 	})
 
 	s.onSessionUp(&l2tpevents.SessionUpPayload{
-		TunnelID:  2,
-		SessionID: 200,
-		Interface: "ppp1",
+		SubscriberID: "l2tp-2-200",
+		TunnelID:     2,
+		SessionID:    200,
+		Interface:    "ppp1",
 	})
 
 	qos, ok := mb.getApplied("ppp1")
@@ -235,9 +238,10 @@ func TestBuildQoSForHTB(t *testing.T) {
 	})
 
 	s.onSessionUp(&l2tpevents.SessionUpPayload{
-		TunnelID:  3,
-		SessionID: 300,
-		Interface: "ppp2",
+		SubscriberID: "l2tp-3-300",
+		TunnelID:     3,
+		SessionID:    300,
+		Interface:    "ppp2",
 	})
 
 	qos, ok := mb.getApplied("ppp2")
@@ -271,7 +275,7 @@ func TestSessionUpEnforcesUploadRate(t *testing.T) {
 		UploadRate:  2_000_000,
 	})
 
-	s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: 4, SessionID: 400, Interface: "ppp4"})
+	s.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: "l2tp-4-400", TunnelID: 4, SessionID: 400, Interface: "ppp4"})
 
 	qos, ok := mb.getApplied("ppp4")
 	if !ok {
@@ -297,7 +301,7 @@ func TestSessionUpFallsBackToDefaultRateForUpload(t *testing.T) {
 	s := &shaperPlugin{}
 	s.cfgPtr.Store(&shaperConfig{QdiscType: traffic.QdiscTBF, DefaultRate: 7_000_000})
 
-	s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: 5, SessionID: 500, Interface: "ppp5"})
+	s.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: "l2tp-5-500", TunnelID: 5, SessionID: 500, Interface: "ppp5"})
 
 	qos, ok := mb.getApplied("ppp5")
 	if !ok {
@@ -320,7 +324,7 @@ func TestSessionUpEnforcesRadiusUploadHalf(t *testing.T) {
 	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(6), 600), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
 	t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(6), 600)) })
 
-	s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: 6, SessionID: 600, Interface: "ppp6"})
+	s.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(6), 600), TunnelID: 6, SessionID: 600, Interface: "ppp6"})
 
 	qos, ok := mb.getApplied("ppp6")
 	if !ok {

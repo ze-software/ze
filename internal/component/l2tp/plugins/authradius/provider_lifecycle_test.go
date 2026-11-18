@@ -101,7 +101,8 @@ func preserveLifecycleLocal(t *testing.T) {
 func lifecycleSessionUp(t *testing.T, bus *providerLifecycleBus, sessionID uint16) {
 	t.Helper()
 	if _, err := bus.Emit(l2tpevents.Namespace, l2tpevents.SessionIPAssignedEvent, &l2tpevents.SessionIPAssignedPayload{
-		TunnelID: 71, SessionID: sessionID, Username: "alice", PeerAddr: "192.0.2.71",
+		SubscriberID: fmt.Sprintf("l2tp-71-%d", sessionID),
+		TunnelID:     71, SessionID: sessionID, Username: "alice", PeerAddr: "192.0.2.71",
 	}); err != nil {
 		t.Fatal(err)
 	}

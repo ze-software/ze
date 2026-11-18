@@ -47,7 +47,7 @@ func newRateExpiryOwner(t *testing.T) (*shaperPlugin, *rateExpiryBackend, func()
 	now := time.Unix(1000, 0)
 	owner := &shaperPlugin{rateNow: func() time.Time { return now }}
 	owner.cfgPtr.Store(&shaperConfig{QdiscType: traffic.QdiscTBF, DefaultRate: 10_000_000, UploadRate: 5_000_000})
-	owner.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: 1, SessionID: 2, Interface: "ppp-expiry"})
+	owner.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: "l2tp-1-2", TunnelID: 1, SessionID: 2, Interface: "ppp-expiry"})
 	return owner, backend, func() { now = now.Add(2 * rateTransactionLifetime) }
 }
 

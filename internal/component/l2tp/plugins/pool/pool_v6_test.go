@@ -212,7 +212,7 @@ func TestPrefixHandlerFromPool(t *testing.T) {
 	p := &poolPlugin{}
 	p.v6pool = pool
 
-	result := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 2})
+	result := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 2), TunnelID: 1, SessionID: 2})
 	if !result.OK {
 		t.Fatalf("expected OK, got: %s", result.Reason)
 	}
@@ -240,7 +240,7 @@ func TestPrefixHandlerRADIUSOverride(t *testing.T) {
 	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4), &l2tp.AuthMetadata{DelegatedIPv6Prefix: radiusPrefix})
 	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 
-	result := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 3, SessionID: 4})
+	result := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 3, 4), TunnelID: 3, SessionID: 4})
 	if !result.OK {
 		t.Fatalf("expected OK, got: %s", result.Reason)
 	}
@@ -263,11 +263,11 @@ func TestPrefixHandlerPoolExhausted(t *testing.T) {
 	p := &poolPlugin{}
 	p.v6pool = pool
 
-	r1 := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 1})
+	r1 := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 1), TunnelID: 1, SessionID: 1})
 	if !r1.OK {
 		t.Fatalf("first should succeed: %s", r1.Reason)
 	}
-	r2 := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 2})
+	r2 := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 2), TunnelID: 1, SessionID: 2})
 	if r2.OK {
 		t.Fatal("second should fail (pool exhausted)")
 	}
@@ -282,13 +282,13 @@ func TestPrefixHandlerRelease(t *testing.T) {
 	p := &poolPlugin{}
 	p.v6pool = pool
 
-	p.handlePrefix(l2tp.PrefixRequest{TunnelID: 5, SessionID: 6})
+	p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 5, 6), TunnelID: 5, SessionID: 6})
 	_, allocated, _ := pool.stats()
 	if allocated != 1 {
 		t.Fatalf("after alloc: allocated = %d, want 1", allocated)
 	}
 
-	p.releasePrefix(5, 6)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, 5, 6))
 	_, allocated, _ = pool.stats()
 	if allocated != 0 {
 		t.Fatalf("after release: allocated = %d, want 0", allocated)
@@ -304,12 +304,12 @@ func TestPrefixHandlerDuplicateAllocation(t *testing.T) {
 	p := &poolPlugin{}
 	p.v6pool = pool
 
-	r1 := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 10, SessionID: 11})
+	r1 := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 10, 11), TunnelID: 10, SessionID: 11})
 	if !r1.OK {
 		t.Fatalf("first should succeed: %s", r1.Reason)
 	}
 
-	r2 := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 10, SessionID: 11})
+	r2 := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 10, 11), TunnelID: 10, SessionID: 11})
 	if r2.OK {
 		t.Fatal("duplicate allocation for same session should be rejected")
 	}
@@ -373,12 +373,49 @@ func TestPrefixHandlerNamedPool(t *testing.T) {
 	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8), &l2tp.AuthMetadata{FramedIPv6Pool: "v6-gold"})
 	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8))
 
-	result := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 7, SessionID: 8})
+	result := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 7, 8), TunnelID: 7, SessionID: 8})
 	if !result.OK {
 		t.Fatalf("expected OK, got: %s", result.Reason)
 	}
 	want := netip.MustParsePrefix("2001:db8:aa00::/48")
 	if result.Prefix != want {
 		t.Errorf("prefix = %s, want %s", result.Prefix, want)
+	}
+}
+
+// TestPrefixHandlerRequiresOriginalSubscriberID rejects a missing identity
+// before it consumes the only slot, then allocates and releases that slot for
+// an explicit opaque owner with the same numeric labels.
+// MUTATION: bypassing handlePrefix's RequireID guard allocates the empty key.
+func TestPrefixHandlerRequiresOriginalSubscriberID(t *testing.T) {
+	pool, err := newIPv6PrefixPool(netip.MustParsePrefix("2001:db8:300::/48"), 48)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &poolPlugin{v6pool: pool}
+	missing := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 17, SessionID: 7})
+	if missing.OK {
+		t.Fatal("prefix handler allocated a prefix without its original subscriber ID")
+	}
+	if missing.Reason == "" {
+		t.Fatal("missing subscriber ID refusal has no reason")
+	}
+	if _, used, _ := pool.stats(); used != 0 {
+		t.Fatalf("missing identity consumed %d prefix slots", used)
+	}
+	const id = "opaque/prefix-original-owner"
+	current := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: id, TunnelID: 17, SessionID: 7})
+	if !current.OK {
+		t.Fatalf("original owner lost untouched capacity: %s", current.Reason)
+	}
+	if current.Prefix != netip.MustParsePrefix("2001:db8:300::/48") {
+		t.Fatalf("original prefix=%s, want 2001:db8:300::/48", current.Prefix)
+	}
+	if _, used, _ := pool.stats(); used != 1 {
+		t.Fatalf("original owner holds %d prefix slots, want one", used)
+	}
+	p.releasePrefixBySubscriberID(id)
+	if _, used, _ := pool.stats(); used != 0 {
+		t.Fatalf("original release left %d prefix slots", used)
 	}
 }

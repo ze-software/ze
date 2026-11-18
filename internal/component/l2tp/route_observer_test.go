@@ -6,8 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
@@ -72,7 +70,7 @@ func TestRegisterL2TPSourcesRegistersSource(t *testing.T) {
 func TestRouteObserverInjectsIPv4(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 42, "alice", netip.MustParseAddr("192.0.2.7"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 42), 1, 42, "alice", netip.MustParseAddr("192.0.2.7"), nil)
 
 	injected, withdrawn, active := o.Stats()
 	require.Equal(t, uint64(1), injected)
@@ -84,7 +82,7 @@ func TestRouteObserverInjectsIPv4(t *testing.T) {
 func TestRouteObserverInjectsIPv6(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 43, "bob", netip.MustParseAddr("2001:db8::1"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 43), 1, 43, "bob", netip.MustParseAddr("2001:db8::1"), nil)
 
 	injected, withdrawn, active := o.Stats()
 	require.Equal(t, uint64(1), injected)
@@ -96,8 +94,8 @@ func TestRouteObserverInjectsIPv6(t *testing.T) {
 func TestRouteObserverTracksBothFamiliesPerSession(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 44, "carol", netip.MustParseAddr("192.0.2.7"))
-	o.OnSessionIPUp(1, 44, "carol", netip.MustParseAddr("2001:db8::7"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 44), 1, 44, "carol", netip.MustParseAddr("192.0.2.7"), nil)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 44), 1, 44, "carol", netip.MustParseAddr("2001:db8::7"), nil)
 
 	injected, _, active := o.Stats()
 	require.Equal(t, uint64(2), injected)
@@ -108,9 +106,9 @@ func TestRouteObserverTracksBothFamiliesPerSession(t *testing.T) {
 func TestRouteObserverWithdrawsOnDown(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 45, "dave", netip.MustParseAddr("192.0.2.8"))
-	o.OnSessionIPUp(1, 45, "dave", netip.MustParseAddr("2001:db8::8"))
-	o.OnSessionDown(1, 45)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 45), 1, 45, "dave", netip.MustParseAddr("192.0.2.8"), nil)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 45), 1, 45, "dave", netip.MustParseAddr("2001:db8::8"), nil)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 45), 1, 45)
 
 	injected, withdrawn, active := o.Stats()
 	require.Equal(t, uint64(2), injected)
@@ -122,7 +120,7 @@ func TestRouteObserverWithdrawsOnDown(t *testing.T) {
 func TestRouteObserverSessionDownUnknownID(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionDown(1, 9999) // never reported up
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 9999), 1, 9999) // never reported up
 
 	injected, withdrawn, active := o.Stats()
 	require.Equal(t, uint64(0), injected)
@@ -139,8 +137,8 @@ func TestRouteObserverReemitsReplayID(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 42, "alice", netip.MustParseAddr("192.0.2.7"))
-	o.OnSessionIPUp(1, 43, "bob", netip.MustParseAddr("2001:db8::1"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 42), 1, 42, "alice", netip.MustParseAddr("192.0.2.7"), nil)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 43), 1, 43, "bob", netip.MustParseAddr("2001:db8::1"), nil)
 
 	// Incremental emits carried ReplayID 0.
 	for _, e := range bus.events() {
@@ -179,7 +177,7 @@ func TestRouteObserverReemitsReplayID(t *testing.T) {
 func TestRouteObserverSkipsInvalidAddr(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 46, "eve", netip.Addr{})
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 46), 1, 46, "eve", netip.Addr{}, nil)
 
 	injected, _, active := o.Stats()
 	require.Equal(t, uint64(0), injected)
@@ -198,7 +196,7 @@ func TestObserver_OnSessionIPUp_EmitsBatch_IPv4(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 50, "alice", netip.MustParseAddr("192.0.2.10"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 50), 1, 50, "alice", netip.MustParseAddr("192.0.2.10"), nil)
 
 	evts := bus.events()
 	require.Len(t, evts, 1)
@@ -221,7 +219,7 @@ func TestObserver_OnSessionIPUp_EmitsBatch_IPv6(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 51, "bob", netip.MustParseAddr("2001:db8::1"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 51), 1, 51, "bob", netip.MustParseAddr("2001:db8::1"), nil)
 
 	evts := bus.events()
 	require.Len(t, evts, 1)
@@ -242,13 +240,13 @@ func TestObserver_OnSessionDown_EmitsRemoveBatches_PerFamily(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 52, "carol", netip.MustParseAddr("192.0.2.20"))
-	o.OnSessionIPUp(1, 52, "carol", netip.MustParseAddr("2001:db8::20"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 52), 1, 52, "carol", netip.MustParseAddr("192.0.2.20"), nil)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 52), 1, 52, "carol", netip.MustParseAddr("2001:db8::20"), nil)
 	bus.mu.Lock()
 	bus.emits = nil // clear add events
 	bus.mu.Unlock()
 
-	o.OnSessionDown(1, 52)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 52), 1, 52)
 
 	evts := bus.events()
 	require.Len(t, evts, 2, "one remove-batch per family")
@@ -271,12 +269,12 @@ func TestObserver_OnSessionDown_IPv4Only(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 53, "dave", netip.MustParseAddr("192.0.2.30"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 53), 1, 53, "dave", netip.MustParseAddr("192.0.2.30"), nil)
 	bus.mu.Lock()
 	bus.emits = nil
 	bus.mu.Unlock()
 
-	o.OnSessionDown(1, 53)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 53), 1, 53)
 
 	evts := bus.events()
 	require.Len(t, evts, 1, "only one remove-batch for the one family that was up")
@@ -290,8 +288,8 @@ func TestObserver_OnSessionDown_IPv4Only(t *testing.T) {
 func TestObserver_NilBus_StillTracksState(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)
 
-	o.OnSessionIPUp(1, 54, "eve", netip.MustParseAddr("192.0.2.40"))
-	o.OnSessionDown(1, 54)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 54), 1, 54, "eve", netip.MustParseAddr("192.0.2.40"), nil)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 54), 1, 54)
 
 	injected, withdrawn, active := o.Stats()
 	require.Equal(t, uint64(1), injected)
@@ -306,12 +304,12 @@ func TestObserver_OnSessionIPUp_ReplaceAddr_EmitsRemoveThenAdd(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 60, "frank", netip.MustParseAddr("192.0.2.50"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 60), 1, 60, "frank", netip.MustParseAddr("192.0.2.50"), nil)
 	bus.mu.Lock()
 	bus.emits = nil
 	bus.mu.Unlock()
 
-	o.OnSessionIPUp(1, 60, "frank", netip.MustParseAddr("192.0.2.51"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 60), 1, 60, "frank", netip.MustParseAddr("192.0.2.51"), nil)
 
 	evts := bus.events()
 	require.Len(t, evts, 2, "remove old + add new")
@@ -334,12 +332,12 @@ func TestObserver_OnSessionIPUp_SameAddr_NoRemove(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 61, "grace", netip.MustParseAddr("192.0.2.60"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 61), 1, 61, "grace", netip.MustParseAddr("192.0.2.60"), nil)
 	bus.mu.Lock()
 	bus.emits = nil
 	bus.mu.Unlock()
 
-	o.OnSessionIPUp(1, 61, "grace", netip.MustParseAddr("192.0.2.60"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 61), 1, 61, "grace", netip.MustParseAddr("192.0.2.60"), nil)
 
 	evts := bus.events()
 	require.Len(t, evts, 1, "only add, no remove for same address")
@@ -353,7 +351,7 @@ func TestObserver_OnSessionDown_NoEmission_IfNothingUp(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionDown(1, 99)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 99), 1, 99)
 
 	require.Empty(t, bus.events())
 }
@@ -364,15 +362,12 @@ func TestObserver_OnSessionIPUp_EmitsFramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 70), &AuthMetadata{
-		FramedRoutes: []FramedRoute{
-			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
-			{Prefix: netip.MustParsePrefix("172.16.0.0/12"), Metric: 2},
-		},
-	})
-	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 70))
+	framed := []FramedRoute{
+		{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
+		{Prefix: netip.MustParsePrefix("172.16.0.0/12"), Metric: 2},
+	}
 
-	o.OnSessionIPUp(1, 70, "alice", netip.MustParseAddr("192.0.2.70"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 70), 1, 70, "alice", netip.MustParseAddr("192.0.2.70"), framed)
 
 	evts := bus.events()
 	require.Len(t, evts, 2, "subscriber /32 + framed routes batch")
@@ -393,19 +388,16 @@ func TestObserver_OnSessionDown_WithdrawsFramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 71), &AuthMetadata{
-		FramedRoutes: []FramedRoute{
-			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
-		},
-	})
-	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 71))
+	framed := []FramedRoute{
+		{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
+	}
 
-	o.OnSessionIPUp(1, 71, "bob", netip.MustParseAddr("192.0.2.71"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 71), 1, 71, "bob", netip.MustParseAddr("192.0.2.71"), framed)
 	bus.mu.Lock()
 	bus.emits = nil
 	bus.mu.Unlock()
 
-	o.OnSessionDown(1, 71)
+	o.OnSessionDown(fixedRouteFixtureBirth(t, 71), 1, 71)
 
 	evts := bus.events()
 	require.Len(t, evts, 2, "subscriber /32 remove + framed route remove")
@@ -422,14 +414,11 @@ func TestObserver_OnSessionIPUp_EmitsIPv6FramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 72), &AuthMetadata{
-		FramedRoutes: []FramedRoute{
-			{Prefix: netip.MustParsePrefix("2001:db8::/32"), Metric: 5},
-		},
-	})
-	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 72))
+	framed := []FramedRoute{
+		{Prefix: netip.MustParsePrefix("2001:db8::/32"), Metric: 5},
+	}
 
-	o.OnSessionIPUp(1, 72, "carol", netip.MustParseAddr("192.0.2.72"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 72), 1, 72, "carol", netip.MustParseAddr("192.0.2.72"), framed)
 
 	evts := bus.events()
 	require.Len(t, evts, 2)
@@ -448,15 +437,12 @@ func TestObserver_OnSessionIPUp_DualStack_FramedRoutesOnce(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 74), &AuthMetadata{
-		FramedRoutes: []FramedRoute{
-			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
-		},
-	})
-	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 74))
+	framed := []FramedRoute{
+		{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
+	}
 
-	o.OnSessionIPUp(1, 74, "eve", netip.MustParseAddr("192.0.2.74"))
-	o.OnSessionIPUp(1, 74, "eve", netip.MustParseAddr("2001:db8::74"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 74), 1, 74, "eve", netip.MustParseAddr("192.0.2.74"), framed)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 74), 1, 74, "eve", netip.MustParseAddr("2001:db8::74"), framed)
 
 	evts := bus.events()
 	framedCount := 0
@@ -479,7 +465,7 @@ func TestObserver_OnSessionIPUp_NoFramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	o.OnSessionIPUp(1, 73, "dave", netip.MustParseAddr("192.0.2.73"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 73), 1, 73, "dave", netip.MustParseAddr("192.0.2.73"), nil)
 
 	evts := bus.events()
 	require.Len(t, evts, 1, "only subscriber /32, no framed routes")
@@ -519,8 +505,8 @@ func TestRouteObserverReplayEmitsUnderEmitLock(t *testing.T) {
 			o.emitMu.RUnlock()
 		}
 	}
-	o.OnSessionIPUp(1, 42, "alice", netip.MustParseAddr("192.0.2.7"))
-	o.OnSessionIPUp(1, 43, "bob", netip.MustParseAddr("2001:db8::1"))
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 42), 1, 42, "alice", netip.MustParseAddr("192.0.2.7"), nil)
+	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 43), 1, 43, "bob", netip.MustParseAddr("2001:db8::1"), nil)
 
 	o.reemitAll(6)
 

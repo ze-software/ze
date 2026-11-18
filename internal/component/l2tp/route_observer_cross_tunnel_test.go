@@ -1,5 +1,5 @@
 // Design: docs/guide/redistribution.md -- full subscriber contribution identity
-// Related: route_observer.go -- retained tuple, address/framed replay and removal
+// Related: route_observer.go -- retained birth, address/framed replay and removal
 
 package l2tp
 
@@ -22,23 +22,28 @@ func TestSubscriberRouteCrossTunnelIdentityAndWrongDown(t *testing.T) {
 	observer := newSubscriberRouteObserver(slog.Default(), bus)
 	framed := netip.MustParsePrefix("198.51.100.0/24")
 	address4 := netip.MustParseAddr("192.0.2.77")
-	for _, tunnel := range []uint16{101, 202} {
-		id := l2tpSessionID(tunnel, 7)
-		StoreSessionMetadata(id, &AuthMetadata{FramedRoutes: []FramedRoute{{Prefix: framed, Metric: uint32(tunnel)}}})
-		t.Cleanup(func() { ClearSessionMetadata(id) })
-		observer.OnSessionIPUp(tunnel, 7, "subscriber", address4)
-		observer.OnSessionIPUp(tunnel, 7, "subscriber", netip.MustParseAddr("2001:db8::77"))
+	var tokens [2]uint32
+	for index, tunnel := range []uint16{101, 202} {
+		birth := fixedRouteFixtureBirth(t, uint64(tunnel))
+		captured := []FramedRoute{{Prefix: framed, Metric: uint32(tunnel)}}
+		before := len(bus.events())
+		observer.OnSessionIPUp(birth, tunnel, 7, "subscriber", address4, captured)
+		observer.OnSessionIPUp(birth, tunnel, 7, "subscriber", netip.MustParseAddr("2001:db8::77"), captured)
+		batch := routeIdentityBatch(t, bus.events()[before])
+		tokens[index] = batch.Entries[0].SourceInstance
 	}
 	_, _, active := observer.Stats()
 	require.Equal(t, 2, active)
-	first := uint32(101)<<16 | 7
-	second := uint32(202)<<16 | 7
+	first, second := tokens[0], tokens[1]
+	require.NotZero(t, first)
+	require.NotZero(t, second)
+	require.NotEqual(t, first, second)
 	before := len(bus.events())
-	observer.OnSessionDown(303, 7)
+	observer.OnSessionDown(fixedRouteFixtureBirth(t, 303), 303, 7)
 	require.Len(t, bus.events(), before, "an unknown full tuple withdraws nothing")
 	observer.reemitAll(71)
-	observer.OnSessionDown(101, 7)
-	observer.OnSessionDown(101, 7)
+	observer.OnSessionDown(fixedRouteFixtureBirth(t, 101), 101, 7)
+	observer.OnSessionDown(fixedRouteFixtureBirth(t, 101), 101, 7)
 	observer.reemitAll(72)
 	replayed := map[uint64]map[uint32]int{71: {}, 72: {}}
 	removed := map[uint32]int{}
@@ -48,7 +53,11 @@ func TestSubscriberRouteCrossTunnelIdentityAndWrongDown(t *testing.T) {
 		for _, entry := range batch.Entries {
 			require.Contains(t, []uint32{first, second}, entry.SourceInstance)
 			if entry.Prefix == framed {
-				require.Equal(t, entry.SourceInstance>>16, entry.Metric)
+				if entry.SourceInstance == first {
+					require.Equal(t, uint32(101), entry.Metric)
+				} else {
+					require.Equal(t, uint32(202), entry.Metric)
+				}
 			}
 			if batch.ReplayID != 0 {
 				replayed[batch.ReplayID][entry.SourceInstance]++

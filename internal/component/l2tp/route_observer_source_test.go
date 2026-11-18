@@ -15,21 +15,25 @@ import (
 
 // TestSubscriberRouteSourceInstanceSurvivesReplayAndRemove gives two sessions
 // the same address and framed prefix, then checks each actual lifecycle event
-// retains the original session tuple and one session's removal leaves the
+// retains the original contribution token and one session's removal leaves the
 // other's replay intact.
 func TestSubscriberRouteSourceInstanceSurvivesReplayAndRemove(t *testing.T) {
 	bus := &recordingBus{}
 	observer := newSubscriberRouteObserver(slog.Default(), bus)
 	address := netip.MustParseAddr("192.0.2.77")
 	framed := netip.MustParsePrefix("198.51.100.0/24")
-	for _, session := range []uint16{701, 702} {
-		metadata := l2tpSessionID(17, session)
-		StoreSessionMetadata(metadata, &AuthMetadata{FramedRoutes: []FramedRoute{{Prefix: framed, Metric: 9}}})
-		t.Cleanup(func() { ClearSessionMetadata(metadata) })
-		observer.OnSessionIPUp(17, session, "subscriber", address)
+	var tokens [2]uint32
+	for index, session := range []uint16{701, 702} {
+		before := len(bus.events())
+		observer.OnSessionIPUp(fixedRouteFixtureBirth(t, uint64(session)), 17, session, "subscriber", address, []FramedRoute{{Prefix: framed, Metric: 9}})
+		batch := routeIdentityBatch(t, bus.events()[before])
+		tokens[index] = batch.Entries[0].SourceInstance
 	}
+	require.NotZero(t, tokens[0])
+	require.NotZero(t, tokens[1])
+	require.NotEqual(t, tokens[0], tokens[1])
 	observer.reemitAll(53)
-	observer.OnSessionDown(17, 701)
+	observer.OnSessionDown(fixedRouteFixtureBirth(t, 701), 17, 701)
 	observer.reemitAll(54)
 	normal := map[redistevents.RouteAction]map[uint32]int{
 		redistevents.ActionAdd: {}, redistevents.ActionRemove: {},
@@ -51,8 +55,7 @@ func TestSubscriberRouteSourceInstanceSurvivesReplayAndRemove(t *testing.T) {
 			}
 		}
 	}
-	first := uint32(17)<<16 | 701
-	second := uint32(17)<<16 | 702
+	first, second := tokens[0], tokens[1]
 	require.Equal(t, map[uint32]int{first: 2, second: 2}, normal[redistevents.ActionAdd])
 	require.Equal(t, map[uint32]int{first: 2}, normal[redistevents.ActionRemove])
 	require.Equal(t, map[uint32]int{first: 2, second: 2}, replays[53])

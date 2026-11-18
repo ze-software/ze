@@ -131,6 +131,7 @@ func TestCoSHandlerSessionUp(t *testing.T) {
 	defer clearMetadataForTest(1, 10)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-1-10",
 		TunnelID:        1,
 		SessionID:       10,
 		Interface:       "ppp0",
@@ -154,6 +155,7 @@ func TestCoSHandlerSessionUpNoCoS(t *testing.T) {
 	bus, mb := setupTestHandler(t)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-1-11",
 		TunnelID:        1,
 		SessionID:       11,
 		Interface:       "ppp1",
@@ -173,9 +175,10 @@ func TestCoSHandlerSessionUpNoAccess(t *testing.T) {
 	defer clearMetadataForTest(2, 20)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		TunnelID:  2,
-		SessionID: 20,
-		Interface: "ppp2",
+		SubscriberID: "l2tp-2-20",
+		TunnelID:     2,
+		SessionID:    20,
+		Interface:    "ppp2",
 	})
 
 	if mb.callCount() != 0 {
@@ -191,6 +194,7 @@ func TestCoSHandlerSessionUpRateOnly(t *testing.T) {
 	defer clearMetadataForTest(3, 30)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-3-30",
 		TunnelID:        3,
 		SessionID:       30,
 		Interface:       "ppp3",
@@ -210,6 +214,7 @@ func TestCoSHandlerSessionDown(t *testing.T) {
 	defer clearMetadataForTest(4, 40)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-4-40",
 		TunnelID:        4,
 		SessionID:       40,
 		Interface:       "ppp4",
@@ -241,6 +246,7 @@ func TestCoSHandlerCoAChange(t *testing.T) {
 	defer clearMetadataForTest(5, 50)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-5-50",
 		TunnelID:        5,
 		SessionID:       50,
 		Interface:       "ppp5",
@@ -274,6 +280,7 @@ func TestCoSHandlerCoANotFound(t *testing.T) {
 	defer clearMetadataForTest(6, 60)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-6-60",
 		TunnelID:        6,
 		SessionID:       60,
 		Interface:       "ppp6",
@@ -300,6 +307,7 @@ func TestCoSHandlerDualFilterID(t *testing.T) {
 	defer clearMetadataForTest(7, 70)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
+		SubscriberID:    "l2tp-7-70",
 		TunnelID:        7,
 		SessionID:       70,
 		Interface:       "ppp7",

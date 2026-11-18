@@ -18,6 +18,19 @@ the shaper and the accounting path all need the same data. Extending the auth
 respond callback signature would have changed a contract that four independent
 consumers depend on.
 
+L2TP profile readers use the original supplied subscriber ID. The actor caches
+it before publication and carries it on lifecycle events. Pool allocation,
+timeouts, shaping, accounting and CoS use that ID for their metadata lookup;
+they do not rebuild it from the tunnel and session numbers. PPPoE keeps its
+existing supplied identity.
+<!-- source: internal/component/l2tp/session.go -- SubscriberID -->
+<!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata, LoadSessionMetadata, ClearSessionMetadata -->
+<!-- source: internal/component/l2tp/session_timeout.go -- startSessionTimeouts -->
+<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- onSessionUp -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionIPAssigned -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, handlePrefix -->
+<!-- source: internal/plugins/cos/handler.go -- onSessionUp -->
+
 **A goroutine per session timer, not a central timer wheel.** The expected
 session count is in the low thousands. A shared wheel costs complexity that the
 count does not justify.

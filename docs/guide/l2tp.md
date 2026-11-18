@@ -1626,11 +1626,22 @@ EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
 prefix. Session-down emits matching remove batches, one per address
 family that was up.
 
-The live record belongs to the full tunnel and session pair. Two tunnels can
-use the same session number and keep separate address and framed routes.
-Removing one pair leaves the other pair's
-routes available for replay. A Down for an unknown pair removes nothing.
+The live record belongs to the original session's complete Birth. Equal tunnel
+and session numbers, including on different listeners, keep separate address
+and framed routes. Removing one Birth leaves the other's routes available
+for replay. A Down for an unknown Birth removes nothing. Framed routes arrive
+from the original actor's captured authorization profile.
 <!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+
+Each record also retains a separate native redistribution contribution token.
+Add, replay and remove carry that same nonzero token, so equal prefixes from
+different original sessions remain independent. Tokens are allocated once per
+route lifetime and never recycled within the process. Exhaustion refuses a
+new contribution and raises an internal-defect doctor warning with a restart
+command; it does not reuse another session's token.
+<!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence, next, reportSourceRefusal -->
+<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, OnSessionIPUp, reemitAll -->
 
 The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers

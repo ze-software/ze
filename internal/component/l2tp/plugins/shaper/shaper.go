@@ -111,6 +111,9 @@ func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, upl
 }
 
 func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
+	if err := subscriber.RequireID(logger(), payload.SubscriberID); err != nil {
+		return
+	}
 	s.mutationMu.Lock()
 	defer s.mutationMu.Unlock()
 	cfg := s.cfgPtr.Load()
@@ -128,7 +131,7 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	s.invalidateRateInterface(payload.Interface)
 
 	// RFC 2865 Section 5.11: Filter-Id from RADIUS overrides default rate.
-	if meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(payload.TunnelID), payload.SessionID)); meta != nil && meta.FilterID != "" {
+	if meta := l2tp.LoadSessionMetadata(payload.SubscriberID); meta != nil && meta.FilterID != "" {
 		if down, up, ok := traffic.ParseFilterIDRate(meta.FilterID); ok {
 			state.downloadRate = down
 			state.uploadRate = up

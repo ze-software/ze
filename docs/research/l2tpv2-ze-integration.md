@@ -704,6 +704,23 @@ bgp {
 
 ### 9.2 Route injection flow
 
+Each original logical session carries an immutable packed Birth and a cached
+canonical subscriber ID. The actor captures framed-route metadata with that ID
+before releasing its row lock. Its ordered IP-assignment callback supplies the
+Birth and captured route slice to the route observer; labels remain diagnostic.
+The observer retains one record per complete Birth and copies the route input.
+<!-- source: internal/component/l2tp/session.go -- Birth, SubscriberID -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp -->
+
+A separate nonzero native contribution token belongs to each route lifetime.
+The record preserves it on address and framed-route adds, replay and removal.
+Token allocation is a cold operation that refuses exhaustion instead of
+recycling an existing contribution. Equal wire labels or prefixes do not merge
+two original sessions.
+<!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence, next -->
+<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, reemitAll, OnSessionDown -->
+
 When a session gets an IP address (step 9 in the subscriber-up flow):
 
 1. L2TP subsystem calls the redistribute plugin with the subscriber route:

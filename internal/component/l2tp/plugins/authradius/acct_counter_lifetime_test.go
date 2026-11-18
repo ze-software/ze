@@ -155,7 +155,8 @@ func (c *acctCapture) waitForCounterRecord(t *testing.T, description string, mat
 func counterLifetimeStart(t *testing.T, acct *radiusAcct, capture *acctCapture, username string) capturedAcct {
 	t.Helper()
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 2030, SessionID: 49, Username: username,
+		SubscriberID: "l2tp-2030-49",
+		TunnelID:     2030, SessionID: 49, Username: username,
 		PeerAddr: "198.51.100.42", PppInterface: "ppp4242",
 	})
 	start := capture.waitForCounterRecord(t, username+" Start", func(p capturedAcct) bool {

@@ -47,15 +47,19 @@ func (b *subscriberBridge) stop() {
 	b.unsubs = nil
 }
 
-func l2tpSessionID(tunnelID, sessionID uint16) string {
-	return subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID)
-}
-
 func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
-	id := l2tpSessionID(p.TunnelID, p.SessionID)
+	if !p.Birth.IsValid() {
+		reportSessionBirthRefusal(b.logger, "subscriber session-up", p.TunnelID, p.SessionID)
+		return
+	}
+	if err := subscriber.RequireID(b.logger, p.SubscriberID); err != nil {
+		return
+	}
+	id := p.SubscriberID
 	sess, _ := b.registry.Get(id)
 	wasActive := sess.State == subscriber.StateActive
 	sess.ID = id
+	sess.L2TPBirth = p.Birth
 	sess.AccessType = subscriber.AccessL2TP
 	sess.State = subscriber.StateActive
 	sess.TunnelID = p.TunnelID
@@ -80,11 +84,19 @@ func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
 }
 
 func (b *subscriberBridge) onSessionDown(p *l2tpevents.SessionDownPayload) {
-	id := l2tpSessionID(p.TunnelID, p.SessionID)
+	if !p.Birth.IsValid() {
+		reportSessionBirthRefusal(b.logger, "subscriber session-down", p.TunnelID, p.SessionID)
+		return
+	}
+	if err := subscriber.RequireID(b.logger, p.SubscriberID); err != nil {
+		return
+	}
+	id := p.SubscriberID
 	sess, ok := b.registry.Get(id)
 	if !ok {
 		sess = subscriber.Session{
 			ID:         id,
+			L2TPBirth:  p.Birth,
 			AccessType: subscriber.AccessL2TP,
 			TunnelID:   p.TunnelID,
 			SessionID:  p.SessionID,
@@ -121,6 +133,13 @@ func (b *subscriberBridge) onAuthResult(p *subevents.SessionAuthResultPayload) {
 }
 
 func (b *subscriberBridge) onSessionIPAssigned(p *l2tpevents.SessionIPAssignedPayload) {
+	if !p.Birth.IsValid() {
+		reportSessionBirthRefusal(b.logger, "subscriber address assignment", p.TunnelID, p.SessionID)
+		return
+	}
+	if err := subscriber.RequireID(b.logger, p.SubscriberID); err != nil {
+		return
+	}
 	var addr netip.Addr
 	if p.PeerAddr != "" {
 		var err error
@@ -134,13 +153,14 @@ func (b *subscriberBridge) onSessionIPAssigned(p *l2tpevents.SessionIPAssignedPa
 		b.logger.Warn("l2tp: IP-assigned event has no address or interface identifier")
 		return
 	}
-	id := l2tpSessionID(p.TunnelID, p.SessionID)
+	id := p.SubscriberID
 	sess, ok := b.registry.Get(id)
 	if !ok {
 		sess = subscriber.Session{
 			ID: id, AccessType: subscriber.AccessL2TP,
-			State:    subscriber.StateConfiguring,
-			TunnelID: p.TunnelID, SessionID: p.SessionID,
+			L2TPBirth: p.Birth,
+			State:     subscriber.StateConfiguring,
+			TunnelID:  p.TunnelID, SessionID: p.SessionID,
 			AcctSessionID: id,
 		}
 	}

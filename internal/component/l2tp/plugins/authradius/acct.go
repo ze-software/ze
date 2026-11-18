@@ -317,6 +317,9 @@ func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) func() {
 }
 
 func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPayload) {
+	if err := subscriber.RequireID(logger(), payload.SubscriberID); err != nil {
+		return
+	}
 	key := sessionKey{payload.TunnelID, payload.SessionID}
 	a.mu.Lock()
 	client := a.client
@@ -343,7 +346,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	// Section 5.16 defines. Section 2.1 decides which of the two values wins,
 	// and acctInterval enforces it.
 	var fromAccept uint32
-	if meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(payload.TunnelID), payload.SessionID)); meta != nil {
+	if meta := l2tp.LoadSessionMetadata(payload.SubscriberID); meta != nil {
 		fromAccept = meta.AcctInterimInterval
 	}
 	interval := acctInterval(configured, fromAccept)

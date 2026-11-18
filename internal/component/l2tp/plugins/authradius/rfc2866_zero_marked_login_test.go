@@ -153,7 +153,8 @@ func loginSession(t *testing.T, bus *providerLifecycleBus, srv *loginRADIUS, req
 	}
 
 	if _, err := bus.Emit(l2tpevents.Namespace, l2tpevents.SessionIPAssignedEvent, &l2tpevents.SessionIPAssignedPayload{
-		TunnelID: req.TunnelID, SessionID: req.SessionID, Username: req.Username, PeerAddr: "192.0.2.80",
+		SubscriberID: req.SubscriberID,
+		TunnelID:     req.TunnelID, SessionID: req.SessionID, Username: req.Username, PeerAddr: "192.0.2.80",
 	}); err != nil {
 		t.Fatal(err)
 	}

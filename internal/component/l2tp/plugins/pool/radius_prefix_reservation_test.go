@@ -34,7 +34,7 @@ func radiusPrefixRequest(t *testing.T, p *poolPlugin, session uint16, prefix net
 	t.Cleanup(func() {
 		l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), session))
 	})
-	return p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: session})
+	return p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), session), TunnelID: radiusTestTunnel, SessionID: session})
 }
 
 // TestPoolRADIUSPrefixReservesAllOverlappingSlots requests one RADIUS /60 over
@@ -58,7 +58,7 @@ func TestPoolRADIUSPrefixReservesAllOverlappingSlots(t *testing.T) {
 		if free != 0 {
 			t.Fatalf("%s free slots = %d, want 0", name, free)
 		}
-		request := l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 11}
+		request := l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 11), TunnelID: radiusTestTunnel, SessionID: 11}
 		if name == "other" {
 			request.PoolName = name
 		}
@@ -66,7 +66,7 @@ func TestPoolRADIUSPrefixReservesAllOverlappingSlots(t *testing.T) {
 			t.Fatalf("%s assigned %s inside the RADIUS prefix", name, next.Prefix)
 		}
 	}
-	p.releasePrefix(radiusTestTunnel, 10)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 10))
 	for name, pool := range map[string]*ipv6PrefixPool{"default": p.v6pool, "other": p.v6namedPools["other"]} {
 		_, used, free := pool.stats()
 		if used != 0 {
@@ -76,10 +76,10 @@ func TestPoolRADIUSPrefixReservesAllOverlappingSlots(t *testing.T) {
 			t.Fatalf("%s free slots after release = %d, want 8", name, free)
 		}
 	}
-	if next := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 12}); !next.OK {
+	if next := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 12), TunnelID: radiusTestTunnel, SessionID: 12}); !next.OK {
 		t.Fatalf("released default slots unavailable: %s", next.Reason)
 	}
-	if next := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 13, PoolName: "other"}); !next.OK {
+	if next := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 13), TunnelID: radiusTestTunnel, SessionID: 13, PoolName: "other"}); !next.OK {
 		t.Fatalf("released named slots unavailable: %s", next.Reason)
 	}
 }
@@ -101,7 +101,7 @@ func TestPoolRADIUSPrefixOverlappingHeldIsRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := radiusPrefixPool(t)
 			if tc.dynamic {
-				first := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 20})
+				first := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 20), TunnelID: radiusTestTunnel, SessionID: 20})
 				if !first.OK {
 					t.Fatalf("dynamic prefix refused: %s", first.Reason)
 				}
@@ -122,7 +122,7 @@ func TestPoolRADIUSPrefixOverlappingHeldIsRefused(t *testing.T) {
 			if _, exists := p.sessionPrefixes.Load(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 21)); exists {
 				t.Fatal("refused RADIUS prefix created a session record")
 			}
-			p.releasePrefix(radiusTestTunnel, 20)
+			p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 20))
 			third := radiusPrefixRequest(t, p, 22, requested)
 			if !third.OK {
 				t.Fatalf("released prefix still refused: %s", third.Reason)
@@ -144,7 +144,7 @@ func TestPoolRADIUSPrefixOutsideRangesIsPreserved(t *testing.T) {
 	if first.Prefix != prefix {
 		t.Fatalf("external prefix = %s, want %s", first.Prefix, prefix)
 	}
-	p.releasePrefix(radiusTestTunnel, 30)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 30))
 	if _, remains := p.sessionPrefixes.Load(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 30)); remains {
 		t.Fatal("released external RADIUS prefix retained its session record")
 	}
@@ -164,7 +164,7 @@ func TestPoolRADIUSPrefixCannotOverlapCarriedDelegation(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if first := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 40}); !first.OK {
+	if first := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 40), TunnelID: radiusTestTunnel, SessionID: 40}); !first.OK {
 		t.Fatal(first.Reason)
 	}
 	if err := tx.Verify(reloadPoolSection(t, map[string]any{
@@ -179,7 +179,7 @@ func TestPoolRADIUSPrefixCannotOverlapCarriedDelegation(t *testing.T) {
 	if second := radiusPrefixRequest(t, p, 41, prefix); second.OK {
 		t.Fatalf("RADIUS bypassed carried delegation with %s", second.Prefix)
 	}
-	p.releasePrefix(radiusTestTunnel, 40)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 40))
 	if third := radiusPrefixRequest(t, p, 42, prefix); !third.OK {
 		t.Fatalf("released carried delegation still blocks RADIUS: %s", third.Reason)
 	}
@@ -203,15 +203,15 @@ func TestPoolRADIUSDisjointPrefixesSharePoolSlot(t *testing.T) {
 	if _, used, _ := pool.stats(); used != 1 {
 		t.Fatalf("coarse slot reservations = %d, want 1", used)
 	}
-	p.releasePrefix(radiusTestTunnel, 50)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 50))
 	if _, used, _ := pool.stats(); used != 1 {
 		t.Fatalf("coarse slot was released while another RADIUS prefix remains: %d", used)
 	}
-	if next := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 52}); next.OK {
+	if next := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 52), TunnelID: radiusTestTunnel, SessionID: 52}); next.OK {
 		t.Fatalf("coarse prefix %s overlaps the remaining RADIUS subscriber", next.Prefix)
 	}
-	p.releasePrefix(radiusTestTunnel, 51)
-	if next := p.handlePrefix(l2tp.PrefixRequest{TunnelID: radiusTestTunnel, SessionID: 53}); !next.OK {
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 51))
+	if next := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(radiusTestTunnel), 53), TunnelID: radiusTestTunnel, SessionID: 53}); !next.OK {
 		t.Fatalf("coarse slot unavailable after final RADIUS release: %s", next.Reason)
 	}
 }

@@ -25,8 +25,10 @@ compatibility path for a server that cannot send it.
 <!-- source: internal/plugins/cos/handler.go -- cosHandler, SessionUp handling -->
 <!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata.CoSProfile -->
 
-The L2TP metadata store carries `CoSProfile` in `AuthMetadata`. Subscriber events
-have no tunnel or session ID, so they cannot look that metadata up.
+The L2TP metadata store carries `CoSProfile` in `AuthMetadata`. The session-up
+event supplies the original subscriber ID for that lookup. The handler refuses
+an absent ID before applying a profile; reusable tunnel and session numbers
+do not select authorization metadata.
 
 ### Per-session state in a `sync.Map`
 

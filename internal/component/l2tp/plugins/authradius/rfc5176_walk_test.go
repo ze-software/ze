@@ -99,6 +99,7 @@ func oneSessionService() *fakeL2TPService {
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{{
+				SubscriberID:   "l2tp-10-20",
 				LocalSID:       20,
 				TunnelLocalTID: 10,
 				Username:       "alice",
@@ -482,8 +483,8 @@ func TestRFC5176MultipleMatchingSessionsNAKed(t *testing.T) {
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{
-				{LocalSID: 20, TunnelLocalTID: 10, Username: "alice"},
-				{LocalSID: 21, TunnelLocalTID: 10, Username: "alice"},
+				{SubscriberID: "l2tp-10-20", LocalSID: 20, TunnelLocalTID: 10, Username: "alice"},
+				{SubscriberID: "l2tp-10-21", LocalSID: 21, TunnelLocalTID: 10, Username: "alice"},
 			},
 		}},
 	}}

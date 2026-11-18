@@ -51,7 +51,7 @@ func (r *l2tpReactor) startSessionTimeouts(tunnel *L2TPTunnel, sess *L2TPSession
 	if sess.timeoutLifetime != lifetime {
 		return
 	}
-	meta := LoadSessionMetadata(l2tpSessionID(tunnel.localTID, sess.localSID))
+	meta := LoadSessionMetadata(sess.SubscriberID())
 	if meta == nil {
 		return
 	}

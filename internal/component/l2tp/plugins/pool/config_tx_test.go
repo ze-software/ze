@@ -74,7 +74,7 @@ func TestPoolConfigTxAppliesReloadedRanges(t *testing.T) {
 	if got := p.namedPools["gold"]; got == nil {
 		t.Fatal("named pool not installed")
 	}
-	if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 3}); !got.OK {
+	if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 3), TunnelID: 1, SessionID: 3}); !got.OK {
 		t.Fatalf("new IPv6 block refused: %s", got.Reason)
 	}
 }
@@ -92,7 +92,7 @@ func TestPoolReloadCarriesLiveAllocations(t *testing.T) {
 		t.Fatal(err)
 	}
 	ip := allocate(t, p, 1, 1, subscriber.AccessL2TP)
-	prefix := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 1})
+	prefix := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 1), TunnelID: 1, SessionID: 1})
 	if !prefix.OK {
 		t.Fatal(prefix.Reason)
 	}
@@ -114,7 +114,7 @@ func TestPoolReloadCarriesLiveAllocations(t *testing.T) {
 	if _, used, _ := p.v6pool.stats(); used != 1 {
 		t.Fatalf("carried IPv6 count %d, want 1", used)
 	}
-	if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 2}); !got.OK || got.Prefix == prefix.Prefix {
+	if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 2), TunnelID: 1, SessionID: 2}); !got.OK || got.Prefix == prefix.Prefix {
 		t.Fatalf("live prefix not excluded: %+v", got)
 	}
 }
@@ -321,7 +321,7 @@ func TestPoolReloadSplitsLiveDelegation(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 1}); !got.OK {
+	if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 1), TunnelID: 1, SessionID: 1}); !got.OK {
 		t.Fatal(got.Reason)
 	}
 	if err := tx.Verify(reloadPoolSection(t, map[string]any{
@@ -338,7 +338,7 @@ func TestPoolReloadSplitsLiveDelegation(t *testing.T) {
 			t.Fatalf("%s split reservations=%d free=%d, want 8/0", name, used, free)
 		}
 	}
-	p.releasePrefix(1, 1)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, 1, 1))
 	for name, pool := range map[string]*ipv6PrefixPool{"default": p.v6pool, "other": p.v6namedPools["other"]} {
 		if _, used, free := pool.stats(); used != 0 || free != 8 {
 			t.Fatalf("%s split release=%d free=%d, want 0/8", name, used, free)
@@ -357,7 +357,7 @@ func TestPoolReloadMergesLiveDelegations(t *testing.T) {
 		t.Fatal(err)
 	}
 	for session := uint16(1); session <= 2; session++ {
-		if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: session}); !got.OK {
+		if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, session), TunnelID: 1, SessionID: session}); !got.OK {
 			t.Fatal(got.Reason)
 		}
 	}
@@ -369,12 +369,12 @@ func TestPoolReloadMergesLiveDelegations(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatal(err)
 	}
-	p.releasePrefix(1, 1)
-	if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 3}); got.OK {
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, 1, 1))
+	if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 3), TunnelID: 1, SessionID: 3}); got.OK {
 		t.Fatalf("coarse slot reused while second delegation lives: %+v", got)
 	}
-	p.releasePrefix(1, 2)
-	if got := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 1, SessionID: 3}); !got.OK {
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, 1, 2))
+	if got := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 1, 3), TunnelID: 1, SessionID: 3}); !got.OK {
 		t.Fatalf("coarse slot did not return after final release: %s", got.Reason)
 	}
 }

@@ -86,10 +86,11 @@ func startPrecedenceSession(t *testing.T, tunnelID, sessionID uint16, configured
 	t.Cleanup(acct.Stop)
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:  tunnelID,
-		SessionID: sessionID,
-		Username:  "alice",
-		PeerAddr:  "10.0.0.1",
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID),
+		TunnelID:     tunnelID,
+		SessionID:    sessionID,
+		Username:     "alice",
+		PeerAddr:     "10.0.0.1",
 	})
 	return capture
 }

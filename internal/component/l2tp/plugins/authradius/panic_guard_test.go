@@ -172,7 +172,8 @@ func TestRADIUSAccountingPanicContained(t *testing.T) {
 	armed.Store(true)
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 1, SessionID: 2, Username: "alice", PeerAddr: "10.0.0.1",
+		SubscriberID: "l2tp-1-2",
+		TunnelID:     1, SessionID: 2, Username: "alice", PeerAddr: "10.0.0.1",
 	})
 	deadline := time.Now().Add(5 * time.Second)
 	for count, _ := authGuard.Panics(taskAccounting); count != before+1; count, _ = authGuard.Panics(taskAccounting) {
@@ -184,7 +185,8 @@ func TestRADIUSAccountingPanicContained(t *testing.T) {
 	wantOneRecoveredCrash(t, "radius-auth "+taskAccounting+", unit tunnel 1 session 2")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 3, SessionID: 4, Username: "bob", PeerAddr: "10.0.0.2",
+		SubscriberID: "l2tp-3-4",
+		TunnelID:     3, SessionID: 4, Username: "bob", PeerAddr: "10.0.0.2",
 	})
 	if start := capture.waitN(t, 1)[0]; start.statusType != radius.AcctStatusStart || start.username != "bob" {
 		t.Fatalf("after the contained panic: got %+v, want bob's Accounting-Start", start)

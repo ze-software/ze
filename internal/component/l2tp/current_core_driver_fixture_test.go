@@ -86,14 +86,21 @@ type currentCoreAdmissionConfig struct {
 // session and returns at the actual LCP-up/authentication boundary. No setup
 // notice or order ticket reaches the readers a consumer test is measuring.
 // The test MUST consume/answer requests or close the peer; cleanup does the latter.
+// With a nil reactor this is a protocol-only fixture: an explicitly supplied
+// opaque ID remains opaque and carries no claim of an L2TP admission birth.
 func newCurrentCoreAdmission(t *testing.T, r *l2tpReactor, input *currentCoreAdmissionConfig) *currentCoreWire {
 	t.Helper()
 	config := *input
 	tid, sid := config.ids.tunnelID, config.ids.sessionID
 	ipv6, id := config.ipv6, config.subscriberID
+	protocolOnly := r == nil
 	if r == nil {
+		session := &L2TPSession{localSID: sid, subscriberID: id}
+		if id == "" {
+			newFixtureL2TPSession(t, session)
+		}
 		r = &l2tpReactor{logger: slog.New(slog.NewTextHandler(io.Discard, nil)), tunnelsByLocalID: map[uint16]*L2TPTunnel{
-			tid: {localTID: tid, sessions: map[uint16]*L2TPSession{sid: {localSID: sid}}},
+			tid: {localTID: tid, sessions: map[uint16]*L2TPSession{sid: session}},
 		}}
 	}
 	r.tunnelsMu.Lock()
@@ -111,10 +118,27 @@ func newCurrentCoreAdmission(t *testing.T, r *l2tpReactor, input *currentCoreAdm
 		r.tunnelsMu.Unlock()
 		t.Fatal("core fixture cannot replace an existing attempt")
 	}
+	if !protocolOnly {
+		if !session.birth.IsValid() {
+			r.tunnelsMu.Unlock()
+			t.Fatal("core fixture actor was published without an explicit valid birth")
+		}
+		if session.subscriberID == "" {
+			r.tunnelsMu.Unlock()
+			t.Fatal("core fixture actor was published without its cached subscriber ID")
+		}
+	}
 	ifname := session.pppInterface
+	birth := session.birth
+	originalID := session.subscriberID
 	r.tunnelsMu.Unlock()
 	if id == "" {
-		id = l2tpSessionID(tid, sid)
+		id = originalID
+	}
+	if !protocolOnly {
+		if id != originalID {
+			t.Fatal("core fixture cannot change an actor's original subscriber ID")
+		}
 	}
 	lcp, err := ppp.NewLCPConfig(3*time.Second, 2, 10, 5)
 	if err != nil {
@@ -153,7 +177,7 @@ func newCurrentCoreAdmission(t *testing.T, r *l2tpReactor, input *currentCoreAdm
 	r.tunnelsMu.Unlock()
 	options := []byte{1, 4, 5, 220, 3, 4, 0xc0, 0x23}
 	wire.startSession = ppp.StartSession{
-		LCP: lcp, TunnelID: tid, SessionID: sid, SubscriberID: id, Attempt: attempt,
+		LCP: lcp, TunnelID: tid, SessionID: sid, L2TPBirth: birth, SubscriberID: id, Attempt: attempt,
 		Frames: handle, Dataplane: handle, LNSMode: true, DisableIPv6CP: !ipv6,
 		AuthMethod: ppp.AuthMethodPAP, AuthFallbackOrder: []ppp.AuthMethod{ppp.AuthMethodPAP},
 		AuthTimeout: time.Hour, IPTimeout: time.Hour, EchoInterval: time.Hour,
@@ -441,17 +465,19 @@ func (w *currentCoreWire) duplicateRejection(t *testing.T) ppp.EventSessionRejec
 func currentCoreNewRejection(t *testing.T, r *l2tpReactor, tid, sid uint16) ppp.EventSessionRejected {
 	t.Helper()
 	wire := newCurrentCoreAdmission(t, nil, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: tid, sessionID: sid}, ipv6: false, subscriberID: "core-original-lease-owner"})
-	id := l2tpSessionID(tid, sid)
+	r.tunnelsMu.Lock()
+	session := r.tunnelsByLocalID[tid].lookupSession(sid)
+	birth, id := session.Birth(), session.SubscriberID()
+	r.tunnelsMu.Unlock()
 	start := wire.startSession
 	attempt, err := ppp.NewSessionAttempt(id, start.Dataplane)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.tunnelsMu.Lock()
-	session := r.tunnelsByLocalID[tid].lookupSession(sid)
 	session.pppAttempt = attempt
 	r.tunnelsMu.Unlock()
-	start.SubscriberID, start.Attempt = id, attempt
+	start.L2TPBirth, start.SubscriberID, start.Attempt = birth, id, attempt
 	wire.driver.SessionsIn() <- start
 	event, ok := wire.event(t).(ppp.EventSessionRejected)
 	if !ok {

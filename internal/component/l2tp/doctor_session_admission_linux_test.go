@@ -57,7 +57,7 @@ func testKernelPPPAdmissionDoctorOutcome(t *testing.T, outcome string, cause err
 		}
 	})
 	tunnel := mkTunnel(reactor, 100, 200, peer.Addr())
-	session := addEstablishedSession(tunnel, 1001, 2001, true)
+	session := addEstablishedSession(t, tunnel, 1001, 2001, true)
 	fds := &pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7, session: session}
 	event := kernelSetupSucceeded{localTID: 100, localSID: 1001, session: session, owner: fds, fds: *fds}
 	reactor.kernelWorker = &kernelWorker{

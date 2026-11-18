@@ -38,13 +38,14 @@ func newUnstartedReactor(t *testing.T) (*UDPListener, *l2tpReactor, func()) {
 // addEstablishedSession inserts a session in the established state into
 // the tunnel. Used by reactor kernel-integration tests that need a
 // pre-built state graph without driving the FSM through real packets.
-func addEstablishedSession(tun *L2TPTunnel, localSID, remoteSID uint16, lns bool) *L2TPSession {
-	sess := &L2TPSession{
+func addEstablishedSession(t *testing.T, tun *L2TPTunnel, localSID, remoteSID uint16, lns bool) *L2TPSession {
+	t.Helper()
+	sess := newFixtureL2TPSession(t, &L2TPSession{
 		localSID:  localSID,
 		remoteSID: remoteSID,
 		state:     L2TPSessionEstablished,
 		lnsMode:   lns,
-	}
+	})
 	tun.addSession(sess)
 	return sess
 }
@@ -82,7 +83,7 @@ func TestReactorCollectsKernelSetupEvent(t *testing.T) {
 
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	tun := mkTunnel(r, 100, 200, peer)
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 	sess.kernelSetupNeeded = true
 	sess.sequencingRequired = true
 
@@ -157,7 +158,7 @@ func TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns(t *testing.T) {
 	defer stop()
 
 	tun := mkTunnel(r, 102, 202, netip.MustParseAddrPort("10.0.0.9:1701"))
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 	sess.kernelSetupNeeded = true
 	tun.pendingKernelTeardowns = []kernelTeardownEvent{{localTID: 102, localSID: 9}}
 
@@ -193,7 +194,7 @@ func TestReactorHandleKernelErrorSendsCDN(t *testing.T) {
 	// layer; only the assertion on session state matters here.
 	peer := netip.MustParseAddrPort("192.0.2.1:1701")
 	tun := mkTunnel(r, 103, 203, peer)
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 
 	r.handleKernelError(kernelSetupFailed{localTID: 103, localSID: 1001, session: sess})
 
@@ -213,8 +214,8 @@ func TestReactorDiscardTunnelReturnsKernelTeardowns(t *testing.T) {
 	defer stop()
 
 	tun := mkTunnel(r, 200, 300, netip.MustParseAddrPort("192.0.2.10:1701"))
-	addEstablishedSession(tun, 5001, 6001, true)
-	addEstablishedSession(tun, 5002, 6002, false)
+	addEstablishedSession(t, tun, 5001, 6001, true)
+	addEstablishedSession(t, tun, 5002, 6002, false)
 
 	r.tunnelsMu.Lock()
 	teardowns, _ := r.discardTunnelLocked(tun, "test")

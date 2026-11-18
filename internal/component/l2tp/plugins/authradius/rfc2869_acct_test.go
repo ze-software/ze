@@ -149,6 +149,7 @@ func TestRADIUSAcctStart(t *testing.T) {
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
+		SubscriberID:     "l2tp-1-2",
 		TunnelID:         1,
 		SessionID:        2,
 		Username:         "alice",
@@ -190,10 +191,11 @@ func TestRADIUSAcctStop(t *testing.T) {
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:  1,
-		SessionID: 3,
-		Username:  "bob",
-		PeerAddr:  "10.0.0.2",
+		SubscriberID: "l2tp-1-3",
+		TunnelID:     1,
+		SessionID:    3,
+		Username:     "bob",
+		PeerAddr:     "10.0.0.2",
 	})
 
 	capture.waitN(t, 1) // wait for start
@@ -230,10 +232,11 @@ func TestRADIUSAcctInterim(t *testing.T) {
 	acct.setClient(client, "test-nas", 200*time.Millisecond, addr, nil, "") // short interval for testing
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:  1,
-		SessionID: 4,
-		Username:  "charlie",
-		PeerAddr:  "10.0.0.3",
+		SubscriberID: "l2tp-1-4",
+		TunnelID:     1,
+		SessionID:    4,
+		Username:     "charlie",
+		PeerAddr:     "10.0.0.3",
 	})
 
 	// Wait for start + at least 1 interim.
@@ -461,6 +464,7 @@ func TestAcctSessionPppInterface(t *testing.T) {
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
+		SubscriberID: "l2tp-1-10",
 		TunnelID:     1,
 		SessionID:    10,
 		Username:     "eve",
@@ -663,7 +667,8 @@ func TestAcctStopCarriesEventCause(t *testing.T) {
 	acct := newRADIUSAcct()
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 42, SessionID: 7, Username: "grace", PeerAddr: "10.0.0.2",
+		SubscriberID: "l2tp-42-7",
+		TunnelID:     42, SessionID: 7, Username: "grace", PeerAddr: "10.0.0.2",
 	})
 	capture.waitN(t, 1)
 

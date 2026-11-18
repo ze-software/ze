@@ -109,6 +109,34 @@ that transient warning. Wire SID allocation remains a separate operation.
 <!-- source: internal/component/l2tp/session_fsm.go -- handleICRQ, handleOCRQ -->
 <!-- source: internal/component/l2tp/session_initiator.go -- newInitiatorSession -->
 
+Those constructors also cache the canonical subscriber ID before publication.
+`Birth` and `SubscriberID` remain unchanged through PPP and network restarts.
+The kernel handoff supplies both to the original PPP attempt. Its lifecycle
+consumers check both facts beside the exact admitted Control or refused
+Attempt; reusable wire labels cannot supply a missing identity.
+<!-- source: internal/component/l2tp/session.go -- Birth, SubscriberID, matchesPPPIdentity -->
+<!-- source: internal/component/l2tp/session_fsm.go -- handleICRQ, handleOCRQ -->
+<!-- source: internal/component/l2tp/session_initiator.go -- newInitiatorSession -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess, pppSessionLocked, handlePPPEvent -->
+
+The actor captures framed-route metadata under its row lock using that cached
+ID. Its ordered assignment notification carries an independent route slice;
+the route observer copies it into a record keyed by the complete Birth.
+Address changes, withdrawal and replay use that same record. The observer
+does not rebuild a metadata key from the Birth or wire labels.
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp, OnSessionDown, reemitAll -->
+
+The subscriber bridge and profile readers preserve the supplied ID when
+loading authorization metadata. Session and LCP teardown clear only that ID.
+Prefix allocation and release also require the caller's original ID; tunnel
+and session numbers remain diagnostic labels on the request.
+<!-- source: internal/component/l2tp/subscriber_bridge.go -- onSessionUp, onSessionDown, onSessionIPAssigned -->
+<!-- source: internal/component/l2tp/session.go -- removeSession -->
+<!-- source: internal/component/l2tp/session_timeout.go -- startSessionTimeouts -->
+<!-- source: internal/component/l2tp/handler.go -- PrefixRequest, PrefixReleaser -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handlePrefix, releasePrefixBySubscriberID -->
+
 `CaptureSession` resolves a readable selector while all selected reactor row
 locks are held in subsystem order. A second match is an ambiguity refusal.
 The returned private capture retains the original reactor, tunnel, row, bound

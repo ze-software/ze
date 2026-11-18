@@ -36,10 +36,12 @@ func TestAccountingAddressFamiliesShareLifetime(t *testing.T) {
 			defer acct.Stop()
 
 			v4 := events.SessionIPAssignedPayload{
-				TunnelID: 2029, SessionID: 48, Username: "alice", PeerAddr: "198.51.100.23",
+				SubscriberID: "l2tp-2029-48",
+				TunnelID:     2029, SessionID: 48, Username: "alice", PeerAddr: "198.51.100.23",
 			}
 			v6 := events.SessionIPAssignedPayload{
-				TunnelID: 2029, SessionID: 48, Username: "alice", InterfaceID: [8]byte{2, 0, 0, 0, 0, 0, 0, 8},
+				SubscriberID: "l2tp-2029-48",
+				TunnelID:     2029, SessionID: 48, Username: "alice", InterfaceID: [8]byte{2, 0, 0, 0, 0, 0, 0, 8},
 			}
 			first, second := &v4, &v6
 			if firstIPv6 {

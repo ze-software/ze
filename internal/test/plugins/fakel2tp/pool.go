@@ -157,7 +157,7 @@ func poolPrefix(args []string) (any, error) {
 		return nil, opererr.New("the synthetic subscriber has no prefix handler",
 			"The l2tp-pool plugin did not register.", "ze show l2tp pool")
 	}
-	answer := handler(l2tp.PrefixRequest{TunnelID: poolTunnelID, SessionID: id, PoolName: name})
+	answer := handler(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(poolTunnelID), id), TunnelID: poolTunnelID, SessionID: id, PoolName: name})
 	if !answer.OK {
 		return nil, opererr.New("the synthetic subscriber received no delegated prefix",
 			"The pool refused its request: "+answer.Reason, "ze show l2tp pool")

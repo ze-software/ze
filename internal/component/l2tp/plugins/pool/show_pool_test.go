@@ -65,7 +65,7 @@ func TestPoolShowIncludesNamedReservationsAfterReload(t *testing.T) {
 	if answer := pool.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(65001), 1), TunnelID: 65001, SessionID: 1, Family: ppp.AddressFamilyIPv4}); !answer.Accept {
 		t.Fatal(answer.Reason)
 	}
-	if answer := pool.handlePrefix(l2tp.PrefixRequest{TunnelID: 65001, SessionID: 2, PoolName: "silver"}); !answer.OK {
+	if answer := pool.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 65001, 2), TunnelID: 65001, SessionID: 2, PoolName: "silver"}); !answer.OK {
 		t.Fatal(answer.Reason)
 	}
 	if err := transaction.Verify(reloadPoolSection(t, map[string]any{
@@ -140,7 +140,7 @@ func TestPoolShowPreservesDefaultFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	allocate(t, pool, 65002, 1, subscriber.AccessL2TP)
-	if answer := pool.handlePrefix(l2tp.PrefixRequest{TunnelID: 65002, SessionID: 2}); !answer.OK {
+	if answer := pool.handlePrefix(l2tp.PrefixRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 65002, 2), TunnelID: 65002, SessionID: 2}); !answer.OK {
 		t.Fatal(answer.Reason)
 	}
 	result := poolShowRead(t, pool)

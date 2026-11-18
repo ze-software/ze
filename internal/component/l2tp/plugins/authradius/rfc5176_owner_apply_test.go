@@ -107,7 +107,8 @@ func coaAppliedFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 	t.Helper()
 	bus, backend, bridge := startCoARateOwner(t)
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		TunnelID: 10, SessionID: 20, Interface: "ppp-coa-apply",
+		SubscriberID: "l2tp-10-20",
+		TunnelID:     10, SessionID: 20, Interface: "ppp-coa-apply",
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -264,7 +264,8 @@ func capturedAccountant(t *testing.T) (*radiusAcct, *acctCapture) {
 func startedSessionID(t *testing.T, acct *radiusAcct, capture *acctCapture) string {
 	t.Helper()
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 1, SessionID: 2, Username: "alice", PeerAddr: "10.0.0.1",
+		SubscriberID: "l2tp-1-2",
+		TunnelID:     1, SessionID: 2, Username: "alice", PeerAddr: "10.0.0.1",
 	})
 	start := capture.waitN(t, 1)[0]
 	if start.statusType != radius.AcctStatusStart {

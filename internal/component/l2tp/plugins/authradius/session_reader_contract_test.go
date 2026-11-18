@@ -211,7 +211,8 @@ func TestSessionEventReaderDoesNotCallBackIntoTheReactor(t *testing.T) {
 
 	const tunnelID, sessionID = uint16(11), uint16(7)
 	if _, err := l2tpevents.SessionIPAssigned.Emit(bus, &l2tpevents.SessionIPAssignedPayload{
-		TunnelID: tunnelID, SessionID: sessionID, Username: "grace",
+		SubscriberID: "l2tp-11-7",
+		TunnelID:     tunnelID, SessionID: sessionID, Username: "grace",
 		PeerAddr: "192.0.2.7", PppInterface: "ppp7",
 	}); err != nil {
 		t.Fatalf("publish SessionIPAssigned: %v", err)

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // lockedBuffer serializes writes and reads so a test can race-safely
@@ -1187,9 +1189,10 @@ type recordingRouteObserver struct {
 	down [][2]uint16
 }
 
-func (o *recordingRouteObserver) OnSessionIPUp(uint16, uint16, string, netip.Addr) {}
+func (o *recordingRouteObserver) OnSessionIPUp(subscriberid.L2TPBirth, uint16, uint16, string, netip.Addr, []FramedRoute) {
+}
 
-func (o *recordingRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
+func (o *recordingRouteObserver) OnSessionDown(_ subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.down = append(o.down, [2]uint16{tunnelID, sessionID})

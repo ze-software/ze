@@ -181,7 +181,8 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 	expectSilence(t, acctServer, "accounting")
 
 	acctInstance.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID: 1, SessionID: 2, Username: "alice", PeerAddr: "198.51.100.23",
+		SubscriberID: "l2tp-1-2",
+		TunnelID:     1, SessionID: 2, Username: "alice", PeerAddr: "198.51.100.23",
 	})
 	if code := awaitCode(t, acctServer, "accounting"); code != radius.CodeAccountingReq {
 		t.Errorf("accounting socket received code %d, want Accounting-Request (%d)", code, radius.CodeAccountingReq)

@@ -137,7 +137,7 @@ func TestPoolPPPoETeardownPreservesEqualL2TPPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := &poolPlugin{v6pool: pool}
-	if answer := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 7, SessionID: 42}); !answer.OK {
+	if answer := p.handlePrefix(l2tp.PrefixRequest{SubscriberID: identityRequest(subscriber.AccessL2TP).SubscriberID, TunnelID: 7, SessionID: 42}); !answer.OK {
 		t.Fatal(answer.Reason)
 	}
 	p.onSessionDown(&subevents.SessionDownPayload{Session: identitySession(subscriber.AccessPPPoE)})

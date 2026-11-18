@@ -54,10 +54,12 @@ func TestAccessInterfacePropagation(t *testing.T) {
 	bridge := newSubscriberBridge(reg, bus, logger)
 	defer bridge.stop()
 
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 10), &AuthMetadata{
+	birth := newFixtureBirth(t)
+	id := birth.String()
+	StoreSessionMetadata(id, &AuthMetadata{
 		FramedPool: "pool1",
 	})
-	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 10))
+	defer ClearSessionMetadata(id)
 
 	var received *subevents.SessionUpPayload
 	subevents.SessionUp.Subscribe(bus, func(p *subevents.SessionUpPayload) {
@@ -65,6 +67,7 @@ func TestAccessInterfacePropagation(t *testing.T) {
 	})
 
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
+		Birth: birth, SubscriberID: id,
 		TunnelID:        1,
 		SessionID:       10,
 		Interface:       "ppp0",
@@ -83,7 +86,7 @@ func TestAccessInterfacePropagation(t *testing.T) {
 		t.Fatalf("PppInterface: got %q, want %q", received.Session.PppInterface, "ppp0")
 	}
 
-	sess, ok := reg.Get(l2tpSessionID(1, 10))
+	sess, ok := reg.Get(id)
 	if !ok {
 		t.Fatal("session not found in registry")
 	}
@@ -93,6 +96,7 @@ func TestAccessInterfacePropagation(t *testing.T) {
 }
 
 func TestAccessInterfacePropagationEmpty(t *testing.T) {
+	birth := newFixtureBirth(t)
 	bus := newTestBus()
 	reg := subscriber.NewRegistry()
 	logger := slog.Default()
@@ -106,6 +110,7 @@ func TestAccessInterfacePropagationEmpty(t *testing.T) {
 	})
 
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
+		Birth: birth, SubscriberID: birth.String(),
 		TunnelID:  2,
 		SessionID: 20,
 		Interface: "ppp1",
@@ -129,6 +134,8 @@ func TestAccessInterfacePropagationEmpty(t *testing.T) {
 // reactor and this bridge are created from the same non-nil bus in
 // Subsystem.Start, so one exists whenever the other does.
 func TestBridgeSessionDownCarriesPoolKey(t *testing.T) {
+	birth := newFixtureBirth(t)
+	id := birth.String()
 	bus := newTestBus()
 	reg := subscriber.NewRegistry()
 
@@ -139,11 +146,13 @@ func TestBridgeSessionDownCarriesPoolKey(t *testing.T) {
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
 
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
+		Birth: birth, SubscriberID: id,
 		TunnelID: 3, SessionID: 8, Interface: "ppp0",
 	}); err != nil {
 		t.Fatalf("emit session-up: %v", err)
 	}
 	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+		Birth: birth, SubscriberID: id,
 		TunnelID: 3, SessionID: 8, Username: "alice",
 	}); err != nil {
 		t.Fatalf("emit session-down: %v", err)
@@ -161,6 +170,7 @@ func TestBridgeSessionDownCarriesPoolKey(t *testing.T) {
 // VALIDATES: the same re-emit happens for a session the registry never held,
 // so a teardown before session-up still reaches the pool.
 func TestBridgeSessionDownCarriesPoolKeyWithoutSessionUp(t *testing.T) {
+	birth := newFixtureBirth(t)
 	bus := newTestBus()
 	reg := subscriber.NewRegistry()
 
@@ -171,6 +181,7 @@ func TestBridgeSessionDownCarriesPoolKeyWithoutSessionUp(t *testing.T) {
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
 
 	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+		Birth: birth, SubscriberID: birth.String(),
 		TunnelID: 4, SessionID: 9,
 	}); err != nil {
 		t.Fatalf("emit session-down: %v", err)

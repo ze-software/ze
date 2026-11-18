@@ -70,6 +70,8 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			}
 			const tunnelID = 7
 			sessionID := uint16(index + 1)
+			birth := newFixtureBirth(t)
+			id := birth.String()
 			// Proxy LCP with only MRU reaches the production admission request
 			// without a kernel PPP device. NCP remains unconfigured.
 			options := []byte{1, 4, 5, 220}
@@ -77,16 +79,16 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			attempt, err := ppp.NewSessionAttempt(l2tpSessionID(tunnelID, sessionID), owner)
+			attempt, err := ppp.NewSessionAttempt(id, owner)
 			if err != nil {
 				t.Fatal(err)
 			}
 			driver.SessionsIn() <- ppp.StartSession{
 				LCP:      testLCPConfig(),
 				TunnelID: tunnelID, SessionID: sessionID,
-				SubscriberID: l2tpSessionID(tunnelID, sessionID),
-				Attempt:      attempt,
-				Frames:       frames, Dataplane: owner,
+				L2TPBirth: birth, SubscriberID: id,
+				Attempt: attempt,
+				Frames:  frames, Dataplane: owner,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
 			}
@@ -94,7 +96,7 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			select {
 			case decision := <-decisions:
 				if decision.Accept != want || decision.AccessType != subscriber.AccessL2TP ||
-					decision.SessionID != l2tpSessionID(tunnelID, sessionID) {
+					decision.SessionID != id {
 					t.Fatalf("request %d decision=%+v, want accept=%t via L2TP session %d/%d",
 						index, decision, want, tunnelID, sessionID)
 				}

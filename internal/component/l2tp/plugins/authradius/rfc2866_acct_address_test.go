@@ -141,10 +141,11 @@ func TestSessionEventDrivesAddressAndPortID(t *testing.T) {
 	defer acct.Stop()
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:  1027,
-		SessionID: 42,
-		Username:  "alice",
-		PeerAddr:  "198.51.100.23",
+		SubscriberID: "l2tp-1027-42",
+		TunnelID:     1027,
+		SessionID:    42,
+		Username:     "alice",
+		PeerAddr:     "198.51.100.23",
 	})
 	start := capture.waitN(t, 1)[0]
 	if start.peerAddr != "198.51.100.23" {

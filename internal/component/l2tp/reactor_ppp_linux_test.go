@@ -351,7 +351,7 @@ func TestL2TPReactorPPPEventSessionDownSendsCDN(t *testing.T) {
 
 	peerConn, peerAddr := openPeerSocket(t)
 	tun := mkTunnel(r, 100, 200, peerAddr)
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
 	r.handlePPPEvent(wire.peerDown(t))
@@ -394,7 +394,7 @@ func TestL2TPReactorPPPEventInformationalIgnored(t *testing.T) {
 
 	peer := netip.MustParseAddrPort("192.0.2.1:1701")
 	tun := mkTunnel(r, 100, 200, peer)
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
 	opened := wire.opened
@@ -448,7 +448,7 @@ func TestL2TPReactorSessionIPAssignedLogsValidIPv4(t *testing.T) {
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 	sess.username = "alice"
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
@@ -475,7 +475,7 @@ func TestL2TPReactorSessionIPAssignedNoLogOnInvalidAddr(t *testing.T) {
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	addEstablishedSession(tun, 1001, 2001, true)
+	addEstablishedSession(t, tun, 1001, 2001, true)
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
 	assigned := wire.assignment
@@ -502,7 +502,7 @@ func TestL2TPReactorSessionUpLogsWithNilEventBus(t *testing.T) {
 	require.Nil(t, r.eventBus, "precondition: eventBus must be nil for this test")
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess := addEstablishedSession(t, tun, 1001, 2001, true)
 	sess.pppInterface = "ppp0"
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
@@ -523,7 +523,7 @@ func TestL2TPReactorSessionUpNoLogOnEmptyInterface(t *testing.T) {
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	addEstablishedSession(tun, 1001, 2001, true)
+	addEstablishedSession(t, tun, 1001, 2001, true)
 	// pppInterface left as zero value ""
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
@@ -705,7 +705,7 @@ func TestHandleLCPUpRecordsProxyLCPOutcome(t *testing.T) {
 		{ppp.ProxyLCPOutcomeNone, "none"},
 	} {
 		sid := uint16(2001 + i)
-		sess := &L2TPSession{localSID: sid}
+		sess := newFixtureL2TPSession(t, &L2TPSession{localSID: sid})
 		tun.addSession(sess)
 		require.Empty(t, sessionSnapshot(100, sess).ProxyLCP, "outcome before LCP opened")
 		wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: sid}, ipv6: false, subscriberID: ""})

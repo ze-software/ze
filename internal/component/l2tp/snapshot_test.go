@@ -30,8 +30,10 @@ func newReactorForSnapshot(t *testing.T) *l2tpReactor {
 	}
 }
 
-// insertEstablishedTunnel wires a tunnel in the Established state with
-// optional sessions, so snapshot tests can assert against a known shape.
+// insertEstablishedTunnel constructs an established fixture tunnel. A supplied
+// raw row with no identity or attempt receives a fresh identity before addSession
+// publishes it. Explicit, partial and already-admitted identities stay unchanged,
+// including negative fixture inputs; this constructor never repairs them.
 func insertEstablishedTunnel(t *testing.T, r *l2tpReactor, localTID, remoteTID uint16, peer netip.AddrPort, sessions ...*L2TPSession) {
 	t.Helper()
 	tun := newTunnel(localTID, remoteTID, peer,
@@ -43,6 +45,13 @@ func insertEstablishedTunnel(t *testing.T, r *l2tpReactor, localTID, remoteTID u
 	tun.peerBearer = 0x00000001
 	tun.peerRecvWindow = 8
 	for _, s := range sessions {
+		if s.birth.IsZero() {
+			if s.subscriberID == "" {
+				if s.pppAttempt == (ppp.SessionAttempt{}) {
+					newFixtureL2TPSession(t, s)
+				}
+			}
+		}
 		tun.addSession(s)
 	}
 	r.tunnelsMu.Lock()

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"sync"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -16,10 +17,7 @@ import (
 // or Framed-IPv6-Route (attr 99). The prefix is the destination network
 // and metric is the route priority.
 // RFC 2865 Section 5.22, RFC 3162 Section 2.5.
-type FramedRoute struct {
-	Prefix netip.Prefix
-	Metric uint32
-}
+type FramedRoute = l2tpevents.FramedRoute
 
 // RFC 6911 Section 3: Framed-IPv6-Prefix (attr 97).
 // RFC 4818 Section 3: Delegated-IPv6-Prefix (attr 123).

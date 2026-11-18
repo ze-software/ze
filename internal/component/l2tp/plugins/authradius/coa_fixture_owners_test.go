@@ -124,7 +124,8 @@ func coaFixtureDispatch(t *testing.T) coaCommandDispatch {
 					name = coaFixtureInterface(snapshot.Tunnels[i].LocalTID, session.LocalSID)
 				}
 				if _, err := l2tpevents.SessionUp.Emit(owners.bus, &l2tpevents.SessionUpPayload{
-					TunnelID: snapshot.Tunnels[i].LocalTID, SessionID: session.LocalSID, Interface: name,
+					SubscriberID: session.SubscriberID,
+					TunnelID:     snapshot.Tunnels[i].LocalTID, SessionID: session.LocalSID, Interface: name,
 				}); err != nil {
 					t.Fatal(err)
 				}

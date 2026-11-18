@@ -44,7 +44,7 @@ func TestFilterIDRateReachesBothDirections(t *testing.T) {
 			l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session))
 		})
 
-		s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: tunnel, SessionID: session, Interface: iface})
+		s.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session), TunnelID: tunnel, SessionID: session, Interface: iface})
 
 		qos, ok := mb.getApplied(iface)
 		if !ok {
@@ -85,7 +85,7 @@ func TestNonRateFilterIDLeavesConfiguredRates(t *testing.T) {
 			l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session))
 		})
 
-		s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: tunnel, SessionID: session, Interface: iface})
+		s.onSessionUp(&l2tpevents.SessionUpPayload{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session), TunnelID: tunnel, SessionID: session, Interface: iface})
 
 		qos, ok := mb.getApplied(iface)
 		if !ok {

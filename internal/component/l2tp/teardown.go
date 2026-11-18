@@ -229,7 +229,7 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 	if r.routeObserver != nil {
 		for _, d := range batch {
 			if d.established {
-				r.routeObserver.OnSessionDown(d.localTID, d.localSID)
+				r.routeObserver.OnSessionDown(d.birth, d.localTID, d.localSID)
 			}
 		}
 	}
@@ -238,10 +238,12 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 	}
 	for _, d := range batch {
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-			TunnelID:  d.localTID,
-			SessionID: d.localSID,
-			Username:  d.username,
-			Cause:     d.cause,
+			Birth:        d.birth,
+			SubscriberID: d.subscriberID,
+			TunnelID:     d.localTID,
+			SessionID:    d.localSID,
+			Username:     d.username,
+			Cause:        d.cause,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-down emit failed",
 				"local-tid", d.localTID, "local-sid", d.localSID, "error", err)

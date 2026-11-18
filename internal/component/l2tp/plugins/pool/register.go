@@ -92,7 +92,7 @@ const configRootL2TP = "l2tp"
 func init() {
 	l2tp.RegisterPoolHandler(poolInstance.handle)
 	l2tp.RegisterPrefixHandler(poolInstance.handlePrefix)
-	l2tp.RegisterPrefixReleaser(poolInstance.releasePrefix)
+	l2tp.RegisterPrefixReleaser(poolInstance.releasePrefixBySubscriberID)
 
 	reg := registry.Registration{
 		Name:                    Name,
@@ -182,9 +182,12 @@ func (p *poolPlugin) onSessionDown(payload *subevents.SessionDownPayload) {
 }
 
 func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
+	if err := subscriber.RequireID(logger(), req.SubscriberID); err != nil {
+		return l2tp.PrefixResult{OK: false, Reason: err.Error()}
+	}
 	p.v6mu.Lock()
 	defer p.v6mu.Unlock()
-	key := subscriber.SessionID(subscriber.AccessL2TP, uint64(req.TunnelID), req.SessionID)
+	key := req.SubscriberID
 	if _, already := p.sessionPrefixes.Load(key); already {
 		return l2tp.PrefixResult{OK: false, Reason: "prefix already allocated for this session"}
 	}
@@ -237,10 +240,6 @@ func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
 	logger().Info("l2tp-pool: allocated IPv6 prefix",
 		"tunnel", req.TunnelID, "session", req.SessionID, "prefix", prefix)
 	return l2tp.PrefixResult{OK: true, Prefix: prefix}
-}
-
-func (p *poolPlugin) releasePrefix(tunnelID, sessionID uint16) {
-	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
 }
 
 func (p *poolPlugin) releasePrefixBySubscriberID(subscriberID string) {

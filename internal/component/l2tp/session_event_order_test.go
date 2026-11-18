@@ -32,6 +32,7 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -315,14 +316,14 @@ type gatedRouteObserver struct {
 	inner *subscriberRouteObserver
 }
 
-func (o *gatedRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, username string, addr netip.Addr) {
+func (o *gatedRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framed []FramedRoute) {
 	o.gate.hold(tunnelID)
-	o.inner.OnSessionIPUp(tunnelID, sessionID, username, addr)
+	o.inner.OnSessionIPUp(birth, tunnelID, sessionID, username, addr, framed)
 }
 
-func (o *gatedRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
+func (o *gatedRouteObserver) OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
 	o.gate.observe("route withdrawal", tunnelID)
-	o.inner.OnSessionDown(tunnelID, sessionID)
+	o.inner.OnSessionDown(birth, tunnelID, sessionID)
 }
 
 // newReactorForEventOrder builds a reactor that publishes on bus and has a
@@ -442,7 +443,7 @@ func TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt(t *testing.T) {
 
 	require.NoError(t, teardownErr)
 	inner.mu.Lock()
-	_, kept := inner.records[routeInstance(11, 7)]
+	_, kept := inner.records[wire.startSession.L2TPBirth]
 	inner.mu.Unlock()
 	require.False(t, kept,
 		"the route observer still holds session 7 after its teardown: the withdrawal reached it before the IP-up")
@@ -477,7 +478,7 @@ func TestTeardownDuringIPAssignedLeavesNoSubscriberEntry(t *testing.T) {
 	awaitOrderEvent(t, assigned, "the SessionIPAssigned publication")
 
 	require.NoError(t, teardownErr)
-	_, registered := registry.Get(l2tpSessionID(11, 7))
+	_, registered := registry.Get(wire.startSession.SubscriberID)
 	require.False(t, registered,
 		"the subscriber registry still holds session 7 after its teardown: the SessionDown reached the bridge before the SessionIPAssigned")
 }
@@ -558,8 +559,8 @@ func TestSessionUpStartsTimeoutsAfterPublication(t *testing.T) {
 	r := newReactorForEventOrder(t, bus)
 	sess := orderTestSession(7, "ppp7")
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, sess)
-	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(11), 7), &AuthMetadata{SessionTimeout: 3600})
-	t.Cleanup(func() { ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(11), 7)) })
+	StoreSessionMetadata(sess.SubscriberID(), &AuthMetadata{SessionTimeout: 3600})
+	t.Cleanup(func() { ClearSessionMetadata(sess.SubscriberID()) })
 	t.Cleanup(func() {
 		r.tunnelsMu.Lock()
 		cancelSessionTimeouts(sess)

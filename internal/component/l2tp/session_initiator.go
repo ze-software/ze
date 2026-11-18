@@ -206,6 +206,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 	}
 	sess := &L2TPSession{
 		birth:          birth,
+		subscriberID:   birth.String(),
 		localSID:       localSID,
 		state:          L2TPSessionIdle,
 		createdAt:      now,

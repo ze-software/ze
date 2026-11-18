@@ -163,6 +163,7 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	}
 	sess := &L2TPSession{
 		birth:         birth,
+		subscriberID:  birth.String(),
 		localSID:      localSID,
 		remoteSID:     info.assignedSessionID,
 		state:         L2TPSessionWaitConnect,
@@ -296,12 +297,13 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
 	}
 	sess := &L2TPSession{
-		birth:      birth,
-		localSID:   localSID,
-		remoteSID:  info.assignedSessionID,
-		state:      L2TPSessionWaitCSAnswer,
-		createdAt:  now,
-		fsmHistory: newFSMHistoryRing(),
+		birth:        birth,
+		subscriberID: birth.String(),
+		localSID:     localSID,
+		remoteSID:    info.assignedSessionID,
+		state:        L2TPSessionWaitCSAnswer,
+		createdAt:    now,
+		fsmHistory:   newFSMHistoryRing(),
 	}
 	t.addSession(sess)
 

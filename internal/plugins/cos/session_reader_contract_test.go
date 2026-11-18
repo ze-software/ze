@@ -218,7 +218,8 @@ func TestSessionEventReaderDoesNotCallBackIntoTheReactor(t *testing.T) {
 	t.Cleanup(func() { clearMetadataForTest(tunnelID, sessionID) })
 
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		TunnelID: tunnelID, SessionID: sessionID, Interface: "ppp7", AccessInterface: "eth0.107",
+		SubscriberID: "l2tp-11-7",
+		TunnelID:     tunnelID, SessionID: sessionID, Interface: "ppp7", AccessInterface: "eth0.107",
 	}); err != nil {
 		t.Fatalf("publish SessionUp: %v", err)
 	}

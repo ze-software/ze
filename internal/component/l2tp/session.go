@@ -65,10 +65,11 @@ func (s L2TPSessionState) String() string {
 type L2TPSession struct {
 	// birth is minted before publication and never changes with reusable IDs.
 	// Zero belongs only to an unadmitted fixture or incomplete raw value.
-	birth     subscriberid.L2TPBirth
-	localSID  uint16
-	remoteSID uint16
-	state     L2TPSessionState
+	birth        subscriberid.L2TPBirth
+	subscriberID string // canonical DTO cached before publication; never rebuilt from wire labels
+	localSID     uint16
+	remoteSID    uint16
+	state        L2TPSessionState
 
 	// createdAt is the time.Now() when the session was allocated
 	// (handleICRQ on LNS side, handleOCRQ on LAC side). Used by the
@@ -240,6 +241,34 @@ func (s *L2TPSession) Birth() subscriberid.L2TPBirth {
 	return s.birth
 }
 
+// SubscriberID returns the canonical DTO cached with the original birth.
+// Constructors MUST set both before publication; readers MUST preserve them.
+// A nil or unadmitted raw value has no identity and never gets a tuple fallback.
+func (s *L2TPSession) SubscriberID() string {
+	if s == nil {
+		return ""
+	}
+	return s.subscriberID
+}
+
+// matchesPPPIdentity checks copied logical facts, not mutation authority.
+// The caller MUST also validate the original Attempt or admitted Control.
+func (s *L2TPSession) matchesPPPIdentity(birth subscriberid.L2TPBirth, id string) bool {
+	if s == nil {
+		return false
+	}
+	if !birth.IsValid() {
+		return false
+	}
+	if id == "" {
+		return false
+	}
+	if s.birth != birth {
+		return false
+	}
+	return s.subscriberID == id
+}
+
 // RemoteSID returns the peer's Assigned Session ID.
 func (s *L2TPSession) RemoteSID() uint16 { return s.remoteSID }
 
@@ -306,16 +335,16 @@ type sessionDown struct {
 	// localTID travels with the event because a single drain can carry
 	// sessions from more than one tunnel: a tie-breaker loss discards a
 	// tunnel whose local TID is not the one the inbound packet named.
-	localTID uint16
-	localSID uint16
-	username string
-	cause    l2tpevents.TerminateCause
+	localTID     uint16
+	localSID     uint16
+	username     string
+	birth        subscriberid.L2TPBirth
+	subscriberID string
+	cause        l2tpevents.TerminateCause
 	// established records that the session had reached established when it
 	// was removed. Only such a session ran PPP, so only it can hold a
-	// subscriber route for the route observer to withdraw. The observer keys
-	// its records by session ID alone, so a withdrawal for a session that
-	// never ran PPP could remove the record of another tunnel's session with
-	// the same ID.
+	// subscriber route for the route observer to withdraw. A pre-PPP removal
+	// still publishes its bus notice, but owes no subscriber-route withdrawal.
 	established bool
 	// ticket is the tunnel's order ticket for the drain that returned this
 	// down. Every down of one drain carries the same ticket, and they are
@@ -455,7 +484,7 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	sess.removed.Store(true)
 	sess.pppAttempt.Cancel()
 	cancelSessionTimeouts(sess)
-	ClearSessionMetadata(l2tpSessionID(t.localTID, sid))
+	ClearSessionMetadata(sess.SubscriberID())
 	established := sess.state == L2TPSessionEstablished
 	if established {
 		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
@@ -474,13 +503,15 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		sess.relay.end("L2TP session to " + sess.relay.target() + " ended")
 	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
-		session:     sess,
-		tunnel:      t,
-		localTID:    t.localTID,
-		localSID:    sid,
-		username:    sess.username,
-		cause:       cause,
-		established: established,
+		session:      sess,
+		tunnel:       t,
+		localTID:     t.localTID,
+		localSID:     sid,
+		username:     sess.username,
+		birth:        sess.Birth(),
+		subscriberID: sess.SubscriberID(),
+		cause:        cause,
+		established:  established,
 	})
 	delete(t.sessions, sid)
 }

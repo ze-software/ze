@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -35,12 +35,32 @@ before granting a lease, return the cause without callbacks or logging, and
 publish a series only after an actual measurement. This small prerequisite
 keeps an untrusted subscriber label from reaching a native vector panic.
 
-Four L2TP defects met while `spec-single-owner-lifecycle-5-session-end-locals`
-was written. They are not event-order defects, so they left that spec. Each has
-a journal row (Owned journal rows). Nothing here is designed yet: this skeleton
-records what the code does and the questions the design must answer.
+The same identity isolation covers a retained login's quality phase. Its
+existing bounded login slot remembers the birth supplying that phase, so an
+older birth's Down cannot overwrite the newer contributor or renew an ended
+login's LRU interest. Genuine named Down before IP assignment remains useful;
+the login phase does not count simultaneous sessions or retain deduplication
+history after login eviction.
 
-| Part | What the operator sees today | Goal |
+The new framed-route limit refusal and failed withdrawal notification also
+retain route-owned diagnostic events. Their logs and runtime doctor entries
+identify the original birth and cause without inventing a native cleanup
+receipt or treating a later success as proof that another session released it.
+
+The strict48 allocator instrumentation follows the reviewed per-tunnel SID
+entropy source. Its complete parsed-method guard still rejects allocator
+drift. The overlay changes only the bounded candidate choice while retaining
+the actual entropy read, errors, zero/collision guards and retry bound.
+
+The original research recorded four L2TP defects found while
+`spec-single-owner-lifecycle-5-session-end-locals` was written. They moved here
+because they concern identity and publication rather than event ordering;
+each has a journal row (Owned journal rows). The table preserves that initial
+problem statement. The current implementation contract is in
+[Approved readable selection and implementation admission](#approved-readable-selection-and-implementation-admission)
+and its [packed identity binding](#packed-identity-binding-for-phase-2).
+
+| Part | Original operator symptom | Goal |
 |------|------------------------------|------|
 | Session id reused in one tunnel | A new subscriber gets an address or a teardown that belonged to the session that held its id before it | A PPP event of an ended session changes nothing on the session that reused its id |
 | Observers keyed by session id alone | With sessions on more than one tunnel, a subscriber's route is withdrawn when another tunnel's session with the same id gets an address or ends, and the two share one event history | Each session has its own route record and its own event history |
@@ -138,8 +158,11 @@ whether a tunnel id is unique across the reactors of one subsystem.
 
 ## Open design questions
 
-Stated without an answer. The design pass reads RFC 2661 and the FRR, BIRD or
-accel-ppp source where it applies, and chooses.
+These questions were open in the original research and recorded the reading
+still needed then, including RFC 2661 and relevant FRR, BIRD or accel-ppp source.
+The alternatives are retained as research history. Current decisions are in
+[the approved implementation design](#approved-readable-selection-and-implementation-admission)
+and [packed identity binding](#packed-identity-binding-for-phase-2).
 
 | # | Question | What each answer changes |
 |---|----------|--------------------------|
@@ -233,9 +256,11 @@ locally; audit and test it instead of replacing it or calling it verified.
 
 ## Acceptance Criteria
 
-Draft rows. The first two came from
-`spec-single-owner-lifecycle-5-session-end-locals`, where they were AC-19 and
-AC-20. The design pass confirms or rewrites each one.
+The first two criteria originated as AC-19 and AC-20 in
+`spec-single-owner-lifecycle-5-session-end-locals`. These rows state the required
+outcomes for [the approved implementation design](#approved-readable-selection-and-implementation-admission),
+including [packed identity binding](#packed-identity-binding-for-phase-2) and
+[retained observer ownership](#retained-observer-ownership-across-restart).
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
@@ -245,6 +270,9 @@ AC-20. The design pass confirms or rewrites each one.
 | AC-4 | A RADIUS accounting server answers nothing, and a session on one tunnel ends | The reactor keeps handling the control packets of every tunnel: a hello on another tunnel is answered inside its retransmission interval, and no healthy tunnel is torn down. The Stop for the ended session is still sent, and retried as the design states | A Stop that no server acknowledged before its bound: the log names it |
 | AC-5 | A tunnel's peer source address changes mid-life (the dispatch path overwrites `peerAddr` with `pkt.from`), then the tunnel is discarded or closed | `discardTunnelLocked` removes the `tunnelsByPeer` entry inserted for that tunnel, by the key stored at insert; the index holds no entry for it afterwards (moved from `spec-typed-identity-keys`, 2026-11-14) | none: every tunnel's index entry is removed with it |
 | AC-6 | A native gauge or histogram series retention request has invalid UTF-8 or the wrong label count, followed by a valid Unicode request | The invalid request returns its cause and a zero lease without publishing a sample; the valid request publishes its measured value, and its final release removes that series | Generic custody keys remain arbitrary strings; disabled metrics keep their no-effect leases |
+| AC-7 | A retained login receives Down from an older phase contributor after a newer birth assigns that login, or receives the same consumed Down again | The newer phase, samples and metrics survive; repeated Down does not promote ended history. Current-contributor Down, same-birth renegotiation, full event-ring capacity and named pre-IP proxy failures remain effective | Login phase describes its selected contributor rather than an aggregate session count. Login eviction forgets provenance; a later named Down can create a normal Down observation |
+| AC-8 | An update exceeds the 64 framed-route bound, or the void withdrawal notification cannot confirm removal | A covered operator log, retained route-owned error event and runtime doctor finding carry the birth, wire labels, cause and next command. Reporting holds neither observer lock; the 64-route neighbor and other births stay effective, and checked withdrawal retains its original retry receipt | Error events describe history. Successful retry leaves that history intact and makes no claim about another session's native cleanup |
+| AC-9 | The scale lab stages the reviewed per-tunnel allocator, or its existing error-predicate, candidate, zero-guard or receiver drift control | Only the reviewed complete canonical allocator receives the bounded candidate insertion; every drift control refuses before compilation. The original source bytes and owned cleanup stay intact. `TestScaleAllocatorOverlayIsolation`, `TestScaleBuildInputs` and the unchanged `l2tp-many-sessions-kl2tpd` guest scenario prove staging and the full survivor/accounting tail | Ordinary Ze and relay builds remain effective because neither requests the scale-only allocator overlay |
 
 ## End-to-End User Stories
 
@@ -265,6 +293,8 @@ The first three names came from
 | `TestLatePPPEventIsRefusedOnAReusedSessionID` | `internal/component/l2tp/` (file named in design) | AC-1 | |
 | `TestRouteObserverKeepsSameSessionIDOnTwoTunnelsApart` | `internal/component/l2tp/route_observer_test.go` | AC-2 at the route observer | |
 | `TestObserverKeepsSameSessionIDOnTwoTunnelsApart` | `internal/component/l2tp/observer_test.go` | AC-2 at the CQM observer | |
+| `TestScaleAllocatorOverlayIsolation` | `internal/le/interoplab/l2tp/scale_overlay_test.go` | AC-9: exact per-tunnel allocator shape, drift refusals, candidate-only replacement and cleanup | native proof owed after coherent application |
+| `TestScaleBuildInputs` | `internal/le/interoplab/l2tp/scale_overlay_test.go` | AC-9: the scale daemon alone declares allocator instrumentation | native proof owed after coherent application |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -291,7 +321,7 @@ The first three names came from
 - `internal/component/l2tp/plugins/authradius/acct.go`, `coa.go`, `internal/component/l2tp/plugins/shaper/shaper.go` - coordinated exact accounting, disconnect and rate ownership, integrated here
 - `internal/plugins/cos/handler.go`, `session_state.go`, `session_transaction.go` - carried-ID CoS state, metadata and captured transaction ownership
 - `internal/component/web/handler_l2tp.go`, L2TP page data and list/detail templates - exact-ID web targeting through the shared dispatcher and safe stale-page refusal
-- `internal/le/interoplab/l2tp/`, `internal/le/interoplab/topology/`, `internal/test/fixture/` - revalidate actual command writers; migrate only those requiring scope under colliding sessions, preserving all assertions
+- `internal/le/interoplab/l2tp/`, `internal/le/interoplab/topology/`, `internal/test/fixture/` - revalidate actual command writers; migrate only those requiring scope under colliding sessions, preserving all assertions. Keep the exact allocator guard in `scale_overlay.go` and its existing `scale_overlay_test.go` controls aligned with the per-tunnel entropy source
 - `docs/guide/l2tp.md`, `docs/guide/command-reference.md`, `docs/architecture/l2tp/subscriber-session-model.md`, `docs/architecture/l2tp/l2tp-9-observer.md`, `docs/architecture/traffic/cos-dynamic.md`, `ai/digests/subscriber.md`, `features/l2tpv2-bng.md` - keep each changed phase's public contract true
 - `docs/architecture/l2tp/bng-1-radius-attributes.md` - preserve accounting attributes and cause mappings; update exact lifetime/terminal ownership where the coordinated accounting phase changes it
 - `docs/architecture/web-workbench-pages.md` - repair stale disconnect grammar and describe exact page target/readable coordinates in the web phase

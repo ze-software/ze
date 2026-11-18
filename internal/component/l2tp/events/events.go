@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // Namespace is the event namespace for L2TP route-change events.
@@ -59,9 +60,12 @@ const SessionDownEvent = "session-down"
 // release the address; the CQM observer uses Username to transition the
 // login's bucket state to "down".
 type SessionDownPayload struct {
-	TunnelID  uint16
-	SessionID uint16
-	Username  string
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
+	Generation   ObservationGeneration  `json:",omitzero"`
+	TunnelID     uint16
+	SessionID    uint16
+	Username     string
 	// Cause is why the session ended, as an RFC 2866 Section 5.10 value. The
 	// RADIUS accounting plugin reports it as Acct-Terminate-Cause on the Stop
 	// record. TerminateCauseUnspecified means no teardown site named one.
@@ -81,6 +85,9 @@ const SessionUpEvent = "session-up"
 // Emitted by the reactor when PPP LCP, authentication, and all enabled
 // NCPs complete successfully (ppp.EventSessionUp).
 type SessionUpPayload struct {
+	Birth           subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID    string                 `json:",omitempty"`
+	Generation      ObservationGeneration  `json:",omitzero"`
 	TunnelID        uint16
 	SessionID       uint16
 	Interface       string
@@ -132,10 +139,13 @@ const EchoRTTEvent = "echo-rtt"
 // Emitted by the reactor on each Echo-Reply; consumed by the CQM
 // aggregator to build 100s min/avg/max/loss buckets.
 type EchoRTTPayload struct {
-	TunnelID  uint16
-	SessionID uint16
-	RTT       time.Duration
-	Username  string
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
+	Generation   ObservationGeneration  `json:",omitzero"`
+	TunnelID     uint16
+	SessionID    uint16
+	RTT          time.Duration
+	Username     string
 }
 
 // EchoRTT is the typed handle for (l2tp, echo-rtt).
@@ -172,10 +182,14 @@ const SessionIPAssignedEvent = "session-ip-assigned"
 // SessionIPAssignedPayload carries session identity and assigned IP
 // for RADIUS accounting start and other subscribers.
 type SessionIPAssignedPayload struct {
-	TunnelID  uint16
-	SessionID uint16
-	Username  string
-	PeerAddr  string
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
+	Generation   ObservationGeneration  `json:",omitzero"`
+	FramedRoutes []FramedRoute          `json:",omitempty"`
+	TunnelID     uint16
+	SessionID    uint16
+	Username     string
+	PeerAddr     string
 	// CallingStationID is the L2TP Calling Number AVP (RFC 2661 Section
 	// 4.4.3), which RADIUS accounting reports as Calling-Station-Id (RFC 2865
 	// Section 5.31). Empty when neither side named one.
@@ -189,3 +203,12 @@ type SessionIPAssignedPayload struct {
 // SessionIPAssigned is the typed handle for (l2tp, session-ip-assigned).
 // Emitted by the reactor after NCP negotiation assigns an IP to the peer.
 var SessionIPAssigned = events.Register[*SessionIPAssignedPayload](Namespace, SessionIPAssignedEvent)
+
+// FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
+// or Framed-IPv6-Route (attr 99). The prefix is the destination network
+// and metric is the route priority.
+// RFC 2865 Section 5.22, RFC 3162 Section 2.5.
+type FramedRoute struct {
+	Prefix netip.Prefix
+	Metric uint32
+}
