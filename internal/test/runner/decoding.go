@@ -186,16 +186,21 @@ func parseTypeLine(line string) (msgType, family string) {
 	return msgType, family
 }
 
-// List prints available tests (overrides TestSet.List to show Label).
-func (dt *DecodingTests) List() {
-	writeTestListHeader("Available decoding tests")
-	registered := dt.Registered()
-	total := len(registered)
-	for i, t := range registered {
+// List prints the tests Listed answers for sel, on the terms of Tests.List
+// (overrides TestSet.List to show Label).
+func (dt *DecodingTests) List(sel Selection) error {
+	listed, err := dt.Listed(sel)
+	if err != nil {
+		return err
+	}
+	writeTestListHeader(sel, "decoding tests")
+	total := len(listed)
+	for i, t := range listed {
 		var suffix textbuf.Buffer
 		writeTestListLine(i+1, total, t.Nick, t.Name, suffix.Str(" (").Str(t.Label).Byte(')').String())
 	}
 	writeTestListFooter()
+	return nil
 }
 
 // decodingRunner executes decoding tests.

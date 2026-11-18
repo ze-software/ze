@@ -311,6 +311,9 @@ its workflow job added by hand. The full workflow map is
 le test bgp encode --list
 le test ui --list
 
+# List only the tests a selection would run
+le test bgp plugin --pattern lg- --list
+
 # Run specific tests by id or exact name
 le test bgp encode 4 5 6
 le test ui 4
@@ -905,7 +908,20 @@ refused with `no tests matching pattern "TEXT"`, never run as an empty
 selection, and the refusal names the rule and those two forms.
 `--start` selects the named test and every later test in suite order.
 `--list` prints each test as `N/TOTAL ID NAME`; ids are one-based positions,
-so use the test name in saved commands. Each run prints one completion line
+so use the test name in saved commands. With no other selector it lists every
+test of the suite, under a header opening with `Available`. With `--pattern`,
+`--start`, `--all` or test names it lists exactly the tests that line would
+run, in the order a run takes them, under a header opening with `Selected`:
+`./le test bgp plugin --pattern lg- --list` answers which tests `--pattern
+lg-` runs. There `N/TOTAL` counts the listed tests and `ID` stays the suite
+id. A selector that matches nothing is refused as a run refuses it, never
+listed as empty or as the whole suite. `--short-list` prints the ids of the
+same tests.
+<!-- source: internal/test/runner/selection.go -- Tests.Listed, TestSet.Listed, patternForms -->
+<!-- source: internal/test/runner/base.go -- writeTestListHeader -->
+<!-- source: internal/test/runner/record_collection.go -- Tests.List -->
+<!-- test: internal/test/cli/cmd_bgp_selection_test.go TestListAloneListsEveryTest, TestListWithPatternListsOnlyTheMatches, TestListWithAnUnmatchedSelectorIsRefused, TestListWithTestNamesListsThoseTests, TestListWithStartListsFromThatTest, TestShortListWithPatternListsOnlyTheMatches -->
+ Each run prints one completion line
 per test with elapsed time, `N/TOTAL`, result, id and name, plus periodic
 progress while tests are still running.
 A direct `./le test <suite>` run executes the launcher's build of HEAD, so when a
@@ -3118,7 +3134,7 @@ Common selection options:
 
 | Option | Meaning |
 |--------|---------|
-| `--list`, `-l` | List available tests as `N/TOTAL ID NAME` with one-based ids |
+| `--list`, `-l` | List as `N/TOTAL ID NAME`, with one-based ids, the tests the other selectors select, or every test when there is none |
 | `--all`, `-a` | Run all tests in the suite |
 | `--start ID` | Run the test matching `ID` or exact name, then every later test in suite order |
 | `--pattern TEXT` | Run tests whose id or name contains `TEXT` as typed, not a regex or a glob |

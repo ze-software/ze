@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/peer"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -124,9 +125,9 @@ func zeTestBgpMain(args []string) error {
 
 type zeTestSuite interface {
 	Discover(dir string) error
-	List()
+	List(runner.Selection) error
 	Select(runner.Selection) (int, error)
-	getNicks() []string
+	listedNicks(runner.Selection) ([]string, error)
 	Run(ctx context.Context, zePath string, verbose, quiet bool) bool
 }
 
@@ -142,13 +143,18 @@ func zeTestNewDecodingTestSuite(baseDir string) zeTestSuite {
 	}
 }
 
-func (d *zeTestDecodeTestSuite) getNicks() []string {
-	registered := d.Registered()
-	nicks := make([]string, 0, len(registered))
-	for _, t := range registered {
+// listedNicks answers the ids --short-list prints for sel: those of the tests
+// Listed answers, in suite order.
+func (d *zeTestDecodeTestSuite) listedNicks(sel runner.Selection) ([]string, error) {
+	listed, err := d.Listed(sel)
+	if err != nil {
+		return nil, err
+	}
+	nicks := make([]string, 0, len(listed))
+	for _, t := range listed {
 		nicks = append(nicks, t.Nick)
 	}
-	return nicks
+	return nicks, nil
 }
 
 func (d *zeTestDecodeTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
@@ -168,13 +174,18 @@ func zeTestNewParsingTestSuite(baseDir string) zeTestSuite {
 	}
 }
 
-func (p *zeTestParseTestSuite) getNicks() []string {
-	registered := p.Registered()
-	nicks := make([]string, 0, len(registered))
-	for _, t := range registered {
+// listedNicks answers the ids --short-list prints for sel, on the terms of
+// zeTestDecodeTestSuite.listedNicks.
+func (p *zeTestParseTestSuite) listedNicks(sel runner.Selection) ([]string, error) {
+	listed, err := p.Listed(sel)
+	if err != nil {
+		return nil, err
+	}
+	nicks := make([]string, 0, len(listed))
+	for _, t := range listed {
 		nicks = append(nicks, t.Nick)
 	}
-	return nicks
+	return nicks, nil
 }
 
 func (p *zeTestParseTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
@@ -200,16 +211,19 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 	}
 
 	if cli.list {
-		tests.List()
-		return nil
+		return tests.List(cli.selection())
 	}
 
 	if cli.shortList {
-		for _, nick := range tests.getNicks() {
-			fmt.Fprintf(os.Stdout, "%s ", nick) //nolint:errcheck // terminal output
+		nicks, err := tests.listedNicks(cli.selection())
+		if err != nil {
+			return err
 		}
-		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
-		return nil
+		var line textbuf.Buffer
+		for _, nick := range nicks {
+			line.Str(nick).Byte(' ')
+		}
+		return line.Byte('\n').StdOut()
 	}
 
 	selected, err := tests.Select(cli.selection())
@@ -268,12 +282,15 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	}
 
 	if cli.list {
-		tests.List()
-		return nil
+		return tests.List(cli.selection())
 	}
 
 	if cli.shortList {
-		for _, r := range tests.Registered() {
+		records, err := tests.Listed(cli.selection())
+		if err != nil {
+			return err
+		}
+		for _, r := range records {
 			fmt.Fprintf(os.Stdout, "%s ", r.Nick) //nolint:errcheck // terminal output
 		}
 		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
@@ -553,8 +570,10 @@ type zeTestRunCLIFlags struct {
 }
 
 // selection is the selection contract this command line asks for. Both suite
-// drivers hand it to Select, so `--all`, `--start`, `--pattern` and the
-// positional ids reach the runner through this one mapping.
+// drivers hand it to Select for a run and to List or Listed for `--list` and
+// `--short-list`, so `--all`, `--start`, `--pattern` and the positional ids
+// reach the runner through this one mapping, and a list shows what the same
+// line would run.
 func (cli *zeTestRunCLIFlags) selection() runner.Selection {
 	return runner.Selection{
 		All:     cli.all,
@@ -586,11 +605,11 @@ func zeTestParseRunCLI(args []string) (*zeTestRunCLIFlags, error) {
 	fs := flag.NewFlagSet(command, flag.ExitOnError)
 	fs.BoolVar(&cli.all, "a", false, "run all tests")
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
-	fs.BoolVar(&cli.list, "l", false, "list available tests")
-	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.BoolVar(&cli.list, "l", false, listFlagUsage)
+	fs.BoolVar(&cli.list, "list", false, listFlagUsage)
 	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
 	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
-	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
+	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only, of the tests the selectors select (every test without one)")
 	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
 	fs.IntVar(&cli.parallel, "p", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
@@ -630,8 +649,10 @@ Types:
   chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and one-based id
-  --short-list        List numeric test ids only (space separated)
+  -l, --list          List the tests the other selectors select (every test
+                      without one), with N/TOTAL and one-based id
+  --short-list        List numeric test ids only (space separated), selected
+                      the same way
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
   --pattern TEXT      Run tests whose id or name contains TEXT (as typed, not a regex or a glob)

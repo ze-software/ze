@@ -201,11 +201,14 @@ func zeTestExabgpMain(args []string) error {
 	suite.tests.Sort()
 
 	if cli.list {
-		suite.tests.List()
-		return nil
+		return suite.tests.List(cli.selection())
 	}
 	if cli.shortList {
-		printShortExaBGPList(suite.tests)
+		listed, err := suite.tests.Listed(cli.selection())
+		if err != nil {
+			return err
+		}
+		printShortExaBGPList(listed)
 		return nil
 	}
 
@@ -268,12 +271,7 @@ func zeTestExabgpMain(args []string) error {
 		return runExaBGPClientForeground(test, cli.port, cli.zeBinary)
 	}
 
-	selected, err := suite.tests.Select(runner.Selection{
-		All:     cli.all,
-		Start:   cli.start,
-		Pattern: cli.pattern,
-		Args:    cli.testArgs,
-	})
+	selected, err := suite.tests.Select(cli.selection())
 	if err != nil {
 		return err
 	}
@@ -293,16 +291,28 @@ func isKnownExaBGPSuite(name string) bool {
 	return slices.Contains(exabgpSuites, name)
 }
 
+// selection is the selection contract this command line asks for, handed to
+// Select for a run and to List or Listed for `--list` and `--short-list`, so
+// a list shows what the same line would run.
+func (cli exabgpCLI) selection() runner.Selection {
+	return runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	}
+}
+
 func parseExaBGPCLI(args []string) (exabgpCLI, error) {
 	var cli exabgpCLI
 	fs := flag.NewFlagSet("le test exabgp", flag.ExitOnError)
 	fs.BoolVar(&cli.all, "a", false, "run all tests")
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
-	fs.BoolVar(&cli.list, "l", false, "list available tests")
-	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.BoolVar(&cli.list, "l", false, listFlagUsage)
+	fs.BoolVar(&cli.list, "list", false, listFlagUsage)
 	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
 	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
-	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
+	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only, of the tests the selectors select (every test without one)")
 	fs.DurationVar(&cli.timeout, "t", 180*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 180*time.Second, "timeout per test")
 	fs.IntVar(&cli.parallel, "p", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
@@ -338,8 +348,10 @@ Run predecessor encoding tests using Ze's standard test selection and progress o
 The suite defaults to encoding.
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and one-based id
-  --short-list        List numeric test ids only (space separated)
+  -l, --list          List the tests the other selectors select (every test
+                      without one), with N/TOTAL and one-based id
+  --short-list        List numeric test ids only (space separated), selected
+                      the same way
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
   --pattern TEXT      Run tests whose id or name contains TEXT (as typed, not a regex or a glob)
@@ -514,9 +526,10 @@ func parseExaBGPCI(configDir string, rec *runner.Record, ciFile string) (*exabgp
 	return test, nil
 }
 
-func printShortExaBGPList(tests *runner.Tests) {
-	registered := tests.Registered()
-	for i, rec := range registered {
+// printShortExaBGPList prints the ids of listed, the tests Listed answered for
+// the line, space separated.
+func printShortExaBGPList(listed []*runner.Record) {
+	for i, rec := range listed {
 		if i > 0 {
 			fmt.Print(" ") //nolint:forbidigo // CLI output
 		}

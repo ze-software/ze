@@ -120,10 +120,42 @@ const patternRule = "--pattern keeps each test whose id or name contains this te
 	" it is not a regex or a glob"
 
 // patternForms is the fix line of errNoPatternMatch: the two selections that
-// work. The runner does not know the command it serves, so it names the flag
-// to add and the form to type rather than a whole command line.
-const patternForms = "add --list to see every test name," +
+// work. The runner does not know the command it serves, so it names the flags
+// to type and the form to use rather than a whole command line. --list lists
+// what the selectors on its line select (Tests.Listed), so the advice drops
+// --pattern: --list added to the refused line would be refused again.
+const patternForms = "run --list with no --pattern to see every test name," +
 	" or give each test name as its own argument in place of --pattern"
+
+// Listed answers the tests --list and --short-list print for sel. A line
+// with no selector lists every registered test, so the operator can see the
+// names to select from. A line with one lists exactly the tests Select
+// activates for it, in suite order, which is the order a run takes them. A
+// selection Select refuses is refused here with the same error, so an
+// unmatched selector is never answered with an empty list or the whole suite.
+//
+// Listed leaves the tests it answers active, as Select does.
+func (ts *Tests) Listed(sel Selection) ([]*Record, error) {
+	if !sel.requestsRun() {
+		return ts.Registered(), nil
+	}
+	if _, err := ts.Select(sel); err != nil {
+		return nil, err
+	}
+	return ts.Selected(), nil
+}
+
+// Listed answers the generic tests --list prints for sel, on the terms of
+// Tests.Listed.
+func (ts *TestSet[T]) Listed(sel Selection) ([]T, error) {
+	if !sel.requestsRun() {
+		return ts.Registered(), nil
+	}
+	if _, err := ts.Select(sel); err != nil {
+		return nil, err
+	}
+	return ts.Selected(), nil
+}
 
 // disableAll deactivates every generic test.
 func (ts *TestSet[T]) disableAll() {

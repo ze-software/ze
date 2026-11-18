@@ -213,7 +213,7 @@ func TestTestsListPrintsOneBasedSelectorsWithProgress(t *testing.T) {
 	tests.Add("alpha")
 	tests.Add("beta")
 
-	out := captureStdout(t, tests.List)
+	out := captureStdout(t, func() { require.NoError(t, tests.List(Selection{})) })
 	assert.Contains(t, out, "\n  1/2  1  alpha\n")
 	assert.Contains(t, out, "\n  2/2  2  beta\n")
 	assert.NotContains(t, out, "1/2  0")

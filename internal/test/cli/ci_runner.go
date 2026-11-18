@@ -36,8 +36,8 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	fs := flag.NewFlagSet(cfg.Name, flag.ContinueOnError)
 	all := fs.Bool("a", false, "run all tests")
 	fs.BoolVar(all, "all", false, "run all tests")
-	listOnly := fs.Bool("l", false, "list available tests")
-	fs.BoolVar(listOnly, "list", false, "list available tests")
+	listOnly := fs.Bool("l", false, listFlagUsage)
+	fs.BoolVar(listOnly, "list", false, listFlagUsage)
 	start := fs.String("start", "", "start at test id/name and run through the end")
 	pattern := fs.String("pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
 	verbose := fs.Bool("v", false, "verbose output")
@@ -56,7 +56,8 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 		_ = b.StdErr()
 		fs.PrintDefaults()
 		b.Reset().Str("\nExamples:\n  le test ").Str(cfg.Name).Str(" -a              # Run all ").Str(cfg.Description).
-			Str(" tests\n  le test ").Str(cfg.Name).Str(" -l              # List available tests with N/TOTAL and one-based id\n  le test ").
+			Str(" tests\n  le test ").Str(cfg.Name).Str(" -l              # List every test with N/TOTAL and one-based id\n  le test ").
+			Str(cfg.Name).Str(" -l --pattern bgp # List only the tests --pattern bgp runs\n  le test ").
 			Str(cfg.Name).Str(" 1 2 3           # Run specific tests by id\n  le test ").Str(cfg.Name).
 			Str(" --start 42      # Resume at id 42 and run through the end\n  le test ").Str(cfg.Name).
 			Str(" --pattern bgp   # Run tests whose id or name contains bgp (as typed, not a regex or a glob)\n  le test ").Str(cfg.Name).Str(" -a -v           # Verbose output\n")
@@ -91,17 +92,17 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 
 	tests.Sort()
 
-	if *listOnly {
-		tests.List()
-		return nil
-	}
-
-	selected, err := tests.Select(runner.Selection{
+	sel := runner.Selection{
 		All:     *all,
 		Start:   *start,
 		Pattern: *pattern,
 		Args:    fs.Args(),
-	})
+	}
+	if *listOnly {
+		return tests.List(sel)
+	}
+
+	selected, err := tests.Select(sel)
 	if err != nil {
 		return err
 	}

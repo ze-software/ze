@@ -60,7 +60,8 @@ Examples:
   le test web --start 4      Resume at id 4 and run through the end
   le test web 1 2            Run specific tests by id
   le test web -v             Verbose output
-  le test web -l             List available tests with N/TOTAL and one-based id
+  le test web -l             List every test with N/TOTAL and one-based id
+  le test web -l -p nav      List only the tests -p nav runs
 `
 
 // webBrowserMissing decides what happens when agent-browser is not in PATH:
@@ -96,8 +97,8 @@ func cmdWebMain(args []string) error {
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
-	listOnly := fs.Bool("l", false, "list tests without running")
-	fs.BoolVar(listOnly, "list", false, "list tests without running")
+	listOnly := fs.Bool("l", false, listFlagUsage)
+	fs.BoolVar(listOnly, "list", false, listFlagUsage)
 	start := fs.String("start", "", "start at test id/name and run through the end")
 	draft := fs.Bool("draft", false, "discover from test/draft/web instead of test/web (tests under development)")
 
@@ -132,25 +133,29 @@ func cmdWebMain(args []string) error {
 		return fmt.Errorf("no .wb files found in %s", testDir)
 	}
 
+	// selection reads the flags when it is called: --list takes the line as
+	// typed, and a run takes it after the no-selector default below.
+	selection := func() runner.Selection {
+		return runner.Selection{
+			All:     *all,
+			Start:   *start,
+			Pattern: *pattern,
+			Args:    fs.Args(),
+		}
+	}
+	if *listOnly {
+		return tests.List(selection())
+	}
+
 	if !*all && *pattern == "" && *start == "" && fs.NArg() == 0 {
 		*all = true
 	}
-	selected, err := tests.Select(runner.Selection{
-		All:     *all,
-		Start:   *start,
-		Pattern: *pattern,
-		Args:    fs.Args(),
-	})
+	selected, err := tests.Select(selection())
 	if err != nil {
 		return err
 	}
-	if selected == 0 && !*listOnly {
+	if selected == 0 {
 		fs.Usage()
-		return nil
-	}
-
-	if *listOnly {
-		tests.List()
 		return nil
 	}
 	if err := webDiscoveryErrors(tests.Selected()); err != nil {

@@ -37,3 +37,8 @@ func FindBaseDir() (string, error) {
 func isHelpArg(s string) bool {
 	return s == "help" || s == "-h" || s == "--help"
 }
+
+// listFlagUsage is the flag help of -l and --list in every runner. Each hands
+// the selectors on its line to the runner's List, which lists what they
+// select and every test when there is none (runner.Tests.Listed).
+const listFlagUsage = "list the tests the other selectors select (every test without one)"

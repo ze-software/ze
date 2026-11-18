@@ -297,6 +297,7 @@ time").
 ```sh
 ./le test bgp plugin 42              # test id 42
 ./le test bgp encode --list          # list N/TOTAL, id, and name
+./le test bgp plugin --pattern lg- --list  # list only the tests that pattern runs
 ./le test bgp plugin --start 42      # id 42 and every later test
 ./le test editor 7                   # editor test id 7
 ./le test editor -p nav              # editor tests matching "nav"

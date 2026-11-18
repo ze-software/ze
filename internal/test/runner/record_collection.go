@@ -180,16 +180,19 @@ func (ts *Tests) Sort() {
 	})
 }
 
-// List prints available tests.
-func (ts *Tests) List() {
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-
-	writeTestListHeader("Available tests")
-	total := len(ts.ordered)
-	for i, nick := range ts.ordered {
-		r := ts.byNick[nick]
+// List prints the tests Listed answers for sel, one `N/TOTAL ID NAME` line
+// each: N/TOTAL counts the listed tests, and ID is the suite id a run
+// selects the test by. It returns Listed's refusal and prints nothing then.
+func (ts *Tests) List(sel Selection) error {
+	records, err := ts.Listed(sel)
+	if err != nil {
+		return err
+	}
+	writeTestListHeader(sel, "tests")
+	total := len(records)
+	for i, r := range records {
 		writeTestListLine(i+1, total, r.Nick, r.Name, "")
 	}
 	writeTestListFooter()
+	return nil
 }

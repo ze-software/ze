@@ -59,16 +59,10 @@ func zeTestVppMain(args []string) error {
 	tests.Sort()
 
 	if cli.list {
-		tests.List()
-		return nil
+		return tests.List(cli.selection())
 	}
 
-	selected, err := tests.Select(runner.Selection{
-		All:     cli.all,
-		Start:   cli.start,
-		Pattern: cli.pattern,
-		Args:    cli.testArgs,
-	})
+	selected, err := tests.Select(cli.selection())
 	if err != nil {
 		return err
 	}
@@ -135,13 +129,25 @@ type vppCLIFlags struct {
 	testArgs []string
 }
 
+// selection is the selection contract this command line asks for, handed to
+// Select for a run and to List for `--list`, so a list shows what the same
+// line would run.
+func (cli *vppCLIFlags) selection() runner.Selection {
+	return runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	}
+}
+
 func zeTestParseVPPCLI(args []string) (*vppCLIFlags, bool) {
 	fs := flag.NewFlagSet("vpp", flag.ExitOnError)
 	cli := &vppCLIFlags{}
 	fs.BoolVar(&cli.all, "a", false, "run all tests")
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
-	fs.BoolVar(&cli.list, "l", false, "list available tests")
-	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.BoolVar(&cli.list, "l", false, listFlagUsage)
+	fs.BoolVar(&cli.list, "list", false, listFlagUsage)
 	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
 	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
 	fs.DurationVar(&cli.timeout, "t", 30*time.Second, "timeout per test")
@@ -176,7 +182,8 @@ func zeTestPrintVPPUsage() {
 Run VPP stub-backed functional tests from test/vpp/.
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and one-based id
+  -l, --list          List the tests the other selectors select (every test
+                      without one), with N/TOTAL and one-based id
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
   --pattern TEXT      Run tests whose id or name contains TEXT (as typed, not a regex or a glob)

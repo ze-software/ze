@@ -106,18 +106,31 @@ func (ts *TestSet[T]) GetByNick(nick string) (T, bool) {
 	return t, ok
 }
 
-// List prints available tests.
-func (ts *TestSet[T]) List() {
-	writeTestListHeader("Available tests")
-	total := len(ts.tests)
-	for i, t := range ts.tests {
+// List prints the tests Listed answers for sel, on the terms of Tests.List.
+func (ts *TestSet[T]) List(sel Selection) error {
+	tests, err := ts.Listed(sel)
+	if err != nil {
+		return err
+	}
+	writeTestListHeader(sel, "tests")
+	total := len(tests)
+	for i, t := range tests {
 		writeTestListLine(i+1, total, t.GetNick(), t.GetName(), "")
 	}
 	writeTestListFooter()
+	return nil
 }
-func writeTestListHeader(title string) {
+
+// writeTestListHeader writes the header over a --list of noun: `Available`
+// when sel names no selector and the list holds every test of the suite,
+// `Selected` when it holds what the selectors select (Tests.Listed).
+func writeTestListHeader(sel Selection, noun string) {
+	lead := "Available "
+	if sel.requestsRun() {
+		lead = "Selected "
+	}
 	var b textbuf.Buffer
-	_ = b.Reset().Byte('\n').Str(title).Str(":\n\n").StdOut()
+	_ = b.Reset().Byte('\n').Str(lead).Str(noun).Str(":\n\n").StdOut()
 }
 
 func writeTestListLine(ordinal, total int, nick, name, suffix string) {

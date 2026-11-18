@@ -614,12 +614,16 @@ func compileCIPattern(directive, value string) (*regexp.Regexp, error) {
 	return re, nil
 }
 
-// List prints available tests with type-specific formatting.
-func (pt *ParsingTests) List() {
-	writeTestListHeader("Available parsing tests")
-	registered := pt.Registered()
-	total := len(registered)
-	for i, t := range registered {
+// List prints the tests Listed answers for sel, on the terms of Tests.List,
+// with type-specific formatting.
+func (pt *ParsingTests) List(sel Selection) error {
+	listed, err := pt.Listed(sel)
+	if err != nil {
+		return err
+	}
+	writeTestListHeader(sel, "parsing tests")
+	total := len(listed)
+	for i, t := range listed {
 		switch {
 		case t.IsRegexMatch:
 			writeTestListLine(i+1, total, t.Nick, t.Name, " (expect failure, regex)")
@@ -630,6 +634,7 @@ func (pt *ParsingTests) List() {
 		}
 	}
 	writeTestListFooter()
+	return nil
 }
 
 // parsingRunner executes parsing tests.

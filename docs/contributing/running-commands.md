@@ -537,9 +537,11 @@ uncommitted fixture code, even when the daemon is current. For a scoped plugin
 case, use `./le --name session test bgp plugin --pattern <test-name>` to rebuild
 the runner from the working tree too. The pattern keeps each test whose id or
 name contains it as typed, never a regex, a glob or the file path
-(`docs/functional-tests.md`, "Choosing functional tests").
+(`docs/functional-tests.md`, "Choosing functional tests"). Add `--list` to the
+same line to see which tests it keeps without running them: `--list` lists
+what the selectors on its line select, and every test only when there is none.
 <!-- source: internal/test/runner/runner.go -- TestBuildTags, Runner.Build, NewRunner, setupBinShims -->
-<!-- source: internal/test/runner/selection.go -- patternMatches -->
+<!-- source: internal/test/runner/selection.go -- patternMatches, Tests.Listed -->
 
 The direct route tells you when this happens. When a non-test Go file under
 `internal/test/`, in a package le links, differs between the build's commit and

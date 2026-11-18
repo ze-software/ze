@@ -53,8 +53,8 @@ func cmdEditorMain(args []string) error {
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
-	listOnly := fs.Bool("l", false, "list tests without running")
-	fs.BoolVar(listOnly, "list", false, "list tests without running")
+	listOnly := fs.Bool("l", false, listFlagUsage)
+	fs.BoolVar(listOnly, "list", false, listFlagUsage)
 
 	fs.Usage = func() {
 		_, _ = os.Stderr.WriteString(`Usage: le test editor [options] [test-ids...]
@@ -72,7 +72,8 @@ Examples:
   le test editor --start 42               # Resume at id 42 and run through the end
   le test editor 1 2                      # Run specific tests by id
   le test editor -v                       # Verbose output
-  le test editor -l                       # List available tests with N/TOTAL and one-based id
+  le test editor -l                       # List every test with N/TOTAL and one-based id
+  le test editor -l -p commit             # List only the tests -p commit runs
 `)
 	}
 
@@ -119,25 +120,29 @@ Examples:
 		return fmt.Errorf("no .et files found in %s", testDir)
 	}
 
+	// selection reads the flags when it is called: --list takes the line as
+	// typed, and a run takes it after the no-selector default below.
+	selection := func() runner.Selection {
+		return runner.Selection{
+			All:     *all,
+			Start:   *start,
+			Pattern: *pattern,
+			Args:    testArgs,
+		}
+	}
+	if *listOnly {
+		return tests.List(selection())
+	}
+
 	if !*all && *pattern == "" && *start == "" && len(testArgs) == 0 {
 		*all = true
 	}
-	selected, err := tests.Select(runner.Selection{
-		All:     *all,
-		Start:   *start,
-		Pattern: *pattern,
-		Args:    testArgs,
-	})
+	selected, err := tests.Select(selection())
 	if err != nil {
 		return err
 	}
-	if selected == 0 && !*listOnly {
+	if selected == 0 {
 		fs.Usage()
-		return nil
-	}
-
-	if *listOnly {
-		tests.List()
 		return nil
 	}
 
