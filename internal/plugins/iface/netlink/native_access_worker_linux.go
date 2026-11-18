@@ -209,10 +209,11 @@ func (resources *nativeVLANResources) join(ctx context.Context) error {
 		}
 	}
 	_, err = resources.run(bounded, false, func(turn context.Context) (any, error) {
+		// Join returns an acknowledgment, never a captured native resource.
 		if resources.ops.resumeOriginal == nil {
-			return nil, nil
+			return struct{}{}, nil
 		} // A source-only fake has no native request socket.
-		return nil, resources.ops.resumeOriginal(turn)
+		return struct{}{}, resources.ops.resumeOriginal(turn)
 	}, nil)
 	return err
 }

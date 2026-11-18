@@ -173,18 +173,18 @@ func TestNativeAccessConfirmedParentDeletionAllowsFreshChild(t *testing.T) {
 		return
 	}
 	withVLANQoSNetNS(t, func() {
-		addVLANQoSDummy(t, "accrecreate0")
+		addVLANQoSDummy(t, "accrec0")
 		backend := &netlinkBackend{}
 		t.Cleanup(func() {
 			if err := backend.Close(); err != nil {
 				t.Error(err)
 			}
 		})
-		spec := iface.VLANSpec{Parent: "accrecreate0", VLANID: 313}
+		spec := iface.VLANSpec{Parent: "accrec0", VLANID: 313}
 		if err := backend.CreateVLAN(spec); err != nil {
 			t.Fatal(err)
 		}
-		first, err := backend.GetLink("accrecreate0.313")
+		first, err := backend.GetLink("accrec0.313")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -192,17 +192,17 @@ func TestNativeAccessConfirmedParentDeletionAllowsFreshChild(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := backend.DeleteInterface("accrecreate0"); err != nil {
+		if err := backend.DeleteInterface("accrec0"); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := netlink.LinkByName("accrecreate0.313"); err == nil {
+		if _, err := netlink.LinkByName("accrec0.313"); err == nil {
 			t.Fatal("native child survived confirmed parent deletion")
 		}
-		addVLANQoSDummy(t, "accrecreate0")
+		addVLANQoSDummy(t, "accrec0")
 		if err := backend.CreateVLAN(spec); err != nil {
 			t.Fatalf("stale receipt blocked fresh child: %v", err)
 		}
-		second, err := backend.GetLink("accrecreate0.313")
+		second, err := backend.GetLink("accrec0.313")
 		if err != nil {
 			t.Fatal(err)
 		}

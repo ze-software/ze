@@ -70,7 +70,11 @@ func newNativeAccessRig(t *testing.T) *nativeAccessRig {
 		return nil, netlink.LinkNotFoundError{}
 	}
 	ops.add = func(link netlink.Link) (netlink.Link, error) {
-		vlan := link.(*netlink.Vlan)
+		vlan, ok := link.(*netlink.Vlan)
+		if !ok {
+			t.Errorf("native VLAN create received %T", link)
+			return nil, errors.New("native VLAN fixture create requires a VLAN")
+		}
 		if rig.onAdd != nil {
 			rig.onAdd(vlan)
 		}
@@ -91,8 +95,16 @@ func newNativeAccessRig(t *testing.T) *nativeAccessRig {
 	ops.up = func(netlink.Link) error { return nil }
 	ops.modify = func(link netlink.Link) error {
 		rig.modifies++
-		wanted := link.(*netlink.Vlan)
-		actual := rig.links[link.Attrs().Name].(*netlink.Vlan)
+		wanted, ok := link.(*netlink.Vlan)
+		if !ok {
+			t.Errorf("native VLAN modify received %T", link)
+			return errors.New("native VLAN fixture modify requires a VLAN")
+		}
+		actual, ok := rig.links[link.Attrs().Name].(*netlink.Vlan)
+		if !ok {
+			t.Errorf("native VLAN modify target is %T", rig.links[link.Attrs().Name])
+			return errors.New("native VLAN fixture modify target requires a VLAN")
+		}
 		actual.IngressQosMap = maps.Clone(wanted.IngressQosMap)
 		actual.EgressQosMap = maps.Clone(wanted.EgressQosMap)
 		return nil
@@ -350,7 +362,10 @@ func TestNativeAccessReadRejectsReusedNativeIndex(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	successor := rig.links[binding.OsName].(*netlink.Vlan)
+	successor, ok := rig.links[binding.OsName].(*netlink.Vlan)
+	if !ok {
+		t.Fatalf("native VLAN successor is %T", rig.links[binding.OsName])
+	}
 	original := successor.Alias
 	successor.Alias = nativeVLANAliasPrefix + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	if successor.Alias == original {
@@ -446,7 +461,7 @@ func TestNativeAccessSnapshotsDoNotBorrowKernelMaps(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	if _, err := lease.Borrow(ctx); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled borrow cause: %v", err)
+		t.Fatalf("canceled borrow cause: %v", err)
 	}
 }
 
@@ -542,7 +557,7 @@ func TestNativeAccessPersistentTimeoutStillVisitsOtherResources(t *testing.T) {
 			t.Fatalf("persistent native timeout: %v", err)
 		}
 		if rig.aliases[sibling] != 1 {
-			t.Fatal("persistent native timeout starved its retained sibling")
+			t.Fatalf("persistent native timeout starved its retained sibling: blocked=%s sibling=%s attempts=%v", blocked, sibling, rig.aliases)
 		}
 		if rig.closes != 0 {
 			t.Fatal("backend closed before the blocked owner retired")

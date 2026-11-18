@@ -36,7 +36,7 @@ func waitNativeAccessInitialization(t *testing.T, done <-chan struct{}, stage st
 func TestNativeAccessFirstWorkerSharesGuardedRollbackTransport(t *testing.T) {
 	b := &netlinkBackend{}
 	resources := &b.nativeVLANs
-	target := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "rollback-first", Index: 71}}
+	target := &netlink.Dummy{Name: "rollback-first", Index: 71}
 	cause := errors.New("original creator setup failed")
 	entered, contended, secondEntered, resume := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
 	rollbackDone, workerDone := make(chan struct{}), make(chan struct{})
@@ -159,7 +159,7 @@ func TestNativeAccessFirstWorkerSharesGuardedRollbackTransport(t *testing.T) {
 func TestNativeAccessFailedInitializationRetriesOriginalTransport(t *testing.T) {
 	b := &netlinkBackend{}
 	resources := &b.nativeVLANs
-	target := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "rollback-retry", Index: 72}}
+	target := &netlink.Dummy{Name: "rollback-retry", Index: 72}
 	openErr := errors.New("original socket open failed")
 	var opens, removes, closes int
 	original := &nativeVLANOps{

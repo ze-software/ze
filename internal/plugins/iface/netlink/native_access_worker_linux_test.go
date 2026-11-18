@@ -38,7 +38,7 @@ func TestNativeAccessWorkerDeadlineRetainsOriginalOperation(t *testing.T) {
 		answer := make(chan error, 1)
 		var mutations atomic.Int32
 		go func() {
-			_, err := resources.run(t.Context(), false, func(context.Context) (any, error) { close(entered); <-resume; mutations.Add(1); return nil, nil }, nil)
+			_, err := resources.run(t.Context(), false, func(context.Context) (any, error) { close(entered); <-resume; mutations.Add(1); return struct{}{}, nil }, nil)
 			answer <- err
 		}()
 		<-entered
@@ -48,13 +48,13 @@ func TestNativeAccessWorkerDeadlineRetainsOriginalOperation(t *testing.T) {
 		if mutations.Load() != 0 {
 			t.Fatal("withheld native operation already completed")
 		}
-		if _, err := resources.run(t.Context(), false, func(context.Context) (any, error) { mutations.Add(100); return nil, nil }, nil); !errors.Is(err, iface.ErrNativeAccessPending) {
+		if _, err := resources.run(t.Context(), false, func(context.Context) (any, error) { mutations.Add(100); return struct{}{}, nil }, nil); !errors.Is(err, iface.ErrNativeAccessPending) {
 			t.Fatalf("unknown original allowed another mutation: %v", err)
 		}
 		if err := resources.join(t.Context()); !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("withheld native IO falsely joined: %v", err)
 		}
-		if _, err := foreign.run(t.Context(), false, func(context.Context) (any, error) { mutations.Add(1000); return nil, nil }, nil); !errors.Is(err, iface.ErrNativeAccessPending) {
+		if _, err := foreign.run(t.Context(), false, func(context.Context) (any, error) { mutations.Add(1000); return struct{}{}, nil }, nil); !errors.Is(err, iface.ErrNativeAccessPending) {
 			t.Fatalf("foreign owner bypassed original mutation gate: %v", err)
 		}
 		release()
@@ -65,10 +65,10 @@ func TestNativeAccessWorkerDeadlineRetainsOriginalOperation(t *testing.T) {
 		if mutations.Load() != 1 {
 			t.Fatalf("native mutation count %d", mutations.Load())
 		}
-		if _, err := resources.run(t.Context(), true, func(context.Context) (any, error) { return nil, nil }, nil); err != nil {
+		if _, err := resources.run(t.Context(), true, func(context.Context) (any, error) { return struct{}{}, nil }, nil); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := foreign.run(t.Context(), true, func(context.Context) (any, error) { return nil, nil }, nil); err != nil {
+		if _, err := foreign.run(t.Context(), true, func(context.Context) (any, error) { return struct{}{}, nil }, nil); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -105,7 +105,7 @@ func TestNativeAccessWorkerDiscardsLateUnpublishedReference(t *testing.T) {
 		<-entered
 		cancel()
 		if err := <-answer; !errors.Is(err, context.Canceled) {
-			t.Fatalf("cancelled caller: %v", err)
+			t.Fatalf("canceled caller: %v", err)
 		}
 		if released.Load() != 0 {
 			t.Fatal("unreturned native reference was released early")
@@ -115,7 +115,7 @@ func TestNativeAccessWorkerDiscardsLateUnpublishedReference(t *testing.T) {
 		if released.Load() != 1 {
 			t.Fatalf("late native reference releases %d", released.Load())
 		}
-		if _, err := resources.run(t.Context(), true, func(context.Context) (any, error) { return nil, nil }, nil); err != nil {
+		if _, err := resources.run(t.Context(), true, func(context.Context) (any, error) { return struct{}{}, nil }, nil); err != nil {
 			t.Fatal(err)
 		}
 	})

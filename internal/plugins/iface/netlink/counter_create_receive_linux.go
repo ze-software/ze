@@ -64,7 +64,7 @@ func (s *counterSource) consumeCreate(dump *counterDump, messages []syscall.Netl
 	acknowledgedBeforeBatch := dump.done
 	// A successful ACK without an echo keeps receiveCreate waiting. A later
 	// contradictory negative ACK cannot erase that earlier completion history.
-	if prior, confirmed := dump.failure.(counterCreateNegativeACK); confirmed {
+	if prior, confirmed := dump.failure.(counterCreateNegativeACK); confirmed { //nolint:errorlint // Only the exact private batch receipt grants authority; wrapped causes remain uncertain.
 		dump.failure = syscall.Errno(prior)
 	}
 	var rejection counterCreateNegativeACK

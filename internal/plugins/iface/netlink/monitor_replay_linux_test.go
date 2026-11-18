@@ -178,9 +178,9 @@ func TestMonitorAddressReplayExcludesRemovedTentativeAndDeletedLink(t *testing.T
 	addresses <- tentative
 	addresses <- replayAddr("192.0.2.9/24", true)
 	awaitReplayEvent(t, bus.observed, ifaceevents.EventAddrAdded)
-	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_DELLINK}, Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "xe0.100", Index: 7}}}
+	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_DELLINK}, Link: &netlink.Dummy{Name: "xe0.100", Index: 7}}
 	awaitReplayEvent(t, bus.observed, ifaceevents.EventDown)
-	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_NEWLINK}, Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "xe0.100", Index: 7}}}
+	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_NEWLINK}, Link: &netlink.Dummy{Name: "xe0.100", Index: 7}}
 	awaitReplayEvent(t, bus.observed, ifaceevents.EventDown)
 	addresses <- replayAddr("192.0.2.10/24", true)
 	awaitReplayEvent(t, bus.observed, ifaceevents.EventAddrAdded)
@@ -263,7 +263,7 @@ func TestMonitorAddressReplayTracksRenamedInterface(t *testing.T) {
 	awaitReplayEvent(t, bus.observed, ifaceevents.EventAddrAdded)
 	added, stop := subscribeReplayAdds(bus)
 	defer stop()
-	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_NEWLINK}, Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "renamed.200", Index: 7}}}
+	links <- netlink.LinkUpdate{Header: unix.NlMsghdr{Type: unix.RTM_NEWLINK}, Link: &netlink.Dummy{Name: "renamed.200", Index: 7}}
 	removed := awaitReplayEvent(t, bus.observed, ifaceevents.EventAddrRemoved)
 	if raw, ok := removed.Payload.(string); !ok || !json.Valid([]byte(raw)) {
 		t.Fatalf("invalid withdrawal %+v", removed)

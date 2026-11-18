@@ -113,7 +113,7 @@ func counterCreateNegativeReply(dump *counterDump, message syscall.NetlinkMessag
 // Nil means no such receipt; callers keep the ordinary uncertain error path.
 func completedCounterCreateRejection(dump *counterDump, cause error) error {
 	if cause != nil {
-		return nil
+		return nil //nolint:nilerr // No rejection authority is granted; finishCreate retains the original failure.
 	}
 	if !dump.single {
 		return nil
@@ -127,7 +127,7 @@ func completedCounterCreateRejection(dump *counterDump, cause error) error {
 	if len(dump.links) != 0 {
 		return nil
 	}
-	rejection, confirmed := dump.failure.(counterCreateNegativeACK)
+	rejection, confirmed := dump.failure.(counterCreateNegativeACK) //nolint:errorlint // Only the exact private batch receipt grants authority; wrapped causes remain uncertain.
 	if !confirmed {
 		return nil
 	}

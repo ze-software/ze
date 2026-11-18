@@ -64,7 +64,7 @@ func (b *netlinkBackend) CreateDummy(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
@@ -88,7 +88,7 @@ func (b *netlinkBackend) CreateVeth(name, peerName string) error {
 	if err := iface.ValidateIfaceName(peerName); err != nil {
 		return fmt.Errorf("iface: create veth peer %q: %w", peerName, err)
 	}
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name}, PeerName: peerName}
+	link := &netlink.Veth{Name: name, PeerName: peerName}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create veth %q/%q: %w", name, peerName, err)
 	}
@@ -116,7 +116,7 @@ func (b *netlinkBackend) CreateBridge(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
-	link := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Bridge{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}

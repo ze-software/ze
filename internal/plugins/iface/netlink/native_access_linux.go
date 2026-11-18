@@ -218,7 +218,7 @@ func (resources *nativeVLANResources) createDirect(ctx context.Context, spec ifa
 		resources.records = make(map[iface.NativeVLANBirth]*nativeVLANResource)
 	}
 	resources.records[birth] = record
-	link := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: name, ParentIndex: record.parent}, VlanId: record.vlan, IngressQosMap: maps.Clone(spec.IngressQoSMap), EgressQosMap: maps.Clone(spec.EgressQoSMap)}
+	link := &netlink.Vlan{Name: name, ParentIndex: record.parent, VlanId: record.vlan, IngressQosMap: maps.Clone(spec.IngressQoSMap), EgressQosMap: maps.Clone(spec.EgressQoSMap)}
 	if err := resources.beginLocked(ctx); err != nil {
 		delete(resources.records, birth)
 		return err
@@ -552,7 +552,7 @@ func (lease *nativeVLANLease) replaceDirect(ctx context.Context, wanted iface.Na
 		return err
 	}
 	in, out := qosReplaceMaps(actual.EgressQosMap, wanted.Ingress, wanted.Egress)
-	modify := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: lease.identity.Device, Index: lease.identity.Index, TxQLen: -1}, VlanId: actual.VlanId, IngressQosMap: in, EgressQosMap: out}
+	modify := &netlink.Vlan{Name: lease.identity.Device, Index: lease.identity.Index, TxQLen: -1, VlanId: actual.VlanId, IngressQosMap: in, EgressQosMap: out}
 	if err := lease.resource.owner.beginLocked(ctx); err != nil {
 		return err
 	}
@@ -623,6 +623,9 @@ func nativeVLANLinkAbsent(err error) bool {
 	return absent
 }
 
+// closeDirect MUST end a turn when nativeVLANRetirementExpired classifies its
+// current operation, even before ctx.Err observes the native deadline. The
+// next-resource cursor MUST survive for a later Close with a fresh budget.
 func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 	if resources.ops != nil {
 		if resources.ops.resumeOriginal != nil {
@@ -649,7 +652,7 @@ func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 	slices.SortFunc(births, func(a, b iface.NativeVLANBirth) int { return a.Compare(b) })
 	var failure error
 	start := resources.retireNext
-	for offset := range len(births) {
+	for offset := range births {
 		at := (start + offset) % len(births)
 		record := resources.records[births[at]]
 		if _, retired := record.state.(nativeVLANRetired); retired {
@@ -662,6 +665,9 @@ func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 		resources.retireNext = (at + 1) % len(births) // A timed-out resource cannot starve its siblings on retry.
 		link, err := record.readLocked(ctx)
 		if err != nil {
+			if nativeVLANRetirementExpired(err) {
+				return errors.Join(failure, record.retainedCause(err))
+			}
 			if nativeVLANLinkAbsent(err) {
 				record.state = nativeVLANRetired{}
 				continue
@@ -675,12 +681,18 @@ func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 		}
 		if err := resources.beginLocked(ctx); err != nil {
 			failure = errors.Join(failure, err)
+			if nativeVLANRetirementExpired(err) {
+				return failure
+			}
 			continue
 		}
 		record.state = nativeVLANRetiring{errors.New("native VLAN ownership retirement is unconfirmed")}
 		if err := resources.ops.alias(link, record.retiredAlias); err != nil {
 			record.state = nativeVLANRetiring{err}
 			failure = errors.Join(failure, err)
+			if nativeVLANRetirementExpired(err) {
+				return failure
+			}
 			continue
 		}
 		record.state = nativeVLANRetired{}
@@ -700,6 +712,16 @@ func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 	}
 	resources.phase = nativeVLANBackendClosed
 	return nil
+}
+
+// nativeVLANRetirementExpired classifies only the current operation's cause,
+// never joined historical failures. closeDirect MUST stop its turn when true,
+// preserving the next-resource cursor and every original cause for its retry.
+func nativeVLANRetirementExpired(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 func (record *nativeVLANResource) createdEcho(link netlink.Link) error {
@@ -745,7 +767,13 @@ func (resources *nativeVLANResources) create(spec iface.VLANSpec) error {
 }
 
 func (b *netlinkBackend) CaptureNativeVLAN(ctx context.Context, binding iface.Binding) (iface.NativeVLANPreparation, error) {
-	value, err := b.nativeVLANs.run(ctx, false, func(ctx context.Context) (any, error) { return b.captureNativeVLANDirect(ctx, binding) }, func(value any) error { return value.(iface.NativeVLANPreparation).Close() })
+	value, err := b.nativeVLANs.run(ctx, false, func(ctx context.Context) (any, error) { return b.captureNativeVLANDirect(ctx, binding) }, func(value any) error {
+		lease, ok := value.(iface.NativeVLANPreparation)
+		if !ok {
+			return errors.New("native capture discard returned no preparation")
+		}
+		return lease.Close()
+	})
 	if err != nil {
 		return nil, err
 	}

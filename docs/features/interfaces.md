@@ -1755,6 +1755,10 @@ a successful open is never replaced by another admission. Close retains the
 original worker until its actual completion channel closes. A stopped admission
 with an unjoined worker returns a bounded pending result; a retry cannot reopen
 the transport or report successful release before that original worker returns.
+A cleanup operation that times out ends its current turn and retains its next
+resource cursor. A later Close starts with that next resource, so a repeatedly
+timing-out original cannot starve its retained siblings. The original failure,
+worker and transport remain owned until their cleanup is confirmed.
 <!-- source: internal/plugins/iface/netlink/native_access_linux.go -- initializeOps, beginLocked, close, closeWithContext -->
 <!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- loop, join -->
 <!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- run -->

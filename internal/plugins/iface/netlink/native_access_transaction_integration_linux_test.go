@@ -199,7 +199,7 @@ func nativePartialTransactionTest(t *testing.T, cancelEarly bool) {
 		}
 		cleanup, cancelCleanup := context.WithTimeout(context.Background(), nativeVLANTransactionTestGuard)
 		defer cancelCleanup()
-		if _, err := resources.run(cleanup, true, func(context.Context) (any, error) { return nil, nil }, nil); err != nil {
+		if _, err := resources.run(cleanup, true, func(context.Context) (any, error) { return struct{}{}, nil }, nil); err != nil {
 			t.Error(err)
 		}
 	})
@@ -254,7 +254,7 @@ func nativePartialTransactionTest(t *testing.T, cancelEarly bool) {
 	select {
 	case <-originalRequest.done:
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("original native poll callback did not join within its own cancelled budget")
+		t.Fatal("original native poll callback did not join within its own canceled budget")
 	}
 	original := transport.pending
 	if original == nil {
