@@ -8,7 +8,7 @@
 | Release reason | An unresolved BGP next hop must not displace a usable route; changing interior reachability must update selection and installed forwarding state |
 | RFC gaps | RFC4271-3.1-2, RFC4271-9.1.2.1-2 |
 | Depends | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-18 |
 
 ## Task
 
@@ -80,6 +80,7 @@ excludes BGP plugins; neither owns this admission change.
 | Existing cost-change coverage now has its own RFC mapping and native fault | `TestIGPCostChangeReselectsWithoutAIGP` retains every statement: only interior cost changes, without another UPDATE or AIGP. `job-next-hop-label-cost-semantic-proofs-3477f68f.log` observes clean PASS and a named failure at the cost-30 winner transition when the change subscriber's reselection is omitted |
 | Two label fixtures now supply real independent reachability | Independently approved private connected `/32` entries for `10.0.0.1` and `.2` feed the same actual ordinary/prospective resolver. Every label, MED, peer, path ID, count and winner assertion remains. Three native semantic observations pass in `job-next-hop-label-cost-semantic-proofs-3477f68f.log`; all five selected label/cost/immediate-hop units pass under race detection in `job-next-hop-label-cost-final-race-4f0b2faa.log` |
 | Private recovery admission preserves forwarded-wire recovery without relaxing ordinary forwarding admission | The initial behavioral baseline, `job-recovery-next-hop-admission-baseline-a2a5d3ac.log`, failed all four CIDR/VPN × published/parsed-command recovery cases while passing the twelve retained guards. After the producer fix, `job-recovery-next-hop-admission-green-9c322622.log` passed both new units, all sixteen cases, eight ordinary admission controls, immediate reselection and the bounded timeout under race detection |
+| `test/plugin/lg-best-table.ci` converted: its next hop gets a real terminal route | The fixture injected 15 routes with next hop 10.0.1.1 and the config holds no route to it, so the best table answered `"routes_count": 0`. The draft's `next-hop-cover` driver argument installs static 10.0.1.1/32 through a device and no gateway over route-install, the same pattern as the LLGR fixtures (`terminalCovers`, `internal/test/fixture/terminal_cover_fixture.go`, now shared by both), and injects only once `show rib candidates` and route metrics show it selected and resolving at zero cost. Every HTTP assertion is unchanged. Draft run, 80-iteration stress, red proof without the argument, promotion and independent `ze-test-judge` review are owed; nothing is claimed passing yet. `lg-paginate`, `lg-ui-pages`, `lg-covering-lookup` and `lg-aspath-search` ask only the `received` scope and stay unconverted |
 | All eight foreign process recovery cases now pass | `tmp/session/2026-11-14-002623/scratch/job-unit-pkg-401fb152.log`: `TestRecoveryQueuedDeliveryTransport` passes direct/IPC, newer-target-owner/unrelated-prefix and control/held-sent; `TestRSFastReceiptRecipientExactlyOnce` also passes both transports. No artificial IGP seed or weakened assertion was added. The earlier `job-unit-pkg-f2e02aa7.log` records the reproduced failure |
 
 Logs above live in
@@ -303,6 +304,7 @@ dependence on the named boundary, not every semantic fault or whole-RFC support.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `conflicting-feature-contracts.md` | 2026-11-15 | RS live relay and recovery next-hop admission |
+| `silent-fall-through.md` | 2026-11-18 | A route excluded for an unresolved next hop is reported nowhere |
 
 ## Review Gate
 

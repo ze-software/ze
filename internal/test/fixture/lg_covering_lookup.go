@@ -27,8 +27,8 @@ import (
 // the same way: the text filter `prefix 192.0.0.0/2` lists both, and the
 // exact lookup the looking glass sends lists the /2 alone.
 var lgCoveringRoutes = map[string][]string{
-	"10.0.1.1": {"10.0.0.0/8", "10.1.0.0/16", "0.0.0.0/0", "192.0.2.0/24", "192.0.0.0/2", "192.0.0.0/24"},
-	"10.0.1.2": {"10.0.0.0/8", "192.0.2.0/24"},
+	addrLGPeerFirst:  {prefixTen8, prefixTen1Of16, prefixDefaultIPv4, prefixTestNet1, prefix192Short, "192.0.0.0/24"},
+	addrLGPeerSecond: {prefixTen8, prefixTestNet1},
 }
 
 // What each question answers, per peer, in the order the rows must come: the
@@ -36,15 +36,15 @@ var lgCoveringRoutes = map[string][]string{
 // themselves is the plugin's and is not asserted.
 var (
 	lgCoveringAddressWant = map[string][]string{
-		"10.0.1.1": {"10.1.0.0/16", "10.0.0.0/8", "0.0.0.0/0"},
-		"10.0.1.2": {"10.0.0.0/8"},
+		addrLGPeerFirst:  {prefixTen1Of16, prefixTen8, prefixDefaultIPv4},
+		addrLGPeerSecond: {prefixTen8},
 	}
 	lgCoveringPrefixWant = map[string][]string{
-		"10.0.1.1": {"10.0.0.0/8"},
-		"10.0.1.2": {"10.0.0.0/8"},
+		addrLGPeerFirst:  {prefixTen8},
+		addrLGPeerSecond: {prefixTen8},
 	}
 	lgCoveringShortPrefixWant = map[string][]string{
-		"10.0.1.1": {"192.0.0.0/2"},
+		addrLGPeerFirst: {prefix192Short},
 	}
 )
 
@@ -59,7 +59,7 @@ func lgCoveringLookup(ctx context.Context, _ []string) error {
 		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
 			return err
 		}
-		for _, peer := range []string{"10.0.1.1", "10.0.1.2"} {
+		for _, peer := range []string{addrLGPeerFirst, addrLGPeerSecond} {
 			for _, prefix := range lgCoveringRoutes[peer] {
 				if err := injectRoute09(ctx, p, peer, prefix); err != nil {
 					return err
@@ -77,8 +77,8 @@ func lgCoveringLookup(ctx context.Context, _ []string) error {
 			want  map[string][]string
 		}{
 			{"10.1.2.3", lgCoveringAddressWant},
-			{"10.0.0.0/8", lgCoveringPrefixWant},
-			{"192.0.0.0/2", lgCoveringShortPrefixWant},
+			{prefixTen8, lgCoveringPrefixWant},
+			{prefix192Short, lgCoveringShortPrefixWant},
 			{"192.0.0.1/2", lgCoveringShortPrefixWant},
 		}
 		for _, question := range questions {
@@ -129,7 +129,7 @@ var lgCoveringCell = regexp.MustCompile(`<td>([^<]*)</td>`)
 // lgCoveringSearchRows posts one search and answers the prefixes it listed,
 // grouped by next hop in the order the page listed them.
 func lgCoveringSearchRows(ctx context.Context, base, value string) (map[string][]string, error) {
-	form := url.Values{"prefix": {value}}.Encode()
+	form := url.Values{columnPrefix: {value}}.Encode()
 	body, err := lgCoveringRequest(ctx, http.MethodPost, base+"/lg/search", form)
 	if err != nil {
 		return nil, err
@@ -186,7 +186,12 @@ func lgCoveringAPIRows(ctx context.Context, base, endpoint, value string) (map[s
 // not 200 is an error naming it.
 func lgCoveringRequest(ctx context.Context, method, target, form string) (string, error) {
 	client := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{Proxy: nil}}
-	var resp *http.Response
+	// The answer is read and its body closed inside the attempt that got it,
+	// so no path leaves a body open. A read failure ends the polling: only a
+	// listener that is not yet up is retried.
+	var status int
+	var data []byte
+	var readErr error
 	var lastErr error
 	if !Poll(ctx, 75, 200*time.Millisecond, func() bool {
 		var body io.Reader = http.NoBody
@@ -201,18 +206,23 @@ func lgCoveringRequest(ctx context.Context, method, target, form string) (string
 		if form != "" {
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		}
-		resp, lastErr = client.Do(request)
-		return lastErr == nil
+		resp, err := client.Do(request)
+		if err != nil {
+			lastErr = err
+			return false
+		}
+		defer resp.Body.Close() //nolint:errcheck // the body is read
+		status = resp.StatusCode
+		data, readErr = io.ReadAll(resp.Body)
+		return true
 	}) {
 		return "", fmt.Errorf("covering: looking glass never answered %s %s: %w", method, target, lastErr)
 	}
-	defer resp.Body.Close() //nolint:errcheck // the body is read
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("covering: read %s %s: %w", method, target, err)
+	if readErr != nil {
+		return "", fmt.Errorf("covering: read %s %s: %w", method, target, readErr)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("covering: %s %s answered %d: %.300q", method, target, resp.StatusCode, data)
+	if status != http.StatusOK {
+		return "", fmt.Errorf("covering: %s %s answered %d: %.300q", method, target, status, data)
 	}
 	return string(data), nil
 }

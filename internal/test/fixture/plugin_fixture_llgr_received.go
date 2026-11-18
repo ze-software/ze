@@ -1,19 +1,16 @@
 // Design: docs/architecture/route-selection.md -- Step 0, stale depreference
 // Related: plugin_fixture_02.go -- the registration, requireDone02, map02
 // Related: ../../../test/plugin/llgr-stale-received-depreferenced.ci -- the scenario
+// Related: terminal_cover_fixture.go -- terminalCovers, the next-hop topology
 
 package fixture
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -42,8 +39,8 @@ func llgrStaleReceived02(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	verdicts := []llgrReceivedVerdict{
-		{prefix: "10.0.0.0/8", winner: addrLoopbackV6, step: "stale-level"},
-		{prefix: "10.1.0.0/16", winner: addrLoopbackV6, step: "local-preference"},
+		{prefix: prefixTen8, winner: addrLoopbackV6, step: "stale-level"},
+		{prefix: prefixTen1Of16, winner: addrLoopbackV6, step: stepLocalPreference},
 	}
 	entries := make(map[string]map[string]any, len(verdicts))
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
@@ -90,109 +87,8 @@ func llgrStaleReceived02(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 // llgrReceivedTopology gives the unchanged wire next hops independent terminal
-// paths in the real system RIB. The device is route metadata, not a claim that
-// a kernel interface exists or that a kernel route was installed.
+// paths in the real system RIB (terminalCovers).
 func llgrReceivedTopology(ctx context.Context, p *sdk.Plugin) error {
-	addresses := []string{addrPeerOne, addrPeerTwo}
-	entries := make([]rpc.RouteInstallEntry, len(addresses))
-	for i, address := range addresses {
-		entries[i] = rpc.RouteInstallEntry{Protocol: protocolStatic,
-			Instance: llgrReceivedInstance, AFI: 1, SAFI: 1, Prefix: address + "/32",
-			Interface: llgrReceivedDevice, RouteType: 1}
-	}
-	if err := sysribInstall(ctx, p, entries...); err != nil {
-		return fmt.Errorf("install LLGR next-hop covers: %w", err)
-	}
-	last := errors.New("terminal LLGR covers have not been observed")
-	if !Poll(ctx, 20, 100*time.Millisecond, func() bool {
-		last = llgrReceivedTopologyState(ctx, p, addresses)
-		return last == nil
-	}) {
-		return fmt.Errorf("LLGR next-hop covers were not ready: %w", last)
-	}
-	return nil
-}
-
-type llgrReceivedCoverRow struct {
-	Prefix string                  `json:"prefix"`
-	Family family.Family           `json:"family"`
-	Paths  []llgrReceivedCoverPath `json:"paths"`
-}
-
-type llgrReceivedCoverPath struct {
-	Source    string          `json:"source"`
-	Instance  uint32          `json:"instance"`
-	Interface string          `json:"interface"`
-	NextHop   json.RawMessage `json:"next-hop"`
-	Metric    *uint32         `json:"metric"`
-	Selected  bool            `json:"selected"`
-	Hidden    *bool           `json:"hidden"`
-}
-
-func llgrReceivedTopologyState(ctx context.Context, p *sdk.Plugin, addresses []string) error {
-	for _, address := range addresses {
-		prefix := address + "/32"
-		var rows []llgrReceivedCoverRow
-		status, err := Dispatch(ctx, p, "show rib candidates prefix "+prefix, &rows)
-		if err != nil {
-			return err
-		}
-		if status != rpc.StatusDone {
-			return fmt.Errorf("LLGR cover %s inspection answered %q instead of done", prefix, status)
-		}
-		if len(rows) != 1 {
-			return fmt.Errorf("LLGR cover %s inspection returned %d prefixes, want one", prefix, len(rows))
-		}
-		row := &rows[0]
-		if row.Prefix != prefix {
-			return fmt.Errorf("LLGR cover inspection returned prefix %q, want %s", row.Prefix, prefix)
-		}
-		if row.Family != family.IPv4Unicast {
-			return fmt.Errorf("LLGR cover %s inspection returned family %s", prefix, row.Family)
-		}
-		if len(row.Paths) != 1 {
-			return fmt.Errorf("LLGR cover %s inspection returned %d paths, want one", prefix, len(row.Paths))
-		}
-		path := &row.Paths[0]
-		if path.Source != protocolStatic {
-			return fmt.Errorf("LLGR cover %s source is %q, want static", prefix, path.Source)
-		}
-		if path.Instance != llgrReceivedInstance {
-			return fmt.Errorf("LLGR cover %s instance is %d, want %d", prefix, path.Instance, llgrReceivedInstance)
-		}
-		if path.Interface != llgrReceivedDevice {
-			return fmt.Errorf("LLGR cover %s device is %q, want %s", prefix, path.Interface, llgrReceivedDevice)
-		}
-		if len(path.NextHop) != 0 {
-			return fmt.Errorf("LLGR terminal cover %s unexpectedly names a gateway", prefix)
-		}
-		if path.Metric == nil {
-			return fmt.Errorf("LLGR cover %s inspection omitted its metric", prefix)
-		}
-		if *path.Metric != 0 {
-			return fmt.Errorf("LLGR cover %s metric is %d, want zero", prefix, *path.Metric)
-		}
-		if !path.Selected {
-			return fmt.Errorf("LLGR cover %s is not selected", prefix)
-		}
-		if path.Hidden == nil {
-			return fmt.Errorf("LLGR cover %s inspection omitted its hidden state", prefix)
-		}
-		if *path.Hidden {
-			return fmt.Errorf("LLGR cover %s is hidden", prefix)
-		}
-	}
-	metrics, err := p.RouteMetrics(ctx, addresses)
-	if err != nil {
-		return err
-	}
-	if len(metrics.Distances) != len(addresses) {
-		return fmt.Errorf("LLGR topology returned %d metrics, want %d", len(metrics.Distances), len(addresses))
-	}
-	for i, address := range addresses {
-		if metrics.Distances[i] != (rpc.RouteMetric{Resolved: true}) {
-			return fmt.Errorf("LLGR next hop %s has metric %+v, want resolved, nonrecursive and zero cost", address, metrics.Distances[i])
-		}
-	}
-	return nil
+	return terminalCovers{label: "LLGR", device: llgrReceivedDevice, instance: llgrReceivedInstance,
+		addresses: []string{addrPeerOne, addrPeerTwo}}.install(ctx, p)
 }

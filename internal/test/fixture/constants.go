@@ -71,6 +71,21 @@ var (
 // Addresses, prefixes, ports and other network identities.
 const (
 	addrLoopback = "127.0.0.1"
+	// addrLGPeerFirst and addrLGPeerSecond are the pseudo-peers the looking
+	// glass scenarios inject routes under; injectRoute09 makes each route's
+	// next hop its peer.
+	addrLGPeerFirst  = "10.0.1.1"
+	addrLGPeerSecond = "10.0.1.2"
+	// prefixTen8, prefixTen1Of16 and prefixDefaultIPv4 are the nested IPv4
+	// prefixes the LLGR and covering-lookup scenarios contest and look up.
+	prefixTen8        = "10.0.0.0/8"
+	prefixTen1Of16    = "10.1.0.0/16"
+	prefixDefaultIPv4 = "0.0.0.0/0"
+	// prefix30First is the first prefix the AS path search scenario injects.
+	prefix30First = "10.30.1.0/24"
+	// prefix192Short is the short covering prefix the covering-lookup scenario
+	// looks up beside 192.0.0.0/24, whose text starts the same way.
+	prefix192Short = "192.0.0.0/2"
 	// prefix72First is the first prefix the 10.72 policy and reload
 	// scenarios announce.
 	prefix72First = "10.72.1.0/24"
@@ -93,11 +108,13 @@ const (
 	metricPoolUsedRatio        = "ze_bgp_pool_used_ratio"
 	peerNameOne                = "peer1"
 	portL2TP                   = "1701"
+	prefixTestNet1             = "192.0.2.0/24" // RFC 5737 TEST-NET-1.
 	prefixTestNet2             = "198.51.100.0/24"
 	prefixTenNinetyNine        = "10.99.0.0/24"
 	prefixTenOne               = "10.1.0.0/24"
 	prefixTenTwenty            = "10.20.0.0/24"
 	prefixTenZero              = "10.0.0.0/24"
+	suffixHostV4               = "/32" // Appended to an IPv4 address, the prefix of that host alone.
 )
 
 // Plugin dispatch statuses, event kinds and payload field keys.
@@ -187,9 +204,12 @@ const (
 	statusError             = "error" // The status a dispatch returns.
 	statusStale             = "stale"
 	statusUpdated           = "updated" // The status a config write returns.
-	verdictInvalid          = "invalid"
-	verdictPass             = "pass"
-	verdictValid            = "valid"
+	// stepLocalPreference is the best-path selection step a higher LOCAL_PREF
+	// decides, as the "step" key of a best-path decision step names it.
+	stepLocalPreference = "local-preference"
+	verdictInvalid      = "invalid"
+	verdictPass         = "pass"
+	verdictValid        = "valid"
 )
 
 // Table columns, render operators, pipe operators and answer shapes.
@@ -243,11 +263,13 @@ const (
 	argType                      = "type" // The command keyword.
 	cmdAnnounceFirstPrefix       = "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"
 	cmdDocIndex                  = "doc index"
+	cmdRIBInject                 = "request bgp rib inject " // Followed by the peer, the family and the route.
 	cmdShowBGP                   = "show bgp"
 	cmdShowBGPPeerList           = "show bgp peer list"
 	cmdShowNsaliasCounters       = "show nsalias counters"
 	cmdShowPipealiasCounters     = "show pipealias counters"
 	cmdShowPipehelpCounters      = "show pipehelp counters"
+	cmdShowRIBCandidatesPrefix   = "show rib candidates prefix " // Followed by the prefix.
 	cmdShowTestCompletionHidden  = "show test-completion hidden"
 	cmdShowTestCompletionVisible = "show test-completion visible"
 	cmdShowTestTwoTextsBoth      = "show test-twotexts both"

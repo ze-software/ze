@@ -15,6 +15,20 @@
 # (internal/component/lg/ribfake_test.go): the best-path rows, the route rows,
 # the count and the histogram. This test is the check that each copy still
 # matches the plugin, one assertion per answer.
+#
+# WHY A ROUTE TO 10.0.1.1: every injected route carries the next hop 10.0.1.1,
+# and bgp-rib excludes a route whose next hop does not resolve in the Loc-RIB
+# before it ranks anything (RFC 4271 Section 9.1.2, candidateNextHopResolved in
+# internal/component/bgp/plugins/rib/rib_next_hop.go). Without a route to
+# 10.0.1.1 the 15 routes are stored, the per-peer list and the count still show
+# them, and the best table is empty. The fixture's `next-hop-cover` argument
+# installs one static 10.0.1.1/32 through a device and no gateway, over the
+# engine's route-install RPC (terminalCovers,
+# internal/test/fixture/terminal_cover_fixture.go), and injects nothing until
+# the system RIB selects that route and the engine resolves 10.0.1.1 through it
+# at zero cost without recursion. The device is route metadata: no FIB writer
+# is configured, so nothing reaches the kernel and no privilege is needed. The
+# system RIB is loaded for that read-back (`show rib candidates`).
 
 # ze-peer expectations (minimal handshake)
 stdin=peer:terminator=EOF_PEER
@@ -23,18 +37,25 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Native observer injects 15 distinct prefixes (10.20.0.0/24 to 10.20.14.0/24,
-# from 10.0.1.1) and stays attached until shutdown.
+# Native observer installs the static 10.0.1.1/32, waits until 10.0.1.1
+# resolves through it, then injects 15 distinct prefixes (10.20.0.0/24 to
+# 10.20.14.0/24, from 10.0.1.1, next hop 10.0.1.1) and stays attached until
+# shutdown. A cover it cannot read back ends the observer before any route is
+# injected, so the readiness wait below fails rather than the table reading
+# empty for a reason the test does not name.
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-paginate {
-		run "le test fixture plugin/lg-paginate"
+		run "le test fixture plugin/lg-paginate next-hop-cover"
 		encoder json
 	}
 	internal bgp-rib {
 		use bgp-rib
+	}
+	internal rib {
+		use rib
 	}
 }
 

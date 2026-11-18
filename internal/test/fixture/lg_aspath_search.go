@@ -17,18 +17,15 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// lgASPathSearchPeer holds every route lgASPathSearch injects. Its next hop
-// is the peer, as injectRoute09 sets it.
-const lgASPathSearchPeer = "10.0.1.1"
-
-// The routes lgASPathSearch injects, each with the AS path it carries.
+// The routes lgASPathSearch injects, all under addrLGPeerFirst with that peer
+// as next hop, each with the AS path it carries.
 // 10.30.3.0/24 holds 65002 then 65001, the reverse of the run the search
 // asks for, and 10.30.2.0/24 holds 65001 after another AS, so the anchor has
 // a route to leave out.
 var lgASPathSearchRoutes = []struct {
 	prefix, path string
 }{
-	{"10.30.1.0/24", "65001,65002,65003"},
+	{prefix30First, "65001,65002,65003"},
 	{"10.30.2.0/24", "64999,65001,65002"},
 	{"10.30.3.0/24", "65002,65001"},
 	{"10.30.4.0/24", "65001"},
@@ -40,9 +37,9 @@ var lgASPathSearchWant = []struct {
 	aspath   string
 	prefixes []string
 }{
-	{"65001 65002", []string{"10.30.1.0/24", "10.30.2.0/24"}},
-	{"^65001", []string{"10.30.1.0/24", "10.30.4.0/24"}},
-	{"^65001 65002", []string{"10.30.1.0/24"}},
+	{"65001 65002", []string{prefix30First, "10.30.2.0/24"}},
+	{"^65001", []string{prefix30First, "10.30.4.0/24"}},
+	{"^65001 65002", []string{prefix30First}},
 }
 
 // lgASPathSearchRefused is the AS path the page refuses, the end anchor the
@@ -106,11 +103,11 @@ func lgASPathSearch(ctx context.Context, _ []string) error {
 	})
 }
 
-// lgASPathSearchInject injects one route from lgASPathSearchPeer with the AS
+// lgASPathSearchInject injects one route from addrLGPeerFirst with the AS
 // path given in the inject command's comma form.
 func lgASPathSearchInject(ctx context.Context, p *sdk.Plugin, prefix, path string) error {
-	command := "request bgp rib inject " + lgASPathSearchPeer + " ipv4/unicast " + prefix +
-		" origin igp nhop " + lgASPathSearchPeer + " aspath " + path
+	command := cmdRIBInject + addrLGPeerFirst + " " + familyIPv4Unicast + " " + prefix +
+		" origin igp nhop " + addrLGPeerFirst + " aspath " + path
 	r := dispatch09(ctx, p, command)
 	if !done09(r) {
 		return fmt.Errorf("%s: status=%s data=%s", command, r.status, r.text)

@@ -255,11 +255,44 @@ func injectRoute09(ctx context.Context, p *sdk.Plugin, peer, prefix string) erro
 	return nil
 }
 
+// lgNextHopCoverArgument09 is the driver argument that asks lgInjectRoutes09 to
+// give the injected next hop a route first. A scenario that reads the best
+// table owes it: bgp-rib excludes a route whose next hop does not resolve
+// before ranking (RFC 4271 Section 9.1.2), and every injected route uses the
+// next hop 10.0.1.1, which no configured route reaches.
+const lgNextHopCoverArgument09 = "next-hop-cover"
+
+// lgNextHopCover09 is the static 10.0.1.1/32 the argument installs. The
+// instance is the RFC whose admission the route satisfies.
+var lgNextHopCover09 = terminalCovers{label: "looking glass", device: "lg-fixture0",
+	instance: 4271, addresses: []string{addrLGPeerFirst}}
+
+// lgInjectRoutes09 injects 15 routes under the peer 10.0.1.1 and stays attached
+// until shutdown. With lgNextHopCoverArgument09 it first installs
+// lgNextHopCover09 and waits until 10.0.1.1 resolves through it; without, the
+// routes are stored and never best.
 func lgInjectRoutes09(name string) Driver {
-	return func(ctx context.Context, _ []string) error {
+	return func(ctx context.Context, args []string) error {
+		cover := false
+		switch len(args) {
+		case 0:
+		case 1:
+			if args[0] != lgNextHopCoverArgument09 {
+				return fmt.Errorf("%s: unknown argument %q, want none or %q", name, args[0], lgNextHopCoverArgument09)
+			}
+			cover = true
+		default:
+			return fmt.Errorf("%s: %d arguments, want none or %q", name, len(args), lgNextHopCoverArgument09)
+		}
 		return passiveObserve09(ctx, name, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+			if cover {
+				if err := lgNextHopCover09.install(ctx, p); err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stderr, "OK: next hop 10.0.1.1 resolves through static 10.0.1.1/32 on lg-fixture0")
+			}
 			for i := range 15 {
-				if err := injectRoute09(ctx, p, "10.0.1.1", fmt.Sprintf("10.20.%d.0/24", i)); err != nil {
+				if err := injectRoute09(ctx, p, addrLGPeerFirst, fmt.Sprintf("10.20.%d.0/24", i)); err != nil {
 					return err
 				}
 			}
@@ -274,7 +307,7 @@ func lgCSVDownload09(ctx context.Context, _ []string) error {
 		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
 			return err
 		}
-		const peer = "10.0.1.1"
+		const peer = addrLGPeerFirst
 		if err := injectRoute09(ctx, p, peer, "10.20.0.0/24"); err != nil {
 			return err
 		}
