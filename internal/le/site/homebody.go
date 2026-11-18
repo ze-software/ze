@@ -230,6 +230,36 @@ Keep the logs if a check fails.</pre>
                 </div>
             </section>
 
+            <section class="home-section-panel home-section-panel-run index4-try" aria-labelledby="run-title">
+                <div class="section-head reveal cat-platform">
+                    <h2 id="run-title">Choose how to try Ze.</h2>
+                    <p>
+                        Run Ze on Linux, in Docker or as an appliance, and use
+                        containerlab to explore a test network. Linux and Docker
+                        are also options for replacing an existing ExaBGP setup.
+                    </p>
+                </div>
+                <aside class="build-size" aria-labelledby="build-size-title">
+                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
+                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
+                </aside>
+                <div class="index4-choice-grid reveal">
+{run_cards}
+                </div>
+                <div class="index4-other-paths">
+                    <strong>Other ways to evaluate</strong>
+                    <a href="guides/quickstart/">Two-peer quickstart</a>
+                    <a href="guides/netlab/">netlab and containerlab</a>
+                    <a href="labs/netlab/">Explore a supplied topology</a>
+                    <a href="labs/bgp-interop/">BGP interoperability labs</a>
+                    <a href="guides/ai-agent/">Test with an AI agent</a>
+                    <a href="reference/cli/">Explore the CLI</a>
+                    <a href="guides/public-looking-glass/">Publish a looking glass</a>
+                    <a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a>
+                </div>
+                <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
+            </section>
+
             <section id="why-ze" class="home-section-panel home-section-panel-management" aria-labelledby="why-title">
                 <article class="why-lead">
                     <div class="why-lead-copy">
@@ -468,35 +498,6 @@ Keep the logs if a check fails.</pre>
                         </div>
                     </aside>
                 </div>
-            </section>
-
-            <section class="home-section-panel home-section-panel-run index4-try" aria-labelledby="run-title">
-                <div class="section-head reveal cat-platform">
-                    <h2 id="run-title">Choose how to try Ze.</h2>
-                    <p>
-                        A local BGP lab is the simplest starting point. If you
-                        already run ExaBGP or want a different deployment,
-                        follow the path that matches your setup.
-                    </p>
-                </div>
-                <aside class="build-size" aria-labelledby="build-size-title">
-                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
-                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
-                </aside>
-                <div class="index4-choice-grid reveal">
-{run_cards}
-                </div>
-                <div class="index4-other-paths">
-                    <strong>Other ways to evaluate</strong>
-                    <a href="guides/netlab/">netlab and containerlab</a>
-                    <a href="labs/netlab/">Explore a supplied topology</a>
-                    <a href="labs/bgp-interop/">BGP interoperability labs</a>
-                    <a href="guides/ai-agent/">Test with an AI agent</a>
-                    <a href="reference/cli/">Explore the CLI</a>
-                    <a href="guides/public-looking-glass/">Publish a looking glass</a>
-                    <a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a>
-                </div>
-                <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
             </section>
 
             <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">

@@ -616,8 +616,8 @@ requested these changes on 2026-11-11:
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-release-callout p -->
 
-Getting started follows the hero, then the management walkthrough, news and
-evidence. The
+Getting started follows the hero, then the deployment choices, the management
+walkthrough and evidence. The
 evidence section keeps RFC populations and counting history, an interoperability
 scenario table split by primary protocol, the bounded list of 13 test images,
 and the three other test layers. Every figure comes from the facts snapshot.
@@ -659,6 +659,7 @@ website edit.
 
 | Ruling | Scope | Rule that applies it | Test that pins it |
 |--------|-------|----------------------|-------------------|
+| "Choose how to try Ze." immediately follows "Getting started with Ze.". Its four choices are Linux, Docker, Appliance and Containerlab, in that order. Linux can run a router, and Linux and Docker also offer an ExaBGP migration path; those uses are not exclusive. Appliance offers a dedicated router system and Containerlab offers a test network | Homepage deployment choices | `homeTemplate` in `internal/le/site/homebody.go` and Run entries in `website/data/audience.json` | `TestHomepageTrialChoicesFollowGettingStarted`, `TestHomepageDeploymentChoicesUseApprovedPaths` |
 | Connected RFC boxes use a left-to-right gradient matching the recorded mandatory test results bar's colors and proportions | RFC dependency map graph | Shared `proofSegments` in `website/assets/js/rfc-map.js` and proof color variables in `website/assets/rfc-map.css` | `TestRFCMapNodeGradientsMatchRecordedProof` |
 | The approved Lust-inspired design applies across the site: navy foundations, blue primary actions, restrained green accents, neutral rounded panels, floating pill navigation, larger homepage type and ambient blue/green light. Preserve all content and functionality. Open in dark mode unless the reader saved a light preference; keep the theme toggle | All regular website pages; frozen talk decks retain their own design | Shared tokens, base, component and responsive CSS in `website/assets/css/`; `themeBootstrap` in `internal/le/site/shell.go`; theme controls in `website/assets/js/site.js` | `TestApprovedStyleIsTheSharedStylesheet`, `TestApprovedStyleStartsDarkAndKeepsTheSavedChoice` |
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |

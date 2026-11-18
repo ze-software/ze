@@ -442,7 +442,8 @@ pre-installed network functions, shared management model and deployment options,
 with links on the technical terms. The primary introduction describes a Linux
 daemon or an immutable OS and links the latter to the appliance guide. The
 duplicate secondary configuration paragraph is removed. Getting started follows
-the hero, then Why Ze with its management walkthrough and testing evidence. The evidence section states
+the hero, then Choose how to try Ze, then Why Ze with its management walkthrough
+and testing evidence. The evidence section states
 RFC populations and counting history, scenario counts by primary protocol,
 the bounded list of 13 test images and the other test layers. These counts
 describe inventory, not current passing runs or individual assertions.
