@@ -8,8 +8,7 @@ lookup. Keep old ioctls unchanged and expose a non-mutating positive probe.
 diff --git a/include/uapi/linux/ppp-ioctl.h b/include/uapi/linux/ppp-ioctl.h
 --- a/include/uapi/linux/ppp-ioctl.h
 +++ b/include/uapi/linux/ppp-ioctl.h
-@@ -96,7 +96,8 @@
- #define PPP_OWNER_ROUTE6  (1U << 4)
+@@ -97,6 +97,7 @@
  #define PPP_OWNER_ALIAS   (1U << 5)
  #define PPP_OWNER_CONNECT (1U << 6)
  #define PPP_OWNER_BRIDGE  (1U << 7)
@@ -17,10 +16,7 @@ diff --git a/include/uapi/linux/ppp-ioctl.h b/include/uapi/linux/ppp-ioctl.h
  
  /* Invoke on a bound /dev/ppp channel; fd names a held peer file, not an ID. */
  struct ppp_fd_peer {
-@@ -119,7 +120,22 @@
- #define PPPIOCBRIDGEOWNER _IOW('t', 48, struct ppp_fd_peer)
- #define PPPIOCUNBRIDGEOWNER _IOW('t', 47, struct ppp_fd_peer)
- #define PPPIOCGCHANOWNER _IOWR('t', 46, struct ppp_channel_owner)
+@@ -122,4 +123,19 @@
  #define PPPIOCGOWNER _IOWR('t', 51, struct ppp_owner)
  
 +/* Query the original live PPPoX transport without performing its handoff.
@@ -215,8 +211,7 @@ diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
 diff --git a/drivers/net/ppp/pppox.c b/drivers/net/ppp/pppox.c
 --- a/drivers/net/ppp/pppox.c
 +++ b/drivers/net/ppp/pppox.c
-@@ -26,7 +26,8 @@
- #include <linux/ppp_defs.h>
+@@ -27,6 +27,7 @@
  #include <linux/ppp-ioctl.h>
  #include <linux/ppp_channel.h>
  #include <linux/kmod.h>

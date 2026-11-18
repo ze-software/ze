@@ -297,11 +297,43 @@ atomic PPPoX capture together, in their registered series order; the capture
 permission correction is part of that source set. A compiled artifact is not
 native acceptance until the matching running image proves these operations.
 
+A global compiled-capability check uses `PPPIOCGSUPPORT` on a held unbound
+/dev/ppp file, without creating a unit, channel, transport or network link.
+This ioctl is `_IOWR('t', 42, struct ppp_support)` (ARM64 `0xc010742a`).
+The 16-byte, four-byte-aligned layout is u32 abi/features/reserved0/reserved1:
+input ABI1 with every other field zero. Malformed input returns EINVAL,
+a valid request on a bound file returns EBUSY, and the ordinary current network
+namespace CAP_NET_ADMIN requirement is preserved. A successful query leaves
+the file unbound and returns only the compiled feature declaration.
+<!-- source: gokrazy/kernel/patches/0011b-ppp-global-support-query.patch -- ppp_support_ioctl, ppp_support -->
+
+Its core mask is SETLINK, ALIAS, CONNECT and BRIDGE. ADDR4/ROUTE4 and
+ADDR6/ROUTE6 are advertised only when the respective address family is built
+in. CAPTURE is declared when PPPoX is compiled, including as a module; that
+does not prove a module is loaded or that a transport exists. A full runtime
+profile carrying both families and PPPoX declares bits0–8 plus bit10 (1535).
+Bit10 is declared only if a supported address family is built in. Bit9 remains
+absent until complete original-resource control-socket enforcement is present.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, ppp_support_ioctl -->
+
+The global result is for capability checking only. It never authorizes a
+mutation or replaces the exact live creator, channel or transport probes below.
+Require the bits for each actual configured operation: SETLINK and ALIAS for
+the session's link/metadata writers, CONNECT and CAPTURE for shared native
+setup, BRIDGE and CAPTURE for the relay, and the corresponding ADDR/ROUTE pair
+for each address family used. Pair deletion also requires EXACT_ADDR_PAIR
+bit10 alongside that family's ADDR bit. A missing bit, ENOTTY or invalid ABI means
+unsupported; it never enables an errno-based inference, numeric fallback or
+unguarded write. Module loading and executed native acceptance are separate
+from this declaration.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, ppp_owner_ioctl -->
+
 Every ABI structure uses fixed 32-bit fields and alignment four. ABI is one;
 reserved fields and input feature fields are zero. `PPPIOCGOWNER` takes the
 captured positive ifindex and nonnegative unit on the original creator file
 and returns supported features. Its structure is 20 bytes. A separately opened
 file attached to the same unit is refused; a true duplicate remains useful.
+<!-- source: gokrazy/kernel/patches/0007-ppp-original-file-link-address-guard.patch -- ppp_owner, ppp_owner_ioctl -->
 
 | Bit | Capability | Guarded operation |
 |-----|------------|-------------------|
@@ -312,14 +344,21 @@ file attached to the same unit is refused; a true duplicate remains useful.
 | 6 | CONNECT | Exact channel/original-unit-file connect and disconnect |
 | 7 | BRIDGE | Exact original channel-file pair bridge and unbridge |
 | 8 | CAPTURE | Atomic original PPPoX channel capture into an unbound file |
+| 10 | EXACT_ADDR_PAIR | Exact retained LOCAL/ADDRESS/prefix deletion; preserve other IPv4 pairs |
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, original-resource capability bits -->
 
 Only built-in address families are advertised. The unit probe advertises bits
-0–7 as implemented; the live channel probe `PPPIOCGCHANOWNER` advertises bits
-6–7. CAPTURE is advertised by the actual live transport's non-mutating
+0–7 as implemented and bit10 when either family is built in (full mask1279);
+the live channel probe `PPPIOCGCHANOWNER` advertises bits
+6–7.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- ppp_owner_ioctl, PPP_OWNER_EXACT_ADDR_PAIR -->
+
+Live CAPTURE support is confirmed by the actual transport's non-mutating
 `PPPIOCGTRANSPORTOWNER` probe, whose 20-byte layout is u32 abi/features,
 s32 channel/unit, u32 reserved. All input fields except abi are zero; output
 channel and unit (or -1 when unattached) are diagnostic labels only.
 The transport probe does not perform the PPPoX handoff or drain queued packets.
+<!-- source: gokrazy/kernel/patches/0011-pppox-original-channel-capture.patch -- ppp_channel_owner_info, pppox_ioctl -->
 
 `PPPIOCATTCHANOWNER` is invoked on that original PPPoX socket with a
 16-byte `ppp_fd_peer`: u32 abi, s32 fd, u32 flags/reserved. The fd names a
@@ -348,6 +387,32 @@ families are refused before dispatch or mutation. Unknown attributes on an
 older kernel are insufficient: require a successful positive ABI probe before
 any guarded write. ENOTTY, absent features or ABI rejection never permits a
 legacy numeric or unguarded fallback.
+
+Owner-tagged RTM_DELADDR requires both explicit IFA_LOCAL and IFA_ADDRESS
+plus the exact retained prefix length. A local-only address uses identical
+LOCAL and ADDRESS. Missing fields or an invalid prefix return EINVAL;
+a nonmatching complete tuple returns EADDRNOTAVAIL; an ambiguous exact native
+match returns EEXIST before effects. The original creator file/device,
+namespace and index checks still apply under the actual writer locks.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- inet_rtm_deladdr, inet6_rtm_deladdr -->
+
+IPv4 compares the peer address itself, rather than merely its subnet, and
+forces the native secondary-promotion path for this guarded deletion only.
+Other pairs remain installed and native notifications/routes follow promotion;
+the per-device, global and default configuration values are never toggled.
+There is no name/procfs write or temporary restoration window. Untagged
+deletion keeps its legacy subnet selection and configured cascade behavior.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- __inet_del_ifa, inet_rtm_deladdr -->
+
+IPv6 validates LOCAL, the stored effective peer and prefix under its native
+locks before deletion. A local-only address's internal zero peer is normalized
+to LOCAL for that comparison. Native deletion, notifications and associated
+derived-temporary cleanup retain their existing semantics; unrelated ordinary
+pairs are not selected. All native prefix lengths remain supported: IPv4
+0–32 and IPv6 0–128. Provider cleanup must retain and send the actual complete
+tuple and require its family bit plus bit10, without narrowing to host masks
+or falling back to a weaker selector.
+<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- inet_rtm_deladdr, __inet_del_ifa, inet6_addr_del -->
 
 Go producers must retain their strong original unit/channel owners through the
 actual short syscall or netlink send, without holding a descriptor borrow over

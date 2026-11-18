@@ -1,0 +1,404 @@
+From: Ze kernel maintainers
+Subject: [PATCH 11c] ppp: delete only the retained original address pair
+
+Apply after canonical0007..0011a and frozen0011b. Owner-tagged address
+deletion requires exact LOCAL/ADDRESS/prefix under the native writer locks.
+IPv4 uses native secondary promotion without altering any configuration.
+IPv6 checks the stored effective peer before native deletion. Untagged
+selectors/promotion and all supported prefix lengths remain unchanged.
+Bit10 is declared by unit51/global42 only with built-in supported families;
+bit9 remains separately reserved for complete control-socket enforcement.
+
+diff --git a/include/uapi/linux/ppp-ioctl.h b/include/uapi/linux/ppp-ioctl.h
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -111,6 +111,8 @@
+ #define PPP_OWNER_CONNECT (1U << 6)
+ #define PPP_OWNER_BRIDGE  (1U << 7)
+ #define PPP_OWNER_CAPTURE (1U << 8)
++/* Bit9 is reserved for complete control-socket enforcement. */
++#define PPP_OWNER_EXACT_ADDR_PAIR (1U << 10)
+ 
+ /* Invoke on a bound /dev/ppp channel; fd names a held peer file, not an ID. */
+ struct ppp_fd_peer {
+diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -811,8 +811,10 @@
+ 	}
+ 	support.features = PPP_OWNER_SETLINK | PPP_OWNER_ALIAS |
+ 			   PPP_OWNER_CONNECT | PPP_OWNER_BRIDGE;
++	if (IS_BUILTIN(CONFIG_INET) || IS_BUILTIN(CONFIG_IPV6))
++		support.features |= PPP_OWNER_EXACT_ADDR_PAIR;
+ 	if (IS_BUILTIN(CONFIG_INET))
+ 		support.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
+ 	if (IS_BUILTIN(CONFIG_IPV6))
+ 		support.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
+ 	/* Compiled availability includes a module; this is not a loaded,
+@@ -1301,8 +1303,10 @@
+ 	}
+ 	owner.features = PPP_OWNER_SETLINK | PPP_OWNER_ALIAS |
+ 			 PPP_OWNER_CONNECT | PPP_OWNER_BRIDGE;
++	if (IS_BUILTIN(CONFIG_INET) || IS_BUILTIN(CONFIG_IPV6))
++		owner.features |= PPP_OWNER_EXACT_ADDR_PAIR;
+ 	if (IS_BUILTIN(CONFIG_INET))
+ 		owner.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
+ 	if (IS_BUILTIN(CONFIG_IPV6))
+ 		owner.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
+ unlock:
+diff --git a/net/ipv4/devinet.c b/net/ipv4/devinet.c
+--- a/net/ipv4/devinet.c
++++ b/net/ipv4/devinet.c
+@@ -371,13 +371,15 @@
+ 
+ static void __inet_del_ifa(struct in_device *in_dev,
+ 			   struct in_ifaddr __rcu **ifap,
+-			   int destroy, struct nlmsghdr *nlh, u32 portid)
+-{
+-	struct in_ifaddr *promote = NULL;
+-	struct in_ifaddr *ifa, *ifa1;
+-	struct in_ifaddr __rcu **last_prim;
+-	struct in_ifaddr *prev_prom = NULL;
+-	int do_promote = IN_DEV_PROMOTE_SECONDARIES(in_dev);
++			   int destroy, struct nlmsghdr *nlh, u32 portid,
++			   bool force_preserve_secondaries)
++{
++	struct in_ifaddr *promote = NULL;
++	struct in_ifaddr *ifa, *ifa1;
++	struct in_ifaddr __rcu **last_prim;
++	struct in_ifaddr *prev_prom = NULL;
++	int do_promote = force_preserve_secondaries ||
++			 IN_DEV_PROMOTE_SECONDARIES(in_dev);
+ 
+ 	ASSERT_RTNL();
+ 
+@@ -486,7 +488,7 @@
+ 			 struct in_ifaddr __rcu **ifap,
+ 			 int destroy)
+ {
+-	__inet_del_ifa(in_dev, ifap, destroy, NULL, 0);
++	__inet_del_ifa(in_dev, ifap, destroy, NULL, 0, false);
+ }
+ 
+ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
+@@ -651,72 +653,97 @@
+ #endif
+ }
+ 
+ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
+ 			    struct netlink_ext_ack *extack)
+ {
+ 	struct net *net = sock_net(skb->sk);
+-	struct in_ifaddr __rcu **ifap;
+-	struct nlattr *tb[IFA_MAX+1];
+-	struct in_device *in_dev;
+-	struct ifaddrmsg *ifm;
+-	struct in_ifaddr *ifa;
+-	struct file *owner;
+-	int err;
+-
+-	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+-				     ifa_ipv4_policy, extack);
+-	if (err < 0)
+-		goto out;
+-
+-	ifm = nlmsg_data(nlh);
+-	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
+-	if (IS_ERR(owner))
+-		return PTR_ERR(owner);
+-
+-	rtnl_net_lock(net);
+-	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
+-	if (err)
+-		goto unlock;
+-
+-	in_dev = inetdev_by_index(net, ifm->ifa_index);
+-	if (!in_dev) {
+-		NL_SET_ERR_MSG(extack, "ipv4: Device not found");
+-		err = -ENODEV;
+-		goto unlock;
+-	}
+-
+-	for (ifap = &in_dev->ifa_list;
+-	     (ifa = rtnl_net_dereference(net, *ifap)) != NULL;
+-	     ifap = &ifa->ifa_next) {
+-		if (tb[IFA_LOCAL] &&
+-		    ifa->ifa_local != nla_get_in_addr(tb[IFA_LOCAL]))
+-			continue;
+-
+-		if (tb[IFA_LABEL] && nla_strcmp(tb[IFA_LABEL], ifa->ifa_label))
+-			continue;
+-
+-		if (tb[IFA_ADDRESS] &&
+-		    (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
+-		    !inet_ifa_match(nla_get_in_addr(tb[IFA_ADDRESS]), ifa)))
+-			continue;
+-
+-		if (ipv4_is_multicast(ifa->ifa_address))
+-			ip_mc_autojoin_config(net, false, ifa);
+-
+-		__inet_del_ifa(in_dev, ifap, 1, nlh, NETLINK_CB(skb).portid);
+-		goto unlock;
+-	}
+-
+-	NL_SET_ERR_MSG(extack, "ipv4: Address not found");
+-	err = -EADDRNOTAVAIL;
++	struct in_ifaddr __rcu **ifap, **match = NULL;
++	struct nlattr *tb[IFA_MAX+1];
++	struct in_device *in_dev;
++	struct ifaddrmsg *ifm;
++	struct in_ifaddr *ifa;
++	struct file *owner;
++	int err;
++
++	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
++				     ifa_ipv4_policy, extack);
++	if (err < 0)
++		goto out;
++
++	ifm = nlmsg_data(nlh);
++	if (tb[IFA_OWNER_FD] && (!tb[IFA_LOCAL] || !tb[IFA_ADDRESS] ||
++				 ifm->ifa_prefixlen > 32)) {
++		NL_SET_ERR_MSG(extack,
++			"ipv4: Guarded deletion requires an exact local/address/prefix tuple");
++		return -EINVAL;
++	}
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++
++	rtnl_net_lock(net);
++	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
++	if (err)
++		goto unlock;
++
++	in_dev = inetdev_by_index(net, ifm->ifa_index);
++	if (!in_dev) {
++		NL_SET_ERR_MSG(extack, "ipv4: Device not found");
++		err = -ENODEV;
++		goto unlock;
++	}
++
++	for (ifap = &in_dev->ifa_list;
++	     (ifa = rtnl_net_dereference(net, *ifap)) != NULL;
++	     ifap = &ifa->ifa_next) {
++		if (tb[IFA_LOCAL] &&
++		    ifa->ifa_local != nla_get_in_addr(tb[IFA_LOCAL]))
++			continue;
++
++		if (tb[IFA_LABEL] && nla_strcmp(tb[IFA_LABEL], ifa->ifa_label))
++			continue;
++
++		if (owner) {
++			if (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
++			    ifa->ifa_address != nla_get_in_addr(tb[IFA_ADDRESS]))
++				continue;
++			if (match) {
++				NL_SET_ERR_MSG(extack, "ipv4: Ambiguous guarded address tuple");
++				err = -EEXIST;
++				goto unlock;
++			}
++			match = ifap;
++			continue;
++		}
++		if (tb[IFA_ADDRESS] &&
++		    (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
++		    !inet_ifa_match(nla_get_in_addr(tb[IFA_ADDRESS]), ifa)))
++			continue;
++		match = ifap;
++		break;
++	}
++
++	if (!match) {
++		NL_SET_ERR_MSG(extack, "ipv4: Address not found");
++		err = -EADDRNOTAVAIL;
++		goto unlock;
++	}
++	ifa = rtnl_net_dereference(net, *match);
++	if (ipv4_is_multicast(ifa->ifa_address))
++		ip_mc_autojoin_config(net, false, ifa);
++
++	/* Reuse native promotion, notifications and FIB reconstruction without
++	 * changing this device's configuration or deleting its other pairs.
++	 */
++	__inet_del_ifa(in_dev, match, 1, nlh, NETLINK_CB(skb).portid, owner != NULL);
+ unlock:
+ 	rtnl_net_unlock(net);
+ 	if (owner)
+ 		fput(owner);
+ out:
+ 	return err;
+ }
+ 
+ static void check_lifetime(struct work_struct *work)
+ {
+ 	unsigned long now, next, next_sec, next_sched;
+diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -3107,14 +3107,15 @@
+ }
+ 
+ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
+ 			  const struct in6_addr *pfx, unsigned int plen,
+-			  struct netlink_ext_ack *extack)
+-{
+-	struct inet6_ifaddr *ifp;
++			  const struct in6_addr *expected_peer,
++			  struct netlink_ext_ack *extack)
++{
++	struct inet6_ifaddr *ifp, *selected = NULL;
+ 	struct inet6_dev *idev;
+ 	struct net_device *dev;
+ 
+ 	if (plen > 128) {
+ 		NL_SET_ERR_MSG_MOD(extack, "Invalid prefix length");
+ 		return -EINVAL;
+ 	}
+@@ -3133,29 +3134,53 @@
+ 
+ 	read_lock_bh(&idev->lock);
+ 	list_for_each_entry(ifp, &idev->addr_list, if_list) {
+-		if (ifp->prefix_len == plen &&
+-		    ipv6_addr_equal(pfx, &ifp->addr)) {
+-			in6_ifa_hold(ifp);
+-			read_unlock_bh(&idev->lock);
+-
+-			if (!(ifp->flags & IFA_F_TEMPORARY) &&
+-			    (ifp->flags & IFA_F_MANAGETEMPADDR))
+-				delete_tempaddrs(idev, ifp);
+-
+-			ipv6_del_addr(ifp);
+-
+-			addrconf_verify_rtnl(net);
+-			if (ipv6_addr_is_multicast(pfx)) {
+-				ipv6_mc_config(net->ipv6.mc_autojoin_sk,
+-					       false, pfx, dev->ifindex);
+-			}
+-			return 0;
+-		}
+-	}
+-	read_unlock_bh(&idev->lock);
+-
+-	NL_SET_ERR_MSG_MOD(extack, "address not found");
+-	return -EADDRNOTAVAIL;
++		bool matches;
++
++		if (ifp->prefix_len != plen || !ipv6_addr_equal(pfx, &ifp->addr))
++			continue;
++		if (expected_peer) {
++			const struct in6_addr *peer;
++
++			/* Peer updates use ifp->lock under the same RTNL writer.
++			 * A local-only address stores an all-zero peer internally.
++			 */
++			spin_lock(&ifp->lock);
++			peer = ipv6_addr_any(&ifp->peer_addr) ?
++				&ifp->addr : &ifp->peer_addr;
++			matches = ipv6_addr_equal(expected_peer, peer);
++			spin_unlock(&ifp->lock);
++			if (!matches)
++				continue;
++			if (selected) {
++				read_unlock_bh(&idev->lock);
++				NL_SET_ERR_MSG_MOD(extack, "Ambiguous guarded address tuple");
++				return -EEXIST;
++			}
++		}
++		selected = ifp;
++		if (!expected_peer)
++			break;
++	}
++	if (selected)
++		in6_ifa_hold(selected);
++	read_unlock_bh(&idev->lock);
++
++	if (!selected) {
++		NL_SET_ERR_MSG_MOD(extack, "address not found");
++		return -EADDRNOTAVAIL;
++	}
++	ifp = selected;
++	if (!(ifp->flags & IFA_F_TEMPORARY) &&
++	    (ifp->flags & IFA_F_MANAGETEMPADDR))
++		delete_tempaddrs(idev, ifp);
++
++	ipv6_del_addr(ifp);
++
++	addrconf_verify_rtnl(net);
++	if (ipv6_addr_is_multicast(pfx)) {
++		ipv6_mc_config(net->ipv6.mc_autojoin_sk, false, pfx, dev->ifindex);
++	}
++	return 0;
+ }
+ 
+ 
+@@ -3205,7 +3230,7 @@
+ 
+ 	rtnl_net_lock(net);
+ 	err = inet6_addr_del(net, ireq.ifr6_ifindex, 0, &ireq.ifr6_addr,
+-			     ireq.ifr6_prefixlen, NULL);
++			     ireq.ifr6_prefixlen, NULL, NULL);
+ 	rtnl_net_unlock(net);
+ 	return err;
+ }
+@@ -4820,37 +4845,43 @@
+ 	u32 ifa_flags;
+ 	struct file *owner;
+ 	int err;
+ 
+ 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+ 				     ifa_ipv6_policy, extack);
+ 	if (err < 0)
+ 		return err;
+ 
+ 	ifm = nlmsg_data(nlh);
+-	pfx = extract_addr(tb[IFA_ADDRESS], tb[IFA_LOCAL], &peer_pfx);
+-	if (!pfx)
+-		return -EINVAL;
+-
+-	ifa_flags = nla_get_u32_default(tb[IFA_FLAGS], ifm->ifa_flags);
+-
+-	/* We ignore other flags so far. */
+-	ifa_flags &= IFA_F_MANAGETEMPADDR;
+-
+-	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
+-	if (IS_ERR(owner))
+-		return PTR_ERR(owner);
+-	rtnl_net_lock(net);
+-	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
+-	if (!err)
+-		err = inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
+-				     ifm->ifa_prefixlen, extack);
++	if (tb[IFA_OWNER_FD] && (!tb[IFA_LOCAL] || !tb[IFA_ADDRESS])) {
++		NL_SET_ERR_MSG_MOD(extack,
++			"Guarded deletion requires an exact local/address/prefix tuple");
++		return -EINVAL;
++	}
++	pfx = extract_addr(tb[IFA_ADDRESS], tb[IFA_LOCAL], &peer_pfx);
++	if (!pfx)
++		return -EINVAL;
++
++	ifa_flags = nla_get_u32_default(tb[IFA_FLAGS], ifm->ifa_flags);
++
++	/* We ignore other flags so far. */
++	ifa_flags &= IFA_F_MANAGETEMPADDR;
++
++	owner = rtnl_owner_file_get(tb[IFA_OWNER_FD]);
++	if (IS_ERR(owner))
++		return PTR_ERR(owner);
++	rtnl_net_lock(net);
++	err = rtnl_owner_validate(owner, __dev_get_by_index(net, ifm->ifa_index), extack);
++	if (!err)
++		err = inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
++				     ifm->ifa_prefixlen,
++				     owner ? nla_data(tb[IFA_ADDRESS]) : NULL, extack);
+ 	rtnl_net_unlock(net);
+ 	if (owner)
+ 		fput(owner);
+ 
+ 	return err;
+ }
+ 
+ static int modify_prefix_route(struct net *net, struct inet6_ifaddr *ifp,
+ 			       unsigned long expires, u32 flags,
+ 			       bool modify_peer)

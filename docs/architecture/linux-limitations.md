@@ -98,7 +98,11 @@ For a `library` entry, read the module in the module cache:
   reusable names or numbers. It has no creator-file condition on rtnetlink
   writes, no original-unit-file CONNECT condition and no atomic PPPoX-to-file
   channel capture. Keeping a PPPoX socket open does not keep its registered
-  channel live through device-down.
+  channel live through device-down. Stock IPv4 address deletion matches the
+  peer's subnet and can cascade from a primary to other secondaries; stock
+  IPv6 deletion does not select by the supplied peer.
+  <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- inet_rtm_deladdr, __inet_del_ifa, inet6_addr_del -->
+
 - **Blocks:** Safe shared PPP session setup, mutation and cleanup when a device
   or transport is renamed, moved, unregistered or replaced while its original
   file remains open. This is a carried-ABI design constraint, not an RFC
@@ -114,6 +118,15 @@ For a `library` entry, read the module in the module cache:
   dead. `net/core/rtnetlink.c` `do_setlink` selects the request device and
   applies its fields without a PPP creator-file predicate. These statements
   were read at the upstream `v7.3` tag, before Ze's original-resource patches.
+  `net/ipv4/devinet.c` `inet_rtm_deladdr` uses
+  `inet_ifa_match(nla_get_in_addr(tb[IFA_ADDRESS]), ifa)`, a subnet test;
+  `__inet_del_ifa` takes `IN_DEV_PROMOTE_SECONDARIES(in_dev)` and deletes
+  matching secondary entries when promotion is off. `net/ipv6/addrconf.c`
+  `inet6_rtm_deladdr` extracts peer_pfx but passes only pfx/prefix to
+  `inet6_addr_del`, whose selector compares `ipv6_addr_equal(pfx, &ifp->addr)`
+  and the prefix without checking the peer.
+  <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- inet_rtm_deladdr, __inet_del_ifa, inet6_addr_del -->
+
 - **Alternatives:** A name/index readback or PPPIOCGUNIT readback checks a label
   before a later writer. A separately opened file attached to the same unit is
   not its creator file. Retaining only the transport socket cannot prevent the
@@ -122,14 +135,24 @@ For a `library` entry, read the module in the module cache:
   producers, rtnetlink family dispatch, address writers and IPv4/IPv6 FIB
   writers. Lift this entry only when upstream supplies equivalent original
   file/device validation at every actual affected writer and atomic transport
-  capture; a new label query alone does not lift it.
+  capture, plus exact address-tuple deletion that preserves other pairs;
+  a new label query alone does not lift it.
+  <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, original-resource ABI -->
+
 - **Ze meanwhile:** The carried original-resource ABI requires positive
   versioned creator/channel/transport probes and per-operation capabilities.
+  Its read-only global PPPIOCGSUPPORT declaration on an unbound /dev/ppp file
+  reports compiled support without creating a resource; it never replaces
+  those exact live-owner probes or proves native acceptance. Guarded pair
+  deletion additionally requires bit10 plus its family bit and the complete
+  retained LOCAL/ADDRESS/prefix tuple; IPv4 uses internal native promotion
+  without a configuration write, and IPv6 validates the actual peer.
   Unsupported kernels or operations are refused without numeric or unguarded
   fallback. The ABI and integration requirements are documented in
   [kernel profiles](appliance/kernel-profiles.md#ppp-original-resource-abi).
   Source admission and a matching native kernel proof remain distinct from
   this verified stock-source limitation.
+  <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- ppp_support_ioctl, PPP_OWNER_EXACT_ADDR_PAIR -->
 
 ### LL-XFRM-OUTER-DF-SET-DSCP
 

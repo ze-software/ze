@@ -9,3 +9,5 @@
 0010-ppp-original-channel-unit-guard.patch
 0011-pppox-original-channel-capture.patch
 0011a-pppox-capture-permission-correction.patch
+0011b-ppp-global-support-query.patch
+0011c-ppp-exact-address-pair-delete.patch

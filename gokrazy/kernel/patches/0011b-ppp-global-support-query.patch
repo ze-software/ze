@@ -1,0 +1,92 @@
+From: Ze kernel maintainers
+Subject: [PATCH 11b] ppp: declare compiled original-resource support without mutation
+
+Apply after canonical0007..0011 and0011a. PPPIOCGSUPPORT is read-only and
+accepts only a fresh unbound /dev/ppp file. It declares compiled ABI, not live
+resource authority or executed native acceptance. Owned probes51/46/44 stay
+mandatory. Bit9 is deliberately absent pending complete control enforcement.
+
+diff --git a/include/uapi/linux/ppp-ioctl.h b/include/uapi/linux/ppp-ioctl.h
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -79,7 +79,20 @@
+ 	__aligned_u64	rx_errors;
+ };
+ 
++/* Read-only compiled-ABI declaration, only on an unbound /dev/ppp file.
++ * Input abi is PPP_OWNER_ABI; every other input field is zero. This query
++ * does not authorize any resource or replace its live original-owner probe.
++ */
++struct ppp_support {
++	__u32 abi;
++	__u32 features;
++	__u32 reserved0;
++	__u32 reserved1;
++};
++
++#define PPPIOCGSUPPORT _IOWR('t', 42, struct ppp_support)
++
+ /* Original creator-file validation; all fields have a fixed compat layout. */
+ struct ppp_owner {
+ 	__u32 abi;
+ 	__u32 features;
+diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -789,7 +789,45 @@
+ 	return err;
+ }
+ 
++/* Declare compiled ABI without creating or attaching a PPP resource. */
++static long ppp_support_ioctl(struct file *file, void __user *argp)
++{
++	struct ppp_support support;
++	int err = 0;
++
++	if (copy_from_user(&support, argp, sizeof(support)))
++		return -EFAULT;
++	if (support.abi != PPP_OWNER_ABI || support.features ||
++	    support.reserved0 || support.reserved1)
++		return -EINVAL;
++	/* Preserve the ordinary unattached /dev/ppp ioctl permission. */
++	if (!ns_capable(current->nsproxy->net_ns->user_ns, CAP_NET_ADMIN))
++		return -EPERM;
++
++	mutex_lock(&ppp_mutex);
++	if (file->private_data) {
++		err = -EBUSY;
++		goto unlock;
++	}
++	support.features = PPP_OWNER_SETLINK | PPP_OWNER_ALIAS |
++			   PPP_OWNER_CONNECT | PPP_OWNER_BRIDGE;
++	if (IS_BUILTIN(CONFIG_INET))
++		support.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
++	if (IS_BUILTIN(CONFIG_IPV6))
++		support.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
++	/* Compiled availability includes a module; this is not a loaded,
++	 * live transport receipt and does not authorize an operation.
++	 */
++	if (IS_ENABLED(CONFIG_PPPOX))
++		support.features |= PPP_OWNER_CAPTURE;
++unlock:
++	mutex_unlock(&ppp_mutex);
++	if (err)
++		return err;
++	return copy_to_user(argp, &support, sizeof(support)) ? -EFAULT : 0;
++}
++
+ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+ 	struct ppp_file *pf;
+ 	struct ppp *ppp;
+@@ -802,7 +840,10 @@
+ 	void __user *argp = (void __user *)arg;
+ 	int __user *p = argp;
+ 
++	if (cmd == PPPIOCGSUPPORT)
++		return ppp_support_ioctl(file, argp);
++
+ 	/* This command takes RTNL alone: ppp_mutex -> RTNL already exists. */
+ 	if (cmd == PPPIOCGOWNER)
+ 		return ppp_owner_ioctl(file, argp);
+ 	if (cmd == PPPIOCGCHANOWNER)
