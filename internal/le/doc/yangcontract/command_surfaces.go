@@ -5750,7 +5750,7 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 		if values == absentValueNone {
 			continue
 		}
-		parsed, valid := splitMarkdownOutsideCode(values, ", ")
+		parsed, valid := splitEquivalentMarkdownGroup(values)
 		if !valid {
 			groups = append(groups, []string{""})
 			continue
@@ -5761,6 +5761,37 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 		groups = append(groups, parsed)
 	}
 	return groups
+}
+
+// splitEquivalentMarkdownGroup accepts the escaped prose separators emitted by
+// equivalentDetailMirror without splitting commas inside literal code spans.
+func splitEquivalentMarkdownGroup(value string) ([]string, bool) {
+	parts := make([]string, 0, strings.Count(value, ", ")+1)
+	partAt := 0
+	for index := 0; index < len(value); {
+		switch {
+		case value[index] == '`':
+			_, suffix, _, closed := markdownCodeSpanPrefix(value[index:])
+			if !closed {
+				return nil, false
+			}
+			index = len(value) - len(suffix)
+		case strings.HasPrefix(value[index:], `\, `):
+			parts = append(parts, value[partAt:index])
+			index += 3
+			partAt = index
+		case value[index] == '\\':
+			index += min(2, len(value)-index)
+		case strings.HasPrefix(value[index:], ", "):
+			parts = append(parts, value[partAt:index])
+			index += 2
+			partAt = index
+		default:
+			index++
+		}
+	}
+	parts = append(parts, value[partAt:])
+	return parts, true
 }
 
 func equivalentAvailabilityLabel(availability string, declaredShape bool) string {
