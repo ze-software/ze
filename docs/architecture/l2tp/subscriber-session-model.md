@@ -428,9 +428,14 @@ accounting session. LCP-down stops that session before replacement authenticatio
 
 Accounting subtracts each network lifetime's initial raw interface counters.
 Traffic from an earlier lifetime is not billed again when the PPP unit remains.
-The L2TP accounting callback captures this baseline during address publication,
-before PPP enables forwarding. Accounting-Start runs asynchronously, so PPP does
-not wait for a RADIUS server response.
+The original network lifetime is established at the first valid address
+assignment, before its synchronous publication and acknowledgement. The second
+address family and SessionUp retain that same lifetime. Exact captured counter
+reads check its original PPP attempt, Control and network pointer around the
+read; a pre-network capture has no baseline. The L2TP accounting callback captures
+its baseline during address publication, before PPP enables forwarding.
+Accounting-Start runs asynchronously, so PPP does not wait for a RADIUS server
+response.
 Clearing display counters does not change accounting. Unavailable counter values
 are omitted and logged, not reported as zero.
 

@@ -594,6 +594,12 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		r.tunnelsMu.Unlock()
 		return
 	}
+	// Accounting captures its original raw baseline inside this publication,
+	// before the assignment ACK enables forwarding. SessionUp follows later.
+	// The second address family MUST retain the same network lifetime.
+	if sess.timeoutLifetime == nil {
+		sess.timeoutLifetime = &sessionTimeoutLifetime{}
+	}
 	var addr netip.Addr
 	if ev.Peer.Is4() {
 		addr = ev.Peer
