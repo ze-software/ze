@@ -186,6 +186,9 @@ func TestObserverCopiedEchoAfterStopCannotChangeHistoryOrQuality(t *testing.T) {
 		t.Fatal("real typed Echo delivery did not reach its copied handler")
 	}
 	observer.Stop()
+	// Stop may release its last metric leases. The escaped callback MUST NOT
+	// mutate the metric state that remains after that legitimate cleanup.
+	afterStopMetrics := observerCQMMetrics(registry)
 	release()
 	select {
 	case emitErr := <-delivered:
@@ -198,7 +201,7 @@ func TestObserverCopiedEchoAfterStopCannotChangeHistoryOrQuality(t *testing.T) {
 	assert.Equal(t, beforeSamples, observer.LoginSamples("alice"), "closed sample history survives")
 	assert.Equal(t, beforeLogins, observer.LoginSummaries(), "closed login summaries survive")
 	assert.Equal(t, beforeEcho, observer.EchoState("alice"), "closed quality state survives")
-	assert.Equal(t, beforeMetrics, observerCQMMetrics(registry), "closed CQM metrics cannot change")
+	assert.Equal(t, afterStopMetrics, observerCQMMetrics(registry), "closed CQM metrics cannot change")
 }
 
 func newObserverCQMTest(t *testing.T) (*testBus, *Observer, l2tpevents.ObservationGeneration) {
