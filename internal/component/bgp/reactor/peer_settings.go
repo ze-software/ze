@@ -270,6 +270,13 @@ type PeerSettings struct {
 	// GroupName is the peer-group this peer belongs to.
 	GroupName string
 
+	// Description is the free-text label the operator wrote in the peer's
+	// `description` leaf, or inherited from its group or the bgp level. It is
+	// empty when none was written: nothing derives one. A reload delivers a
+	// changed label to the running peer (hotSwappableSettings), so a reader on
+	// another goroutine MUST use Peer.Description, never this field.
+	Description string
+
 	// Address is the peer's IP address.
 	Address netip.Addr
 

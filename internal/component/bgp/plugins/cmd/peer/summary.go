@@ -377,10 +377,15 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, validated command.Valida
 		if p.State == plugin.PeerStateEstablished {
 			established++
 		}
+		// The description is what the operator wrote and nothing else: a peer
+		// with no `description` leaf answers "", never its group or its name.
+		// Until 2026-11-18 that key carried the group name, which `group` now
+		// does. Both keys are always present, so every row has one shape.
 		row := map[string]any{
 			fieldAddress:            p.Address.String(),
 			fieldName:               p.Name,
-			"description":           p.GroupName,
+			fieldDescription:        p.Description,
+			fieldGroup:              p.GroupName,
 			fieldPeerType:           p.PeerType,
 			fieldState:              p.State.String(),
 			"state-changed":         stateChangedString(p),

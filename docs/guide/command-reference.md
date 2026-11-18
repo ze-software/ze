@@ -2376,6 +2376,25 @@ wrapper around them:
  "peers-configured": 2, "peers-established": 1, "peers": [ … ]}
 ```
 
+Each peer row names the peer with four keys before its session state and
+counters:
+
+| Key | Holds |
+|-----|-------|
+| `address` | The peer's address |
+| `name` | The peer's name, the key of its `peer` entry in the configuration |
+| `description` | The text of the peer's `description` leaf, written on the peer or inherited from its group. Empty when the configuration states none: Ze derives no description |
+| `group` | The name of the group the peer belongs to. Empty for a peer outside any group |
+
+A changed `description` reaches the row on the next configuration reload, and
+the session stays up.
+
+Until 2026-11 `description` held the group name and the row had no `group`
+key. A script that read the group from `description` reads `group` now.
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
+
 A family argument adds `family` and `peers-in-family` beside them. Two aliases
 name the halves, so an operator asks for one half and names no field:
 
@@ -4004,11 +4023,12 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 |---------|--------|---------|
 | `show bgp rib status` | read-only | RIB summary (peer count, routes, families) |
 | `show bgp rib` | read-only | Stream Adj-RIB-In and Adj-RIB-Out routes |
-| `show bgp rib \| received` | read-only | Stream received routes only |
+| `show bgp rib \| received` | read-only | Stream received routes only. Each row carries `age`, the whole seconds since the route's stored attributes last changed: an equal re-announcement keeps it growing, and a daemon restart starts every route again <!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge --> |
 | `show bgp rib \| advertised` | read-only | Stream advertised routes only |
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib \| received \| covering <address>` | read-only | Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on `show bgp rib best` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --> |
 | `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib received exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
+| `show bgp rib \| path <pattern>` | read-only | Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. `^` first ties the run to the start of the path and `$` last ties it to the end, so `path 65001$` lists the routes AS 65001 originates and `path ^65010,65001$` lists the routes whose path is exactly those two AS numbers. A `$` anywhere but directly after the last AS number is refused. `show bgp rib best` takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
 | `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |

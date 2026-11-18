@@ -52,7 +52,7 @@ type peerSettingsSwap struct {
 // session is visible and self-healing; a session left running on stale settings is
 // the silent mis-enforcement this spec exists to remove.
 //
-// Six fields qualify today, and each one qualifies for a reason read at the
+// Seven fields qualify today, and each one qualifies for a reason read at the
 // consumer:
 //
 //   - ImportPolicy: the ingress datapath re-reads it per received UPDATE through
@@ -98,6 +98,13 @@ type peerSettingsSwap struct {
 //     running peer's opt-in goes through the p.mu-guarded Peer.bfdSettings,
 //     the session's included (Session.bfdOptIn).
 //
+//   - Description: the operator's label. No session and no datapath reads it:
+//     its one consumer is the peer snapshot a command answers from
+//     (reactorAPIAdapter.Peers, reactor_api.go), which reads it on demand
+//     through the p.mu-guarded accessor Peer.Description, so the write needs
+//     no republication. A label edit that restarted the session would flap a
+//     peer for a change the wire never sees.
+//
 // The first four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
 // establishment, and every reader outside the facts snapshot goes through the
@@ -109,6 +116,7 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.ExportPolicy = src.ExportPolicy
 	dst.PrefixUpdated = src.PrefixUpdated
 	dst.StaticRoutes = src.StaticRoutes
+	dst.Description = src.Description
 	if onlyReceiveOnlyBindingsDiffer(dst.ProcessBindings, src.ProcessBindings) {
 		dst.ProcessBindings = src.ProcessBindings
 	}

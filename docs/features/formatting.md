@@ -238,7 +238,7 @@ command that declares nothing renders every column alphabetically, as before.
 `show bgp` declares the order an operator reads a peer in:
 
 ```
-address  name  description  remote-as  peer-type
+address  name  description  group  remote-as  peer-type
 state  uptime  state-changed  last-error
 routes-received  routes-accepted  routes-sent
 updates-received  updates-sent  keepalives-received  keepalives-sent
@@ -396,7 +396,9 @@ into command arguments before the command runs, rather than filtering
 output afterward. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
 routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
-already produced. A command filter stops it being produced.
+already produced. A command filter stops it being produced. The `path`
+pattern, with its `^` and `$` anchors, is described in the
+[CLI guide](../guide/cli.md#route-commands).
 
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->

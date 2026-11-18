@@ -2684,3 +2684,34 @@ func TestPeerLocalPortOpensARealListener(t *testing.T) {
 	assert.NotContains(t, bound, net.JoinHostPort("127.0.0.1", strconv.Itoa(remotePort)),
 		"connection > remote > port opens no socket")
 }
+
+// TestParsePeerFromTreeDescriptionReachesPeerSettings verifies that the peer's
+// `description` leaf is read into PeerSettings.Description, and that a tree
+// without the leaf leaves it empty.
+//
+// VALIDATES: AC-14, engine half -- the label an operator writes reaches the
+// peer record parsePeerSettings builds.
+// PREVENTS: the leaf being accepted by the schema and dropped before the peer
+// record, which is how `show bgp` came to answer the group name under
+// `description`. And a label derived from the peer name or the group when the
+// operator wrote none.
+func TestParsePeerFromTreeDescriptionReachesPeerSettings(t *testing.T) {
+	labeled := map[string]any{
+		"description": "transit to AS65001, rack 12",
+		"group-name":  "transit",
+		"connection":  map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}, "local": map[string]any{"ip": "auto"}},
+		"session":     map[string]any{"asn": map[string]any{"remote": "65001"}},
+	}
+	ps, err := parsePeerFromTree("edge1", labeled, 65000, 0x01020304)
+	require.NoError(t, err)
+	assert.Equal(t, "transit to AS65001, rack 12", ps.Description)
+
+	bare := map[string]any{
+		"group-name": "transit",
+		"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.2"}, "local": map[string]any{"ip": "auto"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}
+	ps, err = parsePeerFromTree("edge2", bare, 65000, 0x01020304)
+	require.NoError(t, err)
+	assert.Equal(t, "", ps.Description, "no description leaf means no label: nothing is derived from the name or the group")
+}

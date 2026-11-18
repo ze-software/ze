@@ -150,11 +150,12 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	for _, peerKey := range peerKeys {
 		p := a.r.peers[peerKey]
 		s := p.Settings()
-		// PeerAS, the filter chains and the prefix dates via the guarded accessors: this
-		// API snapshot runs on a command goroutine that can race a dynamic peer's
-		// establishment write and a reload's hot swap. All other PeerSettings fields are
-		// immutable after construction.
+		// PeerAS, the label, the filter chains and the prefix dates via the guarded
+		// accessors: this API snapshot runs on a command goroutine that can race a
+		// dynamic peer's establishment write and a reload's hot swap. All other
+		// PeerSettings fields are immutable after construction.
 		peerAS := p.PeerAS()
+		description := p.Description()
 		prefixUpdated := p.oldestPrefixUpdated()
 		stats := p.Stats()
 		// The one rule (session_as_migration.go, isIBGPWith), taken over the guarded peerAS
@@ -177,6 +178,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LocalAddressStr:      localString,
 			Name:                 s.Name,
 			GroupName:            s.GroupName,
+			Description:          description,
 			LocalAS:              s.LocalAS,
 			PeerAS:               rpc.RemoteASOf(peerAS),
 			RouterID:             s.RouterID,

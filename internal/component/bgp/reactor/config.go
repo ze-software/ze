@@ -190,6 +190,12 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	}
 
 	ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)
+	// The label sits in the peer-fields grouping, so ResolveBGPTree has already
+	// merged a bgp-level or group-level one under the peer's own. An absent
+	// leaf leaves the field empty: no label is derived from the name or group.
+	if description, ok := mapString(tree, "description"); ok {
+		ps.Description = description
+	}
 	// Preserve the router's global local-as separately from any per-peer override.
 	// When localAS (global) differs from peerLocalAS (override), local-as modifiers
 	// control whether the outbound AS_PATH dual-prepends the real AS.

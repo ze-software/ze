@@ -789,17 +789,17 @@ func NewPeer(settings *PeerSettings) *Peer {
 
 // Settings returns the configured peer settings.
 //
-// The returned pointer is shared, and seven fields on the pointed-to struct are written
+// The returned pointer is shared, and eight fields on the pointed-to struct are written
 // after construction, always under p.mu. resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes PeerAS, ImportPolicy and ExportPolicy when a dynamic peer's session
 // establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportPolicy,
-// ExportPolicy, PrefixUpdated, StaticRoutes and a non-strict BFD opt-in when a config
-// reload delivers a hot-swappable change, and Capabilities as well when the reload
-// proved the negotiation unchanged (peer_settings_negotiation.go). A caller running on
-// a different goroutine than those writes MUST read those seven fields through
-// PeerAS()/ImportPolicy()/ExportPolicy()/oldestPrefixUpdated()/
-// ConfiguredCapabilities()/staticRoutes()/bfdSettings(), not off this pointer, or it
-// races the write. ProcessBindings is written under r.mu and p.mu and read under
+// ExportPolicy, PrefixUpdated, StaticRoutes, Description and a non-strict BFD opt-in
+// when a config reload delivers a hot-swappable change, and Capabilities as well when
+// the reload proved the negotiation unchanged (peer_settings_negotiation.go). A caller
+// running on a different goroutine than those writes MUST read those eight fields
+// through PeerAS()/ImportPolicy()/ExportPolicy()/oldestPrefixUpdated()/
+// ConfiguredCapabilities()/staticRoutes()/bfdSettings()/Description(), not off this
+// pointer, or it races the write. ProcessBindings is written under r.mu and p.mu and read under
 // either (hotSwappableSettings). Every other PeerSettings field is set at
 // construction and never mutated, so reading it off this pointer is race-free.
 //
@@ -843,6 +843,16 @@ func (p *Peer) PeerAS() uint32 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings.PeerAS
+}
+
+// Description returns the operator's label for the peer under p.mu, empty when
+// the config states none. Cross-goroutine readers MUST use this accessor rather
+// than p.settings.Description, which applyHotSwappableSettings writes under p.mu
+// when a reload changes the label.
+func (p *Peer) Description() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.Description
 }
 
 // ImportPolicy returns a coherent policy snapshot under p.mu. Callers MUST use

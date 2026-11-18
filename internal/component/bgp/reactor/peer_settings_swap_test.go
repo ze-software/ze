@@ -718,3 +718,60 @@ func TestReloadImportPolicyDisplayMatchesDatapath(t *testing.T) {
 	assert.Equal(t, want, filterapi.FilterRefStrings(peer.ImportPolicy().Filters()),
 		"the enforcing datapath must read that same chain")
 }
+
+// TestReloadDescriptionReachesRunningPeerWithoutRestart verifies that a reload
+// whose only change is the peer's `description` delivers the new label to the
+// running peer and to the snapshot `show bgp` reads, and restarts nothing.
+//
+// VALIDATES: AC-14, engine half -- Description is hot-swappable
+// (hotSwappableSettings), read through Peer.Description, and carried by
+// reactorAPIAdapter.Peers into plugin.PeerInfo.Description.
+// PREVENTS: two failures a new PeerSettings field meets by default. The
+// fail-closed reload diff restarts a session for any field nobody classified,
+// so a label edit would flap an established peer for a change the wire never
+// sees. And a field judged "no change" is never delivered, so the page would
+// show the old label until the daemon restarted.
+//
+// DISCRIMINATION: peer OBJECT IDENTITY and the generation counter refuse the
+// restart, and the label read back off the running peer and off the snapshot
+// refuses the discard. The snapshot is also read BEFORE the reload and must
+// answer the old label, so the second read proves a change and not a constant.
+func TestReloadDescriptionReachesRunningPeerWithoutRestart(t *testing.T) {
+	initial := swapTestPeerSettings(t)
+	initial.Description = "transit, rack 12"
+	next := swapTestPeerSettings(t)
+	next.Description = "transit, rack 14"
+
+	require.Empty(t, peerSettingsRestartReason(initial, next, nil),
+		"a description edit alone must need no session restart")
+
+	r, peer := newSwapTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+	generationBefore := r.peerGeneration.Load()
+
+	adapter := &reactorAPIAdapter{r: r}
+	before := adapter.Peers()
+	require.Len(t, before, 1)
+	require.Equal(t, "transit, rack 12", before[0].Description,
+		"the snapshot carries the label the peer was configured with")
+
+	require.NoError(t, adapter.Reload())
+
+	r.mu.RLock()
+	after := r.peers[initial.PeerKey()]
+	r.mu.RUnlock()
+
+	require.NotNil(t, after, "the peer must still be configured after reload")
+	assert.True(t, after == peer, "a description edit must not replace the peer object")
+	assert.Equal(t, generationBefore, r.peerGeneration.Load(),
+		"peerGeneration must not advance: a restart re-adds the peer and bumps it")
+	assert.Equal(t, PeerStateEstablished, after.State(),
+		"the established session must survive a description edit")
+	assert.Equal(t, "transit, rack 14", after.Description(),
+		"the new label must reach the running peer, not be discarded as 'no change'")
+
+	infos := adapter.Peers()
+	require.Len(t, infos, 1)
+	assert.Equal(t, "transit, rack 14", infos[0].Description,
+		"the snapshot `show bgp` reads must carry the new label")
+}

@@ -1287,3 +1287,72 @@ type commandOrder struct {
 	command string
 	orders  []command.ColumnOrder
 }
+
+// TestSummaryCarriesDescriptionAndGroup verifies that a `show bgp` peer row
+// answers the operator's label under `description` and the peer-group under
+// `group`, each from its own PeerInfo field.
+//
+// VALIDATES: AC-14 -- `description` is PeerInfo.Description and `group` is
+// PeerInfo.GroupName; a peer whose config states no description answers "".
+// PREVENTS: `description` carrying the group name, as it did until 2026-11-18,
+// so the looking glass showed a group under "Description" and the operator's
+// own label nowhere. And a label derived for a peer that has none.
+//
+// DISCRIMINATION: the two fields hold different text on the first peer, so a
+// row that reads either key from the other field fails. The second peer has a
+// group and no description, which is the case the old code answered with the
+// group name.
+func TestSummaryCarriesDescriptionAndGroup(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:     netip.MustParseAddr("192.0.2.1"),
+				Name:        "edge1",
+				Description: "transit to AS65001, rack 12",
+				GroupName:   "transit",
+				PeerAS:      rpc.RemoteASOf(65001),
+				State:       plugin.PeerStateEstablished,
+			},
+			{
+				Address:   netip.MustParseAddr("192.0.2.2"),
+				Name:      "edge2",
+				GroupName: "ix-lan",
+				PeerAS:    rpc.RemoteASOf(65002),
+				State:     plugin.PeerStateEstablished,
+			},
+			{
+				Address: netip.MustParseAddr("192.0.2.3"),
+				Name:    "edge3",
+				PeerAS:  rpc.RemoteASOf(65003),
+				State:   plugin.PeerStateEstablished,
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 3, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	peers, ok := map[string]any(data)["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 3)
+
+	assert.Equal(t, "transit to AS65001, rack 12", peers[0]["description"],
+		"description is the label the operator wrote")
+	assert.Equal(t, "transit", peers[0]["group"], "group is the peer-group")
+
+	assert.Equal(t, "", peers[1]["description"],
+		"a peer with a group and no description answers an empty description, never the group name")
+	assert.Equal(t, "ix-lan", peers[1]["group"])
+
+	// A standalone peer keeps both keys, empty: one row shape for every reader.
+	description, present := peers[2]["description"]
+	require.True(t, present, "the description key is present on every row")
+	assert.Equal(t, "", description)
+	group, present := peers[2]["group"]
+	require.True(t, present, "the group key is present on every row")
+	assert.Equal(t, "", group)
+}

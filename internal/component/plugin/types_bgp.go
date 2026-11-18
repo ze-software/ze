@@ -181,6 +181,12 @@ type PeerInfo struct {
 	Name      string // Human-readable peer name for CLI selector
 	GroupName string // Peer-group this peer belongs to
 	LocalAS   uint32
+	// Description is the free-text label the operator wrote for the peer, empty
+	// when the config states none: nothing derives one. Like ImportPolicy below,
+	// only the command snapshot fills it (ReactorIntrospector.Peers); the
+	// PeerInfo an event carries leaves it empty, because no event format has a
+	// member for it.
+	Description string
 	// PeerAS is the peer's AS, or "not yet known" for a dynamic peer whose
 	// OPEN has not been negotiated: build it with rpc.RemoteASOf.
 	PeerAS rpc.RemoteAS

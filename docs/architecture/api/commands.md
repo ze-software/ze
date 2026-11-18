@@ -1664,6 +1664,23 @@ request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
 
+`show bgp` answers one row per peer. Two of its keys carry what the operator
+configured to identify the peer, and each has one source:
+
+| Key | Source | Empty when |
+|-----|--------|-----------|
+| `description` | The peer's `description` leaf, after the bgp, group and peer levels are merged (`PeerSettings.Description`, then `plugin.PeerInfo.Description`) | The configuration states no description. Nothing is derived from the name or the group |
+| `group` | The group the peer is declared in (`PeerSettings.GroupName`, then `plugin.PeerInfo.GroupName`) | The peer stands outside any group |
+
+Both keys are present on every row. The description is delivered to a running
+peer by a configuration reload without a session restart, and the handler reads
+it from the peer snapshot on each call. Only that snapshot carries it: the peer
+object of a BGP event has `group` and no `description`.
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- Peers -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
+
 `show bgp peer <selector> history` reads the peer's retained FSM transitions
 through the registered BGP adapter. Each row carries the source and destination
 states, plus the timestamp and reason when recorded.
@@ -1938,7 +1955,13 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
     source filters: received | advertised
     filters: peer <selector>, path <pattern>, prefix <pattern>, community <value>,
              family <afi/safi>
+    path pattern: <asn>[,<asn>...] is a run anywhere in the AS path;
+             ^ first ties the run to the start of the path, $ last ties it to the end
+             (65001$: originated by AS 65001; ^65010,65001$: exactly that path)
     terminals: count, histogram, graph (AS topology as nodes and edges, drawn as boxes in text)
+    received row: age is the whole seconds since the route's stored attributes last
+             changed; an equal re-announcement keeps it growing. Absent when the RIB
+             holds no time for the route, and on advertised rows
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)

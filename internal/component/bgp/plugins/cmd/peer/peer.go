@@ -124,7 +124,7 @@ func registerColumns() {
 	// an "uptime" key: the peer rows, and the record that holds them.
 	command.RegisterColumns([]string{cmdBgp},
 		command.ColumnOrder{
-			fieldAddress, fieldName, "description", fieldRemoteAS, fieldPeerType,
+			fieldAddress, fieldName, fieldDescription, fieldGroup, fieldRemoteAS, fieldPeerType,
 			fieldState, fieldUptime, "state-changed", "last-error",
 			"routes-received", "routes-accepted", "routes-sent",
 			fieldUpdatesReceived, fieldUpdatesSent,

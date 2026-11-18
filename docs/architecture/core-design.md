@@ -3714,9 +3714,13 @@ struct, so a field nobody classified still counts as a change.
 | Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it. The session first reads a Cease with RFC 4486 Section 4 subcode 6 "Other Configuration Change"; a peer the configuration no longer holds reads subcode 3 "Peer De-configured" instead |
 
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
-struct rather than a list of what matters. Four fields qualify: `ImportPolicy`,
-`ExportPolicy`, `PrefixUpdated` and `StaticRoutes`; `ProcessBindings` does
-for a receive-only binding, and `BFD` for a non-strict opt-in (both below). An
+struct rather than a list of what matters. Five fields qualify: `ImportPolicy`,
+`ExportPolicy`, `PrefixUpdated`, `StaticRoutes` and `Description`;
+`ProcessBindings` does for a receive-only binding, and `BFD` for a non-strict
+opt-in (both below). `Description` is the operator's label for the peer: no
+session and no datapath reads it, and its one reader, the peer snapshot
+`show bgp` answers from, takes it through the guarded `Peer.Description` on
+each call, so the swap republishes nothing. An
 `ImportPolicy` swap that removes an Established session's last accepting
 import policy is a coordinated transaction step of its own: input pauses, the
 route owners invalidate and either restore or finalize, and the section path

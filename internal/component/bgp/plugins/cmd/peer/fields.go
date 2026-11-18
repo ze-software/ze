@@ -38,6 +38,7 @@ const (
 	// What the session IS: who configured it, what it negotiated, how long it
 	// has been up.
 	fieldName                = "name"
+	fieldDescription         = "description"
 	fieldGroup               = "group"
 	fieldState               = "state"
 	fieldFSMState            = "fsm-state"
