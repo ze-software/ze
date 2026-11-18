@@ -116,7 +116,10 @@ type Node struct {
 	// help page then prints the summary alone, and `le doc yang-contract help-shape`
 	// refuses the empty text on a node the commit under test added or changed
 	// (plan/spec-command-help-and-description.md, AC-1).
-	Description  string
+	Description string
+	// Hidden removes this node and its descendants from help and completion.
+	// Execution still resolves their full paths through FindNode.
+	Hidden       bool
 	WireMethod   string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
 	TaskSupport  string   // MCP task-support level (from ze:task-support). Empty = optional.
 	Backend      []string // Allowed backends (from ze:backend). Nil = unrestricted.
@@ -192,7 +195,7 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 			}
 			child, ok := current.Children[part]
 			if !ok {
-				child = &Node{Name: part}
+				child = &Node{Name: part, Hidden: current.Hidden}
 				current.Children[part] = child
 			}
 			current = child
@@ -247,7 +250,7 @@ func MergeCommandPaths(root *Node, entries []CommandEntry) {
 			}
 			child, ok := current.Children[part]
 			if !ok {
-				child = &Node{Name: part}
+				child = &Node{Name: part, Hidden: current.Hidden}
 				current.Children[part] = child
 			}
 			if i == len(parts)-1 {
@@ -283,7 +286,7 @@ func OverlayCommandPaths(base *Node, entries []CommandEntry) *Node {
 		for i, part := range parts {
 			child, ok := current.Children[part]
 			if !ok {
-				child = &Node{Name: part, Children: make(map[string]*Node)}
+				child = &Node{Name: part, Hidden: current.Hidden, Children: make(map[string]*Node)}
 				copied[child] = true
 			}
 			if !copied[child] {
