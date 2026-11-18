@@ -28,17 +28,18 @@ const (
 // Its exact header and original causes survive every uncertain wait. A poison
 // means bytes were lost or invalid; another read cannot repair that evidence.
 type nativePPPTransaction struct {
-	writer    *nativePPPWriter
-	wire      []byte
-	header    unix.NlMsghdr
-	digest    [sha256.Size]byte
-	entered   bool
-	sendErr   error
-	cause     error
-	nativeErr error
-	waitErrs  []error
-	poison    error
-	turns     int
+	writer        *nativePPPWriter
+	wire          []byte
+	header        unix.NlMsghdr
+	digest        [sha256.Size]byte
+	entered       bool
+	sendErr       error
+	cause         error
+	nativeErr     error
+	waitErrs      []error
+	poison        error
+	turns         int
+	retirementErr error
 }
 
 // nativePPPRejected can arise only after one complete validated datagram on
@@ -55,7 +56,8 @@ func (*nativePPPRejected) NativePPPWriteRejected() bool { return true }
 
 func (transaction *nativePPPTransaction) unresolved(cause error) error {
 	return errors.Join(iface.ErrNativePPPPending, transaction.cause,
-		transaction.nativeErr, transaction.poison, errors.Join(transaction.waitErrs...), cause)
+		transaction.nativeErr, transaction.poison, errors.Join(transaction.waitErrs...),
+		transaction.retirementErr, cause)
 }
 
 func (transaction *nativePPPTransaction) retainWait(cause error) error {
@@ -65,8 +67,8 @@ func (transaction *nativePPPTransaction) retainWait(cause error) error {
 
 // receive waits only on the original socket and never re-enters Sendto or a
 // unit descriptor borrow. An uncertain send may still yield its decisive ACK.
-// The fixed turn limit bounds retained failure history; after it, only a future
-// real original-unit terminal receipt may retire an unresolved transaction.
+// The fixed turn limit bounds retained failure history; after it, only the
+// SAME owner's successful passive physical-retirement join may end custody.
 func (transaction *nativePPPTransaction) receive(ctx context.Context) error {
 	if transaction.poison != nil {
 		return transaction.unresolved(nil)
@@ -153,9 +155,9 @@ func (transaction *nativePPPTransaction) receive(ctx context.Context) error {
 		}
 		writer.pending = nil
 		if nativeErr != nil {
-			return errors.Join(transaction.cause, errors.Join(transaction.waitErrs...), &nativePPPRejected{cause: nativeErr})
+			return errors.Join(transaction.cause, errors.Join(transaction.waitErrs...), transaction.retirementErr, &nativePPPRejected{cause: nativeErr})
 		}
-		return errors.Join(transaction.cause, errors.Join(transaction.waitErrs...))
+		return errors.Join(transaction.cause, errors.Join(transaction.waitErrs...), transaction.retirementErr)
 	}
 }
 

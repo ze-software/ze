@@ -1641,16 +1641,29 @@ The provider fills OWNER_FD during a short borrow of the original creator file,
 sends once, then erases that descriptor slot before releasing the borrow. ACK
 waiting happens afterward on the original socket. Unknown send, receive or
 parse outcomes retain the transaction and prevent another mutation. `Settle`
-only receives that original transaction. The caller MUST settle it before
-closing the writer; backend Close retains unresolved original writers.
+receives the original ACK without resubmission. The writer can also observe
+its original owner's optional passive retirement capability. That capability
+must confirm successful closure of the original unit file, every short borrow
+and its tracked library duplicate; a failed close grants no retirement. The
+caller MUST finish accounting and disconnect and arrange original and seal
+closure before final writer settlement. Successful unit retirement can end
+uncertain transport custody, retaining the unknown outcome and its causes.
 <!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.mutate, nativePPPWriter.Settle, nativePPPResources.close -->
+<!-- source: internal/component/iface/native_ppp.go -- NativePPPUnitRetirementOwner, ErrNativePPPUnavailable -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- observeUnitRetirementLocked, settleRetiredUnitLocked -->
 
 A negative ACK validates the complete original request against its captured
 digest and preserves the native errno. It proves a terminal kernel response;
 an operation may have changed state before returning an error. The caller MUST
-retain its effect and cleanup receipts after transport settlement. A terminal
-close error remains available but does not keep unrelated backend resources open.
+retain its effect and cleanup receipts after transport settlement. Historical
+unknown-outcome errors remain available after successful physical socket Close
+and permit final backend cleanup. A failed physical socket Close retains the
+writer, backend resources and original cause. Close is attempted only once;
+neither a later `os.ErrClosed` nor the socket number authorizes another close
+or proves release.
 <!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.closeOriginal -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- ClosePending -->
 <!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
 
 This provider does not itself establish that shared PPP session and client

@@ -30,8 +30,9 @@ func newNetlinkBackend() (iface.Backend, error) {
 }
 
 // Close MUST be called before discarding the backend. It joins original PPP
-// writers and refuses unresolved outcomes before closing their backend's other
-// resources. It permanently stops counter reads and waits for any bounded
+// writers and refuses unresolved custody before closing unrelated resources.
+// Genuine unit retirement may end custody with retained unknown-outcome errors.
+// It permanently stops counter reads and waits for any bounded
 // snapshot already in progress. It signals every neighbor watch to stop; each
 // closes its channel once its kernel subscription is released.
 func (b *netlinkBackend) Close() error {

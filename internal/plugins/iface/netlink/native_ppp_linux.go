@@ -70,8 +70,11 @@ type nativePPPWriter struct {
 	features uint32
 	sequence uint32
 	pending  *nativePPPTransaction
-	closed   bool
-	closeErr error
+	// closed prevents mutation and another os.File.Close attempt. Only a nil
+	// socketCloseErr after that attempt proves native socket custody ended.
+	closed         bool
+	closeErr       error
+	socketCloseErr error
 	// Tests may pause an actual native boundary; observers never supply IO,
 	// descriptors, feature receipts, ACKs or a cleanup authority.
 	beforeSend func()
@@ -85,12 +88,12 @@ type nativePPPWriter struct {
 // retained original file reach the actual guarded native writer.
 func (b *netlinkBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner, index int, unit int32) (iface.NativePPPWriter, error) {
 	if owner == nil {
-		return nil, errors.New("PPP original creator owner is absent")
+		return nil, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator owner is absent"))
 	}
 	value := reflect.ValueOf(owner)
 	if value.Kind() == reflect.Pointer {
 		if value.IsNil() {
-			return nil, errors.New("PPP original creator owner is typed nil")
+			return nil, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator owner is typed nil"))
 		}
 	}
 	if index <= 0 {
@@ -106,7 +109,7 @@ func (b *netlinkBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner, index
 	resources.mu.Lock()
 	defer resources.mu.Unlock()
 	if resources.closed.Load() {
-		return nil, os.ErrClosed
+		return nil, errors.Join(iface.ErrNativePPPUnavailable, os.ErrClosed)
 	}
 	if len(resources.writers) >= nativePPPWriterLimit {
 		return nil, errors.New("PPP original native writer limit reached")
@@ -146,30 +149,40 @@ func nativePPPProbe(owner iface.NativePPPUnitOwner, index int, unit int32) (nati
 			uintptr(unsafe.Pointer(&reply))) //nolint:gosec // exact creator-only PPP owner UAPI pointer.
 		if errno != 0 {
 			probeErr = errno
-			return errno
+			// These query51 outcomes name a missing kernel capability or a
+			// missing/mismatched exact original. Other ioctl failures stay
+			// ordinary errors; native write NACKs never use this branch.
+			switch errno {
+			case unix.ENOTTY, unix.EOPNOTSUPP, unix.ESTALE, unix.EBADF, unix.ENODEV, unix.ENXIO:
+				probeErr = errors.Join(iface.ErrNativePPPUnavailable, errno)
+			}
+			return probeErr
 		}
 		return nil
 	})
 	if err := errors.Join(probeErr, borrowErr); err != nil {
+		if errors.Is(borrowErr, os.ErrClosed) {
+			return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, err)
+		}
 		return nativePPPOwnerReply{}, err
 	}
 	if !called {
 		return nativePPPOwnerReply{}, errors.New("PPP original creator probe did not borrow its file")
 	}
 	if reply.abi != nativePPPABI {
-		return nativePPPOwnerReply{}, errors.New("PPP original creator probe returned another ABI")
+		return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator probe returned another ABI"))
 	}
 	if reply.index != int32(index) {
-		return nativePPPOwnerReply{}, errors.New("PPP original creator probe changed its captured index")
+		return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator probe changed its captured index"))
 	}
 	if reply.unit != unit {
-		return nativePPPOwnerReply{}, errors.New("PPP original creator probe changed its captured unit")
+		return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator probe changed its captured unit"))
 	}
 	if reply.reserved != 0 {
-		return nativePPPOwnerReply{}, errors.New("PPP original creator probe returned nonzero reserved fields")
+		return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator probe returned nonzero reserved fields"))
 	}
 	if reply.features&nativePPPSetlink == 0 {
-		return nativePPPOwnerReply{}, errors.New("PPP original creator probe lacks guarded SETLINK")
+		return nativePPPOwnerReply{}, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator probe lacks guarded SETLINK"))
 	}
 	return reply, nil
 }
@@ -201,7 +214,7 @@ func newNativePPPSocket() (*os.File, int, uint32, error) {
 // owner-fd payload is populated only during that borrow and erased on exit.
 func (w *nativePPPWriter) mutate(ctx context.Context, required uint32, build func(int) (*nl.NetlinkRequest, error)) error {
 	if w == nil {
-		return errors.New("PPP original writer is absent")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is absent"))
 	}
 	if ctx == nil {
 		return errors.New("PPP original write has no context")
@@ -209,22 +222,22 @@ func (w *nativePPPWriter) mutate(ctx context.Context, required uint32, build fun
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.owner == nil {
-		return errors.New("PPP original writer is uninitialized")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is uninitialized"))
 	}
 	if w.pending != nil {
 		return w.pending.unresolved(nil)
 	}
 	if w.closed {
-		return os.ErrClosed
+		return errors.Join(iface.ErrNativePPPUnavailable, os.ErrClosed, w.closeErr)
 	}
 	if w.parent.closed.Load() {
-		return os.ErrClosed
+		return errors.Join(iface.ErrNativePPPUnavailable, os.ErrClosed)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if w.features&required != required {
-		return fmt.Errorf("PPP original creator lacks native operation features %#x", required)
+		return errors.Join(iface.ErrNativePPPUnavailable, fmt.Errorf("PPP original creator lacks native operation features %#x", required))
 	}
 	request, err := build(w.index)
 	if err != nil {
@@ -274,9 +287,12 @@ func (w *nativePPPWriter) mutate(ctx context.Context, required uint32, build fun
 	if !transaction.entered {
 		w.pending = nil
 		if transaction.cause != nil {
+			if errors.Is(borrowErr, os.ErrClosed) {
+				return errors.Join(iface.ErrNativePPPUnavailable, transaction.cause)
+			}
 			return transaction.cause
 		}
-		return errors.New("PPP original creator send did not borrow its file")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator send did not borrow its file"))
 	}
 	// No unit descriptor borrow spans this receive, even when SEND's outcome
 	// is uncertain. A matching complete ACK can settle that original attempt.
@@ -285,7 +301,7 @@ func (w *nativePPPWriter) mutate(ctx context.Context, required uint32, build fun
 
 func (w *nativePPPWriter) Settle(ctx context.Context) error {
 	if w == nil {
-		return errors.New("PPP original writer is absent")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is absent"))
 	}
 	if ctx == nil {
 		return errors.New("PPP original settlement has no context")
@@ -293,10 +309,13 @@ func (w *nativePPPWriter) Settle(ctx context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.owner == nil {
-		return errors.New("PPP original writer is uninitialized")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is uninitialized"))
 	}
 	if w.pending == nil {
-		return nil
+		return w.closeErr
+	}
+	if w.observeUnitRetirementLocked() {
+		return w.settleRetiredUnitLocked()
 	}
 	return w.pending.receive(ctx)
 }
@@ -305,22 +324,27 @@ func (w *nativePPPWriter) closeOriginal() (bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.pending != nil {
+		if w.observeUnitRetirementLocked() {
+			err := w.settleRetiredUnitLocked()
+			return w.socketCloseErr == nil, err
+		}
 		return false, w.pending.unresolved(errors.New("PPP original socket cannot close before native settlement"))
 	}
 	if w.closed {
-		return true, w.closeErr
+		return w.socketCloseErr == nil, w.closeErr
 	}
 	w.closed = true
-	w.closeErr = w.file.Close()
-	return true, w.closeErr
+	w.socketCloseErr = w.file.Close()
+	w.closeErr = w.socketCloseErr
+	return w.socketCloseErr == nil, w.closeErr
 }
 
 func (w *nativePPPWriter) Close() error {
 	if w == nil {
-		return errors.New("PPP original writer is absent")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is absent"))
 	}
 	if w.owner == nil {
-		return errors.New("PPP original writer is uninitialized")
+		return errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original writer is uninitialized"))
 	}
 	closed, err := w.closeOriginal()
 	if closed {
@@ -335,8 +359,9 @@ func (w *nativePPPWriter) Close() error {
 }
 
 // close returns settled only when no original PPP writer retains native
-// custody. A historical terminal close error remains an error, but cannot keep
-// the backend's unrelated readers and monitors alive after custody has ended.
+// custody. Historical unknown-write errors remain after successful socket Close
+// and permit backend cleanup. A failed physical Close retains the exact writer;
+// its retired os.File and numeric fd grant no authority for another attempt.
 func (resources *nativePPPResources) close() (settled bool, result error) {
 	resources.closed.Store(true)
 	resources.mu.Lock()
