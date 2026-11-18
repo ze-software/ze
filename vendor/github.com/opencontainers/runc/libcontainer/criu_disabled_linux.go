@@ -1,4 +1,4 @@
-//go:build !runc_criu
+//go:build runc_nocriu
 
 package libcontainer
 

@@ -93,5 +93,7 @@ func (r *updateImplConfig) run(ctx context.Context, args []string, stdout, stder
 		Cfg:     cfg,
 	}
 
-	return pack.Main(ctx)
+	pack.Main(ctx)
+
+	return nil
 }

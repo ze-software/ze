@@ -857,10 +857,8 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 		return err
 	}
 	serializedReq := request.Serialize()
-	// Subscription groups select incoming notifications, not request recipients.
-	destination := unix.SockaddrNetlink{Family: unix.AF_NETLINK}
 	err = rawConn.Write(func(fd uintptr) (done bool) {
-		innerErr = unix.Sendto(int(s.fd), serializedReq, 0, &destination)
+		innerErr = unix.Sendto(int(s.fd), serializedReq, 0, &s.lsa)
 		return innerErr != unix.EWOULDBLOCK
 	})
 	if innerErr != nil {

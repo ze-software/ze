@@ -106,7 +106,6 @@ func (p *Pack) writeCmdline(fw *fat.Writer, src string) error {
 	// gokrazy update process:
 	const pad = 64
 	padded := append([]byte(cmdline), bytes.Repeat([]byte{' '}, pad)...)
-	padded = append(padded, '\n')
 
 	w, err := fw.File("/cmdline.txt", time.Now())
 	if err != nil {
@@ -598,9 +597,7 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
 	gokrazy := FileInfo{Filename: "gokrazy"}
 	for _, pkg := range gokrazyMainPkgs {
 		binPath := filepath.Join(bindir, pkg.Basename())
-		if err := fileIsELF(binPath); err != nil {
-			return nil, nil, err
-		}
+		fileIsELFOrFatal(binPath)
 		gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{
 			Filename: pkg.Basename(),
 			FromHost: binPath,
@@ -622,9 +619,7 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
 				continue
 			}
 			binPath := filepath.Join(bindir, pkg.Basename())
-			if err := fileIsELF(binPath); err != nil {
-				return nil, nil, err
-			}
+			fileIsELFOrFatal(binPath)
 			gokrazy.Dirents = append(gokrazy.Dirents, &FileInfo{
 				Filename: pkg.Basename(),
 				FromHost: binPath,
@@ -648,9 +643,7 @@ func findBins(cfg *config.Struct, buildEnv *packer.BuildEnv, bindir string, base
 			basename = basenameOverride
 		}
 		binPath := filepath.Join(bindir, basename)
-		if err := fileIsELF(binPath); err != nil {
-			return nil, nil, err
-		}
+		fileIsELFOrFatal(binPath)
 		user.Dirents = append(user.Dirents, &FileInfo{
 			Filename: basename,
 			FromHost: binPath,

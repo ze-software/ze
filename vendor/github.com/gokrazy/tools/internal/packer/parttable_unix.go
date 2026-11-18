@@ -3,27 +3,22 @@
 package packer
 
 import (
-	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"syscall"
 )
 
-func (p *Pack) SudoPartition(path string) (result *os.File, resultErr error) {
+func (p *Pack) SudoPartition(path string) (*os.File, error) {
 	if fd, err := strconv.Atoi(os.Getenv("GOKR_PACKER_FD")); err == nil {
 		// child process
-		conn, err := unixConn(uintptr(fd))
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
+		conn := mustUnixConn(uintptr(fd))
 		f, err := os.Create(path)
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
 		if err := p.partitionDevice(f, path); err != nil {
 			return nil, err
 		}
@@ -36,14 +31,6 @@ func (p *Pack) SudoPartition(path string) (result *os.File, resultErr error) {
 		return nil, err
 	}
 	syscall.CloseOnExec(pair[0]) // used in the parent process
-	conn, err := unixConn(uintptr(pair[0]))
-	if err != nil {
-		syscall.Close(pair[1])
-		return nil, err
-	}
-	defer conn.Close()
-	output := os.NewFile(uintptr(pair[1]), "")
-	defer output.Close()
 
 	// Use absolute path because $PATH might not be the same when using sudo:
 	if exe, err := os.Executable(); err == nil {
@@ -58,28 +45,21 @@ func (p *Pack) SudoPartition(path string) (result *os.File, resultErr error) {
 		fmt.Sprintf("HOME=%s", os.Getenv("HOME")), // for instance config detection
 		fmt.Sprintf("GOKRAZY_PARENT_DIR=%s", os.Getenv("GOKRAZY_PARENT_DIR")), // ditto
 	}
-	cmd.Stdout = output
+	cmd.Stdout = os.NewFile(uintptr(pair[1]), "")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 
-	// Close the parent's copy so a failed child produces EOF rather than
-	// leaving ReadMsgUnix waiting on a descriptor the parent still holds.
-	if err := output.Close(); err != nil {
-		return nil, errors.Join(err, cmd.Process.Kill(), cmd.Wait())
-	}
-	defer func() {
-		if err := cmd.Wait(); err != nil {
-			if result != nil {
-				err = errors.Join(err, result.Close())
-				result = nil
-			}
-			resultErr = errors.Join(resultErr, err)
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			log.Fatal(err)
 		}
 	}()
 
 	// receive file descriptor
+	conn := mustUnixConn(uintptr(pair[0]))
 	// 32 bytes as per
 	// https://github.com/golang/go/blob/21d2e15ee1bed44a7a1b8f775aff4a57cae9533a/src/syscall/syscall_unix_test.go#L177
 	oob := make([]byte, 32)

@@ -45,15 +45,10 @@ func (v Value) BaseURL(httpPort, httpsPort, schema, hostname, pw string) (*url.U
 	if strings.HasPrefix(v.Update, ":") {
 		port = strings.TrimPrefix(v.Update, ":")
 	}
-	v.Update = schema + "://" + hostname
+	v.Update = schema + "://gokrazy:" + pw + "@" + hostname
 	if port != defaultPort {
 		v.Update += ":" + port
 	}
 	v.Update += "/"
-	base, err := url.Parse(v.Update)
-	if err != nil {
-		return nil, err
-	}
-	base.User = url.UserPassword("gokrazy", pw)
-	return base, nil
+	return url.Parse(v.Update)
 }

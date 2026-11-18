@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"golang.org/x/sys/unix"
 
 	"github.com/opencontainers/cgroups"
-	"github.com/opencontainers/cgroups/fs2"
+	"github.com/opencontainers/cgroups/manager"
 	"github.com/opencontainers/runc/internal/pathrs"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/configs/validate"
@@ -56,7 +55,7 @@ func Create(root, id string, config *configs.Config) (*Container, error) {
 		return nil, err
 	}
 
-	cm, err := newCgroupV2Manager(config.Cgroups, nil)
+	cm, err := manager.New(config.Cgroups)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +126,7 @@ func Load(root, id string) (*Container, error) {
 		processStartTime: state.InitProcessStartTime,
 		fds:              state.ExternalDescriptors,
 	}
-	cm, err := newCgroupV2Manager(state.Config.Cgroups, state.CgroupPaths)
+	cm, err := manager.NewWithPaths(state.Config.Cgroups, state.CgroupPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -146,33 +145,6 @@ func Load(root, id string) (*Container, error) {
 		return nil, err
 	}
 	return c, nil
-}
-
-// newCgroupV2Manager is a ze patch (runc-04-cgroup-v2-manager). Upstream calls
-// manager.New and manager.NewWithPaths here, and that package links the
-// systemd driver and the cgroup v1 manager. Ze runs on the unified hierarchy
-// with no systemd, so the v2 manager is built directly, with the checks
-// manager.NewWithPaths made, and anything else is refused.
-func newCgroupV2Manager(config *cgroups.Cgroup, paths map[string]string) (cgroups.Manager, error) {
-	if config == nil {
-		return nil, errors.New("cgroup config must not be nil")
-	}
-	if config.Systemd {
-		return nil, errors.New("the systemd cgroup driver is not supported: only the cgroup v2 filesystem manager is built")
-	}
-	if !cgroups.IsCgroup2UnifiedMode() {
-		return nil, errors.New("the host is not in cgroup v2 unified mode: /sys/fs/cgroup is not a cgroup2 filesystem")
-	}
-	// The same sanity checks as getUnifiedPath of the manager package: the
-	// only key is "" and its value is the unified cgroup path, or empty.
-	if len(paths) > 1 {
-		return nil, fmt.Errorf("inconsistent cgroup paths: expected a single path, got %+v", paths)
-	}
-	path := paths[""]
-	if path != "" && (filepath.Clean(path) != path || !filepath.IsAbs(path)) {
-		return nil, fmt.Errorf("inconsistent cgroup paths: invalid path: %q", path)
-	}
-	return fs2.NewManager(config, path)
 }
 
 func loadState(root string) (*State, error) {

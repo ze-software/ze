@@ -2,16 +2,15 @@ package packer
 
 import (
 	"debug/elf"
-	"fmt"
+	"log"
 )
 
-func fileIsELF(filePath string) error {
+func fileIsELFOrFatal(filePath string) {
 	f, err := elf.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("%s is not an ELF binary: %w (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
+		log.Fatalf("%s is not an ELF binary! %v (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
 	}
 	if err := f.Close(); err != nil {
-		return fmt.Errorf("close ELF binary %s: %w", filePath, err)
+		log.Fatalf("%s is not an ELF binary! Close: %v (perhaps running into https://github.com/golang/go/issues/53804?)", filePath, err)
 	}
-	return nil
 }
