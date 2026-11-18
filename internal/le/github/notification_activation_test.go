@@ -118,16 +118,16 @@ func TestNotificationActivationRegisteredDeliveryPersistsAcrossReopen(t *testing
 		return notificationHTTPResponse(t, 200, `{"id":"900","channel_id":"123"}`), nil
 	})
 	action := notificationActivationTestArea(notificationActivationTestRead, transport)
-	if _, code := action.Answer([]string{"initialize", "run", "101", "config", fixture.config}); code != 0 {
+	if _, code := action.Answer([]string{"receipt", "run", "101", "config", fixture.config}); code != 0 {
 		t.Fatalf("explicit initialization code = %d", code)
 	}
 	if requests != 0 {
 		t.Fatal("initialization reached the credential transport")
 	}
-	if _, code := action.Answer([]string{"initialize", "run", "101", "config", fixture.config}); code == 0 {
+	if _, code := action.Answer([]string{"receipt", "run", "101", "config", fixture.config}); code == 0 {
 		t.Fatal("registered initialization replaced existing state")
 	}
-	payload, code := action.Answer([]string{"deliver", "run", "101", "config", fixture.config})
+	payload, code := action.Answer([]string{"delivery", "run", "101", "config", fixture.config})
 	if code != 0 {
 		t.Fatalf("registered delivery code = %d", code)
 	}
@@ -151,7 +151,7 @@ func TestNotificationActivationRegisteredDeliveryPersistsAcrossReopen(t *testing
 	// Each action opens and closes its store; no shared in-memory state can
 	// satisfy this repeat, including an independently constructed action.
 	reopened := notificationActivationTestArea(notificationActivationTestRead, transport)
-	payload, code = reopened.Answer([]string{"deliver", "run", "101", "config", fixture.config})
+	payload, code = reopened.Answer([]string{"delivery", "run", "101", "config", fixture.config})
 	if code != 0 {
 		t.Fatalf("reopened duplicate code = %d", code)
 	}
@@ -201,7 +201,7 @@ func TestNotificationActivationRefusesUnapprovedConfiguration(t *testing.T) {
 				requests++
 				return nil, errors.New("unexpected credential request")
 			}))
-			for _, verb := range []string{"initialize", "deliver"} {
+			for _, verb := range []string{"receipt", "delivery"} {
 				if _, code := action.Answer([]string{verb, "run", "101", "config", fixture.config}); code == 0 {
 					t.Errorf("%s accepted unapproved configuration", verb)
 				}
@@ -235,7 +235,7 @@ func TestNotificationActivationRefusesMissingCorruptAndUnresolvedState(t *testin
 			})
 			action := notificationActivationTestArea(notificationActivationTestRead, transport)
 			if mode != "missing" {
-				if _, code := action.Answer([]string{"initialize", "run", "101", "config", fixture.config}); code != 0 {
+				if _, code := action.Answer([]string{"receipt", "run", "101", "config", fixture.config}); code != 0 {
 					t.Fatalf("initialization code = %d", code)
 				}
 			}
@@ -244,11 +244,11 @@ func TestNotificationActivationRefusesMissingCorruptAndUnresolvedState(t *testin
 					t.Fatal(err)
 				}
 			}
-			if _, code := action.Answer([]string{"deliver", "run", "101", "config", fixture.config}); code == 0 {
+			if _, code := action.Answer([]string{"delivery", "run", "101", "config", fixture.config}); code == 0 {
 				t.Error("unusable delivery state succeeded")
 			}
 			reopened := notificationActivationTestArea(notificationActivationTestRead, transport)
-			if _, code := reopened.Answer([]string{"deliver", "run", "102", "config", fixture.config}); code == 0 {
+			if _, code := reopened.Answer([]string{"delivery", "run", "102", "config", fixture.config}); code == 0 {
 				t.Error("reopened unusable state authorized another event")
 			}
 			wantPosts := 0
@@ -310,7 +310,7 @@ func TestNotificationActivationPrivateFileBoundary(t *testing.T) {
 				requests++
 				return nil, errors.New("unexpected credential request")
 			}))
-			if _, code := action.Answer([]string{"deliver", "run", "101", "config", fixture.config}); code == 0 {
+			if _, code := action.Answer([]string{"delivery", "run", "101", "config", fixture.config}); code == 0 {
 				t.Error("private file boundary accepted unsafe authority")
 			}
 			if requests != 0 {
@@ -323,7 +323,7 @@ func TestNotificationActivationPrivateFileBoundary(t *testing.T) {
 // TestNotificationActivationProductionRegistration requires both explicit
 // actions to be discoverable through the same action table as preview/report.
 func TestNotificationActivationProductionRegistration(t *testing.T) {
-	for _, verb := range []string{"initialize", "deliver"} {
+	for _, verb := range []string{"receipt", "delivery"} {
 		found := false
 		for _, action := range Actions().Actions {
 			if action.Verb == verb {

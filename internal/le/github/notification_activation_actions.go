@@ -31,12 +31,12 @@ const (
 
 func notificationActivationActions(read notificationRunReader, transport http.RoundTripper) []leaction.Action {
 	return []leaction.Action{
-		{Verb: "initialize", Summary: "initialize one approved workflow receipt without delivery",
+		{Verb: "receipt", Does: "create", Summary: "initialize one approved workflow receipt without delivery",
 			Why:        "Read the private operator-provisioned approval and one trusted workflow run. Create an empty durable receipt only if none exists. This explicit action never replaces state or sends a message.",
 			Parameters: notificationActivationParameters(), AnswerArgs: func(args leaction.Arguments) (any, int) {
 				return answerNotificationActivation(args, notificationActivationInitialize, read, transport)
 			}},
-		{Verb: "deliver", Summary: "attempt one approved maintainer notification transition",
+		{Verb: "delivery", Does: "run", Summary: "attempt one approved maintainer notification transition",
 			Why:        "Read the private operator-provisioned approval and one trusted workflow run. Use its existing locked receipt and separate private credential for at most one message. Missing, corrupt or unresolved state refuses delivery without initialization or retry.",
 			Parameters: notificationActivationParameters(), AnswerArgs: func(args leaction.Arguments) (any, int) {
 				return answerNotificationActivation(args, notificationActivationDeliver, read, transport)
@@ -97,10 +97,10 @@ func notificationActivationOperatorError(err error, operation notificationActiva
 	switch operation {
 	case notificationActivationInitialize:
 		return opererr.Wrap(err, "GitHub notification initialization could not complete ("+codeNotificationActivation+")",
-			why, "./le help github initialize")
+			why, "./le help github receipt")
 	case notificationActivationDeliver:
 		return opererr.Wrap(err, "GitHub notification delivery could not complete ("+codeNotificationActivation+")",
-			why, "./le help github deliver")
+			why, "./le help github delivery")
 	case notificationActivationUnspecified:
 		return opererr.Wrap(err, "GitHub notification operation was not selected ("+codeNotificationActivation+")",
 			why, "./le help github")

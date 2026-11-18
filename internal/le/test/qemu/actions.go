@@ -155,7 +155,7 @@ var actions = leaction.New(area,
 		Answer:  runApplianceStorageHere,
 	},
 	leaction.Action{
-		Verb:    "appliance-config-push",
+		Verb:    "appliance-config",
 		Does:    doesRun,
 		Summary: "test native appliance SSH configuration publication",
 		Why:     "build one native credentialed image, run the current host driver's appliance config-push with a private SSH agent and a disk-verified host pin, then check live publication, same-disk reboot retention and three refusal controls",
@@ -531,7 +531,7 @@ func runApplianceConfigPushHere() (any, int) {
 		leaction.ReportError(opererr.Wrap(err,
 			"cannot configure the native appliance configuration proof",
 			"a ZE_INSTALL setting is invalid; correct that setting before retrying the SSH configuration proof",
-			"./le test qemu appliance-config-push"))
+			"./le test qemu appliance-config"))
 		return nil, 1
 	}
 	root, err := lepath.Root()
@@ -539,7 +539,7 @@ func runApplianceConfigPushHere() (any, int) {
 		leaction.ReportError(opererr.Wrap(err,
 			"cannot find the Ze checkout for the native appliance configuration proof",
 			"the proof builds its image and host driver from the checkout; set ZE_REPO_ROOT before retrying",
-			"ZE_REPO_ROOT=/path/to/ze ./le test qemu appliance-config-push"))
+			"ZE_REPO_ROOT=/path/to/ze ./le test qemu appliance-config"))
 		return nil, 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
@@ -549,7 +549,7 @@ func runApplianceConfigPushHere() (any, int) {
 		leaction.ReportError(opererr.Wrap(err,
 			"the native appliance configuration proof did not finish",
 			"the image, SSH publication, persistence or refusal phase failed; correct the reported cause, then retain the owned disk and serial logs on the next run",
-			"ZE_INSTALL_KEEP=1 ./le test qemu appliance-config-push"))
+			"ZE_INSTALL_KEEP=1 ./le test qemu appliance-config"))
 		return &report, 1
 	}
 	return &report, installExitCode(&report)

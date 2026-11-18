@@ -173,8 +173,8 @@ Initialize each workflow once, selecting an identified trusted run. Then
 deliver one identified run at a time:
 
 ```sh
-./le github initialize run <positive-run-id> config /absolute/private/directory/config.json
-./le github deliver run <positive-run-id> config /absolute/private/directory/config.json '|' json
+./le github receipt run <positive-run-id> config /absolute/private/directory/config.json
+./le github delivery run <positive-run-id> config /absolute/private/directory/config.json '|' json
 ```
 
 Initialization creates an empty receipt and sends nothing. It refuses to

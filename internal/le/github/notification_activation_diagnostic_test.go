@@ -19,7 +19,7 @@ func TestNotificationActivationReadinessDiagnostic(t *testing.T) {
 	notificationActivationTestReady(t, fixture)
 	for _, config := range []string{fixture.config + ".missing", fixture.config} {
 		action := notificationActivationTestArea(notificationActivationTestRead, nil)
-		payload, code := action.Answer([]string{"deliver", "run", "101", "config", config})
+		payload, code := action.Answer([]string{"delivery", "run", "101", "config", config})
 		if code == 0 {
 			t.Fatal("missing authority or transport reported readiness")
 		}

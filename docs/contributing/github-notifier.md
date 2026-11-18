@@ -143,7 +143,7 @@ Initialize each workflow explicitly using one trusted run from that workflow:
 ```sh
 cd /
 sudo -u ze-github-notifier env -u ZE_REPO_ROOT -u ZE_LE_BUILD_NAME \
-  /opt/ze-github-notifier/current/le github initialize run <verify-run-id> \
+  /opt/ze-github-notifier/current/le github receipt run <verify-run-id> \
   config /etc/ze-github-notifier/verify.json '|' json
 ```
 
@@ -286,7 +286,7 @@ can each authorize the same message.
 3. Assign the transferred files to the new host's `ze-github-notifier` UID and
    group. Set private directories to `0700` and private files to `0600`.
    Account UIDs can differ between hosts. Validate the transferred receipts
-   instead of running `initialize`. A fresh ledger for the same workflow and
+   instead of running `receipt`. A fresh ledger for the same workflow and
    destination can repeat earlier messages.
 4. Confirm that the old host remains stopped and disabled. Run one poll on the
    new host and inspect its result. Enable the new timer only after that poll

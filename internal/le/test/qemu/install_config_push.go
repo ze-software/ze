@@ -32,7 +32,7 @@ const configPushObserver = "config-push-observer"
 const configPushHostKey = "configpush_host_ed25519"
 
 func (installer *Installer) executeApplianceConfigPush(ctx context.Context) (report InstallReport, resultErr error) {
-	report.Action, report.Arch = "appliance-config-push", installer.Options.Arch
+	report.Action, report.Arch = "appliance-config", installer.Options.Arch
 	report.Accelerator, report.Verdict = installer.accelerator(), InstallVerdictFail
 	defer func() {
 		if resultErr != nil {

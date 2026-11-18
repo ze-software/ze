@@ -11,18 +11,18 @@ import (
 // addressable independently of the HTTPS mutation used by appliance-ota.
 func TestApplianceConfigPushActionIsNative(t *testing.T) {
 	for _, action := range Actions().Actions {
-		if action.Verb != "appliance-config-push" {
+		if action.Verb != "appliance-config" {
 			continue
 		}
 		if action.Forwards {
-			t.Fatal("appliance-config-push forwards words instead of owning the native proof")
+			t.Fatal("appliance-config forwards words instead of owning the native proof")
 		}
 		if err := Actions().Accepts(action.Verb, nil); err != nil {
-			t.Fatalf("native appliance-config-push invocation refused: %v", err)
+			t.Fatalf("native appliance-config invocation refused: %v", err)
 		}
 		return
 	}
-	t.Fatal("missing appliance-config-push action: HTTPS upload does not prove the SSH product command")
+	t.Fatal("missing appliance-config action: HTTPS upload does not prove the SSH product command")
 }
 
 type applianceConfigPushRunner interface {

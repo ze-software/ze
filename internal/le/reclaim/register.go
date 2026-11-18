@@ -21,7 +21,7 @@ const area = "reclaim"
 
 var actions = leaction.New(area, leaction.Action{
 	Verb:    "worktrees",
-	Does:    "remove",
+	Does:    "clean",
 	Summary: "reclaim abandoned verification artifacts",
 	Why:     "remove abandoned worktrees and directoryless dead-owner markers without verification; preserve live owners, changed worktrees and unknown identities",
 	Writes:  true,

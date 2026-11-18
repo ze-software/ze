@@ -48,7 +48,7 @@ type notificationPollReport struct {
 }
 
 func notificationPollActions(transport http.RoundTripper) []leaction.Action {
-	return []leaction.Action{{Verb: "poll", Summary: "catch up approved workflow notifications once",
+	return []leaction.Action{{Verb: "poll", Does: "run", Summary: "catch up approved workflow notifications once",
 		Why:        "Read bounded stable main-branch runs for each approved workflow, then process them oldest first. Existing private receipts govern delivery and independent scan progress. This action installs no service and initializes no state.",
 		Parameters: []leaction.Parameter{{Keyword: "config", Kind: leaction.KindPath, Value: "private-file", Requirement: leaction.Required, Help: "the private poll file naming initialized approvals"}},
 		AnswerArgs: func(args leaction.Arguments) (any, int) {
