@@ -1,0 +1,146 @@
+# Test: MCP and REST list an external plugin's command with the parameters of its -api rpc
+#
+# Question: when an external plugin brings a -cmd module whose `target` node
+# points with ze:rpc at an rpc of the -api module it also brings, do MCP and
+# REST list the command with that rpc's input leaf `name`, its two texts and
+# required, in the shape a compiled-in command's rpc input gets, and does a
+# call through each reach the plugin with a good value while the daemon
+# refuses a value the leaf's type refuses before the plugin is asked?
+# Why not a unit test: TestBuildParamMetaReadsAnExternalPluginsRPC and
+# TestBuildCommandMetaGivesAPluginOnlyCommandItsRPCParameters prove the
+# metadata source over a resolved set and over maps. Only a daemon proves the
+# source reads the set boot published, the MCP tool and the REST description
+# are built from it, and a call crosses to the forked plugin.
+#
+# What each surface shows, read from the producing code:
+#   - MCP groups `show acme-monitor status` and `target` into one tool,
+#     ze_show_acme_monitor (groupCommands, toolName), whose inputSchema holds
+#     `action` and the typed rpc input leaf `name`, with `title` from its
+#     ze:help and `description` from its description (addYANGParams), and
+#     `name` required; with typed params no `arguments` property is added.
+#     The compiled-in comparison is `system command help`, whose rpc input
+#     leaf `name` (ze-system-api.yang) is listed on ze_system_command in the
+#     same shape: type, title, description; asserted below exactly as
+#     test/plugin/mcp-tools-list-argument-texts.ci asserts it. MCP carries no
+#     length bound for either: a JSON Schema property holds no YANG length.
+#   - the action enum's description carries each command's YANG summary
+#     (commandModelHelp.texts), never the plugin's Stage 1 summary.
+#   - a call writes `name <value>` after the action (dispatchGenerated,
+#     command.WriteInvocation); the plugin answers the arguments it received.
+#   - REST describes the command from the same source (commandMetaSource,
+#     apiCommandLister), with the param's short-help.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-41 (owner ruling P-1: "yes,
+#   like current internal plugin, the exact same way"), MCP and REST.
+# PREVENTS: an external plugin's command listed on the API surfaces with no
+#   parameters (buildCommandMeta gave a command only a plugin serves none).
+# Not proven here: gRPC. Its command list reads the same commandMetaSource
+#   (buildAPIEngine, cmd/ze/hub/api.go), and no generic gRPC client exists for
+#   a .ci; the unit tests above cover that source.
+#
+# Method: test/plugin/external-yang-command-argument.ci's daemon with an MCP
+# listener on $PORT2 and a REST listener on $PORT3. `le test mcp` is a
+# quick-exit command, so its output span is exact; `wait-tool` polls
+# tools/list until the plugin's tool is listed.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_show_acme_monitor
+probe tools/list
+probe tools/call {"name":"ze_show_acme_monitor","arguments":{"action":"target","name":"probe-b"}}
+probe tools/call {"name":"ze_show_acme_monitor","arguments":{"action":"target","name":"this-name-is-far-too-long"}}
+EOF_MCP
+
+tmpfs=rest-target.json:terminator=EOF_REST
+{"command":"show acme-monitor target","params":{"name":"probe-c"}}
+EOF_REST
+
+tmpfs=commands.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+	mcp {
+		enabled true;
+		auth-mode none;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+	api-server {
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port $PORT3;
+			}
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang commands"
+		encoder json
+	}
+}
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start commands.conf:name=daemon:ready=Ze running.
+# A good value reaches the plugin from MCP and from REST; the refused one never.
+expect=stderr:pattern=FIXTURE: external-yang command show acme-monitor target args=\[(name )?probe-b\]
+expect=stderr:pattern=FIXTURE: external-yang command show acme-monitor target args=\[(name )?probe-c\]
+reject=stderr:pattern=args=\[[^\]]*this-name-is-far-too-long
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+cmd=foreground:seq=3:exec=le test mcp --port $PORT2:stdin=mcp:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+# The plugin's tool: action and the typed leaf name, required, no arguments.
+expect=stdout:pattern="inputSchema":\{"properties":\{"action":\{[^}]*\},"name":\{"description":"The target name, from 1 to 16 characters\.","title":"Name of the target\.","type":"string"\}\},"required":\["action","name"\],"type":"object"\},"name":"ze_show_acme_monitor"
+# The compiled-in comparison: the rpc input leaf of system command help.
+expect=stdout:pattern="name":\{"description":"The full command name, as command-list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}
+# The YANG summaries name the actions, never the Stage 1 one.
+expect=stdout:pattern=status: Show whether the acme monitor is polling\.
+expect=stdout:pattern=target: Show one target the acme monitor polls\.
+reject=stdout:contains=Declared at Stage 1, not in the YANG.
+# The good call is the plugin's answer, with the value it received.
+expect=stdout:pattern=\[(name )?probe-b\]
+# The long value is the daemon's refusal of the leaf's length.
+expect=stdout:contains=is outside the accepted length (25 characters)
+
+# REST describes the command from the same source, then runs it. The config
+# declares a user, so REST requires a credential on every request
+# (buildAPIAuthentication, cmd/ze/hub/api.go: with users, `Bearer
+# <user>:<password>`; RESTServer.withAuth answers 401 without one), as
+# test/plugin/rest-peer-set-delete-lifecycle.ci sends its token.
+http=wait:seq=1:url=http://127.0.0.1:$PORT3/api/v1/commands/show/acme-monitor/target:status=200:contains=Name of the target.:header=Authorization: Bearer admin:testpass:timeout=30s
+http=post:seq=2:url=http://127.0.0.1:$PORT3/api/v1/execute:status=200:sendfile=rest-target.json:contains=probe-c:header=Authorization: Bearer admin:testpass

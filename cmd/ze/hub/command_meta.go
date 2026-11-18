@@ -225,12 +225,30 @@ func buildCommandMeta(
 			}
 			continue
 		}
-		byName[strings.ToLower(cmd.Name)] = len(infos)
-		infos = append(infos, commandMeta{
+		// A command only a plugin serves, an external plugin's own, takes from
+		// the YANG what a builtin takes: the parameters of the rpc its node
+		// points at with ze:rpc, its task support and its UI resource, and the
+		// read-only answer the dispatcher's authorization gives its path. The
+		// only difference is how it reaches the bus (owner ruling, spec
+		// plugin-external-yang-at-startup AC-41). A path the YANG does not
+		// declare finds nothing in the maps, so it is listed as before.
+		info := commandMeta{
 			Name:        cmd.Name,
 			ShortHelp:   cmd.ShortHelp,
 			Description: cmd.Description,
-		})
+			ReadOnly:    pluginserver.IsReadOnlyPath(cmd.Name),
+			Params:      anchoredParams(paramsByPath[cmd.Name], nil),
+			TaskSupport: taskSupportByPath[cmd.Name],
+		}
+		if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
+			info.UIResource = &commandUIResource{
+				Path:        ui.Path,
+				Permissions: ui.Permissions,
+				CSP:         ui.CSP,
+			}
+		}
+		byName[strings.ToLower(cmd.Name)] = len(infos)
+		infos = append(infos, info)
 	}
 
 	// Both sources range over Go maps, so without this the order differs
@@ -296,6 +314,11 @@ func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, err
 		inputs[rpc.WireMethod] = rpc.Input
 	}
 
+	// Where the dispatcher binds each value is a fact of the command tree
+	// (command.ArgDef.Anchor). A builtin's own ArgDefs re-anchor its params in
+	// buildCommandMeta; a command only a plugin serves has none there, so its
+	// params carry the anchor of the same tree from here.
+	defsByPath := yangloader.PathToArgDefs(schema)
 	result := make(map[string][]commandParam)
 	for path, wire := range pathToWire {
 		input := inputs[wire]
@@ -312,7 +335,7 @@ func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, err
 				Required:    leaf.Mandatory,
 			}
 		}
-		result[path] = params
+		result[path] = anchoredParams(params, defsByPath[path])
 	}
 
 	return result, nil

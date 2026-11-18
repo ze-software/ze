@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -297,6 +298,22 @@ func newValidatorRegistry() *yang.ValidatorRegistry {
 	return reg
 }
 
+// RefuseUnheldRegistrations refuses set, the module set DefaultLoader
+// answers, when a module compiled into ze names a ze:validate function or a
+// ze:reference source this process does not hold, with the refusal
+// yang.RefuseUnheldCompiledRegistrations states: a defect of the build, judged
+// by the rule the join applies to an external module, against the registry the
+// value validator is built with. Every error it answers is that refusal.
+//
+// Only a binary that links every package registering a name its modules use
+// can pass it: the ze binary, through the composition root plugin/all. A test
+// binary that links a module without the package registering its names holds
+// a smaller set and is refused. `ze start` calls it before it parses the
+// config (cmd/ze/hub refuseWronglyBuilt), so a daemon never runs such a build.
+func RefuseUnheldRegistrations(set *yang.Resolved) error {
+	return yang.RefuseUnheldCompiledRegistrations(set, newValidatorRegistry())
+}
+
 // YANGValidator answers the plugin-free YANG value validator, built once per
 // module set (yangValidatorCache) and shared by every later call, for the
 // reason YANGSchema is: its input is embedded or registered at init, and
@@ -337,14 +354,23 @@ func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 	reg := newValidatorRegistry()
 	v.SetRegistry(reg)
 
-	// Startup integrity check: verify every ze:validate in YANG has a registered function.
+	// `ze start` refuses a build whose compiled-in modules name a registration
+	// it does not hold (RefuseUnheldRegistrations, before the config is
+	// parsed), so these two lines are reached only outside a daemon: a local
+	// command of a wrongly built ze, or a test binary that links a module
+	// without the package registering its names. They are not a refusal: such a
+	// test binary judges every other leaf as ze does, and refusing would end it.
 	if err := yang.CheckAllValidatorsRegistered(loader, reg); err != nil {
-		slog.Error("YANG validator integrity check failed", "error", err)
+		slog.Error("a YANG leaf names a ze:validate function this process does not hold, "+
+			"so the leaf is not validated here; ze start refuses such a build",
+			"error", err, "code", diagnostic.CodeDoctorBuildRegistrationUnheld)
 	}
-	// The same check for ze:reference: a leaf whose source no component
-	// registered refuses every value at commit (yang.ValidateReferences).
+	// A leaf whose source no component registered refuses every value at
+	// commit (yang.ValidateReferences).
 	if err := yang.CheckAllReferenceSourcesRegistered(loader); err != nil {
-		slog.Error("YANG reference source integrity check failed", "error", err)
+		slog.Error("a YANG leaf names a ze:reference source this process does not hold, "+
+			"so the leaf refuses every value here; ze start refuses such a build",
+			"error", err, "code", diagnostic.CodeDoctorBuildRegistrationUnheld)
 	}
 
 	return v, nil

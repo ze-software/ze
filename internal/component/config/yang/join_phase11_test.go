@@ -195,8 +195,9 @@ func TestJoinAcceptsALibraryModuleAnotherModuleImports(t *testing.T) {
 	}
 }
 
-// acmeEmptyModule declares no statement at all: a header and a revision, as
-// the compiled-in ze-rpki-decorator is.
+// acmeEmptyModule declares no statement at all: a header and a revision, the
+// shape the compiled-in set is held never to ship again
+// (TestNoShippedModuleAddsNothing).
 const acmeEmptyModule = `module acme-empty {
     namespace "urn:acme:empty";
     prefix acmeempty;
@@ -258,21 +259,29 @@ func TestIdleModuleNamesJudgesEveryModuleOfASet(t *testing.T) {
 	}
 }
 
-// TestJoinAcceptsAnEmptyModuleAndAnAnchor: an external module that declares
-// no statement at all is joined, since nothing of it is lost and the
-// compiled-in set ships such modules; an external -cmd module whose one node
+// TestJoinRefusesAnEmptyModuleAndAcceptsAnAnchor: an external module that
+// declares no statement at all is refused with the fix that drops it, as the
+// compiled-in set is held to ship none; an external -cmd module whose one node
 // carries a ze:help and no command is joined, as the compiled-in verb-root
-// anchors are; a -cmd module whose node carries neither is still refused.
+// anchors are; a -cmd module whose node carries neither is refused.
 //
-// VALIDATES: refuseIdleModules refuses what IdleModuleNames names, and only
-// that, for an external module.
-// PREVENTS: an external plugin refused for a module shape the compiled-in set
-// ships.
-func TestJoinAcceptsAnEmptyModuleAndAnAnchor(t *testing.T) {
-	if _, err := Join(joinCompiled(t), []ExternalModule{
+// VALIDATES: refuseIdleModules refuses what IdleModuleNames and
+// EmptyModuleNames name, and only that, for an external module.
+// PREVENTS: an empty module joined from an external plugin while the
+// compiled-in set may not ship one, or a module shape the compiled-in set
+// ships refused from an external plugin.
+func TestJoinRefusesAnEmptyModuleAndAcceptsAnAnchor(t *testing.T) {
+	_, err := Join(joinCompiled(t), []ExternalModule{
 		acmeModule("acme-empty", "urn:acme:empty", acmeEmptyModule),
-	}, joinValidators()); err != nil {
-		t.Errorf("Join refused a module that declares nothing: %v", err)
+	}, joinValidators())
+	if err == nil {
+		t.Fatal("Join accepted a module that declares no statement at all")
+	}
+	if !strings.Contains(err.Error(), `Module "acme-empty"`) || !strings.Contains(err.Error(), "declares no statement") {
+		t.Errorf("the refusal does not name the empty module: %v", err)
+	}
+	if !strings.Contains(err.Error(), `remove module "acme-empty"`) {
+		t.Errorf("the refusal does not give the fix that drops the empty module: %v", err)
 	}
 	if _, err := Join(joinCompiled(t), []ExternalModule{
 		acmeModule("acme-anchor-cmd", "urn:acme:anchor:cmd", acmeAnchorCmd),
@@ -280,7 +289,7 @@ func TestJoinAcceptsAnEmptyModuleAndAnAnchor(t *testing.T) {
 		t.Errorf("Join refused a -cmd anchor whose node carries a ze:help: %v", err)
 	}
 	bare := strings.Replace(acmeAnchorCmd, `ze:help "Commands other modules add under acme-verb.";`, "", 1)
-	_, err := Join(joinCompiled(t), []ExternalModule{
+	_, err = Join(joinCompiled(t), []ExternalModule{
 		acmeModule("acme-anchor-cmd", "urn:acme:anchor:cmd", bare),
 	}, joinValidators())
 	if err == nil {

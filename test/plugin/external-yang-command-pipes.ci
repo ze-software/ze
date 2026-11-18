@@ -1,0 +1,112 @@
+# Test: a pipe on an external plugin's answer gives what it gives on a compiled-in command's answer
+#
+# Question: does `| json`, `| count` and an undeclared pipe on the answer of an
+# external plugin's command, typed to the running ze, give exactly what the
+# same pipe gives on a compiled-in command whose answer has the same shape?
+# Both answers are one document of scalar fields: the plugin answers
+# {"result","args"} (externalYANGCommand), and `system command help` answers
+# {"command","short-help","description","source"} (lookupCommandHelp).
+# Why not a unit test: the pipe catalog is unit-tested on strings
+# (internal/component/command). Only a daemon shows the plugin's answer coming
+# back over the process boundary and reaching the same pipe chain a builtin's
+# answer reaches.
+#
+# What each pipe answers, read from the producing code (ApplyPipes,
+# internal/component/command/pipe.go): `| count` counts rows, and a document
+# has none, so it is refused by name (rowOperatorRefusal: "count needs rows,
+# and this answer has none: it holds one document"), with `| text | count` as
+# the fix, which counts rendered lines. That is the generic behaviour of
+# `| count` for every answer (ai/META-DECISIONS.md, pipe operations), so the
+# plugin's answer takes it as a builtin's does.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-38: `| json` and `| count`
+#   on the plugin's answer, and an undeclared pipe refused as on any command.
+# PREVENTS: a plugin's answer that bypasses the pipe chain, or that a pipe
+#   treats differently from a builtin's answer of the same shape.
+#
+# Method: test/plugin/external-yang-command-argument.ci's daemon; each step is
+# a `ze cli -c` quick-exit command, so its `exit=` is compared and its own
+# output span is exact. Each external step follows the same step on the
+# compiled-in command.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=commands.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang commands"
+		encoder json
+	}
+}
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start commands.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang command show acme-monitor status args=[]
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# The plugin's answer through `| json`: a quoted key exists only in the JSON
+# rendering. The first external step also waits on nothing: `ze start` is
+# ready once every plugin passed its startup tier, and the command was
+# registered then.
+cmd=foreground:seq=3:exec=ze cli -c "show acme-monitor status | json":exit=0
+expect=stdout:contains="result"
+expect=stdout:contains="args"
+
+# `| count` on the compiled-in document: refused by name, with the fix.
+cmd=foreground:seq=4:exec=ze cli -c 'system command help name "show version" | count':exit=1
+expect=stderr:contains=count needs rows, and this answer has none: it holds one document
+expect=stderr:contains=| text | count
+
+# `| count` on the plugin's document: the same refusal, the same fix.
+cmd=foreground:seq=5:exec=ze cli -c "show acme-monitor status | count":exit=1
+expect=stderr:contains=count needs rows, and this answer has none: it holds one document
+expect=stderr:contains=| text | count
+reject=stdout:contains="count"
+
+# The fix the refusal names counts the rendered lines, on both answers.
+cmd=foreground:seq=6:exec=ze cli -c 'system command help name "show version" | text | count':exit=0
+expect=stdout:pattern="count":[0-9]+
+
+cmd=foreground:seq=7:exec=ze cli -c "show acme-monitor status | text | count":exit=0
+expect=stdout:pattern="count":[0-9]+
+reject=stderr:contains=needs rows
+
+# A pipe no command declares is refused on both, naming the pipe.
+cmd=foreground:seq=8:exec=ze cli -c 'system command help name "show version" | bogus':exit=1
+expect=stderr:contains=bogus
+
+cmd=foreground:seq=9:exec=ze cli -c "show acme-monitor status | bogus":exit=1
+expect=stderr:contains=bogus
+reject=stdout:contains=show acme-monitor status

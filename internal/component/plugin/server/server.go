@@ -85,6 +85,7 @@ type Server struct {
 	committed         committedRecord  // the daemon's last committed config transaction (doctor_delivery.go)
 	reactor           plugin.ReactorLifecycle
 	dispatcher        *Dispatcher
+	commandHelp       commandModelHelp                              // YANG help texts of the kept module set (doctor_delivery.go)
 	rpcDispatcher     *ipc.RPCDispatcher                            // Wire method dispatch for socket clients
 	rpcHandlers       map[string]func(json.RawMessage) (any, error) // Lazily collected from registry
 	rpcHandlersOnce   sync.Once
@@ -335,6 +336,9 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	wireToPath := yang.WireMethodToPath(schema)
 	pathToDesc := yang.PathToDescription(schema)
 	pathToHelp := yang.PathToHelp(schema)
+	// A plugin's commands are listed with these same texts when it registers
+	// them (registerProcessCommands): the set is kept, so they cannot go stale.
+	s.commandHelp = commandModelHelp{summary: pathToDesc, explanation: pathToHelp}
 	pathToArgDefs := yang.PathToArgDefs(schema)
 	// Every dispatch route (command.ValidateModelArgs) judges arguments
 	// against these same definitions. Seeding them here spares the first

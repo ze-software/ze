@@ -1,0 +1,38 @@
+# Test: Tab in a session of the running ze offers an external plugin's commands and argument leaf
+#
+# Question: when an external plugin brings a -cmd module, does Tab in a session
+# of the running ze offer the plugin's commands under their container
+# (`show acme-monitor ` offers status and target) and the argument leaf the
+# command node declares (`show acme-monitor target ` offers name)?
+# Why not a unit test: TestEditorCompletesExternalRootFromThePublishedSet
+# proves the completer reads the published set for config. Only a session on a
+# real daemon proves the operational tree the session factory builds
+# (buildCommandTree, cmd/ze/hub/session_factory.go) holds the commands and the
+# leaf of a module a live plugin declared at boot.
+#
+# What the screen shows, read from the producing code: the menu after Tab on
+# `show acme-monitor ` names both children (TreeCompleter.matchChildren). A
+# string leaf is offered by its name, and a lone candidate is applied to the
+# line by Tab (Model.handleTab), as for a compiled-in command with a mandatory
+# string leaf, so `name` is on the screen either way; the typed text holds
+# neither `status` nor `name`. The leaf's type enumerates no value, so no value
+# is offered.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-31.
+# PREVENTS: an external plugin's commands that answer when typed whole and are
+#   never offered by completion.
+#
+# Method: the compiled fixture
+# (internal/test/fixture/ui_fixture_external_yang_command_help.go) starts a
+# daemon with the external-yang plugin in its `commands` variant, waits until
+# the plugin answers its command, and drives a plain ssh client under a
+# pseudo-terminal on the operational prompt.
+#
+# The timeout is DECLARED because this file starts a daemon and drives two
+# interactive terminal sessions, each with a settling window.
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture ui/external-yang-command-completion $PORT
+expect=exit:code=0
+expect=stdout:contains=OK: Tab offered status and target, and the argument leaf name of target
+reject=stdout:pattern=ZE-OBSERVER-FAIL

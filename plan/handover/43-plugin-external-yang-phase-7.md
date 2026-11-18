@@ -478,3 +478,98 @@ top-level redefinition refusal, the idle-module refusal, the stricter
 `ze:validate` and `ze:reference` verdict, the AC-40 Stage 1 node check, the
 "YANG wins" help rule, and the command path clash. Each is settled by the
 rule or brought to the owner before closure.
+
+## State at 2026-11-17, end of the second part of phase 11
+
+This section replaces the lists above for what comes next. The spec's
+"What this spec still owes before it can close" is the full record; this is
+the summary for the next session.
+
+**Commits.** Server branch `worktree-yang-finish`, worktree
+`.claude/worktrees/yang-finish`. The laptop twins are as the supervising
+session reported them; they cannot be read from the server.
+
+| Server | Laptop `main` | What |
+|--------|---------------|------|
+| `a529b75fd9` | `81567bab05` | `ze config fmt`, `dump`, `diff`, `graph` ask a running ze; the save test; R-15 and R-18 |
+| `c40ca5fb09` | `f98ca55702` | The command-line text road kept; AC-11 narrowed; the boot test split |
+| `adc03a69ac` | `af22d6f7be` | Phase 11, first step: `schemas` list, strict decoder `rpc.DecodeDeclaration`, the join takes external `-cmd` and `-api` modules |
+| `6f127569c1` | `c370011e55` | Phase 11, second part: Stage 1 check `command-nodes-served`, shell form, restart and clash refusals, `moduleUseOf`, the examples, the pages |
+
+**What is built and proven** (three runs each on a real daemon, per the
+commit bodies): `external-yang-command-argument`, `-schema-key-refused`,
+`-command-shell-running`, `-command-shell-no-daemon`,
+`-command-restart-changed`, `-command-path-clash`, `-command-python`. AC-32 to
+AC-37 are proven, AC-38 for `| json`, AC-39 for its argument part. AC-40 is
+narrowed to the compiled-in rule (every node a plugin brings is reached by a
+command it declares) and carried at unit level. AC-35 is corrected: a plugin
+restarted with a changed module stays down and its commands answer "unknown
+command" until ze restarts.
+
+**What remains.**
+
+| Item | State |
+|------|-------|
+| Tests of help and completion in a session (AC-30, AC-31), `\| count` (AC-38), the MCP, REST and gRPC parameters (AC-41), and `external-yang-unheld-registration-refused.ci` (AC-11) | Being written by another agent |
+| AC-42 to AC-45, the four decisions below | Being built by three agents |
+| A build of the Go example (no gate compiles it) | Owed |
+| The registration's `PluginSchemas` field, written and never read | Delete it or give it a reader |
+| The uncached schema rebuild on the text road; the six pages of still-owes row 13 | Owed |
+| An owner for journal row `green-that-could-not-have-been-red.md` 2026-11-17 that outlives the spec | Owed before commit B |
+| The Review Gate in an independent context, then `/ze-close` | After all of the above |
+
+**The four decisions.** Put to the owner with the supervising session's
+recommendations: remove `pkg/plugin/plugin.go`; remove the six empty
+compiled-in modules in this phase; refuse a redefined top-level node on both
+sides and convert the six `service` definers to `augment`; refuse an unheld
+`ze:validate` or `ze:reference` on both sides. His answer, verbatim: "It
+seems you have all the answers." The supervising session reads that as
+approval of the four, told him so, and proceeds; it is not an explicit
+approval of each. The spec's Key Design Decisions, "Decided 2026-11-17",
+holds the table and the stop conditions given to the implementing agents.
+
+**The redefinition rule moved to its own spec (D-6, AC-44).** The agent
+building it found five shared top-level roots (`environment`, `system`,
+`interface`, `l2tp`, `service`) across about 26 compiled-in modules, not one,
+and a shipped defect: with `ze_cos` built, the schema keeps the CoS copy of the
+interface lists and drops the interface module's own list declarations
+(journal `silent-fall-through.md` 2026-11-17, read and not run). It stopped
+before any edit. Shown the facts, the owner answered "ok" to the
+recommendation: a spec of its own, written now as a design, with the defect
+as its first acceptance criterion. It is
+`plan/release/fixes/spec-config-yang-one-definer-per-node.md` (P1, `design`;
+open decisions O-1 to O-4 for his design review). This spec keeps
+`refuseRedefinedRoots` for external modules as an arrival rule, and AC-44 is
+marked moved, not met.
+
+**Journal.** The new row `error-names-no-fix-command.md` 2026-11-17 (the
+missing-argument refusal) is owned by
+`plan/release/fixes/spec-web-cli-config-one-off-defects.md`, AC-31 there.
+
+**A lead, not a defect record.** The ExaBGP bridge's Ze-facing startup
+(`internal/exabgp/bridge/bridge.go`, `startupProtocol`, `sendDeclarations`)
+appears to write the retired text declaration lines, and no daemon reader of
+them was found while `pkg/plugin/plugin.go` was examined. Nobody investigated
+it: whoever next works on the bridge reads what the daemon does with those
+lines before anything else.
+
+**The carry routine, as it works now.**
+
+1. On the server, write an apply script for the commit; the laptop pulls and
+   runs it on its working tree.
+2. When a file the commit touches holds another session's adjacent
+   uncommitted edit on the laptop, the apply refuses that file. The file is
+   then merged by hand on the server into a `resolved` copy, and the apply uses
+   it only if the laptop's copy is still unchanged.
+3. The test-judge approvals and the commit preparation (`./le commit create`)
+   run in the owner's shell, because approvals are keyed to the shell session.
+4. The owner runs the printed script and signs.
+
+**Traps met today.**
+
+| Trap | What to do |
+|------|------------|
+| A bare `go test` lacks the build tags | `./le test unit pkg path <dir>` |
+| Lint refuses when its inputs change during the run | Run it when no agent is editing the files it reads |
+| Agents stop at 100 tool calls | Plan each package so a continuation can take it over |
+| The Go edit hook refuses until the style guide and the doors are read in the session | Name them in every code agent's brief, from the main checkout |

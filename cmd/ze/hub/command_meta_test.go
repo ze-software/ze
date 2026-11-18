@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/test/externalyang"
 )
 
 // TestBuildCommandMeta_DedupesPluginProxiedCommand covers the union of the two
@@ -441,5 +442,85 @@ module ze-fixture-cmd {
 	byPath, err := buildParamMeta(schema)
 	if !errors.Is(err, yangloader.ErrRPCPointer) {
 		t.Fatalf("buildParamMeta = %v, %v; want an ErrRPCPointer refusal", byPath, err)
+	}
+}
+
+// TestBuildCommandMetaGivesAPluginOnlyCommandItsRPCParameters proves a command
+// only a plugin serves, an external plugin's own, is listed with what a builtin
+// takes from the YANG: the parameters of the rpc its node points at, its task
+// support, and the read-only answer of its path.
+//
+// VALIDATES: spec-plugin-external-yang-at-startup AC-41, the metadata source
+// MCP, REST and gRPC share (commandMetaSource).
+// PREVENTS: an external plugin's command listed on every API surface with no
+// parameters, while its -api rpc declares them.
+// Method: one plugin-only command, the parameter map buildParamMeta answers for
+// its path, and the merge.
+func TestBuildCommandMetaGivesAPluginOnlyCommandItsRPCParameters(t *testing.T) {
+	const name = "show acme-monitor target"
+	params := map[string][]commandParam{name: {{
+		Name: "name", Type: "string", ShortHelp: "Name of the target.",
+		Description: "The target name, from 1 to 16 characters.", Required: true,
+	}}}
+	got := buildCommandMeta(nil,
+		[]*pluginserver.RegisteredCommand{{Name: name, ShortHelp: "summary"}},
+		params, map[string]string{name: "forbidden"}, nil)
+	if len(got) != 1 {
+		t.Fatalf("got %+v, want the one plugin command", got)
+	}
+	if len(got[0].Params) != 1 {
+		t.Fatalf("params = %+v, want the one rpc input leaf", got[0].Params)
+	}
+	if got[0].Params[0] != params[name][0] {
+		t.Errorf("param = %+v, want %+v", got[0].Params[0], params[name][0])
+	}
+	if !got[0].ReadOnly {
+		t.Error("a show command only a plugin serves is listed as not read-only")
+	}
+	if got[0].TaskSupport != "forbidden" {
+		t.Errorf("task support = %q, want forbidden", got[0].TaskSupport)
+	}
+	got[0].Params[0].Name = "changed"
+	if params[name][0].Name != "name" {
+		t.Error("the listed params share the map buildParamMeta answered")
+	}
+}
+
+// TestBuildParamMetaReadsAnExternalPluginsRPC proves the -cmd and -api pair an
+// external plugin brings is read as a compiled-in pair is: the rpc input leaf
+// becomes the parameter of the command whose node points at the rpc.
+//
+// VALIDATES: spec-plugin-external-yang-at-startup AC-41 at the producer.
+// PREVENTS: a pair the join accepts that publishes no parameter.
+// Method: the embedded modules and the external-yang fixture's command and rpc
+// modules, resolved together as the publish joins them.
+func TestBuildParamMetaReadsAnExternalPluginsRPC(t *testing.T) {
+	loader := yangloader.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		t.Fatalf("load the embedded modules: %v", err)
+	}
+	for _, module := range []externalyang.Module{externalyang.Commands(), externalyang.API()} {
+		if err := loader.AddModuleFromText(module.Name, module.Text); err != nil {
+			t.Fatalf("load %s: %v", module.Name, err)
+		}
+	}
+	schema, err := loader.Resolve()
+	if err != nil {
+		t.Fatalf("resolve the modules: %v", err)
+	}
+	params, err := buildParamMeta(schema)
+	if err != nil {
+		t.Fatalf("buildParamMeta: %v", err)
+	}
+	got := params[externalyang.CommandTarget]
+	want := commandParam{
+		Name: "name", Type: "string", ShortHelp: "Name of the target.",
+		Description: "The target name, from 1 to 16 characters.", Required: true,
+	}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("params of %q = %+v, want [%+v]", externalyang.CommandTarget, got, want)
+	}
+	if status := params[externalyang.CommandStatus]; len(status) != 0 {
+		t.Errorf("params of %q = %+v, want none: its node points at no rpc", externalyang.CommandStatus, status)
 	}
 }

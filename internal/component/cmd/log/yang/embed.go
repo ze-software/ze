@@ -6,6 +6,3 @@ import _ "embed"
 
 //go:embed ze-bgp-cmd-log-api.yang
 var ZeBGPCmdLogAPIYANG string
-
-//go:embed ze-cli-log-cmd.yang
-var ZeCliLogCmdYANG string

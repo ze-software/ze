@@ -14,8 +14,6 @@ func init() {
 		Name:        "bgp-adj-rib-in",
 		Description: "Adj-RIB-In storage (raw hex replay)",
 		RFCs:        []string{"4271"},
-		Features:    "yang",
-		YANG:        getYANG(),
 		RunEngine:   runAdjRIBInPlugin,
 		Commands:    commandDecls(),
 		// The peer-up replay of stored routes is part of the establishing peer's
@@ -29,7 +27,6 @@ func init() {
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = getYANG
 		cfg.ConfigLogger = func(level string) {
 			setLogger(slogutil.PluginLogger(reg.Name, level))
 		}

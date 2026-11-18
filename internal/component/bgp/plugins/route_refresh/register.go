@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"os"
 
-	rryang "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang" // init() registers the refresh api and command modules
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -20,10 +20,9 @@ func init() {
 		Description:     "Route Refresh capability decoding",
 		RFCs:            []string{"2918", "7313"},
 		SupportsCapa:    true,
-		Features:        "capa yang",
+		Features:        "capa",
 		ConfigRoots:     []string{configRootBGP},
 		Dependencies:    []string{configRootBGP},
-		YANG:            rryang.ZeRouteRefreshYANG,
 		CapabilityCodes: []uint8{2, 70},
 		SendTypes:       []string{"enhanced-refresh"},
 		RunEngine:       RunRouteRefreshPlugin,
@@ -37,7 +36,6 @@ func init() {
 	reg.CLIHandler = func(args []string) int {
 		var capCode uint
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = GetYANG
 		cfg.ConfigLogger = func(level string) {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}

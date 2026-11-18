@@ -45,7 +45,6 @@ import (
 	// General cmd handler packages (register RPCs via init()).
 	_ "github.com/ze-software/ze/internal/component/cmd/delete"
 	_ "github.com/ze-software/ze/internal/component/cmd/log"
-	_ "github.com/ze-software/ze/internal/component/cmd/meta"
 	_ "github.com/ze-software/ze/internal/component/cmd/metrics"
 	_ "github.com/ze-software/ze/internal/component/cmd/monitor"
 	_ "github.com/ze-software/ze/internal/component/cmd/set"

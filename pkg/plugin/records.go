@@ -1,14 +1,17 @@
 // Design: docs/architecture/api/ipc_protocol.md — the Answer Protocol, plugin side
-// Overview: plugin.go — the command handlers a record answer is returned from
+// Overview: sdk/sdk_callbacks.go — the command handlers a record answer is returned from
+// Related: sdk/sdk_types.go — Row, Record and Records under the SDK names
 // Related: ../../internal/component/plugin/types.go — Records, the engine-side twin
 // Related: rpc/answer_write.go — WriteRecordAnswer, the one writer both ends use
 // Related: rpc/collapse.go — CollapseRecords, the document a buffered reader gets
-//
-// The record producer a plugin command handler answers with. A handler that
-// walks a large collection returns the walk rather than the collection, so the
-// SDK writes one row at a time and neither the plugin nor the engine holds the
-// whole answer.
 
+// Package plugin holds the record producer a plugin command handler answers
+// with. A handler that walks a large collection returns the walk rather than
+// the collection, so the SDK writes one row at a time and neither the plugin
+// nor the engine holds the whole answer.
+//
+// A plugin author reaches these types through pkg/plugin/sdk, which names them
+// Row, Record and Records too.
 package plugin
 
 import (

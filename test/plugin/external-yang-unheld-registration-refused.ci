@@ -1,0 +1,61 @@
+# Test: an external module that names a ze:validate function ze does not hold refuses the start
+#
+# Question: when an external plugin brings a config module whose leaf names
+# `ze:validate "acme-no-such-check"`, a function no Ze package registers, does
+# `ze start` exit with an error by itself, naming the plugin, the module, the
+# extension and the name, and does the next `ze doctor` report
+# doctor-plugin-schema-refused from the last-stop record?
+# Why not a unit test: TestJoinRefusesUnregisteredValidator proves the join's
+# refusal over a fixture set with a fixture registry. This proves the daemon's
+# start judges the module a live plugin declared against the validator
+# registry ze holds, that the start ends with no operator action, and that
+# the record reaches the next doctor run.
+#
+# The fixture's unheld-validate variant
+# (internal/test/fixture/plugin_fixture_external_yang_unheld.go) brings
+# externalyang.UnheldValidate, which is marked Refused; the plugin treats a
+# transport that ends as the pass, and a ready daemon as the failure, which
+# the ZE-OBSERVER-FAIL rejection below catches.
+#
+# Steps:
+#   1. the fatal-stop fixture runs `ze start` on a disk store: stderr names
+#      the refused schema, the plugin, acme-unheld-conf, ze:validate and
+#      "acme-no-such-check", the plugin reports no failure of its own, and the
+#      daemon never runs.
+#   2. ze doctor --json reports doctor-plugin-schema-refused with the plugin,
+#      the module and the name, from the last-stop record.
+#
+# VALIDATES: AC-11 of spec-plugin-external-yang-at-startup, through the daemon.
+# PREVENTS: an external leaf that names a validator ze lacks being accepted,
+#   where the leaf would then take every value its type admits, unchecked.
+
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+plugin {
+	external unheld-validate {
+		run "le test fixture plugin/external-yang unheld-validate"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/doctor-fatal-stop:exit=0
+expect=stderr:contains=error: external plugin schema:
+expect=stderr:contains=doctor-plugin-schema-refused
+expect=stderr:contains=plugin "unheld-validate"
+expect=stderr:contains=acme-unheld-conf
+expect=stderr:contains=names ze:validate "acme-no-such-check"
+expect=stderr:contains=which ze does not hold
+reject=stderr:contains=Ze running.
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+cmd=foreground:seq=2:exec=ze doctor --json config running.conf
+expect=stdout:contains="code": "doctor-plugin-schema-refused"
+expect=stdout:contains=because it refused a YANG module an external plugin declared
+expect=stdout:contains=unheld-validate
+expect=stdout:contains=acme-unheld-conf
+expect=stdout:contains=acme-no-such-check
+reject=stdout:contains="code": "doctor-plugin-fatal-stop"

@@ -451,6 +451,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	//
 	// The certificate authority is loaded here only when a plugin is forked,
 	// and kept: the block below that loads it for every boot reuses it.
+	//
+	// Before any of it, the build itself is judged: a compiled-in module that
+	// names a validator or a reference source this ze does not hold ends the
+	// start, whatever the config says.
+	if refuseWronglyBuilt() {
+		return 1
+	}
 	pm := pluginmgr.NewManager()
 	var caRoot *zepki.Root
 	var declarations []pluginserver.EarlyDeclaration

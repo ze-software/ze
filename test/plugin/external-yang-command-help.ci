@@ -1,0 +1,49 @@
+# Test: a session of the running ze shows the help an external plugin's command YANG declares
+#
+# Question: when an external plugin brings a -cmd module whose nodes declare a
+# ze:help summary and a description, and states DIFFERENT texts for the same
+# commands at Stage 1, does a session of the running ze show the YANG texts
+# (the summary under the completion menu, the explanation `?` draws) and does
+# `system command help` answer them, never the Stage 1 ones?
+# Why not a unit test: TestPluginCommandTakesTheHelpItsYANGNodeDeclares proves
+# the precedence over two maps. Only a daemon shows the session model it hosts
+# built from the module set boot published, the plugin's Stage 1 registration
+# overlaid on it, and the registry answer `system command help` reads.
+#
+# What the screen and the answer show, read from the producing code:
+#   - Tab on `show acme-monitor ` opens the menu with status selected, and the
+#     row under it holds status's summary (Model.warningText); a second Tab
+#     selects target and the row holds its summary.
+#   - `?` after Tab draws the description of status
+#     (Model.revealCandidateExplanation, TreeCompleter.Explain).
+#   - `system command help` answers the registry entry (lookupCommandHelp),
+#     whose texts registerProcessCommands takes from the YANG where the node
+#     declares them (commandModelHelp.texts).
+#   - the Stage 1 texts (externalyang.DeclaredSummary, DeclaredExplanation)
+#     appear on none of them.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-30: help on the plugin's
+#   command in a session; where the YANG and the Stage 1 declaration both give
+#   help, the YANG text is shown.
+# PREVENTS: an external plugin's Stage 1 summary shown where its own command
+#   module declares one.
+# Not proven here: a session surface that shows the argument leaf's own ze:help
+#   ("Name of the target."). No session surface shows an argument leaf's help
+#   for any command, compiled-in included: TreeCompleter.matchChildren offers a
+#   string leaf by its name with no description. The API half is
+#   external-yang-command-api-parameters.ci.
+#
+# Method: the compiled fixture
+# (internal/test/fixture/ui_fixture_external_yang_command_help.go) starts a
+# daemon with the external-yang plugin in its `commands` variant, waits until
+# the plugin answers its command, and drives a plain ssh client under a
+# pseudo-terminal on the operational prompt.
+#
+# The timeout is DECLARED because this file starts a daemon and drives three
+# interactive terminal sessions, each with a settling window.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture ui/external-yang-command-help $PORT
+expect=exit:code=0
+expect=stdout:contains=OK: the session showed the YANG summaries of status and target and the description of status, and system command help answered the YANG texts
+reject=stdout:pattern=ZE-OBSERVER-FAIL

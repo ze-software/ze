@@ -92,7 +92,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:os` | Restricts a node to one operating system. The schema drops the node elsewhere, and records its name on the parent, so the parser refuses it as a node of that OS (`NodeOfAnotherOSError`, reported by `ze config validate` under the host-verdict code `config-node-other-os`) rather than as an unknown field. The build still converts the pruned node and keeps it on the parent, so `Schema.LookupDeclared` answers what the module declares about it, such as its defaults, on every host; `Lookup` and the parsers never reach it | GOOS value |
 | `ze:rest-of-line` | Marks a command's string leaf as taking every word left on the line, with no word in it read as a keyword. At most one leaf per command, declared last (`docs/architecture/api/commands.md`, "Every route validates") | (none) |
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
-| `ze:reference` | Leaf or leaf-list names a configured entry that no leafref path can express. The argument names a source a component registers with `yang.RegisterReferenceSource`; the source answers, as a `yang.ReferenceAnswer`, the names offered at the leaf's position and, optionally, a `Check` that judges a value. Editor completion offers exactly those names (`Validator.ReferenceInstances`). Commit (`Validator.ValidateReferences`) refuses a value the `Check` refuses, with its message, or, with no `Check`, any value not among the names, naming the leaf, the value and the configured choices. A `Check` MUST accept every name offered; it exists for an owner that accepts spellings it does not offer, such as a qualified `prefix-list:NAME` or an external plugin's `<plugin>:<filter>` (the `policy-filter` source, `internal/component/policy/reference_source.go`). A source no component registered refuses every value, and startup logs it (`CheckAllReferenceSourcesRegistered`). Use a standard `leafref` wherever a path fits | source name |
+| `ze:reference` | Leaf or leaf-list names a configured entry that no leafref path can express. The argument names a source a component registers with `yang.RegisterReferenceSource`; the source answers, as a `yang.ReferenceAnswer`, the names offered at the leaf's position and, optionally, a `Check` that judges a value. Editor completion offers exactly those names (`Validator.ReferenceInstances`). Commit (`Validator.ValidateReferences`) refuses a value the `Check` refuses, with its message, or, with no `Check`, any value not among the names, naming the leaf, the value and the configured choices. A `Check` MUST accept every name offered; it exists for an owner that accepts spellings it does not offer, such as a qualified `prefix-list:NAME` or an external plugin's `<plugin>:<filter>` (the `policy-filter` source, `internal/component/policy/reference_source.go`). A source no component registered refuses every value, so `ze start` refuses a module that names one ("Joining a module that no `init()` registered", below). Use a standard `leafref` wherever a path fits | source name |
 | `ze:required` | Field must hold a value after config inheritance resolves | path |
 | `ze:route-attributes` | Node accepts standard BGP route attributes | (none) |
 | `ze:sensitive` | Leaf holds sensitive data. Display obfuscates it with JunOS-compatible `$9$` encoding, which `ze secret decode` reverses offline (`docs/guide/command-reference.md`, "ze secret"). Every parser (hierarchical, set, set-meta, inline list entries) decodes a `$9$` value and keeps the text it read (`decodeSecretLeaf`, `Tree.SetStoredSecret`). Every printer (`Serialize`, `SerializeSet`, `SerializeSetWithMeta`, so `ze config fmt`, `ze config migrate` and the editor) prints that text back while it decodes to the value held, and encodes a key given in clear once, keeping that encoding as the stored text (`EncodeSecrets` in `config/secret_text.go`). `SerializeSetWithMeta` also writes every session entry of such a leaf in the `$9$` form, the `^previous` key included and a value one session set that another deleted (`encodeSecretMeta`), and the set-meta parser decodes both fields back. gNMI Get, Subscribe and the Set echo answer it in the `$9$` form too (`EncodeSecrets`, `SecretValueAtPath`), and `Editor.SetValue` decodes a `$9$` value a client sends and keeps its text. A mask placeholder prints as itself | (none) |
@@ -467,7 +467,8 @@ The join refuses each case below, and nothing is dropped in silence:
 | The declared module name or namespace differs from the text | The plugin and both values |
 | The module name is held by a compiled-in module, at any revision, or by an earlier external module | The plugin, the module and the holder |
 | The namespace is held the same way | The plugin and both modules |
-| The module declares definitions no reader of ze takes: its name does not end in `-conf`, it augments nothing, it is not a `-cmd` module whose `config false` nodes carry a `ze:command` or a `ze:help`, it holds no rpc, and no other module of the set imports it. The compiled-in set is held to the same rule (`TestNoShippedModuleAddsNothing`). A module that declares no statement at all (a header, imports and revisions only) loses nothing and is joined, because the compiled-in set ships such modules (`EmptyModuleNames`) | The plugin, the module and the naming rule |
+| The module declares definitions no reader of ze takes: its name does not end in `-conf`, it augments nothing, it is not a `-cmd` module whose `config false` nodes carry a `ze:command` or a `ze:help`, it holds no rpc, and no other module of the set imports it. The compiled-in set is held to the same rule (`TestNoShippedModuleAddsNothing`) | The plugin, the module and the naming rule |
+| The module declares no statement at all (a header, imports and revisions only) and no other module of the set imports it. The compiled-in set is held to ship none (`EmptyModuleNames`, `TestNoShippedModuleAddsNothing`) | The plugin, the module, and the fix that drops it from the declaration |
 | A `ze:command` on a path, or a wire method, another module already declares | The plugin, the module, the path or method, and the holder |
 | A `ze:rpc` or wire method `PublishedRPCs` refuses over the joined set and not over the compiled-in one, or a `ze:rpc` naming a module no module is | The plugin and the pointer |
 | A top-level node of an external `-conf` module is already defined by a `-conf` module | The plugin, the node, the module that defines it and the `augment` to write |
@@ -489,6 +490,26 @@ container is judged too. Two registries cannot be reached from `config/yang`
 and are not judged by the join: the display decorators of `ze:decorate`
 (`internal/component/web`) and the backends of `ze:backend` (each component's
 `RegisterBackend`).
+
+The rule for `ze:validate` and `ze:reference` is one rule on both sides: a
+name ze does not hold refuses the start. One judge (`unheldName`) reads both
+registries. For an external module the join refuses it, naming the plugin. For
+a compiled-in module `ze start` refuses before the first pass
+(`refuseWronglyBuilt`, `RefuseUnheldCompiledRegistrations`). That refusal
+names the module, the extension, the name and the schema path, says this ze
+was built wrong and the config is not at fault, and is recorded under
+`doctor-build-registration-unheld`. Every Ze package registers its names from
+`init()`, and a gated module's names are registered under the same gate, so a
+shipped ze holds them all. `TestCompiledModulesNameOnlyHeldRegistrations`
+(`plugin/all`) judges the shipped set under the tags of its run. A process
+that is not a daemon (a local command, or a test binary that links a module
+without the package registering its names) does not refuse when it builds the
+value validator. `validatorFromResolved` logs each unheld name under the same
+code: a leaf whose function is absent is not validated there, and one whose
+source is absent refuses every value.
+<!-- source: internal/component/config/yang/registration_held.go -- unheldName, RefuseUnheldCompiledRegistrations -->
+<!-- source: cmd/ze/hub/build_registrations.go -- refuseWronglyBuilt -->
+<!-- test: internal/component/plugin/all/registrations_held_test.go TestCompiledModulesNameOnlyHeldRegistrations -->
 
 The schema and the validator of a joined set are built by the functions that
 build them for the compiled-in set (`schemaFromResolved`,

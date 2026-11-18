@@ -280,6 +280,26 @@ const (
 	CommandTarget = "show acme-monitor target"
 )
 
+// DeclaredSummary and DeclaredExplanation are the two help texts the plugin
+// states for each of its commands in its Stage 1 declaration. They differ from
+// every text commandsText declares, so a surface that shows one of them shows
+// the declaration where the YANG should win.
+const (
+	DeclaredSummary     = "Declared at Stage 1, not in the YANG."
+	DeclaredExplanation = "The Stage 1 explanation, which the YANG node overrides."
+)
+
+// The texts commandsText declares, which a surface shows for the plugin's
+// commands: the ze:help summary of each command and of the argument leaf, and
+// the description of the status command.
+const (
+	StatusSummary     = "Show whether the acme monitor is polling."
+	StatusExplanation = "Answers the state of the poller, from the plugin."
+	TargetSummary     = "Show one target the acme monitor polls."
+	ArgumentSummary   = "Name of the target."
+	ArgumentText      = "The target name, from 1 to 16 characters."
+)
+
 // Commands answers the command module the plugin brings beside Valid.
 func Commands() Module {
 	return Module{Name: "acme-monitor-cmd", Namespace: "urn:acme:monitor:cmd", Text: commandsText}

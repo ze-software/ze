@@ -367,22 +367,18 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	assert.False(t, hasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
 
-// TestLogCmdModule verifies the bare anchor and relocated log command module.
+// TestLogCmdModule verifies the log plugin's command module.
 //
-// VALIDATES: Central cmd/log schema is anchor-only and log commands live in ze-log-cmd.
+// VALIDATES: ze-log-cmd, owned by the log plugin, declares show log levels,
+// show log recent and request log level, each bound to its ze-log handler.
 // PREVENTS: Plugin self-containment regressions for log commands.
 func TestLogCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"log/yang/ze-cli-log-cmd.yang")
 	loadCmdModule(t, loader, "../../../plugins/log/yang/ze-log-cmd.yang")
 	schema, err := loader.Resolve()
 	require.NoError(t, err)
-
-	anchor := schema.GetEntry("ze-cli-log-cmd")
-	require.NotNil(t, anchor)
-	assert.Empty(t, anchor.Dir, "ze-cli-log-cmd is a bare anchor after relocation")
 
 	entry := schema.GetEntry("ze-log-cmd")
 	require.NotNil(t, entry)
@@ -1256,7 +1252,6 @@ func TestArgDefsPopulated(t *testing.T) {
 	cmdFiles := []string{
 		cmdBase + "show/yang/ze-cli-show-cmd.yang",
 		cmdBase + "set/yang/ze-cli-set-cmd.yang",
-		cmdBase + "log/yang/ze-cli-log-cmd.yang",
 		"../../../component/iface/yang/ze-iface-show-cmd.yang",
 		"../../../plugins/crashes/yang/ze-crashes-cmd.yang",
 		"../../../plugins/diag/yang/ze-diag-cmd.yang",

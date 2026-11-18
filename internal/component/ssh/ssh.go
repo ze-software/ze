@@ -871,13 +871,17 @@ func truncateForLog(cmd string) string {
 func (s *Server) execMiddleware() wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
 		return func(sess ssh.Session) {
-			cmd := sess.Command()
-			if len(cmd) == 0 {
+			// The raw line, never sess.Command(): that one splits the line with a
+			// shell lexer, which drops every quote, and joining its words again
+			// turned `system command help name "show version"` into a call
+			// naming `show`. The dispatcher's own scanner (command.ScanInvocation)
+			// reads the quotes, and the pipe split below keeps a quoted `|`.
+			input := strings.TrimSpace(sess.RawCommand())
+			if input == "" {
 				next(sess) // interactive session
 				return
 			}
 
-			input := textbuf.Join(cmd, " ")
 			// The full (unredacted) command still flows to the executor below; only
 			// the logged form is sanitized via loggedCommand.
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", loggedCommand(input), "remote", sess.RemoteAddr().String())

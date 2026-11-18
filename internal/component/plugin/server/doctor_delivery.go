@@ -44,10 +44,44 @@ type commandOwnedError struct {
 
 func (e *commandOwnedError) Error() string { return e.message }
 
+// commandModelHelp is the two help texts the YANG command tree declares for
+// each command path: summary holds the ze:help summary
+// (yang.PathToDescription) and explanation the description statement
+// (yang.PathToHelp). A path absent from a map declares no such text.
+//
+// NewServer builds the server's one value from the module set it keeps
+// (yang.KeepsModuleSet), the compiled-in modules joined to the ones external
+// plugins brought when ze started, and refuses to build a server when that set
+// does not resolve. A plugin's commands are therefore never registered without
+// these texts, and no second read of the set can fail here. The maps are never
+// written after NewServer, so the value is safe for concurrent reads.
+type commandModelHelp struct {
+	summary     map[string]string
+	explanation map[string]string
+}
+
+// texts answers the summary and the explanation a plugin's command is listed
+// with. Where the YANG node of the command declares a text, the YANG text is
+// shown, as a compiled-in command shows its own (spec
+// plugin-external-yang-at-startup AC-30); the plugin's Stage 1 text fills only a
+// half the YANG leaves empty. Each half is decided on its own, as
+// command.MergeCommandPaths decides them for the session trees.
+func (h commandModelHelp) texts(name, declaredSummary, declaredExplanation string) (summary, explanation string) {
+	summary, explanation = declaredSummary, declaredExplanation
+	if text := h.summary[name]; text != "" {
+		summary = text
+	}
+	if text := h.explanation[name]; text != "" {
+		explanation = text
+	}
+	return summary, explanation
+}
+
 // registerProcessCommands registers the commands and deprecated aliases a
-// plugin declared, and records each refusal on the plugin's process, naming
+// plugin declared, each listed with the help texts of model where its YANG
+// node declares them, and records each refusal on the plugin's process, naming
 // the owner of a name already held, for the doctor (AC-13).
-func registerProcessCommands(r *CommandRegistry, proc *process.Process, reg *plugin.PluginRegistration) {
+func registerProcessCommands(r *CommandRegistry, model commandModelHelp, proc *process.Process, reg *plugin.PluginRegistration) {
 	if reg == nil {
 		return
 	}
@@ -56,10 +90,11 @@ func registerProcessCommands(r *CommandRegistry, proc *process.Process, reg *plu
 	}
 	defs := make([]CommandDef, len(reg.Commands))
 	for i, name := range reg.Commands {
+		shortHelp, description := model.texts(name, reg.CommandShortHelp[name], reg.CommandDescription[name])
 		defs[i] = CommandDef{
 			Name:        name,
-			ShortHelp:   reg.CommandShortHelp[name],
-			Description: reg.CommandDescription[name],
+			ShortHelp:   shortHelp,
+			Description: description,
 			Hidden:      reg.CommandHidden[name],
 			Completable: reg.CommandCompletable[name],
 		}

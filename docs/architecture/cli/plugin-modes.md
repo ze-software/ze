@@ -105,6 +105,23 @@ ze plugin bgp-nlri-evpn --capa 07726f7574657231...
 # exit code: 1
 ```
 
+`--yang` on a plugin that returns no YANG module of its own is refused the
+same way, and never falls through to engine mode:
+
+```bash
+ze plugin bgp-adj-rib-in --yang
+# stderr: error: plugin 'bgp-adj-rib-in' declares no YANG module, so --yang has nothing to print
+#         --yang prints the YANG module a plugin returns as its own, and this plugin returns none
+#         fix: ze plugin bgp-adj-rib-in --help
+# exit code: 1
+```
+
+The fix names `--features` when the plugin declares features, and `--help`,
+which lists the flags the plugin accepts, when it declares none:
+`bgp-adj-rib-in` declares none, and `--features` prints nothing for it.
+<!-- source: internal/component/plugin/cli/cli.go -- runPlugin, noYANGError -->
+<!-- test: internal/component/plugin/cli/cli_test.go TestRunPlugin_YANGFlagWithoutModuleRefuses, TestRunPlugin_FeaturesFlagPrintsNothingWithoutFeatures, TestRunPlugin_YANGFlagPrintsModule -->
+
 ### Output Formats
 
 **JSON (default):**

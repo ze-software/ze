@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -66,6 +67,7 @@ func (s *historySession) User() string                 { return s.ctx.User() }
 func (s *historySession) RemoteAddr() net.Addr         { return s.ctx.RemoteAddr() }
 func (*historySession) Environ() []string              { return nil }
 func (s *historySession) Command() []string            { return s.command }
+func (s *historySession) RawCommand() string           { return strings.Join(s.command, " ") }
 func (*historySession) Stderr() io.ReadWriter          { return historyDiscard{} }
 func (*historySession) Write(data []byte) (int, error) { return len(data), nil }
 func (s *historySession) Exit(status int) error        { s.exit = status; return nil }

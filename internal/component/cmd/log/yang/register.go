@@ -8,5 +8,4 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-bgp-cmd-log-api.yang", ZeBGPCmdLogAPIYANG)
-	configyang.RegisterModule("ze-cli-log-cmd.yang", ZeCliLogCmdYANG)
 }

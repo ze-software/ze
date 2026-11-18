@@ -355,40 +355,44 @@ const (
 	// moduleUseAdds: a reader of ze takes something the module declares.
 	moduleUseAdds
 	// moduleUseEmpty: the module declares no statement at all, only its
-	// header, imports and revisions, so nothing of it is lost.
+	// header, imports and revisions, so it brings ze nothing but a name and a
+	// namespace.
 	moduleUseEmpty
 	// moduleUseIdle: the module declares definitions no reader of ze takes,
 	// so ze would drop them in silence.
 	moduleUseIdle
 )
 
-// refuseIdleModules refuses an external module whose definitions ze would
-// drop in silence (moduleUseIdle). The config schema takes top-level nodes
-// only from a config module (Resolved.ConfModuleNames), any other module
-// reaches it by an augment, the command tree takes nodes only from a -cmd
-// module (BuildCommandTree), which reads a ze:command and, on a navigation
-// node, a ze:help summary, and the rpcs that describe command parameters are
-// read from every module (PublishedRPCs). A module another module of the set
-// imports adds what its importers take from it (a typedef, a grouping, an
-// extension), as the compiled-in ze-types and ze-ppp-lcp do.
-//
-// A module that declares no statement at all (moduleUseEmpty) is joined: it
-// loses nothing, and the compiled-in set ships such modules, so refusing it
-// from an external plugin alone would judge the two sets differently.
+// refuseIdleModules refuses an external module that adds nothing to ze: one
+// whose definitions ze would drop in silence (moduleUseIdle), and one that
+// declares no statement at all (moduleUseEmpty). The config schema takes
+// top-level nodes only from a config module (Resolved.ConfModuleNames), any
+// other module reaches it by an augment, the command tree takes nodes only
+// from a -cmd module (BuildCommandTree), which reads a ze:command and, on a
+// navigation node, a ze:help summary, and the rpcs that describe command
+// parameters are read from every module (PublishedRPCs). A module another
+// module of the set imports adds what its importers take from it (a typedef,
+// a grouping, an extension), as the compiled-in ze-types and ze-ppp-lcp do.
 //
 // It is the rule every module obeys: IdleModuleNames and EmptyModuleNames
 // apply it to a whole set, and the test of the shipped modules holds the
-// compiled-in set to it (TestNoShippedModuleAddsNothing). Only the time
-// differs, which is the transport: a compiled-in module is judged when ze is
-// built, an external one when ze joins it at start.
+// compiled-in set to it (TestNoShippedModuleAddsNothing), so neither set
+// carries an idle or an empty module. Only the time differs, which is the
+// transport: a compiled-in module is judged when ze is built, an external one
+// when ze joins it at start.
 func refuseIdleModules(joined *Resolved, declared []declaredModule) error {
 	imported := importedModules(joined)
 	for _, module := range declared {
 		use, commands := moduleUseOf(joined, module.name, imported)
-		if use != moduleUseIdle {
-			continue
+		switch use {
+		case moduleUseAdds:
+		case moduleUseEmpty:
+			return emptyModuleRefusal(module)
+		case moduleUseIdle:
+			return idleModuleRefusal(module, commands)
+		default:
+			panic("BUG: yang.moduleUseOf answered no use for module " + module.name + "; it answers a named moduleUse for every module of the set")
 		}
-		return idleModuleRefusal(module, commands)
 	}
 	return nil
 }
@@ -403,9 +407,10 @@ func IdleModuleNames(schema *Resolved) []string {
 }
 
 // EmptyModuleNames answers, sorted, the modules of schema that declare no
-// statement at all: a header, imports and revisions only. The join accepts
-// one from an external plugin, since nothing of it is lost; in the compiled-in
-// set each is a leftover nothing reads (TestNoShippedModuleAddsNothing).
+// statement at all: a header, imports and revisions only, and imported by no
+// other module of schema. The join refuses one from an external plugin
+// (refuseIdleModules), and the compiled-in set is held to ship none
+// (TestNoShippedModuleAddsNothing).
 func EmptyModuleNames(schema *Resolved) []string {
 	return moduleNamesOfUse(schema, moduleUseEmpty)
 }
@@ -513,6 +518,20 @@ func idleModuleRefusal(module declaredModule, commands bool) error {
 		return opererr.New(problem, why,
 			"rename the module to "+quoted(module.name+"-conf")+" in the schemas that plugin "+plugin+" declares, then restart ze")
 	}
+}
+
+// emptyModuleRefusal is the refusal of a module that declares no statement at
+// all. No rename makes it add anything, so the fix is to drop it from the
+// declaration or give it the definitions it was meant to carry.
+func emptyModuleRefusal(module declaredModule) error {
+	plugin := quoted(module.external.Plugin)
+	return opererr.New(
+		"Module "+quoted(module.name)+" of plugin "+plugin+" adds nothing to the config schema, the commands or the rpcs: "+
+			"it declares no statement, only its header, imports and revisions",
+		"ze joins a module for the definitions it carries, and an empty one would hold a module name and a namespace "+
+			"that no config node, command or rpc uses",
+		"remove module "+quoted(module.name)+" from the schemas that plugin "+plugin+
+			" declares, or add the definitions it is meant to carry, then restart ze")
 }
 
 // rootHolder is the module that defines one top-level config node.
@@ -647,21 +666,15 @@ func refuseFirstPassAddition(entry *gyang.Entry, owner declaredModule) error {
 }
 
 // unheldRegistration answers the refusal for the first registration entry
-// names that the daemon does not hold, or nil.
+// names that the daemon does not hold, or nil. unheldName judges the name, as
+// it does for a compiled-in module (RefuseUnheldCompiledRegistrations); this
+// refusal names the plugin whose module wrote entry.
 func unheldRegistration(entry *gyang.Entry, owner declaredModule, validators *ValidatorRegistry) error {
-	for _, name := range SplitValidatorNames(GetValidateExtension(entry)) {
-		if validators.Get(name) == nil {
-			return unheldRegistrationRefusal(owner, entry, "ze:validate", name)
-		}
-	}
-	source := GetReferenceExtension(entry)
-	if source == "" {
+	extension, name := unheldName(entry, validators)
+	if name == "" {
 		return nil
 	}
-	if _, held := referenceSources[source]; held {
-		return nil
-	}
-	return unheldRegistrationRefusal(owner, entry, "ze:reference", source)
+	return unheldRegistrationRefusal(owner, entry, extension, name)
 }
 
 // refuseDeclarationMismatch refuses a declaration whose module or namespace

@@ -24,8 +24,8 @@ func TestCommandRefusalRecordedAtRegistration(t *testing.T) {
 	owner := process.NewProcess(plugin.PluginConfig{Name: "first"})
 	late := process.NewProcess(plugin.PluginConfig{Name: "second"})
 
-	registerProcessCommands(registry, owner, &plugin.PluginRegistration{Commands: []string{"show alpha"}})
-	registerProcessCommands(registry, late, &plugin.PluginRegistration{
+	registerProcessCommands(registry, commandModelHelp{}, owner, &plugin.PluginRegistration{Commands: []string{"show alpha"}})
+	registerProcessCommands(registry, commandModelHelp{}, late, &plugin.PluginRegistration{
 		Commands:               []string{"show alpha", "show beta"},
 		CommandDeprecatedNames: map[string][]string{"show beta": {"show alpha"}},
 	})
@@ -228,5 +228,39 @@ func TestConfigUnappliedRecordedOnCommitFailure(t *testing.T) {
 	}
 	if got := s.lastCommittedTransaction(); got != commit.Transaction {
 		t.Fatalf("daemon last committed %q, plugin record %q", got, commit.Transaction)
+	}
+}
+
+// TestPluginCommandTakesTheHelpItsYANGNodeDeclares proves the help a plugin's
+// command is registered with: where the YANG node of the command declares a
+// text it wins over the plugin's Stage 1 text, and each half the node leaves
+// empty keeps the plugin's own.
+//
+// VALIDATES: spec-plugin-external-yang-at-startup AC-30, "where both give help,
+// the YANG text is shown", for every surface that reads the registry (MCP,
+// REST, gRPC, `system command help`).
+// PREVENTS: an external plugin's Stage 1 summary shown on the API surfaces in
+// place of the ze:help its own command module declares.
+// Method: one model with a summary and no explanation for one path, and none
+// for another, asked for both halves.
+func TestPluginCommandTakesTheHelpItsYANGNodeDeclares(t *testing.T) {
+	model := commandModelHelp{
+		summary:     map[string]string{"show acme status": "yang summary"},
+		explanation: map[string]string{},
+	}
+	summary, explanation := model.texts("show acme status", "stage one summary", "stage one explanation")
+	if summary != "yang summary" {
+		t.Errorf("summary = %q, want the YANG one", summary)
+	}
+	if explanation != "stage one explanation" {
+		t.Errorf("explanation = %q, want the plugin's: the YANG declares none", explanation)
+	}
+	summary, explanation = model.texts("show acme other", "stage one summary", "")
+	if summary != "stage one summary" || explanation != "" {
+		t.Errorf("a path the YANG does not declare = (%q, %q), want the plugin's texts", summary, explanation)
+	}
+	summary, _ = commandModelHelp{}.texts("show acme status", "stage one summary", "")
+	if summary != "stage one summary" {
+		t.Errorf("no model = %q, want the plugin's summary", summary)
 	}
 }

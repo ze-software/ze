@@ -9,6 +9,3 @@ var ZeRefreshCmdYANG string
 
 //go:embed ze-route-refresh-api.yang
 var ZeRouteRefreshAPIYANG string
-
-//go:embed ze-route-refresh.yang
-var ZeRouteRefreshYANG string

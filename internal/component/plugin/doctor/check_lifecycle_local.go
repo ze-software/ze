@@ -70,6 +70,8 @@ func fatalStopRows(record *server.LastStop) []diagnostic.Diagnostic {
 			rows = append(rows, schemaRefusedRow(entry))
 		case server.LastStopSchemaUndeclared:
 			rows = append(rows, schemaUndeclaredRow(entry))
+		case server.LastStopBuildRegistrationUnheld:
+			rows = append(rows, buildRegistrationUnheldRow(entry))
 		case server.LastStopUnspecified:
 			// RecordLastStop refuses an unspecified reason.
 		default:
@@ -170,6 +172,24 @@ func schemaUndeclaredRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		Quoted(entry.Plugin).Str(", so a section written for that plugin is such a name: ").Str(entry.Detail)
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginSchemaUndeclared,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      schemaStopFix(entry, at),
+	}
+}
+
+// buildRegistrationUnheldRow writes one start that ended because a module
+// compiled into ze names a ze:validate function or a ze:reference source this
+// ze does not hold: when, and the refusal's own problem and why, which name
+// the module, the extension and the name. The fix is the one the refusal
+// named.
+func buildRegistrationUnheldRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
+	at := entry.Time.UTC().Format(time.RFC3339)
+	var message textbuf.Buffer
+	message.Str("ze refused to start at ").Str(at).
+		Str(" because this ze was built without a registration its own YANG names: ").Str(entry.Detail)
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorBuildRegistrationUnheld,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      schemaStopFix(entry, at),

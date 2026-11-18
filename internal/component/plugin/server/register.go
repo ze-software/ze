@@ -36,6 +36,7 @@ var serverEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginSchemaChanged},
 	{Code: diagnostic.CodeDoctorPluginSchemaUndeclared},
 	{Code: diagnostic.CodeDoctorPluginSchemaRefused},
+	{Code: diagnostic.CodeDoctorBuildRegistrationUnheld},
 }
 
 func init() {

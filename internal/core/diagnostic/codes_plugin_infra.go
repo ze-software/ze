@@ -41,6 +41,7 @@ const (
 	CodeDoctorPluginSchemaChanged           = "doctor-plugin-schema-changed"
 	CodeDoctorPluginSchemaUndeclared        = "doctor-plugin-schema-undeclared"
 	CodeDoctorPluginSchemaRefused           = "doctor-plugin-schema-refused"
+	CodeDoctorBuildRegistrationUnheld       = "doctor-build-registration-unheld"
 	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
 	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
@@ -295,7 +296,18 @@ var pluginInfraCodes = []CodeMeta{
 			"ze does not start with a module it refused: the refusal ends the start, on the terminal and in the log, and names the plugin, the module, the cause and the command that shows it. " +
 			"No daemon runs afterwards. ze records the refusal before it exits, and `ze doctor` reports it from that record, with the time, until ze next starts cleanly. Correct the plugin's module, then start ze again.",
 		Examples:     []string{"ze doctor", "ze show diagnostic doctor-plugin-schema-refused", "ze show plugin conformance run \"./my-plugin\""},
-		RelatedCodes: []string{CodeDoctorPluginSchemaUndeclared, CodeDoctorPluginSchemaChanged},
+		RelatedCodes: []string{CodeDoctorPluginSchemaUndeclared, CodeDoctorPluginSchemaChanged, CodeDoctorBuildRegistrationUnheld},
+	},
+	{
+		Code:  CodeDoctorBuildRegistrationUnheld,
+		Title: "This ze was built without a validator its YANG names",
+		Description: "A YANG module compiled into ze names, with ze:validate or ze:reference, a validator function or a reference source that no package linked into this ze registers. " +
+			"Such a leaf is not checked at all (ze:validate) or refuses every value (ze:reference), so ze start refuses the build before it parses the configuration: " +
+			"the refusal, on the terminal and in the log, names the module, the extension, the name and the schema path. The configuration is not at fault. " +
+			"ze records the refusal before it exits, and `ze doctor` reports it from that record until ze next starts cleanly. " +
+			"A command that runs with no daemon logs the same names under this code and goes on. Rebuild ze with the package that registers the name linked wherever the module is.",
+		Examples:     []string{"ze doctor", "ze show diagnostic doctor-build-registration-unheld"},
+		RelatedCodes: []string{CodeDoctorPluginSchemaRefused},
 	},
 	{
 		Code:  CodeDoctorPluginEnricherUnavailable,

@@ -219,8 +219,16 @@ func (variant externalYANGVariant) declaration(generation int) *sdk.Registration
 			YANGText:  module.Text,
 		})
 	}
+	// Each command also states its two help texts at Stage 1, worded unlike
+	// the ze:help and description its YANG node declares, so a test can tell
+	// which of the two a surface shows: the YANG one, by the approved decision
+	// of spec plugin-external-yang-at-startup (AC-30).
 	for _, name := range variant.commands {
-		declaration.Commands = append(declaration.Commands, sdk.CommandDecl{Name: name})
+		declaration.Commands = append(declaration.Commands, sdk.CommandDecl{
+			Name:        name,
+			ShortHelp:   externalyang.DeclaredSummary,
+			Description: externalyang.DeclaredExplanation,
+		})
 	}
 	if variant.redeclares() {
 		// The first start exits, and only a plugin that declared restart is

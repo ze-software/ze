@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestRunDecodeMode verifies the IPC decode protocol for Route Refresh.
@@ -163,15 +162,4 @@ func TestRunCLIDecodeDefaultsToRouteRefresh(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.Equal(t, `{"code":2,"name":"route-refresh"}`+"\n", stdout.String())
 	assert.Empty(t, stderr.String())
-}
-
-// TestGetYANG verifies YANG schema is embedded.
-//
-// VALIDATES: GetYANG returns non-empty YANG containing expected module.
-// PREVENTS: Missing or incorrect YANG embedding.
-func TestGetYANG(t *testing.T) {
-	yang := GetYANG()
-	require.NotEmpty(t, yang)
-	assert.Contains(t, yang, "module ze-route-refresh")
-	assert.Contains(t, yang, "route-refresh")
 }

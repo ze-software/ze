@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -169,11 +168,6 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-// GetYANG returns the embedded YANG for the route-refresh plugin.
-func GetYANG() string {
-	return yang.ZeRouteRefreshYANG
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.

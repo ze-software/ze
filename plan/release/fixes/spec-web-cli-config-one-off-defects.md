@@ -961,6 +961,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | AC-28 | `ze init` value flags, editor list keys, `TestValidateSyntaxMissingSemicolon` | `--web-cert` and `--web-cert-name` complete as value flags; `SetValue` refuses a key the editor cannot read back; the syntax test and the parser agree on a missing semicolon |
 | AC-29 | web goldens x3, `ze-reference-mcp.ci` oracle | The goldens are regenerated from the page that holds the `bgp` subtree; the MCP test expects what `aihelp.Build` derives |
 | AC-30 | cli `computeDiff` (moved from `spec-typed-identity-keys`, 2026-11-14) | SSH `show` piped to `compare`, with two siblings whose lines read the same and one of them changed, shows the change with its path; the SSH diff is rendered from the session's pending changes as path-qualified lines, by the one renderer the web `EditorManager.Diff` uses |
+| AC-31 | missing mandatory argument (added 2026-11-17, walked into by `spec-plugin-external-yang-at-startup`) | A line whose lone fault is a missing mandatory argument is refused as a lone refused value is (`ArgumentFaults`, `newArgumentFaults`, `RestatedForLine` in `internal/component/command`): the refusal names the missing leaf, why the command needs it, and the whole corrected command as its fix, on every command route. `MissingArgumentError.Error()` (`argbind.go`) no longer stops at `required argument missing: <leaf>`. Every user of the old text is converted (counted by grep on 2026-11-17: 13 Go test files, 5 `.ci` files, 2 fixtures in `internal/test/fixture`, 5 pages under `docs/` and `examples/plugin/python/README.md`), each test change judged by the independent test judge |
 
 ## 🧪 TDD Test Plan
 
@@ -1050,6 +1051,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `test-against-broken-path` | 2026-09-04 | web goldens `get-fragment-detail*.txt`, `get-show-bgp-finder.txt` |
 | `test-against-broken-path` | 2026-10-09 | `test/plugin/ze-reference-mcp.ci` stale oracle |
 | `key-omits-a-fact-the-builder-uses` | 2026-10-11 | AC-30: cli `computeDiff` compares path-less lines as sets |
+| `error-names-no-fix-command` | 2026-11-17 | AC-31: `MissingArgumentError` (`command/argbind.go`) says what is missing, with no why and no corrected command |
 
 ## Rows found already fixed
 

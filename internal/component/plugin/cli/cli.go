@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -73,6 +74,12 @@ type PluginConfig struct {
 // RunPlugin runs a plugin with the standard CLI interface.
 // Returns exit code.
 func RunPlugin(cfg PluginConfig, args []string) int {
+	return runPlugin(cfg, args, os.Stdout, os.Stderr)
+}
+
+// runPlugin is RunPlugin with the output streams named, so a test reads what
+// the operator would see on each.
+func runPlugin(cfg PluginConfig, args []string, out, errW io.Writer) int {
 	fs := flag.NewFlagSet("plugin "+cfg.Name, flag.ExitOnError)
 	logLevel := fs.String("log-level", "disabled", "Log level (disabled, debug, info, warn, err)")
 	showYang := fs.Bool("yang", false, "Output YANG schema and exit")
@@ -107,13 +114,19 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 
 	// Output features if requested.
 	if *showFeatures {
-		printFeatures(cfg.Features)
+		printFeatures(out, cfg.Features)
 		return 0
 	}
 
-	// Output YANG schema if requested.
-	if *showYang && cfg.GetYANG != nil {
-		printYANG(cfg.GetYANG())
+	// Output YANG schema if requested. A plugin with no module of its own
+	// refuses here: falling through would start engine mode, which fails on
+	// the missing hub connection and tells the operator nothing about --yang.
+	if *showYang {
+		if cfg.GetYANG == nil {
+			noYANGError(errW, cfg.Name, cfg.Features)
+			return 1
+		}
+		printYANG(out, cfg.GetYANG())
 		return 0
 	}
 
@@ -125,12 +138,12 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	// Check for unsupported features.
 	if *nlriHex != "" && !cfg.SupportsNLRI {
 		available := availableFeatures(cfg)
-		unsupportedFeatureError(os.Stderr, cfg.Name, "nlri", available)
+		unsupportedFeatureError(errW, cfg.Name, "nlri", available)
 		return 1
 	}
 	if *capaHex != "" && !cfg.SupportsCapa {
 		available := availableFeatures(cfg)
-		unsupportedFeatureError(os.Stderr, cfg.Name, "capa", available)
+		unsupportedFeatureError(errW, cfg.Name, "capa", available)
 		return 1
 	}
 
@@ -145,24 +158,24 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	if hexValue != "" {
 		hex, err := resolveHexInput(os.Stdin, hexValue)
 		if err != nil {
-			writeError(os.Stderr, "error: %v", err)
+			writeError(errW, "error: %v", err)
 			return 1
 		}
 		if cfg.RunCLIWithCtx != nil {
-			return cfg.RunCLIWithCtx(hex, *textOutput, os.Stdout, os.Stderr, fs)
+			return cfg.RunCLIWithCtx(hex, *textOutput, out, errW, fs)
 		}
-		return cfg.RunCLIDecode(hex, *textOutput, os.Stdout, os.Stderr)
+		return cfg.RunCLIDecode(hex, *textOutput, out, errW)
 	}
 
 	// Engine Decode Mode.
 	if decodeMode != nil && *decodeMode {
-		return cfg.RunDecode(os.Stdin, os.Stdout)
+		return cfg.RunDecode(os.Stdin, out)
 	}
 
 	// Engine Mode: connect to engine via TLS (preferred) or inherited FDs (legacy).
 	conn, err := connFromEnv()
 	if err != nil {
-		writeError(os.Stderr, "error: %v", err)
+		writeError(errW, "error: %v", err)
 		return 1
 	}
 	return cfg.RunEngine(withForkedMetrics(cfg, conn))
@@ -227,16 +240,36 @@ func unsupportedFeatureError(w io.Writer, plugin, feature, available string) {
 		plugin, feature, available)
 }
 
+// noYANGError prints the refusal of --yang for a plugin that returns no YANG
+// module of its own, as an operator error whose fix shows what it does offer.
+// The fix is --features only when the plugin declares features: for one that
+// declares none, --features prints nothing, so the fix is --help, which lists
+// the flags the plugin accepts (the flag set's usage, runPlugin).
+func noYANGError(w io.Writer, plugin, features string) {
+	fix := "ze plugin " + plugin + " --help"
+	if strings.TrimSpace(features) != "" {
+		fix = "ze plugin " + plugin + " --features"
+	}
+	e := opererr.New(
+		"plugin '"+plugin+"' declares no YANG module, so --yang has nothing to print",
+		"--yang prints the YANG module a plugin returns as its own, and this plugin returns none",
+		fix,
+	)
+	writeError(w, "error: %s", e.Error())
+}
+
 // printFeatures prints the plugin's supported features.
-func printFeatures(features string) {
+func printFeatures(w io.Writer, features string) {
 	if features != "" {
-		fmt.Print(features + "\n")
+		_, err := io.WriteString(w, features+"\n")
+		_ = err // CLI output - pipe failure is unrecoverable.
 	}
 }
 
 // printYANG prints the YANG schema.
-func printYANG(yang string) {
-	fmt.Print(yang)
+func printYANG(w io.Writer, yang string) {
+	_, err := io.WriteString(w, yang)
+	_ = err // CLI output - pipe failure is unrecoverable.
 }
 
 // availableFeatures returns the available features string for error messages.

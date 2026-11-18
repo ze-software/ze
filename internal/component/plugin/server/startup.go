@@ -958,7 +958,7 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 	} else {
 		logger().Debug("plugin registration", "plugin", proc.Name(), "commands", reg.Commands, "families", reg.Families)
 	}
-	registerProcessCommands(s.dispatcher.Registry(), proc, proc.Registration())
+	registerProcessCommands(s.dispatcher.Registry(), s.commandHelp, proc, proc.Registration())
 	return nil
 }
 

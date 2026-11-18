@@ -402,7 +402,17 @@ module, Ze checks the names of two of them:
 
 To check a value with logic Ze does not hold, check it in the config verify
 step of your plugin: the refusal names that fix.
+
+For `ze:validate` and `ze:reference` the rule is the same for a module
+compiled into `ze`: a name that `ze` does not hold refuses the start. Your
+module's refusal names your plugin. A compiled-in module's refusal says that
+this `ze` was built wrong and that the config is not at fault. It names the
+module, the extension, the name and the schema path, with the code
+`doctor-build-registration-unheld`. A test over the shipped module set keeps
+such a build from shipping.
 <!-- source: internal/component/config/yang/join.go -- refuseUnheldRegistrations, unheldRegistration, unheldRegistrationRefusal -->
+<!-- source: internal/component/config/yang/registration_held.go -- unheldName, RefuseUnheldCompiledRegistrations -->
+<!-- source: cmd/ze/hub/build_registrations.go -- refuseWronglyBuilt -->
 <!-- source: internal/component/web/decorator.go -- DecoratorRegistry.Get -->
 <!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 <!-- source: internal/component/cli/completer.go -- backendAllowed -->

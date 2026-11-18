@@ -227,8 +227,11 @@ A line with the mandatory leaf missing is refused the same way, as
 
 MCP, REST and gRPC list the command with the parameters of the rpc its
 `ze:rpc` names, and send it to the same dispatcher, so the same check runs
-before your plugin is asked.
+before your plugin is asked. Each parameter carries the leaf's `ze:help` as
+its summary, its `description`, and whether it is mandatory, as a compiled-in
+command's parameters do; the leaf's length or range is not published.
 <!-- source: internal/component/config/yang/join_command.go -- refuseRPCLinks, the publication rule -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta, the parameters of a command only a plugin serves -->
 
 `ze show acme-monitor target web.example.net` typed in the shell, with no `cli -c`, asks
 the running Ze and gets the answer `ze cli -c` gives. With no Ze running it is
@@ -653,6 +656,10 @@ Write the help in the `-cmd` module: `ze:help` for the one-line summary and
 argument leaf. The usage of a refused line is derived from the leaves: its
 `fix:` line names each argument by what its type accepts, as above. A plugin
 writes no help command of its own. `ShortHelp` and `Description` on the
-Stage 1 entry are the help of a command no module defines.
+Stage 1 entry are the help of a command no module defines. Where the module
+and the Stage 1 entry both give a text, every surface shows the module's: the
+session menu and its explanation, `system command help`, and the MCP, REST and
+gRPC command lists. A text the module leaves empty is filled from the entry.
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/doctor_delivery.go -- commandModelHelp.texts -->
 <!-- source: internal/test/externalyang/externalyang.go -- commandsText -->

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"net"
 	"strings"
 	"testing"
 
@@ -164,6 +165,78 @@ func TestRunPlugin_YANGFlag(t *testing.T) {
 	code := RunPlugin(cfg, []string{"--yang"})
 	assert.Equal(t, 0, code)
 	assert.True(t, called)
+}
+
+// TestRunPlugin_YANGFlagPrintsModule verifies --yang writes the module a
+// plugin returns to stdout, unchanged, and exits 0 with nothing on stderr.
+// Method: run the flag over named streams and compare each stream whole.
+func TestRunPlugin_YANGFlagPrintsModule(t *testing.T) {
+	cfg := PluginConfig{
+		Name:    "test",
+		GetYANG: func() string { return "module test {}" },
+	}
+
+	var out, errW bytes.Buffer
+	code := runPlugin(cfg, []string{"--yang"}, &out, &errW)
+	assert.Equal(t, 0, code)
+	assert.Equal(t, "module test {}", out.String())
+	assert.Empty(t, errW.String())
+}
+
+// TestRunPlugin_YANGFlagWithoutModuleRefuses verifies --yang on a plugin that
+// returns no YANG module refuses with an operator error and exits 1, and does
+// not fall through to engine mode. Method: the exit code alone cannot tell the
+// two apart (engine mode exits 1 too, on the missing hub token), so the test
+// compares stderr whole and requires that the engine never ran.
+//
+// Two cases, because the fix line depends on what the plugin offers. A plugin
+// that declares features is sent to --features, which lists them. One that
+// declares none is sent to --help, which lists its flags: --features would
+// print nothing for it. The first case also proves the second branch is not
+// unconditional.
+func TestRunPlugin_YANGFlagWithoutModuleRefuses(t *testing.T) {
+	cases := []struct {
+		name, plugin, features, fix string
+	}{
+		{"a plugin that declares features", "bgp-nlri-test", "nlri capa", "fix: ze plugin bgp-nlri-test --features\n"},
+		{"a plugin that declares no feature", "bgp-adj-rib-in", "", "fix: ze plugin bgp-adj-rib-in --help\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			engineRan := false
+			cfg := PluginConfig{
+				Name:     tc.plugin,
+				Features: tc.features,
+				RunEngine: func(_ net.Conn) int {
+					engineRan = true
+					return 0
+				},
+			}
+
+			var out, errW bytes.Buffer
+			code := runPlugin(cfg, []string{"--yang"}, &out, &errW)
+			assert.Equal(t, 1, code)
+			assert.False(t, engineRan, "--yang must not start engine mode")
+			assert.Empty(t, out.String())
+			assert.Equal(t,
+				"error: plugin '"+tc.plugin+"' declares no YANG module, so --yang has nothing to print\n"+
+					"--yang prints the YANG module a plugin returns as its own, and this plugin returns none\n"+
+					tc.fix,
+				errW.String())
+		})
+	}
+}
+
+// TestRunPlugin_FeaturesFlagPrintsNothingWithoutFeatures pins the fact the
+// --help fix above rests on: --features on a plugin that declares no feature
+// prints nothing and exits 0, so it cannot be the fix for that plugin.
+// Method: run the flag over named streams and compare each stream whole.
+func TestRunPlugin_FeaturesFlagPrintsNothingWithoutFeatures(t *testing.T) {
+	var out, errW bytes.Buffer
+	code := runPlugin(PluginConfig{Name: "bgp-adj-rib-in"}, []string{"--features"}, &out, &errW)
+	assert.Equal(t, 0, code)
+	assert.Empty(t, out.String())
+	assert.Empty(t, errW.String())
 }
 
 // TestRunPlugin_UnsupportedNLRI verifies exit 1 when --nlri used but not supported.

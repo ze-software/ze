@@ -1,6 +1,12 @@
 # plugin-adj-rib-in-features - verify adj-rib-in plugin --features output
-# Tests that ze plugin bgp-adj-rib-in --features lists supported features
+# Tests that ze plugin bgp-adj-rib-in --features answers that the plugin
+# declares no features: it exits 0 and prints nothing. The plugin decodes no
+# NLRI or capability and returns no YANG module of its own, so its feature
+# list is empty. A unit test cannot decide this: it is the shipped binary's
+# dispatch of the plugin's registration through `ze plugin`.
+# reject=stdout:pattern= reads both streams of the command, so stderr must be
+# empty too.
 
 cmd=foreground:seq=1:exec=ze plugin bgp-adj-rib-in --features
 expect=exit:code=0
-expect=stdout:contains=yang
+reject=stdout:pattern=\S

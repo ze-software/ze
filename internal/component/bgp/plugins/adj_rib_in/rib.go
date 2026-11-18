@@ -29,7 +29,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
-	adjyang "github.com/ze-software/ze/internal/component/bgp/plugins/adj_rib_in/yang"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -1250,9 +1249,4 @@ func (r *AdjRIBInManager) relayChunk(ctx context.Context, destination string, ch
 		return r.routeRelayer(destination, chunk)
 	}
 	return r.plugin.RelayStoredRoute(ctx, destination, chunk)
-}
-
-// getYANG returns the embedded YANG schema.
-func getYANG() string {
-	return adjyang.ZeAdjRibInAPIYANG
 }

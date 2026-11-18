@@ -14,7 +14,6 @@ import (
 	_ "github.com/ze-software/ze/internal/component/cmd/clear/yang"
 	_ "github.com/ze-software/ze/internal/component/cmd/delete/yang"
 	_ "github.com/ze-software/ze/internal/component/cmd/log/yang"
-	_ "github.com/ze-software/ze/internal/component/cmd/meta/yang"
 	_ "github.com/ze-software/ze/internal/component/cmd/metrics/yang"
 	_ "github.com/ze-software/ze/internal/component/cmd/monitor/yang"
 	_ "github.com/ze-software/ze/internal/component/cmd/set/yang"

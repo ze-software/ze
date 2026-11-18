@@ -51,6 +51,10 @@ const (
 	// schema defines while ze held no config schema of a declared external
 	// plugin, so ze did not start (RecordUndeclaredSchemaStop).
 	LastStopSchemaUndeclared
+	// LastStopBuildRegistrationUnheld: a module compiled into ze names a
+	// ze:validate function or a ze:reference source this ze does not hold, so
+	// ze did not start (RecordUnheldRegistrationStop).
+	LastStopBuildRegistrationUnheld
 )
 
 // lastStopEntriesMax bounds the record. The first entries of the run are
@@ -76,6 +80,8 @@ func (r LastStopReason) Code() string {
 		return diagnostic.CodeDoctorPluginSchemaRefused
 	case LastStopSchemaUndeclared:
 		return diagnostic.CodeDoctorPluginSchemaUndeclared
+	case LastStopBuildRegistrationUnheld:
+		return diagnostic.CodeDoctorBuildRegistrationUnheld
 	case LastStopUnspecified:
 		panic("BUG: LastStopReason.Code on an unspecified reason")
 	}
@@ -95,6 +101,8 @@ func (r LastStopReason) MarshalText() ([]byte, error) {
 		return []byte("schema-refused"), nil
 	case LastStopSchemaUndeclared:
 		return []byte("schema-undeclared"), nil
+	case LastStopBuildRegistrationUnheld:
+		return []byte("build-registration-unheld"), nil
 	case LastStopUnspecified:
 		return nil, errors.New("last-stop reason is unspecified")
 	}
@@ -115,6 +123,8 @@ func (r *LastStopReason) UnmarshalText(text []byte) error {
 		*r = LastStopSchemaRefused
 	case "schema-undeclared":
 		*r = LastStopSchemaUndeclared
+	case "build-registration-unheld":
+		*r = LastStopBuildRegistrationUnheld
 	default:
 		return fmt.Errorf("last-stop reason %q is unknown", text)
 	}
@@ -276,6 +286,11 @@ func recordLastStopLogged(entry LastStopEntry) bool {
 	if entry.Reason == LastStopSchemaUndeclared {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
 			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginSchemaUndeclared)
+		return false
+	}
+	if entry.Reason == LastStopBuildRegistrationUnheld {
+		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
+			"detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorBuildRegistrationUnheld)
 		return false
 	}
 	logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",

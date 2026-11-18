@@ -15,19 +15,19 @@ import (
 // set DefaultLoader answers with IdleModuleNames and EmptyModuleNames, the
 // same functions the join's rule is.
 //
-// The two findings are reported apart. A module of IdleModuleNames holds
-// definitions ze drops in silence, which the join refuses from an external
-// plugin too. A module of EmptyModuleNames declares no statement at all: the
-// join accepts one from an external plugin, since nothing of it is lost, but
-// in the compiled-in set it is a leftover its yang package still registers,
-// and the test names it so it is deleted.
+// The two findings are reported apart, and the join refuses both from an
+// external plugin. A module of IdleModuleNames holds definitions ze drops in
+// silence. A module of EmptyModuleNames declares no statement at all: in the
+// compiled-in set it is a leftover its yang package still registers, and the
+// test names it so it is deleted with every line that embeds, registers or
+// returns it. Both lists are expected empty.
 //
 // VALIDATES: one rule for a compiled-in module and an external one; only the
 // time differs, the build for one and the start for the other.
 // PREVENTS: a compiled-in module whose nodes nothing reads (a config module
-// named without -conf, a command module with no ze:command) shipped in
-// silence, while the same module from an external plugin is refused; and an
-// empty module kept registered after its content moved away.
+// named without -conf, a command module with no ze:command) or that declares
+// nothing at all shipped in silence, while the same module from an external
+// plugin is refused.
 func TestNoShippedModuleAddsNothing(t *testing.T) {
 	if len(yang.Modules()) == 0 {
 		t.Fatal("no registered YANG module: the composition root registered nothing")

@@ -3,14 +3,10 @@
 package yang
 
 import (
-	// The packages registering the modules these modules import.
-	_ "github.com/ze-software/ze/internal/component/bgp/yang"
-
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func init() {
 	configyang.RegisterModule("ze-refresh-cmd.yang", ZeRefreshCmdYANG)
 	configyang.RegisterModule("ze-route-refresh-api.yang", ZeRouteRefreshAPIYANG)
-	configyang.RegisterModule("ze-route-refresh.yang", ZeRouteRefreshYANG)
 }
