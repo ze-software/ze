@@ -1610,6 +1610,18 @@ refused reader. The backend does not delete that link on the caller's behalf.
 <!-- source: internal/plugins/iface/netlink/counter_create_linux.go -- netlinkBackend.CreateLinkCounterReader, counterSource.finishCreate, counterSource.boundCounters -->
 <!-- source: internal/plugins/iface/netlink/counter_create_request_linux.go -- newCounterCreateRequest, validateCounterCreatePayload -->
 
+A failed creation grants a safe-retry receipt only when the original socket
+received one matched negative acknowledgment, validated its original exclusive
+creation request and consumed the complete batch without a transport or parser
+failure. No creation echo may have been received. The returned error preserves
+the native errno and exposes `NativeLinkCreationRejected`; the attempted flag
+alone does not prove rejection. The same errno from an uncertain send or receive,
+a partial echo, or an invalid later message grants no receipt. A caller retries
+a name collision only after that definitive rejection and successful closure of
+its original rejected resource. Other failures retain their original cleanup
+owner; no name or index lookup supplies deletion or retry authority.
+<!-- source: internal/plugins/iface/netlink/counter_create_rejection_linux.go -- counterCreateNegativeReply, completedCounterCreateRejection -->
+
 Linux requires statistics to persist “across routine operations like bringing
 the interface down and up” ([networking statistics documentation](https://docs.kernel.org/networking/statistics.html)).
 Its generic statistics API provides no driver-reset epoch. A driver reset whose

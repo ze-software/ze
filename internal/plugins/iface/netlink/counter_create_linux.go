@@ -57,7 +57,11 @@ func (b *netlinkBackend) CreateLinkCounterReader(input *nl.NetlinkRequest) (netl
 	if err != nil {
 		return nil, nil, false, err
 	}
-	dump := counterDump{sequence: request.Seq, portID: portID, single: true}
+	// Serialization fixes Len on the owned clone before this immutable header
+	// is captured. Send serializes the same owned clone without caller callbacks.
+	request.Serialize()
+	dump := counterDump{sequence: request.Seq, portID: portID, single: true,
+		creationHeader: request.NlMsghdr}
 	// From this point even an uncertain Send belongs to the caller's attempt.
 	if err := s.socket.Send(request); err != nil {
 		s.invalidate()
@@ -110,6 +114,9 @@ func (s *counterSource) checkCreateNamespace() (err error) {
 // finishCreate requires mu and MUST only follow an attempted Send. It retains
 // the first actual echo rather than looking up a possibly replaced state.
 func (s *counterSource) finishCreate(dump *counterDump, cause error) (netlink.Link, func() (*netlink.LinkStatistics, error), bool, error) {
+	if rejection := completedCounterCreateRejection(dump, cause); rejection != nil {
+		return nil, nil, true, rejection
+	}
 	if dump.failure != nil {
 		if !errors.Is(cause, dump.failure) {
 			cause = errors.Join(cause, dump.failure)

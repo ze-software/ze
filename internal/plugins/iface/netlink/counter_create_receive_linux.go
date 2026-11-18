@@ -61,6 +61,14 @@ func (s *counterSource) consumeCreate(dump *counterDump, messages []syscall.Netl
 	if sender != nl.PidKernel {
 		return fmt.Errorf("counter creation sender %d is not the kernel", sender)
 	}
+	acknowledgedBeforeBatch := dump.done
+	// A successful ACK without an echo keeps receiveCreate waiting. A later
+	// contradictory negative ACK cannot erase that earlier completion history.
+	if prior, confirmed := dump.failure.(counterCreateNegativeACK); confirmed {
+		dump.failure = syscall.Errno(prior)
+	}
+	var rejection counterCreateNegativeACK
+	acknowledgments := 0
 	for _, message := range messages {
 		if message.Header.Type == unix.NLMSG_DONE {
 			return errors.New("counter creation received unexpected dump completion")
@@ -71,6 +79,25 @@ func (s *counterSource) consumeCreate(dump *counterDump, messages []syscall.Netl
 		if dump.interrupted {
 			return netlink.ErrDumpInterrupted
 		}
+		if message.Header.Type == unix.NLMSG_ERROR {
+			acknowledgments++
+			rejection = counterCreateNegativeReply(dump, message)
+		}
 	}
+	// Only one validated original negative ACK in a fully consumed batch can
+	// carry this private evidence. It is not yet a public safe-retry receipt.
+	if acknowledgedBeforeBatch {
+		return nil
+	}
+	if acknowledgments != 1 {
+		return nil
+	}
+	if rejection == 0 {
+		return nil
+	}
+	if len(dump.links) != 0 {
+		return nil
+	}
+	dump.failure = rejection
 	return nil
 }

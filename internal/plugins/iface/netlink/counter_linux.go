@@ -60,6 +60,9 @@ type counterDump struct {
 	done        bool
 	single      bool
 	failure     error
+	// creationHeader is the original owned clone's serialized request header.
+	// Generic query dumps leave it zero and never mint a creation rejection.
+	creationHeader unix.NlMsghdr
 }
 
 func (s *counterSource) snapshot(name string) ([]counterLink, error) {
