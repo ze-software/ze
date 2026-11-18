@@ -92,7 +92,8 @@ Those commits do not close the spec or claim release readiness.
 | Learned-only export policy, reload and diagnostics | Committed in `067a0c5b302cca916135dc13dd0b55292af1cd54` | Scoped policy and diagnostics runs and four functional scenarios passed; final integrated regression remains owed |
 | Selected-only replacement-recipient replay, AC-27 | Committed in `96dc0b610e` | Actual socket regression, useful FlowSpec controls and producing-code discrimination passed; final integrated regression remains owed |
 | Applied-event completion across plugin transports | Committed in `a2247ff49e190f4b61030a4bee932d472f858c50` and `824dc2284b21e5ab54b883b616c8ba48d9beb242` | Scoped unit, race and producing-code discrimination runs passed; the complete advertiser lifecycle is still being tested |
-| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined source integrated; implementation checkpoint being committed | The named launcher builds with the new drivers. GR source commands are wired. RIB, RS/RR, GR and formatter scoped tests now run, with the broader results below. Remaining fixture repairs, functional execution and source-fault proof remain in scope. Independent source reviews do not substitute for execution |
+| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Committed in `a27a9512390843d4d21fd6864f52c4dd649eb460` | The implementation checkpoint passed its native commit gates. Remaining fixture repairs, functional execution and source-fault proof remain in scope. Independent source reviews do not substitute for execution |
+| Recovery integration session and owner checks | Committed in `17cb71234606f678ebed537720601fc96084a6e1` by the recovery session | Six companion test files cover original-session EOR, publication and recovery delivery; their owning session retains its scoped execution evidence. Final integrated regression remains owed |
 | Mutable mock RTR snapshots and query framing | Committed in `f8ebbaf49b6bd0a1f5a65e7154f3c7dbf13490de` | All seven mock-package roots passed. Removing the producing length guard fails the real TCP query test; the same healthy root then passed with race detection. Repeated race runs and the remaining snapshot discrimination are owed |
 | Shared source-preference comparison | Committed in `559acf8707db9bdfca411f4a03d0c7f6983f8926` | Four selected ranking roots and then all 74 Loc-RIB package roots passed with race detection; this does not establish the full advertiser lifecycle |
 | Reusable accepted-source snapshot validation and comparison | Committed in `20a28ca82f5656f547e683fc47966358214e306c` | All five original lookup roots passed with race detection after the extraction. The outer reply still checks exact identity, state and frame bounds; these helpers grant no source authority |
@@ -162,10 +163,26 @@ The new diagnostic tests failed against the original warning paths, then all
 seven selected diagnostic/withdrawal roots passed with race detection.
 Twenty repeats passed 136 of 140 root executions, with no race reported;
 four failures came from a new doctor snapshot assertion comparing unordered
-status rows. That test-oracle correction remains active while the source
-checkpoint is retried. The fresh GR/RTR draft reached retained stale
-state but exposed an observer still reading status by address. Its reviewed
-repair reads the captured source owner; the actual lifecycle run remains owed.
+status rows. After an independently reviewed multiset assertion replaced the
+order-dependent comparison, that root passed twenty race runs. The source
+checkpoint then passed its native gates and landed in `a27a9512390843d4d21fd6864f52c4dd649eb460`.
+
+The next full run passed the redistribution package, exposed a route-server
+fixture reading an asynchronously changed map without its lock, and stopped
+the RIB package at a fixture callback closing its channel twice. The latter
+fixture had exposed its manager before the SDK runtime was ready. Reviewed
+repairs use the actual readiness handshake and locked observation. All six
+reached roots then passed with race detection; repeated and full-package
+reruns remain owed. That run did not reach the large-event root. Its isolated
+170,000-route race run passed, so the earlier full-run timeout remains under
+investigation rather than being declared resolved.
+
+The real GR/RTR draft now reaches retained-route advertisement, withdrawal
+and restoration on recipient TCP. Its purge stimulus used a selecting-RIB
+command that does not own passive validation cleanup. The independently
+reviewed correction reconnects with GR state preserved and sends real
+End-of-RIB, requiring passive removal while the successor is still open.
+Execution of that correction and all four complete variants remains owed.
 
 ### Observed evidence
 

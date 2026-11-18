@@ -142,7 +142,7 @@ func TestFactoryConsumersAreBuiltOverTheOrchestratorConnection(t *testing.T) {
 	}))
 	updater := &nopUpdater{}
 
-	buildFactoryConsumers(updater)
+	publishFactoryConsumers(constructFactoryConsumers(updater))
 
 	_, ok := configredist.LookupConsumer("factorytest")
 	assert.True(t, ok, "the built consumer is registered")

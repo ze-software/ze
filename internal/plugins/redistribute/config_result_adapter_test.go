@@ -11,3 +11,8 @@ func (n *nopUpdater) UpdateRouteResult(ctx context.Context, peer, command string
 	a, w, err := n.UpdateRoute(ctx, peer, command)
 	return &rpc.UpdateRouteOutput{Announced: a, Withdrawn: w}, err
 }
+
+func (n *nopUpdater) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return n.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (n *nopUpdater) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {}
