@@ -23,7 +23,9 @@ const specDoorReason = "a spec's design is written against\n" +
 // ze point: architecture/directives/read-the-design-doors-before-writing-a-spec
 // writeSpecDoorsRead refuses a Write, Edit or MultiEdit of a spec under plan/
 // (specpath.IsSpec) from a context with no record of reading ai/doors/system.md
-// and every door covering a repository path the spec names, each in full. The
+// and every door covering a repository path the spec names, each in full, in
+// the copies of the checkout the spec lies in (gatedCheckout), so a spec in a
+// worktree owes the worktree's doors. The
 // paths are read from the spec on disk and from the text the edit proposes, so
 // an edit owes the doors of the subsystems the spec targeted as well as those it
 // now adds. A brand-new spec that names no path owes system.md alone. The doors
@@ -34,7 +36,7 @@ func writeSpecDoorsRead(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
 		return nil
 	}
-	file, inside := checkoutPath(ctx)
+	checkout, file, inside := gatedCheckout(ctx, absolutePath(ctx))
 	if !inside {
 		return nil
 	}
@@ -43,17 +45,17 @@ func writeSpecDoorsRead(ctx context) *verdict {
 	}
 	current, err := os.ReadFile(absolutePath(ctx))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return &verdict{2, "❌ BLOCKED: " + file + " cannot be read: " + err.Error() +
+		return &verdict{2, "❌ BLOCKED: " + checkout.name(file) + " cannot be read: " + err.Error() +
 			"\n  Why: the design-door gate reads the spec to name the doors of the subsystems it targets, and is fail-closed.\n  Fix: make the file readable, then retry.\n  ai/rules/architecture.md"}
 	}
-	unread, refusal := unreadDoors(ctx, specRepoPaths(ctx.root, string(current)+"\n"+ctx.content))
+	unread, refusal := unreadDoors(ctx, checkout, specRepoPaths(checkout.root, string(current)+"\n"+ctx.content))
 	if refusal != nil {
 		return refusal
 	}
 	if len(unread) == 0 {
 		return nil
 	}
-	return &verdict{2, doorRefusal(file, unread, specDoorReason)}
+	return &verdict{2, doorRefusal(checkout, file, unread, specDoorReason)}
 }
 
 // specRepoPaths answers every checkout-relative path the text names: each run

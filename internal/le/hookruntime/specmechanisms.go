@@ -28,14 +28,16 @@ const (
 // Census that omits a writer or reader or an absence-only Acceptance Criterion
 // (specmechanisms.Problem). The same proposed content
 // also owes functional entry-point proof when daemonProofProblem identifies a
-// runtime change. An untouched spec is never judged; an Edit whose old_string
+// runtime change. A spec is judged in the checkout it lies in (gatedCheckout),
+// so a spec in a worktree is judged against the worktree's tree, never
+// skipped. An untouched spec is never judged; an Edit whose old_string
 // the file does not hold changes nothing and passes to the tool's own failure.
 func writeSpecMechanisms(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
 		return nil
 	}
-	file, inside := checkoutPath(ctx)
-	// refuse-by-default: guards checkoutPath -- a file outside the checkout is no spec of this repository
+	checkout, file, inside := gatedCheckout(ctx, absolutePath(ctx))
+	// refuse-by-default: guards gatedCheckout -- a file in no checkout is no spec of this repository
 	if !inside {
 		return nil
 	}
@@ -44,7 +46,7 @@ func writeSpecMechanisms(ctx context) *verdict {
 	}
 	current, err := os.ReadFile(absolutePath(ctx))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return &verdict{2, "❌ BLOCKED: " + file + " cannot be read: " + err.Error() +
+		return &verdict{2, "❌ BLOCKED: " + checkout.name(file) + " cannot be read: " + err.Error() +
 			"\n  Why: the Existing Mechanisms gate judges the spec as the edit leaves it, and is fail-closed.\n  Fix: make the file readable, then retry.\n  ai/rules/planning.md"}
 	}
 	proposed, applied := proposedSpec(ctx, string(current))
@@ -55,7 +57,7 @@ func writeSpecMechanisms(ctx context) *verdict {
 	if problem := specmechanisms.Problem(file, proposed); problem != "" {
 		return &verdict{2, "❌ BLOCKED: " + problem + "\n  ai/rules/planning.md"}
 	}
-	if problem := daemonProofProblem(ctx.root, proposed); problem != "" {
+	if problem := daemonProofProblem(checkout.root, proposed); problem != "" {
 		return &verdict{2, "❌ BLOCKED: " + problem + "\n  ai/rules/testing.md"}
 	}
 	return nil

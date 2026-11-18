@@ -769,16 +769,18 @@ func readWholeFile(ctx context) bool {
 
 // hookSourceRead records what a Read tool call read. A read of a gated
 // document (the Go style guide, or a page under ai/doors) that returned every
-// line writes the marker writeStyleGuideRead and writeDesignDoorsRead ask for,
-// and a read of source writes the marker writeDesignEvidence asks for. The
-// document must sit in this checkout: a copy elsewhere records nothing.
+// line writes the marker writeStyleGuideRead, writeDesignDoorsRead and
+// writeSpecDoorsRead ask for, and a read of source writes the marker
+// writeDesignEvidence asks for. The record names the checkout the document
+// lies in (readDocument): the session's root, or a worktree or other checkout
+// of Ze, whose edits that read then counts for. A copy kept anywhere else
+// records nothing.
 func hookSourceRead(ctx context) int {
-	relative := relativePath(ctx)
-	if document := gatedDocument(relative); document != "" && document == relative {
+	if checkout, document, ok := readDocument(ctx, absolutePath(ctx)); ok {
 		if !readWholeFile(ctx) {
 			return 0
 		}
-		return writeMarkerFile(documentReadMarker(ctx, document), "")
+		return writeMarkerFile(documentReadMarker(ctx, checkout, document), "")
 	}
 	return recordSourceRead(ctx)
 }

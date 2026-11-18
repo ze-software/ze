@@ -227,14 +227,17 @@ func TestStyleGateCountsABashRead(t *testing.T) {
 		}
 		runHook(t, root, "pretool-bash", payload)
 	}
-	records := []string{
-		"cat " + styleGuidePath,
-		"cd /repo && cat -n /repo/" + styleGuidePath,
-		"nl ./" + styleGuidePath,
+	records := []func(root string) string{
+		func(string) string { return "cat " + styleGuidePath },
+		func(root string) string { return "cd " + root + " && cat -n " + root + "/" + styleGuidePath },
+		func(string) string { return "nl ./" + styleGuidePath },
 	}
 	for _, command := range records {
+		// The print reads a guide that exists: a cat of a missing file prints
+		// nothing, and the hook credits only a file that resolves.
 		root := t.TempDir()
-		bash(t, root, "sess-a", "", command)
+		writeFixtureFile(t, root, styleGuidePath, strings.Repeat("A line of the guide.\n", guideLines))
+		bash(t, root, "sess-a", "", command(root))
 		requireStyleGate(t, root, goEditPayload("sess-a", ""), false)
 	}
 	ignored := []string{
@@ -255,12 +258,17 @@ func TestStyleGateCountsABashRead(t *testing.T) {
 		"cat docs/contributing/not-" + filepath.Base(styleGuidePath),
 	}
 	for _, command := range ignored {
+		// Every file a line names exists, so a line records nothing because
+		// the hook refuses its shape, never because the print would fail.
 		root := t.TempDir()
+		writeFixtureFile(t, root, styleGuidePath, strings.Repeat("A line of the guide.\n", guideLines))
+		writeFixtureFile(t, root, "docs/contributing/not-"+filepath.Base(styleGuidePath), "Another page.\n")
 		bash(t, root, "sess-a", "", command)
 		requireStyleGate(t, root, goEditPayload("sess-a", ""), true)
 	}
 
 	root := t.TempDir()
+	writeFixtureFile(t, root, styleGuidePath, strings.Repeat("A line of the guide.\n", guideLines))
 	bash(t, root, "sess-a", "agent1", "cat "+styleGuidePath)
 	requireStyleGate(t, root, goEditPayload("sess-a", "agent1"), false)
 	requireStyleGate(t, root, goEditPayload("sess-a", ""), true)

@@ -14,10 +14,11 @@ import (
 // specFixturePath is a spec in a real bucket, so specpath.IsSpec answers yes.
 const specFixturePath = "plan/post-release/engineering/spec-widget.md"
 
-// specEditPayload proposes one tool call writing text into file.
-func specEditPayload(session, tool, file, text string) map[string]any {
+// specEditPayload proposes one tool call of session sess-a writing text into
+// file.
+func specEditPayload(tool, file, text string) map[string]any {
 	return map[string]any{
-		"session_id": session,
+		"session_id": "sess-a",
 		"tool_name":  tool,
 		"tool_input": map[string]any{"file_path": file, "old_string": "a", "new_string": text, "content": text},
 	}
@@ -59,7 +60,7 @@ func TestSpecDoorGateRequiresTheDoorsOfNamedPaths(t *testing.T) {
 			for _, door := range test.read {
 				readDoor(t, root, "sess-a", door, nil)
 			}
-			requireDoorGate(t, root, specEditPayload("sess-a", test.tool, test.file, test.text), test.unread)
+			requireDoorGate(t, root, specEditPayload(test.tool, test.file, test.text), test.unread)
 		})
 	}
 }
@@ -70,7 +71,7 @@ func TestSpecDoorGateRequiresTheDoorsOfNamedPaths(t *testing.T) {
 func TestSpecDoorGateClearsAfterTheReads(t *testing.T) {
 	root := t.TempDir()
 	writeDoors(t, root)
-	payload := specEditPayload("sess-a", "Write", specFixturePath, "## Files to Modify\n- `internal/component/bgp/reactor/peer.go`\n")
+	payload := specEditPayload("Write", specFixturePath, "## Files to Modify\n- `internal/component/bgp/reactor/peer.go`\n")
 	requireDoorGate(t, root, payload, []string{doorSystem, doorBGPEngine})
 	readDoor(t, root, "sess-a", doorSystem, nil)
 	requireDoorGate(t, root, payload, []string{doorBGPEngine})
@@ -87,7 +88,7 @@ func TestSpecDoorGateMatchesAbsolutePaths(t *testing.T) {
 	readDoor(t, root, "sess-a", doorSystem, nil)
 	spec := filepath.Join(root, filepath.FromSlash(specFixturePath))
 	named := filepath.ToSlash(filepath.Join(root, "internal", "component", "bgp", "plugins", "rib", "rib.go"))
-	requireDoorGate(t, root, specEditPayload("sess-a", "Edit", spec, "See "+named+"."), []string{doorBGPPlugins})
+	requireDoorGate(t, root, specEditPayload("Edit", spec, "See "+named+"."), []string{doorBGPPlugins})
 }
 
 // TestSpecRepoPathsTrimsAndDeduplicates pins the path extraction: punctuation

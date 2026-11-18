@@ -48,8 +48,40 @@ cites. A brand-new spec that names no path owes `system.md` alone
 to update. Every page here except this README owes one well-formed header: a
 page with none, a misspelt opener, or a header that does not close or names no
 path refuses every code edit until it is repaired, rather than covering nothing
-in silence. A code file outside the checkout (scratch, another worktree) is not
-gated by these doors; a symlink alias of the checkout is.
+in silence.
+
+**A read counts for the checkout whose copy it read.** An edit owes the doors
+and the Go style guide of the checkout the edited file lies in: the nearest
+directory above it that is the session's root or a git checkout of Ze (`go.mod`,
+`feature-gates.txt` and a `.git` entry). The path as written is walked first,
+so a file under the session's root stays its file through a symlink that
+leaves it (`tmp/`); only a path that reaches no checkout as written is walked
+again with symlinks resolved, and a checkout whose resolved directory is the
+session's resolved root is that root. A read is the Read tool's whole read, or
+a plain Bash line such as `cat <path>`, optionally after `cd <dir> &&`: only
+`cat`, `cat -n` and `nl` of plain paths, joined by `&&` or `;`, with a `cd`
+allowed only first, and no quote, variable, glob, comment, pipe, redirection or
+heredoc. Any other line records nothing, absolute paths included. Each path is
+resolved as the kernel opens it, links before `..`, a relative one from the
+physical directory of the `cd` or of the session's cwd. Every operand must be
+a regular file the hook can read, or the whole line records nothing: a `cat`
+that fails makes `&&` skip the prints after it. A session cwd, a `cd` target,
+an operand or a link on the way under `/proc` or `/dev` records nothing
+either, because those resolve against the hook's process, not the shell's. A
+line whose prints total more than 25000 bytes, counting the seven bytes of
+line number `cat -n` and `nl` put before each line, records nothing, because
+the harness cuts a long Bash output: print fewer files per line. A file in a
+worktree under `.claude/worktrees/<name>/`, or in one elsewhere on the disk
+(`ai/owner/machines.md`), owes that worktree's own `ai/doors/` and
+`docs/contributing/ze-go-style.md`, and reading them is what clears it. A read
+of the main checkout's copy does not count for a worktree edit, nor the
+reverse: a branch can change a door, add one, or change the guide, and the
+edit's own checkout is the one whose constraints apply. A refusal names the
+copy to read by its path from the session's root
+(`.claude/worktrees/<name>/ai/doors/system.md`), or by its absolute path when
+the checkout lies outside it. A code file in no checkout (scratch) is not gated
+by any doors; a symlink alias of the checkout is gated like the checkout
+(`gatedCheckout`, `internal/le/hookruntime/readgate.go`).
 
 **The main thread names the door in every subagent brief** that touches a
 subsystem: "Read `ai/doors/system.md` and `ai/doors/<door>.md` before you act."

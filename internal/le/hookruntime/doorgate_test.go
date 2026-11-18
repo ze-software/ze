@@ -84,10 +84,11 @@ func readEveryDoor(t *testing.T, root, session string) {
 	}
 }
 
-// runBash runs the Bash pre-hook over one command.
-func runBash(t *testing.T, root, session, agent, command string) {
+// runBash runs the Bash pre-hook over one command, as session sess-a, the
+// session whose reads and edits every caller judges.
+func runBash(t *testing.T, root, agent, command string) {
 	t.Helper()
-	payload := map[string]any{"session_id": session, "tool_name": "Bash", "tool_input": map[string]any{"command": command}}
+	payload := map[string]any{"session_id": "sess-a", "tool_name": "Bash", "tool_input": map[string]any{"command": command}}
 	if agent != "" {
 		payload["agent_id"] = agent
 	}
@@ -210,22 +211,26 @@ func TestDoorGateCountsOnlyAWholeRead(t *testing.T) {
 }
 
 // TestDoorGateCountsABashRead drives the Bash pre-hook: a cat of the doors with
-// no pipe records each door it prints, and a piped, redirected or ranged print
-// records nothing.
+// no pipe records each door it prints, a relative path placed under the
+// directory a cd moved to, and a piped, redirected or ranged print records
+// nothing.
 func TestDoorGateCountsABashRead(t *testing.T) {
 	file := "internal/component/bgp/plugins/rib/rib.go"
-	records := []string{
-		"cat " + doorSystem + " " + doorBGPPlugins,
-		"cd /repo && cat -n /repo/" + doorSystem + " && nl ./" + doorBGPPlugins,
+	records := []func(root string) string{
+		func(string) string { return "cat " + doorSystem + " " + doorBGPPlugins },
+		func(root string) string {
+			return "cd " + root + " && cat -n " + root + "/" + doorSystem + " && nl ./" + doorBGPPlugins
+		},
 	}
 	for _, command := range records {
 		root := t.TempDir()
 		writeDoors(t, root)
-		runBash(t, root, "sess-a", "", command)
+		runBash(t, root, "", command(root))
 		requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", file), nil)
 	}
 	ignored := []string{
 		"cat " + doorSystem + " " + doorBGPPlugins + " | head",
+		"cd . || cat " + doorSystem + " " + doorBGPPlugins,
 		"cat " + doorSystem + " " + doorBGPPlugins + " > /dev/null",
 		"head -n 400 " + doorSystem + " " + doorBGPPlugins,
 		"sed -n '1,400p' " + doorSystem + " " + doorBGPPlugins,
@@ -237,7 +242,7 @@ func TestDoorGateCountsABashRead(t *testing.T) {
 	for _, command := range ignored {
 		root := t.TempDir()
 		writeDoors(t, root)
-		runBash(t, root, "sess-a", "", command)
+		runBash(t, root, "", command)
 		requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", file), []string{doorSystem, doorBGPPlugins})
 	}
 }
@@ -251,7 +256,7 @@ func TestDoorGateHoldsEachSubagentToItsOwnRead(t *testing.T) {
 	file := "internal/component/foo/foo.go"
 	readDoor(t, root, "sess-a", doorSystem, nil)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "agent1", "Edit", file), []string{doorSystem})
-	runBash(t, root, "sess-a", "agent1", "cat "+doorSystem)
+	runBash(t, root, "agent1", "cat "+doorSystem)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "agent1", "Edit", file), nil)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "agent2", "Edit", file), []string{doorSystem})
 	requireDoorGate(t, root, codeEditPayload("sess-b", "", "Edit", file), []string{doorSystem})
@@ -308,19 +313,27 @@ func TestDoorGateRefusesADoorWithoutAUsableHeader(t *testing.T) {
 	requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", "internal/component/foo/foo.go"), nil)
 }
 
-// TestDoorGateResolvesTheCheckoutBoundary: a file reached through a symlink
-// alias of the checkout is gated like any other file in it, and a file outside
-// the checkout (scratch, another checkout) is not gated by this one's doors.
+// TestDoorGateResolvesTheCheckoutBoundary: the session's root is a real git
+// checkout of Ze (writeCheckoutFixture), so the walk meets a checkout at the
+// alias itself. A file reached through a symlink alias of the root is gated as
+// the root's own file, owing and taking the root's reads rather than those of
+// a second checkout labeled "."; so is a file spelled physically when the
+// session's root is the alias; and a file outside the checkout (scratch,
+// another checkout) is not gated by this one's doors.
 func TestDoorGateResolvesTheCheckoutBoundary(t *testing.T) {
 	root := t.TempDir()
-	writeDoors(t, root)
+	writeCheckoutFixture(t, root)
 	readDoor(t, root, "sess-a", doorSystem, nil)
 	alias := filepath.Join(t.TempDir(), "alias")
 	if err := os.Symlink(root, alias); err != nil {
 		t.Fatal(err)
 	}
-	aliased := filepath.Join(alias, "internal", "component", "bgp", "plugins", "rib", "new.go")
+	rib := filepath.Join("internal", "component", "bgp", "plugins", "rib", "new.go")
+	aliased := filepath.Join(alias, rib)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "", "Write", aliased), []string{doorBGPPlugins})
+	readDoor(t, root, "sess-a", doorBGPPlugins, nil)
+	requireDoorGate(t, root, codeEditPayload("sess-a", "", "Write", aliased), nil)
+	requireDoorGate(t, alias, codeEditPayload("sess-a", "", "Write", filepath.Join(root, rib)), nil)
 
 	outside := filepath.Join(t.TempDir(), "internal", "component", "bgp", "plugins", "rib", "probe.go")
 	requireDoorGate(t, root, codeEditPayload("sess-b", "", "Write", outside), nil)

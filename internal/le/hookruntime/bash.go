@@ -2,7 +2,9 @@
 package hookruntime
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1034,61 +1036,313 @@ func preMaterializeDerived(ctx context) *verdict {
 // ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
 // ze point: architecture/directives/read-the-design-doors-before-the-first-code-edit
 // bashDocumentRead records a Bash print of a whole gated document (the Go style
-// guide, or a page under ai/doors), which writeStyleGuideRead and
-// writeDesignDoorsRead ask for before a code edit. It never refuses. A command
-// with a pipe, a redirection or a substitution records nothing, because the
-// output then goes somewhere other than the reader. It runs before the
-// command, so a command that then fails still leaves the record.
+// guide, or a page under ai/doors), which writeStyleGuideRead,
+// writeDesignDoorsRead and writeSpecDoorsRead ask for before an edit. It never
+// refuses. It credits only a plain read line (plainDocumentReads), whose every
+// command the hook can place without a shell parser, and records nothing for
+// any other line, absolute operands included: a quote, an expansion, a comment,
+// a heredoc or a redirection can hide a cd or turn a print into text that
+// never runs, and a list of such shapes is never complete. Each printed file is
+// resolved as the kernel opens it, and the record names the checkout that copy
+// lies in (readDocument), so a cat of a worktree's copy counts for that
+// worktree's edits alone. writeStyleGuideRead and doorRefusal describe the
+// same line to the reader, so a change here changes them.
 func bashDocumentRead(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if !strings.Contains(command, styleGuidePath) && !strings.Contains(command, doorsDir+"/") {
 		return nil
 	}
-	for _, diverts := range []string{"|", ">", "<(", "$("} {
-		if strings.Contains(command, diverts) {
-			return nil
-		}
+	paths, plain := plainDocumentReads(ctx, command)
+	if !plain {
+		return nil
 	}
-	for _, segment := range commandSegments(command) {
-		for _, document := range printedDocuments(shellWords(segment)) {
-			writeMarkerFile(documentReadMarker(ctx, document), "")
+	for _, path := range paths {
+		if checkout, document, ok := readDocument(ctx, path); ok {
+			writeMarkerFile(documentReadMarker(ctx, checkout, document), "")
 		}
 	}
 	return nil
 }
 
-// printedDocuments answers the gated documents one command prints whole: a
-// program that prints every line of a file, with those documents among its
-// operands. head, tail and sed print a range, so they are no read, and neither
-// is a bat with a line range or a less or more told to start at a line with
-// `+N`. A glob is not expanded here, so `cat ai/doors/*.md` names no document.
-func printedDocuments(words []string) []string {
-	if len(words) == 0 {
-		return nil
+// plainDocumentReads answers the files a plain read line prints whole, each
+// resolved by plainReadPhysical, and whether command is such a line. A plain
+// read line holds only plainReadCharacter characters and no `&` outside `&&`,
+// and is a sequence of commands joined by `&&` or `;`: an optional `cd <path>`
+// first, then only `cat [-n] <path>...` or `nl <path>...`. The cd moves the
+// line where cdTarget can tell, and a cd it cannot place makes the line not
+// plain. A relative operand is joined to the physical directory (the cd's, or
+// the session's cwd) and walked whole, so a link is followed before the `..`
+// after it, as the kernel does; an absolute operand is walked the same way.
+//
+// Every operand MUST be a regular file the hook can open (plainReadFile), or
+// the whole line is not plain. One that fails makes its cat fail, and `&&`
+// then skips every later command, so crediting the later operands would record
+// a read that never ran: `cat /nonexistent && cat ai/doors/system.md` never
+// prints system.md. The same holds for a directory and for a file the hook
+// cannot read. A start directory, a cd target or an operand the walk refuses
+// (a path under /proc or /dev among them) makes the line not plain too.
+//
+// A line whose prints together exceed plainReadPrintMax bytes is not plain
+// either: the harness cuts a Bash output it judges too long, so the reader saw
+// a cut copy and no file of the line was read whole.
+func plainDocumentReads(ctx context, command string) ([]string, bool) {
+	if !plainReadText(command) {
+		return nil, false
 	}
-	program := filepath.Base(words[0])
-	ranged := program == "bat"
-	switch program {
-	case catCommand, "bat", "nl", "less", "more":
+	logical := worktreeLineStart(ctx.root, ctx.payload.Cwd)
+	physical, walked := plainReadPhysical(logical)
+	if !walked {
+		return nil, false
+	}
+	var paths []string
+	printedSize := 0
+	for index, segment := range strings.Split(strings.ReplaceAll(command, "&&", ";"), ";") {
+		words := strings.Fields(segment)
+		if len(words) == 0 {
+			return nil, false
+		}
+		if index == 0 && words[0] == "cd" {
+			if len(words) != 2 {
+				return nil, false
+			}
+			target, _ := cdTarget(logical, words[1:], []bool{false})
+			if target == "" {
+				return nil, false
+			}
+			physical, walked = plainReadPhysical(target)
+			if !walked {
+				return nil, false
+			}
+			continue
+		}
+		operands, printed := plainPrintOperands(words)
+		if !printed {
+			return nil, false
+		}
+		numbered := plainPrintNumbers(words)
+		for _, operand := range operands {
+			path := operand
+			if !filepath.IsAbs(path) {
+				path = physical + string(filepath.Separator) + operand
+			}
+			resolved, size, readable := plainReadFile(path, numbered)
+			if !readable {
+				return nil, false
+			}
+			printedSize += size
+			if printedSize > plainReadPrintMax {
+				return nil, false
+			}
+			paths = append(paths, resolved)
+		}
+	}
+	return paths, true
+}
+
+// plainReadPrintMax bounds the bytes one plain read line may print and still
+// be credited. The harness cuts a Bash output past 30000 characters
+// (BASH_MAX_OUTPUT_LENGTH, by default), and a character is at least one byte,
+// so a print of at most this many bytes reaches the reader whole, with room
+// to spare.
+const plainReadPrintMax = 25000
+
+// plainReadNumberWidth is the bytes `cat -n` and `nl` put before each line:
+// a number right-aligned in six columns, then a tab (`%6d\t`). nl puts the
+// same width of blanks before a line it does not number. A file within
+// plainReadPrintMax has fewer than a million lines, so the number never
+// widens the prefix.
+const plainReadNumberWidth = 7
+
+// plainReadFile answers the physical path of the absolute path name
+// (plainReadPhysical), the bytes a print of it writes, each line prefixed by
+// plainReadNumberWidth bytes when numbered, and whether it is a regular file
+// the hook can open, which is what a cat of it needs to print it. A file
+// larger than plainReadPrintMax answers false without being read, since no
+// line that prints it can be credited.
+func plainReadFile(name string, numbered bool) (string, int, bool) {
+	resolved, walked := plainReadPhysical(name)
+	if !walked {
+		return "", 0, false
+	}
+	info, err := os.Lstat(resolved)
+	if err != nil {
+		return "", 0, false
+	}
+	if !info.Mode().IsRegular() {
+		return "", 0, false
+	}
+	if info.Size() > plainReadPrintMax {
+		return "", 0, false
+	}
+	file, err := os.Open(resolved) // #nosec G304 -- opening the operand the shell would print is the check
+	if err != nil {
+		return "", 0, false
+	}
+	body, readErr := io.ReadAll(io.LimitReader(file, plainReadPrintMax+1))
+	if err := file.Close(); err != nil {
+		return "", 0, false
+	}
+	if readErr != nil {
+		return "", 0, false
+	}
+	size := len(body)
+	if numbered {
+		size += plainReadNumberWidth * textLines(body)
+	}
+	return resolved, size, true
+}
+
+// textLines counts the lines of body as cat and nl print them: one per
+// newline, and one more for a last line with no newline.
+func textLines(body []byte) int {
+	lines := bytes.Count(body, []byte{'\n'})
+	if len(body) != 0 && body[len(body)-1] != '\n' {
+		lines++
+	}
+	return lines
+}
+
+// plainPrintNumbers reports whether a command plainPrintOperands accepted
+// prefixes each line with its number: `cat -n` and `nl` do.
+func plainPrintNumbers(words []string) bool {
+	if words[0] == "nl" {
+		return true
+	}
+	return len(words) > 1 && words[1] == "-n"
+}
+
+// plainReadLinksMax bounds the links one walk of plainReadPhysical follows,
+// as Linux bounds a path lookup at 40, so a loop of links ends the walk.
+const plainReadLinksMax = 40
+
+// plainReadPhysical answers the physical path of the absolute path name,
+// walked one component at a time as the kernel opens it: a link is read with
+// os.Readlink and its target walked in its place, so a `..` after a link
+// climbs from the link's target. It answers false when a component cannot be
+// read, when a component that is not a directory has more after it, when the
+// walk follows more than plainReadLinksMax links, and when any path the walk
+// reaches is in a process-relative tree (processRelativeTree), whether the
+// name or a link target on the way leads there. filepath.EvalSymlinks is not
+// used because it follows such links in the hook's own process. The loop is
+// bounded by the components of name and of at most plainReadLinksMax targets.
+func plainReadPhysical(name string) (string, bool) {
+	if !filepath.IsAbs(name) {
+		return "", false
+	}
+	resolved := string(filepath.Separator)
+	pending := strings.Split(name, "/")
+	links := 0
+	for len(pending) != 0 {
+		part := pending[0]
+		pending = pending[1:]
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			resolved = filepath.Dir(resolved)
+			continue
+		}
+		next := filepath.Join(resolved, part)
+		if processRelativeTree(next) {
+			return "", false
+		}
+		info, err := os.Lstat(next)
+		if err != nil {
+			return "", false
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			if !info.IsDir() && len(pending) != 0 {
+				return "", false
+			}
+			resolved = next
+			continue
+		}
+		links++
+		if links > plainReadLinksMax {
+			return "", false
+		}
+		target, err := os.Readlink(next)
+		if err != nil {
+			return "", false
+		}
+		if filepath.IsAbs(target) {
+			resolved = string(filepath.Separator)
+		}
+		pending = append(strings.Split(target, "/"), pending...)
+	}
+	return resolved, true
+}
+
+// processRelativeTree reports whether path is /proc or /dev or lies under one.
+// The kernel answers their entries for the process that looks, so
+// /proc/self/cwd and /dev/fd reach one place for the hook and another for the
+// shell that runs the line, and the hook cannot say which file a print reads.
+func processRelativeTree(path string) bool {
+	for _, tree := range []string{"/proc", "/dev"} {
+		if path == tree {
+			return true
+		}
+		if strings.HasPrefix(path, tree+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// plainReadText reports whether every character of command is a
+// plainReadCharacter, and every `&` is half of `&&`.
+func plainReadText(command string) bool {
+	for _, character := range command {
+		if !plainReadCharacter(character) {
+			return false
+		}
+	}
+	return !strings.Contains(strings.ReplaceAll(command, "&&", ""), "&")
+}
+
+// plainReadCharacter reports whether character may appear on a plain read
+// line: a letter or digit, a character of a plain path (`/ . - _ + , @ % :`),
+// a space or a tab, and the separators `;` and `&`. Every character the shell
+// gives a meaning to beyond that (`$`, a quote, a backslash, a backtick, `#`,
+// `<`, `>`, `|`, `(`, `)`, `{`, `}`, `*`, `?`, `[`, `~`, `=`, `!`, a newline)
+// makes the line one the hook does not place.
+func plainReadCharacter(character rune) bool {
+	if 'a' <= character && character <= 'z' {
+		return true
+	}
+	if 'A' <= character && character <= 'Z' {
+		return true
+	}
+	if '0' <= character && character <= '9' {
+		return true
+	}
+	return strings.ContainsRune("/.-_+,@%: \t;&", character)
+}
+
+// plainPrintOperands answers the operands of one command of a plain read line
+// that prints every line of each, and whether the command is one: `cat`,
+// optionally with `-n`, or `nl`, followed by at least one operand and no other
+// option.
+func plainPrintOperands(words []string) ([]string, bool) {
+	operands := words[1:]
+	switch words[0] {
+	case catCommand:
+		if len(operands) != 0 && operands[0] == "-n" {
+			operands = operands[1:]
+		}
+	case "nl":
 	default:
-		return nil
+		return nil, false
 	}
-	var documents []string
-	for _, word := range words[1:] {
-		if strings.HasPrefix(word, "+") {
-			return nil
-		}
-		if ranged && strings.HasPrefix(word, "-r") {
-			return nil
-		}
-		if ranged && strings.HasPrefix(word, "--line-range") {
-			return nil
-		}
-		if document := gatedDocument(word); document != "" {
-			documents = append(documents, document)
+	if len(operands) == 0 {
+		return nil, false
+	}
+	for _, operand := range operands {
+		if strings.HasPrefix(operand, "-") {
+			return nil, false
 		}
 	}
-	return documents
+	return operands, true
 }
 
 // commandNamesArtifact reports whether the command text reaches the artifact,

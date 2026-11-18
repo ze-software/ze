@@ -584,11 +584,22 @@ var (
 	// refusing it as a lookup error, in the design gate and the daemon-path
 	// proof gate. Sealed after one independent review, whose findings were
 	// fixed before sealing.
+	//
+	// Re-sealed 2026-11-18 for the per-checkout read gates. The style guide,
+	// doors, design-evidence, mechanisms and WIP gates record and require each
+	// read for the checkout whose copy it read (the session root, a worktree
+	// under it, or a checkout outside it), placed by gatedCheckout. The Bash
+	// route credits only a plain read line (plainDocumentReads): an optional
+	// first cd, then cat [-n] or nl of readable regular files, each resolved
+	// physically by a hand walk (plainReadPhysical), none of the session cwd,
+	// the cd target, an operand or a link on the way under /proc or /dev, and
+	// at most plainReadPrintMax (25000) printed bytes, line numbers counted.
+	// Sealed after four independent reviews.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x22, 0xda, 0xaa, 0x9e, 0xb9, 0x90, 0x4d, 0xf1,
-		0x0a, 0x6d, 0xa0, 0x57, 0x09, 0x25, 0x28, 0xc2,
-		0x07, 0xc8, 0xfa, 0x40, 0x23, 0xac, 0x7d, 0x32,
-		0x11, 0x52, 0x81, 0xd5, 0x96, 0x35, 0xbd, 0x0c,
+		0x89, 0x6f, 0x3c, 0xf7, 0xfc, 0x60, 0x6f, 0x26,
+		0x23, 0x2e, 0x1f, 0xdf, 0x03, 0xcb, 0x03, 0x8f,
+		0x78, 0x5c, 0x46, 0xe3, 0xa3, 0xc3, 0xb8, 0x42,
+		0xc4, 0x4b, 0xdd, 0xa7, 0x22, 0x82, 0xc4, 0x49,
 	}
 )
 

@@ -689,6 +689,22 @@ next heading of that level. A deeper `### Current Behavior` under a historical
 record, or prose that quotes a heading, opens no section (`markdownSection`).
 Source identities are normalized checkout-relative paths with
 symlinks resolved; a source outside this checkout cannot supply evidence.
+The checkout is the one the design lies in, and the one each read source
+lies in: the nearest directory above the file that is the session's root or a
+git checkout of Ze (`gatedCheckout`). A spec in a worktree under
+`.claude/worktrees/<name>/`, or in one elsewhere on the disk, owes reads of
+that worktree's producers, and the refusal names each by its path from the
+session's root (`.claude/worktrees/<name>/internal/...`). A read records the
+checkout it lies in (`sourceReadMarker`), so a read of the main checkout's copy
+of a path never counts for a worktree's design, nor the reverse: the branch
+may hold other source under the same path. The markers stay in the session
+root's `tmp/session`. The same checkout decides the Existing Mechanisms gate
+(`writeSpecMechanisms`) and the WIP gate (`writeSpecWIP`), so a worktree spec
+is judged by both rather than skipped.
+<!-- source: internal/le/hookruntime/readgate.go -- gatedCheckout -->
+<!-- source: internal/le/hookruntime/designevidence.go -- sourceReadMarker, inCheckout -->
+<!-- source: internal/le/hookruntime/specmechanisms.go -- writeSpecMechanisms -->
+<!-- source: internal/le/hookruntime/specwip.go -- writeSpecWIP -->
 
 Source-kind and test-only exemptions use that resolved identity, not the
 reference's spelling. A test-named or unsupported-extension link to production

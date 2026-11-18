@@ -14,20 +14,23 @@ import (
 // ze point: planning/spec-metadata-blocking/update-spec-status-at-each-transition
 // writeSpecWIP leaves every new in-progress transition to the locked Claim
 // publisher, whether claimed or not. It MUST check before the tool publishes.
+// A spec is found in the checkout it lies in (gatedCheckout), so a spec in a
+// worktree is judged too, never skipped.
 func writeSpecWIP(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
 		return nil
 	}
-	file, inside := checkoutPath(ctx)
+	checkout, file, inside := gatedCheckout(ctx, absolutePath(ctx))
 	if !inside {
 		return nil
 	}
 	if !specpath.IsSpec(file) {
 		return nil
 	}
+	named := checkout.name(file)
 	current, err := os.ReadFile(absolutePath(ctx))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return &verdict{2, "❌ BLOCKED: WIP transition cannot be judged for " + file + ": " + err.Error() +
+		return &verdict{2, "❌ BLOCKED: WIP transition cannot be judged for " + named + ": " + err.Error() +
 			"\n  Make the spec readable, then retry the edit."}
 	}
 	proposed, applied := proposedSpec(ctx, string(current))
@@ -35,7 +38,7 @@ func writeSpecWIP(ctx context) *verdict {
 		return nil
 	}
 	if err := spec.CheckWIPTransition(file, string(current), proposed); err != nil {
-		return &verdict{2, "❌ BLOCKED: " + file + ": " + err.Error() + "\n  Inspect active work with ./le spec wip."}
+		return &verdict{2, "❌ BLOCKED: " + named + ": " + err.Error() + "\n  Inspect active work with ./le spec wip."}
 	}
 	return nil
 }

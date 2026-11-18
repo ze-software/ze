@@ -45,7 +45,13 @@ func sourceKind(path string) bool {
 	}
 }
 
-func sourceReadMarker(ctx context, path string) string {
+// sourceReadMarker names the file recording this context's read of path, a
+// checkout-relative source of checkout. The digest covers the path as
+// checkout.name spells it, so a read in one checkout (a worktree, or the
+// session's root) is no record for the same path in another, whose branch may
+// hold other source. Every marker lives in the session root's tmp/session,
+// whichever checkout the source lies in, so the session reaper removes it.
+func sourceReadMarker(ctx context, checkout documentCheckout, path string) string {
 	id := resolvedSessionID(ctx)
 	if id == "" {
 		return ""
@@ -54,17 +60,34 @@ func sourceReadMarker(ctx context, path string) string {
 	if err != nil {
 		return ""
 	}
-	digest := sha256.Sum256([]byte(path))
+	digest := sha256.Sum256([]byte(checkout.name(path)))
 	return filepath.Join(ctx.root, "tmp", "session", ".source-read-"+hex.EncodeToString(digest[:])+"-"+fingerprint)
+}
+
+// inCheckout answers ctx judged in checkout: its root is the checkout's root,
+// so a checkout-relative lookup (checkoutRelative, os.OpenRoot, git) reads
+// that checkout. Its markers MUST still be named from the session's ctx, whose
+// root holds tmp/session.
+func inCheckout(ctx context, checkout documentCheckout) context {
+	judged := ctx
+	judged.root = checkout.root
+	return judged
 }
 
 // recordSourceRead hashes the native Read result, never a later filesystem
 // read. LSP's formatted navigation result carries no source content identity.
+// The record names the checkout the source lies in (gatedCheckout), so it
+// counts for that checkout's designs alone.
 func recordSourceRead(ctx context) int {
 	if ctx.tool != "Read" || ctx.payload.ToolUseID == "" {
 		return 0
 	}
-	path, err := checkoutRelative(ctx)
+	checkout, _, inside := gatedCheckout(ctx, absolutePath(ctx))
+	if !inside {
+		return 0
+	}
+	judged := inCheckout(ctx, checkout)
+	path, err := checkoutRelative(judged)
 	if err != nil || !sourceKind(path) {
 		return 0
 	}
@@ -81,7 +104,7 @@ func recordSourceRead(ctx context) int {
 	if err := json.Unmarshal(ctx.payload.ToolResponse, &response); err != nil || response.Type != "text" || response.File.Content == nil || response.File.StartLine == nil {
 		return 0
 	}
-	returned := ctx
+	returned := judged
 	returned.path = response.File.Path
 	returnedPath, err := checkoutRelative(returned)
 	if response.File.Path == "" || err != nil || returnedPath != path {
@@ -100,7 +123,7 @@ func recordSourceRead(ctx context) int {
 	if err != nil {
 		return 0
 	}
-	return writeMarkerFile(sourceReadMarker(ctx, path), string(body))
+	return writeMarkerFile(sourceReadMarker(ctx, checkout, path), string(body))
 }
 
 func (r sourceRead) validRange() bool {
@@ -333,14 +356,19 @@ func observedSourceRange(body []byte, record sourceRead) (string, bool) {
 	return "", false
 }
 
-func currentSourceReads(ctx context, repository *os.Root) map[string]bool {
+// currentSourceReads answers the checkout-relative sources of checkout, opened
+// as repository, that this context read and that still hold what it read. It
+// reads the markers from the session root's tmp/session (ctx), and keeps only
+// those sourceReadMarker names for checkout, so another checkout's reads never
+// count.
+func currentSourceReads(ctx context, checkout documentCheckout, repository *os.Root) map[string]bool {
 	reads := make(map[string]bool)
 	entries, err := filepath.Glob(filepath.Join(ctx.root, "tmp", "session", ".source-read-*"))
 	if err != nil {
 		return reads
 	}
 	for _, marker := range entries {
-		body, err := os.ReadFile(marker) //nolint:gosec // marker comes from the glob of this checkout's own tmp/session read markers
+		body, err := os.ReadFile(marker) //nolint:gosec // marker comes from the glob of the session root's own tmp/session read markers
 		if err != nil {
 			continue
 		}
@@ -348,10 +376,10 @@ func currentSourceReads(ctx context, repository *os.Root) map[string]bool {
 		if err := json.Unmarshal(body, &record); err != nil || record.Tool != "Read" || record.ToolUseID == "" || !record.validRange() {
 			continue
 		}
-		if marker != sourceReadMarker(ctx, record.Path) {
+		if marker != sourceReadMarker(ctx, checkout, record.Path) {
 			continue
 		}
-		source := ctx
+		source := inCheckout(ctx, checkout)
 		source.path = record.Path
 		path, err := checkoutRelative(source)
 		if err != nil || path != record.Path || !sourceKind(path) {
@@ -377,7 +405,10 @@ func currentSourceReads(ctx context, repository *os.Root) map[string]bool {
 	return reads
 }
 
-func designEvidenceProblem(ctx context) *verdict {
+// designEvidenceProblem judges a design of checkout, the checkout it lies in:
+// its producers are that checkout's files, and the reads that count are this
+// context's reads of them.
+func designEvidenceProblem(ctx context, checkout documentCheckout) *verdict {
 	current, err := os.ReadFile(absolutePath(ctx))
 	if err != nil && !os.IsNotExist(err) {
 		return &verdict{2, "❌ BLOCKED: cannot read the design being edited: " + err.Error() + "\n  Make it readable, then retry."}
@@ -386,18 +417,18 @@ func designEvidenceProblem(ctx context) *verdict {
 	if !applied {
 		return nil
 	}
-	repository, err := os.OpenRoot(ctx.root)
+	repository, err := os.OpenRoot(checkout.root)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot open the design's source checkout: " + err.Error() +
 			"\n  Make this checkout readable, then retry.\n  ai/rules/evidence.md"}
 	}
 	defer repository.Close() //nolint:errcheck // read-only checkout capability
-	subjects, err := designSubjects(ctx, repository, string(current), proposed)
+	subjects, err := designSubjects(inCheckout(ctx, checkout), repository, string(current), proposed)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot establish design source subjects: " + err.Error() +
 			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, Current Behavior or Files to Modify paths whose last commit deleted them, and paths the edit stops citing, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several, and an edit that replaces it with the full path is accepted.\n  ai/rules/evidence.md"}
 	}
-	reads := currentSourceReads(ctx, repository)
+	reads := currentSourceReads(ctx, checkout, repository)
 	if len(subjects) == 0 && len(reads) != 0 {
 		return nil
 	}
@@ -405,7 +436,7 @@ func designEvidenceProblem(ctx context) *verdict {
 		missing := make([]string, 0, len(subjects))
 		for _, path := range subjects {
 			if !reads[path] {
-				missing = append(missing, path)
+				missing = append(missing, checkout.name(path))
 			}
 		}
 		if len(missing) == 0 {
