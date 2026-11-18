@@ -164,12 +164,40 @@ moves to `design`.
 | W-10 | Whether a per-attachment encoding is honored today. The `encoder` leaf's description says the binding's value wins; `architecture.md`, "Encoding", says the `content` block parses and is not read. One of the two is wrong, and it decides what dropping `content` removes | `parseProcessBindingsFromTree` stores it; read every reader of `ProcessBinding.Encoding` and `Format` |
 | W-11 | What a custom event or send type in a flow auto-loads. Today a `receive` or `send` token no declared plugin produces loads the plugin that does (`getUnclaimedEventTypePlugins`, `getUnclaimedSendTypePlugins`); D-3 makes that an `endpoint` entry the refusal names | `startup_autoload.go` |
 
+### Plugin loading (owner decision, 2026-11-18)
+
+| # | Decision | Alternative set aside |
+|---|----------|-----------------------|
+| D-9 | A feature's config block implies the requirement for the plugin that serves it, and the requirement is never hidden: it is an `endpoint` entry the config holds. The operator does not work it out or type it. A commit that lacks the entry is refused, names it, and offers to add it (AC-6). Nothing the config does not need is ever asked for | The block starts its plugin with no entry, and a command shows what runs: the requirement is then visible only to an operator who asks |
+
+Thomas's words: "if you have a NTP block, it should automatically imply the
+requirement for it. They should be written in a way where you are not hiding
+the requirements. So it should suggest in commit that you need to add to the
+bus automatically." The decision above is the session's reading of them: the
+entry is written in the config, and the tool writes it on request.
+
+One rule therefore covers every reason Ze loads a plugin today
+(`internal/component/plugin/server/startup_autoload.go`): the plugin's own
+config root, a root several plugins share, a configured family, an event or
+send type in a flow, a dependency, and the writer of the chosen data plane.
+Each becomes an `endpoint` entry the commit names and offers. The operator
+writes `ntp { ... }`, commits, and is offered the one line:
+
+```
+bus {
+    endpoint ntp { internal ntp; }
+}
+```
+
+A dependency is offered with the plugin that needs it, in the same offer, so
+one acceptance completes the config.
+
 ### Owner question the design cannot answer
 
 | # | Question | Recommended | What the other answer changes |
 |---|----------|-------------|-------------------------------|
 | Q-1 | Does D-3 reach a plugin Ze loads because the operator wrote that plugin's own config root (`ntp { }` loads `ntp`), or only the loads the operator did not ask for by name? | Only the second. Writing a plugin's own root is the explicit request to run it. The loads to make explicit are the ones a root shared by several plugins causes (`bgp { }` loads every plugin that declares the `bgp` root), and the loads by family, event type, send type, dependency and data-plane choice | Reaching the first too means every feature needs two blocks, its own and a `plugin { }` entry, in every config the repository carries |
-| Q-1 note | D-6 rules the same way for flows: what leaves no choice is declared, not written. Q-1 itself, which is about loading, is still open | - | - |
+| Q-1 answer | Owner decision, 2026-11-18 (D-9 below). The recommendation in the row above is set aside: a feature's own block does not start its plugin in silence either | - | - |
 | Q-2 | Does D-1 reach the filter-state grant? | No. It grants only `state`, to a plugin whose filter the operator already named in that peer's policy, so the plugin can free per-peer memory. Naming the filter is the explicit decision | Removing it makes the operator repeat the plugin in an `attach process` block on every peer whose policy names its filter |
 
 ## Required Reading
@@ -207,7 +235,7 @@ moves to `design`.
 - No `attach process` binding is derived. A redistribution rule, a FlowSpec family or AIGP whose process lacks a needed grant on a peer is refused, whether the block is missing or narrower.
 - Redistribution joins FlowSpec and AIGP: a narrow block is a refusal, not a daemon that loads and redistributes nothing.
 - One message shape for every such refusal, naming the feature, the peer, the process and the line to add.
-- Plugin loading follows D-3, within the boundary Q-1 settles.
+- Plugin loading follows D-3 and D-9: no plugin is loaded without an `endpoint` entry, and the commit names and offers each missing one.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -219,7 +247,7 @@ moves to `design`.
 | Implicit state grant | `internal/component/bgp/config/filter_state_binding.go` `grantFilterOwnersState` | widens a block by one type for a filter owner | Preserved, pending Q-2 |
 | Delivery reconcile | `internal/component/plugin/server/delivery_reconcile.go` `reconcileDelivery` | warns in the log when a plugin's declared events and a peer's grant disagree | Extends: stays the runtime voice for an external plugin, which declares after the config is parsed; the commit-time refusal covers what is known at config time |
 | Alias resolution | `internal/component/bgp/config/redistribute_binding.go` `processNameFor` | names the process a registry plugin runs under | Extends: the refusal names the operator's alias in the line it gives |
-| Plugin auto-load | `internal/component/plugin/server/startup_autoload.go` `getConfigPathPlugins` and its siblings | loads plugins by config root, family, event type, send type, dependency and data plane | Replaces or narrows per Q-1: a load the operator did not write becomes a refusal naming the `plugin { }` entry to add |
+| Plugin auto-load | `internal/component/plugin/server/startup_autoload.go` `getConfigPathPlugins` and its siblings | loads plugins by config root, family, event type, send type, dependency and data plane | Replaces, per D-9: every load becomes a named and offered `endpoint` entry. What the loader knows today, which plugin each root, family, type, dependency and data plane needs, is what the refusal reads to name the entries: a load the operator did not write becomes a refusal naming the `plugin { }` entry to add |
 | Typed fix of a refusal | `internal/component/cli/fix_frame.go` `FixCommand`, `FrameFix`; `docs/architecture/cli/error-surface.md` | a refusal carries its fix as a typed editor command (verb, position, arguments, and which arguments are placeholders), and every surface prints it as the exact command for the operator's position. Nothing applies it | Extends: the grant and plugin refusals carry their missing lines as these typed fixes, and the editor gains the step that applies a refusal's concrete fixes to the candidate on the operator's request, on the SSH editor and the web editor alike (`ai/doors/commands-cli.md`, Traps: one surface fixed, the other not). No second fix format |
 | Per-peer attachment | `internal/component/bgp/yang/ze-bgp-conf.yang` container `attach`, list `process`; `internal/component/bgp/reactor/config.go` `parseProcessBindingsFromTree` | one block per program on a peer or group, with `receive`, `send`, an inline `run` and a `content` block | Replaces (D-4): the flow list takes its place, the flow carries the two lists, and `run` and `content` go (W-10) |
 | Program declaration | `internal/component/plugin/yang/ze-plugin-conf.yang` lists `internal` and `external`, container `hub`; `internal/component/config/loader.go` `ExtractPluginsFromTree` | declares each program once and its encoding. An `external` block can also run a built-in plugin through `use`, and the BGP extractor adds programs declared inline on a peer | Replaces (D-7): the same facts under `bus { endpoint }`, one list where two existed, and no inline declaration |
@@ -314,7 +342,7 @@ process` block or line, read a flow on the peer's flow list; where it says a
 | AC-3 | A redistribution rule with BGP as destination; a peer's block for the orchestrator lacks `send [ update ]`, or is missing | Refused with the line; with it added, a redistributed route reaches that peer | Peers the rule does not feed need nothing |
 | AC-4 | A FlowSpec family the operator configured, or AIGP the operator set explicitly, on a peer whose `bgp-rib` block is missing or narrow | Refused in the same message shape as AC-1, where today a missing block is derived. With the line added, the config loads and the feature works on that peer | The existing refusal of a narrow block keeps refusing |
 | AC-7 | Internal peers with AIGP left at its RFC 7311 default, an API process attached with `send [ update ]`, and no `bgp-rib` block on any peer | The config loads at validate, commit and start, and the peers receive the API announcements | The config survives because a default-on capability asks for nothing. Setting AIGP explicitly on a peer, or adding a partial `bgp-rib` block, moves that peer to AC-4 |
-| AC-5 | A config that needs a plugin its `plugin { }` block does not declare, within the Q-1 boundary | Refused with the `plugin { }` entry to add; with it added, the plugin runs | A plugin loaded by its own config root, if Q-1 keeps that |
+| AC-5 | A config holding a feature block whose plugin has no `endpoint` entry: the plugin's own root (`ntp { }`), a root several plugins share, a configured family, an event type in a flow, and a plugin whose dependency has no entry | Each is refused at validate, commit and start, naming every missing `endpoint` entry, dependencies included, and the interactive commit offers them in one offer (AC-6). With the entries added, the config loads and each plugin runs | An entry is asked for only when the config holds what needs it: a config with no `ntp` block is never asked for an `ntp` endpoint |
 | AC-6 | An interactive editor session commits the AC-1 config and is refused | The refusal lists the missing lines and offers to add them. Accepting adds exactly those lines to the candidate, shows them as the pending change, and commits nothing: the operator's next commit applies them and succeeds. Declining leaves the candidate untouched | A fix that holds a placeholder is printed and never offered, since Ze cannot know the value. `ze config validate`, the daemon's start, and the API surfaces print the same lines, in a form a program can read, and change no configuration |
 | AC-8 | A config in the "After" form of the Task section, with two peers in the group | `rib` receives the listed events of both peers and may send `update` to both; `collector` receives the events of the peer that lists `watch` and none of `transit-c` | A flow no peer lists moves nothing |
 | AC-9 | A peer created by a dynamic group whose list names a flow | The peer takes part in that flow from its first session | none |
@@ -349,7 +377,7 @@ process` block or line, read a flow on the peer's flow list; where it says a
 
 ## Files to Modify
 - `internal/component/bgp/config/redistribute_binding.go`, `internal/component/bgp/config/flowspec_binding.go` - derivation removed, one check
-- `internal/component/plugin/server/startup_autoload.go` - per Q-1
+- `internal/component/plugin/server/startup_autoload.go` - per D-9: the loads become the source of the refusal's named entries
 - `docs/architecture/api/architecture.md`, `docs/architecture/core-design.md` - the derived-binding sections
 - `internal/component/plugin/yang/ze-plugin-conf.yang`, `internal/component/bgp/yang/ze-bgp-conf.yang` - `bus { endpoint, flow }` and the flow list replace `plugin { }` and `attach process`
 - `internal/component/config/loader.go`, `internal/component/bgp/reactor/config.go` - read endpoints and resolve each peer's flow list
