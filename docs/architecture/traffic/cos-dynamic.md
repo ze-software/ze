@@ -25,24 +25,75 @@ compatibility path for a server that cannot send it.
 <!-- source: internal/plugins/cos/handler.go -- cosHandler, SessionUp handling -->
 <!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata.CoSProfile -->
 
-The L2TP metadata store carries `CoSProfile` in `AuthMetadata`. The session-up
-event supplies the original subscriber ID for that lookup. The handler refuses
-an absent ID before applying a profile; reusable tunnel and session numbers
-do not select authorization metadata.
+The lifecycle producer supplies its cached canonical subscriber ID for the
+`AuthMetadata.CoSProfile` lookup and its packed Birth for CoS ownership. Event
+readers never reconstruct ownership from reusable tunnel and session labels.
+The original labels remain independent diagnostic values.
+<!-- source: internal/plugins/cos/handler.go -- onSessionUp, onSessionDown, onCoSChange -->
 
-### Per-session state in a `sync.Map`
+### Session identity and shared access ownership are separate
 
-<!-- source: internal/plugins/cos/session_state.go -- per-session CoS state -->
+The package-level `sessionStore` is a `sync.Map` keyed by `sessionKey`, the
+original packed session Birth. Each admitted session refers to its shared map owner.
+The handler's separate `accesses` map is keyed by access-interface name. These
+are separate indexes; the access name is not part of `sessionKey`. Original
+tunnel and session labels remain separate diagnostic data and never select
+membership, compensation or cleanup.
+<!-- source: internal/plugins/cos/session_state.go -- sessionStore, sessionKey, sessionCoSState -->
+<!-- source: internal/plugins/cos/shared_access.go -- sharedCoSAccess, captureSharedAccess -->
 
-The session count is bounded and the shaper already does this. A global map buys
-nothing.
+The first use captures the interface backend's actual maps before a write.
+Compatible subscribers share that baseline. A different subscriber's request
+must preserve every surviving user's effective maps, including a completed
+transaction's retained compensation maps. A nonfinal departure removes only
+that user's membership. The final departure restores the captured baseline.
+An unconfirmed write or restore keeps its original owner and cause for retry.
+<!-- source: internal/plugins/cos/shared_access.go -- applyLegacySharedProfile, compatibleCompensation, departSharedSession -->
+
+For a VLAN created by the selected kernel backend, the first admission retains
+that creator's map lease before reading its baseline. Compensation, final
+departure and cleanup use the original resource and transport; they never
+resolve the currently selected device again. The creator verifies its birth
+on native replies. A successful map write also reads back through that same
+original lease and compares all eight effective ingress and egress mappings;
+an ACK alone cannot confirm restoration. Failed or different readback retains
+the original cleanup owner. Deletion and backend replacement are refused while
+that lease remains live. A matching name, index or alias grants no lease. This
+finite kernel mechanism supplies no configured-access generation, authenticated
+SDK grant, external receiver or VPP acceptance.
+<!-- source: internal/component/iface/native_access.go -- ResolvePreparedAccess, NativeVLANLease -->
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- captureNativeVLANDirect, readLocked -->
+<!-- source: internal/plugins/cos/original_target.go -- captureCreatorCoSTarget, creatorCoSTarget -->
+
+Unowned or preexisting access retains the historical immediate callback path.
+It cannot authorize the new delayed recovery command, and stopping its original
+runner fences those callbacks permanently. A retry or transferred departure
+refuses without touching the replacement and retains the original warning,
+baseline and custody. Follow that warning's original-owner recovery advice;
+repeating a name-based write cannot confirm the original outcome. The diagnostic
+owner key identifies only its warning lifetime.
+<!-- source: internal/plugins/cos/original_target.go -- unresolvedCoSTarget, originalCoSTargetFix -->
+<!-- source: internal/plugins/cos/cleanup.go -- retrySharedCleanup -->
+<!-- source: internal/plugins/cos/handler.go -- takeStoppedOwners -->
 
 ### `ConfigureEventBus` for delivery
 
-<!-- source: internal/plugins/cos/register.go -- ConfigureEventBus, lifecycle cleanup -->
+`ConfigureEventBus` constructs the dynamic handler with its required report
+publisher before subscribing to typed session events. A stopped handler
+unsubscribes and refuses event and command callbacks. Its exact completed
+rollback token can still be acknowledged by the active replacement handler
+without writing or clearing a new owner that later uses the old access name. The registration transfers the exact
+retained map records from its stopped previous handler to the replacement;
+it does not reconstruct a baseline from a new session or a name lookup.
+<!-- source: internal/plugins/cos/register.go -- ConfigureEventBus -->
+<!-- source: internal/plugins/cos/handler.go -- newCosHandlerFromStopped, stop, takeStoppedOwners -->
 
-`ConfigureEventBus` is the engine-side hook for a typed event subscription, and
-it is what the shaper uses. `OnStarted` is not that hook.
+That hook runs inside the daemon. An external CoS process has no dynamic event
+owner or interface backend wiring. Static profile configuration and
+`ze show class-of-service` remain available. The daemon-bound report publisher
+is explicit; it is not a fallback for an unavailable external transport.
+<!-- source: internal/plugins/cos/register.go -- warnIfExternal, ConfigureEventBus -->
+<!-- source: internal/plugins/cos/diagnostic_publisher.go -- publishDaemonCoSIssue -->
 
 ### CoA waits for the owner to apply its maps
 
@@ -51,8 +102,10 @@ it is what the shaper uses. `OnStarted` is not that hook.
 
 RADIUS dispatches the hidden `request class-of-service session` command through
 the existing command transport. Its arguments are `transaction` and one JSON
-value. Prepare carries `operation`, `tunnel-id`, `session-id`, `interface` and
-`profile`; its answer carries an opaque `token`. Apply, rollback and commit
+value. Prepare carries `operation`, canonical `subscriber-id`, diagnostic
+`tunnel-id` and `session-id`, `interface` and `profile`; its answer carries an
+opaque `token`. The decoder parses the canonical ID once and retains its Birth
+as the ownership key. Apply, rollback and commit
 carry only `operation` and that token. The authenticated request's peer context
 must remain the same for every step.
 
@@ -63,12 +116,14 @@ and interface bindings.
 <!-- source: internal/plugins/cos/session_transaction.go -- sessionCommandDecls, executeSessionTransaction -->
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- container class-of-service, container interface -->
 
-Prepare changes nothing. It reads the actual VLAN ingress and egress maps with
-the interface backend's `GetLink`, copies the proposed profile and records the
-session's previous CoS state. Apply installs the maps before publishing the new
-profile. A failed apply restores the captured maps before reporting failure;
-rollback restores both the actual maps and the session state. RADIUS commits
+Prepare changes no native maps. It captures the actual immediate beforeimage,
+copies the proposed profile and reserves a compatible shared owner. It refuses
+a beforeimage that could not later be restored without changing a surviving
+subscriber's policy. Apply installs the maps before publishing membership. A
+failed apply attempts compensation and retains the transaction for rollback;
+an unconfirmed compensation does not become a successful result. RADIUS commits
 only after every owner accepted the request, then acknowledges the CoA.
+<!-- source: internal/plugins/cos/session_transaction.go -- prepareSessionChange, applySessionChange, rollbackSessionChange -->
 
 The post-commit session event consumes one transaction receipt when its token
 matches the retained committed snapshot and both current profile maps equal
@@ -80,9 +135,13 @@ updated maps.
 <!-- source: internal/plugins/cos/handler.go -- cosHandler.consumeCommandReceipt -->
 
 The owner holds one pending change and one completed token with its snapshot.
-The last committed change remains compensatable until the next prepare, so a
+The last committed change remains compensatable until the next accepted prepare
+or its original session's departure invalidates it, so a
 later owner's failed commit can restore every part of the request. This bounds
 retained snapshots and makes retries of the last apply, rollback or commit idempotent.
+Consuming the post-commit notification receipt does not release this beforeimage.
+<!-- source: internal/plugins/cos/session_transaction.go -- prepareSessionChange, forgetSessionChange, rollbackSessionToken -->
+<!-- source: internal/plugins/cos/handler.go -- consumeCommandReceipt -->
 An outstanding transaction refuses another prepare, so another request cannot
 overwrite the state needed to compensate it. A pending change expires after one
 minute: the next request restores its maps before admitting new work. Session
@@ -102,6 +161,85 @@ does not change the existing configuration or session event paths.
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- linkToInfo -->
 <!-- source: internal/plugins/iface/vpp/query.go -- detailsToInfo -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- UpdateVLANQoSMap -->
+
+### Diagnose and retry failed cleanup
+
+An unconfirmed native compensation or final restore raises the active warning
+`doctor-cos-cleanup-unconfirmed`, with its original access, native cause and
+stable bounded owner subject. Each failed retry refreshes that warning.
+`ze show doctor` reads it through the registered recent-events route. A policy
+refusal instead raises `doctor-cos-policy-refused` as an error-history event;
+it does not label a healthy or pending policy as failed cleanup. The stored
+policy event names the supplied profile and the RADIUS or profile correction;
+the cleanup warning explains why its original owner remains retained. Both
+producers log once per failed attempt at WARN with the same code and fix as
+the report. Rollback retains raw native causes; its command, Down or cleanup
+entry point owns that attempt's single warning publication. A healthy event raises
+neither problem.
+
+Warning state belongs to that exact captured access owner. It starts with no
+Raise attempt, becomes pending before delivery is attempted, and becomes
+clear only after the daemon acknowledges its original CLEAR. Unknown Raise
+delivery still needs that clearance. A healthy owner with no Raise attempt
+sends no CLEAR, so an unused report transport cannot make healthy rollback or
+departure fail. A stopped-runner transfer preserves the original warning
+state and subject with the map records. A failed CLEAR retains only its
+publication cause after native confirmation; it is not another native failure.
+<!-- source: internal/plugins/cos/shared_access.go -- sharedCoSWarning, captureSharedAccess -->
+<!-- source: internal/plugins/cos/diagnostic_publisher.go -- diagnostic registrations, publishDaemonCoSIssue -->
+<!-- source: internal/plugins/cos/diagnostic_shared.go -- policyFailure, cleanupFailure, cleanupClear -->
+
+Before its first baseline read, an access owner reserves one bounded
+`report.ResourceWarning` slot. A full store refuses admission before native
+work. Each actual cleanup failure retains its original typed episode; retries
+keep its first and latest causes. Ordinary source cleanup, a matching subject
+or another runner cannot overwrite or clear it. The stopped-handler transfer
+retains that same reservation and episode with its original target.
+
+The actual episode publishes before the report callback acknowledges it. The
+callback can report a lost or failed acknowledgement, but supplies no resource
+custody. Its ordinary warning write is a protected-subject no-op. After original
+native recovery and readback, CLEAR requires both that acknowledgement and the
+original episode's clearance. Only released, cleared owners close their
+reservation; healthy surviving users retain it for a later failure. A completed
+old episode cannot clear a later one on that resource. Policy history continues
+through the ordinary report publisher. External dynamic CoS has no daemon-local
+reservation binding and remains unavailable.
+<!-- source: internal/plugins/cos/shared_access.go -- captureSharedAccess, sharedCoSAccess -->
+<!-- source: internal/plugins/cos/diagnostic_shared.go -- publishCleanupWarning, cleanupClear, closeUnusedCleanupReservation -->
+<!-- source: internal/plugins/cos/session_transaction.go -- acknowledgeCompletedRollback -->
+<!-- source: internal/plugins/cos/original_target.go -- creatorCoSTarget.write, releaseUnusedSharedAccess -->
+
+Run the warning's command to retry the retained failed owners:
+
+```text
+ze request class-of-service cleanup
+```
+
+An unknown first baseline read retains the captured lease without admitting
+a user or inventing maps. Its retry only joins and releases that original
+operation. After a confirmed final restore, an unfinished join or release
+retains a separate release phase; retry never repeats the restore. Warning
+clearance follows confirmed original resource release. A failed CLEAR remains
+report-only and cannot relabel that completed native phase as a new failure.
+<!-- source: internal/plugins/cos/original_target.go -- sharedCoSCapturePending, sharedCoSReleasePending, finishRetainedSharedAccess -->
+
+The command makes one bounded pass and reports `attempted` and `recovered`,
+including both counts in a failed answer when other owners could not recover.
+It compensates failed command transactions and finishes retained departures;
+an owner counts as recovered only after all its selected cleanup completes.
+It preserves healthy users, healthy pending transactions and completed
+compensation snapshots. It returns every current failure while allowing other
+failed owners to progress. Only confirmed original cleanup can clear its
+warning. When that cleanup succeeded but clearing the warning failed, the
+command retains only the failed publication and retries it without repeating
+confirmed native work. The original completed rollback token can also retry
+its failed warning clearance without another native compensation. To investigate a policy refusal, run
+`ze show class-of-service` and correct the conflicting RADIUS assignment or
+profile; cleanup does not remove another healthy user's policy.
+<!-- source: internal/plugins/cos/register.go -- cleanupCommandDecls, sharedCoSCleanupResult -->
+<!-- source: internal/plugins/cos/cleanup.go -- executeCoSCleanup, retrySharedCleanup -->
+<!-- source: internal/plugins/cos/diagnostic_shared.go -- cleanupClear -->
 
 ## Consequences
 

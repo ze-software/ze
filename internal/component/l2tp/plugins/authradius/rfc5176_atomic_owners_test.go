@@ -11,8 +11,18 @@ import (
 
 func coaMixedFixture(t *testing.T) (string, []byte, *coaFixtureOwners) {
 	t.Helper()
-	l2tp.PublishService(oneSessionService())
+	fixture := newCoASubscriberOrigin(t)
+	original := fixture.snap.Tunnels[0].Sessions[0]
+	l2tp.PublishService(fixture)
 	t.Cleanup(func() { l2tp.PublishService(nil) })
+	session := &subscriber.Session{
+		ID: original.SubscriberID, L2TPBirth: original.Birth,
+		AccessType: subscriber.AccessL2TP, Username: "alice",
+		TunnelID: 10, SessionID: 20, AcctSessionID: "10-20-1",
+		PppInterface: coaFixtureInterface(10, 20), AccessInterface: "eth-coa.20",
+	}
+	subscriber.DefaultRegistry.Add(session)
+	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(session.ID) })
 	dispatch := coaFixtureDispatch(t)
 	value, loaded := coaFixtureOwnersByTest.Load(t)
 	if !loaded {
@@ -22,13 +32,6 @@ func coaMixedFixture(t *testing.T) (string, []byte, *coaFixtureOwners) {
 	if !ok {
 		t.Fatalf("registered authorization owners are %T, want *coaFixtureOwners", value)
 	}
-	session := &subscriber.Session{
-		ID: "coa-mixed-owners", AccessType: subscriber.AccessL2TP, Username: "alice",
-		TunnelID: 10, SessionID: 20, AcctSessionID: "10-20-1",
-		PppInterface: coaFixtureInterface(10, 20), AccessInterface: "eth-coa.20",
-	}
-	subscriber.DefaultRegistry.Add(session)
-	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(session.ID) })
 	secret := []byte("test-coa-mixed-owners")
 	cl, err := newCoAListener(coaListenerConfig{
 		AllowedSources: coaLoopbackSources(), DefaultSecret: secret,
@@ -37,7 +40,11 @@ func coaMixedFixture(t *testing.T) (string, []byte, *coaFixtureOwners) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = cl.Close() })
+	t.Cleanup(func() {
+		if err := cl.Close(); err != nil {
+			t.Errorf("close original mixed CoA fixture: %v", err)
+		}
+	})
 	return cl.conn.LocalAddr().String(), secret, owners
 }
 

@@ -45,6 +45,13 @@ func reportOwnedRollbackFailure(name, kind, stage string, delErr error) {
 // an unmarked bridge under an owned name, which the reconcile refuses to touch
 // (fail closed): the operator deletes it.
 func (b *netlinkBackend) CreateOwnedBridge(spec iface.OwnedBridgeSpec) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(spec.Name); err != nil {
 		return fmt.Errorf("create owned bridge %q: %w", spec.Name, err)
 	}
@@ -58,10 +65,7 @@ func (b *netlinkBackend) CreateOwnedBridge(spec iface.OwnedBridgeSpec) error {
 		return fmt.Errorf("iface: create owned bridge %q: %w", spec.Name, err)
 	}
 	rollback := func(stage string, cause error) error {
-		if delErr := netlink.LinkDel(link); delErr != nil {
-			reportOwnedRollbackFailure(spec.Name, "bridge", stage, delErr)
-		}
-		return fmt.Errorf("iface: %s owned bridge %q: %w", stage, spec.Name, cause)
+		return fmt.Errorf("iface: %s owned bridge %q: %w", stage, spec.Name, b.rollbackNativeCreate(link, spec.Name, "bridge", stage, cause))
 	}
 	if err := netlink.LinkSetMTU(link, spec.MTU); err != nil {
 		return rollback("set mtu on", err)

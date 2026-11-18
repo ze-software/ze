@@ -20,8 +20,10 @@ import (
 // publish the requested profile as the session's installed profile.
 func TestCoSFailedChangeKeepsInstalledProfile(t *testing.T) {
 	bus, backend := setupTestHandler(t)
-	key := sessionKey{tunnelID: 41, sessionID: 42}
-	sessionStore.Store(key, sessionCoSState{accessInterface: "eth0.42", profileName: "residential"})
+	key := fixtureCoSKey(41, 42)
+	storeMetadataForTest(41, 42, "residential")
+	t.Cleanup(func() { clearMetadataForTest(41, 42) })
+	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{TunnelID: 41, SessionID: 42, AccessInterface: "eth0.42"})
 	t.Cleanup(func() { sessionStore.Delete(key) })
 	backend.err = errors.New("backend refused map")
 	emitCoSChange(t, bus, &l2tpevents.SessionCoSChangePayload{
@@ -49,6 +51,7 @@ type transactionMaps struct {
 
 func setupCoSTransaction(t *testing.T) (*cosHandler, *transactionMaps) {
 	t.Helper()
+	resetCoSReportsForTest(t)
 	state := &transactionMaps{ingress: map[uint32]uint32{2: 4}, egress: map[uint32]uint32{4: 2}}
 	h := newCosHandler(newTestBus(), func(_ string, ingress, egress map[uint32]uint32) error {
 		state.writes++
@@ -58,7 +61,7 @@ func setupCoSTransaction(t *testing.T) (*cosHandler, *transactionMaps) {
 			return errors.New("map write failed after changing the backend")
 		}
 		return nil
-	}, nil)
+	}, discardCoSReportForTest)
 	h.readLink = func(string) (*iface.InterfaceInfo, error) {
 		return &iface.InterfaceInfo{Name: "eth0.42", Type: "vlan", IngressQoSMap: state.ingress, EgressQoSMap: state.egress}, nil
 	}
@@ -69,7 +72,7 @@ func setupCoSTransaction(t *testing.T) (*cosHandler, *transactionMaps) {
 		h.stop()
 		dynamicHandler = previous
 		coreCos.Replace(nil)
-		sessionStore.Delete(sessionKey{tunnelID: 41, sessionID: 42})
+		sessionStore.Delete(fixtureCoSKey(41, 42))
 	})
 	return h, state
 }
@@ -79,6 +82,7 @@ func cosTransaction(t *testing.T, operation, token string) (string, error) {
 	request := sessionTransactionRequest{Operation: operation, Token: token}
 	if operation == "prepare" {
 		request.TunnelID, request.SessionID = 41, 42
+		request.SubscriberID = fixtureCoSID(request.TunnelID, request.SessionID)
 		request.Interface, request.Profile = "eth0.42", "business"
 	}
 	payload, err := json.Marshal(request)
@@ -122,7 +126,7 @@ func TestCoSTransactionRestoresActualMaps(t *testing.T) {
 	if !maps.Equal(backend.egress, map[uint32]uint32{4: 2}) {
 		t.Fatalf("restored maps: %v", backend.egress)
 	}
-	if _, loaded := sessionStore.Load(sessionKey{tunnelID: 41, sessionID: 42}); loaded {
+	if _, loaded := sessionStore.Load(fixtureCoSKey(41, 42)); loaded {
 		t.Fatal("rollback invented prior session CoS state")
 	}
 }
@@ -142,7 +146,7 @@ func TestCoSPartialWriteIsCompensated(t *testing.T) {
 	if !maps.Equal(backend.ingress, map[uint32]uint32{2: 4}) {
 		t.Fatalf("partial write left maps changed: %v", backend.ingress)
 	}
-	if _, loaded := sessionStore.Load(sessionKey{tunnelID: 41, sessionID: 42}); loaded {
+	if _, loaded := sessionStore.Load(fixtureCoSKey(41, 42)); loaded {
 		t.Fatal("failed write published session CoS state")
 	}
 }
@@ -150,9 +154,16 @@ func TestCoSPartialWriteIsCompensated(t *testing.T) {
 // TestCoSCommittedTokenCanCompensate proves a later owner's failed commit can
 // still compensate this owner's already committed part of the same request.
 func TestCoSCommittedTokenCanCompensate(t *testing.T) {
-	_, backend := setupCoSTransaction(t)
-	key := sessionKey{tunnelID: 41, sessionID: 42}
-	sessionStore.Store(key, sessionCoSState{accessInterface: "eth0.42", profileName: "previous", staticEgress: map[uint32]uint32{0: 0}})
+	h, backend := setupCoSTransaction(t)
+	key := fixtureCoSKey(41, 42)
+	profiles := coreCos.All()
+	profiles["previous"] = coreCos.Profile{IngressMap: map[uint32]uint32{2: 4}, EgressMap: map[uint32]uint32{4: 2}}
+	coreCos.Replace(profiles)
+	backend.ingress = nil
+	backend.egress = map[uint32]uint32{0: 0}
+	storeMetadataForTest(41, 42, "previous")
+	t.Cleanup(func() { clearMetadataForTest(41, 42) })
+	h.onSessionUp(&l2tpevents.SessionUpPayload{Birth: fixtureCoSKey(41, 42).birth, SubscriberID: fixtureCoSID(41, 42), TunnelID: 41, SessionID: 42, AccessInterface: "eth0.42"})
 	token, err := cosTransaction(t, "prepare", "")
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +202,7 @@ func TestCoSOwnerNotificationDoesNotWriteAgain(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	h.onCoSChange(&l2tpevents.SessionCoSChangePayload{TunnelID: 41, SessionID: 42, AccessInterface: "eth0.42", ProfileName: "business"})
+	h.onCoSChange(&l2tpevents.SessionCoSChangePayload{Birth: fixtureCoSKey(41, 42).birth, SubscriberID: fixtureCoSID(41, 42), TunnelID: 41, SessionID: 42, AccessInterface: "eth0.42", ProfileName: "business"})
 	if backend.writes != 1 {
 		t.Fatalf("notification caused %d writes, want one total", backend.writes)
 	}
@@ -217,7 +228,7 @@ func TestCoSOwnerReceiptDoesNotHideProfileReload(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			notification := &l2tpevents.SessionCoSChangePayload{TunnelID: 41, SessionID: 42,
+			notification := &l2tpevents.SessionCoSChangePayload{Birth: fixtureCoSKey(41, 42).birth, SubscriberID: fixtureCoSID(41, 42), TunnelID: 41, SessionID: 42,
 				AccessInterface: "eth0.42", ProfileName: "business"}
 			if firstDelivered {
 				h.onCoSChange(notification)
@@ -276,10 +287,10 @@ func TestCoSTransactionRejectsInvalidArguments(t *testing.T) {
 		"trailing object":    {"transaction", `{} {}`},
 		"unknown operation":  {"transaction", `{"operation":"invented"}`},
 		"followup selection": {"transaction", `{"operation":"apply","token":"missing","session-id":0}`},
-		"prepare with token": {"transaction", `{"operation":"prepare","token":"wrong","session-id":42,"interface":"eth0.42","profile":"business"}`},
-		"missing interface":  {"transaction", `{"operation":"prepare","session-id":42,"profile":"business"}`},
-		"missing session":    {"transaction", `{"operation":"prepare","interface":"eth0.42","profile":"business"}`},
-		"missing profile":    {"transaction", `{"operation":"prepare","session-id":42,"interface":"eth0.42","profile":"unknown"}`},
+		"prepare with token": {"transaction", `{"subscriber-id":"l2tp-0000000000000001000000000029002a","operation":"prepare","token":"wrong","session-id":42,"interface":"eth0.42","profile":"business"}`},
+		"missing interface":  {"transaction", `{"subscriber-id":"l2tp-0000000000000001000000000029002a","operation":"prepare","session-id":42,"profile":"business"}`},
+		"missing session":    {"transaction", `{"subscriber-id":"l2tp-0000000000000001000000000029002a","operation":"prepare","interface":"eth0.42","profile":"business"}`},
+		"missing profile":    {"transaction", `{"subscriber-id":"l2tp-0000000000000001000000000029002a","operation":"prepare","session-id":42,"interface":"eth0.42","profile":"unknown"}`},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -353,7 +364,7 @@ func TestCoSSessionDownInvalidatesTransaction(t *testing.T) {
 	if _, err := cosTransaction(t, "apply", token); err != nil {
 		t.Fatal(err)
 	}
-	h.onSessionDown(&l2tpevents.SessionDownPayload{TunnelID: 41, SessionID: 42})
+	h.onSessionDown(&l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(41, 42).birth, SubscriberID: fixtureCoSID(41, 42), TunnelID: 41, SessionID: 42})
 	if _, err := cosTransaction(t, "apply", token); err == nil {
 		t.Fatal("departed session's token remained usable")
 	}

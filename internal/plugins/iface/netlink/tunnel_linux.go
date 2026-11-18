@@ -42,6 +42,13 @@ import (
 // removed via LinkDel; failure of the rollback delete is logged so the user
 // has a breadcrumb if a stale netdev is left behind.
 func (b *netlinkBackend) CreateTunnel(spec iface.TunnelSpec) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(spec.Name); err != nil {
 		return fmt.Errorf("iface: create tunnel %q: %w", spec.Name, err)
 	}
@@ -55,11 +62,7 @@ func (b *netlinkBackend) CreateTunnel(spec iface.TunnelSpec) error {
 		return fmt.Errorf("iface: create tunnel %q (kind %s): %w", spec.Name, spec.Kind, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		if delErr := netlink.LinkDel(link); delErr != nil {
-			logger().Warn("iface: rollback delete after set-up failure",
-				"name", spec.Name, "kind", spec.Kind, "err", delErr)
-		}
-		return fmt.Errorf("iface: set up tunnel %q: %w", spec.Name, err)
+		return fmt.Errorf("iface: set up tunnel %q: %w", spec.Name, b.rollbackNativeCreate(link, spec.Name, spec.Kind.String(), "set up", err))
 	}
 	return nil
 }

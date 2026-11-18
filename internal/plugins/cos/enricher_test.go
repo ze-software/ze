@@ -12,12 +12,10 @@ import (
 )
 
 func TestCoSSubscriberEnricherDetail(t *testing.T) {
-	sessionStore.Store(sessionKey{tunnelID: 1, sessionID: 2}, sessionCoSState{
-		profileName:   "residential",
-		staticIngress: map[uint32]uint32{0: 0},
-		staticEgress:  map[uint32]uint32{0: 0},
+	sessionStore.Store(fixtureCoSKey(1, 2), sessionCoSState{
+		profileName: "residential",
 	})
-	t.Cleanup(func() { sessionStore.Delete(sessionKey{tunnelID: 1, sessionID: 2}) })
+	t.Cleanup(func() { sessionStore.Delete(fixtureCoSKey(1, 2)) })
 
 	coreCos.Replace(map[string]coreCos.Profile{"residential": {
 		IngressMap: map[uint32]uint32{0: 1, 1: 2},
@@ -26,7 +24,7 @@ func TestCoSSubscriberEnricherDetail(t *testing.T) {
 	t.Cleanup(func() { coreCos.Replace(nil) })
 
 	base := map[string]any{
-		"id":         "s1",
+		"id":         fixtureCoSID(1, 2),
 		"tunnel-id":  uint16(1),
 		"session-id": uint16(2),
 	}
@@ -49,13 +47,13 @@ func TestCoSSubscriberEnricherDetail(t *testing.T) {
 }
 
 func TestCoSSubscriberEnricherBrief(t *testing.T) {
-	sessionStore.Store(sessionKey{tunnelID: 3, sessionID: 4}, sessionCoSState{
+	sessionStore.Store(fixtureCoSKey(3, 4), sessionCoSState{
 		profileName: "business",
 	})
-	t.Cleanup(func() { sessionStore.Delete(sessionKey{tunnelID: 3, sessionID: 4}) })
+	t.Cleanup(func() { sessionStore.Delete(fixtureCoSKey(3, 4)) })
 
 	base := map[string]any{
-		"id":         "s2",
+		"id":         fixtureCoSID(3, 4),
 		"tunnel-id":  uint16(3),
 		"session-id": uint16(4),
 	}

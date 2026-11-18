@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
@@ -65,6 +64,7 @@ func newRegisteredCoSCleanupReview(t *testing.T) (*sharedCoSTestOwner, *pluginen
 		}
 		return read(name)
 	}
+	dynamicHandler.captureTarget = captureModeledOriginalCoSTarget(dynamicHandler)
 	f.handler = dynamicHandler
 	engine := pluginengine.Start(t, pluginengine.TransportBridge, registered.RunEngine)
 	return f, engine, bus
@@ -75,11 +75,11 @@ func registeredCoSCleanupReviewUp(t *testing.T, bus ze.EventBus, session uint16)
 	storeMetadataForTest(sharedCoSTestTunnel, session, sharedCoSTestFirst)
 	t.Cleanup(func() {
 		clearMetadataForTest(sharedCoSTestTunnel, session)
-		sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session})
+		sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, session))
 	})
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(sharedCoSTestTunnel), session),
-		TunnelID:     sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
+		Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
+		TunnelID: sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func registeredCoSCleanupReviewUp(t *testing.T, bus ze.EventBus, session uint16)
 
 func registeredCoSCleanupReviewDown(t *testing.T, bus ze.EventBus, session uint16) {
 	t.Helper()
-	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
 		TunnelID: sharedCoSTestTunnel, SessionID: session,
 	}); err != nil {
 		t.Fatal(err)
@@ -161,14 +161,14 @@ func TestCoSLegacySharedCleanupCommandRetriesFailedFinalRestore(t *testing.T) {
 	if f.writes != writes+1 {
 		t.Fatal("the failed cleanup pass did not retry the original native restore exactly once")
 	}
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 491}); !retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 491)); !retained {
 		t.Fatal("the failed cleanup command lost original session custody")
 	}
 	if err := executeCoSCleanupForReview(t, engine, nil); err != nil {
 		t.Fatalf("the healthy cleanup retry failed: %v", err)
 	}
 	f.requireMaps(f.original)
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 491}); retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 491)); retained {
 		t.Fatal("confirmed cleanup retained the departed session")
 	}
 	writes = f.writes

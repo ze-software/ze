@@ -15,25 +15,28 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
-// subscriberSession adds an L2TP subscriber session whose Acct-Session-Id is
-// "10-20-1" to the process registry, and removes it when the test ends.
+// subscriberSession registers the fixture origin's same canonical ID and
+// Birth. Its wire Acct-Session-Id stays "10-20-1"; cleanup removes that exact
+// original registry key, never a value reconstructed from numeric labels.
 func subscriberSession(t *testing.T, id, accessInterface string) {
 	t.Helper()
+	birth, err := subscriberid.ParseL2TPBirth(id)
+	if err != nil {
+		t.Fatalf("subscriber fixture requires its original canonical ID: %v", err)
+	}
 	svc := subscriber.LookupService()
 	if svc == nil {
 		t.Fatal("no subscriber service")
 	}
 	svc.Registry.Add(&subscriber.Session{
-		ID:              id,
+		ID: id, L2TPBirth: birth,
 		AccessType:      subscriber.AccessL2TP,
 		AccessInterface: accessInterface,
-		PppInterface:    coaFixtureInterface(10, 20),
-		Username:        "alice",
-		TunnelID:        10,
-		SessionID:       20,
-		AcctSessionID:   "10-20-1",
+		PppInterface:    coaFixtureInterface(10, 20), Username: "alice",
+		TunnelID: 10, SessionID: 20, AcctSessionID: "10-20-1",
 	})
 	t.Cleanup(func() { svc.Registry.Remove(id) })
 }
@@ -121,9 +124,9 @@ func TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed(t *testing.T) {
 func TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-all-supported-secret")
 	bus := &recordingBus{}
-	fake := oneSessionService()
+	fake := newCoASubscriberOrigin(t)
 	addr := coaTestListener(t, secret, bus, fake)
-	subscriberSession(t, "sub-rfc5176-supported", "l2tp-ppp0")
+	subscriberSession(t, fake.snap.Tunnels[0].Sessions[0].SubscriberID, "l2tp-ppp0")
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
@@ -158,8 +161,9 @@ func TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed(t *testing.T) {
 func TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange(t *testing.T) {
 	secret := []byte("test-rfc5176-sub-atomic-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
-	subscriberSession(t, "sub-rfc5176-no-interface", "")
+	fake := newCoASubscriberOrigin(t)
+	addr := coaTestListener(t, secret, bus, fake)
+	subscriberSession(t, fake.snap.Tunnels[0].Sessions[0].SubscriberID, "")
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},

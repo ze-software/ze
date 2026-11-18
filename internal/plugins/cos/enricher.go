@@ -12,6 +12,8 @@ package cos
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/core/subscriberid"
+
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/show"
 )
@@ -26,11 +28,11 @@ func init() {
 }
 
 func enrichSubscriberDetail(base map[string]any) {
-	tid, sid, ok := extractSessionKey(base)
+	key, ok := extractSessionKey(base)
 	if !ok {
 		return
 	}
-	v, loaded := sessionStore.Load(sessionKey{tunnelID: tid, sessionID: sid})
+	v, loaded := sessionStore.Load(key)
 	if !loaded {
 		return
 	}
@@ -52,11 +54,11 @@ func enrichSubscriberDetail(base map[string]any) {
 }
 
 func enrichSubscriberBrief(base map[string]any) {
-	tid, sid, ok := extractSessionKey(base)
+	key, ok := extractSessionKey(base)
 	if !ok {
 		return
 	}
-	v, loaded := sessionStore.Load(sessionKey{tunnelID: tid, sessionID: sid})
+	v, loaded := sessionStore.Load(key)
 	if !loaded {
 		return
 	}
@@ -67,13 +69,16 @@ func enrichSubscriberBrief(base map[string]any) {
 	base["cos-profile"] = state.profileName
 }
 
-func extractSessionKey(base map[string]any) (uint16, uint16, bool) {
-	tid, ok1 := base["tunnel-id"].(uint16)
-	sid, ok2 := base["session-id"].(uint16)
-	if !ok1 || !ok2 {
-		return 0, 0, false
+func extractSessionKey(base map[string]any) (sessionKey, bool) {
+	id, ok := base["id"].(string)
+	if !ok {
+		return sessionKey{}, false
 	}
-	return tid, sid, true
+	birth, err := subscriberid.ParseL2TPBirth(id)
+	if err != nil {
+		return sessionKey{}, false
+	}
+	return sessionKey{birth: birth}, true
 }
 
 type qosEntry struct {

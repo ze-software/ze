@@ -1,4 +1,4 @@
-//go:build linux
+//go:build integration && linux
 
 package ifacenetlink
 
@@ -53,6 +53,11 @@ func TestNetlinkUpdateVLANQoSMapReplacesKernel(t *testing.T) {
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zer0")
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Errorf("close original VLAN test backend: %v", err)
+			}
+		})
 		if err := b.CreateVLAN(iface.VLANSpec{
 			Parent:        "zer0",
 			VLANID:        310,
@@ -116,6 +121,11 @@ func TestNetlinkUpdateVLANQoSMapSerialised(t *testing.T) {
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zes0")
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Errorf("close original VLAN test backend: %v", err)
+			}
+		})
 		if err := b.CreateVLAN(iface.VLANSpec{Parent: "zes0", VLANID: 320, EgressQoSMap: map[uint32]uint32{3: 3}}); err != nil {
 			t.Fatalf("CreateVLAN: %v", err)
 		}

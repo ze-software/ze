@@ -29,6 +29,13 @@ import (
 // removed via LinkDel so the operator does not end up with a half-created
 // interface after a transient error; rollback delete failures are logged.
 func (b *netlinkBackend) CreateWireguardDevice(name string) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create wireguard %q: %w", name, err)
 	}
@@ -39,11 +46,7 @@ func (b *netlinkBackend) CreateWireguardDevice(name string) error {
 		return fmt.Errorf("iface: create wireguard %q: %w", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		if delErr := netlink.LinkDel(link); delErr != nil {
-			logger().Warn("iface: rollback delete after set-up failure",
-				"name", name, "kind", "wireguard", "err", delErr)
-		}
-		return fmt.Errorf("iface: set up wireguard %q: %w", name, err)
+		return fmt.Errorf("iface: set up wireguard %q: %w", name, b.rollbackNativeCreate(link, name, "wireguard", "set up", err))
 	}
 	return nil
 }

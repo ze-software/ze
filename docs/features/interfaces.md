@@ -177,6 +177,14 @@ close the active backend, change its generation, or start its monitor. The
 consumer MUST close its owner after its dependent resources stop. L2TP uses this
 for Linux PPP interfaces even when the interface configuration selects VPP.
 <!-- source: internal/component/iface/backend.go -- OpenBackend -->
+
+Kernel PPPoE preparation also owns an independent netlink backend. Each prepared
+access opens its sessions through `AccessOwner.Open` and shares that backend
+across them. The caller MUST stop admission and join its sessions. It MUST then
+close the access and its backend.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, kernelAccessOwner.Open, kernelAccessOwner.Close -->
+
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
@@ -1722,3 +1730,33 @@ under exact-or-reject.
 
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
 <!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface/GetLink via net.Interfaces -->
+
+
+## Original native VLAN custody
+
+A kernel VLAN created through Ze retains its original CREATE transaction,
+resource birth and transport. One backend-local initialization lock publishes
+that transport for both synchronous creator rollback and first worker admission.
+The route socket is opened on the caller before launching the worker, preserving
+its namespace. A failed open publishes no transport and permits a later retry;
+a successful open is never replaced by another admission. Close retains the
+original worker until its actual completion channel closes. A stopped admission
+with an unjoined worker returns a bounded pending result; a retry cannot reopen
+the transport or report successful release before that original worker returns.
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- initializeOps, beginLocked, close, closeWithContext -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- loop, join -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- run -->
+
+Capturing a native map lease requires that retained creator record; matching
+discovery labels cannot reconstruct it.
+While a map lease remains live, Ze refuses deletion of that VLAN or a parent
+whose deletion would remove it, conflicting name-based map writes, and closing
+or replacing its backend. An unknown original request retains its transaction
+and socket for a later bounded join; caller expiry does not publish another
+owner or authorize stamping a matching replacement. Preexisting VLANs remain
+available through ordinary interface discovery without gaining this lease.
+<!-- source: internal/component/iface/native_access.go -- ResolvePreparedAccess, NativeVLANProvider -->
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- createDirect, captureNativeVLANDirect, legacyTargetLocked, closeDirect -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- JoinNativeVLAN -->
+<!-- source: internal/plugins/iface/netlink/native_access_transport_linux.go -- nativeVLANTransaction -->
+<!-- source: internal/plugins/iface/netlink/native_access_delete_linux.go -- deleteLinkOriginalLocked -->

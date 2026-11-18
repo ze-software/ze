@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
@@ -28,7 +27,7 @@ func TestCoSLegacySharedRegisteredRestartPreservesOriginalOwner(t *testing.T) {
 	priorHandler := dynamicHandler
 	t.Cleanup(func() { dynamicHandler = priorHandler })
 	const session = uint16(481)
-	key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}
+	key := fixtureCoSKey(sharedCoSTestTunnel, session)
 	storeMetadataForTest(sharedCoSTestTunnel, session, sharedCoSTestFirst)
 	t.Cleanup(func() {
 		clearMetadataForTest(sharedCoSTestTunnel, session)
@@ -58,13 +57,14 @@ func TestCoSLegacySharedRegisteredRestartPreservesOriginalOwner(t *testing.T) {
 		// the existing native boundary with this test's recorded backend.
 		dynamicHandler.updateQoS = f.handler.updateQoS
 		dynamicHandler.readLink = f.handler.readLink
+		dynamicHandler.captureTarget = captureModeledOriginalCoSTarget(dynamicHandler)
 		pluginengine.Start(t, pluginengine.TransportBridge, registration.RunEngine)
 	}
 	if !t.Run("original runner", func(t *testing.T) {
 		start(t)
 		if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(sharedCoSTestTunnel), session),
-			TunnelID:     sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
+			Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
+			TunnelID: sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -80,7 +80,7 @@ func TestCoSLegacySharedRegisteredRestartPreservesOriginalOwner(t *testing.T) {
 	}
 	// This is the actual server bus, not testBus's no-op unsubscriber. A
 	// stopped generation must not accept a later policy notification.
-	if _, err := l2tpevents.SessionCoSChange.Emit(bus, &l2tpevents.SessionCoSChangePayload{
+	if _, err := l2tpevents.SessionCoSChange.Emit(bus, &l2tpevents.SessionCoSChangePayload{Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
 		TunnelID: sharedCoSTestTunnel, SessionID: session,
 		AccessInterface: sharedCoSTestInterface, ProfileName: sharedCoSTestDifferent,
 	}); err != nil {
@@ -92,7 +92,7 @@ func TestCoSLegacySharedRegisteredRestartPreservesOriginalOwner(t *testing.T) {
 	f.requireMaps(f.shared)
 	if !t.Run("replacement runner", func(t *testing.T) {
 		start(t)
-		if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+		if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
 			TunnelID: sharedCoSTestTunnel, SessionID: session,
 		}); err != nil {
 			t.Fatal(err)

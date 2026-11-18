@@ -66,7 +66,7 @@ func cleanupProbeLink(name string) {
 	if err != nil {
 		return
 	}
-	if delErr := netlink.LinkDel(link); delErr != nil {
+	if delErr := nativeVLANProbeDelete(link); delErr != nil {
 		logger().Warn("iface: cleanup macvlan probe link", "name", name, "err", delErr)
 	}
 }

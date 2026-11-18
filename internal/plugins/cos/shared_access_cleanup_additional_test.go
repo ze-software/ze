@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
@@ -52,11 +51,11 @@ func TestCoSLegacySharedCleanupKeepsAllCausesAndOtherProgress(t *testing.T) {
 		storeMetadataForTest(sharedCoSTestTunnel, session, sharedCoSTestFirst)
 		t.Cleanup(func() {
 			clearMetadataForTest(sharedCoSTestTunnel, session)
-			sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session})
+			sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, session))
 		})
 		if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(sharedCoSTestTunnel), session),
-			TunnelID:     sharedCoSTestTunnel, SessionID: session, AccessInterface: name,
+			Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
+			TunnelID: sharedCoSTestTunnel, SessionID: session, AccessInterface: name,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +64,7 @@ func TestCoSLegacySharedCleanupKeepsAllCausesAndOtherProgress(t *testing.T) {
 		}
 		failures[name] = fmt.Errorf("native original restore %s is unconfirmed", name)
 		registeredCoSCleanupReviewDown(t, bus, session)
-		if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}); !retained {
+		if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, session)); !retained {
 			t.Fatalf("failed original restore on %s lost its session", name)
 		}
 	}
@@ -85,14 +84,14 @@ func TestCoSLegacySharedCleanupKeepsAllCausesAndOtherProgress(t *testing.T) {
 			t.Fatalf("cleanup made %d attempts for %s, want one", writes[name]-before[name], name)
 		}
 	}
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 62101}); retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 62101)); retained {
 		t.Fatal("one owner's failure prevented a different original owner from recovering")
 	}
 	if !nativeCoSEffectiveMapsEqualForUnit(installed[names[1]].EgressMap, f.original.EgressMap) {
 		t.Fatal("the independently recovered owner did not restore its original egress maps")
 	}
 	for _, session := range []uint16{62100, 62102} {
-		if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}); !retained {
+		if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, session)); !retained {
 			t.Fatal("partial progress forgot a still unconfirmed original owner")
 		}
 	}

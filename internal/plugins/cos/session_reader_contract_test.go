@@ -210,7 +210,8 @@ func TestSessionEventReaderDoesNotCallBackIntoTheReactor(t *testing.T) {
 	t.Cleanup(func() { coreCos.Replace(nil) })
 	bus := newSessionNestingBus(t)
 	backend := &mockBackend{}
-	h := newCosHandler(bus, backend.updateVLANQoSMap, nil)
+	h := newCosHandler(bus, backend.updateVLANQoSMap, discardCoSReportForTest)
+	h.readLink = backend.readLink
 	t.Cleanup(h.stop)
 
 	const tunnelID, sessionID = uint16(11), uint16(7)
@@ -218,15 +219,15 @@ func TestSessionEventReaderDoesNotCallBackIntoTheReactor(t *testing.T) {
 	t.Cleanup(func() { clearMetadataForTest(tunnelID, sessionID) })
 
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: "l2tp-11-7",
-		TunnelID:     tunnelID, SessionID: sessionID, Interface: "ppp7", AccessInterface: "eth0.107",
+		Birth: fixtureCoSKey(tunnelID, sessionID).birth, SubscriberID: fixtureCoSID(tunnelID, sessionID),
+		TunnelID: tunnelID, SessionID: sessionID, Interface: "ppp7", AccessInterface: "eth0.107",
 	}); err != nil {
 		t.Fatalf("publish SessionUp: %v", err)
 	}
 	if got := backend.callCount(); got != 1 {
 		t.Fatalf("QoS map updates after SessionUp = %d, want 1: the handler did not run", got)
 	}
-	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(tunnelID, sessionID).birth, SubscriberID: fixtureCoSID(tunnelID, sessionID),
 		TunnelID: tunnelID, SessionID: sessionID, Username: "grace",
 		Cause: l2tpevents.TerminateCauseAdminReset,
 	}); err != nil {

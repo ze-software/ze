@@ -7,5 +7,6 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-cos-cmd.yang", ZeCosCmdYANG)
 	configyang.RegisterModule("ze-cos-conf.yang", ZeCosConfYANG)
 }

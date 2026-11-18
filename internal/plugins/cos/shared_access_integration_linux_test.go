@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 	"github.com/ze-software/ze/internal/test/userns"
@@ -35,6 +34,7 @@ type nativeCoSSharedFixture struct {
 
 func newNativeCoSSharedFixture(t *testing.T) *nativeCoSSharedFixture {
 	t.Helper()
+	resetCoSReportsForTest(t)
 	if iface.GetBackend() != nil {
 		t.Fatal("isolated shared CoS namespace has an unrelated backend")
 	}
@@ -81,14 +81,16 @@ func newNativeCoSSharedFixture(t *testing.T) *nativeCoSSharedFixture {
 	f.handler = newCosHandler(f.bus, func(name string, ingress, egress map[uint32]uint32) error {
 		f.writes++
 		return backend.UpdateVLANQoSMap(name, ingress, egress)
-	}, func(name string) (map[uint32]uint32, map[uint32]uint32) {
+	}, discardCoSReportForTest)
+	f.handler.readLink = backend.GetLink
+	captureTarget := observeCreatorCoSTargets(f)
+	f.handler.captureTarget = func(name string) (originalCoSTarget, error) {
 		if name != device {
 			t.Fatalf("static map resolution changed native access: %q", name)
 		}
-		return maps.Clone(f.original.IngressMap), maps.Clone(f.original.EgressMap)
-	})
-	f.handler.readLink = backend.GetLink
-	t.Cleanup(f.handler.stop)
+		return captureTarget(name)
+	}
+	t.Cleanup(func() { closeNativeCoSTestTargets(t, f.handler) })
 	return f
 }
 
@@ -97,11 +99,11 @@ func (f *nativeCoSSharedFixture) up(session uint16, profile string) {
 	storeMetadataForTest(31, session, profile)
 	f.t.Cleanup(func() {
 		clearMetadataForTest(31, session)
-		sessionStore.Delete(sessionKey{tunnelID: 31, sessionID: session})
+		sessionStore.Delete(fixtureCoSKey(31, session))
 	})
 	emitSessionUp(f.t, f.bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(31), session),
-		TunnelID:     31, SessionID: session, AccessInterface: f.device,
+		Birth: fixtureCoSKey(31, session).birth, SubscriberID: fixtureCoSID(31, session),
+		TunnelID: 31, SessionID: session, AccessInterface: f.device,
 	})
 }
 
@@ -149,19 +151,19 @@ func TestCoSLegacySharedNativeAccessPreservesSurvivor(t *testing.T) {
 	f.up(41, "shared-first")
 	f.up(42, "shared-alias")
 	f.requireMaps(f.shared)
-	if _, found := sessionStore.Load(sessionKey{tunnelID: 31, sessionID: 42}); !found {
+	if _, found := sessionStore.Load(fixtureCoSKey(31, 42)); !found {
 		t.Fatal("equal effective maps did not admit the second legacy user")
 	}
 	writes := f.writes
-	emitSessionDown(t, f.bus, &l2tpevents.SessionDownPayload{TunnelID: 31, SessionID: 41})
+	emitSessionDown(t, f.bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(31, 41).birth, SubscriberID: fixtureCoSID(31, 41), TunnelID: 31, SessionID: 41})
 	f.requireMaps(f.shared)
 	if f.writes != writes {
 		t.Fatal("first legacy departure wrote shared native maps")
 	}
-	if _, found := sessionStore.Load(sessionKey{tunnelID: 31, sessionID: 42}); !found {
+	if _, found := sessionStore.Load(fixtureCoSKey(31, 42)); !found {
 		t.Fatal("first departure removed the permitted survivor")
 	}
-	emitSessionDown(t, f.bus, &l2tpevents.SessionDownPayload{TunnelID: 31, SessionID: 42})
+	emitSessionDown(t, f.bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(31, 42).birth, SubscriberID: fixtureCoSID(31, 42), TunnelID: 31, SessionID: 42})
 	f.requireMaps(f.original)
 }
 
@@ -181,10 +183,10 @@ func TestCoSLegacySharedNativeAccessRejectsConflictingInitialClass(t *testing.T)
 	if f.writes != writes {
 		t.Fatal("conflicting initial legacy class attempted a native write")
 	}
-	if _, found := sessionStore.Load(sessionKey{tunnelID: 31, sessionID: 42}); found {
+	if _, found := sessionStore.Load(fixtureCoSKey(31, 42)); found {
 		t.Fatal("conflicting initial legacy class acquired shared ownership")
 	}
-	if _, found := sessionStore.Load(sessionKey{tunnelID: 31, sessionID: 41}); !found {
+	if _, found := sessionStore.Load(fixtureCoSKey(31, 41)); !found {
 		t.Fatal("conflict removed the permitted existing user")
 	}
 }
@@ -209,7 +211,7 @@ func TestCoSLegacySharedNativeAccessRejectsConflictingCoAPrepare(t *testing.T) {
 		return f.handler.executeSessionTransaction([]string{"transaction", string(wire)}, "192.0.2.31")
 	}
 	status, answer, err := call(sessionTransactionRequest{
-		Operation: "prepare", TunnelID: 31, SessionID: 41, Interface: f.device, Profile: "shared-alias",
+		Operation: "prepare", SubscriberID: fixtureCoSID(31, 41), TunnelID: 31, SessionID: 41, Interface: f.device, Profile: "shared-alias",
 	})
 	if err != nil {
 		t.Fatalf("equal-map CoA prepare: %v", err)
@@ -236,7 +238,7 @@ func TestCoSLegacySharedNativeAccessRejectsConflictingCoAPrepare(t *testing.T) {
 	f.requireMaps(f.shared)
 	writes := f.writes
 	status, _, err = call(sessionTransactionRequest{
-		Operation: "prepare", TunnelID: 31, SessionID: 41, Interface: f.device, Profile: "conflicting",
+		Operation: "prepare", SubscriberID: fixtureCoSID(31, 41), TunnelID: 31, SessionID: 41, Interface: f.device, Profile: "conflicting",
 	})
 	if err == nil {
 		t.Fatalf("conflicting CoA prepare returned status %q without refusal", status)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -40,6 +39,7 @@ type sharedCoSTestOwner struct {
 
 func newSharedCoSTestOwner(t *testing.T) *sharedCoSTestOwner {
 	t.Helper()
+	resetCoSReportsForTest(t)
 	original := coreCos.Profile{IngressMap: map[uint32]uint32{1: 3}, EgressMap: map[uint32]uint32{3: 1}}
 	shared := coreCos.Profile{IngressMap: map[uint32]uint32{2: 5}, EgressMap: map[uint32]uint32{5: 2}}
 	f := &sharedCoSTestOwner{t: t, bus: newTestBus(), original: original,
@@ -63,7 +63,7 @@ func newSharedCoSTestOwner(t *testing.T) *sharedCoSTestOwner {
 			return errors.New("native write outcome is not confirmed")
 		}
 		return nil
-	}, nil)
+	}, discardCoSReportForTest)
 	f.handler.readLink = func(name string) (*iface.InterfaceInfo, error) {
 		if name != sharedCoSTestInterface {
 			t.Fatalf("native read changed access: %s", name)
@@ -72,6 +72,7 @@ func newSharedCoSTestOwner(t *testing.T) *sharedCoSTestOwner {
 		return &iface.InterfaceInfo{Name: name, Index: 317, Type: "vlan",
 			IngressQoSMap: maps.Clone(f.installed.IngressMap), EgressQoSMap: maps.Clone(f.installed.EgressMap)}, nil
 	}
+	f.handler.captureTarget = captureModeledOriginalCoSTarget(f.handler)
 	t.Cleanup(f.handler.stop)
 	return f
 }
@@ -81,17 +82,17 @@ func (f *sharedCoSTestOwner) up(session uint16, profile string) {
 	storeMetadataForTest(sharedCoSTestTunnel, session, profile)
 	f.t.Cleanup(func() {
 		clearMetadataForTest(sharedCoSTestTunnel, session)
-		sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session})
+		sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, session))
 	})
 	emitSessionUp(f.t, f.bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(sharedCoSTestTunnel), session),
-		TunnelID:     sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
+		Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
+		TunnelID: sharedCoSTestTunnel, SessionID: session, AccessInterface: sharedCoSTestInterface,
 	})
 }
 
 func (f *sharedCoSTestOwner) down(session uint16) {
 	f.t.Helper()
-	emitSessionDown(f.t, f.bus, &l2tpevents.SessionDownPayload{TunnelID: sharedCoSTestTunnel, SessionID: session})
+	emitSessionDown(f.t, f.bus, &l2tpevents.SessionDownPayload{Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session), TunnelID: sharedCoSTestTunnel, SessionID: session})
 }
 
 func (f *sharedCoSTestOwner) requireMaps(want coreCos.Profile) {
@@ -120,6 +121,7 @@ func (f *sharedCoSTestOwner) command(operation string, session uint16, profile, 
 	if operation == "prepare" {
 		request.TunnelID = sharedCoSTestTunnel
 		request.SessionID = session
+		request.SubscriberID = fixtureCoSID(request.TunnelID, request.SessionID)
 		request.Interface = sharedCoSTestInterface
 		request.Profile = profile
 	}
@@ -169,7 +171,7 @@ func TestCoSLegacySharedRetainsFailedFinalRestore(t *testing.T) {
 	f.requireMaps(f.shared)
 	f.failWrites = 1
 	f.down(411)
-	key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 411}
+	key := fixtureCoSKey(sharedCoSTestTunnel, 411)
 	if _, retained := sessionStore.Load(key); !retained {
 		t.Fatal("failed final restore lost its original session custody")
 	}
@@ -178,7 +180,7 @@ func TestCoSLegacySharedRetainsFailedFinalRestore(t *testing.T) {
 	if f.writes != writes {
 		t.Fatal("uncertain final restore admitted a new map writer")
 	}
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 412}); admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 412)); admitted {
 		t.Fatal("uncertain final restore published a conflicting member")
 	}
 	f.down(411)
@@ -219,7 +221,7 @@ func TestCoSLegacySharedRollbackRemovesOnlyNewMember(t *testing.T) {
 	f := newSharedCoSTestOwner(t)
 	f.up(431, sharedCoSTestFirst)
 	f.up(432, sharedCoSTestAlias)
-	t.Cleanup(func() { sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 433}) })
+	t.Cleanup(func() { sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, 433)) })
 	token, err := f.command("prepare", 433, sharedCoSTestAlias, "")
 	if err != nil {
 		t.Fatal(err)
@@ -230,7 +232,7 @@ func TestCoSLegacySharedRollbackRemovesOnlyNewMember(t *testing.T) {
 	if _, err := f.command("rollback", 0, "", token); err != nil {
 		t.Fatal(err)
 	}
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 433}); retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 433)); retained {
 		t.Fatal("rollback retained the new member")
 	}
 	f.requireMaps(f.shared)
@@ -255,14 +257,14 @@ func TestCoSLegacySharedPrepareProtectsReservation(t *testing.T) {
 	if f.writes != writes {
 		t.Fatal("legacy event wrote through a pending access reservation")
 	}
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 442}); admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 442)); admitted {
 		t.Fatal("legacy event published through a pending access reservation")
 	}
 	if _, err := f.command("rollback", 0, "", token); err != nil {
 		t.Fatal(err)
 	}
 	f.up(442, sharedCoSTestAlias)
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 442}); !admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 442)); !admitted {
 		t.Fatal("resolved reservation still refused a compatible user")
 	}
 	f.requireMaps(f.shared)
@@ -292,18 +294,18 @@ func TestCoSLegacySharedCommittedCompensationProtectsAdmission(t *testing.T) {
 	if f.writes != writes {
 		t.Fatal("new legacy admission wrote through outstanding compensation")
 	}
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 452}); admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 452)); admitted {
 		t.Fatal("new user made the retained compensation incompatible")
 	}
 	if _, err := f.command("rollback", 0, "", token); err != nil {
 		t.Fatal(err)
 	}
 	f.requireMaps(f.shared)
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 451}); !admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 451)); !admitted {
 		t.Fatal("compensation lost the original admitted user")
 	}
 	f.up(452, sharedCoSTestAlias)
-	if _, admitted := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 452}); !admitted {
+	if _, admitted := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 452)); !admitted {
 		t.Fatal("completed rollback still refused a compatible new user")
 	}
 	f.requireMaps(f.shared)

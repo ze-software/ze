@@ -32,6 +32,13 @@ import (
 // On any failure the host end is deleted, which deletes the pair, so a failed
 // call leaves no part of the link.
 func (b *netlinkBackend) CreateOwnedLink(spec iface.OwnedLinkSpec) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := validateOwnedLinkSpec(spec); err != nil {
 		return err
 	}
@@ -56,10 +63,7 @@ func (b *netlinkBackend) CreateOwnedLink(spec iface.OwnedLinkSpec) error {
 		return fmt.Errorf("iface: create owned link %q (peer %q): %w", spec.HostEnd, spec.PeerName, err)
 	}
 	rollback := func(stage string, cause error) error {
-		if delErr := netlink.LinkDel(veth); delErr != nil {
-			reportOwnedRollbackFailure(spec.HostEnd, "veth", stage, delErr)
-		}
-		return fmt.Errorf("iface: %s owned link %q: %w", stage, spec.HostEnd, cause)
+		return fmt.Errorf("iface: %s owned link %q: %w", stage, spec.HostEnd, b.rollbackNativeCreate(veth, spec.HostEnd, "veth", stage, cause))
 	}
 	// The kernel ignores IFLA_IFALIAS in RTM_NEWLINK (Linux limitation
 	// LL-RTNL-NEWLINK-NO-ALIAS, docs/architecture/linux-limitations.md).

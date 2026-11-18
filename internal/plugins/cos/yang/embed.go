@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-cos-cmd.yang
+var ZeCosCmdYANG string
+
 //go:embed ze-cos-conf.yang
 var ZeCosConfYANG string

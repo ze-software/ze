@@ -267,6 +267,8 @@ type Binding struct {
 	// OsName is the kernel device name the logical name resolved to via the
 	// os-name selector (defaulting to the logical name itself).
 	OsName string
+	// Alias is an observed native marker, never a capability.
+	Alias string
 	// OperMAC is the current (operational) hardware address, which an operator
 	// may have overridden.
 	OperMAC string

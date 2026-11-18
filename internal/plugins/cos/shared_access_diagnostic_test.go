@@ -56,6 +56,7 @@ func newRegisteredCoSReportFixture(t *testing.T) *cosReportTestFixture {
 	f.handler = dynamicHandler
 	f.handler.updateQoS = backendWrite
 	f.handler.readLink = backendRead
+	f.handler.captureTarget = captureModeledOriginalCoSTarget(f.handler)
 	t.Cleanup(func() {
 		f.handler.stop()
 		dynamicHandler = beforeHandler
@@ -182,7 +183,7 @@ func TestCoSLegacySharedRestoreReportTracksConfirmedRecovery(t *testing.T) {
 	if second.Subject != first.Subject {
 		t.Fatalf("the same retained cleanup changed subject: %q / %q", first.Subject, second.Subject)
 	}
-	key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 60213}
+	key := fixtureCoSKey(sharedCoSTestTunnel, 60213)
 	if _, retained := sessionStore.Load(key); !retained {
 		t.Fatal("the unconfirmed restore lost its original session before recovery")
 	}
@@ -224,7 +225,7 @@ func TestCoSLegacySharedHealthyEventsHaveNoDoctorReport(t *testing.T) {
 	f.up(60217, sharedCoSTestAlias)
 	f.requireMaps(f.shared)
 	for _, session := range []uint16{60216, 60217} {
-		key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}
+		key := fixtureCoSKey(sharedCoSTestTunnel, session)
 		if _, admitted := sessionStore.Load(key); !admitted {
 			t.Fatalf("healthy session %d was not admitted", session)
 		}
@@ -232,7 +233,7 @@ func TestCoSLegacySharedHealthyEventsHaveNoDoctorReport(t *testing.T) {
 	f.down(60216)
 	f.down(60217)
 	for _, session := range []uint16{60216, 60217} {
-		key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}
+		key := fixtureCoSKey(sharedCoSTestTunnel, session)
 		if _, retained := sessionStore.Load(key); retained {
 			t.Fatalf("healthy session %d was not removed", session)
 		}

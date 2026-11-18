@@ -6,9 +6,11 @@
 package cos
 
 import (
+	"maps"
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/pkg/ze"
@@ -56,13 +58,31 @@ type mockBackend struct {
 	mu    sync.Mutex
 	calls []mockBackendCall
 	err   error
+	links map[string]coreCos.Profile
 }
 
 func (m *mockBackend) updateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls = append(m.calls, mockBackendCall{ifaceName, ingress, egress})
-	return m.err
+	if m.err != nil {
+		return m.err
+	}
+	if m.links == nil {
+		m.links = make(map[string]coreCos.Profile)
+	}
+	m.links[ifaceName] = coreCos.Profile{IngressMap: maps.Clone(ingress), EgressMap: maps.Clone(egress)}
+	return nil
+}
+
+// Each declared fixture VLAN starts with empty native maps. Reads reflect
+// successful writes to that selected interface, never static configuration.
+func (m *mockBackend) readLink(name string) (*iface.InterfaceInfo, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	profile := m.links[name]
+	return &iface.InterfaceInfo{Name: name, Type: "vlan",
+		IngressQoSMap: maps.Clone(profile.IngressMap), EgressQoSMap: maps.Clone(profile.EgressMap)}, nil
 }
 
 func (m *mockBackend) lastCall() (mockBackendCall, bool) {
@@ -82,6 +102,7 @@ func (m *mockBackend) callCount() int {
 
 func setupTestHandler(t *testing.T) (*testBus, *mockBackend) {
 	t.Helper()
+	resetCoSReportsForTest(t)
 	coreCos.Replace(map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0, 1: 1},
@@ -96,13 +117,38 @@ func setupTestHandler(t *testing.T) (*testBus, *mockBackend) {
 
 	bus := newTestBus()
 	mb := &mockBackend{}
-	h := newCosHandler(bus, mb.updateVLANQoSMap, nil)
-	t.Cleanup(h.stop)
+	h := newCosHandler(bus, mb.updateVLANQoSMap, discardCoSReportForTest)
+	h.readLink = mb.readLink
+	t.Cleanup(func() {
+		h.stop()
+		// Dispose only this fixture's observations after all test assertions.
+		sessionStore.Range(func(key, value any) bool {
+			state, valid := value.(sessionCoSState)
+			if !valid {
+				return true
+			}
+			owner := h.accesses[state.accessInterface]
+			if owner == nil {
+				return true
+			}
+			if owner.sharedOwner() != state.owner {
+				return true
+			}
+			sessionStore.Delete(key)
+			return true
+		})
+	})
 	return bus, mb
 }
 
 func emitSessionUp(t *testing.T, bus *testBus, p *l2tpevents.SessionUpPayload) {
 	t.Helper()
+	if !p.Birth.IsValid() {
+		p.Birth = fixtureCoSKey(p.TunnelID, p.SessionID).birth
+	}
+	if p.SubscriberID == "" {
+		p.SubscriberID = p.Birth.String()
+	}
 	if _, err := l2tpevents.SessionUp.Emit(bus, p); err != nil {
 		t.Fatalf("emit session-up: %v", err)
 	}
@@ -110,6 +156,12 @@ func emitSessionUp(t *testing.T, bus *testBus, p *l2tpevents.SessionUpPayload) {
 
 func emitSessionDown(t *testing.T, bus *testBus, p *l2tpevents.SessionDownPayload) {
 	t.Helper()
+	if !p.Birth.IsValid() {
+		p.Birth = fixtureCoSKey(p.TunnelID, p.SessionID).birth
+	}
+	if p.SubscriberID == "" {
+		p.SubscriberID = p.Birth.String()
+	}
 	if _, err := l2tpevents.SessionDown.Emit(bus, p); err != nil {
 		t.Fatalf("emit session-down: %v", err)
 	}
@@ -117,6 +169,12 @@ func emitSessionDown(t *testing.T, bus *testBus, p *l2tpevents.SessionDownPayloa
 
 func emitCoSChange(t *testing.T, bus *testBus, p *l2tpevents.SessionCoSChangePayload) {
 	t.Helper()
+	if !p.Birth.IsValid() {
+		p.Birth = fixtureCoSKey(p.TunnelID, p.SessionID).birth
+	}
+	if p.SubscriberID == "" {
+		p.SubscriberID = p.Birth.String()
+	}
 	if _, err := l2tpevents.SessionCoSChange.Emit(bus, p); err != nil {
 		t.Fatalf("emit cos-change: %v", err)
 	}
@@ -131,7 +189,7 @@ func TestCoSHandlerSessionUp(t *testing.T) {
 	defer clearMetadataForTest(1, 10)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-1-10",
+		Birth: fixtureCoSKey(1, 10).birth, SubscriberID: fixtureCoSID(1, 10),
 		TunnelID:        1,
 		SessionID:       10,
 		Interface:       "ppp0",
@@ -155,7 +213,7 @@ func TestCoSHandlerSessionUpNoCoS(t *testing.T) {
 	bus, mb := setupTestHandler(t)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-1-11",
+		Birth: fixtureCoSKey(1, 11).birth, SubscriberID: fixtureCoSID(1, 11),
 		TunnelID:        1,
 		SessionID:       11,
 		Interface:       "ppp1",
@@ -175,10 +233,10 @@ func TestCoSHandlerSessionUpNoAccess(t *testing.T) {
 	defer clearMetadataForTest(2, 20)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: "l2tp-2-20",
-		TunnelID:     2,
-		SessionID:    20,
-		Interface:    "ppp2",
+		Birth: fixtureCoSKey(2, 20).birth, SubscriberID: fixtureCoSID(2, 20),
+		TunnelID:  2,
+		SessionID: 20,
+		Interface: "ppp2",
 	})
 
 	if mb.callCount() != 0 {
@@ -194,7 +252,7 @@ func TestCoSHandlerSessionUpRateOnly(t *testing.T) {
 	defer clearMetadataForTest(3, 30)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-3-30",
+		Birth: fixtureCoSKey(3, 30).birth, SubscriberID: fixtureCoSID(3, 30),
 		TunnelID:        3,
 		SessionID:       30,
 		Interface:       "ppp3",
@@ -214,7 +272,7 @@ func TestCoSHandlerSessionDown(t *testing.T) {
 	defer clearMetadataForTest(4, 40)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-4-40",
+		Birth: fixtureCoSKey(4, 40).birth, SubscriberID: fixtureCoSID(4, 40),
 		TunnelID:        4,
 		SessionID:       40,
 		Interface:       "ppp4",
@@ -246,7 +304,7 @@ func TestCoSHandlerCoAChange(t *testing.T) {
 	defer clearMetadataForTest(5, 50)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-5-50",
+		Birth: fixtureCoSKey(5, 50).birth, SubscriberID: fixtureCoSID(5, 50),
 		TunnelID:        5,
 		SessionID:       50,
 		Interface:       "ppp5",
@@ -280,7 +338,7 @@ func TestCoSHandlerCoANotFound(t *testing.T) {
 	defer clearMetadataForTest(6, 60)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-6-60",
+		Birth: fixtureCoSKey(6, 60).birth, SubscriberID: fixtureCoSID(6, 60),
 		TunnelID:        6,
 		SessionID:       60,
 		Interface:       "ppp6",
@@ -307,7 +365,7 @@ func TestCoSHandlerDualFilterID(t *testing.T) {
 	defer clearMetadataForTest(7, 70)
 
 	emitSessionUp(t, bus, &l2tpevents.SessionUpPayload{
-		SubscriberID:    "l2tp-7-70",
+		Birth: fixtureCoSKey(7, 70).birth, SubscriberID: fixtureCoSID(7, 70),
 		TunnelID:        7,
 		SessionID:       70,
 		Interface:       "ppp7",

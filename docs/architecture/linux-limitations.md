@@ -469,8 +469,13 @@ For a `library` entry, read the module in the module cache:
   `if (tb[IFLA_IFALIAS]) {` then `err = netif_set_alias(dev, nla_data(tb[IFLA_IFALIAS]),`.
 - **Re-check:** read `rtnl_create_link` and `rtnl_newlink_create`. Lifted if
   either applies `IFLA_IFALIAS`.
-- **Ze meanwhile:** works around it. iface sets the alias right after create
-  and deletes the device if that fails, so no unmarked device is left.
+- **Ze meanwhile:** native VLAN preparation consumes the original CREATE
+  echo and ACK, then sets a separate ownership alias under the same creator
+  fence. Caller expiry never permits a later alias stamp. An original outcome
+  confirmed before that fence is released can roll back the unpublished device;
+  a lost or unusable outcome retains an unmarked quarantine. A later device with
+  matching selectors supplies no ownership authority. Other interface creators
+  also set the alias separately after creation.
 
 <!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- CreateMacvlanDevice -->
 
@@ -690,6 +695,49 @@ For a `library` entry, read the module in the module cache:
   5-tuple.
 
 <!-- source: internal/plugins/flowexport/conntrack/delta.go -- flowKey -->
+
+### LL-FD-RECEIVE-DEADLINE
+
+- **Kind:** library
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** module github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff, 2026-11-17
+- **Limitation:** The unpatched module's `fd.Get` receives descriptors through
+  a duplicated socket and a raw blocking syscall. The original
+  `net.UnixConn` deadline does not bound that receive, so a peer that withholds
+  descriptors can keep statistics connection setup blocked.
+- **Blocks:** bounded statistics connection setup for AC-27's physical-process
+  ownership check before counter publication
+  (`plan/post-release/features/spec-pppoe-vpp-dataplane.md`).
+  The configured GoVPP retry deadline alone cannot finish the unpatched receive.
+- **Evidence:** in the UNPATCHED upstream `fd.go` at the checked version
+  (SHA256 `07e3fc99b7f6934c78e30e2ced97b7e55ebe7d906aefa5730cbf169e768d9e86`),
+  `Get` calls `viaf, err := via.File()`, then
+  `socket := int(viaf.Fd())` and
+  `_, _, _, _, err = syscall.Recvmsg(socket, nil, buf, 0)`.
+  These historical lines are retained in `fd-receive-deadline.patch`;
+  the patched vendor source now uses `via.ReadMsgUnix(nil, buf)`.
+  GoVPP's `StatsClient.connect` sets
+  `conn.SetDeadline(time.Now().Add(sc.retryTimeout))` before
+  `files, err := fd.Get(conn, 1, nil)` on its pinned path.
+- **Re-check:** read `Get` in the upstream module version required by
+  `go.mod` and GoVPP's descriptor receive path. Remove the carried patch when
+  upstream honors the original connection's deadline and descriptor ownership
+  contract. Confirm timeout and successful descriptor receipt on Ze's kernel,
+  including zero-payload rights and a missing-descriptor refusal.
+- **Ze meanwhile:** carries `fd-receive-deadline.patch`, published through
+  the canonical vendor installer. It receives through the original UnixConn's
+  poller, so the configured read deadline bounds descriptor receipt. It parses
+  only the ancillary bytes received and accepts descriptor transfers with
+  zero or one payload byte. An otherwise successful receive without ancillary
+  data returns `io.ErrUnexpectedEOF`. The caller closes every returned file,
+  including partial results returned with an error.
+
+<!-- source: internal/le/vendorpatch/patches/fd-receive-deadline.patch -- upstream Get receive replacement -->
+<!-- source: vendor/github.com/ftrvxmtrx/fd/fd.go -- Get -->
+<!-- source: vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go -- StatsClient.connect -->
+<!-- source: internal/component/vpp/govpp_stats_identity_linux_test.go -- TestGoVPPPinnedStatsBoundsDescriptorReceipt, TestGoVPPPinnedStatsMapsOriginalDescriptor -->
+<!-- source: internal/component/vpp/govpp_stats_zero_payload_linux_test.go -- TestGoVPPPinnedStatsMapsZeroPayloadDescriptor, TestGoVPPPinnedStatsRejectsMissingDescriptor -->
 
 ## Considered and left out
 

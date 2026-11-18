@@ -367,6 +367,7 @@ func bindingFromInfo(osName string, info *InterfaceInfo) Binding {
 	return Binding{
 		Ifindex: info.Index,
 		OsName:  osName,
+		Alias:   info.Alias,
 		OperMAC: info.MAC,
 		PermMAC: info.PermanentMAC,
 		MTU:     info.MTU,

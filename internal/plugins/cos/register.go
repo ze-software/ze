@@ -59,7 +59,11 @@ func init() {
 				}
 				return b.UpdateVLANQoSMap(device, ingress, egress)
 			}
-			dynamicHandler = newCosHandler(eb, updateFn, nil)
+			var previous *stoppedCosHandler
+			if dynamicHandler != nil {
+				previous = dynamicHandler.stopOwners()
+			}
+			dynamicHandler = newCosHandlerFromStopped(eb, updateFn, publishDaemonCoSIssue, previous)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
@@ -154,7 +158,6 @@ func runPlugin(conn net.Conn) int {
 	defer func() {
 		if dynamicHandler != nil {
 			dynamicHandler.stop()
-			dynamicHandler = nil
 		}
 		if err := p.Close(); err != nil {
 			logger().Warn("cos: close failed", "error", err)
@@ -191,7 +194,7 @@ func commandDecls() []sdk.CommandDecl {
 			Name:      "show class-of-service",
 			ShortHelp: "Show each class-of-service profile with its ingress and egress marking maps.",
 		},
-	}, sessionCommandDecls())
+	}, sessionCommandDecls(), cleanupCommandDecls())
 }
 
 // executeCommand admits only commands this plugin declares. The session owner
@@ -203,6 +206,7 @@ func executeCommand(_, command string, args []string, peer string) (string, any,
 		},
 	}
 	registerSessionCommand(handlers)
+	registerCleanupCommand(handlers)
 	handler, found := handlers[command]
 	if !found {
 		return rpc.StatusError, "", opererr.New("unknown class-of-service command: "+command,
@@ -210,4 +214,16 @@ func executeCommand(_, command string, args []string, peer string) (string, any,
 			"ze show class-of-service")
 	}
 	return handler(args, peer)
+}
+
+const cleanupCommand = "request class-of-service cleanup"
+
+type sharedCoSCleanupResult struct {
+	Attempted int `json:"attempted"`
+	Recovered int `json:"recovered"`
+}
+
+func cleanupCommandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{{Name: cleanupCommand, Shape: "doc",
+		ShortHelp: "Retry failed class-of-service cleanup using each original access owner."}}
 }

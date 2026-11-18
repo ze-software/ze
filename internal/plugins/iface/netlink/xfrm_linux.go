@@ -15,6 +15,13 @@ import (
 )
 
 func (b *netlinkBackend) CreateXFRM(spec iface.XFRMSpec) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	link := &netlink.Xfrmi{
 		Name: spec.Name,
 		Ifid: spec.IfID,

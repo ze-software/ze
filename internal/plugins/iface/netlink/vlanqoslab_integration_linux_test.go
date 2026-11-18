@@ -97,6 +97,11 @@ func createLabVLAN(t *testing.T, vlanID int, ingressMap, egressMap map[uint32]ui
 	// always sits on.
 	const parent = "ze0"
 	b := &netlinkBackend{}
+	t.Cleanup(func() {
+		if err := b.Close(); err != nil {
+			t.Errorf("close original VLAN test backend: %v", err)
+		}
+	})
 	if err := b.CreateVLAN(iface.VLANSpec{
 		Parent:        parent,
 		VLANID:        vlanID,

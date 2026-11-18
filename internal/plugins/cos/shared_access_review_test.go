@@ -49,7 +49,7 @@ func TestCoSLegacySharedCompensationRecoversUncertainLegacyWrite(t *testing.T) {
 	}
 	f.requireMaps(f.shared)
 	f.down(461)
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 461}); retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 461)); retained {
 		t.Fatal("successful original compensation left the departed user retained")
 	}
 }

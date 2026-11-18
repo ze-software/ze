@@ -1,0 +1,29 @@
+module ze-cos-cmd {
+    namespace "urn:ze:cos:cmd";
+    prefix coscmd;
+
+    import ze-extensions { prefix ze; }
+
+    description "Runtime operations owned by the class-of-service plugin.";
+
+    container request {
+        config false;
+        description "Request an operational change from the daemon.";
+        ze:help "Request a daemon operation.";
+
+        container class-of-service {
+            config false;
+            description "Operate on class-of-service runtime state.";
+            ze:help "Class-of-service runtime operations.";
+
+            container cleanup {
+                config false;
+                description
+                    "Retry retained failed cleanup once for each original access owner.
+                     Live users and live transaction tokens retain their policy.";
+                ze:help "Retry failed cleanup with the original access owners.";
+                ze:command "ze-cos:cleanup";
+            }
+        }
+    }
+}

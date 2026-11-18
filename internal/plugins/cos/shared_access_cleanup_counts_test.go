@@ -17,7 +17,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 )
 
@@ -58,11 +57,11 @@ func TestCoSLegacySharedCleanupCountsPartialFinalAndEmptyPasses(t *testing.T) {
 		storeMetadataForTest(sharedCoSTestTunnel, session, sharedCoSTestFirst)
 		t.Cleanup(func() {
 			clearMetadataForTest(sharedCoSTestTunnel, session)
-			sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session})
+			sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, session))
 		})
 		if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(sharedCoSTestTunnel), session),
-			TunnelID:     sharedCoSTestTunnel, SessionID: session, AccessInterface: name,
+			Birth: fixtureCoSKey(sharedCoSTestTunnel, session).birth, SubscriberID: fixtureCoSID(sharedCoSTestTunnel, session),
+			TunnelID: sharedCoSTestTunnel, SessionID: session, AccessInterface: name,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +73,7 @@ func TestCoSLegacySharedCleanupCountsPartialFinalAndEmptyPasses(t *testing.T) {
 		}
 		failures[name] = fmt.Errorf("original native restore %s is unconfirmed", name)
 		registeredCoSCleanupReviewDown(t, bus, session)
-		if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}); !retained {
+		if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, session)); !retained {
 			t.Fatalf("failed Down lost original owner %s before the count question", name)
 		}
 	}

@@ -417,7 +417,7 @@ func OpenBackend(name string) (Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("iface: backend %q init: %w", name, err)
 	}
-	if backend == nil {
+	if absentNativeCapability(backend) {
 		return nil, fmt.Errorf("iface: backend %q factory returned no owner", name)
 	}
 	return backend, nil
@@ -434,16 +434,20 @@ func loadBackendLocked(name string) error {
 		return fmt.Errorf("iface: backend %q init: %w", name, err)
 	}
 
-	// Swap first, then close old so a failed apply still has the new backend active.
+	if absentNativeCapability(b) {
+		return fmt.Errorf("iface: backend %q factory returned no owner", name)
+	}
+	// An unconfirmed native close MUST retain the same selected owner. The
+	// replacement is unpublished and MUST be closed on this refusal.
 	prev := activeBackend
+	if prev != nil {
+		if closeErr := prev.Close(); closeErr != nil {
+			return errors.Join(fmt.Errorf("iface: close previous backend while selecting %q: %w", name, closeErr), b.Close())
+		}
+	}
 	activeBackend = b
 	activeBackendName = name
 	activeBackendGeneration++
-	if prev != nil {
-		if closeErr := prev.Close(); closeErr != nil {
-			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
-		}
-	}
 	return nil
 }
 
@@ -544,9 +548,11 @@ func CloseBackend() error {
 	if activeBackend == nil {
 		return nil
 	}
-	err := activeBackend.Close()
+	if err := activeBackend.Close(); err != nil {
+		return err
+	}
 	activeBackend = nil
 	activeBackendName = ""
 	activeBackendGeneration++
-	return err
+	return nil
 }

@@ -6,7 +6,12 @@
 package cos
 
 import (
+	"errors"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -23,15 +28,14 @@ import (
 // updateQoSFunc is the signature for updating VLAN QoS maps on an interface.
 type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error
 
-// resolveStaticFunc returns the static CoS maps for an interface from config.
-type resolveStaticFunc func(ifaceName string) (ingress, egress map[uint32]uint32)
-
 type cosHandler struct{}
 
 // newCosHandler is the ze_l2tp-off no-op constructor: no event subscriptions,
 // no session state. register.go still stores and stops the handle, so both
 // paths stay identical in shape.
-func newCosHandler(ze.EventBus, updateQoSFunc, resolveStaticFunc) *cosHandler { return &cosHandler{} }
+func newCosHandler(ze.EventBus, updateQoSFunc, func(rpc.ReportIssueInput) error) *cosHandler {
+	return &cosHandler{}
+}
 
 func (h *cosHandler) stop() {}
 
@@ -42,3 +46,26 @@ func registerSessionCommand(map[string]func([]string, string) (string, any, erro
 // BindMetrics is a no-op: the dynamic-CoS counters (applied/reverted/coa)
 // count session events, which cannot occur without the BNG.
 func BindMetrics(metrics.Registry) {}
+
+type stoppedCosHandler struct{}
+
+func newCosHandlerFromStopped(ze.EventBus, updateQoSFunc, func(rpc.ReportIssueInput) error, *stoppedCosHandler) *cosHandler {
+	return &cosHandler{}
+}
+
+func (h *cosHandler) stopOwners() *stoppedCosHandler { return &stoppedCosHandler{} }
+
+// No BNG session can retain cleanup work in this build. The same visible
+// command still reports its empty pass instead of leaving an unserved schema.
+func registerCleanupCommand(handlers map[string]func([]string, string) (string, any, error)) {
+	handlers[cleanupCommand] = func(args []string, _ string) (string, any, error) {
+		if len(args) != 0 {
+			err := opererr.Wrap(errors.New("class-of-service cleanup does not accept arguments"),
+				"Class-of-service cleanup did not finish", "The cleanup command takes no arguments",
+				"ze request class-of-service cleanup")
+			response := plugin.OperatorErrorResponse(err)
+			return response.Status, response, err
+		}
+		return rpc.StatusDone, sharedCoSCleanupResult{}, nil
+	}
+}

@@ -554,6 +554,7 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 	}
 	if change.cosProfile != "" {
 		if _, err := l2tpevents.SessionCoSChange.Emit(cl.cfg.Bus, &l2tpevents.SessionCoSChangePayload{
+			Birth: sub.L2TPBirth, SubscriberID: sub.ID,
 			TunnelID:        sub.TunnelID,
 			SessionID:       sub.SessionID,
 			AccessInterface: sub.AccessInterface,

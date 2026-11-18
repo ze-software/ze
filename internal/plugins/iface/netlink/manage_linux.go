@@ -8,6 +8,7 @@
 package ifacenetlink
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // linkTypeBridge is the netlink link type string for bridge interfaces.
@@ -54,104 +54,80 @@ func validateMTU(mtu int) error {
 }
 
 func (b *netlinkBackend) CreateDummy(name string) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
-	link := &netlink.Dummy{Name: name}
+	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		_ = netlink.LinkDel(link)
-		return fmt.Errorf("iface: set up dummy %q: %w", name, err)
+		return fmt.Errorf("iface: set up dummy %q: %w", name, b.rollbackNativeCreate(link, name, "dummy", "set up", err))
 	}
 	return nil
 }
 
 func (b *netlinkBackend) CreateVeth(name, peerName string) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create veth %q: %w", name, err)
 	}
 	if err := iface.ValidateIfaceName(peerName); err != nil {
 		return fmt.Errorf("iface: create veth peer %q: %w", peerName, err)
 	}
-	link := &netlink.Veth{
-		Name:     name,
-		PeerName: peerName,
-	}
+	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name}, PeerName: peerName}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create veth %q/%q: %w", name, peerName, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		_ = netlink.LinkDel(link)
-		return fmt.Errorf("iface: set up veth %q: %w", name, err)
+		return fmt.Errorf("iface: set up veth %q: %w", name, b.rollbackNativeCreate(link, name, "veth", "set up", err))
 	}
 	peer, err := netlink.LinkByName(peerName)
 	if err != nil {
-		_ = netlink.LinkDel(link)
-		return fmt.Errorf("iface: lookup veth peer %q: %w", peerName, err)
+		return fmt.Errorf("iface: lookup veth peer %q: %w", peerName, b.rollbackNativeCreate(link, name, "veth", "lookup peer", err))
 	}
 	if err := netlink.LinkSetUp(peer); err != nil {
-		_ = netlink.LinkDel(link)
-		return fmt.Errorf("iface: set up veth peer %q: %w", peerName, err)
+		return fmt.Errorf("iface: set up veth peer %q: %w", peerName, b.rollbackNativeCreate(link, name, "veth", "set up peer", err))
 	}
 	return nil
 }
 
 func (b *netlinkBackend) CreateBridge(name string) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
-	link := &netlink.Bridge{Name: name}
+	link := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		_ = netlink.LinkDel(link)
-		return fmt.Errorf("iface: set up bridge %q: %w", name, err)
+		return fmt.Errorf("iface: set up bridge %q: %w", name, b.rollbackNativeCreate(link, name, "bridge", "set up", err))
 	}
 	return nil
 }
 
 func (b *netlinkBackend) CreateVLAN(spec iface.VLANSpec) error {
-	if err := iface.ValidateIfaceName(spec.Parent); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: %w", spec.Parent, err)
-	}
-	if err := validateVLANID(spec.VLANID); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: %w", spec.Parent, err)
-	}
-	if err := validateQoSMap(spec.IngressQoSMap); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: ingress-qos-map: %w", spec.Parent, err)
-	}
-	if err := validateQoSMap(spec.EgressQoSMap); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: egress-qos-map: %w", spec.Parent, err)
-	}
-	parent, err := netlink.LinkByName(spec.Parent)
-	if err != nil {
-		return fmt.Errorf("iface: create vlan: parent %q not found: %w", spec.Parent, err)
-	}
-	var bVlan textbuf.Buffer
-	vlanName := bVlan.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
-	if err := iface.ValidateIfaceName(vlanName); err != nil {
-		return fmt.Errorf("iface: create vlan: composed name too long: %w", err)
-	}
-	vlan := &netlink.Vlan{
-		Name:        vlanName,
-		ParentIndex: parent.Attrs().Index,
-		VlanId:      spec.VLANID,
-		// Serialized as IFLA_VLAN_INGRESS_QOS / IFLA_VLAN_EGRESS_QOS inside
-		// RTM_NEWLINK; nil maps emit no attribute.
-		IngressQosMap: spec.IngressQoSMap,
-		EgressQosMap:  spec.EgressQoSMap,
-	}
-	if err := netlink.LinkAdd(vlan); err != nil {
-		return fmt.Errorf("iface: create vlan %q: %w", vlanName, err)
-	}
-	if err := netlink.LinkSetUp(vlan); err != nil {
-		_ = netlink.LinkDel(vlan)
-		return fmt.Errorf("iface: set up vlan %q: %w", vlanName, err)
-	}
-	return nil
+	return b.nativeVLANs.create(spec)
 }
 
 // validateQoSMap checks every entry of an 802.1p QoS map is within the 3-bit
@@ -200,6 +176,9 @@ func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[
 	link, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: not found: %w", ifaceName, err)
+	}
+	if err := b.nativeVLANs.legacyTargetLocked(link); err != nil {
+		return err
 	}
 	installed, ok := link.(*netlink.Vlan)
 	if !ok {
@@ -253,11 +232,11 @@ func (b *netlinkBackend) DeleteInterface(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: delete %q: %w", name, err)
 	}
-	link, err := netlink.LinkByName(name)
+	_, err := b.nativeVLANs.run(context.Background(), false, func(ctx context.Context) (any, error) {
+		_, cause := b.nativeVLANs.deleteDirect(ctx, name)
+		return nil, cause
+	}, nil)
 	if err != nil {
-		return fmt.Errorf("iface: delete %q: not found: %w", name, err)
-	}
-	if err := netlink.LinkDel(link); err != nil {
 		return fmt.Errorf("iface: delete %q: %w", name, err)
 	}
 	return nil
@@ -718,4 +697,12 @@ func (b *netlinkBackend) GetStats(ifaceName string) (*iface.InterfaceStats, erro
 		TxErrors:    s.TxErrors,
 		TxDropped:   s.TxDropped,
 	}, nil
+}
+
+func (b *netlinkBackend) rollbackNativeCreate(link netlink.Link, name, kind, stage string, cause error) error {
+	if rollbackErr := b.nativeVLANs.nativeVLANRollbackLocked(link); rollbackErr != nil {
+		reportOwnedRollbackFailure(name, kind, stage, rollbackErr)
+		return errors.Join(cause, rollbackErr)
+	}
+	return cause
 }

@@ -41,6 +41,13 @@ import (
 // LinkSetUp failure the partial netdev is likewise removed via LinkDel
 // (rollback), matching the tunnel/wireguard pattern.
 func (b *netlinkBackend) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
+	if !qosMapMu.TryLock() {
+		return iface.ErrNativeAccessPending
+	}
+	defer qosMapMu.Unlock()
+	if err := b.nativeVLANs.legacyAdmissionLocked(); err != nil {
+		return err
+	}
 	if err := iface.ValidateIfaceName(spec.Name); err != nil {
 		return fmt.Errorf("iface: create macvlan %q: %w", spec.Name, err)
 	}
@@ -56,11 +63,7 @@ func (b *netlinkBackend) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
 		return fmt.Errorf("iface: create macvlan %q on %q: %w", spec.Name, spec.Parent, err)
 	}
 	rollback := func(stage string, cause error) error {
-		if delErr := netlink.LinkDel(link); delErr != nil {
-			logger().Warn("iface: rollback delete after create failure",
-				"name", spec.Name, "kind", "macvlan", "stage", stage, "err", delErr)
-		}
-		return fmt.Errorf("iface: %s macvlan %q: %w", stage, spec.Name, cause)
+		return fmt.Errorf("iface: %s macvlan %q: %w", stage, spec.Name, b.rollbackNativeCreate(link, spec.Name, "macvlan", stage, cause))
 	}
 	if spec.Alias != "" {
 		if err := netlink.LinkSetAlias(link, spec.Alias); err != nil {

@@ -14,8 +14,9 @@ import (
 // call Close before discarding it to release monitoring, neighbor watch and
 // counter sockets.
 type netlinkBackend struct {
-	mon      *monitor
-	counters counterSource
+	nativeVLANs nativeVLANResources
+	mon         *monitor
+	counters    counterSource
 	// closed ends every neighbor watch this backend started
 	// (neighbor_watch_linux.go), so no watch outlives its backend.
 	closed closeSignal
@@ -30,6 +31,9 @@ func newNetlinkBackend() (iface.Backend, error) {
 // signals every neighbor watch to stop; each closes its channel once its
 // kernel subscription is released.
 func (b *netlinkBackend) Close() error {
+	if err := b.nativeVLANs.close(); err != nil {
+		return err
+	}
 	b.StopMonitor()
 	b.closed.close()
 	b.counters.close()

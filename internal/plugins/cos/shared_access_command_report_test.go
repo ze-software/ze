@@ -65,6 +65,7 @@ func newCoSCommandReportFixture(t *testing.T) *cosCommandReportFixture {
 		return err
 	}
 	f.handler.readLink = read
+	f.handler.captureTarget = captureModeledOriginalCoSTarget(f.handler)
 	pluginengine.Start(t, pluginengine.TransportBridge, func(conn net.Conn) int {
 		bridged, ok := conn.(*rpc.BridgedConn)
 		if !ok {
@@ -89,6 +90,7 @@ func (f *cosCommandReportFixture) commandFromPeer(operation string, session uint
 	if operation == "prepare" {
 		request.TunnelID = sharedCoSTestTunnel
 		request.SessionID = session
+		request.SubscriberID = fixtureCoSID(request.TunnelID, request.SessionID)
 		request.Interface = sharedCoSTestInterface
 		request.Profile = profile
 	}
@@ -181,7 +183,7 @@ func TestCoSLegacySharedFailedApplyCompensationHasCommandReport(t *testing.T) {
 	if len(report.Warnings()) != 0 {
 		t.Fatal("confirmed command recovery kept its warning")
 	}
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 63230}); !retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 63230)); !retained {
 		t.Fatal("command cleanup removed its healthy prior subscriber")
 	}
 	registeredCoSCleanupReviewDown(t, f.bus, 63230)

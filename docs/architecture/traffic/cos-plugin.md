@@ -85,7 +85,11 @@ verify does the resolution.
 At apply, a VLAN unit that already exists and whose resolved maps differ from
 the previous config's is reprogrammed with `UpdateVLANQoSMap`, and a rollback
 writes the previous maps back. `CreateVLAN` programs the maps of a VLAN it
-creates only.
+creates only. A dynamic subscriber's original native map lease fences these
+name-based static writes until its original cleanup and release finish. Static
+map changes cannot overwrite the retained dynamic participant's maps.
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- UpdateVLANQoSMap -->
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- legacyTargetLocked -->
 
 ### Two explicit direction containers
 

@@ -13,6 +13,7 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	cosplugin "github.com/ze-software/ze/internal/plugins/cos"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -84,6 +85,17 @@ func coaFixtureDispatch(t *testing.T) coaCommandDispatch {
 	t.Helper()
 	value, found := coaFixtureOwnersByTest.Load(t)
 	if !found {
+		if backend := iface.GetBackend(); backend != nil {
+			t.Fatalf("refuse CoA fixture diagnostic reset with an unrelated backend: %T", backend)
+		}
+		report.ResetForTest()
+		t.Cleanup(func() {
+			if backend := iface.GetBackend(); backend != nil {
+				t.Errorf("retain CoA fixture diagnostics after unfinished backend cleanup: %T", backend)
+				return
+			}
+			report.ResetForTest()
+		})
 		bus, rateBackend, rateBridge := startCoARateOwner(t)
 		backend := &coaFixtureMaps{links: make(map[string]*iface.InterfaceInfo)}
 		coaFixtureMapsCurrent = backend
@@ -124,14 +136,15 @@ func coaFixtureDispatch(t *testing.T) coaCommandDispatch {
 					name = coaFixtureInterface(snapshot.Tunnels[i].LocalTID, session.LocalSID)
 				}
 				if _, err := l2tpevents.SessionUp.Emit(owners.bus, &l2tpevents.SessionUpPayload{
-					SubscriberID: session.SubscriberID,
-					TunnelID:     snapshot.Tunnels[i].LocalTID, SessionID: session.LocalSID, Interface: name,
+					Birth: session.Birth, SubscriberID: session.SubscriberID,
+					TunnelID: snapshot.Tunnels[i].LocalTID, SessionID: session.LocalSID, Interface: name,
 				}); err != nil {
 					t.Fatal(err)
 				}
 				tunnelID, sessionID := snapshot.Tunnels[i].LocalTID, session.LocalSID
+				birth, subscriberID := session.Birth, session.SubscriberID
 				t.Cleanup(func() {
-					if _, err := l2tpevents.SessionDown.Emit(owners.bus, &l2tpevents.SessionDownPayload{TunnelID: tunnelID, SessionID: sessionID}); err != nil {
+					if _, err := l2tpevents.SessionDown.Emit(owners.bus, &l2tpevents.SessionDownPayload{Birth: birth, SubscriberID: subscriberID, TunnelID: tunnelID, SessionID: sessionID}); err != nil {
 						t.Error(err)
 					}
 				})

@@ -16,6 +16,7 @@ import (
 type coaCommandDispatch func(context.Context, string, []string, string) (string, json.RawMessage, error)
 
 type coaOwnerRequest struct {
+	SubscriberID string `json:"subscriber-id,omitempty"`
 	Operation    string `json:"operation"`
 	Token        string `json:"token,omitempty"`
 	TunnelID     uint16 `json:"tunnel-id,omitempty"`
@@ -83,7 +84,8 @@ func (cl *coaListener) confirmCoA(sub *subscriber.Session, change *coaChange, pe
 	}
 	if change.cosProfile != "" {
 		if err := prepare("request class-of-service session", coaOwnerRequest{
-			TunnelID: sub.TunnelID, SessionID: sub.SessionID, Interface: sub.AccessInterface, Profile: change.cosProfile,
+			SubscriberID: sub.ID,
+			TunnelID:     sub.TunnelID, SessionID: sub.SessionID, Interface: sub.AccessInterface, Profile: change.cosProfile,
 		}); err != nil {
 			return rollback(err)
 		}

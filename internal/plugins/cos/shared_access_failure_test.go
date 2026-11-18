@@ -11,7 +11,7 @@ func TestCoSLegacySharedRetainsUnpublishedCompensation(t *testing.T) {
 	f := newSharedCoSTestOwner(t)
 	f.failWrites = 2
 	f.up(461, sharedCoSTestFirst)
-	key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 461}
+	key := fixtureCoSKey(sharedCoSTestTunnel, 461)
 	if _, admitted := sessionStore.Load(key); admitted {
 		t.Fatal("unconfirmed initial write published a member")
 	}
@@ -44,7 +44,7 @@ func TestCoSLegacySharedDepartureRetainsFailedReservation(t *testing.T) {
 	f := newSharedCoSTestOwner(t)
 	f.up(471, sharedCoSTestFirst)
 	f.up(472, sharedCoSTestAlias)
-	t.Cleanup(func() { sessionStore.Delete(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 473}) })
+	t.Cleanup(func() { sessionStore.Delete(fixtureCoSKey(sharedCoSTestTunnel, 473)) })
 	token, err := f.command("prepare", 473, sharedCoSTestAlias, "")
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestCoSLegacySharedDepartureRetainsFailedReservation(t *testing.T) {
 	f.failWrites = 1
 	f.down(471)
 	for _, session := range []uint16{471, 472, 473} {
-		if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: session}); !retained {
+		if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, session)); !retained {
 			t.Fatalf("failed departure compensation lost member %d", session)
 		}
 	}
@@ -66,7 +66,7 @@ func TestCoSLegacySharedDepartureRetainsFailedReservation(t *testing.T) {
 	}
 	f.down(471)
 	f.requireMaps(f.shared)
-	if _, retained := sessionStore.Load(sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 473}); retained {
+	if _, retained := sessionStore.Load(fixtureCoSKey(sharedCoSTestTunnel, 473)); retained {
 		t.Fatal("confirmed compensation retained its newly joined member")
 	}
 	f.down(472)

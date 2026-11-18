@@ -123,6 +123,8 @@ const SessionCoSChangeEvent = "session-cos-change"
 // Emitted by the CoA handler when a RADIUS server sends a CoA-Request
 // with a Filter-Id carrying a "cos:" prefix.
 type SessionCoSChangePayload struct {
+	Birth           subscriberid.L2TPBirth `json:"birth"`
+	SubscriberID    string
 	TunnelID        uint16
 	SessionID       uint16
 	AccessInterface string

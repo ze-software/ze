@@ -1,4 +1,4 @@
-//go:build linux
+//go:build integration && linux
 
 package ifacenetlink
 
@@ -107,6 +107,11 @@ func TestVLANQoSMapIntegration(t *testing.T) {
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Errorf("close original VLAN test backend: %v", err)
+			}
+		})
 
 		err := b.CreateVLAN(iface.VLANSpec{
 			Parent:        "zeq0",
@@ -154,6 +159,11 @@ func TestVLANQoSMapIntegrationAbsent(t *testing.T) {
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Errorf("close original VLAN test backend: %v", err)
+			}
+		})
 
 		if err := b.CreateVLAN(iface.VLANSpec{Parent: "zeq0", VLANID: 200}); err != nil {
 			t.Fatalf("CreateVLAN without QoS maps: %v", err)
@@ -185,6 +195,11 @@ func TestVLANQoSMapIntegrationModify(t *testing.T) {
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Errorf("close original VLAN test backend: %v", err)
+			}
+		})
 
 		if err := b.CreateVLAN(iface.VLANSpec{
 			Parent:        "zeq0",

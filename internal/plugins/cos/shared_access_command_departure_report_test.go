@@ -38,7 +38,7 @@ func TestCoSLegacySharedCleanupFinishesFailedCommandDeparture(t *testing.T) {
 	f.failures = []error{errors.New("departing command rollback failed")}
 	registeredCoSCleanupReviewDown(t, f.bus, 63233)
 	requireCoSCommandWarning(t, subject, "departing command rollback failed")
-	key := sessionKey{tunnelID: sharedCoSTestTunnel, sessionID: 63233}
+	key := fixtureCoSKey(sharedCoSTestTunnel, 63233)
 	if _, retained := sessionStore.Load(key); !retained {
 		t.Fatal("failed Down lost its original session before recovery")
 	}

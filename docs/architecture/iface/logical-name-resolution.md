@@ -226,9 +226,16 @@ Access concentrators prepare `pppoe interface` through the selected data-plane
 backend. The netlink backend uses `iface.ResolveForBackend` to capture the
 kernel device, ifindex, MAC and MTU. `newInterfaceServer` keeps that prepared
 access for discovery and session setup, beside the configured name used in
-reports. Its `openSession` passes the prepared device to the backend, so the
-netlink socket connects with the resolved device name.
+reports. Its `openSession` calls that access's `Open` with the prepared devices
+and namespace, so the netlink socket connects with the resolved device name.
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, prepareWithResolver -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/socket_linux.go -- openTransportWithOps -->
 
+Kernel preparation owns an independent netlink backend shared by its sessions.
+The caller MUST stop admission and join its sessions. It MUST then close that access.
+
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, prepareWithResolver -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- InterfaceServer, handlePADR -->
 <!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
@@ -428,3 +435,14 @@ state, so it answers `DADReported` false. There, an address with neither flag
 says nothing about DAD, and no consumer may read it as unique.
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- GetInterface, addrList -->
 <!-- source: internal/plugins/iface/vpp/query.go -- GetInterface, GetLink, fillAddresses, addrInfoOf -->
+
+
+## Native access custody
+
+`ResolvePreparedAccess` keeps the selected backend generation and the native
+birth read with the binding. Its native VLAN capability retains the creator's
+original resource and transport. It checks generation again before publication
+and releases an unpublished lease if resolution crossed a backend replacement.
+Unsupported physical or preexisting access remains a read-only discovery
+binding, and `BorrowNativeVLAN` answers why it cannot authorize a native change.
+<!-- source: internal/component/iface/native_access.go -- ResolvePreparedAccess, PreparedAccess.BorrowNativeVLAN -->
