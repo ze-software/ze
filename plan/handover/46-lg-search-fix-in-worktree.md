@@ -58,6 +58,26 @@ this was written. Its edits change looking glass files after the proofs above,
 so rerun the package test and lint, and if it changed a capture or a test
 expectation, send that to a `ze-test-judge` agent before committing.
 
+## State at the end of the session
+
+Every piece of the implementation is committed on the branch:
+`47784969e7` (engine lookups), `b379368e79` (`--pattern` matches id and name),
+`aa56eda54c` (looking glass searches, AS path grammar, three-line engine
+failure answers, tests, docs), `e15d77112b` (`--list` lists what the selectors
+select). The only uncommitted file is `internal/component/web/l2tp_detail_templ.go`,
+regenerated output of another session's template; it is not this spec's.
+
+Trap met: the commit script builds a helper from the working tree after the
+commit. When another agent's edits did not compile, the build failed, the
+script exited, and the index was left describing the tree before the commit.
+`git read-tree HEAD` repaired it with no file changed. Do not run a commit
+script on this branch while an agent has uncompiled edits in the tree.
+
+Left to close the spec: rebase onto `main` and rerun the scoped tests, then
+`/ze-close` in a fresh context (Review Gate, closure sections, the owned
+journal rows turned to `fixed:` with their news fragment, commit A and commit
+B). Thomas lands the branch with `git rebase lg-search-matches-pages`.
+
 ## Update, later the same day
 
 - The selector fix is committed: `b379368e79`. `--pattern` now matches a
