@@ -5,6 +5,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +17,10 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 type fakeL2TPService struct {
@@ -47,8 +51,20 @@ func (f *fakeL2TPService) LookupSession(_ uint16) (l2tp.SessionSnapshot, bool) {
 }
 func (f *fakeL2TPService) Listeners() []l2tp.ListenerSnapshot   { return nil }
 func (f *fakeL2TPService) EffectiveConfig() l2tp.ConfigSnapshot { return l2tp.ConfigSnapshot{} }
-func (f *fakeL2TPService) CaptureSession(l2tp.SessionSelector) (l2tp.CapturedSession, error) {
-	return nil, l2tp.ErrSessionNotFound
+func (f *fakeL2TPService) CaptureSession(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	if !f.sessionOK || selector.SID != f.session.LocalSID {
+		return nil, l2tp.ErrSessionNotFound
+	}
+	if selector.TID != 0 && selector.TID != f.session.TunnelLocalTID {
+		return nil, l2tp.ErrSessionNotFound
+	}
+	if selector.Birth.IsValid() && selector.Birth != f.session.Birth {
+		return nil, l2tp.ErrSessionNotFound
+	}
+	if selector.Listener.IsValid() && selector.Listener != f.session.Listener {
+		return nil, l2tp.ErrSessionNotFound
+	}
+	return &fakeL2TPDetailCapture{session: f.session, events: append([]l2tp.ObserverEvent(nil), f.events...)}, nil
 }
 func (f *fakeL2TPService) TeardownTunnel(_ uint16) error { return nil }
 func (f *fakeL2TPService) TeardownSession(sid uint16) error {
@@ -57,7 +73,7 @@ func (f *fakeL2TPService) TeardownSession(sid uint16) error {
 }
 func (f *fakeL2TPService) TeardownAllTunnels() int  { return 0 }
 func (f *fakeL2TPService) TeardownAllSessions() int { return 0 }
-func (f *fakeL2TPService) SessionEvents(_ uint16) []l2tp.ObserverEvent {
+func (f *fakeL2TPService) SessionEvents(_ subscriberid.L2TPBirth) []l2tp.ObserverEvent {
 	return f.events
 }
 func (f *fakeL2TPService) LoginSamples(login string) []l2tp.CQMBucket {
@@ -434,4 +450,30 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	if dispatched != want {
 		t.Errorf("dispatched=%q, want %q", dispatched, want)
 	}
+}
+
+// fakeL2TPDetailCapture is a read-only view fixture, not native mutation authority.
+// Its copies retain the exact row/events selected when the fake service captures.
+type fakeL2TPDetailCapture struct {
+	session l2tp.SessionSnapshot
+	events  []l2tp.ObserverEvent
+}
+
+var errReadOnlyL2TPDetailCapture = errors.New("read-only L2TP detail fixture has no mutation authority")
+
+func (f *fakeL2TPDetailCapture) Birth() subscriberid.L2TPBirth           { return f.session.Birth }
+func (f *fakeL2TPDetailCapture) Listener() netip.AddrPort                { return f.session.Listener }
+func (f *fakeL2TPDetailCapture) Snapshot() (l2tp.SessionSnapshot, error) { return f.session, nil }
+func (f *fakeL2TPDetailCapture) SessionEvents() ([]l2tp.ObserverEvent, error) {
+	return append([]l2tp.ObserverEvent(nil), f.events...), nil
+}
+func (*fakeL2TPDetailCapture) FSMHistory() ([]l2tp.FSMTransition, error) { return nil, nil }
+func (*fakeL2TPDetailCapture) Counters() (ppp.SessionCounters, error) {
+	return ppp.SessionCounters{}, errReadOnlyL2TPDetailCapture
+}
+func (*fakeL2TPDetailCapture) RecordDisconnect(string, string, uint32) error {
+	return errReadOnlyL2TPDetailCapture
+}
+func (*fakeL2TPDetailCapture) Teardown(context.Context, l2tpevents.TerminateCause, string) error {
+	return errReadOnlyL2TPDetailCapture
 }

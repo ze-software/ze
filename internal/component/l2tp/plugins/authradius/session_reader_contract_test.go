@@ -15,6 +15,7 @@ import (
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -73,7 +74,7 @@ func (w *reactorTripwire) TeardownTunnel(uint16) error  { w.trip("TeardownTunnel
 func (w *reactorTripwire) TeardownSession(uint16) error { w.trip("TeardownSession"); return nil }
 func (w *reactorTripwire) TeardownAllTunnels() int      { w.trip("TeardownAllTunnels"); return 0 }
 func (w *reactorTripwire) TeardownAllSessions() int     { w.trip("TeardownAllSessions"); return 0 }
-func (w *reactorTripwire) SessionEvents(uint16) []l2tp.ObserverEvent {
+func (w *reactorTripwire) SessionEvents(subscriberid.L2TPBirth) []l2tp.ObserverEvent {
 	w.trip("SessionEvents")
 	return nil
 }

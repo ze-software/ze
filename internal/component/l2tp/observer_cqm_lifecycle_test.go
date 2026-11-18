@@ -22,7 +22,7 @@ import (
 // from the separately tested equal-SID ring collision.
 // MUTATION: an unconditional named Down replaces the newer contributor's phase.
 func TestObserverOlderContributorDownPreservesCurrentLogin(t *testing.T) {
-	bus, observer, generation := newObserverCQMTest(t)
+	bus, observer, generation := newObserverCQMTest(t, nil)
 	first, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	second, err := subscriberid.NewL2TPBirth()
@@ -48,7 +48,7 @@ func TestObserverOlderContributorDownPreservesCurrentLogin(t *testing.T) {
 	summaries := observer.SessionSummaries()
 	require.Len(t, summaries, 1)
 	require.EqualValues(t, 42, summaries[0].SessionID)
-	history := observer.SessionEvents(42)
+	history := observer.SessionEvents(second)
 	require.Len(t, history, 4, "surviving Up, assignment and both echoes remain useful")
 	require.Equal(t, ObserverEventSessionUp, history[0].Type)
 	require.Equal(t, ObserverEventSessionIPAssigned, history[1].Type)
@@ -64,7 +64,7 @@ func TestObserverOlderContributorDownPreservesCurrentLogin(t *testing.T) {
 // The replacement's useful history and the continuing login phase must survive.
 // MUTATION: touching the login for an already consumed Down overwrites its phase.
 func TestObserverConsumedDownCannotDowngradeReconnectedLogin(t *testing.T) {
-	bus, observer, generation := newObserverCQMTest(t)
+	bus, observer, generation := newObserverCQMTest(t, nil)
 	first, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	second, err := subscriberid.NewL2TPBirth()
@@ -81,7 +81,7 @@ func TestObserverConsumedDownCannotDowngradeReconnectedLogin(t *testing.T) {
 	require.Equal(t, "down", observer.EchoState("alice").BucketState,
 		"the original contributor's first Down remains effective")
 	emitObserverCQMEstablished(t, bus, second, generation, 52, 13*time.Millisecond)
-	beforeEvents := observer.SessionEvents(52)
+	beforeEvents := observer.SessionEvents(second)
 	require.Len(t, beforeEvents, 3)
 	beforeLogins := observer.LoginSummaries()
 	require.Len(t, beforeLogins, 1)
@@ -92,7 +92,7 @@ func TestObserverConsumedDownCannotDowngradeReconnectedLogin(t *testing.T) {
 
 	_, err = l2tpevents.SessionDown.Emit(bus, down)
 	require.NoError(t, err)
-	assert.Equal(t, beforeEvents, observer.SessionEvents(52), "replacement history survives")
+	assert.Equal(t, beforeEvents, observer.SessionEvents(second), "replacement history survives")
 	assert.Equal(t, beforeLogins, observer.LoginSummaries(),
 		"a consumed Down cannot downgrade the replacement's phase or samples")
 	assert.Equal(t, beforeEcho, observer.EchoState("alice"))
@@ -109,9 +109,9 @@ func TestObserverConsumedDownCannotDowngradeReconnectedLogin(t *testing.T) {
 func TestObserverCopiedEchoAfterStopCannotChangeHistoryOrQuality(t *testing.T) {
 	registry := metrics.NewPrometheusRegistry()
 	previousMetrics := l2tpMetricsPtr.Load()
-	bindL2TPMetrics(registry)
+	binding := bindL2TPMetrics(registry)
 	t.Cleanup(func() { l2tpMetricsPtr.Store(previousMetrics) })
-	bus, observer, generation := newObserverCQMTest(t)
+	bus, observer, generation := newObserverCQMTest(t, binding)
 	birth, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	emitObserverCQMEstablished(t, bus, birth, generation, 61, 11*time.Millisecond)
@@ -126,7 +126,7 @@ func TestObserverCopiedEchoAfterStopCannotChangeHistoryOrQuality(t *testing.T) {
 		TunnelID: 17, SessionID: 61, Username: "alice", RTT: 13 * time.Millisecond,
 	})
 	require.NoError(t, err)
-	beforeEvents := observer.SessionEvents(61)
+	beforeEvents := observer.SessionEvents(birth)
 	require.Len(t, beforeEvents, 4)
 	require.Equal(t, 13*time.Millisecond, beforeEvents[3].RTT)
 	beforeSamples := observer.LoginSamples("alice")
@@ -197,21 +197,24 @@ func TestObserverCopiedEchoAfterStopCannotChangeHistoryOrQuality(t *testing.T) {
 		t.Fatal("copied Echo delivery did not return after Stop")
 	}
 
-	assert.Equal(t, beforeEvents, observer.SessionEvents(61), "closed history is read-only")
+	assert.Equal(t, beforeEvents, observer.SessionEvents(birth), "closed history is read-only")
 	assert.Equal(t, beforeSamples, observer.LoginSamples("alice"), "closed sample history survives")
 	assert.Equal(t, beforeLogins, observer.LoginSummaries(), "closed login summaries survive")
 	assert.Equal(t, beforeEcho, observer.EchoState("alice"), "closed quality state survives")
 	assert.Equal(t, afterStopMetrics, observerCQMMetrics(registry), "closed CQM metrics cannot change")
 }
 
-func newObserverCQMTest(t *testing.T) (*testBus, *Observer, l2tpevents.ObservationGeneration) {
+func newObserverCQMTest(t *testing.T, binding *l2tpMetrics) (*testBus, *Observer, l2tpevents.ObservationGeneration) {
 	t.Helper()
 	generation, err := l2tpevents.NewObservationGeneration()
 	require.NoError(t, err)
 	bus := newTestBus()
 	cfg := testObserverConfig()
 	cfg.EchoInterval = time.Second
-	observer := newObserver(cfg)
+	cfg.Generation = generation
+	cfg.Metrics = binding
+	observer, err := newObserver(cfg)
+	require.NoError(t, err)
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
 	t.Cleanup(observer.Stop)

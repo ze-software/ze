@@ -707,7 +707,7 @@ func TestHandleLCPUpRecordsProxyLCPOutcome(t *testing.T) {
 		sid := uint16(2001 + i)
 		sess := newFixtureL2TPSession(t, &L2TPSession{localSID: sid})
 		tun.addSession(sess)
-		require.Empty(t, sessionSnapshot(100, sess).ProxyLCP, "outcome before LCP opened")
+		require.Empty(t, r.sessionSnapshot(100, sess).ProxyLCP, "outcome before LCP opened")
 		wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: sid}, ipv6: false, subscriberID: ""})
 		event := wire.opened
 		// This consumer matrix varies public negotiated metadata; the real
@@ -716,6 +716,6 @@ func TestHandleLCPUpRecordsProxyLCPOutcome(t *testing.T) {
 		event.NegotiatedAuthMethod = ppp.AuthMethodCHAPMD5
 		event.ProxyLCP = tc.outcome
 		r.handleLCPUp(event)
-		require.Equal(t, tc.want, sessionSnapshot(100, sess).ProxyLCP)
+		require.Equal(t, tc.want, r.sessionSnapshot(100, sess).ProxyLCP)
 	}
 }

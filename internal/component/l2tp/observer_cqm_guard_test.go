@@ -50,7 +50,7 @@ func TestObserverConsumedDownDoesNotRenewLoginInterest(t *testing.T) {
 	require.Equal(t, "down", observer.EchoState("alice").BucketState)
 	require.Empty(t, observer.SessionSummaries())
 	emitObserverCQMGuardEstablished(t, bus, bob, generation, 202, "bob", 13*time.Millisecond)
-	beforeBob := observer.SessionEvents(202)
+	beforeBob := observer.SessionEvents(bob)
 	require.Len(t, beforeBob, 3)
 	require.Len(t, observer.LoginSummaries(), 2)
 
@@ -59,7 +59,7 @@ func TestObserverConsumedDownDoesNotRenewLoginInterest(t *testing.T) {
 
 	assert.Nil(t, observer.LoginSamples("alice"), "consumed Down cannot renew ended history")
 	assert.NotNil(t, observer.LoginSamples("bob"), "the more recent login keeps its slot")
-	assert.Equal(t, beforeBob, observer.SessionEvents(202), "Bob's permitted event history survives")
+	assert.Equal(t, beforeBob, observer.SessionEvents(bob), "Bob's permitted event history survives")
 	require.NotNil(t, observer.EchoState("carol"))
 	assert.Equal(t, 17*time.Millisecond, observer.EchoState("carol").LastRTT)
 	assert.Equal(t, "established", observer.EchoState("carol").BucketState)
@@ -94,12 +94,12 @@ func TestObserverContributorDownOrdersKeepSelectedPhase(t *testing.T) {
 				lastBirth, lastSID = selected, 302
 				firstPhase = "established"
 			}
-			lastHistory := observer.SessionEvents(lastSID)
+			lastHistory := observer.SessionEvents(lastBirth)
 			require.Len(t, lastHistory, 3)
 			emitObserverCQMGuardDown(t, bus, firstBirth, generation, firstSID, "alice")
 			assert.Equal(t, firstPhase, observer.EchoState("alice").BucketState)
-			assert.Equal(t, lastHistory, observer.SessionEvents(lastSID))
-			assert.Empty(t, observer.SessionEvents(firstSID))
+			assert.Equal(t, lastHistory, observer.SessionEvents(lastBirth))
+			assert.Empty(t, observer.SessionEvents(firstBirth))
 			emitObserverCQMGuardDown(t, bus, lastBirth, generation, lastSID, "alice")
 			assert.Empty(t, observer.SessionSummaries())
 			assert.Equal(t, "down", observer.EchoState("alice").BucketState)
@@ -126,15 +126,15 @@ func TestObserverLaterEchoCannotAcquireLoginPhase(t *testing.T) {
 		TunnelID: 17, SessionID: 402, Username: "alice", RTT: 13 * time.Millisecond,
 	})
 	require.NoError(t, err)
-	require.Len(t, observer.SessionEvents(402), 2)
+	require.Len(t, observer.SessionEvents(echoing), 2)
 	require.EqualValues(t, 2, observer.LoginSummaries()[0].EchoCount)
 	require.Equal(t, 12*time.Millisecond, observer.EchoState("alice").LastRTT)
-	beforeAssigned := observer.SessionEvents(401)
+	beforeAssigned := observer.SessionEvents(assigned)
 
 	emitObserverCQMGuardDown(t, bus, echoing, generation, 402, "alice")
 	assert.Equal(t, "established", observer.EchoState("alice").BucketState,
 		"an echo on an existing login does not acquire its phase")
-	assert.Equal(t, beforeAssigned, observer.SessionEvents(401))
+	assert.Equal(t, beforeAssigned, observer.SessionEvents(assigned))
 	assert.EqualValues(t, 2, observer.LoginSummaries()[0].EchoCount)
 	emitObserverCQMGuardDown(t, bus, assigned, generation, 401, "alice")
 	assert.Equal(t, "down", observer.EchoState("alice").BucketState,
@@ -165,7 +165,7 @@ func TestObserverSameBirthAssignmentReopensConsumedPhase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "established", observer.EchoState("alice").BucketState)
 	require.Equal(t, 14*time.Millisecond, observer.EchoState("alice").LastRTT)
-	renewed := observer.SessionEvents(501)
+	renewed := observer.SessionEvents(birth)
 	require.Len(t, renewed, 2)
 	assert.Equal(t, ObserverEventSessionIPAssigned, renewed[0].Type)
 	assert.Equal(t, 17*time.Millisecond, renewed[1].RTT)
@@ -184,15 +184,15 @@ func TestObserverNamedPreIPDownCreatesFailureObservation(t *testing.T) {
 	neighbor := newObserverCQMGuardBirth(t)
 	failed := newObserverCQMGuardBirth(t)
 	emitObserverCQMGuardEstablished(t, bus, neighbor, generation, 601, "bob", 13*time.Millisecond)
-	beforeNeighbor := observer.SessionEvents(601)
+	beforeNeighbor := observer.SessionEvents(neighbor)
 	beforeQuality := observer.EchoState("bob")
 	require.Nil(t, observer.LoginSamples("proxy-failure"))
 
 	emitObserverCQMGuardDown(t, bus, failed, generation, 602, "proxy-failure")
 
-	assert.Equal(t, beforeNeighbor, observer.SessionEvents(601))
+	assert.Equal(t, beforeNeighbor, observer.SessionEvents(neighbor))
 	assert.Equal(t, beforeQuality, observer.EchoState("bob"))
-	assert.Empty(t, observer.SessionEvents(602))
+	assert.Empty(t, observer.SessionEvents(failed))
 	failure := observer.EchoState("proxy-failure")
 	require.NotNil(t, failure, "a named pre-IP failure remains a useful login observation")
 	assert.Equal(t, "down", failure.BucketState)
@@ -212,10 +212,10 @@ func TestObserverFullEventPoolKeepsRinglessQualityAndDown(t *testing.T) {
 	owner := newObserverCQMGuardBirth(t)
 	ringless := newObserverCQMGuardBirth(t)
 	emitObserverCQMGuardEstablished(t, bus, owner, generation, 701, "alice", 11*time.Millisecond)
-	beforeOwner := observer.SessionEvents(701)
+	beforeOwner := observer.SessionEvents(owner)
 	beforeOwnerQuality := observer.EchoState("alice")
 	emitObserverCQMGuardEstablished(t, bus, ringless, generation, 702, "bob", 17*time.Millisecond)
-	require.Empty(t, observer.SessionEvents(702), "the configured event pool is full")
+	require.Empty(t, observer.SessionEvents(ringless), "the configured event pool is full")
 	require.Equal(t, "established", observer.EchoState("bob").BucketState)
 	require.Equal(t, 17*time.Millisecond, observer.EchoState("bob").LastRTT)
 	require.Len(t, observer.LoginSummaries(), 2)
@@ -225,7 +225,7 @@ func TestObserverFullEventPoolKeepsRinglessQualityAndDown(t *testing.T) {
 	assert.Equal(t, "down", observer.EchoState("bob").BucketState,
 		"the ringless selected contributor's first Down remains effective")
 	assert.Equal(t, 17*time.Millisecond, observer.EchoState("bob").LastRTT)
-	assert.Equal(t, beforeOwner, observer.SessionEvents(701))
+	assert.Equal(t, beforeOwner, observer.SessionEvents(owner))
 	assert.Equal(t, beforeOwnerQuality, observer.EchoState("alice"))
 	sessions := observer.SessionSummaries()
 	require.Len(t, sessions, 1)
@@ -245,11 +245,11 @@ func TestObserverLoginEvictionForgetsConsumedProvenance(t *testing.T) {
 	emitObserverCQMGuardEstablished(t, bus, bob, generation, 802, "bob", 13*time.Millisecond)
 	require.Nil(t, observer.LoginSamples("alice"))
 	require.Equal(t, "established", observer.EchoState("bob").BucketState)
-	beforeBob := observer.SessionEvents(802)
+	beforeBob := observer.SessionEvents(bob)
 
 	emitObserverCQMGuardDown(t, bus, alice, generation, 801, "alice")
 
-	assert.Equal(t, beforeBob, observer.SessionEvents(802), "event custody is independent of login eviction")
+	assert.Equal(t, beforeBob, observer.SessionEvents(bob), "event custody is independent of login eviction")
 	assert.Nil(t, observer.LoginSamples("bob"))
 	fresh := observer.EchoState("alice")
 	require.NotNil(t, fresh, "eviction forgets old Down provenance")
@@ -321,7 +321,7 @@ func checkObserverCQMInvalidDelivery(t *testing.T,
 				TunnelID: 17, SessionID: 901, Username: "alice", RTT: 13 * time.Millisecond,
 			})
 			require.NoError(t, err)
-			beforeHistory := observer.SessionEvents(901)
+			beforeHistory := observer.SessionEvents(neighbor)
 			require.Len(t, beforeHistory, 4)
 			beforeSessions := observer.SessionSummaries()
 			require.Len(t, beforeSessions, 1)
@@ -341,13 +341,19 @@ func checkObserverCQMInvalidDelivery(t *testing.T,
 			birth, scope := invalidate(neighbor, generation)
 
 			require.NoError(t, delivery.emit(bus, birth, scope, neighbor.String()))
-			assert.Equal(t, beforeHistory, observer.SessionEvents(901))
+			assert.Equal(t, beforeHistory, observer.SessionEvents(neighbor))
 			assert.Equal(t, beforeSessions, observer.SessionSummaries())
 			assert.Equal(t, beforeSamples, observer.LoginSamples("alice"))
 			assert.Equal(t, beforeLogins, observer.LoginSummaries())
 			assert.Equal(t, beforeEcho, observer.EchoState("alice"))
 			assert.Equal(t, beforeMetrics, observerCQMMetrics(registry))
-			assert.Empty(t, observer.SessionEvents(902))
+			var unexpected []SessionSummary
+			for _, summary := range observer.SessionSummaries() {
+				if summary.SessionID == 902 {
+					unexpected = append(unexpected, summary)
+				}
+			}
+			assert.Empty(t, unexpected, "the invalid delivery cannot create diagnostic SID 902")
 			assert.Nil(t, observer.LoginSamples("malformed"))
 
 			_, err = l2tpevents.EchoRTT.Emit(bus, &l2tpevents.EchoRTTPayload{
@@ -355,7 +361,7 @@ func checkObserverCQMInvalidDelivery(t *testing.T,
 				TunnelID: 17, SessionID: 901, Username: "alice", RTT: 17 * time.Millisecond,
 			})
 			require.NoError(t, err)
-			after := observer.SessionEvents(901)
+			after := observer.SessionEvents(neighbor)
 			require.NotEmpty(t, after, "the permitted neighbor still appends its own event")
 			assert.Equal(t, ObserverEventEchoRTT, after[len(after)-1].Type)
 			assert.Equal(t, 17*time.Millisecond, after[len(after)-1].RTT)
@@ -371,7 +377,7 @@ func newObserverCQMGuardTest(t *testing.T, maxSessions, maxLogins int) (
 	t.Helper()
 	registry := metrics.NewPrometheusRegistry()
 	previousMetrics := l2tpMetricsPtr.Load()
-	bindL2TPMetrics(registry)
+	binding := bindL2TPMetrics(registry)
 	t.Cleanup(func() { l2tpMetricsPtr.Store(previousMetrics) })
 	generation, err := l2tpevents.NewObservationGeneration()
 	require.NoError(t, err)
@@ -380,7 +386,10 @@ func newObserverCQMGuardTest(t *testing.T, maxSessions, maxLogins int) (
 	cfg.MaxSessions = maxSessions
 	cfg.MaxLogins = maxLogins
 	cfg.EchoInterval = time.Second
-	observer := newObserver(cfg)
+	cfg.Generation = generation
+	cfg.Metrics = binding
+	observer, err := newObserver(cfg)
+	require.NoError(t, err)
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
 	t.Cleanup(observer.Stop)

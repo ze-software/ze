@@ -15,10 +15,8 @@ import (
 // TestCapturedDisconnectAuditCannotMoveToReusedSID retains two real captures,
 // retires one, then reuses the SID. The stale alias cannot write the new audit.
 func TestCapturedDisconnectAuditCannotMoveToReusedSID(t *testing.T) {
-	subsystem, original, admit, _ := SessionCaptureDispatchFixtureForTest(t)
-	observer := newObserver(testObserverConfig())
-	subsystem.observer = observer
-	t.Cleanup(observer.Stop)
+	observer, generation := newObserverFixture(t, testObserverConfig())
+	subsystem, original, admit, _ := sessionCaptureDispatchFixtureForObservation(t, observer, generation)
 	captured, err := subsystem.CaptureSession(original)
 	require.NoError(t, err)
 	stale, err := subsystem.CaptureSession(original)
@@ -31,23 +29,23 @@ func TestCapturedDisconnectAuditCannotMoveToReusedSID(t *testing.T) {
 	current, err := subsystem.CaptureSession(replacement)
 	require.NoError(t, err)
 	require.NoError(t, current.RecordDisconnect("bob", "new request", 8))
-	history := observer.SessionEvents(7)
-	require.Len(t, history, 2)
+	history := observer.SessionEvents(original.Birth)
+	require.Len(t, history, 1)
 	require.Equal(t, "alice", history[0].Actor)
 	require.Equal(t, "first request", history[0].Reason)
 	require.Equal(t, uint32(6), history[0].Cause)
 	require.Equal(t, uint16(100), history[0].TunnelID)
-	require.Equal(t, "bob", history[1].Actor)
+	replacementHistory := observer.SessionEvents(replacement.Birth)
+	require.Len(t, replacementHistory, 1)
+	require.Equal(t, "bob", replacementHistory[0].Actor)
 }
 
 // TestCapturedDisconnectAuditAllowsRetainedCleanupRetry injects one native
 // deletion failure. A Birth-qualified retry skips a duplicate audit and still
 // reaches the same physical cleanup owner after its logical row was removed.
 func TestCapturedDisconnectAuditAllowsRetainedCleanupRetry(t *testing.T) {
-	subsystem, original, _, observe := SessionCaptureDispatchFixtureForTest(t)
-	observer := newObserver(testObserverConfig())
-	subsystem.observer = observer
-	t.Cleanup(observer.Stop)
+	observer, generation := newObserverFixture(t, testObserverConfig())
+	subsystem, original, _, observe := sessionCaptureDispatchFixtureForObservation(t, observer, generation)
 	worker := subsystem.reactors[0].kernelWorker
 	deleteOriginal := worker.ops.sessionDelete
 	deleteFailure := errors.New("controlled original deletion refusal")
@@ -67,7 +65,7 @@ func TestCapturedDisconnectAuditAllowsRetainedCleanupRetry(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, retry.RecordDisconnect("alice", "maintenance", 6))
 	require.NoError(t, retry.Teardown(t.Context(), l2tpevents.TerminateCauseAdminReset, "maintenance"))
-	require.Len(t, observer.SessionEvents(7), 1)
+	require.Len(t, observer.SessionEvents(original.Birth), 1)
 	resources, _, closes := observe()
 	require.Zero(t, resources)
 	require.Equal(t, 3, closes)

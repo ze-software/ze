@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -13,14 +14,20 @@ import (
 // the CQM observer. An external test reaches the readers other packages
 // register through the plugin registry, and these two through this function.
 // The caller MUST call the returned stop function when the test ends.
-func StartSessionEventReadersForTest(bus ze.EventBus, registry *subscriber.Registry) (stop func()) {
+func StartSessionEventReadersForTest(bus ze.EventBus, registry *subscriber.Registry, generation l2tpevents.ObservationGeneration) (stop func(), err error) {
+	cfg := testObserverConfig()
+	cfg.Generation = generation
+	observer, err := newObserver(cfg)
+	if err != nil {
+		return nil, err
+	}
 	bridge := newSubscriberBridge(registry, bus, slog.Default())
-	s := &Subsystem{observer: newObserver(testObserverConfig())}
+	s := &Subsystem{observer: observer}
 	s.wireObserverSubscriptions(bus)
 	return func() {
 		bridge.stop()
 		s.observer.Stop()
-	}
+	}, nil
 }
 
 // SetProbeKernelModulesForTest replaces the kernel module probe for the

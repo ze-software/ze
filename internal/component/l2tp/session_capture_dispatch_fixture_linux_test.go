@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // SessionCaptureDispatchFixtureForTest exposes an actual ICRQ admission and
@@ -16,8 +18,20 @@ import (
 // and no successful fake CaptureSession implementation.
 func SessionCaptureDispatchFixtureForTest(t *testing.T) (*Subsystem, SessionSelector, func() SessionSelector, func() (int, int, int)) {
 	t.Helper()
+	return sessionCaptureDispatchFixtureForObservation(t, nil, l2tpevents.ObservationGeneration{})
+}
+
+// Observation inputs configure this unpublished raw root before its listener,
+// tunnel or first ICRQ can publish a session. Nil explicitly disables CQM.
+func sessionCaptureDispatchFixtureForObservation(t *testing.T, observer *Observer, generation l2tpevents.ObservationGeneration) (*Subsystem, SessionSelector, func() SessionSelector, func() (int, int, int)) {
+	t.Helper()
+	if observer != nil {
+		require.True(t, generation.IsValid())
+	}
 	captureBirthSIDDraw(t)
 	reactor := newReactorForSnapshot(t)
+	reactor.params.Generation = generation
+	reactor.observer = observer
 	reactor.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), reactor.logger)
 	require.NoError(t, reactor.listener.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, reactor.listener.Stop()) })
@@ -40,6 +54,7 @@ func SessionCaptureDispatchFixtureForTest(t *testing.T) (*Subsystem, SessionSele
 	selector := admit()
 	subsystem := NewSubsystem(&Parameters{})
 	subsystem.started = true
+	subsystem.observer = observer
 	subsystem.reactors = []*l2tpReactor{reactor}
 	observe := func() (int, int, int) {
 		worker.mu.Lock()

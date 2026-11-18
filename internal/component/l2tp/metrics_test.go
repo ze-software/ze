@@ -45,7 +45,7 @@ func TestBindL2TPMetrics_NilRegistry(t *testing.T) {
 
 func TestObserveCQMBucket(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
-	bindL2TPMetrics(reg)
+	m := bindL2TPMetrics(reg)
 	defer l2tpMetricsPtr.Store(nil)
 
 	bucket := CQMBucket{
@@ -56,9 +56,13 @@ func TestObserveCQMBucket(t *testing.T) {
 		MaxRTT:    50 * time.Millisecond,
 		SumRTT:    200 * time.Millisecond,
 	}
-	observeCQMBucket("user1", bucket, 100)
+	lease, err := m.retainCQMSeries("user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Release()
+	m.observeCQMBucket("user1", bucket, 100)
 
-	m := l2tpMetricsPtr.Load()
 	m.bucketState.With("user1") // should not panic
 }
 
@@ -67,7 +71,8 @@ func TestObserveCQMBucket_NilMetrics(t *testing.T) {
 	l2tpMetricsPtr.Store(nil)
 	defer l2tpMetricsPtr.Store(old)
 
-	observeCQMBucket("user1", CQMBucket{EchoCount: 1, SumRTT: time.Millisecond}, 100)
+	var m *l2tpMetrics
+	m.observeCQMBucket("user1", CQMBucket{EchoCount: 1, SumRTT: time.Millisecond}, 100)
 }
 
 func TestDeleteLoginMetrics(t *testing.T) {
@@ -76,10 +81,14 @@ func TestDeleteLoginMetrics(t *testing.T) {
 	defer l2tpMetricsPtr.Store(nil)
 
 	m := l2tpMetricsPtr.Load()
+	lease, err := m.retainCQMSeries("user1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	m.lcpEchoLossRatio.With("user1").Set(0.05)
 	m.bucketState.With("user1").Set(0)
 
-	deleteLoginMetrics("user1")
+	lease.Release()
 	// Verify deletion succeeded (no-op on missing is fine).
 	ok := m.lcpEchoLossRatio.Delete("user1")
 	if ok {

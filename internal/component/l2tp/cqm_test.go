@@ -17,8 +17,8 @@ func TestSampleRingAppendAndSnapshot(t *testing.T) {
 	r.append(b2)
 	snap := r.snapshot()
 	require.Len(t, snap, 2)
-	require.Equal(t, uint16(1), snap[0].EchoCount)
-	require.Equal(t, uint16(2), snap[1].EchoCount)
+	require.Equal(t, uint64(1), snap[0].EchoCount)
+	require.Equal(t, uint64(2), snap[1].EchoCount)
 }
 
 func TestSampleRingWrap(t *testing.T) {
@@ -29,8 +29,8 @@ func TestSampleRingWrap(t *testing.T) {
 
 	snap := r.snapshot()
 	require.Len(t, snap, 2)
-	require.Equal(t, uint16(2), snap[0].EchoCount)
-	require.Equal(t, uint16(3), snap[1].EchoCount)
+	require.Equal(t, uint64(2), snap[0].EchoCount)
+	require.Equal(t, uint64(3), snap[1].EchoCount)
 }
 
 func TestSampleRingReset(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCQMBucketAddEcho(t *testing.T) {
 	b.addEcho(30 * time.Millisecond)
 	b.addEcho(20 * time.Millisecond)
 
-	require.Equal(t, uint16(3), b.EchoCount)
+	require.Equal(t, uint64(3), b.EchoCount)
 	require.Equal(t, 10*time.Millisecond, b.MinRTT)
 	require.Equal(t, 30*time.Millisecond, b.MaxRTT)
 	require.Equal(t, 60*time.Millisecond, b.SumRTT)

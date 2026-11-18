@@ -14,6 +14,7 @@ import (
 	l2tppkg "github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // fakeService is a minimal l2tppkg.Service for unit-testing handlers
@@ -54,7 +55,7 @@ func (f *fakeService) LookupSession(id uint16) (l2tppkg.SessionSnapshot, bool) {
 	}
 	return l2tppkg.SessionSnapshot{}, false
 }
-func (f *fakeService) SessionEvents(_ uint16) []l2tppkg.ObserverEvent                   { return nil }
+func (f *fakeService) SessionEvents(_ subscriberid.L2TPBirth) []l2tppkg.ObserverEvent   { return nil }
 func (f *fakeService) LoginSamples(_ string) []l2tppkg.CQMBucket                        { return nil }
 func (f *fakeService) SessionSummaries() []l2tppkg.SessionSummary                       { return nil }
 func (f *fakeService) LoginSummaries() []l2tppkg.LoginSummary                           { return nil }

@@ -16,14 +16,15 @@ import (
 // lifecycle subscriptions and checks that equal wire IDs get separate rings.
 func TestObserverKeepsSameSessionIDOnTwoTunnelsApart(t *testing.T) {
 	bus := newTestBus()
-	observer := newObserver(testObserverConfig())
+	observer, generation := newObserverFixture(t, testObserverConfig())
+	first := newObserverFixtureBirth(t)
+	second := newObserverFixtureBirth(t)
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
-	t.Cleanup(observer.Stop)
 
-	_, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{TunnelID: 101, SessionID: 7})
+	_, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{Birth: first, SubscriberID: first.String(), Generation: generation, TunnelID: 101, SessionID: 7})
 	require.NoError(t, err)
-	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{TunnelID: 202, SessionID: 7})
+	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{Birth: second, SubscriberID: second.String(), Generation: generation, TunnelID: 202, SessionID: 7})
 	require.NoError(t, err)
 
 	summaries := observer.SessionSummaries()
@@ -39,27 +40,28 @@ func TestObserverKeepsSameSessionIDOnTwoTunnelsApart(t *testing.T) {
 // own session-up and echo history without events from the departed subscriber.
 func TestObserverSessionDownKeepsOtherTunnelHistory(t *testing.T) {
 	bus := newTestBus()
-	observer := newObserver(testObserverConfig())
+	observer, generation := newObserverFixture(t, testObserverConfig())
+	first := newObserverFixtureBirth(t)
+	second := newObserverFixtureBirth(t)
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
-	t.Cleanup(observer.Stop)
 
-	_, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{TunnelID: 101, SessionID: 7})
+	_, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{Birth: first, SubscriberID: first.String(), Generation: generation, TunnelID: 101, SessionID: 7})
 	require.NoError(t, err)
-	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{TunnelID: 202, SessionID: 7})
+	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{Birth: second, SubscriberID: second.String(), Generation: generation, TunnelID: 202, SessionID: 7})
 	require.NoError(t, err)
 	_, err = l2tpevents.EchoRTT.Emit(bus, &l2tpevents.EchoRTTPayload{
-		TunnelID: 202, SessionID: 7, RTT: 13 * time.Millisecond,
+		Birth: second, SubscriberID: second.String(), Generation: generation, TunnelID: 202, SessionID: 7, RTT: 13 * time.Millisecond,
 	})
 	require.NoError(t, err)
-	_, err = l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{TunnelID: 101, SessionID: 7})
+	_, err = l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{Birth: first, SubscriberID: first.String(), Generation: generation, TunnelID: 101, SessionID: 7})
 	require.NoError(t, err)
 
 	summaries := observer.SessionSummaries()
 	require.Len(t, summaries, 1, "ending one tunnel's session must retain the other tunnel's event ring")
 	require.Equal(t, uint16(7), summaries[0].SessionID)
 	require.Equal(t, 2, summaries[0].EventCount)
-	history := observer.SessionEvents(7)
+	history := observer.SessionEvents(second)
 	require.Len(t, history, 2)
 	require.Equal(t, ObserverEventSessionUp, history[0].Type)
 	require.Equal(t, ObserverEventEchoRTT, history[1].Type)

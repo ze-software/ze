@@ -19,17 +19,14 @@ import (
 // MUTATION: sessions keyed by uint16 SID merge both admitted histories.
 func TestObserverKeepsSameTupleOnTwoListenersApart(t *testing.T) {
 	bus := newTestBus()
-	observer := newObserver(testObserverConfig())
+	observer, generation := newObserverFixture(t, testObserverConfig())
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
-	t.Cleanup(observer.Stop)
 	first, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	second, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	require.NotEqual(t, first, second)
-	generation, err := l2tpevents.NewObservationGeneration()
-	require.NoError(t, err)
 	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
 		Birth: first, SubscriberID: first.String(), Generation: generation, TunnelID: 17, SessionID: 7,
 	})
@@ -57,17 +54,14 @@ func TestObserverKeepsSameTupleOnTwoListenersApart(t *testing.T) {
 // MUTATION: releasing the SID ring discards the other listener's history.
 func TestObserverDownKeepsOtherListenerBirthHistory(t *testing.T) {
 	bus := newTestBus()
-	observer := newObserver(testObserverConfig())
+	observer, generation := newObserverFixture(t, testObserverConfig())
 	subsystem := &Subsystem{observer: observer}
 	subsystem.wireObserverSubscriptions(bus)
-	t.Cleanup(observer.Stop)
 	first, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	second, err := subscriberid.NewL2TPBirth()
 	require.NoError(t, err)
 	require.NotEqual(t, first, second)
-	generation, err := l2tpevents.NewObservationGeneration()
-	require.NoError(t, err)
 	for _, birth := range []subscriberid.L2TPBirth{first, second} {
 		_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
 			Birth: birth, SubscriberID: birth.String(), Generation: generation, TunnelID: 17, SessionID: 7,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // coaLoopbackSources is the allow list every fixture in this package needs,
@@ -287,21 +288,21 @@ func (f *fakeL2TPService) TeardownSession(uint16) error {
 	f.teardowns.Add(1)
 	return nil
 }
-func (f *fakeL2TPService) TeardownAllTunnels() int                                 { return 0 }
-func (f *fakeL2TPService) TeardownAllSessions() int                                { return 0 }
-func (f *fakeL2TPService) SessionEvents(uint16) []l2tp.ObserverEvent               { return nil }
-func (f *fakeL2TPService) LoginSamples(string) []l2tp.CQMBucket                    { return nil }
-func (f *fakeL2TPService) SessionSummaries() []l2tp.SessionSummary                 { return nil }
-func (f *fakeL2TPService) LoginSummaries() []l2tp.LoginSummary                     { return nil }
-func (f *fakeL2TPService) EchoState(string) *l2tp.LoginEchoState                   { return nil }
-func (f *fakeL2TPService) ReliableStats(uint16) *l2tp.ReliableStats                { return nil }
-func (f *fakeL2TPService) TunnelFSMHistory(uint16) []l2tp.FSMTransition            { return nil }
-func (f *fakeL2TPService) SessionFSMHistory(uint16) []l2tp.FSMTransition           { return nil }
-func (f *fakeL2TPService) CaptureSnapshot(int, uint16, string) []l2tp.CaptureEntry { return nil }
-func (f *fakeL2TPService) EnableRawCapture()                                       {}
-func (f *fakeL2TPService) DisableRawCapture()                                      {}
-func (f *fakeL2TPService) RawCaptureSnapshot(int) []l2tp.RawCaptureEntry           { return nil }
-func (f *fakeL2TPService) RecordDisconnect(uint16, string, string, uint32)         {}
+func (f *fakeL2TPService) TeardownAllTunnels() int                                   { return 0 }
+func (f *fakeL2TPService) TeardownAllSessions() int                                  { return 0 }
+func (f *fakeL2TPService) SessionEvents(subscriberid.L2TPBirth) []l2tp.ObserverEvent { return nil }
+func (f *fakeL2TPService) LoginSamples(string) []l2tp.CQMBucket                      { return nil }
+func (f *fakeL2TPService) SessionSummaries() []l2tp.SessionSummary                   { return nil }
+func (f *fakeL2TPService) LoginSummaries() []l2tp.LoginSummary                       { return nil }
+func (f *fakeL2TPService) EchoState(string) *l2tp.LoginEchoState                     { return nil }
+func (f *fakeL2TPService) ReliableStats(uint16) *l2tp.ReliableStats                  { return nil }
+func (f *fakeL2TPService) TunnelFSMHistory(uint16) []l2tp.FSMTransition              { return nil }
+func (f *fakeL2TPService) SessionFSMHistory(uint16) []l2tp.FSMTransition             { return nil }
+func (f *fakeL2TPService) CaptureSnapshot(int, uint16, string) []l2tp.CaptureEntry   { return nil }
+func (f *fakeL2TPService) EnableRawCapture()                                         {}
+func (f *fakeL2TPService) DisableRawCapture()                                        {}
+func (f *fakeL2TPService) RawCaptureSnapshot(int) []l2tp.RawCaptureEntry             { return nil }
+func (f *fakeL2TPService) RecordDisconnect(uint16, string, string, uint32)           {}
 func (f *fakeL2TPService) PlaceOutgoingCall(_, _ string) (l2tp.OutgoingCallResult, error) {
 	return l2tp.OutgoingCallResult{}, nil
 }

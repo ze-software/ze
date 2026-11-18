@@ -661,7 +661,7 @@ func (w *reactorTripwire) TeardownTunnel(uint16) error  { w.trip("TeardownTunnel
 func (w *reactorTripwire) TeardownSession(uint16) error { w.trip("TeardownSession"); return nil }
 func (w *reactorTripwire) TeardownAllTunnels() int      { w.trip("TeardownAllTunnels"); return 0 }
 func (w *reactorTripwire) TeardownAllSessions() int     { w.trip("TeardownAllSessions"); return 0 }
-func (w *reactorTripwire) SessionEvents(uint16) []ObserverEvent {
+func (w *reactorTripwire) SessionEvents(subscriberid.L2TPBirth) []ObserverEvent {
 	w.trip("SessionEvents")
 	return nil
 }
@@ -758,20 +758,25 @@ func TestSessionEventReadersDoNotCallBackIntoTheReactor(t *testing.T) {
 	previous := LookupService()
 	PublishService(tripwire)
 	t.Cleanup(func() { PublishService(previous) })
-	stop := StartSessionEventReadersForTest(bus, subscriber.NewRegistry())
+	birth, err := subscriberid.NewL2TPBirth()
+	require.NoError(t, err)
+	generation, err := l2tpevents.NewObservationGeneration()
+	require.NoError(t, err)
+	stop, err := StartSessionEventReadersForTest(bus, subscriber.NewRegistry(), generation)
+	require.NoError(t, err)
 	t.Cleanup(stop)
 
-	_, err := l2tpevents.SessionIPAssigned.Emit(bus, &l2tpevents.SessionIPAssignedPayload{
-		TunnelID: orderTestTID, SessionID: orderTestSID, Username: "grace",
+	_, err = l2tpevents.SessionIPAssigned.Emit(bus, &l2tpevents.SessionIPAssignedPayload{
+		Birth: birth, SubscriberID: birth.String(), Generation: generation, TunnelID: orderTestTID, SessionID: orderTestSID, Username: "grace",
 		PeerAddr: "192.0.2.7", PppInterface: "ppp7",
 	})
 	require.NoError(t, err)
 	_, err = l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		TunnelID: orderTestTID, SessionID: orderTestSID, Interface: "ppp7",
+		Birth: birth, SubscriberID: birth.String(), Generation: generation, TunnelID: orderTestTID, SessionID: orderTestSID, Interface: "ppp7",
 	})
 	require.NoError(t, err)
 	_, err = l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
-		TunnelID: orderTestTID, SessionID: orderTestSID, Username: "grace",
+		Birth: birth, SubscriberID: birth.String(), Generation: generation, TunnelID: orderTestTID, SessionID: orderTestSID, Username: "grace",
 		Cause: l2tpevents.TerminateCauseAdminReset,
 	})
 	require.NoError(t, err)

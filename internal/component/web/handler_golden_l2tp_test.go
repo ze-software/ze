@@ -49,6 +49,7 @@ func publishGoldenL2TPSession(t *testing.T) {
 		sessionOK: true,
 		session: l2tp.SessionSnapshot{
 			Birth:          birth,
+			SubscriberID:   birth.String(),
 			LocalSID:       42,
 			RemoteSID:      43,
 			TunnelLocalTID: 7,
@@ -64,8 +65,8 @@ func publishGoldenL2TPSession(t *testing.T) {
 			LNSMode:        true,
 		},
 		events: []l2tp.ObserverEvent{
-			{Timestamp: up, Type: l2tp.ObserverEventSessionUp, TunnelID: 7, SessionID: 42, Actor: "lns"},
-			{Timestamp: up.Add(30 * time.Second), Type: l2tp.ObserverEventEchoRTT, TunnelID: 7, SessionID: 42,
+			{Birth: birth, Timestamp: up, Type: l2tp.ObserverEventSessionUp, TunnelID: 7, SessionID: 42, Actor: "lns"},
+			{Birth: birth, Timestamp: up.Add(30 * time.Second), Type: l2tp.ObserverEventEchoRTT, TunnelID: 7, SessionID: 42,
 				RTT: 12 * time.Millisecond},
 		},
 	})
