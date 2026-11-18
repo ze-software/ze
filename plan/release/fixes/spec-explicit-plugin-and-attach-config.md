@@ -210,7 +210,7 @@ What D-10 withdraws and what it keeps:
 |------------------|------------|
 | D-1, explicit configuration prevents surprises | Kept as the aim, met differently: nothing implied is hidden, since the display shows it. The standing rule in `ai/META-DECISIONS.md` is rewritten to say so |
 | D-2, a missing block is refused | Withdrawn for a missing block: what the feature needs is implied |
-| D-2, a block that grants less is refused | Kept. There the operator wrote two things that disagree, a feature and a grant too narrow for it, and Ze does not widen what was written. This is the session's reading: Thomas ruled it on 2026-11-16 for exactly the "less" case and has not withdrawn it |
+| D-2, a block that grants less is refused | Kept. There the operator wrote two things that disagree, a feature and a grant too narrow for it, and Ze does not widen what was written. Thomas ruled it on 2026-11-16 for exactly the "less" case and confirmed it on 2026-11-18, after D-10: "If you grant less, it's refused" |
 | D-3, a needed plugin is declared in the `plugin` block | Withdrawn: the plugin is implied and shown |
 | The commit offers its missing lines (AC-6) | Withdrawn: nothing is missing at commit |
 
