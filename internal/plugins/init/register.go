@@ -19,13 +19,15 @@ func init() {
 		ShortHelp: "Initialize a live store or appliance seed with SSH credentials",
 		Mode:      "setup",
 		Section:   registry.SectionSystem,
-		Subs:      "--managed --force --yes --web-cert <address> --web-cert-name <name> --seed --from <source> --sha256 <hex>",
+		Subs:      "--managed --hub-ca <file> --hub-trust-first-use --force --yes --web-cert <address> --web-cert-name <name> --seed --from <source> --sha256 <hex>",
 	})
 
 	// Flag inventory for shell completion (registration over hardcoding).
 	// Mirrors the flag.FlagSet declarations in main.go's Run.
 	registry.RegisterCommandFlags("init", []registry.FlagSpec{
 		{Name: flagManaged, Description: "enable managed (fleet) mode", ValueHint: registry.FlagValueNone},
+		{Name: flagHubCA, Description: "with --managed: file holding the hub's certificate authority root (PEM)", ValueHint: registry.FlagValueFile},
+		{Name: flagHubTrustFirstUse, Description: "with --managed: keep the certificate authority the hub presents on the first connection", ValueHint: registry.FlagValueNone},
 		{Name: "--force", Description: "replace an existing store (moves the old one to .replaced-<date>)", ValueHint: registry.FlagValueNone},
 		{Name: "--yes", Description: "skip the confirmation prompt (use with --force)", ValueHint: registry.FlagValueNone},
 		{Name: "--web-cert", Description: "generate a TLS certificate for the web server listen address", ValueHint: registry.FlagValueText},

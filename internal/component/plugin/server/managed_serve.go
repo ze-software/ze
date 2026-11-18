@@ -15,6 +15,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"maps"
@@ -248,7 +249,8 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 //
 // With no name the daemon's certificate authority issues the leaf, and
 // ServingLeaf reissues it as it ages: a hub that runs longer than one leaf
-// lives keeps presenting a valid certificate. No authority is an error too: a
+// lives keeps presenting a valid certificate. The root is presented after the
+// leaf (withAuthority). No authority is an error too: a
 // self-signed leaf is one no client can validate and no operator can rotate.
 func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*tls.Certificate, error), error) {
 	if cfg.Certificate != "" {
@@ -280,7 +282,30 @@ func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*t
 	if err != nil {
 		return nil, fmt.Errorf("managed server: %w", err)
 	}
-	return leaf.Certificate, nil
+	root, _ := pem.Decode(cfg.Authority.CertificatePEM())
+	if root == nil {
+		return nil, errors.New("managed server: the certificate authority has no root certificate in PEM")
+	}
+	return func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		issued, err := leaf.Certificate(hello)
+		if err != nil {
+			return nil, err
+		}
+		return withAuthority(issued, root.Bytes), nil
+	}, nil
+}
+
+// withAuthority returns issued with the authority's root appended to the
+// chain it presents. A client that already holds the root ignores it. A
+// client told to trust on first use (ze init --hub-trust-first-use) has
+// nothing else to learn the root from. issued is not modified: ServingLeaf
+// answers the same certificate to every handshake until it reissues.
+func withAuthority(issued *tls.Certificate, root []byte) *tls.Certificate {
+	presented := *issued
+	presented.Certificate = make([][]byte, 0, len(issued.Certificate)+1)
+	presented.Certificate = append(presented.Certificate, issued.Certificate...)
+	presented.Certificate = append(presented.Certificate, root)
+	return &presented
 }
 
 // managedLeafHosts returns the SANs the issued leaf needs: the loopback every

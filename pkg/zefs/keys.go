@@ -14,6 +14,10 @@ var (
 	KeyLocalAdminAuthorizedKeys = MustRegister(KeyEntry{Pattern: "meta/auth/local/authorized-keys", Description: "Local administrative SSH public keys"})
 	KeyInstanceName             = MustRegister(KeyEntry{Pattern: "meta/instance/name", Description: "Router instance name"})
 	KeyInstanceManaged          = MustRegister(KeyEntry{Pattern: "meta/instance/managed", Description: "Managed mode flag (true/false)"})
+	KeyManagedHubAddress        = MustRegister(KeyEntry{Pattern: "meta/managed/hub/address", Description: "Hub address (host:port) a managed client reaches on its first start, written by ze init --managed"})
+	KeyManagedHubToken          = MustRegister(KeyEntry{Pattern: "meta/managed/hub/token", Description: "Secret a managed client authenticates to its hub with on its first start", Private: true})
+	KeyManagedHubCA             = MustRegister(KeyEntry{Pattern: "meta/managed/hub/ca", Description: "Hub certificate authority root (PEM) a managed client authenticates its hub against when its config names no ca"})
+	KeyManagedHubTrust          = MustRegister(KeyEntry{Pattern: "meta/managed/hub/trust", Description: "How a managed client with no stored hub root gets one: first-use keeps the authority the hub presents on the first connection"})
 	KeyWebCert                  = MustRegister(KeyEntry{Pattern: "meta/web/cert", Description: "HTTPS certificate (PEM)", Private: true})
 	KeyWebKey                   = MustRegister(KeyEntry{Pattern: "meta/web/key", Description: "HTTPS private key (PEM)", Private: true})
 	KeyInstanceAdminDisabled    = MustRegister(KeyEntry{Pattern: "meta/instance/admin-disabled", Description: "Admin login disabled (RADIUS-only)"})
@@ -125,3 +129,8 @@ var KeySupportArchive = MustRegister(KeyEntry{Pattern: "support/archive/{name}",
 // (internal/component/plugin/server, last_stop.go). It is new, so no earlier
 // image writes or reads it.
 var KeyPluginLastStop = MustRegister(KeyEntry{Pattern: "meta/plugin/last-stop", Description: "Why ze last stopped because of a plugin, or ran a stop cleanup late (JSON)"})
+
+// ManagedHubTrustFirstUse is the one value KeyManagedHubTrust holds: the
+// managed client keeps the certificate authority its hub presents on the
+// first connection, and authenticates the hub against it from then on.
+const ManagedHubTrustFirstUse = "first-use"

@@ -6,8 +6,12 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -28,6 +32,7 @@ import (
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/fleet"
@@ -345,28 +350,27 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	}
 
 	// No cached config: first boot after ze init --managed.
-	server := env.Get("ze.managed.server")
-	name := env.Get("ze.managed.name")
-	token := env.Get("ze.managed.token")
-
-	if server == "" || name == "" {
-		fmt.Fprintf(os.Stderr, "error: managed mode with no cached config\n")
-		fmt.Fprintf(os.Stderr, "hint: set ze.managed.server and ze.managed.name to bootstrap from hub\n")
-		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_SERVER=hub-host:1791\n")
-		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_NAME=edge-01\n")
-		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_TOKEN=secret\n")
-		return 1
-	}
-	if token == "" {
-		fmt.Fprintf(os.Stderr, "error: ze.managed.token is required for first boot\n")
-		return 1
-	}
-
-	fmt.Fprintf(os.Stderr, "managed: first boot, connecting to hub %s as %s\n", server, name)
-	configData, err := fetchInitialConfig(server, name, token)
+	boot, err := readManagedBootstrap(store)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: fetch config from hub: %v\n", err)
-		return 1
+		return firstStartRefused(err)
+	}
+	if missing := boot.missing(); missing != nil {
+		return firstStartRefused(missing)
+	}
+
+	var notice textbuf.Buffer
+	notice.Str("managed: first boot, connecting to hub ").Str(boot.server).Str(" as ").Str(boot.name).Byte('\n').
+		StdErr() //nolint:errcheck // stderr progress notice
+	configData, kept, err := fetchInitialConfig(boot)
+	if err != nil {
+		return firstStartRefused(fetchRefusal(boot, err))
+	}
+	if kept != nil {
+		// Stored before the config is cached, so no later connection is ever
+		// made without it: first use happens once.
+		if err := keepHubRoot(store, kept); err != nil {
+			return firstStartRefused(err)
+		}
 	}
 
 	// The fetched config is judged before it is cached. When it declares an
@@ -374,13 +378,14 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	// a refusal there removes the cached copy, below.
 	judgedAtBoot, parseErr := judgeConfigBeforeBoot(configData, nil, plugins)
 	if parseErr != nil {
-		fmt.Fprintf(os.Stderr, "error: hub config failed validation: %v\n", parseErr)
-		return 1
+		return firstStartRefused(opererr.Wrap(parseErr, "hub config failed validation",
+			"a config that does not pass is never cached or started",
+			"ze data import client-"+boot.name+".conf   (on the hub, after correcting that file)"))
 	}
 
 	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: cache config: %v\n", writeErr)
-		return 1
+		return firstStartRefused(opererr.Wrap(writeErr, "the config fetched from the hub could not be cached",
+			"a managed client starts from its cached copy", "ze doctor"))
 	}
 
 	if judgedAtBoot {
@@ -434,7 +439,10 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		// Without this the configured leaf reaches nothing, so a client
 		// configured through its config file falls through to the system CA it
 		// cannot satisfy.
-		CA:             endpoint.CA,
+		CA: endpoint.CA,
+		// The root ze init stored or the first start kept. It anchors the hub
+		// when the config names no ca.
+		HubRoot:        storedHubRoot(store),
 		ConnectTimeout: env.GetDuration("ze.managed.connect.timeout", 5*time.Second),
 		// The same reading for every config the hub pushes later, so a push
 		// that changes the hub block changes the running client.
@@ -490,8 +498,179 @@ func hubClientEndpoint(data []byte) (managed.Endpoint, error) {
 	return endpoint, nil
 }
 
-// fetchInitialConfig connects to the hub, authenticates, and fetches the initial config.
-func fetchInitialConfig(server, name, token string) ([]byte, error) {
+// firstStartRefused prints why the first start of a managed client stopped
+// and returns its exit code.
+func firstStartRefused(refusal error) int {
+	var output textbuf.Buffer
+	output.Str("error: ").Err(refusal).Byte('\n').StdErr() //nolint:errcheck // The start exits with failure after its diagnostic.
+	return 1
+}
+
+// fetchRefusal says why the first fetch failed and what fixes it. A hub whose
+// certificate the client could not verify is fixed at ze init, where the
+// client is told how to authenticate its hub; any other failure is a hub the
+// client could not reach or that refused it.
+func fetchRefusal(boot managedBootstrap, cause error) error {
+	var unverified *tls.CertificateVerificationError
+	if errors.As(cause, &unverified) {
+		return opererr.Wrap(cause, "fetch config from hub "+boot.server+": the hub's certificate could not be verified",
+			"the client sends its secret only to a hub it has authenticated",
+			"ze init --managed --force --hub-ca <file>   (the file holds what 'ze show pki local-ca pem' prints on the hub)")
+	}
+	if errors.Is(cause, managed.ErrHubPresentedNoAuthority) {
+		return opererr.Wrap(cause, "fetch config from hub "+boot.server+": the hub presented no certificate authority to keep",
+			"trust on first use keeps the authority the hub presents after its certificate",
+			"ze init --managed --force --hub-ca <file>   (the file holds what 'ze show pki local-ca pem' prints on the hub)")
+	}
+	return opererr.Wrap(cause, "fetch config from hub "+boot.server+" as "+boot.name+" failed",
+		"a managed client with no cached config has nothing to start from",
+		"show doctor   (on the hub: it lists a client it refused and why)")
+}
+
+// managedBootstrap is what a managed client with no cached config connects
+// to its hub with. Each value comes from --server, --name or --token (the
+// ze.managed keys they set) when given, and from what ze init --managed
+// stored otherwise.
+type managedBootstrap struct {
+	server string // Hub address (host:port).
+	name   string // Client name.
+	token  string // Client secret.
+	// root is the hub root ze init stored (--hub-ca). nil when none is stored.
+	root *x509.Certificate
+	// firstUse says the operator asked for the root the hub presents to be
+	// kept (ze init --hub-trust-first-use) and none is stored yet.
+	firstUse bool
+}
+
+// storeText reads the text of one store key, and "" when the store does not
+// hold it. A key that exists and cannot be read is an error.
+func storeText(store storage.Storage, key string) (string, error) {
+	if !store.Exists(key) {
+		return "", nil
+	}
+	data, err := store.ReadFile(key)
+	if err != nil {
+		return "", opererr.New("the store key "+key+" could not be read",
+			"a managed client reads it to reach its hub on the first start", "ze doctor")
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+// readManagedBootstrap gathers what the first start connects with.
+func readManagedBootstrap(store storage.Storage) (managedBootstrap, error) {
+	var boot managedBootstrap
+	var err error
+	if boot.server = env.Get("ze.managed.server"); boot.server == "" {
+		if boot.server, err = storeText(store, zefs.KeyManagedHubAddress.Pattern); err != nil {
+			return managedBootstrap{}, err
+		}
+	}
+	if boot.name = env.Get("ze.managed.name"); boot.name == "" {
+		if boot.name, err = storeText(store, zefs.KeyInstanceName.Pattern); err != nil {
+			return managedBootstrap{}, err
+		}
+	}
+	if boot.token = env.Get("ze.managed.token"); boot.token == "" {
+		if boot.token, err = storeText(store, zefs.KeyManagedHubToken.Pattern); err != nil {
+			return managedBootstrap{}, err
+		}
+	}
+	rootPEM, err := storeText(store, zefs.KeyManagedHubCA.Pattern)
+	if err != nil {
+		return managedBootstrap{}, err
+	}
+	if rootPEM != "" {
+		if boot.root, err = parseHubRoot([]byte(rootPEM)); err != nil {
+			return managedBootstrap{}, err
+		}
+		return boot, nil
+	}
+	trust, err := storeText(store, zefs.KeyManagedHubTrust.Pattern)
+	if err != nil {
+		return managedBootstrap{}, err
+	}
+	boot.firstUse = trust == zefs.ManagedHubTrustFirstUse
+	return boot, nil
+}
+
+// missing names the first value the first start cannot connect without, or
+// nil when it has them all.
+func (boot managedBootstrap) missing() error {
+	if boot.server == "" {
+		return opererr.New("managed mode with no cached config, and this client does not know where its hub is",
+			"the first start fetches the config from the hub, whose address ze init --managed stores, "+
+				"or --server (ze.managed.server) gives", "ze --server <hub-host:port> start")
+	}
+	if boot.name == "" {
+		return opererr.New("this managed client has no config yet and has no name to give its hub",
+			"the hub serves each client the config stored under its name", "ze --name <client-name> start")
+	}
+	if boot.token == "" {
+		return opererr.New("this managed client has no config yet and has no secret to authenticate to its hub with",
+			"the hub admits a client by the secret of its entry under plugin hub server", "ze --token <secret> start")
+	}
+	return nil
+}
+
+// parseHubRoot reads the hub root the store holds.
+func parseHubRoot(rootPEM []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(rootPEM)
+	if block == nil {
+		return nil, opererr.New("the hub root in the store key "+zefs.KeyManagedHubCA.Pattern+" is not PEM",
+			"the client authenticates its hub against that root", "ze init --managed --force --hub-ca <file>")
+	}
+	root, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, opererr.New("the hub root in the store key "+zefs.KeyManagedHubCA.Pattern+" is not a certificate",
+			"the client authenticates its hub against that root", "ze init --managed --force --hub-ca <file>")
+	}
+	return root, nil
+}
+
+// storedHubRoot returns the hub root the store holds, and nil when it holds
+// none or holds one that cannot be read. An unreadable root is logged: the
+// client then authenticates its hub the way its config says, and a config
+// that names no ca fails closed against the system pool.
+func storedHubRoot(store storage.Storage) *x509.Certificate {
+	rootPEM, err := storeText(store, zefs.KeyManagedHubCA.Pattern)
+	if err != nil {
+		slog.Warn("managed: the stored hub root could not be read", "error", err, "code", diagnostic.CodeConfigHubInvalid)
+		return nil
+	}
+	if rootPEM == "" {
+		return nil
+	}
+	root, err := parseHubRoot([]byte(rootPEM))
+	if err != nil {
+		slog.Warn("managed: the stored hub root could not be read", "error", err, "code", diagnostic.CodeConfigHubInvalid)
+		return nil
+	}
+	return root
+}
+
+// keepHubRoot stores the authority a first-use connection kept and tells the
+// operator which one it was, so it can be compared with the hub's own.
+func keepHubRoot(store storage.Storage, root *x509.Certificate) error {
+	rootPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: root.Raw})
+	if err := store.WriteKey(zefs.KeyManagedHubCA.Pattern, rootPEM); err != nil {
+		return opererr.New("the certificate authority the hub presented could not be stored",
+			"without it the next connection could not authenticate the hub", "ze doctor")
+	}
+	fingerprint := sha256.Sum256(root.Raw)
+	var tb textbuf.Buffer
+	tb.Str("managed: trusting the certificate authority the hub presented on this first connection: ").
+		Str(root.Subject.String()).Str(", SHA-256 ").Str(hex.EncodeToString(fingerprint[:])).
+		Str("\nevery later connection is authenticated against it; compare it with the hub's own: ze show pki local-ca pem\n")
+	tb.StdErr() //nolint:errcheck // stderr notice
+	return nil
+}
+
+// fetchInitialConfig connects to the hub, authenticates, and fetches the
+// initial config. The second return value is the authority a first-use
+// connection kept, and nil on every other connection: the caller MUST store it
+// before any later connection is made.
+func fetchInitialConfig(boot managedBootstrap) ([]byte, *x509.Certificate, error) {
+	server, name, token := boot.server, boot.name, boot.token
 	ctx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
 	defer cancel()
 
@@ -499,38 +678,47 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	// rather than a second tls.Config spelled here. This path is first boot:
 	// there is no config yet, so it carries the token to a hub the client has
 	// never spoken to, and it was the least authenticated exchange of them all.
-	// No config means no pki ca entry to name, so the anchor here is the system
-	// pool, which fails closed against a privately issued hub. A first boot
-	// against such a hub is what ze.managed.tls.insecure is for, and the client
-	// names its ca once it holds a config.
-	tlsConf, tlsErr := managed.ClientTLSConfig(&managed.ClientConfig{
-		Server:      server,
-		TLSInsecure: env.GetBool("ze.managed.tls.insecure", false),
-	})
-	if tlsErr != nil {
-		return nil, fmt.Errorf("hub trust anchor: %w", tlsErr)
+	// No config means no pki ca entry to name, so the anchor here is the root
+	// ze init stored (--hub-ca). With none stored and first use asked for
+	// (--hub-trust-first-use), this one connection keeps the authority the hub
+	// presents. With neither, the anchor is the system pool, which fails
+	// closed against a privately issued hub.
+	keptRoot := func() *x509.Certificate { return nil }
+	var tlsConf *tls.Config
+	if boot.firstUse {
+		tlsConf, keptRoot = managed.FirstUseTLSConfig(server)
+	} else {
+		var tlsErr error
+		tlsConf, tlsErr = managed.ClientTLSConfig(&managed.ClientConfig{
+			Server:      server,
+			HubRoot:     boot.root,
+			TLSInsecure: env.GetBool("ze.managed.tls.insecure", false),
+		})
+		if tlsErr != nil {
+			return nil, nil, fmt.Errorf("hub trust anchor: %w", tlsErr)
+		}
 	}
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
 	if err != nil {
-		return nil, fmt.Errorf("connect to %s: %w", server, err)
+		return nil, nil, fmt.Errorf("connect to %s: %w", server, err)
 	}
 	defer conn.Close() //nolint:errcheck // cleanup
 
 	if err := pluginipc.SendAuth(ctx, conn, token, name); err != nil {
-		return nil, fmt.Errorf("auth: %w", err)
+		return nil, nil, fmt.Errorf("auth: %w", err)
 	}
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	authLine, readErr := readAuthLine(conn, 512)
 	if readErr != nil {
-		return nil, fmt.Errorf("read auth response: %w", readErr)
+		return nil, nil, fmt.Errorf("read auth response: %w", readErr)
 	}
 	_ = conn.SetReadDeadline(time.Time{})
 
 	_, verb, _, parseErr := rpc.ParseLine(authLine)
 	if parseErr != nil || verb != "ok" {
-		return nil, errAuthRejected
+		return nil, nil, errAuthRejected
 	}
 
 	rc := rpc.NewConn(conn, conn)
@@ -539,19 +727,19 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 
 	resp, err := managed.FetchConfig(ctx, mc, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if resp.Config == "" {
-		return nil, errHubReturnedEmptyConfig
+		return nil, nil, errHubReturnedEmptyConfig
 	}
 
 	data, err := base64.StdEncoding.DecodeString(resp.Config)
 	if err != nil {
-		return nil, fmt.Errorf("decode config: %w", err)
+		return nil, nil, fmt.Errorf("decode config: %w", err)
 	}
 
-	return data, nil
+	return data, keptRoot(), nil
 }
 
 // readAuthLine reads from conn byte-by-byte until newline or maxSize.

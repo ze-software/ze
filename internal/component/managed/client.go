@@ -8,6 +8,7 @@ package managed
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,7 +62,11 @@ type ClientConfig struct {
 	// public CA issued, which is what a private fleet hub presents, and it
 	// keeps authenticating it after the hub reissues its leaf. Empty means the
 	// trust anchor comes from the system CA pool. See clientTLSConfig.
-	CA            string
+	CA string
+	// HubRoot is the hub's certificate authority root the store holds, from
+	// ze init --hub-ca or kept on the first connection. It anchors the hub
+	// when CA is empty. nil means the store holds none.
+	HubRoot       *x509.Certificate
 	SourceAddress string // Optional source IP for outbound connection
 	// ConnectTimeout bounds the dial and the TLS handshake of each connection.
 	// Zero means connectTimeoutDefault.

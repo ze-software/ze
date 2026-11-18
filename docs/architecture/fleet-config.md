@@ -140,14 +140,33 @@ restore cannot replace the store while these managed operations still use it.
 | Role | Config | Description |
 |------|--------|-------------|
 | Hub (serves config) | `server central { client edge-01 { secret } }` | Accepts managed clients, serves their configs |
-| Managed client (provisioning) | `ze init` with managed=true, hub host/port, token | One-time setup, stored in the tree |
+| Managed client (provisioning) | `ze init --managed` with the hub address, the client's secret and how to trust the hub | One-time setup, stored in the tree |
 | Managed client (running) | `client edge-01 { host; port; secret }` in cached config | Connects to hub, fetches config |
 | Standalone | Only `server local { }` blocks, no hub-level `client` | Local plugins, no remote hub |
 
-`ze init` provisions identity and hub connection information in the tree.
-`ze start` reads that store and connects when managed mode is enabled. After the
-first fetch, the cached config carries its own `client` block. CLI flags
-(`--server`, `--name`, `--token`) can override these values for troubleshooting.
+`ze init --managed` provisions identity and hub connection information in the
+tree: the instance name, the hub address, the client's secret, and how the
+first start authenticates the hub (below). `ze start` reads that store and
+connects when managed mode is enabled. After the first fetch, the cached
+config carries its own `client` block. CLI flags (`--server`, `--name`,
+`--token`) can override these values for troubleshooting.
+
+| What `ze init --managed` takes | How | Store key |
+|-------------------------------|-----|-----------|
+| Instance name | prompt, line 5 | `meta/instance/name` |
+| Hub address, `host:port` | prompt, line 6 | `meta/managed/hub/address` |
+| The client's secret, 32 characters or more | prompt, line 7 | `meta/managed/hub/token` |
+| The hub's certificate authority root | `--hub-ca <file>`, a PEM file | `meta/managed/hub/ca` |
+| Trust on first use | `--hub-trust-first-use` | `meta/managed/hub/trust` = `first-use` |
+
+The hub address and the secret may be left empty: nothing is stored, and the
+first start names them with `--server` and `--token`. `--hub-ca` and
+`--hub-trust-first-use` need `--managed` and exclude each other. `ze init`
+refuses an address that is not `host:port`, a secret shorter than a hub
+accepts, and a `--hub-ca` file that is not exactly one PEM certificate of a
+certificate authority.
+<!-- source: internal/plugins/init/main.go -- managedInitFromFlags, runInitPublishedProfile -->
+<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust -->
 
 ### Per-Client Secrets
 
@@ -335,13 +354,13 @@ The client controls timing. A router in the middle of graceful restart or conver
 
 ### First Boot (After `ze init`)
 
-`ze init` has stored identity, managed flag, hub host/port, and token in the tree. No config exists yet.
+`ze init --managed` has stored identity, managed flag, hub address and secret in the tree. No config exists yet.
 
 | Step | Action |
 |------|--------|
 | 1 | `ze start` |
-| 2 | Read store: `meta/instance/name`, `meta/instance/managed`=true, hub host/port, token |
-| 3 | Connect to hub, authenticate |
+| 2 | Read store: `meta/instance/name`, `meta/instance/managed`=true, `meta/managed/hub/address`, `meta/managed/hub/token`, `meta/managed/hub/ca` or `meta/managed/hub/trust`. A flag or its env var replaces the stored value. A value neither gives stops the start with an error naming it |
+| 3 | Connect to hub, authenticate it (see "First start trust"), then authenticate to it |
 | 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`) |
 | 5 | Write config to the local tree |
 | 6 | Start local hub server for plugins, start BGP |
@@ -402,7 +421,7 @@ Two sources of hub connection info, used at different stages:
 
 | Stage | Source | Contains |
 |-------|--------|----------|
-| First boot (after `ze init`) | Store metadata | `meta/instance/name`, hub host/port, token |
+| First boot (after `ze init --managed`) | Store metadata | `meta/instance/name`, `meta/managed/hub/address`, `meta/managed/hub/token` |
 | Subsequent boots | Cached config | `client <name> { host; port; secret }` block |
 
 The cached config takes over once fetched. Metadata from `ze init` bootstraps the first fetch.
@@ -424,15 +443,38 @@ block connects to no hub whatever the flags say.
 | `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Bound on the dial and TLS handshake of each connection to the hub, the first fetch included (default: 5s). A value that is not a duration is refused |
 | (none) | `ze.managed.tls.insecure` | Skip server certificate verification (development only) |
 
-First boot has no config, so it can name no `pki ca` entry. `fetchInitialConfig`
-builds its trust anchor through the same `managed.ClientTLSConfig` every later
-connection uses, and with no `ca` name that anchor is the system CA pool. A hub
-whose certificate its own authority issued is unverifiable against that pool, so
-a first boot against one needs `ze.managed.tls.insecure`. The client names its
-`ca` once it holds a config, and every connection after that is verified.
-<!-- source: cmd/ze/ze_core_start.go -- fetchInitialConfig, extractManagedClientConfig -->
+### First start trust
 
-Priority: CLI flag > env var > config block > store metadata.
+First boot has no config, so it can name no `pki ca` entry. What authenticates
+the hub then is what `ze init --managed` was told, in this order:
+
+| `ze init --managed` was given | The first connection | Every later connection |
+|-------------------------------|----------------------|------------------------|
+| `--hub-ca <file>` | Verified against that root. A hub it did not issue is refused before the secret is sent | Verified against the same root, unless the config names a `ca` |
+| `--hub-trust-first-use` | Whoever answers on the hub address is believed once. The hub MUST present a certificate authority after its certificate, and its certificate MUST verify against that authority for the hub's name; otherwise the connection is refused before the secret is sent. The authority is stored in `meta/managed/hub/ca` and printed with its SHA-256 | Verified against the stored authority. First use never happens twice: a client holding a root ignores the trust key |
+| neither | Verified against the system CA pool, which a hub serving a certificate from its own authority fails. `ze.managed.tls.insecure` turns verification off for development | The config's `ca`, or the system pool |
+
+The stored root stays the client's anchor after the first fetch whenever its
+config names no `ca`, so a fleet provisioned with `--hub-ca` or first use needs
+no `pki ca` block in each client's config. A `ca` named in the config wins
+over it. `ze init --managed --force` replaces the stored root.
+
+Trust on first use is for a network the operator trusts at provisioning time.
+It moves the question "is this my hub" from every connection to the first one,
+and it does not answer it: compare the printed SHA-256 with the hub's root
+(`ze show pki local-ca pem` on the hub) to answer it.
+
+For first use to have an authority to keep, the hub presents its root after
+the certificate it issues. A client that already holds the root ignores it. A
+hub that serves a named certificate (`certificate <name>`) presents what the
+operator stored under that name, and first use works against it only when that
+chain ends in the issuing authority.
+<!-- source: cmd/ze/ze_core_start.go -- readManagedBootstrap, fetchInitialConfig, keepHubRoot, storedHubRoot -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig, FirstUseTLSConfig, presentedAuthority -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- withAuthority -->
+
+Priority: CLI flag > env var > config block > store metadata. Store metadata
+is read for the hub address, name and secret only while no config is cached.
 
 ---
 
@@ -442,7 +484,7 @@ Priority: CLI flag > env var > config block > store metadata.
 |---------|-----------|
 | Token per client | Each client has its own secret; token bound to name at auth |
 | Token in config | Tree frame files are 0600 and directories 0700; token not logged |
-| TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the certificate authority its `ca` leaf names or against the system CA pool. See "Hub certificate and client trust" below. `ze.managed.tls.insecure` turns verification off and is for development only. |
+| TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the certificate authority its `ca` leaf names, the root its store holds, or the system CA pool. See "Hub certificate and client trust" below and "First start trust" above. Trust on first use believes the first answerer once, by the operator's explicit choice at `ze init`. `ze.managed.tls.insecure` turns verification off and is for development only. |
 | Client impersonation | Per-client secret + name binding; one connection per name |
 | Config isolation | Client can only fetch its own config (name implicit from auth session) |
 | Multiple servers | Different secrets for different trust levels (local vs. remote) |
@@ -543,7 +585,7 @@ cannot authenticate ends the connection before the token is written.
 | Not included | Why |
 |-------------|-----|
 | New server component | Hub already exists; extend it |
-| Special metadata keys for hub info | Config declares the hub connection; init keys bootstrap only |
+| Special metadata keys for the running hub connection | Config declares the hub connection; the `meta/managed/hub/` address and secret bootstrap the first start only. The stored root is the exception: it anchors the hub whenever the config names no `ca` |
 | Multi-hub replication | One hub sufficient; HA via client cached config |
 | Incremental config updates | Full config on change; configs are small (< 10KB typically) |
 

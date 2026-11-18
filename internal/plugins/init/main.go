@@ -7,9 +7,12 @@ package init
 import (
 	"bufio"
 	"bytes"
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -42,6 +45,13 @@ const (
 	// flagManaged is the one flag token the parser, the help page and the
 	// completion inventory each spell.
 	flagManaged = "--managed"
+	// flagHubCA and flagHubTrustFirstUse are the two ways a managed client is
+	// told how to authenticate its hub before it holds a config.
+	flagHubCA            = "--hub-ca"
+	flagHubTrustFirstUse = "--hub-trust-first-use"
+	// hubTokenMin is the shortest secret a hub accepts for a client
+	// (plugin/hub/server/client/secret in ze-hub-conf.yang).
+	hubTokenMin = 32
 	defaultHost = "127.0.0.1"
 	defaultPort = "2222"
 )
@@ -51,6 +61,8 @@ const (
 func Run(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
+	hubCAFlag := fs.String("hub-ca", "", "With --managed: file holding the hub's certificate authority root (PEM), from 'ze show pki local-ca pem' on the hub")
+	hubTrustFirstUseFlag := fs.Bool("hub-trust-first-use", false, "With --managed: keep the certificate authority the hub presents on the first connection")
 	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
 	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
@@ -72,9 +84,13 @@ func Run(args []string) int {
 					{Name: "Line 3: host", Desc: "(default: 127.0.0.1)"},
 					{Name: "Line 4: port", Desc: "(default: 2222)"},
 					{Name: "Line 5: name", Desc: "(default: hostname)"},
+					{Name: "Line 6: hub address", Desc: "(--managed only) host:port of the hub; empty to name it at the first start"},
+					{Name: "Line 7: hub token", Desc: "(--managed only) this client's secret on the hub, 32 characters or more"},
 				}},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: flagManaged, Desc: "Enable managed (fleet) mode"},
+					{Name: flagHubCA + " <file>", Desc: "With --managed: the hub's certificate authority root (PEM), printed on the hub by 'ze show pki local-ca pem'"},
+					{Name: flagHubTrustFirstUse, Desc: "With --managed: keep the certificate authority the hub presents on the first connection, unverified"},
 					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
@@ -87,6 +103,7 @@ func Run(args []string) int {
 			Examples: []string{
 				`echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init`,
 				"ze init --managed  (interactive prompts, managed mode)",
+				"ze init --managed --hub-ca hub-root.pem   (authenticate the hub against its root)",
 				"ze init --force         (replace existing database)",
 				"ze init --force --yes   (replace without confirmation)",
 				"ze init --from database.zefs   (import a blob into the live store)",
@@ -97,6 +114,12 @@ func Run(args []string) int {
 	}
 
 	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	fleet, fleetErr := managedInitFromFlags(*managedFlag, *hubCAFlag, *hubTrustFirstUseFlag)
+	if fleetErr != nil {
+		fmt.Fprintln(os.Stderr, fleetErr.Error())
 		return 1
 	}
 
@@ -165,7 +188,86 @@ func Run(args []string) int {
 		return 1
 	}
 
-	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag)
+	return runInitFleet(inputReader, promptWriter, dbPath, fleet, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag)
+}
+
+// managedInit is what ze init was told about managed (fleet) mode. The zero
+// value is an instance that is not managed.
+type managedInit struct {
+	enabled bool
+	// hubCA is the hub's certificate authority root in PEM, already checked
+	// to hold one CA certificate. Empty when none was given.
+	hubCA []byte
+	// trustFirstUse asks the first start to keep the authority the hub
+	// presents. It is never set together with hubCA.
+	trustFirstUse bool
+}
+
+// managedInitFromFlags judges the managed flags together and reads the hub
+// root. Each refusal names the flags that fix it.
+func managedInitFromFlags(managed bool, hubCAPath string, trustFirstUse bool) (managedInit, error) {
+	if !managed {
+		if hubCAPath != "" {
+			return managedInit{}, opererr.New(flagHubCA+" was given without "+flagManaged,
+				"the hub root is only read by a managed client", "ze init --managed --hub-ca "+hubCAPath)
+		}
+		if trustFirstUse {
+			return managedInit{}, opererr.New(flagHubTrustFirstUse+" was given without "+flagManaged,
+				"only a managed client connects to a hub", "ze init --managed --hub-trust-first-use")
+		}
+		return managedInit{}, nil
+	}
+	fleet := managedInit{enabled: true, trustFirstUse: trustFirstUse}
+	if hubCAPath == "" {
+		return fleet, nil
+	}
+	if trustFirstUse {
+		return managedInit{}, opererr.New(flagHubCA+" and "+flagHubTrustFirstUse+" were both given",
+			"a hub root that is given is the one to trust, so there is nothing left to take from the first connection",
+			"ze init --managed --hub-ca "+hubCAPath)
+	}
+	data, err := os.ReadFile(hubCAPath) //nolint:gosec // The operator names the file on the command line.
+	if err != nil {
+		return managedInit{}, opererr.New("the hub root "+hubCAPath+" could not be read",
+			"ze init stores the root so the first start can authenticate the hub",
+			"ze show pki local-ca pem   (on the hub; save what it prints, then repeat ze init with that file)")
+	}
+	if !holdsOneCA(data) {
+		return managedInit{}, opererr.New("the hub root "+hubCAPath+" is not one PEM certificate of a certificate authority",
+			"the first start authenticates the hub against that root",
+			"ze show pki local-ca pem   (on the hub; save what it prints, then repeat ze init with that file)")
+	}
+	fleet.hubCA = data
+	return fleet, nil
+}
+
+// tokenTooShort reports whether a hub token was given and is shorter than a
+// hub accepts. An empty token was not given: the first start names it.
+func tokenTooShort(token string) bool {
+	if token == "" {
+		return false
+	}
+	return len(token) < hubTokenMin
+}
+
+// holdsOneCA reports whether data is one PEM CERTIFICATE block, and nothing
+// else, whose certificate may sign others.
+func holdsOneCA(data []byte) bool {
+	block, rest := pem.Decode(data)
+	if block == nil {
+		return false
+	}
+	if block.Type != "CERTIFICATE" {
+		return false
+	}
+	if len(bytes.TrimSpace(rest)) != 0 {
+		return false
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return false
+	}
+	return cert.IsCA
 }
 
 // confirmForce asks before --force replaces a store, unless --yes was given.
@@ -302,6 +404,11 @@ func importSource(path, shown, dir string, force bool) int {
 }
 
 func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAddr, webCertName string, seed, force bool) int {
+	return runInitFleet(r, promptW, dir, managedInit{enabled: managed}, webCertAddr, webCertName, seed, force)
+}
+
+// runInitFleet is runInit with everything ze init was told about managed mode.
+func runInitFleet(r io.Reader, promptW io.Writer, dir string, fleet managedInit, webCertAddr, webCertName string, seed, force bool) int {
 	path := filepath.Join(dir, "database")
 	if seed {
 		path = filepath.Join(dir, "database.zefs")
@@ -315,13 +422,13 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 		}
 		return storage.CreatePopulated(dir, populate)
 	}
-	return runInitPublished(r, promptW, path, managed, webCertAddr, webCertName, seed, publish)
+	return runInitPublishedProfile(r, promptW, path, fleet, webCertAddr, webCertName, seed, publish, initDiscover)
 }
 
 // runInitPublished shares credential population between ordinary init and the
 // descriptor-bound session entry. Only the publication operation differs.
 func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error)) int {
-	return runInitPublishedProfile(r, promptW, path, managed, webCertAddr, webCertName, seed, publish, initDiscover)
+	return runInitPublishedProfile(r, promptW, path, managedInit{enabled: managed}, webCertAddr, webCertName, seed, publish, initDiscover)
 }
 
 type initProfile uint8
@@ -336,10 +443,10 @@ func runInstallInit(r io.Reader, promptW io.Writer, dir string) int {
 	publish := func(populate func(storage.Storage) error) (storage.Storage, error) {
 		return storage.CreatePopulated(dir, populate)
 	}
-	return runInitPublishedProfile(r, promptW, filepath.Join(dir, "database"), false, "", "", false, publish, initLocalService)
+	return runInitPublishedProfile(r, promptW, filepath.Join(dir, "database"), managedInit{}, "", "", false, publish, initLocalService)
 }
 
-func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, managed bool, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error), profile initProfile) int {
+func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet managedInit, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error), profile initProfile) int {
 	// Read credentials (with optional prompts)
 	scanner := bufio.NewScanner(r)
 
@@ -355,6 +462,19 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, manage
 	port := promptAndRead(scanner, promptW, "port [2222]: ")
 	defaultName, _ := os.Hostname()
 	name := promptAndRead(scanner, promptW, fmt.Sprintf("name [%s]: ", defaultName))
+	managed := fleet.enabled
+	// A managed client is asked where its hub is and what it authenticates
+	// with. Both may be left empty: the first start then names them with
+	// --server and --token.
+	var hubAddress, hubToken string
+	if managed {
+		hubAddress = promptAndRead(scanner, promptW, "hub address (host:port), empty to give it at the first start: ")
+		if promptW != nil && r == os.Stdin && isTerminal(os.Stdin) {
+			hubToken = readPassword(promptW, "hub token: ")
+		} else {
+			hubToken = promptAndRead(scanner, promptW, "hub token: ")
+		}
+	}
 
 	// Check for I/O errors during reading
 	if err := scanner.Err(); err != nil {
@@ -369,6 +489,20 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, manage
 	}
 	if password == "" {
 		fmt.Fprintf(os.Stderr, "error: password is required\n")
+		return 1
+	}
+
+	if hubAddress != "" {
+		if _, _, err := net.SplitHostPort(hubAddress); err != nil {
+			fmt.Fprintln(os.Stderr, opererr.New("the hub address "+strconv.Quote(hubAddress)+" is not host:port",
+				"the first start connects to that address", "ze init --managed   (then enter the hub as host:port, such as 10.0.0.1:1791)"))
+			return 1
+		}
+	}
+	if tokenTooShort(hubToken) {
+		fmt.Fprintln(os.Stderr, opererr.New("the hub token is shorter than 32 characters",
+			"a hub accepts no shorter secret for a client, so this one could never authenticate",
+			"ze init --managed   (then enter the secret of this client's entry under plugin hub server on the hub)"))
 		return 1
 	}
 
@@ -431,6 +565,21 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, manage
 		}
 		if name != "" {
 			entries = append(entries, entry{keyIdentityName, name})
+		}
+		// What the first start of a managed client needs before it holds a
+		// config: where the hub is, what to authenticate with, and how to
+		// authenticate the hub. Each is written only when it was given.
+		if hubAddress != "" {
+			entries = append(entries, entry{zefs.KeyManagedHubAddress.Pattern, hubAddress})
+		}
+		if hubToken != "" {
+			entries = append(entries, entry{zefs.KeyManagedHubToken.Pattern, hubToken})
+		}
+		if len(fleet.hubCA) != 0 {
+			entries = append(entries, entry{zefs.KeyManagedHubCA.Pattern, string(fleet.hubCA)})
+		}
+		if fleet.trustFirstUse {
+			entries = append(entries, entry{zefs.KeyManagedHubTrust.Pattern, zefs.ManagedHubTrustFirstUse})
 		}
 
 		for _, e := range entries {

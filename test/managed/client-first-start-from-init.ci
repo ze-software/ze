@@ -1,0 +1,48 @@
+# Test: a managed client provisioned by `ze init --managed` alone follows its hub
+#
+# QUESTION: does a managed client that `ze init --managed` provisioned, and
+#           nothing else, fetch its config from a real hub on a plain
+#           `ze start` and keep following that hub, authenticating it by the
+#           root the operator gave (--hub-ca) or by the authority the hub
+#           presented once (--hub-trust-first-use)?
+#           (docs/architecture/fleet-config.md, "First start trust".)
+# WHY NOT A UNIT TEST: the answer is a path across two daemons and three
+#           commands. `ze init` writes the hub address, the token and the trust
+#           choice into the store; `ze start` reads them back, fetches, caches
+#           and boots; the running client then connects a second time with the
+#           root the store holds; and the hub has to present its authority
+#           after its certificate for first use to have anything to keep. Unit
+#           tests prove each piece and not that they meet.
+#
+# VALIDATES: with no --server, --name or --token and no ze.managed override,
+#            the daemon becomes ready, its store caches the config the hub
+#            serves it, and its running managed client authenticates to the hub
+#            again. With --hub-trust-first-use the daemon also reports the
+#            authority it trusted, and its store then holds the hub's root in
+#            meta/managed/hub/ca.
+# PREVENTS: a first start that still needs --server and --token after
+#           `ze init --managed` asked for both; a first fetch that works and a
+#           running client that then cannot authenticate its hub because the
+#           fetched config names no `ca`; and a client that verifies nothing.
+#           The third client is that control: the same provisioning with
+#           neither flag, where `ze start` MUST exit non-zero over the hub's
+#           certificate and cache no config.
+#
+# Both ends are `ze start`. The hub's managed server block names no
+# `certificate`, so the leaf it presents is one its own authority issued.
+#
+# $PORT is the hub's plugin transport, $PORT2 its managed listener, and $PORT3
+# the plugin transport of the clients, which run one after the other.
+#
+# test/managed/client-first-boot.ci holds the row where the store names no hub
+# and `ze start` exits non-zero. test/managed/managed-hub-ca-trust.ci holds a
+# client whose cached config names the hub root in a `pki ca` block.
+#
+# The assertions are compiled because the verdicts are the client's own store
+# and log: internal/test/fixture/misc_fixture_managed_first_start.go.
+
+option=timeout:value=240s
+
+cmd=foreground:seq=1:exec=le test fixture managed/client-first-start-from-init -hub-plugin-port $PORT -hub-managed-port $PORT2 -client-plugin-port $PORT3:timeout=240s
+expect=exit:code=0
+expect=stderr:contains=OK: a managed client provisioned by ze init --managed alone fetched its config and kept following its hub

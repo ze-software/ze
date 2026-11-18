@@ -2750,19 +2750,24 @@ are durable. An existing tree or blob refuses initialization.
 ```
 ze init                          # Interactive setup
 ze init --managed                # Fleet mode
+ze init --managed --hub-ca hub-root.pem   # Fleet mode, with the hub's root
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
 ze init --from https://provision.example.net/install/database.zefs --sha256 <hex>
 ze init --from tftp://192.0.2.1/install/database.zefs --sha256 <hex>
 ```
 
-Input fields are username, password, host, port, and instance name.
+Input fields are username, password, host, port, and instance name. With
+`--managed` two more follow: the hub address as `host:port`, and this client's
+secret on the hub. Both may be empty ([Fleet configuration](fleet-config.md)).
 The default host is `127.0.0.1`, the port is `2222`, and the name is the hostname.
 Normal initialization discovers interfaces and stores their initial config.
 
 | Flag | Purpose |
 |------|---------|
 | `--managed` | Enable managed configuration |
+| `--hub-ca <file>` | With `--managed`: the hub's root, one PEM certificate of a certificate authority. The client checks its hub against it |
+| `--hub-trust-first-use` | With `--managed`: keep the certificate authority the hub presents on the first connection. Cannot be given with `--hub-ca` |
 | `--force` | Preserve the old store as `.replaced-<stamp>` before replacement |
 | `--yes` | Skip the replacement confirmation |
 | `--web-cert <address>` | Generate a web TLS certificate |
