@@ -54,8 +54,10 @@ func parseSessionTeardownRequest(args []string) (sessionTeardownRequest, *operer
 		if index == len(args) {
 			return sessionTeardownRequest{}, sessionTeardownInputError(nil, fmt.Sprintf("L2TP disconnect keyword %q requires a value", keyword))
 		}
-		if isSessionTeardownKeyword(args[index]) {
-			return sessionTeardownRequest{}, sessionTeardownInputError(nil, fmt.Sprintf("L2TP disconnect keyword %q requires a value", keyword))
+		if keyword != argListener {
+			if isSessionTeardownKeyword(args[index]) {
+				return sessionTeardownRequest{}, sessionTeardownInputError(nil, fmt.Sprintf("L2TP disconnect keyword %q requires a value", keyword))
+			}
 		}
 		if isDisconnectAuditKeyword(keyword) {
 			audit = append(audit, keyword, args[index])

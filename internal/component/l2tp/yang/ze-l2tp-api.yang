@@ -23,6 +23,29 @@ module ze-l2tp-api {
     // carrying the JSON payload; the CLI handler renders it directly.
     // -----------------------------------------------------------------
 
+    grouping session-read-qualifiers {
+        description "Optional filters select one original session before its snapshot,
+history or counters are read. They never authorize a second numeric lookup.";
+        leaf tunnel-id {
+            type uint16 { range "1..65535"; }
+            description "Restrict selection to the local tunnel carrying the original session.
+A session ID shared by several tunnels requires this qualifier.";
+            ze:help "Original local tunnel ID.";
+        }
+        leaf listener {
+            type string { length "1..253"; }
+            description "Configured listener name or bound IP:port from the listener inventory.
+Equal session and tunnel IDs on different listeners require this qualifier.";
+            ze:help "Configured listener name or bound IP:port.";
+        }
+        leaf expected-id {
+            type string { length "37"; pattern 'l2tp-[0-9a-f]{32}'; }
+            description "Require the displayed immutable original reference. An ended
+original refuses instead of selecting a replacement with the same numeric IDs.";
+            ze:help "Require the displayed immutable session reference.";
+        }
+    }
+
     rpc summary {
         description "The payload carries tunnel-count, session-count, listener-count, and
 captured-at, which is the UTC time of the snapshot. When the L2TP subsystem is
@@ -101,18 +124,18 @@ value as expected-id for a guarded disconnect.";
     }
 
     rpc session {
-        description "The ID reaches the handler as the 'id' selector or as a bare argument. The
-answer is the detail form of the session. An unknown ID is refused with 'no
-session with local-sid'.";
-        ze:help "Return one session by local session ID.";
+        description "Captures one original session and returns its detail. An ambiguous
+session ID requires tunnel and listener qualifiers; an ended original refuses.";
+        ze:help "Return one original session selected by its readable coordinates.";
         input {
             leaf session-id {
-                type uint16;
+                type uint16 { range "1..65535"; }
                 mandatory true;
                 description "The ID Ze assigned to the session, as a decimal number. It is the local-sid
 value of a 'sessions' row. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local session ID (1..65535).";
             }
+            uses session-read-qualifiers;
         }
         output {
             leaf session {
@@ -175,17 +198,18 @@ in seconds, and listeners is an array of bound addresses as text.";
     // -----------------------------------------------------------------
 
     rpc observer {
-        description "With a session-id argument, returns the full event list. With
-'all', returns a summary of every active session ring.";
+        description "With a session ID and optional tunnel/listener qualifiers, captures
+one original and returns its full event list. Omit the ID for the ring summary.";
         ze:help "Return per-session event ring snapshot.";
         input {
             leaf session-id {
-                type uint16;
+                type uint16 { range "1..65535"; }
                 description "A decimal local session ID selects the event ring of that one session.
 'all' or no argument selects the summary of every ring. A session with no ring
 is refused with 'no observer data'.";
                 ze:help "Local session ID (1..65535), or omit for 'all'.";
             }
+            uses session-read-qualifiers;
         }
         output {
             leaf observer {
@@ -307,12 +331,13 @@ session with local-sid'.";
         ze:help "Return FSM transition history for a session.";
         input {
             leaf session-id {
-                type uint16;
+                type uint16 { range "1..65535"; }
                 mandatory true;
                 description "The ID Ze assigned to the session whose transitions are wanted, as a
 decimal number. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local session ID (1..65535).";
             }
+            uses session-read-qualifiers;
         }
         output {
             leaf history {
@@ -458,6 +483,32 @@ and sessions-cleared is a count that is 0 when no session was live.";
     // -----------------------------------------------------------------
     // Operator-initiated calls (spec-followup-l2tp-call AC-4).
     // -----------------------------------------------------------------
+
+    rpc session-traffic {
+        description "Returns raw counters through each selected original's captured
+PPP control. Omit the ID for all current sessions. An unavailable diagnostic
+counter is null; a measured zero is numeric zero. No interface-name relookup
+can substitute a replacement's measurements.";
+        ze:help "Return captured-original traffic counters for one session or all sessions.";
+        input {
+            leaf session-id {
+                type uint16 { range "1..65535"; }
+                description "The local session ID whose original counters are wanted.
+Omit it for the current session inventory, preserving per-row read failures.";
+                ze:help "Local session ID, or omit for the current inventory.";
+            }
+            uses session-read-qualifiers;
+        }
+        output {
+            leaf traffic {
+                type string;
+                description "One row or a sessions array with original coordinates, PPP
+interface label, raw bytes and packets, and individually available diagnostics.
+A failed row retains its original coordinates and explicit error.";
+                ze:help "JSON traffic rows with original identity and measurement availability.";
+            }
+        }
+    }
 
     rpc outgoing-call {
         description "Dials the remote if no tunnel is up, sends OCRQ, and blocks

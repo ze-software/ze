@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -77,21 +75,21 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnels", Handler: handleTunnels},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel", Handler: handleTunnel},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:sessions", Handler: handleSessions},
-		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session", Handler: handleSession},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session", Handler: handleSession, Complete: completeSessionRead},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:statistics", Handler: handleStatistics},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:listeners", Handler: handleListeners},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:config", Handler: handleConfig},
-		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:observer", Handler: handleObserver},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:observer", Handler: handleObserver, Complete: completeSessionRead},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:cqm", Handler: handleCQM},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:echo", Handler: handleEcho},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:reliable", Handler: handleReliable},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-history", Handler: handleTunnelHistory},
-		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-history", Handler: handleSessionHistory},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-history", Handler: handleSessionHistory, Complete: completeSessionRead},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown", Handler: handleTunnelTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown", Handler: handleSessionTeardown, Complete: completeSessionTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown-all", Handler: handleSessionTeardownAll},
-		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-traffic", Handler: handleSessionTraffic},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-traffic", Handler: handleSessionTraffic, Complete: completeSessionRead},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:outgoing-call", Handler: handleOutgoingCall},
 	)
 }
@@ -179,18 +177,17 @@ func handleSessions(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*p
 
 // handleSession returns one session by ID.
 func handleSession(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	sid, err := parseIDArg(idSelectorArgs(ctx, args), argSessionID)
-	if err != nil {
-		return errResponse(err), nil
-	}
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
 	}
-	ss, ok := svc.LookupSession(sid)
-	if !ok {
-		return errResponse(fmt.Errorf("l2tp: no session with local-sid=%d", sid)), nil
+	captured, _, refusal := captureSessionRead(svc, idSelectorArgs(ctx, validated.Tokens()))
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
+	}
+	ss, err := captured.Snapshot()
+	if err != nil {
+		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session is no longer available")), nil
 	}
 	return jsonResponse("l2tp session", sessionJSON(&ss, true))
 }
@@ -263,14 +260,17 @@ func handleConfig(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plu
 // Diagnostic handlers (spec-diag-1-runtime-state)
 // -----------------------------------------------------------------
 
-func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
+func handleObserver(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := idSelectorArgs(ctx, validated.Tokens())
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
 	}
 	arg := firstPositionalArg(args)
 	if arg == argAll || arg == "" {
+		if len(args) > 1 {
+			return plugin.OperatorErrorResponse(sessionReadError(nil, "L2TP observer summary accepts no session qualifiers")), nil
+		}
 		summaries := svc.SessionSummaries()
 		if summaries == nil {
 			return errResponse(errL2tpObserverNotEnabledCqmDisabled), nil
@@ -295,24 +295,16 @@ func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedA
 			keyCount:   len(out),
 		})
 	}
-	sid, err := parseIDArg(args, argSessionID)
-	if err != nil {
-		return errResponse(err), nil
-	}
-	captured, err := svc.CaptureSession(l2tp.SessionSelector{SID: sid})
-	if err != nil {
-		return plugin.OperatorErrorResponse(opererr.Wrap(err,
-			fmt.Sprintf("L2TP session %d history could not be selected", sid),
-			"The session is absent or its readable ID is ambiguous", "show l2tp sessions")), nil
+	captured, sid, refusal := captureSessionRead(svc, args)
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
 	}
 	events, err := captured.SessionEvents()
 	if err != nil {
-		return plugin.OperatorErrorResponse(opererr.Wrap(err,
-			fmt.Sprintf("L2TP session %d history is no longer available", sid),
-			"The captured original session has ended", "show l2tp sessions")), nil
+		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session history is no longer available")), nil
 	}
 	if events == nil {
-		return errResponse(fmt.Errorf("l2tp: no observer data for session %d", sid)), nil
+		return plugin.OperatorErrorResponse(sessionReadError(nil, "The captured L2TP session has no observer data")), nil
 	}
 	out := make([]map[string]any, 0, len(events))
 	for i := range events {
@@ -339,9 +331,12 @@ func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedA
 		out = append(out, m)
 	}
 	return jsonResponse("l2tp observer", map[string]any{
-		keySessionID: int(sid),
-		"events":     out,
-		keyCount:     len(out),
+		keySessionID:    int(sid),
+		"subscriber-id": captured.Birth(),
+		"listener":      originalReadListener(captured.Listener()),
+		keyTunnelID:     observerReadTunnel(events),
+		"events":        out,
+		keyCount:        len(out),
 	})
 }
 
@@ -482,21 +477,31 @@ func handleTunnelHistory(_ *pluginserver.CommandContext, validated command.Valid
 	return jsonResponse("l2tp tunnel history", fsmTransitionsJSON(history))
 }
 
-func handleSessionHistory(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	sid, err := parseIDArg(args, argSessionID)
-	if err != nil {
-		return errResponse(err), nil
-	}
+func handleSessionHistory(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
 	}
-	history := svc.SessionFSMHistory(sid)
-	if history == nil {
-		return errResponse(fmt.Errorf("l2tp: no session with local-sid=%d", sid)), nil
+	captured, _, refusal := captureSessionRead(svc, idSelectorArgs(ctx, validated.Tokens()))
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
 	}
-	return jsonResponse("l2tp session history", fsmTransitionsJSON(history))
+	ss, err := captured.Snapshot()
+	if err != nil {
+		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session is no longer available")), nil
+	}
+	history, err := captured.FSMHistory()
+	if err != nil {
+		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session transitions are no longer available")), nil
+	}
+	row := fsmTransitionsJSON(history)
+	row["subscriber-id"] = ss.SubscriberID
+	row[keySessionID] = int(ss.LocalSID)
+	row[keyTunnelID] = int(ss.TunnelLocalTID)
+	if ss.Listener.IsValid() {
+		row["listener"] = ss.Listener.String()
+	}
+	return jsonResponse("l2tp session history", row)
 }
 
 func fsmTransitionsJSON(transitions []l2tp.FSMTransition) map[string]any {
@@ -665,6 +670,12 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 	if s.Birth.IsValid() {
 		m["birth"] = s.Birth.String()
 	}
+	if s.Listener.IsValid() {
+		m["listener"] = s.Listener.String()
+	}
+	if s.SubscriberID != "" {
+		m["subscriber-id"] = s.SubscriberID
+	}
 	// A session may exist before LCP opens or while it renegotiates. Keep
 	// unknown distinct from an agreed no-auth method and from local config.
 	m["mru"] = nil
@@ -806,8 +817,8 @@ func parseKeywordArgs(args []string) (actor, reason string, cause uint32, err er
 // Per-session traffic handler (diag-0 remaining gap)
 // -----------------------------------------------------------------
 
-func handleSessionTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
+func handleSessionTraffic(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := idSelectorArgs(ctx, validated.Tokens())
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -815,20 +826,19 @@ func handleSessionTraffic(_ *pluginserver.CommandContext, validated command.Vali
 
 	arg := firstPositionalArg(args)
 	if arg == "" || arg == argAll {
+		if len(args) > 1 {
+			return plugin.OperatorErrorResponse(sessionReadError(nil, "L2TP traffic summary accepts no session qualifiers")), nil
+		}
 		return sessionTrafficAll(svc)
 	}
 
-	sid, err := parseIDArg(args, argSessionID)
-	if err != nil {
-		return errResponse(err), nil
+	captured, _, refusal := captureSessionRead(svc, args)
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
 	}
-	ss, ok := svc.LookupSession(sid)
-	if !ok {
-		return errResponse(fmt.Errorf("l2tp: session %d not found", sid)), nil
-	}
-	row, err := sessionTrafficRow(ss)
+	row, err := sessionTrafficRow(captured)
 	if err != nil {
-		return errResponse(err), nil
+		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session traffic is no longer available")), nil
 	}
 	return jsonResponse("l2tp session-traffic", row)
 }
@@ -842,12 +852,27 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 			if ss.PppInterface == "" {
 				continue
 			}
-			row, err := sessionTrafficRow(ss)
+			if !ss.Birth.IsValid() {
+				rows = append(rows, map[string]any{
+					keySessionID: int(ss.LocalSID), keyTunnelID: int(ss.TunnelLocalTID),
+					"ppp-interface": ss.PppInterface,
+					"error":         sessionReadError(nil, "The inventory row has no original session reference").Error(),
+				})
+				continue
+			}
+			captured, err := svc.CaptureSession(l2tp.SessionSelector{SID: ss.LocalSID, TID: ss.TunnelLocalTID, Listener: ss.Listener, Birth: ss.Birth})
+			var row map[string]any
+			if err == nil {
+				row, err = sessionTrafficRow(captured)
+			}
 			if err != nil {
 				row = map[string]any{
 					keySessionID:    int(ss.LocalSID),
+					keyTunnelID:     int(ss.TunnelLocalTID),
+					"subscriber-id": ss.SubscriberID,
+					"listener":      originalReadListener(ss.Listener),
 					"ppp-interface": ss.PppInterface,
-					"error":         err.Error(),
+					"error":         sessionReadError(err, "The original L2TP session traffic could not be read").Error(),
 				}
 			}
 			rows = append(rows, row)
@@ -859,25 +884,32 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 	})
 }
 
-func sessionTrafficRow(ss l2tp.SessionSnapshot) (map[string]any, error) {
+func sessionTrafficRow(captured l2tp.CapturedSession) (map[string]any, error) {
+	ss, err := captured.Snapshot()
+	if err != nil {
+		return nil, err
+	}
 	if ss.PppInterface == "" {
 		return nil, fmt.Errorf("l2tp: session %d has no PPP interface", ss.LocalSID)
 	}
-	stats, err := iface.GetStats(ss.PppInterface)
+	stats, err := captured.Counters()
 	if err != nil {
-		return nil, fmt.Errorf("l2tp: stats for %s: %w", ss.PppInterface, err)
+		return nil, err
 	}
 	return map[string]any{
 		keySessionID:    int(ss.LocalSID),
+		keyTunnelID:     int(ss.TunnelLocalTID),
+		"subscriber-id": ss.SubscriberID,
+		"listener":      originalReadListener(ss.Listener),
 		"ppp-interface": ss.PppInterface,
 		"rx-bytes":      stats.RxBytes,
 		"tx-bytes":      stats.TxBytes,
 		"rx-packets":    stats.RxPackets,
 		"tx-packets":    stats.TxPackets,
-		"rx-errors":     stats.RxErrors,
-		"tx-errors":     stats.TxErrors,
-		"rx-dropped":    stats.RxDropped,
-		"tx-dropped":    stats.TxDropped,
+		"rx-errors":     sessionCounterJSON(stats.RxErrors),
+		"tx-errors":     sessionCounterJSON(stats.TxErrors),
+		"rx-dropped":    sessionCounterJSON(stats.RxDropped),
+		"tx-dropped":    sessionCounterJSON(stats.TxDropped),
 	}, nil
 }
 

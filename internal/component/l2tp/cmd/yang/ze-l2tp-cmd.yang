@@ -5,6 +5,7 @@ module ze-l2tp-cmd {
     import ze-extensions    { prefix ze; }
     import ze-cli-show-cmd  { prefix clishowcmd; }
     import ze-cli-clear-cmd { prefix cliclearcmd; }
+    import ze-l2tp-api { prefix l2tpapi; }
 
     description
         "L2TP tunnel and session operations for BNG subscriber access.
@@ -115,35 +116,65 @@ subscriber login, and uptime.";
                     config false;
                     ze:command "ze-l2tp:session";
                     ze:rpc "ze-l2tp-api:session";
-                    description "Pass the local session ID. Returns PPP state,
-assigned addresses, negotiated LCP/NCP options, and traffic counters.";
+                    description "Capture one original by session ID, with tunnel-id and listener
+qualifiers when the ID is shared. Returns its PPP state and assigned addresses.";
                     ze:help "Show full detail for one L2TP session.";
                     leaf id {
-                        type string;
+                        type uint16 { range "1..65535"; }
                         mandatory true;
                         description "The decimal local session ID from the show l2tp session table. Zero is
 refused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with
 local-sid'.";
                         ze:help "Local session ID.";
                     }
+                    uses l2tpapi:session-read-qualifiers;
                 }
 
                 container history {
                     config false;
-                    ze:command "ze-l2tp:session-history";
-                    ze:rpc "ze-l2tp-api:session-history";
                     description "Timestamped FSM entries for session establishment.
 Use this when a subscriber's session fails to come up.";
                     ze:help "Show state transitions for a session over time.";
+                    container id {
+                        config false;
+                        ze:command "ze-l2tp:session-history";
+                        ze:rpc "ze-l2tp-api:session-history";
+                        description "Read the transition history of one captured original.
+Qualify an ambiguous session ID with tunnel-id and listener.";
+                        ze:help "Select one original session's transitions.";
+                        leaf id {
+                            type uint16 { range "1..65535"; }
+                            mandatory true;
+                            description "The local session ID whose original FSM history is wanted.";
+                            ze:help "Local session ID.";
+                        }
+                        uses l2tpapi:session-read-qualifiers;
+                    }
                 }
 
                 container traffic {
                     config false;
                     ze:command "ze-l2tp:session-traffic";
+                    ze:rpc "ze-l2tp-api:session-traffic";
                     description "Returns byte and packet counts, error counters, and
 current rates. Compare with CQM data to get the full picture of subscriber
 health.";
                     ze:help "Show traffic counters for a subscriber's PPP interface.";
+                    container id {
+                        config false;
+                        ze:command "ze-l2tp:session-traffic";
+                        ze:rpc "ze-l2tp-api:session-traffic";
+                        description "Read counters from one captured original PPP control.
+Qualify an ambiguous session ID with tunnel-id and listener.";
+                        ze:help "Select one original session's traffic counters.";
+                        leaf id {
+                            type uint16 { range "1..65535"; }
+                            mandatory true;
+                            description "The local session ID whose original counters are wanted.";
+                            ze:help "Local session ID.";
+                        }
+                        uses l2tpapi:session-read-qualifiers;
+                    }
                 }
             }
 
@@ -182,6 +213,28 @@ overrides. Confirms what the daemon uses.";
                 description "Returns the event ring buffer for one session ID or
 'all'. Use it to find why a session failed to establish.";
                 ze:help "Show recent events for a session (debug aid).";
+                container id {
+                    config false;
+                    ze:command "ze-l2tp:observer";
+                    ze:rpc "ze-l2tp-api:observer";
+                    description "Read the bounded event ring of one captured original.
+Qualify a shared session ID with tunnel-id and listener.";
+                    ze:help "Select one original session's event history.";
+                    leaf id {
+                        type uint16 { range "1..65535"; }
+                        mandatory true;
+                        description "The local session ID whose original event ring is wanted.";
+                        ze:help "Local session ID.";
+                    }
+                    uses l2tpapi:session-read-qualifiers;
+                }
+                container all {
+                    config false;
+                    ze:command "ze-l2tp:observer";
+                    ze:rpc "ze-l2tp-api:observer";
+                    description "Return the summary of every current event ring with its original identity.";
+                    ze:help "Summarize all current event rings.";
+                }
             }
 
             container cqm {

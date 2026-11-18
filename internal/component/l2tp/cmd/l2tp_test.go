@@ -311,10 +311,12 @@ func TestSessionJSONMRUAndAuthMethod(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ss := l2tppkg.SessionSnapshot{LocalSID: 42, MRU: tc.mru, AuthMethod: tc.method}
-			publishFake(t, &fakeService{
-				config:        l2tppkg.ConfigSnapshot{MRU: 1492, AuthMethod: "chap-md5", AuthAllow: []string{"chap-md5", "pap"}},
-				snapshot:      l2tppkg.Snapshot{Tunnels: []l2tppkg.TunnelSnapshot{{Sessions: []l2tppkg.SessionSnapshot{ss}}}},
-				lookupSession: func(id uint16) (l2tppkg.SessionSnapshot, bool) { return ss, id == ss.LocalSID },
+			publishFake(t, &snapshotReadService{
+				fakeService: &fakeService{
+					config:   l2tppkg.ConfigSnapshot{MRU: 1492, AuthMethod: "chap-md5", AuthAllow: []string{"chap-md5", "pap"}},
+					snapshot: l2tppkg.Snapshot{Tunnels: []l2tppkg.TunnelSnapshot{{Sessions: []l2tppkg.SessionSnapshot{ss}}}},
+				},
+				captured: cqmCommandCapture{snapshot: ss},
 			})
 			detail, err := handleSession(nil, commandtest.Args("42"))
 			if err != nil {

@@ -487,7 +487,7 @@ func l2tpHistoryShow09(ctx context.Context, _ []string) error {
 		}
 		localSID := number09(map09(sessions[0])["local-sid"])
 		localTID := number09(map09(tunnels[0])["local-tid"])
-		sh := dispatch09(ctx, p, fmt.Sprintf("show l2tp session history %d", localSID))
+		sh := dispatch09(ctx, p, fmt.Sprintf("show l2tp session history id %d", localSID))
 		if !done09(sh) {
 			return fmt.Errorf("session history: %s", sh.text)
 		}
@@ -495,7 +495,7 @@ func l2tpHistoryShow09(ctx context.Context, _ []string) error {
 		if !ok {
 			return fmt.Errorf("session history missing transitions: %s", sh.text)
 		}
-		traffic := dispatch09(ctx, p, fmt.Sprintf("show l2tp session traffic %d", localSID))
+		traffic := dispatch09(ctx, p, fmt.Sprintf("show l2tp session traffic id %d", localSID))
 		if !done09(traffic) && !strings.Contains(traffic.text, "PPP interface") {
 			return fmt.Errorf("session traffic did not reach handler: %s", traffic.text)
 		}

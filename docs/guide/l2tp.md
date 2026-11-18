@@ -301,12 +301,35 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
+| `show l2tp session id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | One captured original's detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
+| `show l2tp session history id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's state transitions |
+| `show l2tp session traffic id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's raw traffic counters |
+| `show l2tp session traffic` | Traffic for the current inventory, retaining an error row if an original ended |
+| `show l2tp observer id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's event history |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
 | `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |
 
 <!-- source: internal/component/l2tp/cmd/l2tp.go -->
+
+A bare session ID is useful only when it identifies one original. If the ID
+occurs on several tunnels, add `tunnel-id`; if those coordinates also occur
+on several listeners, add the configured listener name or its bound IP:port.
+An ambiguous request refuses and lists the available qualifying commands.
+Reads and clear capture one original before reading or acting. An optional
+`expected-id <birth>` on a single-session read requires the displayed immutable
+reference; an ended original refuses instead of reading a same-label successor.
+Malformed or duplicate qualifiers refuse before selection. Tab completion
+offers the current listener names after `listener`.
+<!-- source: internal/component/l2tp/cmd/session_read.go -- captureSessionRead, completeSessionRead -->
+
+Session traffic reads the captured original PPP control. The interface name
+in the result is a label, never a second counter lookup. All byte, packet,
+error and drop keys remain present. Each unavailable diagnostic is `null`;
+a measured zero is numeric zero. Aggregate traffic keeps the original row's
+identity and an error when that original can no longer be read, while other
+current originals remain useful.
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionTrafficRow, sessionTrafficAll -->
 
 `show l2tp config` reports the local requested `mru` (1500 when absent) and
 the effective `authentication-allow` list, including the method-dependent
@@ -352,6 +375,8 @@ Supplied `actor` and `reason` values contain 1–256 Unicode characters. A
 Session list and detail rows include `birth` only when their original snapshot
 has a valid immutable reference. Copy that complete value for `expected-id`;
 a numeric SID is not a substitute, and an absent reference is never invented.
+They include the original bound `listener` endpoint when available, alongside
+the local session and tunnel IDs, so the readable qualifiers can be copied.
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
 
 The listener inventory retains each original reactor's cached server name and

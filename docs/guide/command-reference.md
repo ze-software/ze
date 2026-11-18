@@ -4152,7 +4152,10 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp statistics` | run | Protocol counters |
 | `show l2tp listeners` | run | Bound UDP listener endpoints |
 | `show l2tp config` | run | Effective runtime configuration |
-| `show l2tp observer <sid>` | run | Capture one original session and read its event ring; ambiguous numeric IDs refuse |
+| `show l2tp observer id <sid> [tunnel-id <tid>] [listener <name-or-endpoint>]` | run | Capture one original session and read its event ring; ambiguous numeric IDs refuse |
+| `show l2tp session history id <sid> [tunnel-id <tid>] [listener <name-or-endpoint>]` | run | Read state transitions from the captured original |
+| `show l2tp session traffic id <sid> [tunnel-id <tid>] [listener <name-or-endpoint>]` | run | Read the captured original PPP counters; unavailable diagnostics are null |
+| `show l2tp session traffic` | run | Current inventory traffic; an ended original keeps an error row while survivors remain readable |
 | `show l2tp observer all` | run | Summary of current event rings, including complete subscriber references and original tunnel IDs |
 | `show l2tp cqm <login>` | run | Per-login CQM bucket history (100s echo RTT/loss aggregates) |
 | `show l2tp cqm summary` | run | Aggregate CQM state across all tracked logins |
@@ -4172,6 +4175,13 @@ The `clear l2tp session id` command accepts optional keyword arguments:
 
 `show l2tp sessions` and `show l2tp session id <sid>` include `birth` when the
 original snapshot carries a valid reference; an absent reference is omitted.
+The rows also expose the original bound `listener` endpoint when available.
+Every single-session read accepts `tunnel-id`, `listener` and an optional
+`expected-id`. Names resolve through the current listener inventory. A shared
+SID requires enough readable qualifiers to identify one original; refusal
+lists qualifying commands. Reads retain that capture for snapshots, history
+and original PPP counter access, so reusable labels never trigger a second
+lookup. Duplicate, missing or malformed qualifiers refuse before capture.
 The guard is optional for interactive use. Stale guards, ambiguous selections,
 unknown listener names, duplicate keywords and missing values refuse before
 audit or mutation. Tab after `listener` offers current original listener names.
