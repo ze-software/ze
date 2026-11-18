@@ -93,3 +93,39 @@ func TestAssetFindingsRefusesAnAssetPathOffThisPrefix(t *testing.T) {
 	require.Len(t, findings, 1)
 	assert.Contains(t, findings[0], "/lg/assets/")
 }
+
+// TestAssetFindingsLeavesANestedPackageToItsOwnScan puts a package that
+// serves its own asset tree in a directory under the scanned one.
+//
+// The fleet interface nests under the web package and serves /fleet/assets/.
+// Its templates are that package's to scan, against that package's served
+// filesystem. Read from the web package's root, each of its stylesheets is a
+// path off the web prefix, which the scan reports.
+//
+// VALIDATES: the scan reads the directory it is given and no package under
+// it, and still reads that directory's own templates.
+// PREVENTS: a nested package's asset paths reported against the asset tree of
+// the package above it.
+func TestAssetFindingsLeavesANestedPackageToItsOwnScan(t *testing.T) {
+	dir := writeAssetTempl(t, "package p\n"+
+		"templ a() {\n"+
+		"\t<script src=\"/assets/htmx.min.js\"></script>\n"+
+		"}\n")
+
+	nested := filepath.Join(dir, "nested")
+	require.NoError(t, os.Mkdir(nested, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(nested, "page.templ"), []byte("package nested\n"+
+		"templ b() {\n"+
+		"\t<link rel=\"stylesheet\" href=\"/nested/assets/shell.css\">\n"+
+		"}\n"), 0o600))
+
+	findings, refs, err := assetFindings(dir, "/assets/", servedAssets("htmx.min.js"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, refs, "the scanned directory's own reference is still resolved")
+	assert.Empty(t, findings)
+
+	findings, refs, err = assetFindings(nested, "/nested/assets/", servedAssets("shell.css"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, refs, "the nested package's own scan resolves its reference")
+	assert.Empty(t, findings)
+}

@@ -546,6 +546,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Fleet config | `docs/architecture/fleet-config.md` |
 | Web interface | `docs/architecture/web-interface.md` |
 | Web components | `docs/architecture/web-components.md` |
+| Fleet interface | `docs/architecture/fleet-interface.md` |
 | Chaos dashboard | `docs/architecture/chaos-web-dashboard.md` |
 | CI format | `docs/architecture/testing/ci-format.md` |
 | Interop testing | `docs/architecture/testing/interop.md` |
@@ -616,6 +617,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |
 | ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
+| fleet interface, /fleet/, fleetui, estate page, sample estate, ze_fleet_ui, ze_fleet_ui_sample, review build | `fleet-interface.md`, `internal/component/web/fleetui/` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
 | EVPN, MAC-IP | `wire/nlri.md`, `wire/nlri-evpn.md` |
@@ -665,6 +667,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | top run, top set, root completion, LineBehindTop | `docs/architecture/cli/command-completion.md` |
+| offline flag completion, FlagValueText, registered flag values, completion flag-value | `docs/architecture/cli/plugin-modes.md` (Offline flag completion), `docs/architecture/cli/command-completion.md` |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
 | BGP OPEN connection refusal, strict-BFD BGP hold expiry, doctor-bgp-open-connection-refused, doctor-bgp-bfd-wait-hold-expired | `docs/architecture/behavior/fsm-open-sent.md` (Connection diagnostics), `internal/component/bgp/reactor/session_problem_diagnostic.go` |
 | error inventory, user-visible messages, which errors name a fix, surface writer, ./le arch error-inventory | `docs/contributing/error-inventory.md`, `ai/rules/user-facing-errors.md` |

@@ -575,6 +575,27 @@ sibling.
 <!-- source: internal/test/markupcheck/assets.go -- AssertAssetsResolve -->
 <!-- source: internal/test/templcheck/templcheck.go -- AssertTyped -->
 
+A package nested under another carries its own guards. The asset guard and the
+typed-data guard read the directory they are given and no directory under it,
+because a nested package serves its own asset tree at its own prefix. The
+markup guard and the inline guard also read every directory under theirs. The
+fleet interface, `internal/component/web/fleetui`, serves `/fleet/assets/` and
+runs the four guards over itself in `guard_test.go`.
+
+The golden walk over a templ tree leaves out a directory below the package's
+own that holds a Go source file, with everything under it. That directory is
+another Go package: its components are its own symbols, which the spec of the
+package above cannot name and its capture cannot render. A nested directory
+with no Go source file is not a package, so a `.templ` file placed there is
+still demanded of the package above. A nested package's markup is captured
+only when that package declares a `golden.Set` of its own. The fleet package
+declares none today: `sample/handler_test.go` asserts what its shell names,
+not its bytes.
+<!-- source: internal/test/markupcheck/assets.go -- assetFindings -->
+<!-- source: internal/test/golden/golden.go -- holdsGoSource -->
+<!-- source: internal/test/templcheck/templcheck.go -- generatedFiles -->
+<!-- source: internal/component/web/fleetui/guard_test.go -- TestFleetTemplAssetsResolve, TestFleetViewDataIsTyped -->
+
 For candidate review, golden capture tests accept `-update-golden -golden-output
 <directory>`. The capture mirrors each fixture path under that directory and
 leaves the original fixture unchanged. Without `-update-golden`, comparison

@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 2/6 |
 | Handoff | - |
 | Updated | 2026-11-18 |
 
@@ -219,11 +219,11 @@ verb, no command and no stored format.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | unvalidated |
+| A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | unvalidated: confirmed by reading (`TemplateFileParser.Parse` keeps every line before `package` in `Header`, `generator.writeHeader` writes them before the package clause); the generation run is owed. Not load-bearing: the phase 1 finding below needs no build line in the package |
 | A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | A browser test that drags the edge | unvalidated |
-| A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | unvalidated |
-| A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | unvalidated |
-| A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | unvalidated |
+| A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | unvalidated: broken as worded, by reading. The generator derives a compound constraint only for a package it discovers (`discoverPlugins` over `pluginDirs`), and it does not discover this one, so nothing is derived. The fallback is lighter than stated: `sameFeatureImporter` exempts every file under the web package's directory, so the compound line is written by hand in the two hub import files only. The tier check run is owed |
+| A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | unvalidated: confirmed by reading (`startWebServer` sets `authWrap = zeweb.InsecureMiddleware`, and the route loop wraps `WrapAuth` with it); the review build is phase 5 |
+| A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | unvalidated: confirmed by reading. The asset check reads each listed directory with `os.ReadDir` and does not descend, so it never reads the fleet directory. The htmx check walks the web package recursively (`collectFiles`), so it reads the fleet directory with no new row. Both runs are owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -444,6 +444,30 @@ verb, no command and no stored format.
 
 - A gate declared in the manifest is on in every shipped build. A thing that must never ship is a tag outside the manifest, with a test that proves its absence.
 - The web package's components are private to it. A second interface that wants them either lives in that package or builds its own; sharing is a later, deliberate step.
+
+### Phase 1 findings (wiring)
+
+- No file of the fleet package or of the sample package carries a build line. The tier check asks for none (`sameFeatureImporter`), the web package's own files carry none, and the `zetest` precedent tags the importer only. The gate is the tagged blank import in the hub. This corrects the Required Reading constraint and the "Rule: build constraints" review row, which now apply to the two hub import files.
+- No tier manifest row is needed. `Classify` reads the top-level directories of `internal/component` only, and the web row covers the nested package. "Files to Modify" lists that file for no change.
+- Nesting under the web package put the fleet templates inside the web package's asset guard, whose walk was recursive: a `/fleet/assets/` path is a finding against the `/assets/` tree. `markupcheck.assetFindings` now reads the directory it is given and no package under it, with `TestAssetFindingsLeavesANestedPackageToItsOwnScan`. No template or `page_assets.go` existed under a guarded directory, so no existing coverage moved. The change to a shared guard is the main thread's to send to `ze-test-judge`.
+- The same nesting put `fleetui/shell.templ` inside the web package's golden walk: `TestWebGoldenOutput` demanded it of `webTemplGoldenSpec`, which cannot name another package's components. With `Ext` set, `golden.Set.Files` now leaves out a directory below `Dir` that holds a Go source file, and still demands a template in a nested directory that is no package (`TestFilesLeavesANestedPackageToItsOwnSet`, `TestFilesWalksEveryDirectoryOfATemplateFS`). The two callers, the web and looking-glass packages, hold no other nested `.templ` file, so no existing coverage moved. No rule obliges a templ package to carry a golden capture, and the fleet package declares none. The change to a shared guard is the main thread's to send to `ze-test-judge`.
+- A tag outside the manifest is linted by no pass until it joins the `capability` flavor of `internal/le/go/lint/matrix.go`. `ze_fleet_ui_sample` is added there, and the two pins in `parity_test.go` follow.
+- The fleet asset guard takes one prefix, `/fleet/assets/`. A fleet template that links the web package's `/assets/htmx.min.js` or uPlot is a finding until `AssertAssetsResolve` can be given a second served tree. Phase 3 owns that.
+- AC-8 says every shipped flavor names the fleet package. A flavor that does not link the hub cannot. `TestShippedZeLinksNoFleetSample` requires the sample package absent from every flavor and the fleet package present in at least one.
+- AC-7 says `/fleet/` receives the ordinary not-found answer. The web server's catch-all hands an unowned address to the fragment handler, so the answer is whatever that handler gives an unknown address, not necessarily 404.
+
+### Phase 2 findings (foundation: the interface and the pure logic)
+
+- The data source answers facts in separate lists (devices, open alarms, tasks), and the fleet package joins them once per request into one view per device. A device record carries no alarm or task count of its own, so a count on a card cannot disagree with the list beside it. This is input to `fleet-1`: its device record does not need those counts.
+- Each device line of the Needs attention card is counted by applying the filter its link carries, so "a count equals the rows its link opens" holds by construction for that card.
+- The umbrella's URL scheme does not say how the node of the devices that lack a label is addressed. A group segment with no `=` is that node: `/fleet/group/site/dashboard/`. An equals sign inside a key or a value is escaped, so the split is never ambiguous.
+- A fragment address is `/fleet/fragment/<name>/<page path>` with the page's view parameters, and `item` for a fragment a page holds several of. The umbrella fixes only the prefix. The address of the event stream carries nothing yet: the shell phase decides how a stream names its view.
+- The state column sorts by severity in this order: down, offline, diverged, degraded, unknown, healthy. The umbrella fixes the precedence that chooses a state and not the order a column sorts by. This order follows the alarm severities of `fleet-ui-5`.
+- A device whose health report holds a component state the hub does not know is Unknown, unless another component is down or degraded. The umbrella's table has no row for it.
+- The task state `fleet-ui-5` spells "Cancelled" is `Canceled` in the code and on the page: the repository's lint refuses the other spelling.
+- A sort column the table does not have is refused with the list of columns, like a malformed filter. The Boundary Tests table has no row for it.
+- The duration fields of the filter (`uptime`, `last-seen`) take a number and a unit, as in `last-seen:>1d`. `fleet-ui-2` lists the fields and gives no form for a duration.
+- An address with no `view` parameter asks for the tree view `site-role`, and a `view` that names no view is refused with the list of views. No tree is regrouped by a default in silence.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

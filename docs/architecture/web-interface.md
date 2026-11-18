@@ -107,6 +107,13 @@ candidate editing. Labels and CLI commands continue to show the literal key.
 <!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes -->
 
+The fleet interface owns one more prefix, `/fleet/`, with its assets at
+`/fleet/assets/`. Its package registers both routes through the web route
+registry, and the server mounts them only in a build that links a fleet data
+source, so a standard build answers `/fleet/` as it answers any address no
+route owns. The routes and their package are described in `fleet-interface.md`.
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered -->
+
 ## Offline backup workspace
 
 The registered `/backups/` subtree is an authenticated rendering and streaming

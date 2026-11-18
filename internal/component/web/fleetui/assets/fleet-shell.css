@@ -1,0 +1,269 @@
+/* Design: docs/architecture/fleet-interface.md -- fleet shell: theme variables and the four regions
+ *
+ * The colour, font and radius variables carry the names and the values the web
+ * stylesheet (internal/component/web/assets/style.css) declares, so both
+ * interfaces draw one theme. The spacing, sidebar and chart variables are the
+ * fleet interface's own. Below the variable blocks, no rule writes a colour:
+ * every colour is a variable, and every gap is one of the six spacing
+ * variables.
+ */
+
+/* --- Dark theme, the default --- */
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-surface: #1c2128;
+  --bg-inset: #010409;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  --accent: #58a6ff;
+  --accent-subtle: rgba(56, 139, 253, 0.1);
+  --border: #30363d;
+  --border-focus: #58a6ff;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #ff6b6b;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --font-mono: "Fira Code", "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
+  --radius: 6px;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --fleet-sidebar-width: 17rem;
+
+  --chart-1: var(--accent);
+  --chart-2: var(--success);
+  --chart-3: var(--warning);
+  --chart-4: var(--error);
+  --chart-5: #a371f7;
+  --chart-6: var(--text-secondary);
+}
+
+/* --- Light theme --- */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-surface: #f0f2f5;
+  --bg-inset: #e8eaed;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --accent: #0969da;
+  --accent-subtle: rgba(9, 105, 218, 0.1);
+  --border: #d0d7de;
+  --border-focus: #0969da;
+  --success: #1a7f37;
+  --warning: #9a6700;
+  --error: #cf222e;
+
+  --chart-5: #8250df;
+}
+
+/* --- Page --- */
+html {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+/* --- The four regions: header, sidebar, main pane, side panel --- */
+.fleet-shell {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--fleet-sidebar-width) minmax(0, 1fr) auto;
+  grid-template-rows: 2.5rem minmax(0, 1fr);
+  grid-template-areas:
+    "header  header header"
+    "sidebar main   panel";
+}
+
+.fleet-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  background: var(--bg-inset);
+}
+
+.fleet-sidebar {
+  grid-area: sidebar;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+}
+
+.fleet-main {
+  grid-area: main;
+  min-width: 0;
+  overflow: auto;
+}
+
+.fleet-side-panel {
+  grid-area: panel;
+  width: 22rem;
+  overflow: auto;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+}
+
+/* --- Header --- */
+.fleet-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1);
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.fleet-sidebar-toggle-mark {
+  display: block;
+  width: 1rem;
+  height: 0.75rem;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.fleet-product {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.fleet-hub-name {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.fleet-account {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+/* --- Sidebar --- */
+.fleet-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-sidebar-tab {
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.fleet-sidebar-tab--active {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-bottom-color: var(--accent);
+}
+
+.fleet-tree-list {
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+.fleet-tree-row {
+  height: 1.75rem;
+  padding: 0 var(--space-3);
+  font-size: 0.85rem;
+  line-height: 1.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Main pane --- */
+.fleet-object-header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-object-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.fleet-tab-row {
+  display: flex;
+  height: 2.25rem;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.fleet-tab--active {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-bottom-color: var(--accent);
+}
+
+.fleet-content {
+  padding: var(--space-3);
+}
+
+.fleet-device-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fleet-device {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 2.25rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-device-name {
+  font-family: var(--font-mono);
+}
+
+.fleet-tag {
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+}
+
+/* --- Focus: nothing is reachable by mouse only --- */
+.fleet-shell :focus-visible {
+  outline: 2px solid var(--border-focus);
+}

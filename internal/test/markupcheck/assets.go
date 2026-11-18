@@ -58,6 +58,12 @@ func namedAssets(path, body string) []string {
 // prefix is the URL prefix that filesystem is mounted at. A src or href naming
 // some other asset tree is a finding rather than a skip. It resolves against
 // nothing, and a scan that matched its own prefix alone would pass over it.
+//
+// The scan reads root itself and no directory under it. A subdirectory is
+// another Go package, which serves its own asset tree at its own prefix and
+// owes its own call: the fleet interface under internal/component/web/fleetui
+// serves /fleet/assets/, and read from the web package's root each of its
+// stylesheets would be a path off the web prefix.
 func assetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
 	var (
 		findings []string
@@ -72,7 +78,15 @@ func assetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
 			return walkErr
 		}
 
-		if d.IsDir() || (!strings.HasSuffix(path, ".templ") && !strings.HasSuffix(path, generatedAssets)) {
+		if d.IsDir() {
+			if path == "." {
+				return nil
+			}
+
+			return fs.SkipDir
+		}
+
+		if !strings.HasSuffix(path, ".templ") && !strings.HasSuffix(path, generatedAssets) {
 			return nil
 		}
 

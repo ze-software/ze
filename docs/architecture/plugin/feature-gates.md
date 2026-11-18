@@ -27,6 +27,13 @@ convention. The generator gates both `<pkg>` and `<pkg>/yang` when those
 packages are discovered: the direct package covers RPC and registration side
 effects, and the YANG package covers config or command schema.
 
+A row covers that package and its immediate `yang/` package. List the parent
+of a deeper schema package separately, even when it belongs to the same feature.
+For example, the PPP row keeps the shared LCP grouping under `ze_l2tp` with its
+L2TP and PPPoE server consumers.
+<!-- source: internal/le/plugin/imports/pluginimports.go -- gateTags, tagFor -->
+<!-- source: feature-gates.txt -- ze_l2tp PPP package -->
+
 ## Two readers, and everything else derives from them
 
 `internal/le/repo/featuretags` parses the manifest. `Gates` answers the `<tag> <pkg>`
@@ -429,6 +436,42 @@ splits such a tag's group by per-package constraint: `all_ze_radius.go` carries
 the plain tag with the independent imports, and `all_ze_radius_ze_l2tp.go`
 carries `//go:build ze_l2tp && ze_radius` with the nested subset. A tag whose
 packages all share one constraint keeps the single `all_<tag>.go` file.
+
+**A dependent gate no generator discovers (`ze_fleet_ui`).** The fleet web
+interface, `internal/component/web/fleetui`, nests under the `ze_web` package
+and imports it to register its routes. It registers web routes, not a plugin, a
+schema, an RPC or a command, so the generator finds nothing to import and
+writes no `all_ze_fleet_ui.go`. The hub links it from the hand-written
+`cmd/ze/hub/register_fleet_ui.go`, which holds the blank import only and
+carries the compound constraint by hand: `//go:build ze_web && ze_fleet_ui`.
+`./le arch tier check` requires that line to name `ze_fleet_ui`. It requires
+no build line inside the package: a file under a gated package's directory is
+a same-feature importer of that package, so the fleet files import the web
+package untagged, as the web package's own files are untagged. The present and
+dormant build-tag tests carry the compound constraint, and the absent test
+builds `ze_core ze_web` and requires a web symbol and no fleet symbol.
+<!-- source: cmd/ze/hub/register_fleet_ui.go -- the tagged blank import -->
+<!-- source: internal/le/arch/tier/gates.go -- disableableViolations, sameFeatureImporter, fileRequiresTag -->
+<!-- source: internal/le/plugin/imports/pluginimports.go -- pluginDirs, discoverPlugins -->
+<!-- source: cmd/ze/hub/build_tag_fleet_ui_absent_test.go -- TestBuildTag_FleetUI_AbsentBinaryDropsFleetSymbols -->
+
+**A tag outside the manifest (`ze_fleet_ui_sample`, `zetest`).** Every tag in
+`feature-gates.txt` is set by every shipped build, so code that must never
+ship is linked by a tag the manifest does not declare. `zetest` links the
+test-only plugins into the functional-test daemon
+(`cmd/ze/plugins_zetest.go`). `ze_fleet_ui_sample` links the sample data
+source of the fleet interface (`cmd/ze/hub/register_fleet_ui_sample.go`), and
+only a review build names it. Neither package carries a source build tag: the
+tagged blank import is the gate, so the packages still compile, lint and test
+with the tree. `TestShippedZeLinksNoFleetSample` lists the dependencies of
+every shipped flavor and refuses the sample package, and
+`TestFleetSampleTagLinksTheSample` proves the tag links it. Such a tag joins
+the `capability` flavor of the lint matrix, or the file that names it is
+linted by no pass.
+<!-- source: cmd/ze/hub/register_fleet_ui_sample.go -- the tagged blank import -->
+<!-- source: cmd/ze/plugins_zetest.go -- the tagged blank import -->
+<!-- source: cmd/ze/fleet_sample_absent_test.go -- TestShippedZeLinksNoFleetSample, TestFleetSampleTagLinksTheSample -->
+<!-- source: internal/le/go/lint/matrix.go -- flavorMatrix -->
 
 **Dependent files inside another feature.** When a feature of plugin A exists
 only because feature B exists, A's files carry B's tag and each one gets a

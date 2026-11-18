@@ -1,0 +1,81 @@
+// Design: docs/architecture/fleet-interface.md -- the fleet shell markup
+
+package fleetui
+
+// Shell renders one fleet page: the header, the sidebar, the main pane and the
+// side panel region. The stylesheet lays the four regions out, and the script
+// applies the theme the operator chose before the first paint.
+templ Shell(view ShellView) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<title>{ view.EstateName } - Ze Fleet</title>
+			<link rel="stylesheet" href="/fleet/assets/fleet-shell.css">
+			<script src="/fleet/assets/fleet.js"></script>
+		</head>
+		<body class="fleet-shell">
+			@shellHeader(view)
+			@shellSidebar(view)
+			@shellMain(view)
+			<aside class="fleet-side-panel" id="fleet-side-panel" aria-label="Details" hidden></aside>
+		</body>
+	</html>
+}
+
+// shellHeader renders the header region: the sidebar toggle, the product name
+// linking to the estate, the hub name and the account.
+templ shellHeader(view ShellView) {
+	<header class="fleet-header">
+		<button type="button" class="fleet-sidebar-toggle" id="fleet-sidebar-toggle" aria-controls="fleet-sidebar" aria-label="Toggle the sidebar">
+			<span class="fleet-sidebar-toggle-mark" aria-hidden="true"></span>
+		</button>
+		<a class="fleet-product" href="/fleet/">Ze Fleet</a>
+		<span class="fleet-hub-name">{ view.EstateName }</span>
+		<span class="fleet-account">{ view.Username }</span>
+	</header>
+}
+
+// shellSidebar renders the sidebar region: its two tabs, then the tree region,
+// which lists the devices of the estate.
+templ shellSidebar(view ShellView) {
+	<nav class="fleet-sidebar" id="fleet-sidebar" aria-label="Estate navigation">
+		<div class="fleet-sidebar-tabs" role="tablist">
+			<button type="button" class="fleet-sidebar-tab fleet-sidebar-tab--active" id="fleet-tab-estate" role="tab" aria-selected="true" aria-controls="fleet-tree">Estate</button>
+			<button type="button" class="fleet-sidebar-tab" id="fleet-tab-admin" role="tab" aria-selected="false" aria-controls="fleet-tree">Administration</button>
+		</div>
+		<div class="fleet-tree" id="fleet-tree" role="tabpanel" aria-labelledby="fleet-tab-estate">
+			<ul class="fleet-tree-list">
+				for _, device := range view.Devices {
+					<li class="fleet-tree-row">{ device.Name }</li>
+				}
+			</ul>
+		</div>
+	</nav>
+}
+
+// shellMain renders the main pane: the object header, the tab row and the
+// content region of the object, which is the estate.
+templ shellMain(view ShellView) {
+	<main class="fleet-main" id="fleet-main">
+		<div class="fleet-object-header">
+			<h1 class="fleet-object-name">{ view.EstateName }</h1>
+		</div>
+		<nav class="fleet-tab-row" aria-label="Estate tabs">
+			<a class="fleet-tab fleet-tab--active" href="/fleet/" aria-current="page">Dashboard</a>
+		</nav>
+		<section class="fleet-content" id="fleet-content" aria-label="Devices">
+			<ul class="fleet-device-list">
+				for _, device := range view.Devices {
+					<li class="fleet-device">
+						<span class="fleet-device-name">{ device.Name }</span>
+						for _, label := range device.Labels {
+							<span class="fleet-tag">{ label.Key }={ label.Value }</span>
+						}
+					</li>
+				}
+			</ul>
+		</section>
+	</main>
+}

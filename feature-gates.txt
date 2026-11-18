@@ -193,6 +193,7 @@ ze_vpp     internal/plugins/firewall/vpp
 ze_vpp     internal/plugins/iface/vpp
 ze_vpp     internal/plugins/traffic/vpp
 ze_vpp     internal/plugins/static/vpp
+ze_vpp     internal/component/l2tp/plugins/pppoe-vpp
 
 # ze_ike -- the IKEv2/IPsec VPN control plane: engine, ipsec config plumbing,
 # command surface, schema (eap/wire/transport drop transitively with the
@@ -242,6 +243,17 @@ ze_l2tp    internal/component/l2tp/plugins/shaper
 # ze_bmp shape) -- an l2tp-with-local-auth build can drop RADIUS entirely.
 ze_radius  internal/component/radius
 ze_radius  internal/component/l2tp/plugins/authradius
+
+# ze_fleet_ui -- the fleet web interface (docs/architecture/fleet-interface.md).
+# A DEPENDENT gate: the package nests under internal/component/web and imports
+# it to register its routes, so it exists only in a ze_web build. No generator
+# discovers it (it registers web routes, not a plugin), so the hub links it from
+# the hand-written cmd/ze/hub/register_fleet_ui.go, guarded
+# //go:build ze_web && ze_fleet_ui. Its routes mount only when a data source is
+# registered. The sample source under fleetui/sample is linked by the tag
+# ze_fleet_ui_sample, which is deliberately NOT a row here: every tag in this
+# file is set by every shipped build, and sample data must never ship.
+ze_fleet_ui  internal/component/web/fleetui
 
 # MRT routing-information export (RFC 6396) is a BGP plugin under ze_bgp, with
 # no tag of its own: every MRT stream is BGP data, and its TABLE_DUMP_V2 RIB

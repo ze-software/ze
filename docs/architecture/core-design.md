@@ -3941,6 +3941,7 @@ Cross-component coupling follows a strict hierarchy:
 | radius | aaa (backend registration), config, config/yang, plugin/registry (the metrics hook in `radius/metrics.go`) |
 | ssh | audit, cli, authz, config, plugin/server |
 | web | aaa, audit, cli, authz, config |
+| web/fleetui | web (the route registry, the request's username); the web package never imports it. `web/fleetui/sample` imports `web/fleetui` only, and no shipped build links it (`docs/architecture/fleet-interface.md`) |
 
 **The IPsec inventory is a core leaf, so a feature reads live tunnels without
 importing the IKE engine.** `internal/core/ipsecinventory` imports the standard

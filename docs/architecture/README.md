@@ -18,6 +18,7 @@ Architecture documents describe how the current implementation is wired. Prefer 
 | Pools and buffers | `pool-architecture.md`, `buffer-architecture.md` | `internal/component/bgp/attrpool/`, `internal/core/bufpool/` |
 | Module tiers and placement | `module-tiers.md` | `internal/le/arch/tier/`, `internal/core/`, `internal/component/`, `internal/plugins/` |
 | Web and UI | `web-interface.md`, `web-components.md` | `internal/component/web/` |
+| Fleet interface | `fleet-interface.md` | `internal/component/web/fleetui/` |
 | Testing architecture | `testing/` | `internal/test/cli/*.go`, `internal/test/`, `test/` |
 | Session and signal behavior | `behavior/` | `internal/component/bgp/fsm/`, `internal/plugins/signal/` |
 | BGP plugin behavior | `bgp/` | `internal/component/bgp/plugins/`, `internal/component/bgp/reactor/` |
