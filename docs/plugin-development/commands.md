@@ -11,11 +11,19 @@ A command takes three things:
 | What | Where | What it gives |
 |------|-------|---------------|
 | The command path, its help and its arguments | A `-cmd` module | The command in the tree, its help text, and the check of each argument |
-| The parameters the API surfaces publish | The `input` of an rpc, in an `-api` module, named by the command's `ze:rpc` | The parameter list MCP, REST and gRPC publish for the command |
+| The parameters the API surfaces publish | The selected `-cmd` path's typed leaves; the named `-api` rpc input when that path has no typed CLI leaves | The exact parameter names, types and placement MCP, REST and gRPC use for that command |
 | The route to your plugin | An entry in the Stage 1 `commands` list, and a handler | Ze asks your plugin when an operator runs the command |
 
 <!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts, refuseRPCLinks -->
 <!-- source: internal/component/plugin/server/startup.go -- the Stage 1 commands registered for the process -->
+
+Each command alias publishes its own typed CLI leaves. A command whose CLI
+leaf is named `id` publishes `id`, even when its named RPC uses `session-id`.
+The RPC input remains the fallback for a path without typed CLI leaves.
+An `empty` leaf is a presence-only flag: structured `false` omits it.
+A `boolean` leaf carries its explicit `true` or `false` value instead.
+<!-- source: cmd/ze/hub/command_meta.go -- buildParamMeta -->
+<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 
 ## Defining a Command in YANG
 
@@ -221,8 +229,14 @@ name accepts 1..16 characters
 fix: show acme-monitor target <1..16 characters>
 ```
 
-A line with the mandatory leaf missing is refused the same way, as
-`error: required argument missing: name`.
+A line with the mandatory leaf missing is refused before the plugin is asked,
+with the whole command as its correction:
+
+```
+error: required argument missing: name
+This command needs name: The target name, from 1 to 16 characters.
+fix: show acme-monitor target name <name>
+```
 <!-- source: test/plugin/external-yang-command-argument.ci -- the refusals and the value the plugin receives -->
 
 MCP, REST and gRPC list the command with the parameters of the rpc its

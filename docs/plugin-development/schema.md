@@ -165,8 +165,10 @@ Schemas are declared via the `Schemas` field of `sdk.Registration`, which is pas
 module whose name ends in `-conf` adds config roots, one that augments another
 module extends it, one whose name ends in `-cmd` adds the commands its
 `ze:command` nodes declare, and the rpc statements of a module (an `-api`
-module, as compiled-in plugins pair them) describe the parameters of the
-commands whose `ze:rpc` names them. Ze judges each module by the rules the
+module, as compiled-in plugins pair them) supply the parameter metadata for a
+command without typed CLI leaves. A command path with typed CLI leaves publishes
+those names and types instead, including for each alias. Its `ze:rpc` still
+names the RPC contract. Ze judges each module by the rules the
 modules compiled into `ze` obey; it also refuses a command path or a wire
 method that another module already declares, and a `ze:rpc` that names an rpc
 no module defines. A plugin that answers a command also declares it in

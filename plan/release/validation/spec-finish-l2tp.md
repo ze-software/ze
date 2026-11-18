@@ -678,5 +678,9 @@ the full template comparison and three affected HTTP comparisons now pass.
 The web and RADIUS implementation is committed in `585fcdb081`. A real-loader
 regression also exposed dropped YANG boolean arguments; the minimal lowerer
 fix passes explicit false and true plus type, presence and invalid-value checks
-after its intended RED. Its reached packages and the new daemon draft still
-need validation. These checks do not replace the full 48/47/46 lab proof.
+after its intended RED. Reached YANG/external-schema packages pass. The new
+daemon selector test passes its first run and all 80 load repetitions; it is
+promoted, and its native clean-versus-broken proof catches a false flag causing
+an extra action. Remaining reached API checks and scoped lint are owed.
+Current-API accounting and PPP counter regressions are being proved before
+their producer changes. These checks do not replace the full 48/47/46 lab proof.

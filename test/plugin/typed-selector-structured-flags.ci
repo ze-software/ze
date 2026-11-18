@@ -1,0 +1,64 @@
+# Test: a live daemon preserves typed inline selectors and false structured flags
+#
+# Question: do boot-joined external YANG leaves reach authenticated REST metadata,
+# command construction and a separate SDK provider with the same original ID,
+# literal listener, ordinary count and boolean as the useful raw commands,
+# while false flags never force an action and invalid requests never reach it?
+# Why not a unit test: only the real daemon joins Stage-1 modules, publishes
+# their actual metadata, authenticates the HTTP caller and crosses a process.
+# The provider derives validation from those exact modules, not invented defs.
+#
+# The observer requires ID 7 to be the first bare argument, including for
+# structured requests: accepting a duplicated keyword in the plugin alone
+# would not expose the writer defect a compiled-in typed command encounters.
+# A fixed fixture record is not a native PPP identity or AC-2 scale proof.
+# All success output follows measured checks; no sleep is a readiness barrier.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=typed-selector.conf:terminator=EOF_CONFIG
+system {
+ authentication {
+  user admin {
+   password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+  }
+ }
+}
+environment {
+ ssh {
+  enabled true
+  server main { ip 127.0.0.1; port $PORT; }
+ }
+ api-server {
+  rest {
+   enabled true
+   server main { ip 127.0.0.1; port $PORT2; }
+  }
+ }
+}
+plugin {
+ external typed-selector-provider {
+  run "le test fixture plugin/typed-selector-provider"
+  encoder json
+ }
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start typed-selector.conf:name=daemon:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+cmd=foreground:seq=3:exec=le test fixture plugin/typed-selector-observer $PORT2:timeout=75s
+expect=exit:code=0
+expect=stdout:contains=typed-selector: received=7 completed=7 forced=2 refused=3 record=fixture-original-7
+reject=stderr:pattern=ZE-OBSERVER-FAIL
