@@ -41,10 +41,10 @@ you have broken one, stop and tell the user.
   commit, and the evidence for a change is the scoped test runs of what it
   reaches, which the main thread runs from the agent's owed commands
   (`ai/rules/commands.md`). A spec's closure never waits on a whole-tree check.
-- The one exception: on Thomas's two development machines, work that is also
-  tested on the other machine is developed and tested in a worktree on the
-  agent's machine, then carried to the other machine by git and tested there
-  in a detached worktree, never in either shared checkout
+- The one exception: on Thomas's two development machines, work that is tested
+  on the other machine is developed in a worktree on the agent's machine and
+  tested either there or, carried by git, in a detached worktree on the other
+  machine, never in either shared checkout
   (`ai/owner/machines.md`).
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
@@ -91,7 +91,7 @@ Other maps:
 | Where a spec goes, and its template | `plan/README.md`, `plan/templates/TEMPLATE.md` |
 | Past decisions and known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` |
 | Terminal colors and TUI styling | `docs/architecture/cli/color-system.md` |
-| Thomas's own two development machines, which one you are on and what you may do on the other. Applies only on those machines | `ai/owner/machines.md` |
+| Thomas's own two development machines, which one you are on, which one a test runs on, and what you may do on the other. Applies only on those machines | `ai/owner/machines.md` |
 | A WAVE of red: unrelated packages fail to build, `no space left on device`, `cache entry not found` | `docs/contributing/running-commands.md`, "When the disk is full". The cache disk is full before this is a code defect. Run `./le scratch trim`, then `./le scratch clean` (removes only entries older than three hours, safe while others build). `./le scratch clean all` empties everything and refuses while any build runs |
 
 # Core Architecture

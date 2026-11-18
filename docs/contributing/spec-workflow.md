@@ -521,8 +521,10 @@ closure commit's tree, through the one producer `specWorkPopulation`.
 <!-- source: internal/le/commit/owed_answers.go -- answerReviewed -->
 
 <!-- source: internal/le/spec/review.go -- recordReview, CheckReview -->
-Review has no required model. The artifact records the model when available;
-review independence comes from a fresh reviewer context.
+The review gate checks no model: a reviewer agent runs on the development
+tier, as every agent does (`ai/META-DECISIONS.md`, "Delegate to subagents").
+The artifact records the model when available; review independence comes from
+a fresh reviewer context.
 
 The review gate requires a CLEAN `./le spec review record` artifact covering
 every reviewable file of that change set, with matching SHA-256 content pins and

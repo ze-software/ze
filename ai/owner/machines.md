@@ -14,17 +14,36 @@ Find out before your first command, from `uname -sm` and `hostname`:
 If neither row matches, you are not on Thomas's machines and the rest of this
 file does not apply.
 
-## Work that is also tested on the other machine
+## Which machine a test runs on
+
+Both machines are there to run tests, and the Mac is not the default. It is
+also the machine Thomas works on, and every session that tests where it sits
+loads it while the server stands idle. Before a test run, the main thread
+reads `./le job report` on both machines and sends the run to the one with
+the least CPU in use. A test runs once, on one machine: a run on the server
+replaces the run on the Mac, it is not added to it. A test that needs Linux
+goes to the server, and one that needs macOS stays on the Mac.
+
+Each machine reaches the other through Rex: the Mac reaches the server as Rex
+host `rex-claude.sock`, the server reaches the Mac as Rex host `laptop`. A run
+started through Rex sits in a pane Thomas can watch.
+
+The other machine tests commits only, in a detached worktree. Work that is not
+committed is tested where it is, so work that is to be tested on the other
+machine is developed as the next section says.
+
+## Work that is tested on the other machine
 
 Develop it in a worktree of its own on the machine you are on, never in the
 shared checkout, which other sessions keep dirty. Open the worktree on a new
 branch named after the work, under `.claude/worktrees/<name>` in the checkout,
-and commit there through `./le commit create`. When the work is ready, test
-the worktree on this machine first. Then carry its commits to the other
-machine through git and test them there in a worktree of their own, detached
-at those commits, so no branch is created there and its shared checkout is
-neither pulled into nor tested. The branch reaches `main` only when Thomas
-lands it with `git rebase <branch>`.
+and commit there through `./le commit create`. When the work is ready to
+test, the run goes to the machine chosen above: either in that worktree on
+this machine, or on the other machine, where its commits are carried through
+git and tested in a worktree of their own, detached at those commits, so no
+branch is created there and its shared checkout is neither pulled into nor
+tested. The branch reaches `main` only when Thomas lands it with
+`git rebase <branch>`.
 
 ## What you may do on the other machine
 
@@ -58,26 +77,52 @@ it.
 
 ## From the Mac to the server
 
-Use SSH host `claude`. A non-interactive `ssh claude '<cmd>'` does not read the
-profile, so put Go on PATH first. Ship the worktree branch as a bundle, in a
-command of its own:
+Use Rex host `rex-claude.sock`: the `rex-claude` helper on the Mac holds an SSH
+tunnel to the server and carries the server's Rex server back as that socket.
+`rex` is not on the Mac's PATH. It lives inside the Rex app:
+
+```sh
+REX=$(find /Applications/Rex*.app -name rex -type f | head -1)
+X() { "$REX" -S rex-claude.sock "$@"; }
+X whoami --json   # fails when the tunnel is down; `rex-claude status` says why
+```
+
+When the tunnel is down, `rex-claude start` on the Mac brings it up. If it
+stays down, report it to Thomas, and run the same commands over SSH host
+`claude` instead of falling back to the Mac.
+
+Read the server's load before choosing it:
+
+```sh
+ssh claude 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH GOPATH=$HOME/go &&
+  cd ~/Code/github.com/ze-software/ze/main && ./le job report'
+```
+
+Ship the worktree branch as a bundle, in a command of its own. The copy goes
+over SSH:
 
 ```sh
 git bundle create ~/tmp/<name>.bundle <branch>
 scp ~/tmp/<name>.bundle claude:tmp/<name>.bundle && rm ~/tmp/<name>.bundle
 ```
 
-Then fetch it on the server, test it in a detached worktree, and remove what
-you created:
+Then run the test in a pane of a Rex session on the server. Name the session
+after the work, wait for the run, read the pane, then close the session. A
+pane's shell does not read the profile, and neither does a non-interactive
+`ssh claude '<cmd>'`, so put Go on PATH first. The pane fetches the bundle
+into a detached worktree and removes both after the run:
 
 ```sh
-ssh claude 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH GOPATH=$HOME/go &&
-  cd ~/Code/github.com/ze-software/ze/main &&
-  git fetch ~/tmp/<name>.bundle <branch> &&
-  git worktree add --detach .claude/worktrees/<name> FETCH_HEAD &&
-  cd .claude/worktrees/<name> && ./le test unit <package>'
-ssh claude 'cd ~/Code/github.com/ze-software/ze/main &&
-  git worktree remove .claude/worktrees/<name> && rm ~/tmp/<name>.bundle'
+X new ze-unit-bgp --json
+X run -s ze-unit-bgp --label tests --keep-open --focus=false --json --wait -- sh -c \
+  'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH GOPATH=$HOME/go &&
+   cd ~/Code/github.com/ze-software/ze/main &&
+   git fetch ~/tmp/<name>.bundle <branch> &&
+   git worktree add --detach .claude/worktrees/<name> FETCH_HEAD &&
+   (cd .claude/worktrees/<name> && ./le test unit <package>);
+   status=$?; git worktree remove .claude/worktrees/<name>; rm ~/tmp/<name>.bundle; exit $status'
+X capture -s ze-unit-bgp -b <block_ids[0] from run> --trim
+X kill ze-unit-bgp
 ```
 
 ## From the server to the Mac

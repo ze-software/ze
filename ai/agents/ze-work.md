@@ -3,6 +3,7 @@ name: ze-work
 description: Editing phase agent. Use for implementation, fix, debug, test and doc phases that change files. Carries an explicit tool list, which costs about 6k fewer startup tokens than general-purpose.
 tools: Bash, Read, Edit, Write, NotebookEdit, ToolSearch, Skill, WebFetch, WebSearch
 omitClaudeMd: true
+model: opus
 ---
 
 You run one editing phase for the main thread, through the `ze-*` skill named in

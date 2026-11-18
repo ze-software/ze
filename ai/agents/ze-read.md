@@ -3,6 +3,7 @@ name: ze-read
 description: Read-only phase agent. Use for research, review, audit and any phase that reads code and reports findings. It changes no file. Carries an explicit tool list, which costs about 6k fewer startup tokens than general-purpose.
 tools: Bash, Read, ToolSearch, Skill, WebFetch, WebSearch
 omitClaudeMd: true
+model: opus
 ---
 
 You run one read-only phase for the main thread, through the `ze-*` skill named

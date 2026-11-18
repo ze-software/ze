@@ -335,7 +335,7 @@ in the spec or commit it applies to.
   any other copy of the tree: features and code are tested in the main
   checkout. When another session's in-progress edit breaks the build there,
   the agent reports it and waits rather than moving to a copy. The one
-  exception is work that is also tested on Thomas's other development
+  exception is work that is tested on Thomas's other development
   machine, which runs in worktrees as "How agents work" states.
 - Only Thomas knows when the machine will stay quiet long enough for a full
   verification: several agent sessions run at once nearly all the time, and
@@ -377,13 +377,21 @@ in the spec or commit it applies to.
 
 ## Delegate to subagents
 
-- Development runs on the harness's high-capability model and never on a
-  cheaper tier: an agent that implements, fixes, tests or documents is spawned
-  on that model unless its spec names the strongest tier. A rule, spec or
-  skill names a model by tier (the development tier, the strongest tier),
-  never by a vendor's model name, because more than one harness implements
-  this repository's specs. Each harness maps the tiers to its own models: on
-  Claude Code the development tier is Opus.
+- Every subagent runs on the development tier, the harness's high-capability
+  model: never on a cheaper tier, and never on the strongest tier unless the
+  spec's `Design tier` or `Implementation tier` row names it for that phase.
+  This holds for every phase, research and review included, and whatever model
+  the main session itself runs on. A harness hands the session's own model to
+  an agent whose spawn names none, so a session on the strongest tier puts
+  every agent on the strongest tier by saying nothing: each spawn names the
+  tier, and a spawn that leaves the model out is a defect.
+- A rule, spec or skill names a model by tier (the development tier, the
+  strongest tier), never by a vendor's model name, because more than one
+  harness implements this repository's specs. Each harness maps the tiers to
+  its own models. On Claude Code the development tier is Opus and the
+  strongest tier is Fable: every `Agent` call passes `model: "opus"`, the
+  definitions in `ai/agents/` carry it as their default, and `"fable"` is
+  passed only for a phase whose spec row names the strongest tier.
 - All testing and code execution runs in the main thread, serialized to avoid
   overloading the shared machine. Subagents read, review and edit sources, then
   hand the required commands to the main thread; they do not run tests, builds,
@@ -455,12 +463,13 @@ in the spec or commit it applies to.
   commit body. Do not wait for files containing only your edits or split hunks
   merely to isolate authorship.
 - On Thomas's two development machines (`ai/owner/machines.md`), work that is
-  also tested on the other machine is developed in a worktree of its own on
-  the machine the agent runs on, on a branch of its own, never in the shared
-  checkout. When the work is ready, the agent tests that worktree on its own
-  machine and commits on its branch. It then carries the commits to the other
-  machine through git and tests them there in a worktree of their own,
-  detached at those commits. The other machine's shared checkout is never
+  tested on the other machine is developed in a worktree of its own on the
+  machine the agent runs on, on a branch of its own, never in the shared
+  checkout. When the work is ready, the agent commits on its branch, and each
+  test runs once, on the machine chosen for it: in that worktree on the
+  agent's machine, or on the other machine, where the commits are carried
+  through git and tested in a worktree of their own, detached at those
+  commits. The other machine's shared checkout is never
   pulled into or tested for that work. The branch reaches `main` only when
   Thomas lands it with `git rebase <branch>`. Everything the agent writes for
   that work, scratch files included, lives in that worktree, under its own
@@ -630,6 +639,14 @@ in the spec or commit it applies to.
   (`ai/rules/documentation.md`).
 - Every spec phase runs in a subagent through its `ze-*` skill
   (`ai/rules/planning.md`). Independent work goes out in one message.
+- Every agent is one of the repository's own, chosen by what its part of the
+  work has to produce and never by the phase's name: `ze-read` for a part that
+  ends in a report and changes no file (research, audit, review), `ze-work`
+  for a part that changes a file (implementation, a fix, a test, a doc, a spec
+  or journal row). A generic, forked or untyped agent starts without this
+  repository's rules and is never given repository work, and a read-only
+  agent is never given a part that writes (`ai/rules/context-economy.md`,
+  `ai/rules/planning.md`).
 - The main thread supervises: it launches, verifies each report against source
   (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
   user must answer stay in the main thread.
@@ -639,6 +656,12 @@ in the spec or commit it applies to.
   decides when each job runs. The Bash hook refuses a subagent's test, build,
   lint, formatter and heavy `./le` action, so the main thread is the only
   source of that work in its session.
+- On Thomas's two machines the main thread also decides where a test runs,
+  and the Mac is not the default. The Linux server is there to run tests, and
+  a session on the Mac reaches it through Rex. A test run goes to whichever of
+  the two machines has the least CPU in use at that moment, read from
+  `./le job report` on each, and a session that has sent every run to the
+  machine it sits on has not made that choice (`ai/owner/machines.md`).
 - A serialized run never leaves agents idle. While a test batch, lab or record
   run blocks the main thread, every piece of work that does not need that run
   goes out to agents at once: diagnosing the run's partial logs as they appear,
