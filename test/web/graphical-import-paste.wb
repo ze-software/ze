@@ -15,7 +15,7 @@ action=click:id=graphical-edit-toggle
 action=click:id=graphical-import-toggle
 action=fill:id=graphical-import-paste:value=system { host "unfinished; }
 action=click:id=graphical-import-paste-submit
-expect=element:text=The configuration could not be imported.
+expect=element:text=load: the configuration input could not be parsed
 expect=element:id=graphical-import-paste
 # The refusal opens the error drawer; retain its error while resuming the form.
 expect=html:contains=id="error-panel" class="error-panel">

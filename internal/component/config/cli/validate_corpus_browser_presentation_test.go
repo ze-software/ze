@@ -32,7 +32,7 @@ func TestBrowserCorpusErrorDismissalsPermitRecoveredPaste(t *testing.T) {
 					"action=open:path=/show/\n"+
 					"action=fill:id=graphical-import-paste:value=system { host \"unfinished; }\n"+
 					"action=click:id=graphical-import-paste-submit\n"+
-					"expect=element:text=The configuration could not be imported.\n"+
+					"expect=element:text=load: the configuration input could not be parsed\n"+
 					test.action+"\n"+
 					"action=fill:id=graphical-import-paste:value=system { host recovered-paste; }\n"+
 					"action=click:id=graphical-import-paste-submit\n")

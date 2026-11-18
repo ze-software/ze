@@ -97,7 +97,7 @@ func TestBrowserGraphicalRefusalDeclarationMustMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	declaration := "expect=element:text=The configuration could not be imported.\n"
+	declaration := "expect=element:text=load: the configuration input could not be parsed\n"
 	submit := "action=click:id=graphical-import-paste-submit\n"
 	if strings.Count(string(body), declaration) != 1 {
 		t.Fatal("the real journey no longer has its one declared import refusal")
@@ -109,8 +109,8 @@ func TestBrowserGraphicalRefusalDeclarationMustMatch(t *testing.T) {
 		{name: "undeclared", body: strings.Replace(string(body), declaration, "", 1)},
 		{name: "wrong-text", body: strings.Replace(string(body), declaration, "expect=element:text=unrelated failure\n", 1)},
 		{name: "partial-text", body: strings.Replace(string(body), declaration, "expect=element:text=configuration\n", 1)},
-		{name: "wrong-kind", body: strings.Replace(string(body), declaration, "expect=html:contains=The configuration could not be imported.\n", 1)},
-		{name: "extra-qualifier", body: strings.Replace(string(body), declaration, "expect=element:text=The configuration could not be imported.:id=unrelated-error\n", 1)},
+		{name: "wrong-kind", body: strings.Replace(string(body), declaration, "expect=html:contains=load: the configuration input could not be parsed\n", 1)},
+		{name: "extra-qualifier", body: strings.Replace(string(body), declaration, "expect=element:text=load: the configuration input could not be parsed:id=unrelated-error\n", 1)},
 		{name: "preceding-expectation", body: strings.Replace(string(body), submit+declaration, declaration+submit, 1)},
 		{name: "intervening-action", body: strings.Replace(string(body), declaration, "action=wait:ms=1\n"+declaration, 1)},
 	} {
