@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute",
+    "unit-sha": "de2243a5987e2479",
+    "claim-sha": "127586e203eb2608",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::installStructuredNLRIs",
+    "producer-sha": "3f5337ba16b8c225",
+    "break": "line 743: \"r.ribIn[peerAddr].Put(rk, r.seqCounter, route)\" -\u003e \"r.ribIn[peerAddr].Delete(rk)\""
+  },
+  {
+    "rid": "RFC7606-2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute",
+    "unit-sha": "de2243a5987e2479",
+    "claim-sha": "2bb90dcac6cd9f4c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::removeStructuredNLRIs",
+    "producer-sha": "bd0129a89d987274",
+    "break": "line 765: \"r.removeReceivedLocked(peerAddr, rk, connectionID, msgID)\" -\u003e \"_ = rk\""
+  }
+]

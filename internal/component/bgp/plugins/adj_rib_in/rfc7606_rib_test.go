@@ -43,7 +43,7 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	t.Cleanup(func() { _ = p.Close() })
 	return &AdjRIBInManager{
 		plugin:         p,
-		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
+		ribIn:          make(map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*pendingRoute),
 		earlyDecisions: make(map[compactPendingKey]*earlyDecision),
@@ -105,8 +105,8 @@ func TestStoreReceivedRoute(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.Contains(t, r.ribIn, netip.MustParseAddr("10.0.0.1"), "should have peer entry")
-	routes := r.ribIn[netip.MustParseAddr("10.0.0.1")]
+	require.Contains(t, r.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")}, "should have peer entry")
+	routes := r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}]
 	require.Equal(t, 1, routes.Len(), "should have 1 route")
 
 	// Find the stored route via Range
@@ -156,7 +156,7 @@ func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
 		},
 	})
 
-	routes, ok := r.ribIn[netip.MustParseAddr("172.30.0.3")]
+	routes, ok := r.ribIn[receivedPeer{address: netip.MustParseAddr("172.30.0.3")}]
 	require.True(t, ok, "should have peer entry")
 	require.Equal(t, 3, routes.Len(), "should store all announced routes")
 
@@ -192,12 +192,12 @@ func TestStoreAllFamilies(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.Contains(t, r.ribIn, netip.MustParseAddr("10.0.0.1"))
-	require.Equal(t, 1, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "VPN route should be stored")
+	require.Contains(t, r.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")})
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(), "VPN route should be stored")
 
 	// Verify the raw blob is used, not prefixToWireHex output.
 	var route *RawRoute
-	r.ribIn[netip.MustParseAddr("10.0.0.1")].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		route = rt
 		return true
 	})
@@ -228,7 +228,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len())
 
 	// Then withdraw
 	withdraw := &bgp.Event{
@@ -243,7 +243,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Equal(t, 0, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "route should be removed after withdrawal")
+	assert.Equal(t, 0, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(), "route should be removed after withdrawal")
 }
 
 // TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute proves the Adj-RIB-In consequence of RFC
@@ -290,7 +290,7 @@ func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
 		0x08, 0x0a, // NLRI 10.0.0.0/8
 	}
 	feed(announce)
-	require.Equal(t, 1, r.ribIn[peer].Len(),
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: peer}].Len(),
 		"2-5 positive: a valid UPDATE leaves its route in the Adj-RIB-In")
 
 	// The same prefix re-announced with a MALFORMED ORIGIN (length 2), run through the RFC
@@ -306,7 +306,7 @@ func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
 	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed, "treat-as-withdraw must produce a withdrawal for an announced route")
 	feed(withdrawal)
-	assert.Equal(t, 0, r.ribIn[peer].Len(),
+	assert.Equal(t, 0, r.ribIn[receivedPeer{address: peer}].Len(),
 		"2-5 negative: treat-as-withdraw must remove the route from the Adj-RIB-In")
 }
 
@@ -323,7 +323,7 @@ func TestReplayAllSources(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m1
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m1
 
 	// Store routes from peer B
 	m2 := seqmap.New[compactRouteKey, *RawRoute]()
@@ -331,7 +331,7 @@ func TestReplayAllSources(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.2")] = m2
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.2")}] = m2
 
 	// Store routes from target peer X (should be excluded)
 	m3 := seqmap.New[compactRouteKey, *RawRoute]()
@@ -339,7 +339,7 @@ func TestReplayAllSources(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000003", NLRIHex: "180a0002",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.3")] = m3
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.3")}] = m3
 
 	// Replay for target peer 10.0.0.3, from-index 0
 	cmds, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.3"), 0, unboundedReplay())
@@ -384,7 +384,7 @@ func TestReplayFromIndex(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0002",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	// Replay from cursor 5 → only routes with SeqIndex > 5 (the route AT 5 was
 	// already delivered in the batch that produced the cursor).
@@ -415,7 +415,7 @@ func TestReplayCursorRoundTripTerminates(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0001",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	target := netip.MustParseAddr("10.0.0.99")
 
@@ -451,7 +451,7 @@ func TestReplayReturnsLastIndex(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	_, lastIdx := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0, unboundedReplay())
 	assert.Equal(t, uint64(42), lastIdx, "last-index should be max SeqIndex of replayed routes")
@@ -484,7 +484,7 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 
 	// Collect sequence indices via Range
 	var indices []uint64
-	r.ribIn[netip.MustParseAddr("10.0.0.1")].Range(func(_ compactRouteKey, seq uint64, _ *RawRoute) bool {
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, seq uint64, _ *RawRoute) bool {
 		indices = append(indices, seq)
 		return true
 	})
@@ -512,7 +512,7 @@ func TestClearPeerOnDown(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
 
 	// Peer goes down
@@ -525,7 +525,7 @@ func TestClearPeerOnDown(t *testing.T) {
 
 	r.handleState(downEvent)
 
-	assert.Nil(t, r.ribIn[netip.MustParseAddr("10.0.0.1")], "routes should be cleared on peer down")
+	assert.Nil(t, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}], "routes should be cleared on peer down")
 	assert.False(t, r.peerUp[netip.MustParseAddr("10.0.0.1")], "peer should be marked down")
 }
 
@@ -573,7 +573,7 @@ func TestReplayRouteCarriesSource(t *testing.T) {
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	routes, _ := r.buildReplayRoutes(netip.MustParseAddr("10.0.0.99"), 0, unboundedReplay())
 	require.Len(t, routes, 1)
@@ -598,11 +598,11 @@ func TestHandleCommand_Status(t *testing.T) {
 	m1 := seqmap.New[compactRouteKey, *RawRoute]()
 	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{Family: family.IPv4Unicast})
 	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{Family: family.IPv4Unicast})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m1
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m1
 
 	m2 := seqmap.New[compactRouteKey, *RawRoute]()
 	m2.Put(routeKeyFromStrings(family.IPv6Unicast, "2001:db8::/32", 0), 3, &RawRoute{Family: family.IPv6Unicast})
-	r.ribIn[netip.MustParseAddr("10.0.0.2")] = m2
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.2")}] = m2
 	status, data, err := r.handleCommand("show bgp adj-rib-in status", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
@@ -628,7 +628,7 @@ func TestHandleCommand_Show(t *testing.T) {
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 	status, data, err := r.handleCommand("show bgp adj-rib-in", nil, "10.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
@@ -658,8 +658,8 @@ func TestHandleCommand_ShowSelectorArgCompatibility(t *testing.T) {
 		NHopHex: "0a000002",
 		NLRIHex: "180a0001",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m1
-	r.ribIn[netip.MustParseAddr("10.0.0.2")] = m2
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m1
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.2")}] = m2
 
 	status, data, err := r.handleCommand("show bgp adj-rib-in", []string{"10.0.0.1"}, "*")
 	require.NoError(t, err)
@@ -691,10 +691,10 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.Equal(t, 2, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "each NLRI should be stored separately")
+	require.Equal(t, 2, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(), "each NLRI should be stored separately")
 
 	// Both should share the same AttrHex (from same UPDATE)
-	r.ribIn[netip.MustParseAddr("10.0.0.1")].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		assert.Equal(t, "40010100", rt.AttrHex, "all NLRIs share same attributes")
 		assert.Equal(t, "0a000001", rt.NHopHex, "all NLRIs share same next-hop")
 		return true
@@ -714,7 +714,7 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	// Capture the relay instead of reaching a live engine. newTestManager's SDK
 	// plugin has closed connections, so the real call fails -- and since
@@ -783,7 +783,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m1
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m1
 
 	// Pre-populate routes from peer B (10.0.0.2)
 	m2 := seqmap.New[compactRouteKey, *RawRoute]()
@@ -791,7 +791,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.2")] = m2
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.2")}] = m2
 
 	// Peer C (10.0.0.3) comes up -- should trigger replay of routes from A and B.
 	upEvent := &bgp.Event{
@@ -868,7 +868,7 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m1
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m1
 
 	// Also routes from another peer
 	m2 := seqmap.New[compactRouteKey, *RawRoute]()
@@ -876,7 +876,7 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.2")] = m2
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.2")}] = m2
 
 	// Peer 10.0.0.1 comes up
 	upEvent := &bgp.Event{
@@ -919,13 +919,13 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.Contains(t, r.ribIn, netip.MustParseAddr("10.0.0.1"))
+	require.Contains(t, r.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")})
 	// Only 1 entry: the first NLRI carries the raw blob, second is skipped (i > 0).
-	require.Equal(t, 1, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(),
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(),
 		"complex family multi-NLRI should store one entry with full raw blob")
 
 	var route *RawRoute
-	r.ribIn[netip.MustParseAddr("10.0.0.1")].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		route = rt
 		return true
 	})
@@ -954,7 +954,7 @@ func TestReplayOwnerDedupe(t *testing.T) {
 			Family: family.IPv4Unicast, AttrHex: "40010100",
 			NHopHex: "0a000001", NLRIHex: "180a0000",
 		})
-		r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+		r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 		var destinations []string
 		r.routeRelayer = func(dest string, routes []rpc.StoredRoute) error {
 			if len(routes) > 0 {
