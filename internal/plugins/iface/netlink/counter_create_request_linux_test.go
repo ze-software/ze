@@ -164,7 +164,7 @@ func TestCounterBoundMissingStatsRecovers(t *testing.T) {
 	counterCreateOriginalEcho(t, &creation)
 	generation := creation.links[0].generation
 	missing := counterCreateQueryReply(t, &source, 251, counterCreateNoStats(251))
-	stats, err := counterBoundSelect(t, &source, &missing, 7, generation)
+	stats, err := counterBoundSelect(t, &source, &missing, generation)
 	if err == nil {
 		t.Fatal("current missing-stat reply borrowed cached old statistics")
 	}
@@ -177,7 +177,7 @@ func TestCounterBoundMissingStatsRecovers(t *testing.T) {
 	if useful.links[0].generation != generation {
 		t.Fatal("measurement-only unavailability changed the confirmed generation")
 	}
-	stats, err = counterBoundSelect(t, &source, &useful, 7, generation)
+	stats, err = counterBoundSelect(t, &source, &useful, generation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestCounterBoundMeasurements(t *testing.T) {
 	message := counterCreateNoStats(551)
 	message.Data = append(message.Data, nl.NewRtAttr(unix.IFLA_STATS64, raw).Serialize()...)
 	reply := counterCreateQueryReply(t, &source, 551, message)
-	stats, err := counterBoundSelect(t, &source, &reply, 7, generation)
+	stats, err := counterBoundSelect(t, &source, &reply, generation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestCounterBoundCopiesCurrentReply(t *testing.T) {
 		t.Fatal(err)
 	}
 	generation := dump.links[0].generation
-	first, err := counterBoundSelect(t, &source, &dump, 7, generation)
+	first, err := counterBoundSelect(t, &source, &dump, generation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestCounterBoundCopiesCurrentReply(t *testing.T) {
 		t.Fatal("useful original reply returned no sample")
 	}
 	first.RxBytes = 999
-	second, err := counterBoundSelect(t, &source, &dump, 7, generation)
+	second, err := counterBoundSelect(t, &source, &dump, generation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestCounterBoundRejectsWrongReply(t *testing.T) {
 			if err := source.consume(&reply, counterCreateACKFor(451, unix.RTM_GETLINK, unix.NLM_F_ACK, 0)); err != nil {
 				t.Fatal(err)
 			}
-			stats, err := counterBoundSelect(t, &source, &reply, 7, generation)
+			stats, err := counterBoundSelect(t, &source, &reply, generation)
 			if err == nil {
 				t.Fatal("bound selector accepted no current reply of the original")
 			}
@@ -351,7 +351,7 @@ func TestCounterBoundGenerationLossPermanent(t *testing.T) {
 				t.Fatal("replacement reused the original generation")
 			}
 			for _, reply := range []*counterDump{&original, &fresh} {
-				stats, err := counterBoundSelect(t, &source, reply, 7, generation)
+				stats, err := counterBoundSelect(t, &source, reply, generation)
 				if err == nil {
 					t.Fatal("old owner accepted a reply after its continuity ended")
 				}
@@ -381,7 +381,7 @@ func TestCounterBoundClosedSourceRefuses(t *testing.T) {
 	}
 	generation := dump.links[0].generation
 	source.close()
-	stats, err := counterBoundSelect(t, &source, &dump, 7, generation)
+	stats, err := counterBoundSelect(t, &source, &dump, generation)
 	if !errors.Is(err, os.ErrClosed) {
 		t.Fatalf("closed-source selection=%v, want os.ErrClosed", err)
 	}
@@ -508,7 +508,7 @@ func counterCreateFinish(t *testing.T, source *counterSource, dump *counterDump,
 	return finisher.finishCreate(dump, cause)
 }
 
-func counterBoundSelect(t *testing.T, source *counterSource, dump *counterDump, index int, generation uint64) (*netlink.LinkStatistics, error) {
+func counterBoundSelect(t *testing.T, source *counterSource, dump *counterDump, generation uint64) (*netlink.LinkStatistics, error) {
 	t.Helper()
 	selector, supported := any(source).(interface {
 		boundCounters(*counterDump, int, uint64) (*netlink.LinkStatistics, error)
@@ -518,7 +518,7 @@ func counterBoundSelect(t *testing.T, source *counterSource, dump *counterDump, 
 	}
 	source.mu.Lock()
 	defer source.mu.Unlock()
-	return selector.boundCounters(dump, index, generation)
+	return selector.boundCounters(dump, 7, generation)
 }
 
 func counterCreateNoStats(sequence uint32) syscall.NetlinkMessage {
