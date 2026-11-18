@@ -386,6 +386,9 @@ func collectCommands() ([]commandEntry, error) {
 
 	for wireMethod, cliPaths := range wireToPaths {
 		for _, cliPath := range cliPaths {
+			if command.HiddenAtPath(tree, strings.Fields(cliPath)) {
+				continue
+			}
 			if seen[cliPath] {
 				continue
 			}
@@ -432,6 +435,9 @@ func collectCommands() ([]commandEntry, error) {
 	}
 
 	for _, lc := range command.ListLocal() {
+		if command.HiddenAtPath(tree, strings.Fields(lc.Path)) {
+			continue
+		}
 		if seen[lc.Path] {
 			continue
 		}
@@ -486,6 +492,9 @@ func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *co
 	for _, registration := range pluginregistry.All() {
 		for index := range registration.Commands {
 			decl := &registration.Commands[index]
+			if command.HiddenAtPath(tree, strings.Fields(decl.Name)) {
+				continue
+			}
 			if decl.Name == "" || decl.Hidden || seen[decl.Name] {
 				continue
 			}

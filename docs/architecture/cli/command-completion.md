@@ -44,18 +44,35 @@ tree as it enters the SSH and web trees. `BuildRuntimeTreeFromDispatch` then
 merges every local-data registration, because the client answers those in its
 own process (`mergeLocalDataCommands`).
 
-That answer carries both texts of every command. The `short-help` key holds
-the summary, and `description` holds the explanation. `applyCommandText` writes the
-pair onto the node a row names, in ONE walk over `nodeAtPath`. The node that
-takes the summary is therefore the node that takes the explanation. A command
-the tree does not hold reaches it through the merge above, with the same
-pair.
+That answer carries visibility and both texts of every command. The `short-help`
+key holds the summary, and `description` holds the explanation. `applyCommandText`
+retains a row's `hidden` flag and fills empty text fields in one walk over
+`nodeAtPath`. A hidden row hides an existing builtin from discovery while keeping
+its typed path and existing schema visibility. A command the tree does not hold
+reaches it through the merge above, with the same texts.
+<!-- source: internal/component/cli/client/main.go -- applyCommandText, nodeAtPath -->
 
 A plugin command can never overwrite a builtin's `WireMethod`, its summary, or
 its long help. `MergeCommandPaths` writes each of the two help fields only on a
 leaf it creates, or on one whose own copy of that field is empty. The completer
-offers a node on name prefix and `backendAllowed` alone and never reads
-`WireMethod`, so a completion-only node surfaces.
+offers a node on name prefix, visibility and `backendAllowed`, and never
+requires `WireMethod`, so a completion-only node surfaces. YANG `ze:hidden true`
+hides a command or grouping and its descendants. Merges and overlays retain
+this visibility; completion and explanations stop at a hidden ancestor. The
+full path remains available for execution.
+<!-- source: internal/component/config/yang/command.go -- BuildCommandTree, inheritCommandHidden -->
+<!-- source: internal/component/command/completer.go -- resolve, matchChildren -->
+<!-- source: internal/component/command/node.go -- MergeCommandPaths, OverlayCommandPaths -->
+<!-- source: internal/component/command/valuehints.go -- MergeYANGNodes, mergeChildren -->
+
+The dispatcher binds the schema tree before plugin command registration. Each
+registered command's hidden fact combines its SDK declaration with the visibility
+of its schema path. Builtin and local-data rows carry that fact too, so help,
+completion and API metadata read the same visibility.
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, loadBuiltinsWithAliases -->
+<!-- source: internal/component/plugin/server/command_registry.go -- Register -->
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
+<!-- source: internal/component/plugin/server/system.go -- commandRows, handleSystemHelp, handleSystemCommandComplete -->
 
 A `command.CommandEntry` carries both fields. `ShortHelp` is the one-line
 summary and `Description` is the long explanation the command's own help page prints.
