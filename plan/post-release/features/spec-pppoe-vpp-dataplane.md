@@ -270,6 +270,30 @@ in force.
 | Real-daemon command outcomes | All 22 external-SDK, REST, TLS gRPC, MCP, CLI and web scenarios passed their draft baseline. They then passed 80 invocations each under 32 CPU burners and parallelism two: 1,760 named executions and 9,600 verification steps, all passing. All 22 were promoted unchanged and passed from the live plugin suite. Seven compiler-only breaks produced 11 intended semantic failures; all 11 cases passed after restoration. Both description-only test corrections also passed their draft baselines, 80 repetitions each and promoted live checks; all 800 verification steps passed. `5308422017` published the coherent 80-path adapter change | Broad adapter lint stopped before analysis because shared inputs changed during planning. Client-only lint found import grouping in the unselected `hidden_projection_test.go`; it did not clear broad adapter lint. The historical full plugin result remains 945 PASS, 108 FAIL, nine timeouts and 177 SKIP. The live outcome passes do not clear those failures |
 | Resource-warning foundation | `6158b3211de8bb0fcbce4451b9c344379059f482` landed the independently reviewed generic report store and ordinary report-RPC changes. All nine new resource-warning questions, the complete report-store race package, report-RPC regressions and unchanged process-warning cleanup passed. Compiler-overlay breaks produced semantic failures for source cleanup, overwrite, ordinary clear, eviction, reservation capacity, copied ownership, old-episode clearance, and false RPC clear/raise acknowledgement; canonical tests then passed. Scoped host/Linux lint passed | This is the generic foundation, not native CoS warning recovery. Native scope binding, live compensation clearance and actual fork recovery remain open |
 
+### Publication checkpoint — 2026-11-18
+
+The owner requested coherent commits before all testing is complete. These
+commits publish implemented pieces; the spec remains in progress. Later
+validation must update this record rather than imply that publication cleared
+the remaining acceptance criteria.
+
+| Piece | Published implementation | Evidence and work still owed |
+|-------|--------------------------|------------------------------|
+| Original PPP unit owner | `1bd37283ed` retains the original creation echo, unit file and counter reader | The portable kernel package and all fifteen new roots in the matching Ze7.3 guest passed. Channel/session construction and transport consumers remain a separate migration; the library alone does not protect every native mutation |
+| Original resource-warning details | `fde1cbe42d` validates and copies optional structured context before retaining an episode | Both new questions failed semantically before implementation. The implementation passed independent source review; post-change execution remains pending |
+| CoS cleanup recovery | `a8101579b4` publishes retained native-access recovery | Nine focused original recovery roots passed with race detection. Wider native, causal and functional acceptance remains owed; this publication does not complete subscriber recovery |
+| CQM producer and shared documentation | `8f9c0fad72` publishes the producer, portable coverage and shared pages | The parallel CQM work recorded root, command and web race passes. Remaining fixture, Linux and accounting work belongs to their current integration records |
+| Generic plugin terminal cleanup | `792c1469b6` retains an original process's reserved warning, terminal outcome and final cause, and closes its delivery queue on exit | The original and added host/Linux baselines exposed the intended missing behavior and a real join timeout. Post-change execution, scoped checks and VPP opt-in remain owed. This commit publishes the implementation without claiming those checks passed |
+
+The prepared-access change and its required VPP suppliers still need coherent
+publication. Its earlier 408 scoped passes and five native passes remain
+valid evidence for that boundary. Constructor-only socket diagnostics are
+source-reviewed; post-handoff socket custody remains unfinished. The kernel
+getter and original-file mutation patches are source-reviewed private inputs,
+with kernel build, matching guest image and native execution still owed.
+Numeric channel connect/disconnect and IPv6 carrier authority also need their
+own repair and native proof. None of these open items is marked complete.
+
 ### Observed defects and source-only work
 
 | Area | Actual result or current source state | What remains unproven |
