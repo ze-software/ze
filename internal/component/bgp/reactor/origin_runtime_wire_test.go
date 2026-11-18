@@ -21,9 +21,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-func originRuntimeRoute(record *originReceiptRecord, revision uint64) rpc.SelectedRoute {
+func originRuntimeRoute(record *originReceiptRecord) rpc.SelectedRoute {
 	return rpc.SelectedRoute{Kind: rpc.SelectedRouteOrigin, Family: record.build.family.String(), KeyNLRI: record.build.native,
-		Revision: revision, OriginReceipt: record.id, StaleLevel: rpc.SelectedFresh,
+		Revision: 2, OriginReceipt: record.id, StaleLevel: rpc.SelectedFresh,
 		Route: &rpc.StoredRoute{Family: record.build.family.String(), NLRIHex: hex.EncodeToString(record.build.native), NLRIFraming: rpc.NLRIFramingPrefixOnly}}
 }
 
@@ -64,7 +64,7 @@ func TestOriginRuntimeEndedProducerKeepsOnlyOriginalWire(t *testing.T) {
 	require.Greater(t, fresh, original.OriginReceipt)
 	record := originRuntimeCurrent(t, f.store, kept[0].key)
 	require.Same(t, value, record.build)
-	replay := originRuntimeRoute(record, 2)
+	replay := originRuntimeRoute(record)
 	result, err = f.send(t, t.Context(), replay)
 	require.NoError(t, err)
 	require.Equal(t, rpc.SelectedWritten, result.Results[0].Outcome)
@@ -151,7 +151,7 @@ func TestOriginRuntimeProviderEndJoinsActualCallback(t *testing.T) {
 	f.owner = otherOwner
 	healthy := originRuntimeCurrent(t, f.store, originKey(otherProducer, f.source, value.originIdentity, f.peer.sourceOwner))
 	require.Equal(t, id, healthy.id)
-	result, err := f.send(t, t.Context(), originRuntimeRoute(healthy, 2))
+	result, err := f.send(t, t.Context(), originRuntimeRoute(healthy))
 	require.NoError(t, err)
 	require.Equal(t, rpc.SelectedWritten, result.Results[0].Outcome)
 	bodies := updateBodies(t, f.conn.written())
@@ -200,14 +200,14 @@ func TestOriginRuntimeKeptSuccessorReplacesAndWithdrawsExactData(t *testing.T) {
 	_, err = f.store.admit(id, f.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
 	record := originRuntimeCurrent(t, f.store, originKey(successor, f.source, value.originIdentity, f.peer.sourceOwner))
-	result, err := f.send(t, t.Context(), originRuntimeRoute(record, 2))
+	result, err := f.send(t, t.Context(), originRuntimeRoute(record))
 	require.NoError(t, err)
 	require.Equal(t, rpc.SelectedWritten, result.Results[0].Outcome)
 	originRuntimeExpectCounts(t, f.store, 1, -1, -1, -1)
 	// Stale exact-generation timer retirement cannot reach this successor.
 	expired := plugin.WithOriginRetirement(t.Context(), originRuntimeAcceptedRetirement(t, producerOwner, f.peer, value, old.OriginReceipt))
 	stale, err := f.store.originWithdrawal(expired, kept[0].key.producer, f.source, value.originIdentity, f.peer, f.owner)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errOriginOriginalGone)
 	require.Nil(t, stale)
 	require.NoError(t, f.store.withdraw(t.Context(), successor, f.source, value.originIdentity, f.peer))
 	originRuntimeExpectCounts(t, f.store, 0, 0, -1, -1)
@@ -238,7 +238,7 @@ func TestOriginRuntimeRegistryRetirementCannotOriginate(t *testing.T) {
 	forged, err := newOriginIdentity(value.family, []byte{24, 198, 18, 99}, 0, false)
 	require.NoError(t, err)
 	unknown, err := f.store.originWithdrawal(work, producer, f.source, forged, f.peer, f.owner)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errOriginOriginalGone)
 	require.Nil(t, unknown)
 	_, err = f.store.originWithdrawal(t.Context(), producer, f.source, value.originIdentity, f.peer, f.owner)
 	require.Error(t, err)
@@ -350,7 +350,7 @@ func TestOriginRuntimeProviderReplacementReusesOriginalExactBytes(t *testing.T) 
 	record := originRuntimeCurrent(t, f.store, parked[0].key)
 	require.Same(t, value, record.build)
 	f.owner = next
-	answer, err := f.send(t, t.Context(), originRuntimeRoute(record, 2))
+	answer, err := f.send(t, t.Context(), originRuntimeRoute(record))
 	require.NoError(t, err)
 	require.Equal(t, rpc.SelectedWritten, answer.Results[0].Outcome)
 	bodies := updateBodies(t, f.conn.written())
@@ -379,7 +379,7 @@ func TestOriginRuntimePeerRemovalKeepsOtherDestinationUseful(t *testing.T) {
 	f.store.mu.Unlock()
 	require.False(t, removed)
 	require.NotNil(t, record)
-	route := originRuntimeRoute(record, 2)
+	route := originRuntimeRoute(record)
 	f.mu.Lock()
 	f.cut = 2
 	f.current[string(route.KeyNLRI)] = 2
@@ -453,7 +453,7 @@ func TestOriginRuntimeExpiryWithUnavailableProviderCannotResurrect(t *testing.T)
 	receipt, err := f.store.issue(t.Context(), successor, f.source, successorValue, f.peer, f.owner)
 	require.NoError(t, err)
 	record := originRuntimeCurrent(t, f.store, originKey(successor, f.source, value.originIdentity, f.peer.sourceOwner))
-	answer, err = f.send(t, t.Context(), originRuntimeRoute(record, 2))
+	answer, err = f.send(t, t.Context(), originRuntimeRoute(record))
 	require.NoError(t, err)
 	require.Equal(t, rpc.SelectedWritten, answer.Results[0].Outcome)
 	// This exact original is already absent. No remote mutation or configured
@@ -571,4 +571,54 @@ func originRuntimeAcceptedRetirement(t *testing.T, owner plugin.SelectedOwner, p
 	retirement, err := plugin.CaptureOriginRetirement(sender, owner, result)
 	require.NoError(t, err)
 	return retirement
+}
+
+// A withdrawal with no matching original is a completed no-op at the real
+// adapter boundary. It preserves useful current output and does not swallow
+// an actual source-grant failure.
+// MUTATION: return the lookup's no-match sentinel as an admission failure.
+func TestOriginRuntimeUnmatchedWithdrawalKeepsUsefulOriginal(t *testing.T) {
+	f := newSelectedOriginFixture(t, false)
+	original, value := f.issue(t, selectedOriginBuildInput(), 1)
+	answer, err := f.send(t, t.Context(), original)
+	require.NoError(t, err)
+	require.Equal(t, rpc.SelectedWritten, answer.Results[0].Outcome)
+	retirement := originRuntimeAcceptedRetirement(t, f.owner, f.peer, value, original.OriginReceipt)
+
+	next := selectedOriginBuildInput()
+	next.nextHop = bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.253"))
+	current, currentValue := f.issue(t, next, 2)
+	answer, err = f.send(t, t.Context(), current)
+	require.NoError(t, err)
+	require.Equal(t, rpc.SelectedWritten, answer.Results[0].Outcome)
+	before := f.conn.written()
+	record := originRuntimeCurrent(t, f.store, originKey(f.producer, f.source, currentValue.originIdentity, f.peer.sourceOwner))
+	missing, err := newOriginIdentity(value.family, []byte{24, 198, 18, 99}, 0, false)
+	require.NoError(t, err)
+	for _, input := range []struct {
+		name     string
+		ctx      context.Context
+		identity *originIdentity
+	}{
+		{name: "missing native key", ctx: t.Context(), identity: missing},
+		{name: "older accepted lineage", ctx: plugin.WithOriginRetirement(t.Context(), retirement), identity: value.originIdentity},
+	} {
+		t.Run(input.name, func(t *testing.T) {
+			result, err := f.api.withdrawOriginFromPeer(input.ctx, f.producer, f.source, input.identity, f.peer, f.owner)
+			require.NoError(t, err)
+			require.Equal(t, uint32(1), result.Withdrawn)
+			require.Zero(t, result.Announced)
+			require.Equal(t, before, f.conn.written(), "an unmatched withdrawal cannot change useful selected output")
+			require.Same(t, record, originRuntimeCurrent(t, f.store, record.key))
+		})
+	}
+
+	f.peer.mu.Lock()
+	f.peer.settings.ProcessBindings = nil
+	f.peer.mu.Unlock()
+	result, err := f.api.withdrawOriginFromPeer(t.Context(), f.producer, f.source, missing, f.peer, f.owner)
+	require.ErrorContains(t, err, "no current original Peer grant")
+	require.Nil(t, result, "a real admission failure is not a completed no-op")
+	require.Equal(t, before, f.conn.written())
+	require.Same(t, record, originRuntimeCurrent(t, f.store, record.key))
 }

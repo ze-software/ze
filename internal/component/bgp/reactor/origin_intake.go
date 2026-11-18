@@ -332,11 +332,13 @@ func (a *reactorAPIAdapter) withdrawOriginFromPeer(ctx context.Context, producer
 		return nil, errors.New("origin intake was declared but its engine domain has not started")
 	}
 	record, err := store.originWithdrawal(ctx, producer, source, identity, peer, owner)
+	// The lookup names absence explicitly. This caller MUST keep the existing
+	// successful no-op count and MUST NOT suppress other admission failures.
+	if errors.Is(err, errOriginOriginalGone) {
+		return &rpc.UpdateRouteOutput{Withdrawn: 1}, nil
+	}
 	if err != nil {
 		return nil, err
-	}
-	if record == nil {
-		return &rpc.UpdateRouteOutput{Withdrawn: 1}, nil
 	}
 	// Build/source values are immutable and retained by record. Registry lookup
 	// for portable encoding facts must happen outside the leaf issuer mutex.

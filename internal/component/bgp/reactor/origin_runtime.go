@@ -190,6 +190,8 @@ func (store *originReceiptStore) reissue(ctx context.Context, original *originRe
 
 // originWithdrawal accepts a same-name successor only through its live captured
 // token and current actual send grant, and only finds an engine-marked kept value.
+// No matching original returns errOriginOriginalGone. The withdrawal adapter
+// MUST consume that outcome as the existing successful no-op, not a failure.
 func (store *originReceiptStore) originWithdrawal(ctx context.Context, producer originProducer, source *originSource, identity *originIdentity, peer *Peer, owner plugin.SelectedOwner) (*originReceiptRecord, error) {
 	retirement, retiring := plugin.OriginRetirementFromContext(ctx)
 	if err := producer.current(); err != nil {
@@ -241,11 +243,11 @@ func (store *originReceiptStore) originWithdrawal(ctx context.Context, producer 
 		}
 	}
 	if record == nil {
-		return nil, nil
+		return nil, errOriginOriginalGone
 	}
 	if retiring {
 		if !record.matchesRetirement(retirement) {
-			return nil, nil
+			return nil, errOriginOriginalGone
 		}
 	}
 	if record.peer != peer {
@@ -313,19 +315,6 @@ func (store *originReceiptStore) beginOriginCall(ctx context.Context, record *or
 		store.mu.Unlock()
 	}
 	return call, release, nil
-}
-
-func (a *reactorAPIAdapter) callOriginIntake(ctx context.Context, owner plugin.SelectedOwner, input rpc.OriginIntakeInput) (*rpc.UpdateRouteOutput, error) {
-	store := a.r.originReceipts
-	store.mu.Lock()
-	record := store.receipts[input.OriginReceipt]
-	store.mu.Unlock()
-	call, release, err := store.beginOriginCall(ctx, record, owner, false)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
-	return a.r.api.OriginIntake(call.ctx, owner, input)
 }
 
 // replayOrigin re-offers original engine-owned bytes, never plugin-echoed bytes.
