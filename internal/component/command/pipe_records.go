@@ -423,7 +423,12 @@ func recordsSelected(
 		for record := range records {
 			if len(record.Item) > 0 {
 				var matched bool
-				record.Item, matched = selectItem(record.Item, keep)
+				var refusal string
+				record.Item, matched, refusal = selectItem(record.Item, keep)
+				if refusal != "" {
+					yield(pipeFault(refusal))
+					return
+				}
 				if !matched {
 					yield(pipeFault(displayNoFieldError(request.display)))
 					return
@@ -502,21 +507,25 @@ func selectPositionalItem(item json.RawMessage, indices []int, fieldCount int) (
 }
 
 // selectItem keeps the named fields of one self-describing result and answers
-// the result unchanged when it does not decode.
-func selectItem(item json.RawMessage, keep map[string]struct{}) (json.RawMessage, bool) {
+// the result unchanged when it does not decode. An ambiguous record selection
+// answers a refusal, which recordsSelected emits as a fault instead of data.
+func selectItem(item json.RawMessage, keep map[string]struct{}) (json.RawMessage, bool, string) {
 	var element any
 	if err := decodePipeJSON(bytes.NewReader(item), &element); err != nil {
-		return item, true
+		return item, true, ""
 	}
-	selected, matched := selectElement(element, keep)
-	if !matched {
-		return nil, false
+	selected, matches, refusal := selectElement(element, keep)
+	if refusal != "" {
+		return nil, false, refusal
+	}
+	if matches == 0 {
+		return nil, false, ""
 	}
 	encoded, err := json.Marshal(selected)
 	if err != nil {
-		return item, true
+		return item, true, ""
 	}
-	return encoded, true
+	return encoded, true, ""
 }
 
 // recordsPositionalAddressTransformed extends positional values and their head

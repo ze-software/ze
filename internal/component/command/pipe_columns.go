@@ -28,8 +28,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -191,9 +193,9 @@ func fillError(arg string) string {
 // decodes an element, selects its fields, writes it out and forgets it, so an
 // answer of a million rows never becomes a million decoded rows in memory.
 //
-// A field whose value is itself a table is selected recursively only when that
-// table carries another requested field. Otherwise the value stays whole, so a
-// top-level selection cannot empty an unrelated nested table.
+// A named table explicitly selects its containing record. Otherwise the record
+// holding the most requested fields is selected; a tie is refused rather than
+// silently dropping one matching record because it appears at another depth.
 func applyDisplaySelect(input string, request columnRequest) (string, string) {
 	if !request.selects() {
 		return input, ""
@@ -201,20 +203,27 @@ func applyDisplaySelect(input string, request columnRequest) (string, string) {
 
 	keep := keepFields(request.display)
 	payload := strings.TrimSpace(input)
-	if selected, matched, empty, ok := selectSequence(payload, keep); ok {
+	selectedSequence, matched, empty, sequence, refusal := selectSequence(payload, keep)
+	if refusal != "" {
+		return "", refusal
+	}
+	if sequence {
 		if displaySelectionMiss(matched, empty) {
 			return "", displayNoFieldError(request.display)
 		}
-		return selected, ""
+		return selectedSequence, ""
 	}
 
 	var data any
 	if err := decodePipeJSON(strings.NewReader(payload), &data); err != nil {
 		return input, ""
 	}
-	selected, matched := selectFields(data, keep)
+	selected, matches, refusal := selectFields(data, keep)
+	if refusal != "" {
+		return "", refusal
+	}
 	rows, _, hasRows := rowsIn(data)
-	if displayDecodedSelectionMiss(matched, hasRows, len(rows)) {
+	if displayDecodedSelectionMiss(matches > 0, hasRows, len(rows)) {
 		return "", displayNoFieldError(request.display)
 	}
 	out, err := json.Marshal(selected)
@@ -266,17 +275,17 @@ func keepFields(display ColumnOrder) map[string]struct{} {
 // A second key, a value that is not an array, and a token after the value each
 // read as "not a sequence", so a shape this function does not recognize reaches
 // selectFields unchanged rather than being answered wrongly.
-func selectSequence(payload string, keep map[string]struct{}) (selected string, matched, empty, ok bool) {
+func selectSequence(payload string, keep map[string]struct{}) (selected string, matched, empty, ok bool, refusal string) {
 	decoder := json.NewDecoder(strings.NewReader(payload))
 	decoder.UseNumber()
 
 	open, err := decoder.Token()
 	if err != nil {
-		return "", false, false, false
+		return "", false, false, false, ""
 	}
 	delim, isDelim := open.(json.Delim)
 	if !isDelim {
-		return "", false, false, false
+		return "", false, false, false, ""
 	}
 
 	var b textbuf.Buffer
@@ -284,24 +293,27 @@ func selectSequence(payload string, keep map[string]struct{}) (selected string, 
 	switch delim {
 	case '[':
 		var arrayOK bool
-		arrayOK, matched, rows = selectArray(decoder, keep, &b)
+		arrayOK, matched, rows, refusal = selectArray(decoder, keep, &b)
+		if refusal != "" {
+			return "", false, false, true, refusal
+		}
 		if !arrayOK {
-			return "", false, false, false
+			return "", false, false, false, ""
 		}
 	case '{':
 		var envelopeOK bool
 		envelopeOK, matched, rows = selectEnvelope(decoder, keep, &b)
 		if !envelopeOK {
-			return "", false, false, false
+			return "", false, false, false, ""
 		}
 	default:
-		return "", false, false, false
+		return "", false, false, false, ""
 	}
 
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
-		return "", false, false, false
+		return "", false, false, false, ""
 	}
-	return b.String(), matched, rows == 0, true
+	return b.String(), matched, rows == 0, true, ""
 }
 
 // selectEnvelope writes `{"<key>":[...]}`, the shape an answer takes under the
@@ -334,7 +346,13 @@ func selectEnvelope(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.
 	b.Byte('{')
 	b.Write(encoded) //nolint:errcheck // textbuf.Write never fails
 	b.Byte(':')
-	arrayOK, matched, rows := selectArray(decoder, keep, b)
+	arrayOK, matched, rows, refusal := selectArray(decoder, keep, b)
+	if refusal != "" {
+		// The unread remainder may hold a second key, so this has not been
+		// established as a one-key envelope. Judge the complete decoded
+		// record before deciding whether its nested ambiguity is relevant.
+		return false, false, 0
+	}
 	if !arrayOK {
 		return false, false, 0
 	}
@@ -353,20 +371,23 @@ func selectEnvelope(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.
 // selectArray writes the selection of each element of an array whose opening
 // bracket is already read. One element is decoded, selected, written and
 // forgotten, so the memory cost is one record rather than the whole answer.
-func selectArray(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.Buffer) (bool, bool, int) {
+func selectArray(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.Buffer) (bool, bool, int, string) {
 	b.Byte('[')
 	written := 0
 	matched := false
 	for decoder.More() {
 		var element any
 		if err := decoder.Decode(&element); err != nil {
-			return false, false, 0
+			return false, false, 0, ""
 		}
-		selected, elementMatched := selectElement(element, keep)
-		matched = matched || elementMatched
+		selected, matches, refusal := selectElement(element, keep)
+		if refusal != "" {
+			return false, false, 0, refusal
+		}
+		matched = matched || matches > 0
 		encoded, err := json.Marshal(selected)
 		if err != nil {
-			return false, false, 0
+			return false, false, 0, ""
 		}
 		if written > 0 {
 			b.Byte(',')
@@ -375,20 +396,20 @@ func selectArray(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.Buf
 		written++
 	}
 	if _, err := decoder.Token(); err != nil { // the closing bracket
-		return false, false, 0
+		return false, false, 0, ""
 	}
 	b.Byte(']')
-	return true, matched, written
+	return true, matched, written, ""
 }
 
 // selectElement keeps the named fields of ONE record of a sequence.
 //
 // An array element is a row, never a wrapper: renderList reads it the same way,
 // and so does the record path, where one rpc.Record carries one element.
-func selectElement(v any, keep map[string]struct{}) (any, bool) {
+func selectElement(v any, keep map[string]struct{}) (any, int, string) {
 	record, isRecord := v.(map[string]any)
 	if !isRecord {
-		return nil, false
+		return nil, 0, ""
 	}
 	return selectRecord(record, keep)
 }
@@ -396,23 +417,27 @@ func selectElement(v any, keep map[string]struct{}) (any, bool) {
 // selectFields keeps the named fields of every record in v.
 //
 // It walks the shapes tableStyle.renderValue walks, so the fields a table keeps
-// and the fields JSON keeps are the same fields. Recursion is over a payload
-// this daemon built, and its depth is the nesting of that payload.
-func selectFields(v any, keep map[string]struct{}) (any, bool) {
+// and the fields JSON keeps are the same fields. The match count identifies a
+// record shape by the requested fields it holds, rather than by its depth.
+// Recursion visits only descendants in the finite decoded input tree.
+func selectFields(v any, keep map[string]struct{}) (any, int, string) {
 	switch val := v.(type) {
 	case []any:
 		out := make([]any, len(val))
-		matched := false
+		matches := 0
 		for i, item := range val {
-			var itemMatched bool
-			out[i], itemMatched = selectElement(item, keep)
-			matched = matched || itemMatched
+			selected, itemMatches, refusal := selectElement(item, keep)
+			if refusal != "" {
+				return nil, itemMatches, refusal
+			}
+			out[i] = selected
+			matches = max(matches, itemMatches)
 		}
-		return out, matched
+		return out, matches, ""
 	case map[string]any:
 		return selectMap(val, keep)
 	}
-	return nil, false
+	return nil, 0, ""
 }
 
 // selectMap keeps the named fields of a map, whatever the map turns out to be:
@@ -423,30 +448,38 @@ func selectFields(v any, keep map[string]struct{}) (any, bool) {
 //   - a record
 //
 // Only the last one holds fields.
-func selectMap(m map[string]any, keep map[string]struct{}) (any, bool) {
+func selectMap(m map[string]any, keep map[string]struct{}) (any, int, string) {
 	if len(m) == 0 {
-		return m, false
+		return m, 0, ""
 	}
 
 	if _, hasMeta := m[pipeMetaKey]; hasMeta && len(m) == 2 {
 		out := make(map[string]any, len(m))
-		matched := false
+		matches := 0
 		for key, inner := range m {
 			if key == pipeMetaKey {
 				out[key] = inner
 				continue
 			}
-			out[key], matched = selectFields(inner, keep)
+			selected, innerMatches, refusal := selectFields(inner, keep)
+			if refusal != "" {
+				return nil, innerMatches, refusal
+			}
+			out[key] = selected
+			matches = innerMatches
 		}
-		return out, matched
+		return out, matches, ""
 	}
 
 	if len(m) == 1 {
 		for key, inner := range m {
 			switch inner.(type) {
 			case map[string]any, []any:
-				selected, matched := selectFields(inner, keep)
-				return map[string]any{key: selected}, matched
+				selected, matches, refusal := selectFields(inner, keep)
+				if refusal != "" {
+					return nil, matches, refusal
+				}
+				return map[string]any{key: selected}, matches, ""
 			}
 		}
 	}
@@ -455,32 +488,35 @@ func selectMap(m map[string]any, keep map[string]struct{}) (any, bool) {
 	// field, so it survives selection and keeps the row readable.
 	if homogeneousMapOfMapsKeys(m) != nil {
 		out := make(map[string]any, len(m))
-		matched := false
+		matches := 0
 		for key, inner := range m {
 			child, ok := inner.(map[string]any)
 			if !ok {
 				continue
 			}
-			var childMatched bool
-			out[key], childMatched = selectRecord(child, keep)
-			matched = matched || childMatched
+			selected, childMatches, refusal := selectRecord(child, keep)
+			if refusal != "" {
+				return nil, childMatches, refusal
+			}
+			out[key] = selected
+			matches = max(matches, childMatches)
 		}
-		return out, matched
+		return out, matches, ""
 	}
 
 	return selectRecord(m, keep)
 }
 
-// selectRecord returns the top-level fields of one row that the operator named.
-// A false match is reported to the caller, which refuses the selection rather
-// than returning the whole row and exposing fields a typo meant to remove.
+// selectRecord selects the record holding the most requested fields. A tied
+// match refuses rather than choosing a depth and silently dropping other rows.
 //
-// A selected nested value is narrowed only when it carries another requested
-// field. Otherwise it is copied whole: a nested map or list is another table,
-// not another copy of this row's schema.
-func selectRecord(m map[string]any, keep map[string]struct{}) (map[string]any, bool) {
+// Naming a container explicitly chooses this record. Its nested value is
+// narrowed when it carries another requested field, and otherwise kept whole.
+// This preserves explicit aggregate and row selections such as the aliases.
+func selectRecord(m map[string]any, keep map[string]struct{}) (map[string]any, int, string) {
 	out := make(map[string]any, len(keep)+1)
-	matched := false
+	matches := 0
+	explicit := false
 	for key, value := range m {
 		if key == pipeMetaKey {
 			out[key] = value
@@ -489,13 +525,76 @@ func selectRecord(m map[string]any, keep map[string]struct{}) (map[string]any, b
 		if _, wanted := keep[strings.ToLower(key)]; !wanted {
 			continue
 		}
-		selected, nestedMatched := selectFields(value, keep)
-		if nestedMatched {
+		matches++
+		switch value.(type) {
+		case map[string]any, []any:
+			explicit = true
+		}
+		selected, nestedMatches, refusal := selectFields(value, keep)
+		if refusal != "" {
+			return nil, matches, refusal
+		}
+		if nestedMatches > 0 {
 			out[key] = selected
 		} else {
 			out[key] = value
 		}
-		matched = true
 	}
-	return out, matched
+	if explicit {
+		return out, matches, ""
+	}
+
+	candidates := 0
+	if matches > 0 {
+		candidates = 1
+	}
+	refusal := ""
+	for key, value := range m {
+		if key == pipeMetaKey {
+			continue
+		}
+		if _, wanted := keep[strings.ToLower(key)]; wanted {
+			continue
+		}
+		selected, nestedMatches, nestedRefusal := selectFields(value, keep)
+		if nestedMatches > matches {
+			out = map[string]any{key: selected}
+			if metadata, present := m[pipeMetaKey]; present {
+				out[pipeMetaKey] = metadata
+			}
+			matches = nestedMatches
+			candidates = 1
+			refusal = nestedRefusal
+			continue
+		}
+		if nestedMatches == 0 {
+			continue
+		}
+		if nestedMatches == matches {
+			candidates++
+		}
+	}
+	if candidates > 1 {
+		return nil, matches, displayAmbiguousError(keep)
+	}
+	if refusal != "" {
+		return nil, matches, refusal
+	}
+	return out, matches, ""
+}
+
+// displayAmbiguousError names only requested keys, never values from either
+// record. An explicit containing field resolves which record the reader wants.
+func displayAmbiguousError(keep map[string]struct{}) string {
+	fields := make([]string, 0, len(keep))
+	for field := range keep {
+		fields = append(fields, field)
+	}
+	slices.Sort(fields)
+	var problem, fix textbuf.Buffer
+	problem.Str("display cannot choose one record for fields ").Str(textbuf.Join(fields, ", "))
+	fix.Str("display <record> | display ").Str(textbuf.Join(fields, " "))
+	return opererr.New(problem.String(),
+		"These fields occur in more than one record; name the containing record before selecting its fields.",
+		fix.String()).Error()
 }

@@ -644,7 +644,10 @@ func TestDisplaySelectsPerRecord(t *testing.T) {
 		// writes the key itself, so it has its own chance to escape differently.
 		`{"peers<&>":[{"state":"a&b<c","address":"192.0.2.1"}]}`,
 	} {
-		streamed, matched, empty, ok := selectSequence(payload, keep)
+		streamed, matched, empty, ok, refusal := selectSequence(payload, keep)
+		if refusal != "" {
+			t.Fatalf("select sequence %q: %s", payload, refusal)
+		}
 		if !ok {
 			t.Errorf("%q was not read as a sequence, so the whole payload was decoded to select it", payload)
 			continue
@@ -678,7 +681,10 @@ func selectWholePayload(t *testing.T, payload string, keep map[string]struct{}) 
 	if err := decoder.Decode(&data); err != nil {
 		t.Fatalf("decode %q: %v", payload, err)
 	}
-	selected, _ := selectFields(data, keep)
+	selected, _, refusal := selectFields(data, keep)
+	if refusal != "" {
+		t.Fatalf("select decoded payload %q: %s", payload, refusal)
+	}
 	out, err := json.Marshal(selected)
 	if err != nil {
 		t.Fatalf("marshal the selection of %q: %v", payload, err)
