@@ -77,8 +77,12 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=delete-alpha.form:encoding=base64:terminator=EOF_DEL
-bGVhZj1hbHBoYQ==
+# Form bodies hold exactly the bytes a browser sends: final-newline=false drops
+# the newline a text block writes after its last line, which url.ParseQuery
+# would keep in the last field's value (docs/architecture/testing/ci-format.md,
+# "Exact bytes").
+tmpfs=delete-alpha.form:final-newline=false:terminator=EOF_DEL
+leaf=alpha
 EOF_DEL
 
 
@@ -88,11 +92,12 @@ EOF_DEL
 # handler that answered 200 without removing anything would fail here.
 #
 # name=alpha, connection/remote/ip=198.51.100.9, session/asn/local=64500,
-# session/asn/remote=64501. Every value differs from the surviving beta peer:
-# handleConfigAdd runs checkUniqueConstraint on each submitted field and also
-# answers 409 on a collision, so a shared value would make the 409 ambiguous.
-tmpfs=readd-alpha.form:encoding=base64:terminator=EOF_ADD
-bmFtZT1hbHBoYSZmaWVsZCUzQWNvbm5lY3Rpb24lMkZyZW1vdGUlMkZpcD0xOTguNTEuMTAwLjkmZmllbGQlM0FzZXNzaW9uJTJGYXNuJTJGbG9jYWw9NjQ1MDAmZmllbGQlM0FzZXNzaW9uJTJGYXNuJTJGcmVtb3RlPTY0NTAx
+# session/asn/remote=64501, each field name percent-encoded as a browser sends
+# it. Every value differs from the surviving beta peer: handleConfigAdd runs
+# checkUniqueConstraint on each submitted field and also answers 409 on a
+# collision, so a shared value would make the 409 ambiguous.
+tmpfs=readd-alpha.form:final-newline=false:terminator=EOF_ADD
+name=alpha&field%3Aconnection%2Fremote%2Fip=198.51.100.9&field%3Asession%2Fasn%2Flocal=64500&field%3Asession%2Fasn%2Fremote=64501
 EOF_ADD
 
 cmd=foreground:seq=1:exec=ze start --web $PORT2 --insecure-web web-delete.conf:timeout=30s

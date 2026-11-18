@@ -42,23 +42,23 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # The two POST bodies are x-www-form-urlencoded, per handleUISearch's ParseForm,
-# and written in base64 so the file holds exactly the bytes a browser sends.
-# A text tmpfs block ends every line with a newline (internal/test/tmpfs,
-# parseTmpfsBlock), and url.ParseQuery keeps that newline in the last field's
-# value: the page then answered for "not-a-prefix\n", and for
-# "198.51.100.0/24\n", which no browser sends from a one-line input.
+# and declare final-newline=false so the file holds exactly the bytes a browser
+# sends. A text tmpfs block otherwise ends its last line with a newline
+# (internal/test/tmpfs, parseTmpfsBlock), and url.ParseQuery keeps that newline
+# in the last field's value: the page then answered for "not-a-prefix\n", and
+# for "198.51.100.0/24\n", which no browser sends from a one-line input.
 
-# prefix=10.20.3.0/24: one of the 15 prefixes the observer injects, so the
-# search validates, asks bgp-rib for exactly that prefix and renders its route.
-tmpfs=lg-search.body:mode=644:encoding=base64:terminator=EOF_BODY
-cHJlZml4PTEwLjIwLjMuMC8yNA==
+# One of the 15 prefixes the observer injects, so the search validates, asks
+# bgp-rib for exactly that prefix and renders its route.
+tmpfs=lg-search.body:mode=644:final-newline=false:terminator=EOF_BODY
+prefix=10.20.3.0/24
 EOF_BODY
 
-# prefix=not-a-prefix: neither an address nor a prefix, so parsePrefixLookup
-# refuses it and handleUISearch answers through renderSearchError, which
-# puts the operator error in the banner.
-tmpfs=lg-search-invalid.body:mode=644:encoding=base64:terminator=EOF_BAD_BODY
-cHJlZml4PW5vdC1hLXByZWZpeA==
+# Neither an address nor a prefix, so parsePrefixLookup refuses it and
+# handleUISearch answers through renderSearchError, which puts the operator
+# error in the banner.
+tmpfs=lg-search-invalid.body:mode=644:final-newline=false:terminator=EOF_BAD_BODY
+prefix=not-a-prefix
 EOF_BAD_BODY
 
 # Native observer injects 15 distinct prefixes and stays attached until shutdown.

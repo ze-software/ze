@@ -8,8 +8,12 @@ option=env:var=ze.config.dir:value=.
 option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=20s
 
-tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
-aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAzMjAyMDAwMDAwMTU0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
+# The form body holds exactly the bytes a browser sends: final-newline=false
+# drops the newline a text block writes after its last line, which
+# url.ParseQuery would keep in the hex field's value
+# (docs/architecture/testing/ci-format.md, "Exact bytes").
+tmpfs=decode-hex.form:final-newline=false:terminator=EOF_HEX
+hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003202000000154001010040020040030465016501400504000000640018ac100100
 EOF_HEX
 
 # Web-only mode requires the store: the silent bare-`--web` web-only fallback

@@ -439,6 +439,62 @@ EOF
 	assert.Equal(t, "The quick brown fox jumps over the lazy dog", string(v.Files[0].Content))
 }
 
+// TestFinalNewline verifies that final-newline=false writes a text block's
+// bytes up to the end of its last line and no further.
+//
+// VALIDATES: final-newline=false drops exactly the newline after the last line
+// (one-line and multi-line blocks, and a last line that is itself empty), the
+// default and final-newline=true keep it, and an empty block stays empty.
+// PREVENTS: a form or HTTP body read from a tmpfs file reaching the server with
+// a newline no browser sends, which url.ParseQuery keeps in the last field's
+// value, so the server answers for a value the test never meant to send.
+// METHOD: parse each header form and compare File.Content byte for byte.
+func TestFinalNewline(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"one line, no final newline", "tmpfs=a.form:final-newline=false:terminator=EOF\nprefix=10.0.0.0%2F24\nEOF\n", "prefix=10.0.0.0%2F24"},
+		{"two lines, no final newline", "tmpfs=a.txt:final-newline=false:terminator=EOF\nfirst\nsecond\nEOF\n", "first\nsecond"},
+		{"empty last line keeps the newline before it", "tmpfs=a.txt:final-newline=false:terminator=EOF\nfirst\n\nEOF\n", "first\n"},
+		{"empty block", "tmpfs=a.txt:final-newline=false:terminator=EOF\nEOF\n", ""},
+		{"explicit true keeps the newline", "tmpfs=a.txt:final-newline=true:terminator=EOF\nfirst\nEOF\n", "first\n"},
+		{"default keeps the newline", "tmpfs=a.txt:terminator=EOF\nfirst\nEOF\n", "first\n"},
+		{"any key order", "tmpfs=a.txt:terminator=EOF:mode=644:final-newline=false\nfirst\nEOF\n", "first"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := Parse(strings.NewReader(tc.input))
+			require.NoError(t, err)
+			require.Len(t, v.Files, 1)
+			// Compared as text: a nil and an empty Content write the same empty file.
+			assert.Equal(t, tc.want, string(v.Files[0].Content))
+		})
+	}
+}
+
+// TestFinalNewlineRefusals verifies the declarations final-newline refuses.
+//
+// VALIDATES: a value other than true or false is refused, and the key is
+// refused on a base64 block, whose bytes are already exact.
+// PREVENTS: a misspelled value (final-newline=no) silently keeping the
+// newline, and a declaration that changes nothing passing as if it did.
+func TestFinalNewlineRefusals(t *testing.T) {
+	_, err := Parse(strings.NewReader("tmpfs=a.txt:final-newline=no:terminator=EOF\nfirst\nEOF\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `final-newline "no"`)
+
+	_, err = Parse(strings.NewReader("tmpfs=a.txt:final-newline=:terminator=EOF\nfirst\nEOF\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `final-newline ""`)
+
+	_, err = Parse(strings.NewReader("tmpfs=a.bin:encoding=base64:final-newline=false:terminator=EOF\naGVsbG8=\nEOF\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "final-newline")
+	assert.Contains(t, err.Error(), "base64")
+}
+
 // TestNonTmpfsLinesPassthrough verifies non-Tmpfs lines are collected.
 //
 // VALIDATES: Lines not starting with tmpfs= are available for other consumers.

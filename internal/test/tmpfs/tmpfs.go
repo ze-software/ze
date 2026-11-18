@@ -1,10 +1,10 @@
-// Design: docs/architecture/system-architecture.md — temporary filesystem management
+// Design: docs/architecture/testing/ci-format.md — Tmpfs (Virtual File System)
 //
 // Package tmpfs provides a Virtual File System for embedding multiple files in a single stream.
 //
 // Tmpfs format:
 //
-//	tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
+//	tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>][:final-newline=<bool>]:terminator=<TERM>
 //	<content>
 //	<TERM>
 //
@@ -40,6 +40,7 @@ var (
 	errEmptyStdinName                           = errors.New("empty stdin name")
 	errMissingTerminatorHexOrTextIn             = errors.New("missing terminator, hex=, or text= in stdin block")
 	errOddLengthHexString                       = errors.New("odd length hex string")
+	errFinalNewlineOnBase64                     = errors.New("final-newline applies to encoding=text only: a base64 block already decodes to exactly the bytes it encodes; remove final-newline from this header")
 )
 
 // File represents a single file in the Tmpfs.
@@ -239,12 +240,18 @@ func parseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
 	return v, nil
 }
 
+// The encoding=<type> values a tmpfs= header accepts.
+const (
+	encodingText   = "text"
+	encodingBase64 = "base64"
+)
+
 // validTerminator matches alphanumeric and underscore only.
 var validTerminator = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
 // parseTmpfsBlock parses a single Tmpfs block starting from the header line.
 func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limits Limits, seenTerminators map[string]bool) (*File, int, error) {
-	// Parse header: tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
+	// Parse header: tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>][:final-newline=<bool>]:terminator=<TERM>
 	// Remove "tmpfs=" prefix
 	rest := strings.TrimPrefix(header, "tmpfs=")
 
@@ -273,7 +280,12 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 	var terminator string
 	var modeStr string
 	var refused string
-	encoding := "text"
+	encoding := encodingText
+	// A text block ends its last line with a newline unless the header says
+	// final-newline=false. Declared is kept apart from the value so that the
+	// key on a base64 block is refused whatever value it carries.
+	keepFinalNewline := true
+	finalNewlineDeclared := false
 
 	for _, part := range parts[1:] {
 		if part == "" {
@@ -298,6 +310,13 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 				return nil, startLine, fmt.Errorf("invalid refused %q: name the diagnostic code the config is refused with, such as config-parse", value)
 			}
 			refused = value
+		case "final-newline":
+			keep, err := parseFinalNewline(value)
+			if err != nil {
+				return nil, startLine, err
+			}
+			keepFinalNewline = keep
+			finalNewlineDeclared = true
 		default:
 			return nil, startLine, fmt.Errorf("unknown key: %q", key)
 		}
@@ -316,8 +335,16 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 	seenTerminators[terminator] = true
 
 	// Validate encoding
-	if encoding != "text" && encoding != "base64" {
+	if encoding != encodingText && encoding != encodingBase64 {
 		return nil, startLine, fmt.Errorf("invalid encoding %q: must be 'text' or 'base64'", encoding)
+	}
+	// base64 joins its lines and discards every newline before it decodes, so
+	// final-newline would change nothing there: a declaration with no effect
+	// is refused rather than accepted as if it did something.
+	if finalNewlineDeclared {
+		if encoding == encodingBase64 {
+			return nil, startLine, errFinalNewlineOnBase64
+		}
 	}
 
 	// Parse mode
@@ -357,7 +384,7 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 
 	// Decode content
 	var contentBytes []byte
-	if encoding == "base64" {
+	if encoding == encodingBase64 {
 		// Join lines and decode
 		b64 := strings.ReplaceAll(content.String(), "\n", "")
 		var err error
@@ -367,6 +394,12 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 		}
 	} else {
 		contentBytes = content.Bytes()
+		// The loop above writes a newline after every line, the last one
+		// included, so the trim removes exactly that one: a last line that is
+		// itself empty keeps the newline that ended the line before it.
+		if !keepFinalNewline {
+			contentBytes = bytes.TrimSuffix(contentBytes, []byte{'\n'})
+		}
 	}
 
 	return &File{
@@ -375,6 +408,22 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 		Mode:    mode,
 		Content: contentBytes,
 	}, lineNum, nil
+}
+
+// parseFinalNewline answers the final-newline=<bool> a tmpfs= header declares:
+// true keeps the newline after the last line, which a config or a script
+// expects, and false ends the file at its last line, for a body whose exact
+// bytes reach a server (a form POST, where url.ParseQuery keeps a trailing
+// newline in the last field's value). Any other spelling is refused, so a
+// misspelled false never silently keeps the newline.
+func parseFinalNewline(value string) (bool, error) {
+	switch value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+	return false, fmt.Errorf("invalid final-newline %q: must be 'true' or 'false'; write final-newline=false to end the file at its last line", value)
 }
 
 // stdinRefused answers the refused=<code> a stdin= header declares, "" when
