@@ -190,7 +190,8 @@ func TestRenderSVG(t *testing.T) {
 }
 
 func TestRenderSVGWithNames(t *testing.T) {
-	// VALIDATES: AC-2 from lg-4 -- ASN names in node labels.
+	// VALIDATES: AC-2 from lg-4 -- the ASN name reaches the drawing, as the
+	// node's mouse-over <title> (TestASPathGraphNamesOnMouseOver).
 	g := &Graph{
 		Nodes: []GraphNode{
 			{ASN: 65001, Name: "Example Corp", Layer: 0},
@@ -242,22 +243,24 @@ func TestExtractASPath(t *testing.T) {
 }
 
 func TestFormatNodeLabel(t *testing.T) {
-	// VALIDATES: node label formatting with and without name.
+	// VALIDATES: the visible label of a node is "AS" and the number, with a
+	// name or without one: the name is on mouse-over only (asNodeTooltip).
 	if got := formatNodeLabel(GraphNode{ASN: 65001}); got != "AS65001" {
 		t.Errorf("no name: got %q, want AS65001", got)
 	}
-	if got := formatNodeLabel(GraphNode{ASN: 65001, Name: "Acme"}); got != "AS65001 Acme" {
-		t.Errorf("with name: got %q, want 'AS65001 Acme'", got)
+	if got := formatNodeLabel(GraphNode{ASN: 65001, Name: "Acme"}); got != "AS65001" {
+		t.Errorf("with name: got %q, want AS65001", got)
 	}
 }
 
-func TestTooltipName(t *testing.T) {
-	// VALIDATES: tooltip name formatting.
-	if got := tooltipName(""); got != "" {
-		t.Errorf("empty: got %q, want empty", got)
+func TestASNodeTooltip(t *testing.T) {
+	// VALIDATES: the mouse-over text of an AS node is "AS<n> - <name>", and
+	// "" for an AS with no name, so the writer draws no empty <title>.
+	if got := asNodeTooltip(65001, ""); got != "" {
+		t.Errorf("no name: got %q, want empty", got)
 	}
-	if got := tooltipName("Acme Corp"); got != " - Acme Corp" {
-		t.Errorf("non-empty: got %q, want ' - Acme Corp'", got)
+	if got := asNodeTooltip(65001, "Acme Corp"); got != "AS65001 - Acme Corp" {
+		t.Errorf("with name: got %q, want 'AS65001 - Acme Corp'", got)
 	}
 }
 

@@ -100,8 +100,10 @@ templ helpPage() {
 	<template id="help-aspath">
 		<p>
 			After searching a prefix, click <strong>AS Path</strong> above the route table.
-			Each node is an AS (with organization name from Team Cymru DNS). Edges show
-			the peering relationships seen in AS paths. AS prepending is collapsed.
+			Each node is an AS, labelled AS and its number. Hold the pointer over a node to
+			read the AS's organization name, from Team Cymru DNS; an AS it names nothing for
+			has no name to show. Edges show the peering relationships seen in AS paths. AS
+			prepending is collapsed. The peer tables show a name the same way, over the AS number.
 		</p>
 		<p>Layout: origin AS on the right, upstream providers on the left.</p>
 	</template>

@@ -101,17 +101,14 @@ func computeNextHopLayout(g *nextHopGraph) *nextHopLayout {
 	}
 }
 
-// formatNextHopNodeLabel returns the display label for a next-hop graph node:
+// formatNextHopNodeLabel returns the visible label of a next-hop graph node:
 // a router's address, after the operator's name for it when there is one, or
-// an outside AS, before its name when the decorator knows one, as the trace
-// labels an AS (traceASLabel).
+// an outside AS as "AS<n>" alone, as the trace labels an AS (traceASLabel).
+// The AS name is the node's tooltip (asNodeTooltip), so it never widens the
+// node (computeNextHopLayout sizes a column by this label).
 func formatNextHopNodeLabel(n NextHopNode) string {
 	if n.Outside {
-		if n.Name == "" {
-			return n.Address
-		}
-		var tb textbuf.Buffer
-		return tb.Str(n.Address).Byte(' ').Str(n.Name).String()
+		return n.Address
 	}
 	if n.Name != "" {
 		var tb textbuf.Buffer
@@ -184,8 +181,7 @@ func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 		}
 
 		if n.Outside {
-			label := formatNextHopNodeLabel(n)
-			writeRouterGraphNode(&sb, outsideNodeClass, label, label, pos)
+			writeRouterGraphNode(&sb, outsideNodeClass, formatNextHopNodeLabel(n), asNodeTooltip(n.AS, n.Name), pos)
 			continue
 		}
 
@@ -266,7 +262,8 @@ func writeRouterGraphEdge(sb *textbuf.Buffer, from, to Position) {
 
 // writeRouterGraphNode writes one node: its box, its label cut to the box, and
 // its tooltip. label and tooltip are escaped here, so a caller passes operator
-// text (a range name, an AS name) as it is.
+// text (a range name, an AS name) as it is. An empty tooltip writes no <title>:
+// an AS with no name has nothing to show on mouse-over (asNodeTooltip).
 func writeRouterGraphNode(sb *textbuf.Buffer, class, label, tooltip string, pos Position) {
 	maxChars := (pos.Width - nodePadding*2) / charWidthApprox
 	if maxChars > 0 && len(label) > maxChars {
@@ -280,7 +277,9 @@ func writeRouterGraphNode(sb *textbuf.Buffer, class, label, tooltip string, pos 
 	fmt.Fprintf(sb, `<text x="%d" y="%d" class="label">%s</text>`, //nolint:errcheck // buffer output
 		pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 		template.HTMLEscapeString(label))
-	fmt.Fprintf(sb, `<title>%s</title>`, template.HTMLEscapeString(tooltip)) //nolint:errcheck // buffer output
+	if tooltip != "" {
+		fmt.Fprintf(sb, `<title>%s</title>`, template.HTMLEscapeString(tooltip)) //nolint:errcheck // buffer output
+	}
 	sb.WriteString("</g>\n")
 }
 

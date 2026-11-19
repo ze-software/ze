@@ -73,9 +73,11 @@ func TestNextHopGraphDrawsOutsidePeersByAS(t *testing.T) {
 	for _, part := range []string{
 		outsideNodeStyle,
 		`<g class="node outside">`,
-		// The AS name is the one the AS path graph shows, escaped.
-		"<title>AS65101 Transit &lt;A&gt;</title>",
-		"<title>AS65102</title>",
+		// The AS name is the one the AS path graph shows, escaped, and on
+		// mouse-over only: the visible label is the AS number.
+		`class="label">AS65101</text><title>AS65101 - Transit &lt;A&gt;</title>`,
+		// An AS with no name has no tooltip at all.
+		`class="label">AS65102</text></g>`,
 		`<g class="node egress">`,
 	} {
 		if !strings.Contains(drawing, part) {

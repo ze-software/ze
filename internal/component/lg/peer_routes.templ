@@ -18,18 +18,17 @@ templ peerRoutesPage(v peerRoutesView) {
 // rows. A peer with more routes than maxDisplayRoutes gets the summary and no
 // rows. A count the engine could not answer renders as an empty cell, and so
 // does the age of a route whose row carries none (the Age cell, as in
-// routeResults).
+// routeResults). The peer's AS is shown as "AS" and the number, with the AS
+// name, when the resolve command gives one, as its title on mouse-over.
 templ peerRoutesContent(v peerRoutesView) {
 	if v.Peer != nil {
 		<div class="peer-info">
 			<span class={ "peer-info-state", stateClass(v.Peer.State) }>{ v.Peer.State }</span>
-			<span>
+			<span
 				if v.Peer.RemoteASName != "" {
-					AS { v.Peer.RemoteAS } <span class="asn-name">{ v.Peer.RemoteASName }</span>
-				} else {
-					AS { v.Peer.RemoteAS }
+					title={ v.Peer.RemoteASName }
 				}
-			</span>
+			>AS { v.Peer.RemoteAS }</span>
 			if v.Peer.Description != "" {
 				<span class="peer-info-desc">{ v.Peer.Description }</span>
 			}

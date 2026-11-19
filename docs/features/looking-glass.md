@@ -51,7 +51,7 @@ The looking glass includes a server-side SVG graph that visualizes AS path topol
 | Layered layout | Sugiyama-inspired left-to-right layout with source ASes on the left, origin on the right |
 | AS prepending | Consecutive duplicate ASNs collapsed to a single node |
 | Multi-path | Multiple AS paths to the same prefix shown as a branching DAG |
-| ASN labels | Each node shows AS number and organization name (when decorator is available) |
+| ASN labels | Each node shows `AS` and the AS number. The organization name, when Team Cymru gives one, shows on mouse-over only, as it does over the AS number of the peer tables |
 | Node cap | Graphs limited to 100 nodes to prevent resource exhaustion |
 | HTMX integration | Loaded as an inline SVG fragment via `GET /lg/graph?prefix=X` |
 

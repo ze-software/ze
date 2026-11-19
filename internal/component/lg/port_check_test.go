@@ -142,6 +142,10 @@ const (
 	// lgPortOutsideAsAS covers the next-hop graph, where a peer whose session
 	// is external is drawn as its AS number and never as its address.
 	lgPortOutsideAsAS = "the next-hop graph draws a peer whose session is external as its AS number, never as its address"
+	// lgPortASNameOnHover covers every AS a page or a graph shows: the AS
+	// number is the visible text, and the organisation name, when the resolve
+	// command gives one, is in a title shown on mouse-over.
+	lgPortASNameOnHover = "an AS is shown by its number, and its name, when one is known, only on mouse-over"
 	// lgPortTraceButton covers the result panel of a search that names a
 	// prefix.
 	lgPortTraceButton = "the result panel offers a third graph button, Trace"
@@ -165,6 +169,7 @@ var lgPortTemplates = map[string]string{
 	"peers--full.html":            lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
 	"peers_content--empty.html":   lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns,
 	"peers_content--full.html":    lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"bmp_peers_content.html":      lgPortASNameOnHover,
 	"peers_table_body--full.html": lgPortPeerHistoryCells,
 
 	"peer_routes--empty.html":           lgPortPeerCounts,
@@ -204,7 +209,8 @@ var lgPortHandlers = map[string]string{
 	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortSearchHelp + ", " + lgPortFeatureHelp,
 	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts + ", " + lgPortPeerHeaderHistory + ", " + lgPortRouteAge,
 	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells + ", " + lgPortSummaryProducer,
-	"ui-graph-nexthop.txt":       lgPortOutsideAsAS,
+	"ui-graph-aspath.txt":        lgPortASNameOnHover,
+	"ui-graph-nexthop.txt":       lgPortOutsideAsAS + ", " + lgPortASNameOnHover,
 	"ui-route-detail.txt":        lgPortRouteDetailSpan,
 	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
 }

@@ -178,7 +178,7 @@ func TestTraceGraphModeAnswersSVG(t *testing.T) {
 		">198.18.0.0/24 from 198.51.100.4: leaves the AS at 198.51.100.1, which announces its own address as next hop<",
 		">198.18.0.0/24 from 198.51.100.2: leaves the AS at 198.51.100.2 toward 203.0.113.9, the address of no router of the AS<",
 		">" + template.HTMLEscapeString(traceNote) + "<",
-		"<title>AS65101 Transit &lt;A&gt;</title>",
+		`class="label">AS65101</text><title>AS65101 - Transit &lt;A&gt;</title>`,
 	} {
 		if !strings.Contains(body, part) {
 			t.Errorf("the drawing does not hold %q:\n%s", part, body)
@@ -379,7 +379,7 @@ func TestTraceGraphSVGOfOneExit(t *testing.T) {
 		`<g class="node egress"><rect x="20" y="20" width="116" height="40"/>` +
 		`<text x="36" y="44" class="label">198.51.100.1</text><title>198.51.100.1</title></g>` + "\n" +
 		`<g class="node"><rect x="256" y="20" width="81" height="40"/>` +
-		`<text x="272" y="44" class="label">AS65101</text><title>AS65101</title></g>` + "\n" +
+		`<text x="272" y="44" class="label">AS65101</text></g>` + "\n" +
 		`<g class="trace-ends">` + "\n" +
 		`<text x="20" y="98"` + font +
 		`198.18.0.0/24 from 198.51.100.1: leaves the AS at 198.51.100.1, which announces its own address as next hop</text>` + "\n" +

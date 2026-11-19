@@ -36,13 +36,24 @@ const (
 
 // computeLayout assigns x,y positions to each graph node using a layered layout.
 // Layers are arranged left-to-right: source ASes at left, origin at right.
+//
+// A node is as wide as its visible label, the AS number alone. The AS name is
+// shown on mouse-over only (renderGraphSVG), so the shared layout, which sizes
+// a node by the label with the name, is given the nodes without their names.
 func computeLayout(g *Graph) *Layout {
-	return graph.ComputeLayout(g, graph.SVGConfig())
+	unnamed := Graph{Nodes: make([]GraphNode, len(g.Nodes)), Edges: g.Edges}
+	for i, node := range g.Nodes {
+		node.Name = ""
+		unnamed.Nodes[i] = node
+	}
+	return graph.ComputeLayout(&unnamed, graph.SVGConfig())
 }
 
-// formatNodeLabel returns the display label for a graph node.
+// formatNodeLabel returns the visible label of a graph node: "AS" and the
+// number, whether or not the AS has a name. The name is the node's tooltip
+// (asNodeTooltip), never drawn as text.
 func formatNodeLabel(n GraphNode) string {
-	return graph.FormatNodeLabel(n)
+	return graph.FormatNodeLabel(GraphNode{ASN: n.ASN})
 }
 
 // renderGraphSVG renders the graph as an SVG string.
@@ -110,8 +121,9 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="asn">%s</text>`, //nolint:errcheck // report output
 			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 			template.HTMLEscapeString(label))
-		fmt.Fprintf(&sb, `<title>%s</title>`, //nolint:errcheck // buffer output
-			template.HTMLEscapeString(fmt.Sprintf("AS%s%s", asn.Text(n.ASN, asn.Configured()), tooltipName(n.Name))))
+		if tooltip := asNodeTooltip(n.ASN, n.Name); tooltip != "" {
+			fmt.Fprintf(&sb, `<title>%s</title>`, template.HTMLEscapeString(tooltip)) //nolint:errcheck // buffer output
+		}
 		sb.WriteString("</g>\n")
 	}
 
@@ -119,11 +131,15 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 	return sb.String()
 }
 
-// tooltipName formats the name portion of a tooltip.
-func tooltipName(name string) string {
+// asNodeTooltip is the mouse-over text of the node of an AS in any of the
+// three graphs: "AS<n> - <name>", the number in the configured notation. It is
+// "" for an AS with no name, whether the resolve command named nothing or
+// failed (as_names.go), and the caller then writes no <title> at all: the
+// visible label already says "AS<n>", and an empty tooltip says nothing.
+func asNodeTooltip(number uint32, name string) string {
 	if name == "" {
 		return ""
 	}
 	var tb textbuf.Buffer
-	return tb.Str(" - ").Str(name).String()
+	return tb.Str("AS").Str(asn.Text(number, asn.Configured())).Str(nextHopTooltipName(name)).String()
 }

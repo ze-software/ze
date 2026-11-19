@@ -217,8 +217,7 @@ tbody tr.best-route { background: var(--best-bg); }
 #graph-container { margin: 0.5rem 0 1rem; overflow-x: auto; }
 #graph-container svg { max-width: 100%; height: auto; }
 
-/* ASN name */
-.asn-name { color: var(--th-text); font-size: 0.8rem; margin-left: 0.3rem; }
+/* Next-hop range name. An AS name has no rule: it is a title, on mouse-over only. */
 .next-hop-name { color: var(--th-text); font-size: 0.8rem; }
 td.state-changed, td.connections-dropped, .route-age { white-space: nowrap; font-variant-numeric: tabular-nums; }
 td.peer-description { color: var(--th-text); max-width: 24rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

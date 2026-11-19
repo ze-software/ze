@@ -107,12 +107,12 @@ set `tls false`). No authentication is required unless you set `token`.
 
 | Tab / View | URL | Description |
 |------------|-----|-------------|
-| Peers tab | `/lg/peers` | All peers with state, session history, AS names (from Team Cymru, through `resolve cymru asn-name`; an AS it names nothing for, such as a private AS number, shows its number alone), route counts. Live SSE updates. |
+| Peers tab | `/lg/peers` | All peers with state, session history, remote AS, route counts. The remote AS cell shows the number; its AS name (from Team Cymru, through `resolve cymru asn-name`) shows when the pointer rests on the cell. An AS it names nothing for, such as a private AS number, or a lookup that failed, has no name to show. Live SSE updates. |
 | Lookup tab | `/lg/lookup` | Prefix/IP lookup with inline all-peers AS path topology graph (SVG). |
 | Search tab | `/lg/search` | Unified search: prefix, AS path, or community. Type selector. |
 | Per-peer routes | `/lg/peer/{address}` | Routes received from a specific peer (inline below peers table). |
 | Route detail | `/lg/route/detail` | Expanded route attributes and the route's age (HTMX fragment, click-to-expand). |
-| AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology from all peers (auto-loaded on lookup). |
+| AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology from all peers (auto-loaded on lookup). Each AS is labelled `AS<n>`, and its name, when Team Cymru gives one, shows on mouse-over only, so a name never widens a node. The text form (`format=text`), read by scripts, still writes the name, as it always did. |
 
 ### Session history on the peers page
 
@@ -212,7 +212,7 @@ differently, so a reader tells them apart at a glance:
 | What the address is | How the graphs draw it | Why |
 |---------------------|------------------------|-----|
 | A router of your AS: a peer whose session with Ze is internal (`peer-type` `internal` in `show bgp`) | By its address, with the name of its `next-hop-range` when it is in one. Green when it is an egress | Inside your AS the address is what tells one router from another |
-| A neighbour outside your AS: a peer whose session with Ze is external (`peer-type` `external`) | By its AS number only, with the AS name the AS path graph shows, in a dashed box. Its address is nowhere in the graph. Two neighbours of one AS are one node, and the edges to either meet on it | Outside your AS the looking glass states who the traffic is handed to, never which address of theirs |
+| A neighbour outside your AS: a peer whose session with Ze is external (`peer-type` `external`) | By its AS number only, `AS<n>`, in a dashed box, with the AS name on mouse-over as the AS path graph shows it. Its address is nowhere in the graph. Two neighbours of one AS are one node, and the edges to either meet on it | Outside your AS the looking glass states who the traffic is handed to, never which address of theirs |
 | An address that is no peer of Ze: a next hop with no session, or a route held for a peer with no session | By its address, as a route wrote it | Ze knows no AS for it, and nothing is derived |
 
 In the next-hop graph's text form (`mode=nexthop&format=text`) a router or an
@@ -293,8 +293,8 @@ The graph and the help page say so.
 
 The graph draws at most 100 nodes (routers, ASes, and the next hops of
 prefixes that originate inside the AS, together) and says so when a prefix
-has more. Names from `next-hop-range` label the routers and those next hops,
-and AS names label the ASes.
+has more. Names from `next-hop-range` label the routers and those next hops.
+An AS is labelled `AS<n>` and its name shows on mouse-over.
 
 The lines under the graph, and the `trace` lines of the text form, stop at
 100. A bare address asks for every prefix that contains it, and each prefix

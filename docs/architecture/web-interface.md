@@ -1530,7 +1530,7 @@ All BGP data is queried via `CommandDispatcher` (same `func(string) (string, err
 
 #### LG AS names
 
-The name beside an AS number, on the peer tables, a peer's detail and the
+The name of an AS, on the peer tables, a peer's detail and the
 three graphs, comes from the resolve component's command
 `resolve cymru asn-name <asn>` (wire method `ze-resolve:cymru-asn-name`),
 asked through the same dispatcher as every other fact. The looking glass
@@ -1545,16 +1545,32 @@ from the hub's Team Cymru client, which caches each name for an hour
   not cached yet waits at most that long. Within the part each AS number is
   asked once, in decimal whatever the configured notation; nothing is kept
   after the part is drawn.
-- **Three answers.** A name is drawn beside the number. `(unknown)`, the
+- **On mouse-over only.** Wherever the looking glass shows an AS, the visible
+  text is the number: `AS<n>` in a graph and in a peer's detail, and the bare
+  number of the Remote AS column in the peer tables. A name is never drawn
+  as text, so it never widens a node (`computeLayout` sizes the AS path nodes
+  over the nodes with their names left out, and `formatNextHopNodeLabel` and
+  `traceASLabel` write no name). In a drawing the name is the node's
+  `<title>`, `AS<n> - <name>` (`asNodeTooltip`, escaped by the writer); in a
+  page it is the `title` attribute of the element that shows the AS, escaped
+  by templ. An AS with no name has no `<title>` and no `title`, never an empty
+  one. The text forms (`format=text`) are read by scripts and keep the name
+  as they wrote it before: the AS path graph's node line carries it after the
+  number, `node AS<n> <name> layer=N`, the trace adds `name=<name>` to an AS
+  line, and the next-hop graph writes an AS outside as `node AS<n> layer=N
+  outside`, with no name. The birdwatcher API answers no name.
+- **Three answers.** A name is shown on mouse-over. `(unknown)`, the
   command's answer for an AS Team Cymru names nothing for (every private and
-  documentation AS number), draws the number alone. A failure (the name
-  servers did not answer, the budget was spent, the answer was unreadable)
-  also draws the number alone, and is reported once per page part: one WARN
+  documentation AS number), shows the number alone, with no tooltip. A
+  failure (the name servers did not answer, the budget was spent, the answer
+  was unreadable) also shows the number alone, and is reported once per page part: one WARN
   line under the doctor code `doctor-dns-resolver`, and one warning on the
   report bus (`show warnings`, source `lg`, subject `as-names`) whose fix is
   the command for the first AS that failed. The next part that names an AS
   with no failure clears the warning.
 <!-- source: internal/component/lg/as_names.go -- asNames, asNameCommand, asNameBudget, asNames.done -->
+<!-- source: internal/component/lg/layout.go -- computeLayout, formatNodeLabel, asNodeTooltip -->
+<!-- source: internal/component/lg/peers.templ -- peersTableBody, bmpPeersContent: the AS name as title -->
 
 The prefix value of the search page, `/lg/graph`, `routes/prefix` and
 `routes/search` goes through one parser, `parsePrefixLookup`. A prefix with

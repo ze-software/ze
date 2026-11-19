@@ -78,7 +78,7 @@ func computeTraceLayout(g *traceGraph, names traceNames) *traceLayout {
 		widen(routerColumns, traceAddressLabel(neighbor, names))
 	}
 	for _, number := range g.ASes {
-		widen(asColumn[number], traceASLabel(number, names))
+		widen(asColumn[number], traceASLabel(number))
 	}
 
 	lefts := make([]int, columns)
@@ -189,15 +189,13 @@ func traceAddressLabel(address netip.Addr, names traceNames) string {
 	return formatNextHopNodeLabel(NextHopNode{Address: address.String(), Name: names.ofAddress(address)})
 }
 
-// traceASLabel is the label of an AS: its number in the configured notation,
-// then its name when the decorator knows one.
-func traceASLabel(number uint32, names traceNames) string {
+// traceASLabel is the visible label of an AS: "AS" and its number in the
+// configured notation, whether or not the AS has a name. The name is the
+// node's tooltip (asNodeTooltip), so it never widens the node
+// (computeTraceLayout sizes a column by this label).
+func traceASLabel(number uint32) string {
 	var label textbuf.Buffer
-	label.Str("AS").Str(asn.Text(number, asn.Configured()))
-	if name := names.ofAS(number); name != "" {
-		label.Byte(' ').Str(name)
-	}
-	return label.String()
+	return label.Str("AS").Str(asn.Text(number, asn.Configured())).String()
 }
 
 // renderTraceGraphSVG renders the trace graph: the hops inside the AS,
@@ -234,8 +232,7 @@ func renderTraceGraphSVG(g *traceGraph, layout *traceLayout, names traceNames) s
 		writeTraceAddressNode(&svg, routerNodeClass, neighbor, layout, names)
 	}
 	for _, number := range g.ASes {
-		label := traceASLabel(number, names)
-		writeRouterGraphNode(&svg, routerNodeClass, label, label, layout.ASes[number])
+		writeRouterGraphNode(&svg, routerNodeClass, traceASLabel(number), asNodeTooltip(number, names.ofAS(number)), layout.ASes[number])
 	}
 
 	ends := make([]routerGraphLine, 0, len(layout.Ends))

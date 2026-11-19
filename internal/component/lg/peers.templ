@@ -47,17 +47,19 @@ templ peersContent(v peersView) {
 // absent drop count is never shown as a zero. The last error has no column,
 // because its text is long: the peer header a row opens shows it
 // (peerRoutesContent).
+//
+// The remote AS cell shows the number alone. The AS name, when the resolve
+// command gives one (as_names.go), is the cell's title, shown on mouse-over;
+// an AS with no name has no title, never an empty one.
 templ peersTableBody(rows []peerRow) {
 	for _, p := range rows {
 		<tr class={ stateClass(p.State) } hx-get={ "/lg/peer/" + p.Address } hx-target="#peer-detail" hx-swap="innerHTML" hx-sync="#peer-detail:replace" hx-indicator="#peer-detail">
 			<td>{ p.Address }</td>
-			<td>
+			<td
 				if p.RemoteASName != "" {
-					{ p.RemoteAS }<span class="asn-name">{ p.RemoteASName }</span>
-				} else {
-					{ p.RemoteAS }
+					title={ p.RemoteASName }
 				}
-			</td>
+			>{ p.RemoteAS }</td>
 			<td class="state">{ p.State }</td>
 			<td>{ formatUptime(p.Uptime) }</td>
 			<td class="state-changed">{ p.StateChanged }</td>
@@ -89,7 +91,8 @@ templ peersStreamError(message string) {
 	</tr>
 }
 
-// bmpPeersContent is the BMP monitored-peer table.
+// bmpPeersContent is the BMP monitored-peer table. Its remote AS cell is
+// written as peersTableBody writes one: the number, with the AS name as title.
 templ bmpPeersContent(rows []bmpPeerRow) {
 	<table class="peers-table bmp-peers-table">
 		<thead>
@@ -102,13 +105,11 @@ templ bmpPeersContent(rows []bmpPeerRow) {
 				<tr class={ bmpStateClass(p.State) }>
 					<td>{ p.Router }</td>
 					<td>{ p.BGPID }</td>
-					<td>
+					<td
 						if p.PeerASName != "" {
-							{ p.PeerAS }<span class="asn-name">{ p.PeerASName }</span>
-						} else {
-							{ p.PeerAS }
+							title={ p.PeerASName }
 						}
-					</td>
+					>{ p.PeerAS }</td>
 					<td class="state">{ p.State }</td>
 					<td>
 						if p.IPv6 {
