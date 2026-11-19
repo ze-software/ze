@@ -66,6 +66,24 @@ ze start chaos.conf
 ./le chaos run --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
 
+### Session Start
+
+A simulated peer starts its session as a BGP speaker does. When the daemon
+refuses the connection, or closes it before sending any byte of its OPEN, the
+peer counts a failed connection attempt and connects again: five connections
+at most, after waits of 50, 100, 200 and 400 ms. Each retry is a `reconnecting`
+event that carries the cause, so the event log, the dashboard and the
+reconnection count show it. After the fifth attempt the peer fails with one
+error naming the address, the number of attempts and the last cause. Every
+other failure ends the peer's run at once and is never retried: a handshake
+read that waits 10 seconds, a close after the daemon's OPEN began to arrive, a
+NOTIFICATION. A caller that hands the simulator a connection it opened itself
+gets the retry only when it also gives the address to dial. In a run with
+chaos enabled the orchestrator then starts the peer again after 2 seconds, as
+it does after any disconnect.
+<!-- source: internal/chaos/peer/simulator_connect.go -- establishSession -->
+<!-- source: internal/chaos/orchestrator/scheduler.go -- runPeerLoop -->
+
 ### Multi-Daemon Testing (FRR, BIRD)
 
 ./le chaos run can generate configs for and fork FRR (bgpd) or BIRD, so the same

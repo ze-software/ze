@@ -28,7 +28,9 @@ const (
 	EventError
 	// EventChaosExecuted is sent when a chaos action is executed on a peer.
 	EventChaosExecuted
-	// EventReconnecting is sent when a peer is about to reconnect after chaos.
+	// EventReconnecting is sent when a peer is about to reconnect: after chaos,
+	// or by the simulator itself before it retries a connection the remote
+	// side closed or refused before its OPEN.
 	EventReconnecting
 	// EventWithdrawalSent is sent when explicit withdrawals are sent by chaos.
 	EventWithdrawalSent
@@ -53,10 +55,13 @@ type Event struct {
 	// Prefix is set for route events (EventRouteSent, EventRouteReceived, EventRouteWithdrawn).
 	Prefix netip.Prefix
 
-	// Err is set for EventError.
+	// Err is set for EventError, and for the EventReconnecting of a connection
+	// retry, where it is the cause of the retry.
 	Err error
 
-	// Count is set for EventEORSent and EventWithdrawalSent.
+	// Count is set for EventEORSent and EventWithdrawalSent, and for the
+	// EventReconnecting of a connection retry, where it is the number of the
+	// attempt that failed, counted from 1.
 	Count int
 
 	// ChaosAction is the action name for EventChaosExecuted events.

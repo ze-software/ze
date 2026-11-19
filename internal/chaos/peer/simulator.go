@@ -1,5 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — BGP peer simulation
 // Detail: simulator_actions.go — chaos and route action execution
+// Detail: simulator_connect.go — connection, handshake and the connection retry
 // Detail: simulator_reader.go — message reading and parsing
 
 package peer
@@ -104,7 +105,9 @@ type SimulatorConfig struct {
 	// Seed is the scenario seed for deterministic route generation.
 	Seed uint64
 
-	// Addr is the TCP address to connect to (host:port).
+	// Addr is the TCP address to connect to (host:port). With Conn set it is
+	// the address a connection retry dials: leave it empty and a connection
+	// the peer closes before its OPEN ends the run, with no retry.
 	Addr string
 
 	// LocalAddr is the local address to bind when dialing (e.g. "127.0.0.2").
@@ -132,8 +135,9 @@ type SimulatorConfig struct {
 	Quiet bool
 
 	// Conn is an optional pre-connected connection for in-process mode.
-	// When non-nil, RunSimulator uses this connection instead of dialing
-	// cfg.Addr via TCP. The connection must be ready for BGP message exchange.
+	// When non-nil, RunSimulator uses this connection for its first attempt
+	// instead of dialing cfg.Addr via TCP. The connection must be ready for
+	// BGP message exchange.
 	Conn net.Conn
 
 	// Clock is an optional virtual clock for in-process mode.
@@ -182,6 +186,9 @@ const stormDelay = 200 * time.Millisecond
 // the OPEN/KEEPALIVE handshake, sends routes, reads incoming messages, and
 // maintains the KEEPALIVE loop. All lifecycle events are reported via cfg.Events.
 //
+// A connection Ze closes or refuses before its OPEN is retried a bounded number
+// of times, each retry reported as EventReconnecting (establishSession).
+//
 // RunSimulator blocks until ctx is canceled or a fatal error occurs.
 func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	p := cfg.Profile
@@ -223,94 +230,28 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		return
 	}
 
-	// Connect to Ze: use pre-connected Conn if provided (in-process mode),
-	// otherwise dial via TCP (external mode).
-	var conn net.Conn
-	if cfg.Conn != nil {
-		conn = cfg.Conn
-	} else {
-		d := net.Dialer{}
-		if cfg.LocalAddr != "" {
-			d.LocalAddr = &net.TCPAddr{IP: net.ParseIP(cfg.LocalAddr)}
-		}
-		var err error
-		conn, err = d.DialContext(ctx, "tcp", cfg.Addr)
-		if err != nil {
-			if ctx.Err() != nil {
-				emit(Event{Type: EventDisconnected})
-				return
-			}
-			emit(Event{Type: EventError, Err: fmt.Errorf("connecting to %s: %w", cfg.Addr, err)})
-			return
-		}
+	// Connect to Ze and exchange OPEN and KEEPALIVE: on the pre-connected Conn
+	// if provided (in-process mode), otherwise on a connection dialed to
+	// cfg.Addr (external mode). A connection Ze closes before its OPEN is
+	// tried again there, within a bound. RFC 4271 Section 8.2.2
+	conn, established := establishSession(ctx, cfg, emit)
+	if !established {
+		return
 	}
 	defer func() { _ = conn.Close() }()
 
-	// Context watcher: close connection when ctx is canceled, regardless
-	// of which phase the simulator is in. Without this, readMsg() calls
-	// during the handshake block forever on io.ReadFull with no way to
-	// unblock them (the main select loop that handles ctx.Done is only
-	// reachable after the handshake completes).
+	// Context watcher: close connection when ctx is canceled, so that a write
+	// of the session phase that blocks is unblocked before the main select
+	// loop is reached. The handshake has its own, inside establishSession.
 	connClosed := make(chan struct{})
 	go func() {
 		select {
 		case <-ctx.Done():
-			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock handshake reads
+			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock session I/O
 		case <-connClosed:
 		}
 	}()
 	defer close(connClosed)
-
-	// OPEN exchange — apply a read deadline so we don't hang forever
-	// if the remote side accepts TCP but never sends a BGP OPEN.
-	// In in-process mode (Clock != nil), skip the deadline: the context
-	// watcher goroutine above already closes the connection on cancellation,
-	// and the real-time deadline can expire during runner.Run()'s initial
-	// sleep, causing spurious handshake failures at scale.
-	if cfg.Clock == nil {
-		handshakeDeadline := 10 * time.Second
-		if err := conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("setting handshake deadline: %w", err)})
-			return
-		}
-	}
-
-	open, err := BuildOpen(SessionConfig{
-		ASN:      p.ASN,
-		RouterID: p.RouterID,
-		HoldTime: p.HoldTime,
-		Families: p.Families,
-	})
-	if err != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("building OPEN: %w", err)})
-		return
-	}
-	if writeErr := writeMsg(conn, open); writeErr != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("sending OPEN: %w", writeErr)})
-		return
-	}
-
-	if readErr := readMsg(conn); readErr != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("reading OPEN: %w", readErr)})
-		return
-	}
-
-	// KEEPALIVE exchange.
-	if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("sending KEEPALIVE: %w", writeErr)})
-		return
-	}
-
-	if readErr := readMsg(conn); readErr != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("reading KEEPALIVE: %w", readErr)})
-		return
-	}
-
-	// Clear read deadline for the session phase (keepalive loop handles its own).
-	if err := conn.SetReadDeadline(time.Time{}); err != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("clearing read deadline: %w", err)})
-		return
-	}
 
 	// Send routes for all negotiated families.
 	// IPv4 next-hop for IPv4 families, IPv6 next-hop for IPv6 families.

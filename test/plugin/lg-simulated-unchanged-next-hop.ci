@@ -1,0 +1,52 @@
+# Test: The trace graph leaves the AS toward an external address when a border router does not rewrite the next hop
+# QUESTION: when a border router passes on the next hop its external neighbour
+#           sent, over real BGP sessions to ze, does the trace graph state
+#           that every walk leaves the AS toward that neighbour's address, and
+#           does it still end on a router's own address for the prefix another
+#           border router rewrites?
+# VALIDATES: spec-lg-peer-history-origin-search-and-named-nodes AC-27 and
+#            assumption A-10. GET /lg/graph in the trace mode and its text
+#            form, for a hand-written network of three routers and two external
+#            neighbours: for the prefix whose next hop the first border router
+#            keeps, the walk from each of the three routers holds that router
+#            alone and ends `exit-external-address` with the neighbour's
+#            address as next hop; for the prefix the second border router
+#            rewrites to itself, the two other routers' walks cross to it and
+#            end `exit-own-address`. The next-hop graph of both prefixes holds
+#            each speaker's next hop and the egress marks the model computed.
+# PREVENTS: an unchanged external next hop that does not survive the session,
+#           the RIB and the query, or that the looking glass reads as a broken
+#           chain or as next-hop-self.
+#
+# WHY A FUNCTIONAL TEST: TestTraceWalkLeavesAtExternalNextHop
+# (internal/component/lg/graph_trace_test.go) proves the walk on rows written
+# in the RIB's shape. It cannot prove that ze accepts, from an internal peer, a
+# route whose next hop is the address of no router, stores it, and answers it
+# to the looking glass with that next hop.
+#
+# WHY A SECOND NETWORK: the generated network of lg-simulated-network.ci cannot
+# hold this case, because its border routers always rewrite the next hop
+# (generateTopologySpec, internal/chaos/scenario/topology_generate.go). This
+# one is written by hand (lgNextHopUnchangedSpec,
+# internal/test/fixture/lg_simulated_next_hop_unchanged.go) and runs through the same
+# daemon start, sessions and waits (lgSimulatedRunNetworkPlan).
+#
+# WHY THE FIXTURE STARTS ZE, ADDRESSES AND PORTS: as lg-simulated-network.ci.
+#
+# EXPECTED VALUES: every walk is compared with the topology model's trace at
+# run time, and the two prefixes are also compared with lines written by hand
+# from BGP's rules, with no value taken from the model
+# (lgNextHopUnchangedHandChecked). The run fails unless at least one walk ended at an
+# external address.
+
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture plugin/lg-simulated-unchanged-next-hop $PORT $PORT2:timeout=90s
+expect=exit:code=0
+# Each line is printed only after its comparison held; a failed one returns an
+# error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: every simulated speaker is established with the route count the model computed
+expect=stderr:pattern=OK: every next-hop graph held each speaker's next hop and the egress marks the model computed
+expect=stderr:pattern=OK: the trace graph leaves the AS toward the external address a border router did not rewrite
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

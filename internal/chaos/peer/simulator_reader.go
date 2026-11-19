@@ -344,7 +344,7 @@ func writeMsg(conn net.Conn, msg message.Message) error {
 }
 
 // readMsg reads and discards a single BGP message from the connection.
-func readMsg(conn net.Conn) error {
+func readMsg(conn io.Reader) error {
 	header := make([]byte, message.HeaderLen)
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return fmt.Errorf("reading header: %w", err)

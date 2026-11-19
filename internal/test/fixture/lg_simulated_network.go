@@ -567,7 +567,10 @@ func lgSimulatedStartSpeakers(ctx context.Context, daemon *lgSimulatedDaemon, pr
 					Families:   profile.Families,
 					RouteSet:   profile.RouteSet,
 				},
-				Conn:   conn,
+				Conn: conn,
+				// Addr lets the simulator dial again when Ze closes the connection
+				// before its OPEN, as a BGP speaker does.
+				Addr:   net.JoinHostPort(lgSimulatedLoopback, strconv.Itoa(profile.ZePort)),
 				Events: events,
 				Quiet:  true,
 			})
