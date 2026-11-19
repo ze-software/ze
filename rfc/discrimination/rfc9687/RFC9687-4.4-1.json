@@ -7,8 +7,8 @@
     "claim-sha": "912ee7174646550e",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
-    "producer-sha": "ecbae880a7c1b84b",
-    "break": "line 229: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"true\""
+    "producer-sha": "c5d5fed18e5dac88",
+    "break": "line 235: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"true\""
   },
   {
     "rid": "RFC9687-4.4-1",
@@ -18,7 +18,7 @@
     "claim-sha": "f71dee34abfaf4a1",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
-    "producer-sha": "ecbae880a7c1b84b",
-    "break": "line 229: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"false\""
+    "producer-sha": "c5d5fed18e5dac88",
+    "break": "line 235: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"false\""
   }
 ]
