@@ -3,12 +3,34 @@
     "rid": "RFC7911-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier",
-    "unit-sha": "fb97c65d3a91d533",
+    "unit-sha": "c6fb4923385174b6",
     "claim-sha": "9c86a26ae4760a27",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/types/rawmessage.go::SourceEncodingContext",
     "producer-sha": "73aa34df6f308d31",
-    "break": "body of SourceEncodingContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 92: \"return ctx, ctx != nil\" -\u003e \"return nil, ctx != nil\""
+  },
+  {
+    "rid": "RFC7911-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath",
+    "unit-sha": "ea7caa5dc5290530",
+    "claim-sha": "502f69a7d733c998",
+    "route": "mutant",
+    "producer": "internal/core/bgp/nlri/nlri.go::WriteNLRI",
+    "producer-sha": "59aeebd1c2563a1f",
+    "break": "line 202: \"if addPath \u0026\u0026 n.SupportsAddPath() {\" -\u003e \"if (true || addPath) \u0026\u0026 n.SupportsAddPath() {\""
+  },
+  {
+    "rid": "RFC7911-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID",
+    "unit-sha": "97b90e252ea79844",
+    "claim-sha": "573df26a6eb9ae95",
+    "route": "mutant",
+    "producer": "internal/core/bgp/nlri/nlri.go::WriteNLRI",
+    "producer-sha": "59aeebd1c2563a1f",
+    "break": "line 202: \"if addPath \u0026\u0026 n.SupportsAddPath() {\" -\u003e \"if false \u0026\u0026 addPath \u0026\u0026 n.SupportsAddPath() {\""
   },
   {
     "rid": "RFC7911-3-1",
