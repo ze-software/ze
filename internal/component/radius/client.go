@@ -282,6 +282,12 @@ retryLoop:
 						"server", serverAddr, "error", decErr)
 					continue
 				}
+				// RFC 2866 Section 4.2 gives an Accounting-Response Code 5
+				// and says invalid packets are silently discarded. Keep this
+				// request's wait and timer active after a wrong-kind reply.
+				if pkt.Code == CodeAccountingReq && resp.Code != CodeAccountingResp {
+					continue
+				}
 				stopTimer(timer)
 				return resp, nil
 			case <-timer.C:

@@ -76,8 +76,9 @@ packet code 4 sent to authentication port". Each `server` entry therefore
 carries `accounting-port`, default 1813, beside `port`. The parser builds two
 lists from the entries, in the same failover order, and the accountant gets a
 `radius.Client` built on the accounting list. A `radius.Client` sends every
-packet to its servers' one address, so the split lives in the plugin, and the
-RADIUS transport needs no knowledge of request codes. The parser writes the
+packet to its configured destination, and the plugin builds the separate
+lists. The transport requires an Accounting-Response for that exchange and
+keeps waiting after a reply of another kind. The parser writes the
 1813 default itself, because the YANG default is inert on this path (see
 `acct-interval` above).
 
