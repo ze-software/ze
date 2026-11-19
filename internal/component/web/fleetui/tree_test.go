@@ -176,7 +176,7 @@ func TestTreeFindByPath(t *testing.T) {
 	assert.Equal(t, 2, lacking.Total)
 
 	_, err = tree.Find([]GroupLevel{{Key: "site", Value: "par"}})
-	refusal := requireRefusal(t, err, ErrObjectUnknown)
+	refusal := requireRefusalOf(t, err, ErrObjectUnknown)
 	assert.Contains(t, refusal.Problem(), "site=par")
 
 	_, err = tree.Find([]GroupLevel{{Key: "role", Value: "edge"}})
@@ -260,7 +260,7 @@ func TestResolveTreeView(t *testing.T) {
 	assert.Equal(t, []string{"customer", "site"}, view.Levels)
 
 	_, err = ResolveTreeView("nothing", declared)
-	refusal := requireRefusal(t, err, ErrTreeViewUnknown)
+	refusal := requireRefusalOf(t, err, ErrTreeViewUnknown)
 	assert.Contains(t, refusal.Problem(), `"nothing"`)
 	assert.Contains(t, refusal.Fix(), "site-role, role, version, state, customer")
 

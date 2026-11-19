@@ -64,8 +64,8 @@ type devicesPlace uint8
 
 // The places of an action.
 const (
-	// devicesPlaceUnspecified is the invalid zero value.
-	devicesPlaceUnspecified devicesPlace = iota
+	// The zero value is left unnamed, so no action can carry it as a place.
+	_ devicesPlace = iota
 	// devicesPlaceBar is the table actions row.
 	devicesPlaceBar
 	// devicesPlaceMore is the routine part of the More menu.
@@ -91,7 +91,7 @@ var devicesActions = []devicesAction{
 	{key: "label-add", label: "Add label", icon: glyphPlus, detail: devicesLabelDetail, place: devicesPlaceBar},
 	{key: "label-remove", label: "Remove label", icon: glyphClose, detail: devicesLabelDetail, place: devicesPlaceBar},
 	{
-		key: "config-push", label: "Push config", icon: iconAdmin, place: devicesPlaceBar,
+		key: "config-push", label: devicesWordPushConfig, icon: iconAdmin, place: devicesPlaceBar,
 		detail: "A rollout of the hub's configuration starts, with the selected devices as its target.",
 	},
 	{
@@ -108,7 +108,7 @@ var devicesActions = []devicesAction{
 	},
 	{
 		key: "estate-remove", label: "Remove from the estate", icon: glyphTrash, place: devicesPlaceDestructive,
-		detail: "The hub forgets the devices: each must enrol again to come back.",
+		detail: "The hub forgets the devices: each must enroll again to come back.",
 	},
 }
 

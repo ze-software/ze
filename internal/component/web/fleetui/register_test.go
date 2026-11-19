@@ -160,7 +160,7 @@ func TestNewRoutesServesTheGivenSource(t *testing.T) {
 	assert.Contains(t, secondPage.Body.String(), "demo-second", "the header names the account given")
 
 	step := httptest.NewRecorder()
-	first.ServeHTTP(step, httptest.NewRequest(http.MethodPost, stepPath, http.NoBody))
+	first.ServeHTTP(step, httptest.NewRequestWithContext(t.Context(), http.MethodPost, stepPath, http.NoBody))
 	assert.Equal(t, http.StatusMethodNotAllowed, step.Code,
 		"a source that cannot be stepped has no step route, so only the page route's GET matches the path")
 }

@@ -214,10 +214,10 @@ func logsBody(ctx context.Context, request *PageRequest, view *DeviceView) templ
 		Table: TableView{
 			Name: "Log of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				{Label: "Time", Kind: "kind-time"},
-				{Label: "Level", Kind: "kind-state"},
-				{Label: "Source", Kind: "kind-text"},
-				{Label: "Message", Kind: "kind-text"},
+				{Label: "Time", Kind: ColumnKindTime},
+				{Label: "Level", Kind: ColumnKindState},
+				{Label: "Source", Kind: ColumnKindText},
+				{Label: "Message", Kind: ColumnKindText},
 			},
 			Rows:  rows,
 			Empty: empty,

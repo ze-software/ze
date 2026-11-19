@@ -12,10 +12,11 @@ import (
 
 // goldenManageBuild runs a page or fragment builder of the manage family on
 // the request of target over the manage source, and answers its component.
-func goldenManageBuild(t *testing.T, target string, build FragmentBuilder, item string) templ.Component {
+// No manage builder here reads an item, so each is asked with none.
+func goldenManageBuild(t *testing.T, target string, build FragmentBuilder) templ.Component {
 	t.Helper()
 
-	component, err := build(context.Background(), manageRequest(t, target), item)
+	component, err := build(context.Background(), manageRequest(t, target), "")
 	require.NoError(t, err)
 	require.NotNil(t, component)
 
@@ -50,31 +51,31 @@ func goldenSpecManage(t *testing.T) golden.Spec {
 			{Name: "manageSection", Variants: []golden.Variant{
 				{Data: manageSection(ManageSectionView{
 					Title: wordStateLine, Name: fragmentConfigState,
-					Body: goldenManageBuild(t, inSync, configStateFragment, ""),
+					Body: goldenManageBuild(t, inSync, configStateFragment),
 				})},
 			}},
 			{Name: "ManageForm", Variants: []golden.Variant{{Data: ManageForm(manageForm(request))}}},
 			{Name: "ConfigTab", Variants: []golden.Variant{
-				{Name: "in-sync", Data: goldenManageBuild(t, inSync, goldenManagePage(configContent), "")},
-				{Name: "offline", Data: goldenManageBuild(t, offline, goldenManagePage(configContent), "")},
-				{Name: "diverged", Data: goldenManageBuild(t, diverged, goldenManagePage(configContent), "")},
+				{Name: "in-sync", Data: goldenManageBuild(t, inSync, goldenManagePage(configContent))},
+				{Name: "offline", Data: goldenManageBuild(t, offline, goldenManagePage(configContent))},
+				{Name: "diverged", Data: goldenManageBuild(t, diverged, goldenManagePage(configContent))},
 			}},
 			{Name: "ConfigText", Variants: []golden.Variant{
-				{Data: goldenManageBuild(t, inSync, configTextFragment, "")},
+				{Data: goldenManageBuild(t, inSync, configTextFragment)},
 			}},
 			{Name: "DivergenceSection", Variants: []golden.Variant{
-				{Name: "closed", Data: goldenManageBuild(t, diverged, divergenceFragment, "")},
-				{Name: "opened", Data: goldenManageBuild(t, diverged+"?sub="+divergenceSub, divergenceFragment, "")},
+				{Name: "closed", Data: goldenManageBuild(t, diverged, divergenceFragment)},
+				{Name: "opened", Data: goldenManageBuild(t, diverged+"?sub="+divergenceSub, divergenceFragment)},
 			}},
 			{Name: "PanelWithDiff", Variants: []golden.Variant{
-				{Name: "version", Data: goldenManageBuild(t, inSync+"?id="+manageVersionNew, goldenManagePage(configPanel), "")},
-				{Name: "template", Data: goldenManageBuild(t, "/fleet/admin/templates/?id=edge-base", goldenManagePage(adminTemplatesPanel), "")},
+				{Name: "version", Data: goldenManageBuild(t, inSync+"?id="+manageVersionNew, goldenManagePage(configPanel))},
+				{Name: "template", Data: goldenManageBuild(t, "/fleet/admin/templates/?id=edge-base", goldenManagePage(adminTemplatesPanel))},
 			}},
 		},
 		"page_rollouts.templ": {
 			{Name: "RolloutPage", Variants: []golden.Variant{
-				{Name: "paused", Data: goldenManageBuild(t, rollouts+"?id="+manageRolloutPaused, goldenManagePage(rolloutsContent), "")},
-				{Name: "complete", Data: goldenManageBuild(t, rollouts+"?id="+manageRolloutDone, goldenManagePage(rolloutsContent), "")},
+				{Name: "paused", Data: goldenManageBuild(t, rollouts+"?id="+manageRolloutPaused, goldenManagePage(rolloutsContent))},
+				{Name: "complete", Data: goldenManageBuild(t, rollouts+"?id="+manageRolloutDone, goldenManagePage(rolloutsContent))},
 			}},
 			{Name: "batchStrip", Variants: []golden.Variant{
 				{Data: batchStrip(BatchStripView{Segments: []BatchSegmentView{
@@ -83,19 +84,19 @@ func goldenSpecManage(t *testing.T) golden.Spec {
 				}})},
 			}},
 			{Name: "RolloutForm", Variants: []golden.Variant{
-				{Data: goldenManageBuild(t, rollouts+"?sub="+newRolloutSub+"&q=site%3Aams", goldenManagePage(rolloutsContent), "")},
+				{Data: goldenManageBuild(t, rollouts+"?sub="+newRolloutSub+"&q=site%3Aams", goldenManagePage(rolloutsContent))},
 			}},
 			{Name: "RolloutPreview", Variants: []golden.Variant{{Data: RolloutPreview(preview)}}},
 		},
 		"page_admin.templ": {
 			{Name: "AdminPage", Variants: []golden.Variant{
-				{Name: "labels", Data: goldenManageBuild(t, "/fleet/admin/labels/", goldenManagePage(adminLabelsContent), "")},
-				{Name: "audit", Data: goldenManageBuild(t, "/fleet/admin/audit/?q=actor%3Abob", goldenManagePage(auditContent), "")},
-				{Name: "history", Data: goldenManageBuild(t, "/fleet/admin/history/", goldenManagePage(adminHistoryContent), "")},
+				{Name: "labels", Data: goldenManageBuild(t, "/fleet/admin/labels/", goldenManagePage(adminLabelsContent))},
+				{Name: "audit", Data: goldenManageBuild(t, "/fleet/admin/audit/?q=actor%3Abob", goldenManagePage(auditContent))},
+				{Name: "history", Data: goldenManageBuild(t, "/fleet/admin/history/", goldenManagePage(adminHistoryContent))},
 			}},
 			{Name: "DeviceJoin", Variants: []golden.Variant{
-				{Name: "form", Data: goldenManageBuild(t, "/fleet/admin/devices/?id="+adminAddRow, goldenManagePage(adminDevicesPanel), "")},
-				{Name: "lines", Data: goldenManageBuild(t, "/fleet/admin/devices/?id=edge-new-01", goldenManagePage(adminDevicesPanel), "")},
+				{Name: "form", Data: goldenManageBuild(t, "/fleet/admin/devices/?id="+adminAddRow, goldenManagePage(adminDevicesPanel))},
+				{Name: "lines", Data: goldenManageBuild(t, "/fleet/admin/devices/?id=edge-new-01", goldenManagePage(adminDevicesPanel))},
 			}},
 		},
 	}

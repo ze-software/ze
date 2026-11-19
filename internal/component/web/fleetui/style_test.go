@@ -13,11 +13,11 @@ import (
 // The style rule of the fleet interface, as this file enforces it over every
 // stylesheet under assets/.
 //
-// Colour. A colour is written as a literal (a hex value, a colour function
-// such as rgb() or hsl(), or a colour keyword such as white) only as the
+// Color. A color is written as a literal (a hex value, a color function
+// such as rgb() or hsl(), or a color keyword such as white) only as the
 // value of a custom property, and only in fleet-shell.css, which declares
-// the theme. Everywhere else a colour is var(--name). The keywords
-// transparent, currentColor, inherit and none are not colours of their own
+// the theme. Everywhere else a color is var(--name). The keywords
+// transparent, currentColor, inherit and none are not colors of their own
 // and stay allowed.
 //
 // Gap. A gap is the value of gap, row-gap, column-gap, and of margin and
@@ -30,7 +30,7 @@ import (
 // A declaration is read as "property: value;", so every declaration ends
 // with a semicolon, the last of a block included.
 
-// styleTokenFile is the one stylesheet that declares literal colours, and
+// styleTokenFile is the one stylesheet that declares literal colors, and
 // stylePageFile stands for any other sheet in the cases below.
 const (
 	styleTokenFile = "fleet-shell.css"
@@ -46,8 +46,8 @@ var (
 	styleGapSplit    = regexp.MustCompile(`calc\([^)]*\)\)|\S+`)
 )
 
-// styleColorWords holds the colour keywords a stylesheet is most likely to
-// reach for. A keyword outside the set is still a literal colour by the rule
+// styleColorWords holds the color keywords a stylesheet is most likely to
+// reach for. A keyword outside the set is still a literal color by the rule
 // above; the set is what this test can see.
 var styleColorWords = map[string]bool{
 	"black": true, "white": true, "gray": true, "grey": true, "silver": true,
@@ -80,7 +80,7 @@ func isGapProperty(property string) bool {
 	return strings.HasPrefix(property, "padding")
 }
 
-// holdsColorLiteral reports whether a value writes a colour as a literal.
+// holdsColorLiteral reports whether a value writes a color as a literal.
 func holdsColorLiteral(value string) bool {
 	if styleColorValue.MatchString(value) {
 		return true
@@ -114,7 +114,7 @@ func styleFindings(name, css string) ([]string, styleCounts) {
 			counts.literals++
 			if name != styleTokenFile {
 				findings = append(findings, name+": "+property+": "+value+
-					" declares a literal colour; only "+styleTokenFile+" declares colours")
+					" declares a literal color; only "+styleTokenFile+" declares colors")
 			}
 
 			continue
@@ -122,7 +122,7 @@ func styleFindings(name, css string) ([]string, styleCounts) {
 
 		if holdsColorLiteral(value) {
 			findings = append(findings, name+": "+property+": "+value+
-				" writes a literal colour; use a theme variable")
+				" writes a literal color; use a theme variable")
 		}
 
 		if !isGapProperty(property) {
@@ -145,9 +145,9 @@ func styleFindings(name, css string) ([]string, styleCounts) {
 // TestFleetStylesUseVariablesOnly reads every stylesheet the package embeds.
 //
 // VALIDATES: AC-5 -- outside the variable declarations of fleet-shell.css no
-// fleet style writes a colour as a literal, and every gap is one of the six
+// fleet style writes a color as a literal, and every gap is one of the six
 // spacing variables, 0 or auto.
-// PREVENTS: a page family adding a colour or a spacing value of its own,
+// PREVENTS: a page family adding a color or a spacing value of its own,
 // which is how the pages of the interface drift apart.
 func TestFleetStylesUseVariablesOnly(t *testing.T) {
 	sheets, err := fs.Glob(assetsFS, "assets/*.css")
@@ -173,13 +173,13 @@ func TestFleetStylesUseVariablesOnly(t *testing.T) {
 	// alone holds more than these.
 	assert.GreaterOrEqual(t, total.declarations, 200, "declarations read")
 	assert.GreaterOrEqual(t, total.gaps, 40, "gap declarations read")
-	assert.GreaterOrEqual(t, total.literals, 25, "literal colours read in the variable declarations")
+	assert.GreaterOrEqual(t, total.literals, 25, "literal colors read in the variable declarations")
 }
 
 // TestFleetStyleRuleRefuses feeds the rule declarations it must refuse and
 // declarations it must accept.
 //
-// VALIDATES: the rule finds each kind of literal colour and each gap outside
+// VALIDATES: the rule finds each kind of literal color and each gap outside
 // the spacing variables, and passes what it allows.
 // PREVENTS: TestFleetStylesUseVariablesOnly passing because its patterns
 // match nothing.
@@ -190,12 +190,12 @@ func TestFleetStyleRuleRefuses(t *testing.T) {
 		css      string
 		findings int
 	}{
-		{"hex colour", stylePageFile, ".a { color: #fff; }", 1},
-		{"colour function", stylePageFile, ".a { background: rgba(0, 0, 0, 0.5); }", 1},
-		{"colour keyword", stylePageFile, ".a { border: 1px solid white; }", 1},
+		{"hex color", stylePageFile, ".a { color: #fff; }", 1},
+		{"color function", stylePageFile, ".a { background: rgba(0, 0, 0, 0.5); }", 1},
+		{"color keyword", stylePageFile, ".a { border: 1px solid white; }", 1},
 		{"literal in a variable of another sheet", stylePageFile, ":root { --mine: #123456; }", 1},
 		{"literal in a variable of the token sheet", styleTokenFile, ":root { --mine: #123456; }", 0},
-		{"variable colour", stylePageFile, ".a { color: var(--accent); border: 1px solid transparent; }", 0},
+		{"variable color", stylePageFile, ".a { color: var(--accent); border: 1px solid transparent; }", 0},
 		{"gap in rem", stylePageFile, ".a { gap: 0.5rem; }", 1},
 		{"padding in px", stylePageFile, ".a { padding: 0 12px; }", 1},
 		{"margin short form with one bad part", stylePageFile, ".a { margin: var(--space-2) 3px 0 auto; }", 1},

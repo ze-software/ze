@@ -142,7 +142,7 @@ const (
 )
 
 var (
-	rolloutStateWords = []string{enumWordUnspecified, enumWordPending, "Rolling", "Paused", "Complete", "Failed", "Aborted"}
+	rolloutStateWords = []string{enumWordUnspecified, enumWordPending, "Rolling", "Paused", "Complete", enumWordFailed, "Aborted"}
 	rolloutStateKeys  = []string{enumKeyUnspecified, enumKeyPending, "rolling", "paused", "complete", enumKeyFailed, "aborted"}
 )
 

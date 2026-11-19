@@ -104,7 +104,7 @@ func TestFilterRefusesMalformedTerm(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := DeviceFilters().Parse(tc.filter, labelKeys)
 
-			refusal := requireRefusal(t, err, ErrFilterRefused)
+			refusal := requireRefusalOf(t, err, ErrFilterRefused)
 			assert.Contains(t, refusal.Problem(), tc.names)
 			assert.Contains(t, refusal.Fix(), "name, state, version, config, group, cpu, memory, uptime, last-seen, model")
 			assert.Contains(t, refusal.Why(), "previous rows")
@@ -121,7 +121,7 @@ func TestFilterRefusesMalformedTerm(t *testing.T) {
 func TestFilterRefusesValueOutsideAClosedField(t *testing.T) {
 	_, err := DeviceFilters().Parse("state:helthy", nil)
 
-	refusal := requireRefusal(t, err, ErrFilterRefused)
+	refusal := requireRefusalOf(t, err, ErrFilterRefused)
 	assert.Contains(t, refusal.Problem(), `"state:helthy"`)
 	assert.Contains(t, refusal.Problem(), `"helthy"`)
 	assert.Contains(t, refusal.Fix(), "offline, diverged, down, degraded, healthy, unknown")
@@ -135,7 +135,7 @@ func TestFilterRefusesValueOutsideAClosedField(t *testing.T) {
 func TestFilterRefusesUnknownFlag(t *testing.T) {
 	_, err := DeviceFilters().Parse("has:fire", nil)
 
-	refusal := requireRefusal(t, err, ErrFilterRefused)
+	refusal := requireRefusalOf(t, err, ErrFilterRefused)
 	assert.Contains(t, refusal.Problem(), `"has:fire"`)
 	assert.Contains(t, refusal.Fix(), "alarm, task")
 }
@@ -151,7 +151,7 @@ func TestFilterLabelShorthandNeedsAKeyInUse(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = DeviceFilters().Parse("site:lon", []string{"role"})
-	refusal := requireRefusal(t, err, ErrFilterRefused)
+	refusal := requireRefusalOf(t, err, ErrFilterRefused)
 	assert.Contains(t, refusal.Problem(), "not a label key in use")
 }
 
@@ -168,7 +168,7 @@ func TestFilterLengthBoundary(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = DeviceFilters().Parse(longest+"a", nil)
-	refusal := requireRefusal(t, err, ErrFilterRefused)
+	refusal := requireRefusalOf(t, err, ErrFilterRefused)
 	assert.Contains(t, refusal.Problem(), "512")
 }
 
@@ -234,7 +234,7 @@ func TestFilterSchemaWithoutLabels(t *testing.T) {
 	assert.Equal(t, []row{{actor: "thomas", count: 4}}, filter.Apply(rows))
 
 	_, err = schema.Parse("label:site=lon", nil)
-	refusal := requireRefusal(t, err, ErrFilterRefused)
+	refusal := requireRefusalOf(t, err, ErrFilterRefused)
 	assert.Contains(t, refusal.Fix(), "actor, devices")
 	assert.NotContains(t, refusal.Fix(), "label:key=value")
 

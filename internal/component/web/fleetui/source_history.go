@@ -73,7 +73,7 @@ var (
 		"traffic-in", "traffic-out", "devices-connected", "peers-established",
 	}
 	metricWords = []string{
-		enumWordUnspecified, "CPU", "Memory", "Storage", "Load",
+		enumWordUnspecified, devicesWordCPU, "Memory", "Storage", "Load",
 		"Traffic in", "Traffic out", "Devices connected", "Peers established",
 	}
 	metricUnits = []string{

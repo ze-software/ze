@@ -255,7 +255,7 @@ func galleryDestructiveConfirm() *ConfirmView {
 
 func galleryControls() *GalleryControlsView {
 	disabled := ActionView{
-		Label: "Push config", Icon: iconAdmin, Disabled: true,
+		Label: devicesWordPushConfig, Icon: iconAdmin, Disabled: true,
 		Reason: "edge-ams-02 is offline: the hub cannot change a disconnected device",
 	}
 	destructive := ActionView{
@@ -265,7 +265,7 @@ func galleryControls() *GalleryControlsView {
 
 	return &GalleryControlsView{
 		Links: []ActionView{
-			{Label: "Add device", Icon: glyphPlus, Href: galleryAdminDevicesHref},
+			{Label: wordAddDevice, Icon: glyphPlus, Href: galleryAdminDevicesHref},
 			{Label: galleryEdit, Icon: glyphEdit, Href: galleryDeviceHref},
 			disabled,
 		},
@@ -281,7 +281,7 @@ func galleryControls() *GalleryControlsView {
 			Label: "Actions",
 			Items: []ActionView{
 				{Label: "Open device", Icon: iconDevice, Href: galleryDeviceHref},
-				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
+				{Label: devicesWordOpenConsole, Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 				disabled,
 			},
 			Destructive: []ActionView{destructive},
@@ -371,20 +371,20 @@ func galleryQuickInfo() QuickInfoView {
 	return QuickInfoView{
 		Card: CardView{Title: "Quick info", Span: 12, TitleHref: galleryDeviceTab(galleryDevice, tabDeviceSystem)},
 		Items: []ValueView{
-			{Label: "Name", Text: galleryDevice, Mono: true, Copy: true},
+			{Label: devicesWordName, Text: galleryDevice, Mono: true, Copy: true},
 			{Label: galleryState, Status: DisplayStatus(DisplayStateHealthy)},
 			{Label: galleryLabels, Tags: galleryTags()[:2]},
-			{Label: "Model", Text: "zx-4"},
+			{Label: devicesWordModel, Text: "zx-4"},
 			{Label: "Serial number", Text: "ZX4-0092-7731", Mono: true, Copy: true},
 			{Label: "Version", Text: galleryVersion, Mono: true},
-			{Label: "Configuration", Status: ConfigStatus(ConfigStateInSync)},
-			{Label: "Group", Text: "lon / edge", Icon: iconGroup, Href: Address{
+			{Label: wordConfigTitle, Status: ConfigStatus(ConfigStateInSync)},
+			{Label: devicesWordGroup, Text: "lon / edge", Icon: iconGroup, Href: Address{
 				Kind: ObjectGroup, Tab: TabDashboard,
 				Group: []GroupLevel{{Key: galleryLabelSite, Value: "lon"}, {Key: galleryLabelRole, Value: "edge"}},
 			}.String()},
 			{Label: galleryAddressName, Text: galleryAddress, Mono: true, Copy: true},
 			{Label: "Uptime", Text: "41 days"},
-			{Label: "Last seen", Text: "now"},
+			{Label: devicesWordLastSeen, Text: "now"},
 			{Label: "Location"},
 		},
 	}
@@ -396,8 +396,8 @@ func galleryCards() *GalleryCardsView {
 	none := DonutView{Caption: "Peers", Icon: iconGroup, Segments: []DonutSegmentView{
 		{Word: "Established", Tone: ToneSuccess}, {Word: "Not established", Tone: ToneError},
 	}}
-	single := DonutView{Caption: "Interfaces", Icon: iconDevice, Segments: []DonutSegmentView{
-		{Word: "Up", Count: 12, Tone: ToneSuccess}, {Word: "Down", Tone: ToneError},
+	single := DonutView{Caption: titleInterfaces, Icon: iconDevice, Segments: []DonutSegmentView{
+		{Word: "Up", Count: 12, Tone: ToneSuccess}, {Word: enumWordDown, Tone: ToneError},
 	}}
 
 	return &GalleryCardsView{
@@ -435,7 +435,7 @@ func galleryCards() *GalleryCardsView {
 				},
 			},
 		},
-		Stacked:   StackedBarView{Name: "Configuration", Segments: galleryStateSegments()},
+		Stacked:   StackedBarView{Name: wordConfigTitle, Segments: galleryStateSegments()},
 		Charts:    galleryCharts(),
 		QuickInfo: galleryQuickInfo(),
 		Callout: CalloutView{
@@ -444,7 +444,7 @@ func galleryCards() *GalleryCardsView {
 			Link:  &LinkView{Label: "Review the difference", Href: galleryDeviceTab(galleryDevice, tabDeviceConfig)},
 		},
 		Alarms:   AlarmListView{Rows: galleryAlarmRows()},
-		NoAlarms: AlarmListView{Empty: GoodNewsView{First: "All good", Second: "No alarms open"}},
+		NoAlarms: AlarmListView{Empty: GoodNewsView{First: goodNewsAllGood, Second: "No alarms open"}},
 	}
 }
 
@@ -454,15 +454,15 @@ func galleryHeaders() []ColumnHeaderView {
 	}
 
 	return []ColumnHeaderView{
-		{Label: "Device", Kind: "kind-text", SortHref: sorted(fieldName, true), Sort: SortMarkAscending},
-		{Label: galleryState, Kind: "kind-state", SortHref: sorted(fieldState, false)},
-		{Label: galleryLabels, Kind: "kind-tag"},
-		{Label: "Version", Kind: "kind-text", SortHref: sorted(fieldVersion, true), Sort: SortMarkDescending},
-		{Label: "Address", Kind: "kind-address"},
-		{Label: galleryCPU, Kind: "kind-number", SortHref: sorted(fieldCPU, false), Numeric: true},
-		{Label: "Alarms", Kind: "kind-number", SortHref: sorted(fieldAlarms, false), Numeric: true},
-		{Label: "Last seen", Kind: "kind-time", SortHref: sorted(fieldLastSeen, false)},
-		{Label: "Config", Kind: "kind-state"},
+		{Label: devicesWordDevice, Kind: ColumnKindText, SortHref: sorted(fieldName, true), Sort: SortMarkAscending},
+		{Label: galleryState, Kind: ColumnKindState, SortHref: sorted(fieldState, false)},
+		{Label: galleryLabels, Kind: ColumnKindTag},
+		{Label: "Version", Kind: ColumnKindText, SortHref: sorted(fieldVersion, true), Sort: SortMarkDescending},
+		{Label: "Address", Kind: ColumnKindAddress},
+		{Label: galleryCPU, Kind: ColumnKindNumber, SortHref: sorted(fieldCPU, false), Numeric: true},
+		{Label: devicesWordAlarms, Kind: ColumnKindNumber, SortHref: sorted(fieldAlarms, false), Numeric: true},
+		{Label: devicesWordLastSeen, Kind: ColumnKindTime, SortHref: sorted(fieldLastSeen, false)},
+		{Label: "Config", Kind: ColumnKindState},
 	}
 }
 
@@ -505,12 +505,12 @@ func galleryQuery(id, text, matches, refusal string) *QueryRowView {
 		Menus: []MenuView{{
 			Label: galleryState, Icon: "filter",
 			Items: []ActionView{
-				{Label: "Down", Href: galleryFiltered(fieldState, DisplayStateDown.Key())},
-				{Label: "Degraded", Href: galleryFiltered(fieldState, DisplayStateDegraded.Key())},
+				{Label: enumWordDown, Href: galleryFiltered(fieldState, DisplayStateDown.Key())},
+				{Label: enumWordDegraded, Href: galleryFiltered(fieldState, DisplayStateDegraded.Key())},
 			},
 		}},
 		Saved: &MenuView{
-			Label: "Saved filters",
+			Label: wordFilters,
 			Items: []ActionView{{Label: "London edge", Href: galleryDevicesView(ViewParams{Filter: galleryLondonEdge()})}},
 		},
 		Save: &ActionView{Label: "Save", Icon: "save", Form: galleryForm, Name: galleryFieldAction, Value: "save-filter"},
@@ -551,7 +551,7 @@ func galleryTables() *GalleryTablesView {
 	return &GalleryTablesView{
 		Full: TableSectionView{
 			Title:  galleryDevices,
-			Create: &ActionView{Label: "Add device", Icon: glyphPlus, Href: galleryAdminDevicesHref},
+			Create: &ActionView{Label: wordAddDevice, Icon: glyphPlus, Href: galleryAdminDevicesHref},
 			Query:  galleryQuery("fleet-gallery-filter-full", "site:lon", "124 of 144 devices", ""),
 			Bulk:   bulk,
 			Pager:  galleryPager(124, 2),
@@ -568,7 +568,7 @@ func galleryTables() *GalleryTablesView {
 		Empty: TableSectionView{
 			Title: "Devices matching a filter that keeps none",
 			CreateMenu: &MenuView{Label: "Add", Icon: glyphPlus, Items: []ActionView{
-				{Label: "Device", Href: galleryAdminDevicesHref}, {Label: "Label", Href: galleryAdminHref},
+				{Label: devicesWordDevice, Href: galleryAdminDevicesHref}, {Label: devicesWordLabel, Href: galleryAdminHref},
 			}},
 			Query: galleryQuery("fleet-gallery-filter-empty", "state:down site:ams", "0 of 144 devices", ""),
 			Pager: galleryPager(0, 1),
@@ -576,7 +576,7 @@ func galleryTables() *GalleryTablesView {
 				Name: "Devices matching the filter", Controls: true, Headers: headers,
 				Empty: &StateHeroView{
 					Kind: HeroNoData, Sentence: "No devices match this filter",
-					Action: &ActionView{Label: "Clear the filter", Icon: glyphClose, Href: galleryDevicesHref},
+					Action: &ActionView{Label: wordClearFilter, Icon: glyphClose, Href: galleryDevicesHref},
 				},
 			},
 		},
@@ -607,11 +607,11 @@ func galleryPanels() *GalleryPanelsView {
 				{Label: galleryDelete, Icon: glyphTrash, Form: galleryForm, Name: galleryFieldAction, Value: galleryValueDelete, Confirm: galleryDestructiveConfirm()},
 			},
 			Menu: &MenuView{Label: "More actions for edge-lon-04", Items: []ActionView{
-				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
+				{Label: devicesWordOpenConsole, Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 			}},
 			Cards: []PanelCardView{
 				{Title: "Identity", Rows: []ValueView{
-					{Label: "Name", Text: galleryDevice, Mono: true, Copy: true},
+					{Label: devicesWordName, Text: galleryDevice, Mono: true, Copy: true},
 					{Label: galleryState, Status: DisplayStatus(DisplayStateHealthy)},
 					{Label: "Serial number", Text: "ZX4-0092-7731", Mono: true, Copy: true},
 					{Label: galleryAddressName, Text: galleryAddress, Mono: true, Copy: true},
@@ -624,7 +624,7 @@ func galleryPanels() *GalleryPanelsView {
 					{Label: galleryStorage, Usage: &UsageBarView{Name: galleryStorage}},
 				}},
 				{
-					Title: "Open alarms", Link: &LinkView{Label: "See all", Href: galleryAlarmsHref},
+					Title: wordOpenAlarms, Link: &LinkView{Label: "See all", Href: galleryAlarmsHref},
 					Rows: []ValueView{{Label: "Memory at 84%", Status: AlarmStatus(AlarmSeverityWarning)}},
 				},
 			},
@@ -640,7 +640,7 @@ func galleryStates() *GalleryStatesView {
 		Heroes: []StateHeroView{
 			{
 				Kind: HeroNoData, Sentence: "No devices match this filter",
-				Action: &ActionView{Label: "Clear the filter", Icon: glyphClose, Href: galleryDevicesHref},
+				Action: &ActionView{Label: wordClearFilter, Icon: glyphClose, Href: galleryDevicesHref},
 			},
 			{
 				Kind: HeroNothingConfigured, Sentence: "No devices are declared on this hub",
@@ -675,7 +675,7 @@ func galleryStates() *GalleryStatesView {
 			Sentence: "Live updates stopped at 14:02",
 			Action:   &ActionView{Label: "Reconnect", Icon: glyphRetry, Href: galleryDevicesHref},
 		},
-		Good: GoodNewsView{First: "All good", Second: "Nothing needs attention"},
+		Good: GoodNewsView{First: goodNewsAllGood, Second: "Nothing needs attention"},
 	}
 }
 
@@ -718,8 +718,8 @@ func galleryOverlays() *GalleryOverlaysView {
 
 	return &GalleryOverlaysView{
 		Toasts: []ToastView{
-			{Level: ToastInformational, Message: "Diagnostic run started on 12 devices", Link: &LinkView{Label: "Open the task", Href: galleryTasksHref}},
-			{Level: ToastSuccess, Message: "Configuration push succeeded", Detail: "5 of 5 devices committed a3f9", Link: &LinkView{Label: "Open the task", Href: galleryTasksHref}},
+			{Level: ToastInformational, Message: "Diagnostic run started on 12 devices", Link: &LinkView{Label: wordOpenTask, Href: galleryTasksHref}},
+			{Level: ToastSuccess, Message: "Configuration push succeeded", Detail: "5 of 5 devices committed a3f9", Link: &LinkView{Label: wordOpenTask, Href: galleryTasksHref}},
 			{Level: ToastWarning, Message: "Rollout edge-refresh paused", Detail: "Batch 2 crossed its failure threshold", Link: &LinkView{Label: "Open the rollout", Href: galleryEstateTab(tabEstateRollouts, ViewParams{})}},
 			{Level: ToastError, Message: "Component bgp is down on edge-ams-02", Link: &LinkView{Label: "Open the alarm", Href: galleryAlarmsHref}},
 		},
@@ -732,9 +732,9 @@ func galleryOverlays() *GalleryOverlaysView {
 		Tasks: TaskPanelView{
 			Open: true, Preview: true, AllHref: galleryTasksHref,
 			Tabs: []TaskTabView{
-				{Label: "Running", Count: 2, Href: tab(taskTabRunning), Active: true},
+				{Label: enumWordRunning, Count: 2, Href: tab(taskTabRunning), Active: true},
 				{Label: "Succeeded", Count: 18, Href: tab(taskTabSucceeded)},
-				{Label: "Failed", Count: 3, Href: tab(taskTabFailed)},
+				{Label: enumWordFailed, Count: 3, Href: tab(taskTabFailed)},
 				{Label: "All", Count: 23, Href: tab(taskTabAll)},
 			},
 			List: TaskListView{Rows: galleryTaskRows()},

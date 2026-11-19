@@ -95,14 +95,35 @@ func (mark SortMark) Icon() string {
 	return sortMarkIcons[SortMarkUnspecified]
 }
 
-// ColumnHeaderView is one header cell. Kind is the icon naming the kind of value
-// ("kind-text", "kind-state", "kind-address", "kind-number", "kind-time",
-// "kind-tag"). SortHref is the address that sorts by the column, the other
-// way when it is already the sort column; a column that cannot be sorted has
-// none. Numeric right aligns the column.
+// ColumnKind is the kind of value a column holds. Its text is the name of the
+// icon its header draws, so Icon answers it and the icon switch of Icon in
+// icons.templ names each one. The zero value is a column whose kind is not
+// shown: its header draws no icon.
+type ColumnKind string
+
+// The kinds of value a column holds.
+const (
+	ColumnKindText    ColumnKind = "kind-text"
+	ColumnKindState   ColumnKind = "kind-state"
+	ColumnKindAddress ColumnKind = "kind-address"
+	ColumnKindNumber  ColumnKind = "kind-number"
+	ColumnKindTime    ColumnKind = "kind-time"
+	ColumnKindTag     ColumnKind = "kind-tag"
+)
+
+// Icon answers the name of the icon a header of the kind draws, and "" for
+// the zero value, which draws none.
+func (kind ColumnKind) Icon() string {
+	return string(kind)
+}
+
+// ColumnHeaderView is one header cell. Kind is the kind of value the column
+// holds, which names its icon. SortHref is the address that sorts by the
+// column, the other way when it is already the sort column; a column that
+// cannot be sorted has none. Numeric right aligns the column.
 type ColumnHeaderView struct {
 	Label    string
-	Kind     string
+	Kind     ColumnKind
 	SortHref string
 	Sort     SortMark
 	Numeric  bool

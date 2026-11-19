@@ -192,11 +192,11 @@ func TestStackedShares(t *testing.T) {
 	}
 }
 
-// TestUsageToneThresholds checks the colour of a usage bar at its two
+// TestUsageToneThresholds checks the color of a usage bar at its two
 // thresholds.
 //
-// VALIDATES: a bar is the accent colour up to 79%, the warning colour from
-// 80% to 89% and the error colour from 90%, in the function and in the
+// VALIDATES: a bar is the accent color up to 79%, the warning color from
+// 80% to 89% and the error color from 90%, in the function and in the
 // markup.
 // PREVENTS: an off-by-one at 80 or 90.
 func TestUsageToneThresholds(t *testing.T) {

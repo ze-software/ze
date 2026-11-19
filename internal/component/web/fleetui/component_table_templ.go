@@ -797,7 +797,7 @@ func headerCell(v ColumnHeaderView) templ.Component {
 				}
 				ctx = templ.InitializeContext(ctx)
 				if v.Kind != "" {
-					templ_7745c5c3_Err = Icon(v.Kind).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = Icon(v.Kind.Icon()).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -837,7 +837,7 @@ func headerCell(v ColumnHeaderView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if v.Kind != "" {
-				templ_7745c5c3_Err = Icon(v.Kind).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = Icon(v.Kind.Icon()).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

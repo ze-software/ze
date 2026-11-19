@@ -76,17 +76,17 @@ func quickInfoView(scope *dashboardScope, frame CardView) QuickInfoView {
 	frame.TitleHref = scope.tab(tabDeviceSystem, "").String()
 
 	return QuickInfoView{Card: frame, Items: []ValueView{
-		{Label: "Name", Text: facts.Name, Mono: true, Copy: true},
+		{Label: devicesWordName, Text: facts.Name, Mono: true, Copy: true},
 		{Label: "State", Status: DisplayStatus(device.State)},
-		{Label: "Labels", Tags: labels},
-		{Label: "Model", Text: facts.Inventory.Model},
+		{Label: devicesWordLabels, Tags: labels},
+		{Label: devicesWordModel, Text: facts.Inventory.Model},
 		{Label: "Serial number", Text: facts.Inventory.Serial, Mono: true, Copy: true},
 		{Label: "Software version", Text: deviceVersion(device), Mono: true},
 		{Label: "Uptime", Text: uptime},
-		{Label: "Configuration", Status: ConfigStatus(facts.Config.State)},
+		{Label: wordConfigTitle, Status: ConfigStatus(facts.Config.State)},
 		{Label: "Configuration version", Text: facts.Config.HubVersion, Mono: true, Copy: true},
-		{Label: "Last seen", Text: seen},
-		{Label: "Management address", Text: address, Mono: true, Copy: true},
+		{Label: devicesWordLastSeen, Text: seen},
+		{Label: devicesWordAddress, Text: address, Mono: true, Copy: true},
 	}}
 }
 
@@ -211,7 +211,7 @@ func dashboardInterfacesCard(_ context.Context, _ *PageRequest, scope *dashboard
 
 	return DonutCard(DonutCardView{Card: frame, Donuts: []DonutView{{Icon: iconDevice, Segments: []DonutSegmentView{
 		{Word: "Up", Href: interfaces(dashInterfaceUp), Count: latest.InterfacesUp, Tone: ToneSuccess},
-		{Word: "Down", Href: interfaces(dashStateDown), Count: latest.InterfacesDown, Tone: ToneError},
+		{Word: enumWordDown, Href: interfaces(dashStateDown), Count: latest.InterfacesDown, Tone: ToneError},
 		{Word: "Administratively down", Href: interfaces(dashStateAdminDown), Count: latest.InterfacesAdminDown, Tone: ToneMuted},
 	}}}}), nil
 }

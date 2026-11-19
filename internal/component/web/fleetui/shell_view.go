@@ -156,7 +156,7 @@ type TreeRowView struct {
 	// empty for a device.
 	Count string
 	// Attention reports that a device below the row is not healthy, so the
-	// count takes the warning colour.
+	// count takes the warning color.
 	Attention bool
 	// Alarms is the number of open alarms of a device row.
 	Alarms     int

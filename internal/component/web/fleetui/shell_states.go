@@ -27,11 +27,16 @@ const (
 	iconOpen  = "chevron-right"
 )
 
+// The first lines of the good news a state shows when nothing is wrong.
+const (
+	goodNewsAllGood  = "All good"
+	goodNewsAllQuiet = "All quiet"
+)
+
 // refusalOf answers err as an operator error. An error that is none yet is
 // wrapped, so every state has a sentence, a reason and a fix to show.
 func refusalOf(err error) *opererr.Error {
-	var refusal *opererr.Error
-	if errors.As(err, &refusal) {
+	if refusal, isOperatorError := errors.AsType[*opererr.Error](err); isOperatorError {
 		return refusal
 	}
 
@@ -168,13 +173,13 @@ const taskPanelRowsMax = 20
 
 var (
 	taskTabKeys   = []string{enumKeyUnspecified, "running", "succeeded", "failed", "all"}
-	taskTabLabels = []string{enumWordUnspecified, "Running", "Succeeded", "Failed", "All"}
+	taskTabLabels = []string{enumWordUnspecified, enumWordRunning, "Succeeded", enumWordFailed, "All"}
 	taskTabEmpty  = []GoodNewsView{
 		{},
-		{First: "All quiet", Second: "No task is running"},
+		{First: goodNewsAllQuiet, Second: "No task is running"},
 		{First: "Nothing yet", Second: "No task has succeeded"},
-		{First: "All good", Second: "No task failed"},
-		{First: "All quiet", Second: "The hub keeps no task"},
+		{First: goodNewsAllGood, Second: "No task failed"},
+		{First: goodNewsAllQuiet, Second: "The hub keeps no task"},
 	}
 	taskTabs = []taskTab{taskTabRunning, taskTabSucceeded, taskTabFailed, taskTabAll}
 )

@@ -169,7 +169,7 @@ func TestTemplatesNameKnownIcons(t *testing.T) {
 // TestStatusTones pins the tone of every state by its named constant.
 //
 // VALIDATES: each display, health, configuration, alarm and task state is
-// drawn in the colour the umbrella gives it, with the state's own word.
+// drawn in the color the umbrella gives it, with the state's own word.
 // PREVENTS: a tone table that drifted from the order of its enum.
 func TestStatusTones(t *testing.T) {
 	cases := []struct {

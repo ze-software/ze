@@ -28,11 +28,11 @@ const (
 // published into, the tick that makes the stream write, and the frames it
 // wrote. No test sleeps: a stream writes only when the test ticks.
 type liveStream struct {
-	source *testSource
-	ticks  chan time.Time
-	server *httptest.Server
-	body   io.ReadCloser
-	reader *bufio.Reader
+	source   *testSource
+	ticks    chan time.Time
+	server   *httptest.Server
+	response *http.Response
+	reader   *bufio.Reader
 }
 
 // openStream starts a server over the stream handler and opens the stream of
@@ -48,12 +48,13 @@ func openStream(t *testing.T, scope string) *liveStream {
 	live.server = httptest.NewServer(handler)
 	t.Cleanup(live.close)
 
+	// The stream owns the response from here, so close closes its body even
+	// when a check below refuses the status.
 	response := live.get(t, scope)
+	live.response = response
+	live.reader = bufio.NewReader(response.Body)
 	require.Equal(t, http.StatusOK, response.StatusCode)
 	require.Equal(t, "text/event-stream", response.Header.Get("Content-Type"))
-
-	live.body = response.Body
-	live.reader = bufio.NewReader(response.Body)
 	require.Equal(t, frameOpen, live.frame(t), "the stream opens with a comment once it is subscribed")
 
 	return live
@@ -99,8 +100,8 @@ func (live *liveStream) tick() {
 
 // close ends the stream from the browser's side and waits for its handler.
 func (live *liveStream) close() {
-	if live.body != nil {
-		live.body.Close() //nolint:errcheck // the test is over; nothing reads the stream again
+	if live.response != nil {
+		live.response.Body.Close() //nolint:errcheck // the test is over; nothing reads the stream again
 	}
 	live.server.Close()
 }
@@ -312,7 +313,7 @@ func (script *stepScript) Step() (Event, error) {
 func TestStepRouteAnswersHtmxAToast(t *testing.T) {
 	script := &stepScript{events: []Event{{Kind: EventDeviceChanged, Device: edgeLon01}}}
 
-	request := httptest.NewRequest(http.MethodPost, stepPath, http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, stepPath, http.NoBody)
 	request.Header.Set(headerHTMXRequest, htmxTrue)
 	stepped := httptest.NewRecorder()
 	newStepHandler(script).ServeHTTP(stepped, request)
@@ -323,7 +324,7 @@ func TestStepRouteAnswersHtmxAToast(t *testing.T) {
 	assert.Contains(t, stepped.Body.String(), "hx-swap-oob")
 	assert.Contains(t, stepped.Body.String(), "The sample script published device-changed "+edgeLon01+".")
 
-	request = httptest.NewRequest(http.MethodPost, holdPath, http.NoBody)
+	request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, holdPath, http.NoBody)
 	request.Header.Set(headerHTMXRequest, htmxTrue)
 	held := httptest.NewRecorder()
 	newHoldHandler(script).ServeHTTP(held, request)
@@ -348,7 +349,7 @@ func TestStepRouteAdvancesTheScript(t *testing.T) {
 
 	post := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, stepPath, http.NoBody))
+		handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodPost, stepPath, http.NoBody))
 
 		return recorder
 	}
@@ -367,7 +368,7 @@ func TestStepRouteAdvancesTheScript(t *testing.T) {
 
 	require.False(t, script.held)
 	held := httptest.NewRecorder()
-	newHoldHandler(script).ServeHTTP(held, httptest.NewRequest(http.MethodPost, holdPath, http.NoBody))
+	newHoldHandler(script).ServeHTTP(held, httptest.NewRequestWithContext(t.Context(), http.MethodPost, holdPath, http.NoBody))
 	assert.Equal(t, http.StatusOK, held.Code)
 	assert.Equal(t, holdAnswer, held.Body.String())
 	assert.True(t, script.held, "the hold route takes the script away from its timer")

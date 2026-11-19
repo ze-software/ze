@@ -231,7 +231,7 @@ func postConsole(t *testing.T, name, command string) *httptest.ResponseRecorder 
 	t.Helper()
 
 	form := url.Values{consoleField: {command}}
-	request := httptest.NewRequest(http.MethodPost, consoleURL(name), strings.NewReader(form.Encode()))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, consoleURL(name), strings.NewReader(form.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	recorder := httptest.NewRecorder()

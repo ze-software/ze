@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"slices"
@@ -43,6 +44,15 @@ const (
 	auditDayLayout  = "2006-01-02"
 	auditNoun       = "entries"
 )
+
+// auditWordActor labels who made a change, in the audit trail and on every
+// page that records one: a configuration version, a template, a rollout, a
+// task.
+const auditWordActor = "Actor"
+
+// auditWordResult labels how a change ended, in the audit trail, a rollout
+// and a task.
+const auditWordResult = "Result"
 
 // auditFilters is the filter grammar of the audit table, without the time
 // terms, which parseAuditQuery reads itself. Its fields are registered from
@@ -207,9 +217,9 @@ func auditContent(ctx context.Context, request *PageRequest) (templ.Component, e
 			Table: TableView{
 				Name: "Audit trail",
 				Headers: []ColumnHeaderView{
-					{Label: "Time", Kind: "kind-time"}, {Label: "Actor", Kind: "kind-text"},
-					{Label: "Event", Kind: "kind-text"}, {Label: "Device or target", Kind: "kind-text"},
-					{Label: "Result", Kind: "kind-state"}, {Label: "Summary", Kind: "kind-text"},
+					{Label: "Time", Kind: ColumnKindTime}, {Label: auditWordActor, Kind: ColumnKindText},
+					{Label: "Event", Kind: ColumnKindText}, {Label: "Device or target", Kind: ColumnKindText},
+					{Label: auditWordResult, Kind: ColumnKindState}, {Label: "Summary", Kind: ColumnKindText},
 				},
 				Rows:     rows,
 				Controls: true,
@@ -320,11 +330,11 @@ func auditPanel(ctx context.Context, request *PageRequest) (templ.Component, err
 	rows := []ValueView{
 		{Label: "Entry", Text: entry.ID, Mono: true, Copy: true},
 		{Label: "Time", Text: whenText(request, entry.At)},
-		{Label: "Actor", Text: entry.Actor},
+		{Label: auditWordActor, Text: entry.Actor},
 		{Label: "Event", Text: entry.Event, Mono: true},
 		{Label: "Device or target", Text: entry.Target},
-		{Label: "Devices", Text: countText(entry.Devices)},
-		{Label: "Result", Status: AuditResultStatus(entry.Result)},
+		{Label: devicesWordDevices, Text: countText(entry.Devices)},
+		{Label: auditWordResult, Status: AuditResultStatus(entry.Result)},
 		{Label: "Summary", Text: entry.Summary},
 	}
 	if entry.TaskID != "" {
@@ -353,8 +363,12 @@ func auditPanel(ctx context.Context, request *PageRequest) (templ.Component, err
 // estate, or one whose device's history holds no version recorded at the
 // entry's time. The oldest version has no earlier one, and answers false.
 func auditDiff(ctx context.Context, request *PageRequest, entry *AuditEntry) (DiffView, bool, error) {
-	if _, err := FindDevice(request.Snapshot.Views, entry.Target); err != nil {
+	_, err := FindDevice(request.Snapshot.Views, entry.Target)
+	if errors.Is(err, ErrObjectUnknown) {
 		return DiffView{}, false, nil
+	}
+	if err != nil {
+		return DiffView{}, false, err
 	}
 
 	versions, err := request.Source.ConfigVersions(ctx, entry.Target)

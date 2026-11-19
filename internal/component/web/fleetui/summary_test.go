@@ -221,7 +221,7 @@ func TestBusiest(t *testing.T) {
 func TestBusiestRefusesAMetricNoSampleHolds(t *testing.T) {
 	_, err := Busiest(testViews(), MetricDevicesConnected, 5)
 
-	refusal := requireRefusal(t, err, ErrRankRefused)
+	refusal := requireRefusalOf(t, err, ErrRankRefused)
 	assert.Contains(t, refusal.Problem(), `"devices-connected"`)
 	assert.Equal(t, "rank by one of: cpu, memory, storage, load, traffic-in, traffic-out, peers-established", refusal.Fix())
 }

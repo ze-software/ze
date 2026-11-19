@@ -138,7 +138,7 @@ templ headerCell(v ColumnHeaderView) {
 		if v.SortHref != "" {
 			@NavLink(NavLinkView{Href: v.SortHref, Class: "fleet-table-sort"}) {
 				if v.Kind != "" {
-					@Icon(v.Kind)
+					@Icon(v.Kind.Icon())
 				}
 				<span>{ v.Label }</span>
 				if v.Sort.Icon() != "" {
@@ -148,7 +148,7 @@ templ headerCell(v ColumnHeaderView) {
 		} else {
 			<span class="fleet-table-label">
 				if v.Kind != "" {
-					@Icon(v.Kind)
+					@Icon(v.Kind.Icon())
 				}
 				<span>{ v.Label }</span>
 			</span>

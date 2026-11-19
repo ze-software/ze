@@ -136,7 +136,7 @@ func failingPage(err error) PageBuilder {
 func getFleet(t *testing.T, handler http.Handler, target string, header ...string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	request := httptest.NewRequest(http.MethodGet, target, http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody)
 	for index := 0; index+1 < len(header); index += 2 {
 		request.Header.Set(header[index], header[index+1])
 	}

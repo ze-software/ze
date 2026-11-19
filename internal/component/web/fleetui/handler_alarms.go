@@ -42,12 +42,17 @@ const (
 // bugAlarmKind is what a refused registration of an alarm kind's tab names.
 const bugAlarmKind = "the alarm kind"
 
-// The kinds of value of the alarm table's header cells, as the header icon
-// names them.
+// The words the alarm and task pages share: wordDetail labels the sentence
+// that says what is wrong, in an alarm and in a health check; wordKind labels
+// what an alarm or a task is about.
 const (
-	alarmHeaderText = "kind-text"
-	alarmHeaderTime = "kind-time"
+	wordDetail = "Detail"
+	wordKind   = "Kind"
 )
+
+// wordOpenAlarms titles the alarms still open, on the alarm page, a dashboard
+// and a device's panel.
+const wordOpenAlarms = "Open alarms"
 
 // alarmHistorySpan is how far back the side panel of an alarm shows the
 // alarm history of its device.
@@ -241,11 +246,11 @@ func alarmsContent(_ context.Context, request *PageRequest) (templ.Component, er
 	matches := activityMatches(len(sorted), len(rows), alarmsSubject)
 	menus := []MenuView{
 		activityFilterMenu(request, "Severity", activityFieldSeverity, alarmSeverityKeys[1:], alarmSeverityWords[1:]),
-		activityFilterMenu(request, "Kind", activityFieldKind, alarmKindsInUse(rows), alarmKindsInUse(rows)),
+		activityFilterMenu(request, wordKind, activityFieldKind, alarmKindsInUse(rows), alarmKindsInUse(rows)),
 	}
 
 	return TableSection(TableSectionView{
-		Title: "Open alarms",
+		Title: wordOpenAlarms,
 		Query: activityQuery(request, "fleet-alarms-filter",
 			"Filter alarms, as in severity:critical kind:component-down device:edge-lon-04", matches, refusal, menus),
 		Pager: activityPager(request.Address, page, alarmsSubject),
@@ -267,7 +272,7 @@ func alarmKindsInUse(rows []alarmRow) []string {
 // alarmTable answers the table of one page of alarms.
 func alarmTable(request *PageRequest, rows []alarmRow) TableView {
 	table := TableView{
-		Name:     "Open alarms",
+		Name:     wordOpenAlarms,
 		Headers:  alarmHeaders(request),
 		Rows:     make([]RowView, 0, len(rows)),
 		Controls: true,
@@ -320,17 +325,17 @@ func alarmDeviceCell(request *PageRequest, row *alarmRow) CellView {
 // one linking to the sort by it, the other way when it is the sort column.
 func alarmHeaders(request *PageRequest) []ColumnHeaderView {
 	return []ColumnHeaderView{
-		alarmHeader(request, "Severity", "kind-state", alarmColumnSeverity),
-		alarmHeader(request, "Device", alarmHeaderText, alarmColumnDevice),
-		alarmHeader(request, "Alarm", alarmHeaderText, alarmColumnKind),
-		{Label: "Detail", Kind: alarmHeaderText},
-		alarmHeader(request, "Since", alarmHeaderTime, alarmColumnSince),
-		{Label: "Duration", Kind: alarmHeaderTime},
+		alarmHeader(request, "Severity", ColumnKindState, alarmColumnSeverity),
+		alarmHeader(request, devicesWordDevice, ColumnKindText, alarmColumnDevice),
+		alarmHeader(request, "Alarm", ColumnKindText, alarmColumnKind),
+		{Label: wordDetail, Kind: ColumnKindText},
+		alarmHeader(request, "Since", ColumnKindTime, alarmColumnSince),
+		{Label: "Duration", Kind: ColumnKindTime},
 	}
 }
 
 // alarmHeader answers one sortable header cell.
-func alarmHeader(request *PageRequest, label, kind, column string) ColumnHeaderView {
+func alarmHeader(request *PageRequest, label string, kind ColumnKind, column string) ColumnHeaderView {
 	current := request.Address.View.Sort
 	if current.Column == "" {
 		current.Column = alarmColumnSeverity
@@ -373,7 +378,7 @@ func alarmsEmpty(request *PageRequest) *StateHeroView {
 		Kind:     HeroNoData,
 		Sentence: "No alarms match this filter.",
 		Detail:   "The filter keeps none of the alarms open here.",
-		Action:   &ActionView{Label: "Clear the filter", Icon: glyphClose, Href: cleared.String()},
+		Action:   &ActionView{Label: wordClearFilter, Icon: glyphClose, Href: cleared.String()},
 	}
 }
 
@@ -436,22 +441,22 @@ func alarmCard(request *PageRequest, row *alarmRow) PanelCardView {
 	alarm := &row.Alarm
 	now := request.Snapshot.Now
 
-	device := ValueView{Label: "Device", Text: request.Snapshot.Estate.Name}
+	device := ValueView{Label: devicesWordDevice, Text: request.Snapshot.Estate.Name}
 	if alarm.Device != "" {
 		device.Text = alarm.Device
 	}
 	if row.Device != nil {
 		device = ValueView{
-			Label: "Device", Text: alarm.Device, Href: deviceAddress(request, alarm.Device).String(), Icon: iconDevice,
+			Label: devicesWordDevice, Text: alarm.Device, Href: deviceAddress(request, alarm.Device).String(), Icon: iconDevice,
 		}
 	}
 
 	return PanelCardView{Title: "Alarm", Rows: []ValueView{
 		{Label: "Severity", Status: AlarmStatus(alarm.Severity)},
 		device,
-		{Label: "Kind", Text: alarm.Kind, Mono: true},
+		{Label: wordKind, Text: alarm.Kind, Mono: true},
 		{Label: "Alarm", Text: alarm.Summary},
-		{Label: "Detail", Text: alarm.Detail},
+		{Label: wordDetail, Text: alarm.Detail},
 		{Label: "Since", Text: activityTime(alarm.Since)},
 		{Label: "Open for", Text: activityDuration(now.Sub(alarm.Since))},
 		{Label: "Identifier", Text: alarm.ID, Mono: true, Copy: true},

@@ -28,7 +28,7 @@ func IconNames() []string {
 		"device", "tasks", "user", "sun", "moon", "eye", "dots", "plus", "copy", "external",
 		"close", "check", "alert", "info", "error", "edit", "trash", "filter", "first", "prev",
 		"next", "last", "sort-asc", "sort-desc", "terminal", "config", "chart", "retry", "save",
-		"kind-text", "kind-state", "kind-address", "kind-number", "kind-time", "kind-tag",
+		ColumnKindText.Icon(), ColumnKindState.Icon(), ColumnKindAddress.Icon(), ColumnKindNumber.Icon(), ColumnKindTime.Icon(), ColumnKindTag.Icon(),
 		"mark-ok", "mark-warning", "mark-error", "mark-offline", "mark-unknown", "mark-info",
 		"mark-progress",
 	}
@@ -279,32 +279,32 @@ func Icon(name string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-text":
+		case ColumnKindText.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<path d=\"M3 4h10M8 4v9M6 13h4\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-state":
+		case ColumnKindState.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<circle cx=\"8\" cy=\"8\" r=\"5.5\"></circle> <path d=\"m5.5 8 2 2 3-3.5\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-address":
+		case ColumnKindAddress.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<circle cx=\"8\" cy=\"8\" r=\"6\"></circle> <path d=\"M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-number":
+		case ColumnKindNumber.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<path d=\"M6 2 5 14M11 2l-1 12M2.5 5.5h11M2 10.5h11\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-time":
+		case ColumnKindTime.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<circle cx=\"8\" cy=\"8\" r=\"6\"></circle> <path d=\"M8 4.5V8l2.5 1.5\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "kind-tag":
+		case ColumnKindTag.Icon():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<path d=\"M2 2h5.5L14 8.5 8.5 14 2 7.5zM5 5h.01\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

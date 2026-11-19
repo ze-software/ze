@@ -191,13 +191,13 @@ var devicesRefusal = regexp.MustCompile(`(?s)<p class="fleet-query-refusal"[^>]*
 // refuses names the bad term and every valid field, says the table is
 // unfiltered, and that the table then shows every device.
 func TestDevicesMalformedFilterIsRefused(t *testing.T) {
-	body := devicesGet(t, devicesTestPath+"?q="+url.QueryEscape("colour:red"))
+	body := devicesGet(t, devicesTestPath+"?q="+url.QueryEscape("color:red"))
 
 	found := devicesRefusal.FindStringSubmatch(body)
 	require.Len(t, found, 2, "the query row shows the refusal")
 	refusal := found[1]
 
-	assert.Contains(t, refusal, "colour")
+	assert.Contains(t, refusal, "color")
 	for _, field := range DeviceFilters().Fields() {
 		assert.Contains(t, refusal, field, "the refusal lists the field %s", field)
 	}
@@ -212,7 +212,7 @@ func TestDevicesMalformedFilterIsRefused(t *testing.T) {
 func postDevicesAction(t *testing.T, page string, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
 
-	request := httptest.NewRequest(http.MethodPost, actionPath+devicesActionName+"/"+page, strings.NewReader(form.Encode()))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, actionPath+devicesActionName+"/"+page, strings.NewReader(form.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	recorder := httptest.NewRecorder()

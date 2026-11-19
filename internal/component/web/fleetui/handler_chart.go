@@ -35,8 +35,8 @@ const (
 	chartLoad             = "load"
 )
 
-// chartColors is the chart colour of each series of a plot, in order: the
-// second series is the third colour, so two lines differ by more than a
+// chartColors is the chart color of each series of a plot, in order: the
+// second series is the third color, so two lines differ by more than a
 // legend.
 var chartColors = []int{1, 3, 2, 4}
 

@@ -60,6 +60,10 @@ var ErrFilterRefused = errors.New("the filter was refused")
 // filterWhy is the consequence every filter refusal states.
 const filterWhy = "The filter was not applied, so the table still shows its previous rows."
 
+// wordClearFilter labels the action that drops a table's filter, offered
+// where the filter matched nothing or was refused.
+const wordClearFilter = "Clear the filter"
+
 // rowTest reports whether one row holds what a term asks.
 type rowTest[T any] func(row *T) bool
 

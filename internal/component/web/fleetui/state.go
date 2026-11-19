@@ -23,6 +23,11 @@ const (
 	enumWordPending     = "Pending"
 	enumKeyPending      = "pending"
 	enumKeyFailed       = "failed"
+	enumWordFailed      = "Failed"
+	enumWordDown        = "Down"
+	enumWordDegraded    = "Degraded"
+	enumWordRunning     = "Running"
+	enumWordRejected    = "Rejected"
 )
 
 // enumText answers the entry of table for value, or enumInvalid for a value
@@ -75,7 +80,7 @@ const (
 )
 
 var (
-	displayStateWords = []string{enumWordUnspecified, "Offline", "Diverged", "Down", "Degraded", "Healthy", "Unknown"}
+	displayStateWords = []string{enumWordUnspecified, "Offline", "Diverged", enumWordDown, enumWordDegraded, "Healthy", "Unknown"}
 	displayStateKeys  = []string{enumKeyUnspecified, "offline", "diverged", "down", "degraded", "healthy", "unknown"}
 	// displayStateSeverities ranks the states for sorting, the worst highest:
 	// down, offline, diverged, degraded, unknown, healthy. It follows the
@@ -180,7 +185,7 @@ const (
 	HealthStateDown
 )
 
-var healthStateWords = []string{enumWordUnspecified, "Healthy", "Degraded", "Down"}
+var healthStateWords = []string{enumWordUnspecified, "Healthy", enumWordDegraded, enumWordDown}
 
 // String answers the word a page shows for the component's state.
 func (state HealthState) String() string {
@@ -209,7 +214,7 @@ const (
 )
 
 var (
-	configStateWords = []string{enumWordUnspecified, "In sync", enumWordPending, "Rejected", "Diverged", "Never fetched"}
+	configStateWords = []string{enumWordUnspecified, "In sync", enumWordPending, enumWordRejected, "Diverged", "Never fetched"}
 	configStateKeys  = []string{enumKeyUnspecified, "in-sync", enumKeyPending, "rejected", "diverged", "never-fetched"}
 )
 
@@ -224,7 +229,7 @@ func (state ConfigState) Key() string {
 }
 
 // RolloutResult is where one device of a rollout stands: its result word is
-// drawn beside a mark in the result's colour, never as a bare word.
+// drawn beside a mark in the result's color, never as a bare word.
 type RolloutResult uint8
 
 const (
@@ -238,7 +243,7 @@ const (
 	RolloutResultRejected
 )
 
-var rolloutResultWords = []string{enumWordUnspecified, "Waiting", "Applied", "Rejected"}
+var rolloutResultWords = []string{enumWordUnspecified, "Waiting", "Applied", enumWordRejected}
 
 // String answers the result's word.
 func (result RolloutResult) String() string {
@@ -261,7 +266,7 @@ const (
 	ConfigVersionResultNotFetched
 )
 
-var configVersionResultWords = []string{enumWordUnspecified, "Applied", "Rejected", "Not fetched yet"}
+var configVersionResultWords = []string{enumWordUnspecified, "Applied", enumWordRejected, "Not fetched yet"}
 
 // String answers the result's word.
 func (result ConfigVersionResult) String() string {
@@ -297,8 +302,8 @@ const (
 
 var (
 	auditResultWords = []string{
-		enumWordUnspecified, "Recorded", "Started", enumWordPending, "Running", "Paused",
-		"Succeeded", "Failed", "Canceled", "Partly failed",
+		enumWordUnspecified, "Recorded", "Started", enumWordPending, enumWordRunning, "Paused",
+		"Succeeded", enumWordFailed, "Canceled", "Partly failed",
 	}
 	auditResultKeys = []string{
 		enumKeyUnspecified, "recorded", "started", enumKeyPending, "running", "paused",
@@ -394,7 +399,7 @@ const (
 )
 
 var (
-	taskStateWords = []string{enumWordUnspecified, enumWordPending, "Running", "Succeeded", "Failed", "Canceled", "Partly failed"}
+	taskStateWords = []string{enumWordUnspecified, enumWordPending, enumWordRunning, "Succeeded", enumWordFailed, "Canceled", "Partly failed"}
 	taskStateKeys  = []string{enumKeyUnspecified, enumKeyPending, "running", "succeeded", enumKeyFailed, "canceled", "partly-failed"}
 	// taskStateActive marks the states of a task that is not over: pending
 	// and running.

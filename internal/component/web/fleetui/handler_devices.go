@@ -50,15 +50,6 @@ const (
 	devicesTimeLayout = "2006-01-02 15:04:05 UTC"
 )
 
-// The icons naming the kind of value of a column.
-const (
-	devicesKindText   = "kind-text"
-	devicesKindState  = "kind-state"
-	devicesKindTag    = "kind-tag"
-	devicesKindTime   = "kind-time"
-	devicesKindNumber = "kind-number"
-)
-
 // The words of the table's headers, the panel's labels and the actions a
 // row and the panel share.
 const (
@@ -67,6 +58,9 @@ const (
 	devicesWordStorage     = "Storage"
 	devicesWordUptime      = "Uptime"
 	devicesWordDevice      = "Device"
+	devicesWordDevices     = "Devices"
+	devicesWordGroup       = "Group"
+	devicesWordConnection  = "Connection"
 	devicesWordState       = "State"
 	devicesWordLabels      = "Labels"
 	devicesWordVersion     = "Version"
@@ -79,6 +73,9 @@ const (
 	devicesWordOpenDevice  = "Open device"
 	devicesWordOpenConsole = "Open console"
 	devicesWordDiagnostic  = "Run diagnostic"
+	devicesWordPushConfig  = "Push config"
+	devicesWordLabel       = "Label"
+	devicesWordAddress     = "Management address"
 )
 
 // devicesLabelJoin joins a label's key and value, as a tag and a
@@ -104,7 +101,7 @@ const (
 // that orders it, which is empty for a column that cannot be sorted.
 type devicesColumn struct {
 	label   string
-	kind    string
+	kind    ColumnKind
 	key     string
 	numeric bool
 }
@@ -113,16 +110,16 @@ type devicesColumn struct {
 // order deviceCells fills them. The sort keys are the ones register_devices.go
 // registers.
 var devicesColumns = []devicesColumn{
-	{label: devicesWordDevice, kind: devicesKindText, key: fieldName},
-	{label: devicesWordState, kind: devicesKindState, key: fieldState},
-	{label: devicesWordLabels, kind: devicesKindTag},
-	{label: devicesWordVersion, kind: devicesKindText, key: fieldVersion},
-	{label: devicesWordConfig, kind: devicesKindState, key: fieldConfig},
-	{label: devicesWordUptime, kind: devicesKindTime, key: fieldUptime},
-	{label: devicesWordLastSeen, kind: devicesKindTime, key: fieldLastSeen},
-	{label: devicesWordCPU, kind: devicesKindNumber, key: fieldCPU, numeric: true},
-	{label: devicesWordMemory, kind: devicesKindNumber, key: fieldMemory, numeric: true},
-	{label: devicesWordAlarms, kind: devicesKindNumber, key: fieldAlarms, numeric: true},
+	{label: devicesWordDevice, kind: ColumnKindText, key: fieldName},
+	{label: devicesWordState, kind: ColumnKindState, key: fieldState},
+	{label: devicesWordLabels, kind: ColumnKindTag},
+	{label: devicesWordVersion, kind: ColumnKindText, key: fieldVersion},
+	{label: devicesWordConfig, kind: ColumnKindState, key: fieldConfig},
+	{label: devicesWordUptime, kind: ColumnKindTime, key: fieldUptime},
+	{label: devicesWordLastSeen, kind: ColumnKindTime, key: fieldLastSeen},
+	{label: devicesWordCPU, kind: ColumnKindNumber, key: fieldCPU, numeric: true},
+	{label: devicesWordMemory, kind: ColumnKindNumber, key: fieldMemory, numeric: true},
+	{label: devicesWordAlarms, kind: ColumnKindNumber, key: fieldAlarms, numeric: true},
 }
 
 // devicesContent builds the Devices tab of the estate or of a group node.
@@ -344,7 +341,7 @@ func devicesLabelMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 					Reason: "Only the first " + countText(devicesLabelItemsMax) + " labels are listed: type key:value in the filter for another.",
 				})
 
-				return MenuView{Label: "Label", Icon: devicesKindTag, Items: items}
+				return MenuView{Label: devicesWordLabel, Icon: ColumnKindTag.Icon(), Items: items}
 			}
 
 			filter := SetFilterTerm(base.Filter, usage.Key, value.Value)
@@ -358,7 +355,7 @@ func devicesLabelMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 		}
 	}
 
-	return MenuView{Label: "Label", Icon: devicesKindTag, Items: items}
+	return MenuView{Label: devicesWordLabel, Icon: ColumnKindTag.Icon(), Items: items}
 }
 
 // devicesVersionMenu is the assisted Version menu: one item per software
@@ -375,7 +372,7 @@ func devicesVersionMenu(request *PageRequest, scope []DeviceView, base ViewParam
 		Label: "Any version", Href: devicesFilterLink(request, base, RemoveFilterTerm(base.Filter, fieldVersion)),
 	})
 
-	return MenuView{Label: devicesWordVersion, Icon: devicesKindText, Items: items}
+	return MenuView{Label: devicesWordVersion, Icon: ColumnKindText.Icon(), Items: items}
 }
 
 // devicesSavedFilters answers the saved filters the menu lists. Saving a
@@ -405,7 +402,7 @@ func devicesSavedMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 		items = append(items, ActionView{Label: filter.Name, Href: devicesFilterLink(request, base, filter.Filter)})
 	}
 
-	return MenuView{Label: "Saved filters", Icon: "save", Items: items}
+	return MenuView{Label: wordFilters, Icon: "save", Items: items}
 }
 
 // devicesBulk fills the selection of the table: the form the checkboxes
@@ -480,7 +477,7 @@ func devicesEmpty(request *PageRequest, base ViewParams) *StateHeroView {
 		Kind:     HeroNoData,
 		Sentence: "No device matches the filter.",
 		Detail:   "Change the filter, or clear it to see every device.",
-		Action:   &ActionView{Label: "Clear the filter", Icon: glyphClose, Href: devicesFilterLink(request, base, "")},
+		Action:   &ActionView{Label: wordClearFilter, Icon: glyphClose, Href: devicesFilterLink(request, base, "")},
 	}
 }
 
@@ -678,7 +675,7 @@ func devicesMenu(request *PageRequest, name string) *MenuView {
 			{Label: devicesWordOpenDevice, Icon: iconOpen, Href: deviceAddress(request, name).String()},
 			{Label: devicesWordOpenConsole, Icon: glyphTerminal, Href: devicesTabLink(request, name, devicesConsoleTab)},
 			{Label: devicesWordDiagnostic, Icon: iconTasks, Href: devicesTabLink(request, name, tabDeviceTasks)},
-			{Label: "Push config", Icon: iconAdmin, Href: devicesTabLink(request, name, devicesConfigTab)},
+			{Label: devicesWordPushConfig, Icon: iconAdmin, Href: devicesTabLink(request, name, devicesConfigTab)},
 		},
 	}
 }
@@ -720,11 +717,11 @@ func devicesPanelView(request *PageRequest, view *DeviceView) PanelView {
 		Cards: []PanelCardView{
 			{Title: "Identity", Rows: devicesIdentityRows(view)},
 			{Title: devicesWordLabels, Rows: []ValueView{{Label: devicesWordLabels, Whole: true, Tags: devicesTags(&view.Device)}}},
-			{Title: "Connection", Rows: devicesConnectionRows(request, view)},
+			{Title: devicesWordConnection, Rows: devicesConnectionRows(request, view)},
 			{Title: devicesWordHealth, Rows: devicesHealthRows(view)},
 			{Title: "Now", Rows: devicesNowRows(view)},
 			{
-				Title: "Open alarms",
+				Title: wordOpenAlarms,
 				Rows:  devicesAlarmRows(request, name),
 				Link:  &LinkView{Label: "All alarms", Href: devicesAlarmsLink(request, name)},
 			},
@@ -753,7 +750,7 @@ func devicesIdentityRows(view *DeviceView) []ValueView {
 		{Label: devicesWordModel, Text: inventory.Model, Copy: true},
 		{Label: "Serial number", Text: inventory.Serial, Mono: true, Copy: true},
 		{Label: "Software version", Text: inventory.SoftwareVersion, Mono: true, Copy: true},
-		{Label: "Management address", Text: devicesAddress(inventory.ManagementAddr), Mono: true, Copy: true},
+		{Label: devicesWordAddress, Text: devicesAddress(inventory.ManagementAddr), Mono: true, Copy: true},
 	}
 }
 
@@ -784,7 +781,7 @@ func devicesConnectionRows(request *PageRequest, view *DeviceView) []ValueView {
 		ValueView{Label: "Source address", Text: devicesAddress(connection.SourceAddr), Mono: true, Copy: true},
 		ValueView{Label: "Last configuration fetch", Text: fetched},
 		ValueView{Label: "Fetch result", Text: config.LastFetchResult},
-		ValueView{Label: "Configuration", Status: ConfigStatus(config.State)},
+		ValueView{Label: wordConfigTitle, Status: ConfigStatus(config.State)},
 	)
 }
 

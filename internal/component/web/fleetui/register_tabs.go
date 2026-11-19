@@ -10,31 +10,38 @@
 
 package fleetui
 
+// The titles of the tabs more than one object shows.
+const (
+	tabTitleDashboard = "Dashboard"
+	tabTitleDevices   = "Devices"
+	tabTitleAlarms    = "Alarms"
+)
+
 func init() {
 	for _, tab := range []Tab{
-		{Name: TabDashboard, Title: "Dashboard"},
-		{Name: devicesTab, Title: "Devices"},
-		{Name: activityTabAlarms, Title: "Alarms"},
-		{Name: tabEstateRollouts, Title: "Rollouts"},
+		{Name: TabDashboard, Title: tabTitleDashboard},
+		{Name: devicesTab, Title: tabTitleDevices},
+		{Name: activityTabAlarms, Title: tabTitleAlarms},
+		{Name: tabEstateRollouts, Title: rolloutsTitle},
 		{Name: activityTabTasks, Title: "Tasks"},
 	} {
 		MustRegisterTab(ObjectEstate, tab)
 	}
 
 	for _, tab := range []Tab{
-		{Name: TabDashboard, Title: "Dashboard"},
-		{Name: devicesTab, Title: "Devices"},
-		{Name: activityTabAlarms, Title: "Alarms"},
+		{Name: TabDashboard, Title: tabTitleDashboard},
+		{Name: devicesTab, Title: tabTitleDevices},
+		{Name: activityTabAlarms, Title: tabTitleAlarms},
 		{Name: activityTabTasks, Title: "Tasks"},
 	} {
 		MustRegisterTab(ObjectGroup, tab)
 	}
 
 	for _, tab := range []Tab{
-		{Name: TabDashboard, Title: "Dashboard"},
+		{Name: TabDashboard, Title: tabTitleDashboard},
 		{Name: tabDeviceConsole, Title: "Console"},
 		{Name: tabDeviceSystem, Title: "System"},
-		{Name: tabDeviceInterfaces, Title: "Interfaces"},
+		{Name: tabDeviceInterfaces, Title: titleInterfaces},
 		{Name: tabDeviceRouting, Title: "Routing"},
 		{Name: tabDeviceConfig, Title: "Config"},
 		{Name: tabDeviceLogs, Title: "Logs"},
@@ -45,10 +52,10 @@ func init() {
 
 	// The administration pages, States last: it is the prototype's own page.
 	for _, tab := range []Tab{
-		{Name: tabAdminDevices, Title: "Devices"},
-		{Name: tabAdminLabels, Title: "Labels"},
+		{Name: tabAdminDevices, Title: tabTitleDevices},
+		{Name: tabAdminLabels, Title: devicesWordLabels},
 		{Name: tabAdminTreeViews, Title: "Tree views"},
-		{Name: tabAdminFilters, Title: "Saved filters"},
+		{Name: tabAdminFilters, Title: wordFilters},
 		{Name: tabAdminTemplates, Title: "Templates"},
 		{Name: tabAdminAccess, Title: "Access"},
 		{Name: tabAdminAudit, Title: "Audit"},

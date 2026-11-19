@@ -15,8 +15,8 @@ import (
 // the data layer's answers, so they hold only what the markup writes: words,
 // numbers, addresses and small enums. No component reads a source.
 
-// Tone is the colour family a mark, a bar or a toast is drawn in. The zero
-// value is not a tone. Colour never carries a meaning alone: a tone is always
+// Tone is the color family a mark, a bar or a toast is drawn in. The zero
+// value is not a tone. Color never carries a meaning alone: a tone is always
 // drawn with its own mark and beside a word.
 type Tone uint8
 
@@ -24,19 +24,19 @@ type Tone uint8
 const (
 	// ToneUnspecified is the invalid zero value.
 	ToneUnspecified Tone = iota
-	// ToneNeutral is drawn in the secondary text colour: a state not known.
+	// ToneNeutral is drawn in the secondary text color: a state not known.
 	ToneNeutral
-	// ToneMuted is drawn in the muted text colour: offline, canceled, absent.
+	// ToneMuted is drawn in the muted text color: offline, canceled, absent.
 	ToneMuted
-	// ToneAccent is drawn in the accent colour: information, pending.
+	// ToneAccent is drawn in the accent color: information, pending.
 	ToneAccent
-	// ToneSuccess is drawn in the success colour.
+	// ToneSuccess is drawn in the success color.
 	ToneSuccess
-	// ToneWarning is drawn in the warning colour.
+	// ToneWarning is drawn in the warning color.
 	ToneWarning
-	// ToneError is drawn in the error colour.
+	// ToneError is drawn in the error color.
 	ToneError
-	// ToneProgress is drawn in the accent colour with the running mark.
+	// ToneProgress is drawn in the accent color with the running mark.
 	ToneProgress
 )
 
@@ -50,7 +50,7 @@ var (
 
 // Key answers the tone's name in a class. A value outside the named set
 // answers the name of the invalid zero value, which the stylesheet does not
-// colour.
+// color.
 func (tone Tone) Key() string {
 	if int(tone) < len(toneKeys) {
 		return toneKeys[tone]
@@ -59,7 +59,7 @@ func (tone Tone) Key() string {
 	return toneKeys[ToneUnspecified]
 }
 
-// Class answers the class that colours an element in the tone.
+// Class answers the class that colors an element in the tone.
 func (tone Tone) Class() string {
 	return "fleet-tone--" + tone.Key()
 }

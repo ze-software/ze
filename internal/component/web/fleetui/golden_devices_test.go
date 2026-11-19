@@ -32,7 +32,7 @@ func goldenSpecDevices(t *testing.T) golden.Spec {
 			{Name: "DevicesTab", Variants: []golden.Variant{
 				{Name: "estate", Data: DevicesTab(goldenDevicesTab(t, "/fleet/estate/devices/"))},
 				{Name: "filtered", Data: DevicesTab(goldenDevicesTab(t, "/fleet/estate/devices/?q=role%3Aedge&sort=-cpu"))},
-				{Name: "refused", Data: DevicesTab(goldenDevicesTab(t, "/fleet/estate/devices/?q=colour%3Ared&size=25"))},
+				{Name: "refused", Data: DevicesTab(goldenDevicesTab(t, "/fleet/estate/devices/?q=color%3Ared&size=25"))},
 				{Name: "group-row-open", Data: DevicesTab(goldenDevicesTab(t, "/fleet/group/site=lon/devices/?id="+coreLon01))},
 				{Name: "no-match", Data: DevicesTab(goldenDevicesTab(t, "/fleet/estate/devices/?q=no-such-text"))},
 			}},

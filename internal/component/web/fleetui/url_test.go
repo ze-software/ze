@@ -148,7 +148,7 @@ func TestFleetURLRefusesUnknownAddress(t *testing.T) {
 		t.Run(text, func(t *testing.T) {
 			_, err := ParseAddress(parseTarget(t, text))
 
-			refusal := requireRefusal(t, err, ErrAddressUnknown)
+			refusal := requireRefusalOf(t, err, ErrAddressUnknown)
 			assert.Contains(t, refusal.Problem(), "No fleet page has the address")
 		})
 	}

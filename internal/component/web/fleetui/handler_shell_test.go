@@ -128,7 +128,7 @@ func TestFleetUnknownAddressIsNotFoundInsideShell(t *testing.T) {
 func TestFleetUnknownTreeViewIsRefused(t *testing.T) {
 	handler, _ := testHandler()
 
-	answer := getFleet(t, handler, pathEstate+"?view=by-colour")
+	answer := getFleet(t, handler, pathEstate+"?view=by-color")
 	require.Equal(t, http.StatusBadRequest, answer.Code)
 	body := answer.Body.String()
 
@@ -343,7 +343,9 @@ func contentRegionTag(t *testing.T, page string) string {
 	const marker = `id="fleet-content-body"`
 	require.Equal(t, 1, strings.Count(page, marker), "the answer carries one content region")
 
-	start := strings.LastIndex(page[:strings.Index(page, marker)], "<")
+	before, _, _ := strings.Cut(page, marker)
+	start := strings.LastIndex(before, "<")
+	require.GreaterOrEqual(t, start, 0, "the content region sits inside a tag")
 	end := strings.Index(page[start:], ">")
 	require.Positive(t, end, "the content region's tag is closed")
 

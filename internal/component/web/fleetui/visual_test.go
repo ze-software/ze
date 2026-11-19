@@ -213,7 +213,7 @@ func TestReduceWeekOfEvenSamplesHasNoGap(t *testing.T) {
 // VALIDATES: each custom property a stylesheet under assets/ reads with
 // var(--name) is declared in fleet-shell.css.
 // PREVENTS: a rule that reads an undeclared variable and silently draws
-// nothing, as the diff colours did.
+// nothing, as the diff colors did.
 func TestFleetStylesDeclareEveryVariable(t *testing.T) {
 	shell, err := os.ReadFile(filepath.Join("assets", "fleet-shell.css"))
 	require.NoError(t, err)

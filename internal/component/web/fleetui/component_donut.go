@@ -29,7 +29,7 @@ const donutCircumference = 2 * math.Pi * donutRadius
 
 // DonutSegmentView is one segment of a donut and one line of its legend. A
 // state's segment is drawn in its Tone; any other, a software version for
-// example, in the chart colour Color, 1 to 6. Href opens the rows the segment
+// example, in the chart color Color, 1 to 6. Href opens the rows the segment
 // counts. Info, when set, explains the word in a tooltip.
 type DonutSegmentView struct {
 	Word  string
@@ -40,7 +40,7 @@ type DonutSegmentView struct {
 	Tone  Tone
 }
 
-// DonutArc is the drawn part of one segment: its colour class, its length
+// DonutArc is the drawn part of one segment: its color class, its length
 // along the ring and where it starts, both in the ring's own units.
 type DonutArc struct {
 	Class  string
@@ -65,7 +65,7 @@ func formatUnits(length float64) string {
 	return strconv.FormatFloat(length, 'f', 2, 64)
 }
 
-// donutColorClass answers the class that colours a segment and its legend
+// donutColorClass answers the class that colors a segment and its legend
 // dot.
 func donutColorClass(segment DonutSegmentView) string {
 	if segment.Tone != ToneUnspecified {
@@ -186,8 +186,8 @@ func stackedRemainder(count, total int) int {
 	return max(count, 0) * widthPercentMax % total
 }
 
-// The usage thresholds: a bar turns to the warning colour at
-// usageWarningPercent and to the error colour at usageErrorPercent.
+// The usage thresholds: a bar turns to the warning color at
+// usageWarningPercent and to the error color at usageErrorPercent.
 const (
 	usageWarningPercent = 80
 	usageErrorPercent   = 90
@@ -195,8 +195,8 @@ const (
 	usageInsidePercent = 15
 )
 
-// UsageTone answers the colour of a usage bar: the accent below 80%, the
-// warning colour from 80% and the error colour from 90%.
+// UsageTone answers the color of a usage bar: the accent below 80%, the
+// warning color from 80% and the error color from 90%.
 func UsageTone(percent int) Tone {
 	if percent >= usageErrorPercent {
 		return ToneError

@@ -153,7 +153,7 @@ func dashboardSoftwareCard(_ context.Context, _ *PageRequest, scope *dashboardSc
 
 // softwareCardView answers the Software card: the newest versions each on
 // their own, then the older ones together, then the devices that reported
-// none. A version segment has a chart colour, as a version is not a state.
+// none. A version segment has a chart color, as a version is not a state.
 func softwareCardView(scope *dashboardScope, frame CardView) DonutCardView {
 	counts := CountByVersion(scope.views)
 
@@ -216,14 +216,14 @@ func estateFigures(request *PageRequest, scope *dashboardScope) []FigureView {
 	labels := Address{Kind: ObjectAdmin, Tab: dashTabLabels, View: linkView(request)}
 
 	return []FigureView{
-		{Caption: "Devices", Value: strconv.Itoa(figures.Devices), Href: scope.tab(dashTabDevices, "").String()},
+		{Caption: titleDevices, Value: strconv.Itoa(figures.Devices), Href: scope.tab(dashTabDevices, "").String()},
 		{Caption: "Sites", Value: strconv.Itoa(figures.Sites), Href: labels.String()},
 		{
 			Caption: "Peers up",
 			Value:   strconv.Itoa(figures.PeersEstablished),
 			Unit:    "of " + strconv.Itoa(figures.PeersConfigured),
 		},
-		{Caption: "Open alarms", Value: strconv.Itoa(figures.AlarmsOpen), Href: scope.alarmsHref()},
+		{Caption: wordOpenAlarms, Value: strconv.Itoa(figures.AlarmsOpen), Href: scope.alarmsHref()},
 	}
 }
 

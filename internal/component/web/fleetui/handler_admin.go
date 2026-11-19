@@ -30,6 +30,8 @@ const (
 	wordRename      = "Rename"
 	wordAllowed     = "Allowed"
 	wordNotAllowed  = "Not allowed"
+	wordAddDevice   = "Add device"
+	wordFilters     = "Saved filters"
 	deviceNameMax   = 64
 	deviceNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
 )
@@ -69,7 +71,7 @@ func estatePrimary(request *PageRequest) (ActionView, bool) {
 	}
 	target := Address{Kind: ObjectAdmin, Tab: tabAdminDevices, View: ViewParams{TreeView: request.Address.View.TreeView}}
 
-	return ActionView{Label: "Add device", Icon: "plus", Href: target.String()}, true
+	return ActionView{Label: wordAddDevice, Icon: "plus", Href: target.String()}, true
 }
 
 // estateDevicesHref answers the estate's devices table narrowed by filter.
@@ -143,16 +145,16 @@ func adminDevicesContent(_ context.Context, request *PageRequest) (templ.Compone
 		})
 	}
 
-	add := ActionView{Label: "Add device", Icon: glyphPlus, Href: rowAddress(request, adminAddRow)}
+	add := ActionView{Label: wordAddDevice, Icon: glyphPlus, Href: rowAddress(request, adminAddRow)}
 
 	return adminTable(request, pendingNote(), TableSectionView{
 		Title: "Declared devices", Create: &add,
 		Table: TableView{
 			Name: "Declared devices",
 			Headers: []ColumnHeaderView{
-				{Label: "Name", Kind: "kind-text"}, {Label: "Group", Kind: "kind-text"},
-				{Label: "Labels", Kind: "kind-tag"}, {Label: "Secret", Kind: "kind-state"},
-				{Label: "Connection", Kind: "kind-state"},
+				{Label: devicesWordName, Kind: ColumnKindText}, {Label: devicesWordGroup, Kind: ColumnKindText},
+				{Label: devicesWordLabels, Kind: ColumnKindTag}, {Label: "Secret", Kind: ColumnKindState},
+				{Label: devicesWordConnection, Kind: ColumnKindState},
 			},
 			Rows: rows, Controls: true,
 			Empty: &StateHeroView{Kind: HeroNothingConfigured, Sentence: "The hub declares no device yet."},
@@ -179,10 +181,10 @@ func adminDevicesPanel(_ context.Context, request *PageRequest) (templ.Component
 		return PanelContent(PanelView{
 			Title: device.Device.Name, CloseHref: closeHref,
 			Cards: []PanelCardView{{Title: "Declared", Rows: []ValueView{
-				{Label: "Name", Text: device.Device.Name, Mono: true, Copy: true},
-				{Label: "Group", Text: device.Device.Group},
+				{Label: devicesWordName, Text: device.Device.Name, Mono: true, Copy: true},
+				{Label: devicesWordGroup, Text: device.Device.Group},
 				{Label: "Secret", Status: secretStatus(&device.Device)},
-				{Label: "Connection", Status: connectionStatus(&device.Device)},
+				{Label: devicesWordConnection, Status: connectionStatus(&device.Device)},
 			}}},
 		}), nil
 	}
@@ -262,12 +264,12 @@ func adminLabelsContent(_ context.Context, request *PageRequest) (templ.Componen
 	}
 
 	return adminTable(request, pendingNote(), TableSectionView{
-		Title: "Labels",
+		Title: devicesWordLabels,
 		Table: TableView{
-			Name: "Labels",
+			Name: devicesWordLabels,
 			Headers: []ColumnHeaderView{
-				{Label: "Key", Kind: "kind-tag"}, {Label: "Value", Kind: "kind-tag"},
-				{Label: "Devices", Kind: "kind-number", Numeric: true},
+				{Label: "Key", Kind: ColumnKindTag}, {Label: "Value", Kind: ColumnKindTag},
+				{Label: devicesWordDevices, Kind: ColumnKindNumber, Numeric: true},
 			},
 			Rows: rows, Controls: true,
 			Empty: &StateHeroView{Kind: HeroNothingConfigured, Sentence: "No device carries a label yet."},
@@ -318,8 +320,8 @@ func adminTreeViewsContent(_ context.Context, request *PageRequest) (templ.Compo
 		Table: TableView{
 			Name: "Tree views",
 			Headers: []ColumnHeaderView{
-				{Label: "Name", Kind: "kind-text"}, {Label: "Title", Kind: "kind-text"},
-				{Label: "Levels, in order", Kind: "kind-text"}, {Label: "Kind", Kind: "kind-text"},
+				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Title", Kind: ColumnKindText},
+				{Label: "Levels, in order", Kind: ColumnKindText}, {Label: wordKind, Kind: ColumnKindText},
 			},
 			Rows: rows, Controls: true,
 		},
@@ -357,11 +359,11 @@ func adminFiltersContent(ctx context.Context, request *PageRequest) (templ.Compo
 	}
 
 	return adminTable(request, note, TableSectionView{
-		Title: "Saved filters",
+		Title: wordFilters,
 		Table: TableView{
-			Name: "Saved filters",
+			Name: wordFilters,
 			Headers: []ColumnHeaderView{
-				{Label: "Name", Kind: "kind-text"}, {Label: "Filter", Kind: "kind-text"}, {Label: "Default", Kind: "kind-state"},
+				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Filter", Kind: ColumnKindText}, {Label: "Default", Kind: ColumnKindState},
 			},
 			Rows: rows, Controls: true,
 			Empty: &StateHeroView{Kind: HeroNoData, Sentence: "You have saved no filter yet."},
@@ -395,9 +397,9 @@ func adminTemplatesContent(ctx context.Context, request *PageRequest) (templ.Com
 		Table: TableView{
 			Name: "Templates",
 			Headers: []ColumnHeaderView{
-				{Label: "Name", Kind: "kind-text"}, {Label: "Groups using it", Kind: "kind-text"},
-				{Label: "Devices using it", Kind: "kind-number", Numeric: true},
-				{Label: "Last change", Kind: "kind-time"}, {Label: "Actor", Kind: "kind-text"},
+				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Groups using it", Kind: ColumnKindText},
+				{Label: "Devices using it", Kind: ColumnKindNumber, Numeric: true},
+				{Label: "Last change", Kind: ColumnKindTime}, {Label: auditWordActor, Kind: ColumnKindText},
 			},
 			Rows: rows, Controls: true,
 			Empty: &StateHeroView{Kind: HeroNothingConfigured, Sentence: "The hub holds no template yet."},
@@ -431,7 +433,7 @@ func adminTemplatesPanel(ctx context.Context, request *PageRequest) (templ.Compo
 
 	groups := make([]ValueView, 0, len(template.Groups))
 	for _, group := range template.Groups {
-		groups = append(groups, ValueView{Label: "Group", Text: group})
+		groups = append(groups, ValueView{Label: devicesWordGroup, Text: group})
 	}
 
 	using, connected := []ValueView{}, 0
@@ -457,10 +459,10 @@ func adminTemplatesPanel(ctx context.Context, request *PageRequest) (templ.Compo
 			Title: template.Name, CloseHref: rowAddress(request, ""), Actions: []ActionView{change},
 			Cards: []PanelCardView{
 				{Title: "Template", Rows: []ValueView{
-					{Label: "Name", Text: template.Name, Mono: true},
+					{Label: devicesWordName, Text: template.Name, Mono: true},
 					{Label: "Devices using it", Text: countText(template.Devices)},
 					{Label: "Last change", Text: whenText(request, template.Changed)},
-					{Label: "Actor", Text: template.Actor},
+					{Label: auditWordActor, Text: template.Actor},
 				}},
 				{Title: "Groups assigned", Rows: groups},
 				{Title: "Preview", Rows: using},
@@ -508,9 +510,9 @@ func adminAccessContent(ctx context.Context, request *PageRequest) (templ.Compon
 		Table: TableView{
 			Name: "Access by authorization profile",
 			Headers: []ColumnHeaderView{
-				{Label: "Profile", Kind: "kind-text"}, {Label: "Fleet mode", Kind: "kind-state"},
-				{Label: "Device console", Kind: "kind-state"}, {Label: "Relayed diagnostics", Kind: "kind-state"},
-				{Label: "Configuration pushes", Kind: "kind-state"}, {Label: "Rollouts", Kind: "kind-state"},
+				{Label: "Profile", Kind: ColumnKindText}, {Label: "Fleet mode", Kind: ColumnKindState},
+				{Label: "Device console", Kind: ColumnKindState}, {Label: "Relayed diagnostics", Kind: ColumnKindState},
+				{Label: "Configuration pushes", Kind: ColumnKindState}, {Label: rolloutsTitle, Kind: ColumnKindState},
 			},
 			Rows: rows, Controls: true,
 			Empty: &StateHeroView{Kind: HeroNothingConfigured, Sentence: "The hub declares no authorization profile."},
@@ -553,7 +555,7 @@ func adminHistoryContent(ctx context.Context, request *PageRequest) (templ.Compo
 		Table: TableSectionView{Title: "Devices using most", Table: TableView{
 			Name: "Devices using most",
 			Headers: []ColumnHeaderView{
-				{Label: "Device", Kind: "kind-text"}, {Label: "Size", Kind: "kind-number", Numeric: true},
+				{Label: devicesWordDevice, Kind: ColumnKindText}, {Label: "Size", Kind: ColumnKindNumber, Numeric: true},
 			},
 			Rows:  rows,
 			Empty: &StateHeroView{Kind: HeroNoData, Sentence: "The history holds no sample yet."},
@@ -587,7 +589,7 @@ func adminSettingsContent(ctx context.Context, request *PageRequest) (templ.Comp
 		Table: TableView{
 			Name: "Fleet settings",
 			Headers: []ColumnHeaderView{
-				{Label: "Setting", Kind: "kind-text"}, {Label: "Value", Kind: "kind-text"},
+				{Label: "Setting", Kind: ColumnKindText}, {Label: "Value", Kind: ColumnKindText},
 			},
 			Rows: []RowView{
 				setting("Offline alarm delay", durationText(settings.OfflineAlarmDelay)),
@@ -631,7 +633,7 @@ func relativeUnits(count int64, unit string) string {
 // bytesText answers a size in the largest binary unit it fills, with one
 // decimal.
 func bytesText(size uint64) string {
-	units := []string{"B", "KiB", "MiB", "GiB", "TiB"}
+	units := byteUnits
 	scale, unit := uint64(1), 0
 	for unit+1 < len(units) && size >= scale*1024 {
 		scale *= 1024

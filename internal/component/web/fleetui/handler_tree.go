@@ -54,7 +54,7 @@ type treeBuild struct {
 
 // newTreeBuild reads which row of the tree the request selects. selects is
 // false for an address that names no page.
-func newTreeBuild(request *PageRequest, selects bool, filtering bool) *treeBuild {
+func newTreeBuild(request *PageRequest, selects, filtering bool) *treeBuild {
 	build := &treeBuild{request: request, expandAll: filtering}
 	if !selects {
 		return build

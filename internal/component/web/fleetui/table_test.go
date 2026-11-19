@@ -89,7 +89,7 @@ func TestSortLeavesItsInputAlone(t *testing.T) {
 func TestSortRefusesUnknownColumn(t *testing.T) {
 	_, err := DeviceColumns().Sort(testViews(), ParseSort("-serial"))
 
-	refusal := requireRefusal(t, err, ErrSortRefused)
+	refusal := requireRefusalOf(t, err, ErrSortRefused)
 	assert.Contains(t, refusal.Problem(), `"serial"`)
 	assert.Contains(t, refusal.Fix(), "name, state, version, config, uptime, last-seen, cpu, memory, alarms")
 }

@@ -304,14 +304,18 @@ func TestDashboardFailingCardKeepsThePage(t *testing.T) {
 	require.Equal(t, http.StatusOK, answer.Code)
 
 	body := answer.Body.String()
-	rollouts := body[strings.Index(body, `id="`+dashboardSlotPrefix+cardRollouts+`"`):]
+	_, rollouts, found := strings.Cut(body, `id="`+dashboardSlotPrefix+cardRollouts+`"`)
+	require.True(t, found, "the page carries the rollouts card")
 	require.Contains(t, rollouts, "The rollouts could not be read.")
 	require.Contains(t, rollouts, "fleet-hero--failed")
 	require.Contains(t, rollouts, "Retry this card")
 	require.Contains(t, rollouts, `hx-get="/fleet/fragment/`+fragmentDashboardCard+`/estate/dashboard/?item=`+cardRollouts+`"`)
 
-	devices := body[strings.Index(body, `id="`+dashboardSlotPrefix+cardDevices+`"`):]
-	require.Contains(t, devices[:strings.Index(devices, `id="`+dashboardSlotPrefix+cardConfiguration+`"`)], "fleet-legend")
+	_, devices, found := strings.Cut(body, `id="`+dashboardSlotPrefix+cardDevices+`"`)
+	require.True(t, found, "the page carries the devices card")
+	devicesCard, _, found := strings.Cut(devices, `id="`+dashboardSlotPrefix+cardConfiguration+`"`)
+	require.True(t, found, "the configuration card follows the devices card")
+	require.Contains(t, devicesCard, "fleet-legend")
 }
 
 // TestDashboardCardFragmentAnswersOneCard checks a card fetched alone.

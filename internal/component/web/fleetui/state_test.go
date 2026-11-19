@@ -209,7 +209,7 @@ func TestDeriveDevicesJoinsAlarmsAndTasks(t *testing.T) {
 func TestFindDeviceRefusesUnknownName(t *testing.T) {
 	_, err := FindDevice(testViews(), "no-such-device")
 
-	refusal := requireRefusal(t, err, ErrObjectUnknown)
+	refusal := requireRefusalOf(t, err, ErrObjectUnknown)
 	assert.Contains(t, refusal.Problem(), `"no-such-device"`)
 	assert.Equal(t, FailureNotFound, FailureOf(err))
 }

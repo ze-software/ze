@@ -172,7 +172,7 @@ func uintText(value uint64) string {
 // sortHeader answers the header cell of a sortable column of the table at
 // address: its sort address turns the sort around when the table is already
 // sorted by it, and goes back to the first page.
-func sortHeader(address Address, label, kind, key string, numeric bool) ColumnHeaderView {
+func sortHeader(address Address, label string, kind ColumnKind, key string, numeric bool) ColumnHeaderView {
 	header := ColumnHeaderView{Label: label, Kind: kind, Numeric: numeric}
 
 	sorted := address.View.Sort.Column == key

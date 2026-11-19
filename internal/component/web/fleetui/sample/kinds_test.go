@@ -29,7 +29,7 @@ func TestSampleTaskKindsHaveWords(t *testing.T) {
 
 	collect()
 	var stepper Stepper = source
-	for range len(scriptSteps) {
+	for range scriptSteps {
 		_, err := stepper.Step()
 		require.NoError(t, err)
 		collect()

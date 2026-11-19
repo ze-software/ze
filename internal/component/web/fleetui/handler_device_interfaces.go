@@ -220,17 +220,17 @@ func matchesText(kept, total int, noun string) string {
 // interfaceHeaders answers the header cells of the interfaces table.
 func interfaceHeaders(address Address) []ColumnHeaderView {
 	return []ColumnHeaderView{
-		sortHeader(address, "Name", "kind-text", fieldName, false),
-		sortHeader(address, "Type", "kind-text", fieldType, false),
-		{Label: "Admin", Kind: "kind-state"},
-		sortHeader(address, "Link", "kind-state", fieldState, false),
-		{Label: "Addresses", Kind: "kind-address"},
-		sortHeader(address, "Speed", "kind-number", fieldSpeed, true),
-		sortHeader(address, "MTU", "kind-number", fieldMTU, true),
-		sortHeader(address, "In", "kind-number", fieldIn, true),
-		sortHeader(address, "Out", "kind-number", fieldOut, true),
-		sortHeader(address, "Errors", "kind-number", fieldErrors, true),
-		sortHeader(address, "Drops", "kind-number", fieldDrops, true),
+		sortHeader(address, devicesWordName, ColumnKindText, fieldName, false),
+		sortHeader(address, "Type", ColumnKindText, fieldType, false),
+		{Label: "Admin", Kind: ColumnKindState},
+		sortHeader(address, "Link", ColumnKindState, fieldState, false),
+		{Label: "Addresses", Kind: ColumnKindAddress},
+		sortHeader(address, "Speed", ColumnKindNumber, fieldSpeed, true),
+		sortHeader(address, "MTU", ColumnKindNumber, fieldMTU, true),
+		sortHeader(address, "In", ColumnKindNumber, fieldIn, true),
+		sortHeader(address, "Out", ColumnKindNumber, fieldOut, true),
+		sortHeader(address, "Errors", ColumnKindNumber, fieldErrors, true),
+		sortHeader(address, "Drops", ColumnKindNumber, fieldDrops, true),
 	}
 }
 

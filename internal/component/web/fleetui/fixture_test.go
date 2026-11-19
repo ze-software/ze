@@ -142,16 +142,25 @@ func namesOf(views []DeviceView) []string {
 	return names
 }
 
-// requireRefusal asserts that err is an operator error wrapping cause, and
-// answers it so a test can read its three parts.
-func requireRefusal(t *testing.T, err, cause error) *opererr.Error {
+// requireRefusal asserts that err is an operator error wrapping cause. A test
+// that reads the refusal's three parts takes it from requireRefusalOf instead.
+func requireRefusal(t *testing.T, err, cause error) {
 	t.Helper()
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, cause)
 
-	var refusal *opererr.Error
-	require.True(t, errors.As(err, &refusal), "the refusal must be an operator error, got %T", err)
+	_, isOperatorError := errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error, got %T", err)
+}
+
+// requireRefusalOf asserts what requireRefusal does, and answers the operator
+// error so a test can read its three parts.
+func requireRefusalOf(t *testing.T, err, cause error) *opererr.Error {
+	t.Helper()
+
+	requireRefusal(t, err, cause)
+	refusal, _ := errors.AsType[*opererr.Error](err)
 
 	return refusal
 }

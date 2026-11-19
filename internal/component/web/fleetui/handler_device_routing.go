@@ -316,14 +316,14 @@ func peersTable(request *PageRequest, view *DeviceView, peers []Peer) templ.Comp
 		Table: TableView{
 			Name: "BGP peers of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				sortHeader(address, "Peer", "kind-address", fieldName, false),
-				sortHeader(address, "Group", "kind-text", fieldGroup, false),
-				sortHeader(address, "Remote AS", "kind-number", fieldAS, true),
-				sortHeader(address, "State", "kind-state", fieldState, false),
-				sortHeader(address, "Since", "kind-time", fieldSince, false),
-				sortHeader(address, "Received", "kind-number", fieldReceived, true),
-				sortHeader(address, "Sent", "kind-number", fieldSent, true),
-				{Label: "Last error", Kind: "kind-text"},
+				sortHeader(address, "Peer", ColumnKindAddress, fieldName, false),
+				sortHeader(address, devicesWordGroup, ColumnKindText, fieldGroup, false),
+				sortHeader(address, "Remote AS", ColumnKindNumber, fieldAS, true),
+				sortHeader(address, "State", ColumnKindState, fieldState, false),
+				sortHeader(address, "Since", ColumnKindTime, fieldSince, false),
+				sortHeader(address, "Received", ColumnKindNumber, fieldReceived, true),
+				sortHeader(address, "Sent", ColumnKindNumber, fieldSent, true),
+				{Label: "Last error", Kind: ColumnKindText},
 			},
 			Rows:     rows,
 			Empty:    &StateHeroView{Kind: HeroNoData, Sentence: "No peer matches the filter."},
@@ -355,10 +355,10 @@ func familiesTable(view *DeviceView, families []FamilySummary) templ.Component {
 		Table: TableView{
 			Name: "BGP summary of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				{Label: "Family", Kind: "kind-text"},
-				{Label: "Peers established", Kind: "kind-number", Numeric: true},
-				{Label: "Routes", Kind: "kind-number", Numeric: true},
-				{Label: "Best routes", Kind: "kind-number", Numeric: true},
+				{Label: "Family", Kind: ColumnKindText},
+				{Label: "Peers established", Kind: ColumnKindNumber, Numeric: true},
+				{Label: "Routes", Kind: ColumnKindNumber, Numeric: true},
+				{Label: "Best routes", Kind: ColumnKindNumber, Numeric: true},
 			},
 			Rows: rows,
 		},
@@ -390,10 +390,10 @@ func adjacencyTable(request *PageRequest, view *DeviceView, protocol *ProtocolAd
 		Table: TableView{
 			Name: protocol.Protocol + " of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				{Label: "Neighbor", Kind: "kind-address"},
-				{Label: "Interface", Kind: "kind-text"},
-				{Label: "State", Kind: "kind-state"},
-				{Label: "Since", Kind: "kind-time"},
+				{Label: "Neighbor", Kind: ColumnKindAddress},
+				{Label: "Interface", Kind: ColumnKindText},
+				{Label: "State", Kind: ColumnKindState},
+				{Label: "Since", Kind: ColumnKindTime},
 			},
 			Rows: rows,
 			Empty: &StateHeroView{
@@ -439,7 +439,7 @@ func peerPanel(ctx context.Context, request *PageRequest) (templ.Component, erro
 			Cards: []PanelCardView{
 				{Title: "Session", Rows: []ValueView{
 					{Label: "Address", Text: row.Address.String(), Mono: true, Copy: true},
-					{Label: "Group", Text: row.Group},
+					{Label: devicesWordGroup, Text: row.Group},
 					{Label: "Remote AS", Text: textbuf.StringUint32(row.RemoteAS), Mono: true},
 					{Label: "State", Status: peerStatus(row)},
 					{Label: "Since", Text: since},

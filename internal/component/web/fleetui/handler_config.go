@@ -13,6 +13,7 @@ package fleetui
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -264,7 +265,7 @@ func configStateRows(request *PageRequest, device *DeviceView) []ValueView {
 	template := Address{Kind: ObjectAdmin, Tab: tabAdminTemplates, View: ViewParams{Row: facts.Template}}
 	rows = append(rows, ValueView{Label: "Source", Text: "Template " + facts.Template, Href: template.String()})
 	if device.Device.Group != "" {
-		rows = append(rows, ValueView{Label: "Group", Text: device.Device.Group})
+		rows = append(rows, ValueView{Label: devicesWordGroup, Text: device.Device.Group})
 	}
 
 	return rows
@@ -349,9 +350,9 @@ func configHistoryFragment(ctx context.Context, request *PageRequest, _ string) 
 	return TableSection(TableSectionView{Table: TableView{
 		Name: "Configuration versions of " + device.Device.Name,
 		Headers: []ColumnHeaderView{
-			{Label: "Time", Kind: "kind-time"}, {Label: "Version", Kind: "kind-text"},
-			{Label: "Actor", Kind: "kind-text"}, {Label: "Summary", Kind: "kind-text"},
-			{Label: "Result on the device", Kind: "kind-state"},
+			{Label: "Time", Kind: ColumnKindTime}, {Label: "Version", Kind: ColumnKindText},
+			{Label: auditWordActor, Kind: ColumnKindText}, {Label: "Summary", Kind: ColumnKindText},
+			{Label: "Result on the device", Kind: ColumnKindState},
 		},
 		Rows:     rows,
 		Controls: true,
@@ -479,7 +480,7 @@ func configPanel(ctx context.Context, request *PageRequest) (templ.Component, er
 	rows := []ValueView{
 		{Label: "Version", Text: version.Version, Mono: true, Copy: true},
 		{Label: "Time", Text: whenText(request, version.At)},
-		{Label: "Actor", Text: version.Actor},
+		{Label: auditWordActor, Text: version.Actor},
 		{Label: "Summary", Text: version.Summary},
 		{Label: "Result on the device", Status: ConfigVersionResultStatus(version.Result)},
 	}
@@ -637,9 +638,9 @@ func (builder *diffBuilder) middle(before, after []string, offset int) {
 	// before[i:] and after[j:], in one slice of (len(before)+1) rows.
 	width := len(after) + 1
 	common := make([]int32, (len(before)+1)*width)
-	for i := len(before) - 1; i >= 0; i-- {
-		for j := len(after) - 1; j >= 0; j-- {
-			if before[i] == after[j] {
+	for i, left := range slices.Backward(before) {
+		for j, right := range slices.Backward(after) {
+			if left == right {
 				common[i*width+j] = common[(i+1)*width+j+1] + 1
 				continue
 			}

@@ -14,6 +14,7 @@ package fleetui
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/a-h/templ"
@@ -95,7 +96,7 @@ func systemFragment(section systemSection) FragmentBuilder {
 func consolePrimary(request *PageRequest) (ActionView, bool) {
 	target := deviceTabAddress(request, tabDeviceConsole)
 
-	return ActionView{Label: "Open console", Icon: glyphTerminal, Href: target.String()}, true
+	return ActionView{Label: devicesWordOpenConsole, Icon: glyphTerminal, Href: target.String()}, true
 }
 
 // identitySection shows what the device is, from its reported inventory, and
@@ -112,16 +113,15 @@ func identitySection(ctx context.Context, request *PageRequest, view *DeviceView
 		uptime = uptimeText(view.Uptime)
 	}
 
-	rows := []ValueView{
-		{Label: "Name", Text: device.Name, Mono: true, Copy: true},
-		{Label: "Model", Text: inventory.Model},
+	rows := slices.Concat([]ValueView{
+		{Label: devicesWordName, Text: device.Name, Mono: true, Copy: true},
+		{Label: devicesWordModel, Text: inventory.Model},
 		{Label: "Serial number", Text: inventory.Serial, Mono: true, Copy: true},
 		{Label: "Software version", Text: inventory.SoftwareVersion, Mono: true},
 		{Label: "Build", Text: inventory.Build, Mono: true, Copy: true},
 		{Label: "Kernel", Text: inventory.Kernel, Mono: true},
 		{Label: "Uptime", Text: uptime},
-	}
-	rows = append(rows, clockRows(ctx, request, device.Name)...)
+	}, clockRows(ctx, request, device.Name))
 
 	return deviceFacts(DeviceFactsView{Title: titleIdentity, Reported: reportedNote(request, view), Rows: rows})
 }
@@ -226,8 +226,8 @@ func resourcesSection(ctx context.Context, request *PageRequest, view *DeviceVie
 		Card: CardView{Title: titleResources},
 		Columns: []UsageColumnView{
 			{
-				Title: "CPU", Subtitle: "Load " + load,
-				Bar:  UsageBarView{Name: "CPU", Percent: cpu, Known: cpuKnown, Tall: true},
+				Title: devicesWordCPU, Subtitle: "Load " + load,
+				Bar:  UsageBarView{Name: devicesWordCPU, Percent: cpu, Known: cpuKnown, Tall: true},
 				Foot: []FigureView{{Caption: "LOAD", Value: load}},
 			},
 			usageColumn("Memory", memory, memoryKnown, resources.MemoryUsedBytes, resources.MemoryTotalBytes),
@@ -272,9 +272,9 @@ func healthSection(_ context.Context, request *PageRequest, view *DeviceView) te
 	table := &TableView{
 		Name: "Health of " + device.Name,
 		Headers: []ColumnHeaderView{
-			{Label: "Component", Kind: "kind-text"},
-			{Label: "State", Kind: "kind-state"},
-			{Label: "Detail", Kind: "kind-text"},
+			{Label: "Component", Kind: ColumnKindText},
+			{Label: "State", Kind: ColumnKindState},
+			{Label: wordDetail, Kind: ColumnKindText},
 		},
 		Rows: rows,
 	}
@@ -293,7 +293,7 @@ func labelsSection(_ context.Context, _ *PageRequest, view *DeviceView) templ.Co
 	}
 
 	return deviceFacts(DeviceFactsView{Title: titleLabels, Rows: []ValueView{
-		{Label: "Labels", Tags: tags},
+		{Label: devicesWordLabels, Tags: tags},
 		{Label: "Configuration group", Text: device.Group, Mono: true},
 	}})
 }
@@ -328,7 +328,7 @@ func managementSection(_ context.Context, request *PageRequest, view *DeviceView
 	return deviceFacts(DeviceFactsView{
 		Title: titleManagement,
 		Rows: []ValueView{
-			{Label: "Management address", Text: address, Mono: true, Copy: true},
+			{Label: devicesWordAddress, Text: address, Mono: true, Copy: true},
 			{Label: "Connected since", Text: connectedText(request, connection)},
 			{Label: "Connection from", Text: source, Mono: true, Copy: true},
 			{Label: "Relay profile granted", Text: profile, Mono: connection.RelayGranted},

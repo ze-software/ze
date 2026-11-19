@@ -22,6 +22,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The words of the rollout pages: rolloutsTitle names the rollouts, as a
+// page, a tab, a card and a count; rolloutsWordProgress labels how far a
+// rollout or a task got.
+const (
+	rolloutsTitle        = "Rollouts"
+	rolloutsWordProgress = "Progress"
+)
+
 // newRolloutSub is the sub parameter of the Rollouts tab that shows the new
 // rollout form. Its filter parameter is the target of the new rollout.
 const newRolloutSub = "new"
@@ -152,13 +160,13 @@ func rolloutsTable(ctx context.Context, request *PageRequest) (templ.Component, 
 	create := ActionView{Label: "New rollout", Icon: glyphPlus, Href: rolloutFormAddress(request, "").String()}
 
 	return TableSection(TableSectionView{
-		Title: "Rollouts", Create: &create, Query: query,
+		Title: rolloutsTitle, Create: &create, Query: query,
 		Table: TableView{
-			Name: "Rollouts",
+			Name: rolloutsTitle,
 			Headers: []ColumnHeaderView{
-				{Label: "Name", Kind: "kind-text"}, {Label: "Target", Kind: "kind-text"},
-				{Label: "State", Kind: "kind-state"}, {Label: "Progress", Kind: "kind-number"},
-				{Label: "Actor", Kind: "kind-text"}, {Label: "Started", Kind: "kind-time"},
+				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Target", Kind: ColumnKindText},
+				{Label: "State", Kind: ColumnKindState}, {Label: rolloutsWordProgress, Kind: ColumnKindNumber},
+				{Label: auditWordActor, Kind: ColumnKindText}, {Label: "Started", Kind: ColumnKindTime},
 			},
 			Rows:  rows,
 			Empty: &StateHeroView{Kind: HeroNoData, Sentence: "No rollout matches the filter."},
@@ -188,8 +196,8 @@ func rolloutPage(ctx context.Context, request *PageRequest, name string) (templ.
 		Status: rolloutStatus(rollout.State),
 		Facts: QuickInfoView{Card: CardView{Title: "Rollout", Span: 12}, Items: []ValueView{
 			{Label: "Target", Text: rollout.Target},
-			{Label: "Progress", Text: rolloutProgress(rollout)},
-			{Label: "Actor", Text: rollout.Actor},
+			{Label: rolloutsWordProgress, Text: rolloutProgress(rollout)},
+			{Label: auditWordActor, Text: rollout.Actor},
 			{Label: "Started", Text: whenText(request, rollout.Started)},
 		}},
 		Form: manageForm(request),
@@ -287,12 +295,12 @@ func rolloutDevices(request *PageRequest, detail *RolloutDetail) TableSectionVie
 		})
 	}
 
-	return TableSectionView{Title: "Devices", Table: TableView{
+	return TableSectionView{Title: devicesWordDevices, Table: TableView{
 		Name: "Devices of " + detail.Rollout.Name,
 		Headers: []ColumnHeaderView{
-			{Label: "Device", Kind: "kind-text"}, {Label: "Batch", Kind: "kind-number", Numeric: true},
-			{Label: "Result", Kind: "kind-state"}, {Label: "Device's answer", Kind: "kind-text"},
-			{Label: "Time", Kind: "kind-time"},
+			{Label: devicesWordDevice, Kind: ColumnKindText}, {Label: "Batch", Kind: ColumnKindNumber, Numeric: true},
+			{Label: auditWordResult, Kind: ColumnKindState}, {Label: "Device's answer", Kind: ColumnKindText},
+			{Label: "Time", Kind: ColumnKindTime},
 		},
 		Rows:  rows,
 		Empty: &StateHeroView{Kind: HeroNoData, Sentence: "The rollout targets no device."},

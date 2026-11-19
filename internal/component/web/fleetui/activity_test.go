@@ -153,7 +153,7 @@ func activityFragment(t *testing.T, source Source, target string) string {
 func postAction(t *testing.T, source Source, target string, form url.Values) string {
 	t.Helper()
 
-	request := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target, strings.NewReader(form.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	recorder := httptest.NewRecorder()
@@ -190,8 +190,8 @@ func TestTasksTabListsEveryTaskWithItsState(t *testing.T) {
 
 	// The assisted filter menu above the list names every state too, so the
 	// words are looked for in the list alone.
-	require.Contains(t, body, `class="fleet-task-list"`)
-	list := body[strings.Index(body, `class="fleet-task-list"`):]
+	_, list, found := strings.Cut(body, `class="fleet-task-list"`)
+	require.True(t, found, "the answer carries the task list")
 	for _, word := range []string{"Running", "Succeeded", "Partly failed", "Failed", "Pending", "Canceled"} {
 		assert.Contains(t, list, `<span class="fleet-state-word">`+word+"</span>", "the state word %s", word)
 	}

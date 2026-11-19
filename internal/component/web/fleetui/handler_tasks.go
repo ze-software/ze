@@ -28,6 +28,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// wordOpenTask labels the link to a task's own page.
+const wordOpenTask = "Open the task"
+
 // The tabs the activity pages register under or link to, as their address
 // segment names them.
 const (
@@ -249,7 +252,7 @@ func tasksContent(ctx context.Context, request *PageRequest) (templ.Component, e
 	kinds := taskKindsInUse(tasks)
 	menus := []MenuView{
 		activityFilterMenu(request, "State", fieldState, taskStateKeys[1:], taskStateWords[1:]),
-		activityFilterMenu(request, "Kind", activityFieldKind, kinds, taskKindWordsOf(kinds)),
+		activityFilterMenu(request, wordKind, activityFieldKind, kinds, taskKindWordsOf(kinds)),
 	}
 
 	return tasksSection(TasksSectionView{
@@ -268,7 +271,7 @@ func tasksEmpty(filter string) GoodNewsView {
 		return GoodNewsView{First: "No match", Second: "No task matches this filter"}
 	}
 
-	return GoodNewsView{First: "All quiet", Second: "No task targeted this object"}
+	return GoodNewsView{First: goodNewsAllQuiet, Second: "No task targeted this object"}
 }
 
 // taskKindsInUse answers the kinds of tasks, each once, in text order.
@@ -413,11 +416,11 @@ func taskCards(request *PageRequest, detail *TaskDetail) []PanelCardView {
 
 	rows := []ValueView{
 		{Label: "Identifier", Text: task.ID, Mono: true, Copy: true},
-		{Label: "Kind", Text: TaskKindWords(task.Kind)},
+		{Label: wordKind, Text: TaskKindWords(task.Kind)},
 		{Label: "State", Status: TaskStatus(task.State)},
-		{Label: "Progress", Text: ProgressText(task.Finished, len(task.Devices))},
-		{Label: "Failed", Text: textbuf.StringInt(int64(task.Failed))},
-		{Label: "Actor", Text: task.Actor},
+		{Label: rolloutsWordProgress, Text: ProgressText(task.Finished, len(task.Devices))},
+		{Label: enumWordFailed, Text: textbuf.StringInt(int64(task.Failed))},
+		{Label: auditWordActor, Text: task.Actor},
 		{Label: "Targets", Text: task.Target},
 		{Label: "Started", Text: activityTime(task.Started)},
 	}
@@ -441,7 +444,7 @@ func taskCards(request *PageRequest, detail *TaskDetail) []PanelCardView {
 		cards = append(cards, PanelCardView{
 			Title: result.Device,
 			Rows: []ValueView{
-				{Label: "Result", Status: TaskStatus(result.State)},
+				{Label: auditWordResult, Status: TaskStatus(result.State)},
 				{Label: "Answer", Text: answerText(result), Mono: true},
 				{Label: "Took", Text: activityDuration(result.Duration)},
 			},
@@ -457,7 +460,7 @@ func taskCards(request *PageRequest, detail *TaskDetail) []PanelCardView {
 	}
 	if len(waiting) > 0 {
 		cards = append(cards, PanelCardView{Title: "Waiting for an answer", Rows: []ValueView{
-			{Label: "Devices", Text: strings.Join(waiting, ", ")},
+			{Label: devicesWordDevices, Text: strings.Join(waiting, ", ")},
 		}})
 	}
 
@@ -501,7 +504,7 @@ func taskActionToast(ctx context.Context, request *PageRequest, item string) Toa
 
 	opened := linkView(request)
 	opened.Row = task.ID
-	link := &LinkView{Label: "Open the task", Href: Address{Kind: ObjectTasks, View: opened}.String()}
+	link := &LinkView{Label: wordOpenTask, Href: Address{Kind: ObjectTasks, View: opened}.String()}
 
 	switch verb {
 	case taskVerbCancel:

@@ -488,7 +488,7 @@ func galleryCardsGroup(v *GalleryCardsView) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = Card(CardView{Title: "Usage bars", Span: 6, Foot: []FigureView{{Caption: "Total used", Value: "5.8", Unit: "GiB"}, {Caption: "Total free", Value: "2.2", Unit: "GiB"}}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = Card(CardView{Title: "Usage bars", Span: 6, Foot: []FigureView{{Caption: "Total used", Value: "5.8", Unit: galleryGiB}, {Caption: "Total free", Value: "2.2", Unit: galleryGiB}}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

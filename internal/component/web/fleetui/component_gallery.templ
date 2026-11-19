@@ -95,7 +95,7 @@ templ galleryCardsGroup(v *GalleryCardsView) {
 			@Card(CardView{Title: "Alarms, none open", Span: 4}) {
 				@AlarmList(v.NoAlarms)
 			}
-			@Card(CardView{Title: "Usage bars", Span: 6, Foot: []FigureView{{Caption: "Total used", Value: "5.8", Unit: "GiB"}, {Caption: "Total free", Value: "2.2", Unit: "GiB"}}}) {
+			@Card(CardView{Title: "Usage bars", Span: 6, Foot: []FigureView{{Caption: "Total used", Value: "5.8", Unit: galleryGiB}, {Caption: "Total free", Value: "2.2", Unit: galleryGiB}}}) {
 				for _, bar := range v.Usage {
 					@UsageBar(bar)
 				}
