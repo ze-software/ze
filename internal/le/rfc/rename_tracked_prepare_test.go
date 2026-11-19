@@ -64,7 +64,9 @@ func TestRenameTrackedCarrierTargetIsIndependent(t *testing.T) {
 }
 
 // The response distinguishes a prepared tracked relocation from a completed
-// move and puts its commit-owned file/remove step before ledger regeneration.
+// move, puts its commit-owned file/remove step before the after-commit review,
+// and never advises ledger regeneration, which a moved carrier does not owe
+// (rfc-conformance-gates.md, "Moving a tagged test file").
 func TestRenameTrackedCarrierReportsPreparation(t *testing.T) {
 	root := renameFixture(t)
 	report, err := renameFiles(root, renameOne())
@@ -85,14 +87,17 @@ func TestRenameTrackedCarrierReportsPreparation(t *testing.T) {
 	if commit < 0 {
 		t.Errorf("the report omits the commit-owned relocation command:\n%s", text)
 	}
-	update := strings.Index(text, "./le rfc update")
-	if update < 0 {
-		t.Errorf("the report omits ledger regeneration after publication:\n%s", text)
+	review := strings.Index(text, "after commit: "+renameNextStep)
+	if review < 0 {
+		t.Errorf("the report omits the after-commit review %q:\n%s", renameNextStep, text)
 	}
 	if commit >= 0 {
-		if update < commit {
-			t.Errorf("the report regenerates ledgers before committing the relocation:\n%s", text)
+		if review < commit {
+			t.Errorf("the report reviews the tree before committing the relocation:\n%s", text)
 		}
+	}
+	if strings.Contains(text, "./le rfc update") {
+		t.Errorf("the report advises ledger regeneration a moved carrier does not owe:\n%s", text)
 	}
 }
 
