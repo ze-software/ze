@@ -291,8 +291,8 @@ github.com/charmbracelet/x/windows
 # github.com/charmbracelet/x/xpty v0.1.4
 ## explicit; go 1.25.0
 github.com/charmbracelet/x/xpty
-# github.com/checkpoint-restore/go-criu/v8 v8.3.0
-## explicit; go 1.25.0
+# github.com/checkpoint-restore/go-criu/v8 v8.5.0
+## explicit; go 1.26.0
 github.com/checkpoint-restore/go-criu/v8
 github.com/checkpoint-restore/go-criu/v8/internal/proto
 github.com/checkpoint-restore/go-criu/v8/rpc
