@@ -1,14 +1,14 @@
 {
   "code": {
     "internal/component/l2tp/config.go::ExtractParameters": "2243443dd9e0b305",
-    "internal/component/l2tp/reactor.go::locateTunnelLocked": "42869f6b3a595fe0",
-    "internal/component/l2tp/reactor_dial.go::handleDial": "1a8d2b9f4738466d",
+    "internal/component/l2tp/reactor.go::locateTunnelLocked": "67199cd507a983b5",
+    "internal/component/l2tp/reactor_dial.go::handleDial": "81b6467c581981ab",
     "internal/component/l2tp/reactor_setters.go::reliableConfig": "197015a9a6014813",
     "internal/component/l2tp/reactor_setters.go::setMaxRetransmit": "c5df77b9812f8ccc",
     "internal/component/l2tp/reliable.go::Tick": "3fcecb3ab8d2478c",
     "internal/component/l2tp/subsystem.go::tunnelDefaults": "f9cf1535af2646f7"
   },
-  "note": "Re-read RFC 2661 Section 5.8 and the current producer chain after ExtractParameters gained independent PPP LCP parsing. This requirement owns the configurable reliable-delivery retransmission budget, not the separate 5.8-3 clearing obligation. ExtractParameters still parses max-retransmit into Parameters.MaxRetransmit, tunnelDefaults and reliableConfig still carry it to both tunnel constructors, and ReliableEngine.Tick still exhausts that budget. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets two before creating the tunnel, disables HELLO dead-peer detection, asserts Established through each allowed retransmission, and Closed after the next deadline. A fixed five fails the positive assertion; premature clearing fails the distinct negative assertions. TestConfig_MaxRetransmit separately asserts default five and an explicit nine; TestReloadAppliesMaxRetransmit asserts an explicit eight reaches reactor and new-tunnel defaults. The new PPP LCP parse does not alter this reliable-delivery setting or the existing tagged assertions.",
+  "note": "Re-read RFC 2661 Section 5.8 ('If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.') after commit 1cd941a108 changed locateTunnelLocked and handleDial. That change replaced the inline max-tunnels test with tunnelSlotsFullLocked (live tunnels plus discarded tunnels still holding unconfirmed session cleanups) and the maxSessions assignment with bindTunnelAdmissionLocked (maxSessions plus the confirmed-cleanup pruner). Neither touches retransmission: both constructors still pass r.reliableConfig() to newTunnel, so the configured budget still reaches each new tunnel's ReliableEngine, and Tick still exhausts it. ExtractParameters, tunnelDefaults, reliableConfig and setMaxRetransmit are unchanged. The tagged unit is byte-identical: TestRFC2661ConfiguredMaxRetransmitClearsTunnel builds its reactor with MaxTunnels 0 (limit math.MaxUint16, no retained cleanups), so the new admission gate admits its SCCRQ exactly as before; it sets max-retransmit 2 before the tunnel exists, disables HELLO dead-peer detection, asserts Established through each allowed retransmission (negative: premature clearing fails) and Closed on the next deadline (positive: a fixed five fails). Discard now also calls markTunnelDiscardedLocked, which only counts retained cleanups and leaves state Closed, so the asserted clearing is unaffected.",
   "requirement_sha": "31ed4fbaf5ba0708",
   "tests": {
     "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel": "7046da3338c57d75",
