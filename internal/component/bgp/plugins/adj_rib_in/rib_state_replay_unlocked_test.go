@@ -44,7 +44,7 @@ func TestPeerUpReplayDoesNotHoldMutationOwner(t *testing.T) {
 			routes.Put(key, 1, &RawRoute{
 				Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000",
 			})
-			r.ribIn[netip.MustParseAddr(source)] = routes
+			r.ribIn[receivedPeer{address: netip.MustParseAddr(source)}] = routes
 
 			relaying := make(chan struct{})
 			release := make(chan struct{})

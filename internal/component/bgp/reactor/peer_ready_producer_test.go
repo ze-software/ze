@@ -53,13 +53,13 @@ type readyProducerReceipt struct {
 	err    error
 }
 
-func (a *readyProducerAPI) SignalPeerAPIReady(peer string, sender plugin.Sender, token uint64) error {
+func (a *readyProducerAPI) SignalPeerAPIReady(ctx context.Context, peer string, sender plugin.Sender, token uint64) error {
 	if a.beforeReady != nil {
 		before := a.beforeReady
 		a.beforeReady = nil
 		before()
 	}
-	err := a.reactorAPIAdapter.SignalPeerAPIReady(peer, sender, token)
+	err := a.reactorAPIAdapter.SignalPeerAPIReady(ctx, peer, sender, token)
 	a.ready <- readyProducerReceipt{sender: sender, token: token, err: err}
 	return err
 }
@@ -252,7 +252,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 					SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 				}})
 			}}
-			f.destination.session.SetMessageCallback(f.r.notifyMessageReceiver)
+			f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 			seed := func(source *Peer, body []byte) {
 				update := f.publish(t, source, f.ctxID, body)
 				// RFC 4271 Section 4.3.
@@ -374,7 +374,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 			SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 		}})
 	}}
-	f.destination.session.SetMessageCallback(f.r.notifyMessageReceiver)
+	f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 	update := f.publish(t, f.source, f.ctxID, syncOrderAnnounceBody)
 	attrs, err := update.WireUpdate.Attrs()
 	require.NoError(t, err)
@@ -463,7 +463,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 						SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 					}})
 				}}
-				f.destination.session.SetMessageCallback(f.r.notifyMessageReceiver)
+				f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 				paths := []struct {
 					id uint32
 					rd byte

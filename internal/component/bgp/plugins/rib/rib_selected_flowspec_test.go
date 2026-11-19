@@ -14,11 +14,11 @@ func TestSelectedCaptureFlowSpecRedirectChangeGetsNewRevision(t *testing.T) {
 	r, _ := flowValidationFixture(t)
 	peer := netip.MustParseAddr("192.0.2.1")
 	path := flowValidationPath(2, 65001)
-	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast,
+	flowValidationReceive(t, r, 1, peer, 65001, 1, family.IPv4Unicast,
 		[]byte{8, 10}, flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
 	raw := flowspecNLRI(16, 10, 1)
 	communities := []byte{0x80, 6, 0, 0, 0, 0, 0, 0, 0x08, 0, 0, 0, 0, 0, 0, 0}
-	flowValidationReceiveNextHop(t, r, peer, 65001, 3, flowspecFamily, raw,
+	flowValidationReceiveNextHop(t, r, 1, peer, 65001, 3, flowspecFamily, raw,
 		flowValidationAttrs(path, netip.Addr{}, 100, communities), false, []byte{198, 51, 100, 1})
 	first, err := r.advertiseSnapshot()
 	require.NoError(t, err)

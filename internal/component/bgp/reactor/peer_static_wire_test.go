@@ -120,6 +120,7 @@ func TestStaticWireAfterDeltaDropsARouteThatDidNotReachTheWire(t *testing.T) {
 // wire empty here, and delivering the field without the delta leaves it empty too.
 func TestReloadDeliversStaticRouteDeltaOnTheRunningSession(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.settings.StaticRoutes = []StaticRoute{
 		staticRouteAt("10.0.0.0/24", "10.9.9.9"),
 		staticRouteAt("10.0.1.0/24", "10.9.9.9"),

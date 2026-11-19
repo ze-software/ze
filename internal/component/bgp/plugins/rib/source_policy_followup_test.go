@@ -24,10 +24,10 @@ func TestRFC8212SourcePolicyRIBAbortRestoresPreviousBound(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx1", f.source, 5, 0))
-	peerRIB := r.bgpPeers[f.source]
+	peerRIB := r.bgpPeers[sourcePolicyPeerOwner]
 	require.Equal(t, uint64(5), peerRIB.SourcePolicyDeniedThrough())
 
-	receiveIPv4Route(t, r, f.source.String(), 103, "10.3.0.0/24", "180a0300")
+	receiveIPv4Route(t, r, f.source.String(), sourcePolicyPeerOwner, 103, "10.3.0.0/24", "180a0300")
 	peerRIB.ModifyFamilyEntry(family.IPv4Unicast, []byte{24, 10, 3, 0}, func(entry *storage.RouteEntry) { entry.SourcePolicyEpoch = 6 })
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 6, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx2", f.source, 6, 7))

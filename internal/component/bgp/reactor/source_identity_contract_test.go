@@ -46,11 +46,13 @@ func TestReceivedUpdateCarriesExactStableSourceOwner(t *testing.T) {
 		t.Cleanup(session.closeSourceReceipt)
 		body := []byte{0, 0, 0, 0}
 		update := wireu.NewWireUpdate(body, session.recvCtxID)
-		require.True(t, session.onMessageReceived(address, msgtype.TypeUPDATE, body, update,
+		require.True(t, session.onMessageReceived(session, address, msgtype.TypeUPDATE, body, update,
 			session.recvCtxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0))
 		require.Equal(t, peer.settings.Name, observedName)
 		require.Equal(t, peer.sourceOwner, observed.SourceOwner)
 		require.Equal(t, session.sourceReceiptID(), observed.SourceReceipt)
+		require.NotZero(t, session.connectionID)
+		require.Equal(t, session.connectionID, observed.SourceConnectionID)
 		if originalReceipt == 0 {
 			originalReceipt = observed.SourceReceipt
 		} else {
@@ -67,9 +69,9 @@ func TestReceivedUpdateCarriesExactStableSourceOwner(t *testing.T) {
 func TestSourceReceiptFactsRequireStablePeerOwner(t *testing.T) {
 	peer, facts := sourceReceiptFixture(t)
 	require.NotZero(t, peer.sourceOwner)
-	_, err := newSourceReceiptFacts(facts.source)
+	_, err := newSourceReceiptFacts(facts.source, facts.connectionID)
 	require.NoError(t, err)
 	peer.sourceOwner = 0 // Deliberately corrupt this isolated, transport-free fixture.
-	_, err = newSourceReceiptFacts(facts.source)
+	_, err = newSourceReceiptFacts(facts.source, facts.connectionID)
 	require.Error(t, err)
 }

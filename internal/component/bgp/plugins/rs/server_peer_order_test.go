@@ -60,8 +60,10 @@ func TestPeerStatusAnswersSortedOrder(t *testing.T) {
 		"198.51.100.1", "203.0.113.5", "2001:db8::1", "2001:db8::2",
 	}
 
-	for _, address := range inserted {
-		rs.peers[address] = &PeerState{Address: address, ASN: 65000, Up: true}
+	for index, address := range inserted {
+		key, err := newWorkerKey(address, uint64(index+1), uint64(index+101))
+		require.NoError(t, err)
+		rs.peers[key] = &PeerState{Address: address, ASN: 65000, Up: true}
 	}
 	require.Len(t, rs.peers, len(inserted), "every peer address is distinct")
 

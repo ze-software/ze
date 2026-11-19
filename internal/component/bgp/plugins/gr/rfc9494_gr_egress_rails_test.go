@@ -16,17 +16,17 @@ import (
 
 // railsEBGPDest is a neighbor without LLGR across an EBGP session:
 // dest.PeerAS (65001) differs from dest.LocalAS (65000).
-var railsEBGPDest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+var railsEBGPDest = filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 
 // railsLLGRDest is a neighbor the LLGR Capability was received from.
-var railsLLGRDest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65001, LocalAS: 65000}
+var railsLLGRDest = filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 103, Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65001, LocalAS: 65000}
 
 // railsLoadedState loads the egress state the way runGRPlugin does once peers
 // are known: one neighbor (railsLLGRDest) sent LLGR, railsEBGPDest did not.
 func railsLoadedState(t *testing.T) {
 	t.Helper()
-	setEgressState(newTestEgressState(map[string]*llgrPeerCap{
-		railsLLGRDest.Address.String(): {Families: []llgrCapFamily{{LLST: 3600}}},
+	setEgressState(newTestEgressState(map[uint64]*llgrPeerCap{
+		railsLLGRDest.PeerOwner: {connectionID: 55, Families: []llgrCapFamily{{LLST: 3600}}},
 	}))
 	t.Cleanup(func() { setEgressState(nil) })
 }
@@ -49,7 +49,7 @@ func railsLoadedState(t *testing.T) {
 // with no modification.
 func TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR(t *testing.T) {
 	railsLoadedState(t)
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 
 	var withheld filterapi.ModAccumulator
 	assert.True(t, LLGREgressFilter(src, railsEBGPDest, nil, map[string]any{"stale": uint8(2)}, &withheld))
@@ -75,7 +75,7 @@ func TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR(t *testing.T) {
 // withdrawal and no modification, while a level 2 route to that neighbor is still withdrawn.
 func TestLLGREgressFilter_GRStaleLevelOnePassesThrough(t *testing.T) {
 	railsLoadedState(t)
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 
 	var gr filterapi.ModAccumulator
 	assert.True(t, LLGREgressFilter(src, railsEBGPDest, nil, map[string]any{"stale": uint8(1)}, &gr))
@@ -112,8 +112,8 @@ func rebuiltMeta() map[string]any {
 // accepted toward that EBGP neighbor with no withdrawal and no modification.
 func TestLLGREgressFilter_RebuiltRecoversReceivedStale(t *testing.T) {
 	railsLoadedState(t)
-	llgrSource := filterapi.PeerFilterInfo{Address: ingressTestPeer, LLGRAdvertised: true}
-	plainSource := filterapi.PeerFilterInfo{Address: ingressTestPeer}
+	llgrSource := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: ingressTestPeer, LLGRAdvertised: true}
+	plainSource := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: ingressTestPeer}
 	stale := ingressTestUpdate(ingressLLGRStale)
 
 	var withheld filterapi.ModAccumulator

@@ -42,7 +42,7 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 	calls := make(chan replayDispatchCall, 4)
 	var rr *routeReflector
 	key := ribevents.ValidationRoute{
-		Peer: netip.MustParseAddr("192.0.2.1"), Family: family.IPv4Unicast,
+		Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: 701, ConnectionID: 41, Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("203.0.113.0/24"), PathID: 7,
 	}
 	first := true
@@ -55,24 +55,31 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 		}
 		calls <- replayDispatchCall{command: command, args: slices.Clone(args), peer: peer}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(
-			`{"routes":[{"source-peer":"192.0.2.1","family":"ipv4/unicast","nlri-hex":"18cb0071","path-id":7,"withdraw":true}],"last-index":0,"more":false}`)}, nil
+			`{"routes":[{"source-peer":"192.0.2.1","source-owner":"701","source-connection-id":"41","source-receipt":"70","msg-id":80,"nlri-framing":"prefix-only","family":"ipv4/unicast","nlri-hex":"18cb0071","path-id":7,"withdraw":true}],"last-index":0,"more":false}`)}, nil
 	})
 	// The store only answers the path: the reflector itself relays it, under
 	// the send grant the operator gave the reflector, not the store.
 	relays := make(chan string, 4)
-	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+	bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+		destination, routes := input.Destination, input.Routes
 		if len(routes) != 1 || routes[0].SourcePeer != "192.0.2.1" || !routes[0].Withdraw || routes[0].InitialUpdate {
 			t.Errorf("relayed the wrong revalidated path to %s: %+v", destination, routes)
 		}
 		relays <- destination
-		return nil
+		return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 	})
 	bridge.SetReady()
-	rr = &routeReflector{plugin: plugin, peers: map[string]*peerState{
-		"192.0.2.1": {Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
-		"192.0.2.2": {Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
-		"192.0.2.3": {Up: false, Families: map[family.Family]bool{family.IPv4Unicast: true}},
-	}}
+	rrFixtureLease(bridge)
+	original := rrOriginalFixture(t, "192.0.2.1", 701, 41)
+	target := rrOriginalFixture(t, "192.0.2.2", 702, 42)
+	down := rrOriginalFixture(t, "192.0.2.3", 703, 43)
+	rr = &routeReflector{plugin: plugin, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+	rrFixtureStart(t, rr, original, 70, 7, 141)
+	rrFixtureStart(t, rr, target, 0, 7, 142)
+	rr.peers[original].Families = map[family.Family]bool{family.IPv4Unicast: true}
+	rr.peers[target].Families = map[family.Family]bool{family.IPv4Unicast: true}
+	rr.peers[down] = &peerState{Identity: down, Up: false, Families: map[family.Family]bool{family.IPv4Unicast: true}}
+	rrFixtureInventory(t, rr, original, rpc.StoredRoute{Family: "ipv4/unicast", NLRIHex: "18cb0071", PathID: 7, SourceReceipt: 70, MsgID: 80})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	stop := rr.startValidation(ctx)
@@ -81,7 +88,7 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 	for range 2 {
 		select {
 		case call := <-calls:
-			want := []string{"192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7"}
+			want := []string{"192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7", "701", "41"}
 			if call.command != "request bgp adj-rib-in replay-path" || !slices.Equal(call.args, want) {
 				t.Fatalf("wrong retained-path reconciliation: %+v", call)
 			}
@@ -107,8 +114,11 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			const source, target = "192.0.2.1", "192.0.2.2"
-			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-			key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
+			fam, err := family.RegisterFamily(family.AFIIPv4, family.SAFIFlowSpec, "ipv4", "flow")
+			if err != nil {
+				t.Fatal(err)
+			}
+			key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), PeerOwner: 701, ConnectionID: 41, Family: fam,
 				NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 			attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
 				0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
@@ -116,9 +126,12 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				func(route ribevents.ValidationRoute, id uint64) bool { return route == key && id == 42 },
 				func(route ribevents.ValidationRoute) bool { return route == key },
 				func(route ribevents.ValidationRoute) (ribevents.FlowSpecPath, bool) {
-					return ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42}, route == key
+					return ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42, SourceReceipt: 70, SourcePolicyEpoch: 5}, route == key
 				},
-				func() []ribevents.ValidationRoute { return []ribevents.ValidationRoute{key} })
+				func() []ribevents.ValidationRoute { return []ribevents.ValidationRoute{key} },
+				func(route ribevents.ValidationRoute, minimum uint64) (bool, error) {
+					return route == key && minimum <= 42, nil
+				})
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 			bridge := rpc.NewDirectBridge()
 			pluginEnd, engineEnd := net.Pipe()
@@ -136,15 +149,28 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				}
 				return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(`{"last-index":0,"replayed":0}`)}, nil
 			})
-			bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+			bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+				destination, routes := input.Destination, input.Routes
 				if destination != target || len(routes) != 1 || routes[0].SourcePeer != source ||
 					routes[0].MsgID != 42 || routes[0].NLRIHex != "0501180a0000" || routes[0].Withdraw {
 					t.Errorf("wrong pre-existing FlowSpec reflection: %s %+v", destination, routes)
 				}
 				delivered = append(delivered, "rule")
-				return nil
+				return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 			})
 			bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+				if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+					return result, err
+				}
+				if method == rpc.MethodDispatchCommand {
+					var ready rpc.DispatchCommandInput
+					if err := json.Unmarshal(params, &ready); err != nil {
+						return nil, err
+					}
+					delivered = append(delivered, "ready")
+					done <- struct{}{}
+					return json.Marshal(rpc.DispatchCommandOutput{Status: statusDone, DestinationOwner: ready.DestinationOwner, DestinationSession: ready.DestinationSession, DeadlineMS: ready.DeadlineMS})
+				}
 				var input rpc.UpdateRouteInput
 				if err := json.Unmarshal(params, &input); err != nil {
 					return nil, err
@@ -162,11 +188,13 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				return &rpc.DispatchCommandOutput{Status: statusDone}, nil
 			})
 			bridge.SetReady()
-			rr := &routeReflector{plugin: plugin, peers: map[string]*peerState{
-				source: {Address: source, Up: true},
-				target: {Address: target, Families: map[family.Family]bool{fam: true}},
-			}}
-			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, State: rpc.SessionStateUp, InitialReplay: 17})
+			original := rrOriginalFixture(t, source, 701, 41)
+			recipient := rrOriginalFixture(t, target, 702, 42)
+			rr := &routeReflector{plugin: plugin, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+			rrFixtureStart(t, rr, original, 70, 7, 141)
+			rr.peers[recipient] = &peerState{Identity: recipient, Address: target, Families: map[family.Family]bool{fam: true}}
+			t.Cleanup(func() { rr.replays.stop() })
+			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17})
 			select {
 			case <-done:
 			case <-time.After(5 * time.Second):
@@ -176,9 +204,9 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				t.Fatalf("initial FlowSpec reflection order = %v", delivered)
 			}
 			rr.mu.Lock()
-			rr.peers[target].ReplayGen++
+			rr.peers[recipient].ReplayGen++
 			rr.mu.Unlock()
-			rr.replayForPeer(target, 1, 17)
+			rr.replayForPeer(context.Background(), peerTarget{identity: recipient, session: 142, generation: 1}, 17, make(chan struct{}))
 			if !slices.Equal(delivered, []string{"rule", "eor", "ready"}) {
 				t.Fatalf("old-session reflection reached reconnected peer: %v", delivered)
 			}

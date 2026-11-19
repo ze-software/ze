@@ -17,8 +17,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,7 +32,8 @@ import (
 // is accepted and passed along to other BGP peers and the Partial bit in the
 // Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
 // to 0 by the current AS." A complete same-value control must remain complete.
-// The manager is passive: its zero source receipt grants no Session authority.
+// The positive path acquires its original issued Session through the SDK.
+// A separate passive twin keeps the same useful bytes without selected authority.
 // The callback observes the selected transport, not a socket or foreign peer.
 func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 	for _, tc := range []struct {
@@ -40,7 +44,7 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 		{"complete", 0xc0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r, source := advertiseCaptureRIB(t)
+			source := netip.MustParseAddr("192.0.2.71")
 			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 			require.NoError(t, err)
 			prefix := []byte{24, 198, 18, 93}
@@ -51,9 +55,16 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 				0x40, 3, 4, nextHop[0], nextHop[1], nextHop[2], nextHop[3],
 				tc.flags, 8, 4, 0, 1, 0, 1, // ordinary community 1:1, not NO_EXPORT
 			}
-			partialSelectedReceive(t, r, source, ctxID, attrs, prefix)
-			held, found := r.bgpPeers[source].LookupRetained(family.IPv4Unicast, prefix)
+			t.Run("passive", func(t *testing.T) {
+				partialSelectedPassive(t, source, ctxID, attrs, prefix, tc.flags)
+			})
+			r, observed := advertiseCaptureRIB(t)
+			require.Equal(t, source, observed, "the issued original source keeps its observed address")
+			partialSelectedReceive(t, r, advertiseCaptureOwner, 701, source, ctxID, attrs, prefix)
+			held, found := r.bgpPeers[advertiseCaptureOwner].LookupRetained(family.IPv4Unicast, prefix)
 			require.True(t, found, "the valid received candidate must remain in Adj-RIB-In")
+			assert.Equal(t, advertiseCaptureOwner, held.SourcePeerOwner())
+			assert.Equal(t, uint64(701), held.SourceReceipt)
 			stored, err := held.ToWireBytes()
 			held.Release()
 			require.NoError(t, err)
@@ -67,7 +78,7 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 			assert.Equal(t, source, first[0].route.Source)
 			assert.Equal(t, prefix, first[0].route.NLRI)
 			assert.Equal(t, source.AsSlice(), first[0].route.NextHop)
-			assert.Zero(t, first[0].route.SourceReceipt, "passive storage invents no source grant")
+			assert.Equal(t, uint64(701), first[0].route.SourceReceipt, "the selected route keeps its issued source receipt")
 			assert.Equal(t, attrs, first[0].route.Attributes)
 			partialSelectedProjection(t, &first[0], tc.flags, []byte{0, 1, 0, 1})
 			saved := bytes.Clone(first[0].route.Attributes)
@@ -75,7 +86,7 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 			// Existing attachment replaces the pooled value, not its received
 			// Partial fact. The previous capture must outlive that replacement.
 			attached := false
-			modified := r.bgpPeers[source].ModifyFamilyEntry(family.IPv4Unicast, prefix,
+			modified := r.bgpPeers[advertiseCaptureOwner].ModifyFamilyEntry(family.IPv4Unicast, prefix,
 				func(entry *storage.RouteEntry) {
 					attached = r.attachCommunity(entry, []byte{0, 2, 0, 2})
 				})
@@ -95,7 +106,7 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 			// the old received and attached snapshots remain immutable.
 			replacement := bytes.Clone(attrs)
 			replacement[len(replacement)-7] = 0xc0
-			partialSelectedReceive(t, r, source, ctxID, replacement, prefix)
+			partialSelectedReceive(t, r, advertiseCaptureOwner, 701, source, ctxID, replacement, prefix)
 			third, err := r.advertiseSnapshot()
 			require.NoError(t, err)
 			require.Len(t, third, 1)
@@ -108,14 +119,54 @@ func TestReceivedPartialSurvivesSelectedCapture(t *testing.T) {
 	}
 }
 
-func partialSelectedReceive(t *testing.T, r *RIBManager, source netip.Addr,
+func partialSelectedReceive(t *testing.T, r *RIBManager, owner, receipt uint64, source netip.Addr,
 	ctxID bgpctx.ContextID, attrs, prefix []byte) {
 	t.Helper()
 	update := message.Update{PathAttributes: attrs, NLRI: prefix}
 	buffer := make([]byte, message.MaxMsgLen)
 	n := update.WriteTo(buffer, 0, nil)
 	require.Greater(t, n, message.HeaderLen)
-	feedReceived(r, source, ctxID, buffer[message.HeaderLen:n])
+	body := buffer[message.HeaderLen:n]
+	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(owner)
+	wu.SetSourceReceipt(receipt)
+	aw, err := wu.Attrs()
+	require.NoError(t, err)
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+		EventType: rpc.EventKindUpdate, PeerOwner: owner, SourceReceipt: receipt,
+		PeerAddress: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+		RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE,
+			SourceOwner: owner, SourceReceipt: receipt, RawBytes: body, WireUpdate: wu, AttrsWire: aw},
+	})
+}
+
+// partialSelectedPassive keeps useful received Partial bytes and forwarding
+// while refusing to manufacture a learned selection from an unleased source.
+func partialSelectedPassive(t *testing.T, source netip.Addr, ctxID bgpctx.ContextID, attrs, prefix []byte, flags byte) {
+	t.Helper()
+	r := newTestRIBManager(t)
+	t.Cleanup(func() {
+		for _, routes := range r.bgpPeers {
+			routes.Release()
+		}
+	})
+	loc := electionFixtureLocRIB(t, r, source)
+	partialSelectedReceive(t, r, advertiseCaptureOwner, 0, source, ctxID, attrs, prefix)
+	held, found := r.bgpPeers[advertiseCaptureOwner].LookupRetained(family.IPv4Unicast, prefix)
+	require.True(t, found, "the passive twin still stores its useful received route")
+	assert.Zero(t, held.SourceReceipt, "passive storage invents no source grant")
+	assert.Zero(t, held.SourcePeerOwner())
+	stored, err := held.ToWireBytes()
+	held.Release()
+	require.NoError(t, err)
+	partialSelectedExpect(t, stored, flags, []byte{0, 1, 0, 1})
+	best, present := loc.Best(family.IPv4Unicast, netip.MustParsePrefix("198.18.93.0/24"))
+	require.True(t, present, "the passive twin remains useful for forwarding")
+	require.Equal(t, source, best.NextHop)
+	selected, err := r.advertiseSnapshot()
+	require.NoError(t, err)
+	require.Empty(t, selected, "an unleased source has no ordinary selected authority")
+	require.Nil(t, r.sourceLeases)
 }
 
 func partialSelectedExpect(t *testing.T, attrs []byte, expected byte, values []byte) {
@@ -160,7 +211,7 @@ func partialSelectedProjection(t *testing.T, capture *advertiseRoute, flags byte
 	assert.Equal(t, capture.keyNLRI, projected.KeyNLRI)
 	assert.Equal(t, hex.EncodeToString(capture.route.NLRI), projected.Route.NLRIHex)
 	assert.Equal(t, capture.route.Source.String(), projected.Route.SourcePeer)
-	assert.Zero(t, projected.SourceReceipt, "a projection is not a fabricated Session grant")
+	assert.Equal(t, capture.route.SourceReceipt, projected.SourceReceipt, "a projection preserves its issued Session receipt")
 	attrs, err := hex.DecodeString(projected.Route.AttrHex)
 	require.NoError(t, err)
 	partialSelectedExpect(t, attrs, flags, values)

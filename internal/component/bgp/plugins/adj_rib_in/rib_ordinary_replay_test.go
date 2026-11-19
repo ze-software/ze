@@ -41,14 +41,15 @@ func TestOrdinaryReplayOwnershipKeepsReadiness(t *testing.T) {
 				p := sdk.NewWithConn("ordinary-replay-test", rpc.NewBridgedConn(pluginEnd, bridge))
 				t.Cleanup(func() { require.NoError(t, p.Close()) })
 				var delivered []string
-				bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+				bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+					destination, routes := input.Destination, input.Routes
 					require.Equal(t, target, destination)
 					for _, route := range routes {
 						require.Equal(t, source, route.SourcePeer)
 						require.False(t, route.Withdraw)
 						delivered = append(delivered, route.Family)
 					}
-					return nil
+					return &rpc.CachedWriteOutput{Completed: true, DeadlineMS: input.DeadlineMS}, nil
 				})
 				bridge.SetDispatchCommand(func(_ context.Context, command string) (*rpc.DispatchCommandOutput, error) {
 					require.Equal(t, "request peer "+target+" plugin session ready session 471", command)
@@ -61,12 +62,12 @@ func TestOrdinaryReplayOwnershipKeepsReadiness(t *testing.T) {
 				routes := seqmap.New[compactRouteKey, *RawRoute]()
 				routes.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1,
 					&RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "c0000229", NLRIHex: "180a0000"})
-				r.ribIn[netip.MustParseAddr(source)] = routes
+				r.ribIn[receivedPeer{address: netip.MustParseAddr(source)}] = routes
 				if delivery == "structured" {
-					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, State: rpc.SessionStateUp,
+					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 2, State: rpc.SessionStateUp,
 						InitialReplay: 471, DestinationSession: 471, OrdinaryReplayOwned: owned})
 				} else {
-					data, err := json.Marshal(&bgp.Event{Type: "state", State: stateUp, InitialReplay: 471,
+					data, err := json.Marshal(&bgp.Event{PeerOwner: 2, Type: "state", State: stateUp, InitialReplay: 471,
 						DestinationSession: 471, OrdinaryReplayOwned: owned,
 						Peer: mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: target, AS: 65001}})})
 					require.NoError(t, err)

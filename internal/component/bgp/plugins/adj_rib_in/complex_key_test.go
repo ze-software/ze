@@ -58,18 +58,18 @@ func TestComplexAddPathKeysOnPathID(t *testing.T) {
 
 	feedStructuredContext(t, r, source, mpAnnounce(ipv4Labeled, []byte{10, 0, 0, 1}, pathID(1, route), pathID(2, route)), ctx)
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 2, r.ribIn[source].Len(), "two paths to one prefix are two routes")
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: source}].Len(), "two paths to one prefix are two routes")
 	for _, id := range []uint32{1, 2} {
-		stored, ok := r.ribIn[source].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", id))
+		stored, ok := r.ribIn[receivedPeer{address: source}].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", id))
 		require.True(t, ok, "path %d is keyed on its identifier and its prefix", id)
 		assert.Equal(t, hex.EncodeToString(route), stored.NLRIHex, "the stored NLRI carries no path identifier")
 		assert.Equal(t, id, stored.PathID)
 	}
 
 	feedStructuredContext(t, r, source, mpWithdraw(ipv4Labeled, pathID(1, labeledWithdrawal(compatibility, 10, 0, 1))), ctx)
-	assert.Equal(t, 1, r.ribIn[source].Len(), "the withdrawal removes one path")
-	_, ok := r.ribIn[source].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", 2))
+	assert.Equal(t, 1, r.ribIn[receivedPeer{address: source}].Len(), "the withdrawal removes one path")
+	_, ok := r.ribIn[receivedPeer{address: source}].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", 2))
 	assert.True(t, ok, "the path the withdrawal did not name stays")
 }
 
@@ -86,15 +86,15 @@ func TestIPv6LabeledRoutesKeyOnTheirPrefix(t *testing.T) {
 	second := labeledNLRI(labelOneBottom, prefix2001db8(2)...)
 	feedStructured(t, r, source, mpAnnounce(ipv6Labeled, nextHop, first, second))
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 2, r.ribIn[source].Len())
-	_, ok := r.ribIn[source].Get(routeKeyFromStrings(ipv6Labeled, "2001:db8:1::/48", 0))
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: source}].Len())
+	_, ok := r.ribIn[receivedPeer{address: source}].Get(routeKeyFromStrings(ipv6Labeled, "2001:db8:1::/48", 0))
 	assert.True(t, ok, "the route is keyed on the IPv6 prefix behind its label")
 
 	withdrawn := append([]byte{24 + 48}, compatibility...)
 	feedStructured(t, r, source, mpWithdraw(ipv6Labeled, append(withdrawn, prefix2001db8(1)...)))
-	assert.Equal(t, 1, r.ribIn[source].Len())
-	_, ok = r.ribIn[source].Get(routeKeyFromStrings(ipv6Labeled, "2001:db8:2::/48", 0))
+	assert.Equal(t, 1, r.ribIn[receivedPeer{address: source}].Len())
+	_, ok = r.ribIn[receivedPeer{address: source}].Get(routeKeyFromStrings(ipv6Labeled, "2001:db8:2::/48", 0))
 	assert.True(t, ok, "the withdrawal removes the route it names and no other")
 }
 
@@ -112,8 +112,8 @@ func TestIPv6VPNRoutesKeyOnDistinguisherAndPrefix(t *testing.T) {
 	underTwo := vpnNLRI(labelOneBottom, rd(2), prefix2001db8(1)...)
 	feedStructured(t, r, source, mpAnnounce(ipv6VPN, nextHop, underOne, underTwo))
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 2, r.ribIn[source].Len(), "RD and prefix together identify an IPv6 VPN route")
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: source}].Len(), "RD and prefix together identify an IPv6 VPN route")
 
 	withdrawn := append([]byte{24 + 64 + 48}, compatibility...)
 	withdrawn = append(withdrawn, rd(1)...)
@@ -134,13 +134,13 @@ func TestLabeledWithdrawalIgnoresCompatibilityValue(t *testing.T) {
 
 	feedStructured(t, r, source, mpAnnounce(ipv4Labeled, nextHop,
 		labeledNLRI(labelOneBottom, 10, 0, 1), labeledNLRI(labelOneBottom, 10, 0, 2)))
-	require.NotNil(t, r.ribIn[source])
-	require.Equal(t, 2, r.ribIn[source].Len())
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	require.Equal(t, 2, r.ribIn[receivedPeer{address: source}].Len())
 
 	feedStructured(t, r, source, mpWithdraw(ipv4Labeled, labeledWithdrawal([]byte{0, 0, 0}, 10, 0, 1)))
-	assert.Equal(t, 1, r.ribIn[source].Len(), "a zero Compatibility field still withdraws")
+	assert.Equal(t, 1, r.ribIn[receivedPeer{address: source}].Len(), "a zero Compatibility field still withdraws")
 	feedStructured(t, r, source, mpWithdraw(ipv4Labeled, labeledWithdrawal(labelOneBottom, 10, 0, 2)))
-	assert.Equal(t, 0, r.ribIn[source].Len(), "a Compatibility field holding the route's own label still withdraws")
+	assert.Equal(t, 0, r.ribIn[receivedPeer{address: source}].Len(), "a Compatibility field holding the route's own label still withdraws")
 }
 
 // TestLabeledReannounceWithNewLabelReplaces re-announces a stored prefix under a
@@ -159,8 +159,8 @@ func TestLabeledReannounceWithNewLabelReplaces(t *testing.T) {
 	relabeled := labeledNLRI(labelTwoBottom, 10, 0, 1)
 	feedStructured(t, r, source, mpAnnounce(ipv4Labeled, nextHop, relabeled))
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 1, r.ribIn[source].Len(), "a new label for a stored prefix replaces the route")
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 1, r.ribIn[receivedPeer{address: source}].Len(), "a new label for a stored prefix replaces the route")
 	assert.Equal(t, []string{hex.EncodeToString(relabeled)}, replayedNLRIs(r, target, source))
 }
 
@@ -240,8 +240,8 @@ func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
 	r := newTestManager(t)
 	withAddPath := netip.MustParseAddr("192.0.2.1")
 	withoutAddPath := netip.MustParseAddr("192.0.2.2")
-	r.installStructuredNLRIs(withAddPath, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 10, 0, 0}, true, "400101", "c0000201", 1, 0, 1)
-	r.installStructuredNLRIs(withoutAddPath, family.IPv4Unicast, []byte{24, 10, 0, 0}, false, "400101", "c0000201", 2, 0, 2)
+	r.installStructuredNLRIs(receivedPeer{address: withAddPath, owner: 1}, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 10, 0, 0}, true, "400101", "c0000201", 1, 0, 1, 41, 0)
+	r.installStructuredNLRIs(receivedPeer{address: withoutAddPath, owner: 2}, family.IPv4Unicast, []byte{24, 10, 0, 0}, false, "400101", "c0000201", 2, 0, 2, 41, 0)
 
 	shown, ok := r.show("*").(map[string]any)
 	require.True(t, ok)

@@ -28,17 +28,20 @@ import (
 // that did start would still hold its gate shut when the assertions run.
 func TestRSSkipsReplayOnAttachedUp(t *testing.T) {
 	const target = "10.0.0.2"
+	targetKey, keyErr := newWorkerKey(target, 51, 501)
+	require.NoError(t, keyErr)
 	deliver := map[string]func(rs *routeServer){
 		"text": func(rs *routeServer) {
-			rs.dispatchText("peer " + target + " remote as 65001 state up reason " + rpc.ReasonAttached + "\n")
+			rs.dispatchText("peer " + target + " remote as 65001 state up peer-owner 51 connection-id 501 session-generation 700 destination-session 801 reason " + rpc.ReasonAttached + "\n")
 		},
 		"structured": func(rs *routeServer) {
 			ev := parseStructuredState(&rpc.StructuredEvent{
 				EventType:   rpc.EventKindState,
 				PeerAddress: target,
-				PeerAS:      rpc.RemoteASOf(65001),
-				State:       rpc.SessionStateUp,
-				Reason:      rpc.ReasonAttached,
+				PeerOwner:   51, ConnectionID: 501, SessionGeneration: 700, DestinationSession: 801,
+				PeerAS: rpc.RemoteASOf(65001),
+				State:  rpc.SessionStateUp,
+				Reason: rpc.ReasonAttached,
 			})
 			require.NotNil(t, ev)
 			rs.handleState(ev)
@@ -59,13 +62,13 @@ func TestRSSkipsReplayOnAttachedUp(t *testing.T) {
 			stale := make(chan struct{})
 			rs.mu.Lock()
 			rs.seenMsgID = 9
-			rs.peers[target] = &PeerState{Address: target, ReplayGen: 3, replayDone: stale}
+			rs.peers[targetKey] = &PeerState{Address: target, ReplayGen: 3, replayDone: stale}
 			rs.mu.Unlock()
 
 			send(rs)
 
 			rs.mu.Lock()
-			peer := rs.peers[target]
+			peer := rs.peers[targetKey]
 			up, seen, cut, gen, gate := peer.Up, peer.StateSeen, peer.ForwardFrom, peer.ReplayGen, peer.replayDone
 			rs.mu.Unlock()
 

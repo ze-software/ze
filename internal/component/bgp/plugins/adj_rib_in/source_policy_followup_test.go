@@ -30,16 +30,16 @@ func TestRFC8212SourcePolicyComplexFamilyEligibility(t *testing.T) {
 	key, err := r.routeKeyFromNLRI(vpn, wire, 0, false)
 	r.mu.Unlock()
 	require.NoError(t, err)
-	r.ribIn[source] = newSeqMap()
-	r.ribIn[source].Put(key, 1, &RawRoute{Family: vpn, AttrHex: "40010100", MsgID: 100, SourcePolicyEpoch: 5, SourceOwner: 1})
-	r.peerUp[source] = true
-	query := ribevents.ValidationRoute{Peer: source, PeerOwner: 1, Family: vpn, NLRI: string(wire)}
+	r.ribIn[receivedPeer{address: source, owner: 1}] = newSeqMap()
+	r.ribIn[receivedPeer{address: source, owner: 1}].Put(key, 1, &RawRoute{ConnectionID: 41, Family: vpn, AttrHex: "40010100", MsgID: 100, SourcePolicyEpoch: 5, SourceOwner: 1})
+	r.recordPeerState(source, true, 1, 41)
+	query := ribevents.ValidationRoute{ConnectionID: 41, Peer: source, PeerOwner: 1, Family: vpn, NLRI: string(wire)}
 
 	require.True(t, r.routePresent(query), "the query finds the stored VPN route")
 	require.True(t, r.routeEligible(query, 0))
 	require.True(t, r.routeEligible(query, 100), "the stored generation matches")
 	require.False(t, r.routeEligible(query, 101), "another generation does not")
-	require.False(t, r.routeEligible(ribevents.ValidationRoute{Peer: source, PeerOwner: 1, Family: vpn}, 0),
+	require.False(t, r.routeEligible(ribevents.ValidationRoute{ConnectionID: 41, Peer: source, PeerOwner: 1, Family: vpn}, 0),
 		"a query that names no route is not eligible")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", source, 5, 0))
@@ -61,18 +61,18 @@ func TestRFC8212SourcePolicyAbortRestoresPreviousBound(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx1", f.source, 5, 0))
-	require.Equal(t, uint64(5), r.policyDenied[f.source])
+	require.Equal(t, uint64(5), r.policyDenied[1])
 
-	r.ribIn[f.source].Put(f.keys[0], 10, &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100",
+	r.ribIn[receivedPeer{address: f.source, owner: 1}].Put(f.keys[0], 10, &RawRoute{ConnectionID: 41, Family: family.IPv4Unicast, AttrHex: "40010100",
 		NLRIHex: "180a0100", MsgID: 300, SourcePolicyEpoch: 6, SourceOwner: 1})
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 6, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx2", f.source, 6, 7))
-	require.Equal(t, uint64(6), r.policyDenied[f.source])
+	require.Equal(t, uint64(6), r.policyDenied[1])
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx2", f.source, 6, 8))
-	require.Equal(t, uint64(5), r.policyDenied[f.source], "abort restores the earlier accepted bound")
+	require.Equal(t, uint64(5), r.policyDenied[1], "abort restores the earlier accepted bound")
 	require.True(t, f.eligible(f.source, 0), "the restored route carries the abort epoch")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx3", f.source, 8, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx3", f.source, 8, 9))
-	require.Equal(t, uint64(5), r.policyDenied[f.source], "an abort before apply leaves the bound alone")
+	require.Equal(t, uint64(5), r.policyDenied[1], "an abort before apply leaves the bound alone")
 }

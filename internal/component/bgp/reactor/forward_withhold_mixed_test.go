@@ -166,8 +166,10 @@ func mixedForward(t *testing.T, run mixedRun, payload []byte, dests ...*Peer) ma
 	}, fwdPoolConfig{chanSize: 64, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
+	originalTargets := make(map[rpc.ForwardTarget]*Peer, len(dests))
 	peerMap := make(map[netip.AddrPort]*Peer, len(dests)+1)
 	for _, d := range dests {
+		originalTargets[fixtureForwardTarget(t, d)] = d
 		key := fwdKey{peerAddr: d.Settings().PeerKey()}
 		pool.registerOutgoingPool(key, 4096)
 		peerMap[key.peerAddr] = d
@@ -185,13 +187,16 @@ func mixedForward(t *testing.T, run mixedRun, payload []byte, dests ...*Peer) ma
 	if run.rs {
 		require.NotNil(t, run.source, "the route-server rail needs the advertiser")
 		peerMap[run.source.Settings().PeerKey()] = run.source
+		fixtureForwardOrigin(t, update, run.source, run.source.testInitialSync())
 		skipped, _ := reactorForwardRS(r, update, id, run.source.Settings().Address, run.source)
 		// A destination the fast path hands back continues on the general
 		// rail, as bgp-rs forwards it: a verdict its export chain must
 		// withdraw one NLRI-bearing field at a time is judged there.
 		var handedBack []*Peer
 		for _, key := range skipped {
-			handedBack = append(handedBack, peerMap[key])
+			peer, found := originalTargets[key]
+			require.True(t, found, "hand-back lost original owner/session: %+v", key)
+			handedBack = append(handedBack, peer)
 		}
 		if len(handedBack) != 0 {
 			adapter := &reactorAPIAdapter{r: r}

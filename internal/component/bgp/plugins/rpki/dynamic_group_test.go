@@ -123,7 +123,7 @@ func TestStructuredRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
 	// 10.0.0.0/24 as wire NLRI: one length octet, then the significant bytes.
 	nlri := []byte{24, 10, 0, 0}
 	rp.validateNLRIs("192.0.2.50", "ix-192.0.2.50", "ix", 64511, 7, "ipv4/unicast",
-		nlri, false, false, 64511, false, aspaStateNone, false)
+		nlri, false, false, 64511, false, aspaStateNone, false, rpkiSource{}, false)
 
 	reqs := drainRequests(rp.validateCh)
 	require.Len(t, reqs, 1)

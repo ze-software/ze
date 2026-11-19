@@ -30,16 +30,16 @@ func TestRFC8212SourcePolicyRIBAbortBeforeApply(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	events, commands := f.bus.eventCount(), len(f.commands)
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 0))
-	r.bgpPeers[f.source].IterateFamily(family.IPv4Unicast, func(_ []byte, entry storage.RouteEntry) bool {
+	r.bgpPeers[sourcePolicyPeerOwner].IterateFamily(family.IPv4Unicast, func(_ []byte, entry storage.RouteEntry) bool {
 		require.Equal(t, uint64(5), entry.SourcePolicyEpoch, "an abort before apply restamped a path")
 		return true
 	})
 	require.Equal(t, 1, f.sourceCandidates(t, shared))
 	require.Equal(t, events, f.bus.eventCount(), "an abort before apply publishes nothing")
 	require.Len(t, f.commands, commands, "an abort before apply writes nothing downstream")
-	sent := r.ribOut[f.destination][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.1.0.0/24")}]
+	sent := r.ribOut[sourcePolicyDestinationPeerOwner][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.1.0.0/24")}]
 	require.Equal(t, uint64(5), sent.SourcePolicyEpoch, "the sent inventory is untouched")
-	require.Nil(t, r.sourcePolicy[f.source].received, "abort releases the pins")
+	require.Nil(t, r.sourcePolicy[sourcePolicyPeerOwner].received, "abort releases the pins")
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 0), "duplicate abort")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 5, 0))

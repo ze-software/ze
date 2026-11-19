@@ -73,13 +73,13 @@ func TestRouteReflectorReadsExtendedOpen(t *testing.T) {
 		filler int
 	}{{"base form", 10}, {"RFC 9072 form", 200}} {
 		t.Run(tc.name, func(t *testing.T) {
-			rr := &routeReflector{peers: map[string]*peerState{}}
+			rr := &routeReflector{peers: map[peerIdentity]*peerState{}}
 			body := openTestBody(t, openTestParams(tc.filler)...)
 			if extended := body[9] == 255 && body[10] == 255; extended != (tc.filler == 200) {
 				t.Fatalf("the test OPEN's framing is not the case's (extended=%v)", extended)
 			}
-			rr.handleStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer}, &bgptypes.RawMessage{RawBytes: body})
-			peer := rr.peers[openTestPeer]
+			rr.handleStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer, PeerOwner: 701, ConnectionID: 41}, &bgptypes.RawMessage{RawBytes: body})
+			peer := rr.peers[rrOriginalFixture(t, openTestPeer, 701, 41)]
 			if peer == nil {
 				t.Fatal("no entry recorded")
 			}
@@ -104,9 +104,9 @@ func TestRouteReflectorReadsExtendedOpen(t *testing.T) {
 	for _, tc := range refused {
 		t.Run(tc.name, func(t *testing.T) {
 			log := captureRRLog(t)
-			rr := &routeReflector{peers: map[string]*peerState{}}
-			rr.handleStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer}, &bgptypes.RawMessage{RawBytes: tc.body})
-			if peer := rr.peers[openTestPeer]; peer != nil {
+			rr := &routeReflector{peers: map[peerIdentity]*peerState{}}
+			rr.handleStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer, PeerOwner: 701, ConnectionID: 41}, &bgptypes.RawMessage{RawBytes: tc.body})
+			if peer := rr.peers[rrOriginalFixture(t, openTestPeer, 701, 41)]; peer != nil {
 				t.Fatalf("an unreadable OPEN recorded %+v", peer)
 			}
 			lines := strings.Split(strings.TrimSpace(log.String()), "\n")
@@ -126,11 +126,11 @@ func TestRouteReflectorReadsExtendedOpen(t *testing.T) {
 // peers: present and sorted for an up peer with a recorded set, absent for a
 // down peer and for an up peer with no OPEN recorded.
 func TestRouteReflectorPeerStatusFamilies(t *testing.T) {
-	rr := &routeReflector{peers: map[string]*peerState{
-		"192.0.2.1": {Address: "192.0.2.1", Up: true, Families: map[family.Family]bool{family.IPv6Unicast: true, family.IPv4Unicast: true}},
-		"192.0.2.2": {Address: "192.0.2.2", Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
-		"192.0.2.3": {Address: "192.0.2.3", Up: false, Families: map[family.Family]bool{family.IPv6Unicast: true}},
-		"192.0.2.4": {Address: "192.0.2.4", Up: true},
+	rr := &routeReflector{peers: map[peerIdentity]*peerState{
+		rrOriginalFixture(t, "192.0.2.1", 701, 41): {Address: "192.0.2.1", Up: true, Families: map[family.Family]bool{family.IPv6Unicast: true, family.IPv4Unicast: true}},
+		rrOriginalFixture(t, "192.0.2.2", 702, 42): {Address: "192.0.2.2", Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
+		rrOriginalFixture(t, "192.0.2.3", 703, 43): {Address: "192.0.2.3", Up: false, Families: map[family.Family]bool{family.IPv6Unicast: true}},
+		rrOriginalFixture(t, "192.0.2.4", 704, 44): {Address: "192.0.2.4", Up: true},
 	}}
 	want := map[string][]string{
 		"192.0.2.1": {"ipv4/unicast", "ipv6/unicast"},

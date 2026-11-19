@@ -49,7 +49,7 @@ func TestBlackholeGroupIdentityArrivesOnAStructuredEvent(t *testing.T) {
 	// One UPDATE announcing 10.0.0.1/32 tagged 65535:666: withdrawn length 0,
 	// 21 octets of attributes (ORIGIN, empty AS_PATH, NEXT_HOP, COMMUNITIES),
 	// then the NLRI.
-	feedReceivedFromGroup(r, member, "ix", ctxID, []byte{
+	feedReceivedFromGroup(r, 1, member, "ix", ctxID, []byte{
 		0x00, 0x00, // Withdrawn Routes length 0
 		0x00, 0x15, // Total Path Attribute Length 21
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -60,7 +60,7 @@ func TestBlackholeGroupIdentityArrivesOnAStructuredEvent(t *testing.T) {
 	})
 
 	r.peerMu.RLock()
-	assert.Equal(t, "ix", r.peerGroupName(member),
+	assert.Equal(t, "ix", r.peerGroupName(1),
 		"the group on the received event was not recorded for the session")
 	r.peerMu.RUnlock()
 	assert.Equal(t, routetype.Blackhole,
@@ -82,11 +82,11 @@ func TestBlackholeGroupIdentityArrivesOnAJSONEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.Lock()
-	r.updatePeerMetadata(&Event{Peer: peerJSON}, member, 65001)
+	r.updatePeerMetadata(&Event{PeerOwner: 1, Peer: peerJSON}, member, 65001)
 	r.peerMu.Unlock()
 
 	r.peerMu.RLock()
-	assert.Equal(t, "ix", r.peerGroupName(member),
+	assert.Equal(t, "ix", r.peerGroupName(1),
 		"the group on a JSON event was not recorded for the session")
 	r.peerMu.RUnlock()
 }
@@ -99,7 +99,7 @@ func TestBlackholeGroupIdentityIsEmptyForAStandalonePeer(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	feedReceived(r, peer, ctxID, []byte{
+	feedReceived(r, 1, peer, ctxID, []byte{
 		0x00, 0x00, // Withdrawn Routes length 0
 		0x00, 0x0e, // Total Path Attribute Length 14
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -109,6 +109,6 @@ func TestBlackholeGroupIdentityIsEmptyForAStandalonePeer(t *testing.T) {
 	})
 
 	r.peerMu.RLock()
-	assert.Empty(t, r.peerGroupName(peer))
+	assert.Empty(t, r.peerGroupName(1))
 	r.peerMu.RUnlock()
 }

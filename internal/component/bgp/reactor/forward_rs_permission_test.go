@@ -188,13 +188,23 @@ func TestReactorForwardRSHonorsRelaySendPermission(t *testing.T) {
 		sessions[i] = rsSelectionWriter(t, peer, &output[i])
 	}
 
+	fixtureForwardOrigin(t, h.update, source, source.testInitialSync())
+	wantSkipped := []rpc.ForwardTarget{fixtureForwardTarget(t, h.dests[1]), fixtureForwardTarget(t, h.dests[2])}
 	skipped, dispatched := reactorForwardRS(r, h.update, 1, h.update.SourcePeerIP, source)
 	// The two refused destinations go back to the route server, whose cached
 	// rail refuses and reports them (filterPermittedPeers,
 	// sendPermissionDenied), exactly as it does with no fast path.
-	wantSkipped := []netip.AddrPort{h.dests[1].Settings().PeerKey(), h.dests[2].Settings().PeerKey()}
-	slices.SortFunc(skipped, netip.AddrPort.Compare)
-	slices.SortFunc(wantSkipped, netip.AddrPort.Compare)
+	compareTarget := func(a, b rpc.ForwardTarget) int {
+		if a.DestinationOwner < b.DestinationOwner {
+			return -1
+		}
+		if a.DestinationOwner > b.DestinationOwner {
+			return 1
+		}
+		return 0
+	}
+	slices.SortFunc(skipped, compareTarget)
+	slices.SortFunc(wantSkipped, compareTarget)
 	if !slices.Equal(skipped, wantSkipped) {
 		t.Fatalf("skipped %v; want %v, the destinations granting the route server no send [ update ]", skipped, wantSkipped)
 	}

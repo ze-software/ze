@@ -20,7 +20,11 @@ import (
 func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.2")
-	r.peerUp[peer] = true
+	// Observe the original live control tuple before requesting a refresh.
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+	})
 	body := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 1, 24, 198, 51, 100}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	wu := wireu.NewWireUpdate(body, ctxID)
@@ -29,9 +33,9 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	sent := rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		Meta:        map[string]any{"config-static": true},
-		RawMessage:  &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		Meta:       map[string]any{"config-static": true},
+		RawMessage: &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
 	}
 	r.handleSentStructured(&sent)
 	var commands []string
@@ -43,8 +47,8 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 		commands = append(commands, command)
 	}
 	r.handleRefreshStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		RawMessage:  &bgptypes.RawMessage{RawBytes: []byte{0, 1, 0, 1}},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		RawMessage: &bgptypes.RawMessage{RawBytes: []byte{0, 1, 0, 1}},
 	})
 	var routes []refreshRouteIdentity
 	for _, command := range commands {
@@ -58,16 +62,16 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 	require.Equal(t, []refreshRouteIdentity{
 		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("198.51.100.0/24")},
 	}, routes, "the real UPDATE parser must receive the configured route")
-	if groups := r.collectPeerUpReplay(peer, true); len(groups) != 0 {
+	if groups := r.collectPeerUpReplay(1, true); len(groups) != 0 {
 		t.Fatalf("config-static replayed on peer-up: %v", groups)
 	}
 	// The wire feedback from refresh lacks the config marker; origin must survive.
 	sent.Meta = map[string]any{"replay": true}
 	r.handleSentStructured(&sent)
-	if groups := r.collectPeerUpReplay(peer, true); len(groups) != 0 {
+	if groups := r.collectPeerUpReplay(1, true); len(groups) != 0 {
 		t.Fatalf("refresh changed origin: %v", groups)
 	}
-	if groups := r.collectGroupedRibOutRoutesForFamily(peer, family.IPv4Unicast); len(groups) != 1 {
+	if groups := r.collectGroupedRibOutRoutesForFamily(1, family.IPv4Unicast); len(groups) != 1 {
 		t.Fatalf("refresh lost route: %v", groups)
 	}
 	// A new plugin advertisement is not a refresh and takes ownership.
@@ -78,7 +82,7 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 	}
 	raw.SourceLocal = true
 	r.handleSentStructured(&sent)
-	if groups := r.collectPeerUpReplay(peer, true); len(groups) != 1 {
+	if groups := r.collectPeerUpReplay(1, true); len(groups) != 1 {
 		t.Fatalf("replacement plugin route not replayed: %v", groups)
 	}
 }
@@ -88,13 +92,13 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 func TestRFC2918RefreshDoesNotSendToDownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.2")
-	r.ribOut[peer] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {"198.51.100.0/24": {Prefix: "198.51.100.0/24", NextHop: "192.0.2.1"}},
 	})
 	r.dispatchHook = func(command string) { t.Errorf("marker sent to down peer: %s", command) }
 	r.updateHook = func(command string, _ map[string]any) { t.Errorf("route sent to down peer: %s", command) }
 	r.handleRefreshStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		RawMessage:  &bgptypes.RawMessage{RawBytes: []byte{0, 1, 0, 1}},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		RawMessage: &bgptypes.RawMessage{RawBytes: []byte{0, 1, 0, 1}},
 	})
 }

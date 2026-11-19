@@ -44,15 +44,23 @@ func TestReplayEORCarriesReplayMeta(t *testing.T) {
 		return json.RawMessage(`{"announced":0,"withdrawn":0}`), nil
 	})
 	bridge.SetReady()
-	rr := &routeReflector{plugin: p, peers: map[string]*peerState{
-		target: {Address: target, Up: true, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
+	rr := &routeReflector{plugin: p, peers: map[peerIdentity]*peerState{
+		rrOriginalFixture(t, target, 702, 42): {Address: target, Identity: rrOriginalFixture(t, target, 702, 42), DestinationSession: 142, Up: true, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
 	}}
-	rr.sendEOR(target, 3)
+	if err := rr.sendEOR(t.Context(), peerTarget{identity: rrOriginalFixture(t, target, 702, 42), session: 142, generation: 3}); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(inputs) != 2 {
 		t.Fatalf("want one End-of-RIB per family, got %d: %+v", len(inputs), inputs)
 	}
 	for _, input := range inputs {
+		if input.DestinationOwner != 702 {
+			t.Fatalf("End-of-RIB lost captured original owner: %+v", input)
+		}
+		if input.DestinationSession != 142 {
+			t.Fatalf("End-of-RIB lost captured destination session: %+v", input)
+		}
 		replayEOR, ok := input.Meta[bgptypes.ReplayEORMeta].(bool)
 		if !ok || !replayEOR {
 			t.Errorf("%q to %s carries meta %v, want %s=true", input.Command, input.PeerSelector, input.Meta, bgptypes.ReplayEORMeta)

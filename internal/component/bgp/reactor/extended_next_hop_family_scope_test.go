@@ -146,6 +146,8 @@ func TestRFC9830IPv4SRPolicyIPv6NextHopIsForwardedWithoutThePair(t *testing.T) {
 	for _, rs := range []bool{false, true} {
 		t.Run(map[bool]string{false: "general rail", true: "route-server rail"}[rs], func(t *testing.T) {
 			dest := a2Dest(t, "192.0.2.23", 65023, netip.Addr{}, false)
+			// Preserve the received IPv6 next hop whose SR Policy family is the subject.
+			dest.settings.NextHopMode = NextHopUnchanged
 			dest.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{
 				family.IPv4Unicast: true,
 				srPolicy:           true,

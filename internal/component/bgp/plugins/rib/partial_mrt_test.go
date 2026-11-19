@@ -41,8 +41,9 @@ func TestReceivedPartialSurvivesMRTSnapshot(t *testing.T) {
 			r := newTestRIBManager(t)
 			peer := netip.MustParseAddr("192.0.2.71")
 			routes := storage.NewPeerRIB(peer.String())
-			r.bgpPeers[peer] = routes
-			r.peerMeta[peer] = &peerMetadata{PeerASN: 65010, RemoteRouterID: 0xc0000247}
+			const owner uint64 = 71
+			r.bgpPeers[owner] = routes
+			r.peerMeta[owner] = &peerMetadata{Address: peer, PeerASN: 65010, RemoteRouterID: 0xc0000247}
 			t.Cleanup(routes.Release)
 			partialMRTStore(t, routes, partialMRTAttributes(tc.flags), []byte{24, 198, 18, 71})
 			complete := [4]byte{0xc0, 0xc0, 0xc0, 0xc0}

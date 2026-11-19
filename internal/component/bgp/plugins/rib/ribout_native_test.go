@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -54,21 +55,22 @@ func TestSentNativeInventoryRoundTrip(t *testing.T) {
 					}
 					r := newTestRIBManager(t)
 					peer := netip.MustParseAddr("192.0.2.20")
+					r.peerMeta[201] = &peerMetadata{Address: peer}
 					raw := bytes.Clone(tc.raw)
 					if addPath {
 						raw = append([]byte{0, 0, 0, 0}, raw...)
 					}
 					attrs := nativeSentAttrs()
 					if structured {
-						attrs = feedNativeSent(t, r, peer, tc.fam, raw, attrs, addPath, false)
+						attrs = feedNativeSent(t, r, peer, 201, tc.fam, raw, attrs, addPath, false)
 					} else {
-						r.handleSent(nativeSentEvent(t, peer, tc.fam, raw, attrs, addPath, false))
+						r.handleSent(nativeSentEvent(t, peer, 201, 0, tc.fam, raw, attrs, addPath, false))
 					}
 					key, ok := ribOutRouteKey(tc.fam, raw, addPath)
 					if !ok {
 						t.Fatal("native key rejected")
 					}
-					entries := r.ribOut[peer][tc.fam]
+					entries := r.ribOut[201][tc.fam]
 					if len(entries) != 1 {
 						t.Fatalf("stored %d entries, want one", len(entries))
 					}
@@ -89,7 +91,7 @@ func TestSentNativeInventoryRoundTrip(t *testing.T) {
 					if source := entry.SourcePeer; source != "192.0.2.10" {
 						t.Fatalf("source = %q", source)
 					}
-					groups := r.collectGroupedRibOutRoutesForFamily(peer, tc.fam)
+					groups := r.collectGroupedRibOutRoutesForFamily(201, tc.fam)
 					if len(groups) != 1 {
 						t.Fatalf("replay groups = %d", len(groups))
 					}
@@ -106,7 +108,7 @@ func TestSentNativeInventoryRoundTrip(t *testing.T) {
 					if strings.Contains(commands[0], " addpath") != addPath {
 						t.Fatalf("ADD-PATH flag lost: %s", commands[0])
 					}
-					routes := r.collectRibOutRoutes(peer, tc.fam)
+					routes := r.collectRibOutRoutes(201, tc.fam)
 					if len(routes) != 1 {
 						t.Fatalf("refresh routes = %d", len(routes))
 					}
@@ -124,14 +126,14 @@ func TestSentNativeInventoryRoundTrip(t *testing.T) {
 						t.Fatalf("zero path ID missing from show: %#v", row)
 					}
 					if structured {
-						feedNativeSent(t, r, peer, tc.fam, raw, nil, addPath, true)
+						feedNativeSent(t, r, peer, 201, tc.fam, raw, nil, addPath, true)
 					} else {
-						r.handleSent(nativeSentEvent(t, peer, tc.fam, raw, nil, addPath, true))
+						r.handleSent(nativeSentEvent(t, peer, 201, 0, tc.fam, raw, nil, addPath, true))
 					}
-					if len(r.ribOut[peer][tc.fam]) != 0 {
+					if len(r.ribOut[201][tc.fam]) != 0 {
 						t.Fatal("withdrawal retained sent entry")
 					}
-					if r.ribOut[peer][tc.fam][key].SourcePeer != "" {
+					if r.ribOut[201][tc.fam][key].SourcePeer != "" {
 						t.Fatal("withdrawal retained source reference")
 					}
 				})
@@ -145,7 +147,9 @@ func TestSentNativeInventoryRoundTrip(t *testing.T) {
 func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.20")
+	r.peerMeta[201] = &peerMetadata{Address: peer}
 	other := netip.MustParseAddr("192.0.2.21")
+	r.peerMeta[202] = &peerMetadata{Address: other}
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	raw := append([]byte{0, 0, 0, 0}, nativeEVPNRoute()...)
 	handle, err := pool.RibOut.Intern(nativeSentAttrs())
@@ -154,8 +158,8 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 	}
 	defer func() { _ = pool.RibOut.Release(handle) }()
 	entry := ribOutEntry{AttrHandle: handle}
-	r.storeSentEntries(peer, fam, raw, true, entry, "192.0.2.10", false, false, nil, 0)
-	r.storeSentEntries(other, fam, raw, true, entry, "192.0.2.10", false, false, nil, 0)
+	r.storeSentEntries(201, fam, raw, true, entry, "192.0.2.10", false, false, nil, 0)
+	r.storeSentEntries(202, fam, raw, true, entry, "192.0.2.10", false, false, nil, 0)
 	key, ok := ribOutRouteKey(fam, raw, true)
 	if !ok {
 		t.Fatal("key rejected")
@@ -166,17 +170,17 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 	if !ok || updatedKey != key {
 		t.Fatal("label update changed semantic identity")
 	}
-	r.storeSentEntries(peer, fam, updated, true, entry, "192.0.2.10", false, false, nil, 0)
+	r.storeSentEntries(201, fam, updated, true, entry, "192.0.2.10", false, false, nil, 0)
 	second := bytes.Clone(updated)
 	binary.BigEndian.PutUint32(second[:4], 7)
-	r.storeSentEntries(peer, fam, second, true, entry, "192.0.2.10", false, false, nil, 0)
-	if len(r.ribOut[peer][fam]) != 2 {
+	r.storeSentEntries(201, fam, second, true, entry, "192.0.2.10", false, false, nil, 0)
+	if len(r.ribOut[201][fam]) != 2 {
 		t.Fatal("ADD-PATH identifiers collapsed")
 	}
-	if r.ribOut[peer][fam][key].NativeNLRI != string(updated) {
+	if r.ribOut[201][fam][key].NativeNLRI != string(updated) {
 		t.Fatal("semantic replacement lost latest label")
 	}
-	groups := r.collectGroupedRibOutRoutesForFamily(peer, fam)
+	groups := r.collectGroupedRibOutRoutesForFamily(201, fam)
 	if len(groups) != 2 {
 		t.Fatal("replay grouped distinct path identifiers together")
 	}
@@ -199,20 +203,20 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 			t.Fatalf("replay lost path or latest label: %x", wire)
 		}
 	}
-	r.removeSentNLRIs(peer, fam, raw, true)
-	if len(r.ribOut[peer][fam]) != 1 {
+	r.removeSentNLRIs(201, fam, raw, true)
+	if len(r.ribOut[201][fam]) != 1 {
 		t.Fatal("withdrawal removed another path identifier")
 	}
 	// A duplicate withdrawal must not consume the other destination's source ref.
-	r.removeSentNLRIs(peer, fam, raw, true)
-	if r.ribOut[other][fam][key].SourcePeer != "192.0.2.10" {
+	r.removeSentNLRIs(201, fam, raw, true)
+	if r.ribOut[202][fam][key].SourcePeer != "192.0.2.10" {
 		t.Fatal("duplicate withdrawal released another destination's source")
 	}
-	r.removeSentNLRIs(other, fam, raw, true)
-	if r.ribOut[other][fam][key].SourcePeer != "" {
+	r.removeSentNLRIs(202, fam, raw, true)
+	if r.ribOut[202][fam][key].SourcePeer != "" {
 		t.Fatal("final destination did not release source")
 	}
-	r.removeSentNLRIs(peer, fam, second, true)
+	r.removeSentNLRIs(201, fam, second, true)
 }
 
 // TestSentLabeledWithdrawalCompatibility uses the registered withdrawal framing,
@@ -220,10 +224,11 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 func TestSentLabeledWithdrawalCompatibility(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.20")
+	r.peerMeta[201] = &peerMetadata{Address: peer}
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
-	r.storeSentEntries(peer, fam, []byte{32, 0, 6, 0x41, 10}, false, ribOutEntry{}, "192.0.2.10", false, false, nil, 0)
-	r.removeSentNLRIs(peer, fam, []byte{32, 0x80, 0, 0, 10}, false)
-	if len(r.ribOut[peer][fam]) != 0 {
+	r.storeSentEntries(201, fam, []byte{32, 0, 6, 0x41, 10}, false, ribOutEntry{}, "192.0.2.10", false, false, nil, 0)
+	r.removeSentNLRIs(201, fam, []byte{32, 0x80, 0, 0, 10}, false)
+	if len(r.ribOut[201][fam]) != 0 {
 		t.Fatal("compatibility withdrawal missed labeled identity")
 	}
 }
@@ -293,15 +298,16 @@ func TestSentRawReplayBatchesKeepAttrs(t *testing.T) {
 func TestSentJSONTextKeepsZeroPathID(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.20")
-	event := nativeSentEvent(t, peer, family.IPv4Unicast, nil, nativeSentAttrs(), false, false)
+	r.peerMeta[201] = &peerMetadata{Address: peer}
+	event := nativeSentEvent(t, peer, 201, 0, family.IPv4Unicast, nil, nativeSentAttrs(), false, false)
 	event.RawNLRI = nil
 	event.FamilyOps[family.IPv4Unicast][0].NLRIs = []any{map[string]any{"prefix": "192.0.2.0/24", "path-id": float64(0)}}
 	r.handleSent(event)
 	key := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24")}
-	if !r.ribOut[peer][family.IPv4Unicast][key].AddPath {
+	if !r.ribOut[201][family.IPv4Unicast][key].AddPath {
 		t.Fatal("parsed JSON lost explicit path ID zero")
 	}
-	groups := r.collectGroupedRibOutRoutes(peer)
+	groups := r.collectGroupedRibOutRoutes(201)
 	if len(groups) != 1 {
 		t.Fatal("parsed JSON route absent from replay")
 	}
@@ -312,7 +318,7 @@ func TestSentJSONTextKeepsZeroPathID(t *testing.T) {
 	if !strings.HasSuffix(commands[0], " addpath add 0000000018c00002") {
 		t.Fatalf("zero identifier lost: %s", commands[0])
 	}
-	r.removeSentNLRIs(peer, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 192, 0, 2}, true)
+	r.removeSentNLRIs(201, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 192, 0, 2}, true)
 }
 
 // TestSentNativeReplayCarriesStaleMetadata observes both actual dispatch loops,
@@ -320,17 +326,18 @@ func TestSentJSONTextKeepsZeroPathID(t *testing.T) {
 func TestSentNativeReplayCarriesStaleMetadata(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.20")
+	r.peerMeta[201] = &peerMetadata{Address: peer}
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	raw := nativeEVPNRoute()
-	r.handleSent(nativeSentEvent(t, peer, fam, raw, nativeSentAttrs(), false, false))
+	r.handleSent(nativeSentEvent(t, peer, 201, 0, fam, raw, nativeSentAttrs(), false, false))
 	key, ok := ribOutRouteKey(fam, raw, false)
 	if !ok {
 		t.Fatal("native key rejected")
 	}
-	entry := r.ribOut[peer][fam][key]
+	entry := r.ribOut[201][fam][key]
 	entry.StaleLevel = 2
-	r.ribOut[peer][fam][key] = entry
-	groups := r.collectGroupedRibOutRoutes(peer)
+	r.ribOut[201][fam][key] = entry
+	groups := r.collectGroupedRibOutRoutes(201)
 	announcements := 0
 	ready := 0
 	r.updateHook = func(command string, meta map[string]any) {
@@ -366,7 +373,7 @@ func TestSentNativeReplayCarriesStaleMetadata(t *testing.T) {
 	if ready != 1 {
 		t.Fatal("resend emitted a peer-up ready marker")
 	}
-	r.removeSentNLRIs(peer, fam, raw, false)
+	r.removeSentNLRIs(201, fam, raw, false)
 }
 
 // nativeEVPNRoute is an Ethernet Auto-Discovery NLRI with a label-bearing body.
@@ -382,13 +389,14 @@ func nativeSentAttrs() []byte {
 	return []byte{0x40, 1, 1, 0, 0x40, 2, 6, 1, 1, 0, 0, 0xfd, 0xe8, 0xc0, 250, 2, 0xbe, 0xef}
 }
 
-func nativeSentEvent(t *testing.T, peer netip.Addr, fam family.Family, raw, attrs []byte, addPath, withdraw bool) *Event {
+func nativeSentEvent(t *testing.T, peer netip.Addr, peerOwner, sourceOwner uint64, fam family.Family, raw, attrs []byte, addPath, withdraw bool) *Event {
 	t.Helper()
 	event := &Event{
+		PeerOwner:     peerOwner,
 		Peer:          mustMarshal(t, map[string]any{"remote": map[string]any{"address": peer.String(), "as": 65002}}),
 		RawAttributes: hex.EncodeToString(attrs),
 		AddPath:       map[family.Family]bool{fam: addPath},
-		RouteMeta:     map[string]any{"source-peer": "192.0.2.10"},
+		RouteMeta:     map[string]any{"source-peer": "192.0.2.10", bgptypes.SourceOwnerMeta: strconv.FormatUint(sourceOwner, 10)},
 	}
 	if withdraw {
 		event.RawWithdrawn = map[family.Family]string{fam: hex.EncodeToString(raw)}
@@ -399,7 +407,7 @@ func nativeSentEvent(t *testing.T, peer netip.Addr, fam family.Family, raw, attr
 	return event
 }
 
-func feedNativeSent(t *testing.T, r *RIBManager, peer netip.Addr, fam family.Family, raw, attrs []byte, addPath, withdraw bool) []byte {
+func feedNativeSent(t *testing.T, r *RIBManager, peer netip.Addr, peerOwner uint64, fam family.Family, raw, attrs []byte, addPath, withdraw bool) []byte {
 	t.Helper()
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{fam: addPath}))
 	if err != nil {
@@ -421,7 +429,7 @@ func feedNativeSent(t *testing.T, r *RIBManager, peer netip.Addr, fam family.Fam
 		t.Fatal(err)
 	}
 	r.handleSentStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(), SourcePeerStr: "192.0.2.10",
+		PeerOwner: peerOwner, PeerAddress: peer.String(), SourcePeerStr: "192.0.2.10",
 		RawMessage: &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: wireAttrs},
 	})
 	return attrs

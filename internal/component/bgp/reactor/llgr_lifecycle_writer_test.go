@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -50,12 +51,37 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 				f.destination.refreshForwardFacts()
 			}
-			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+			for _, ingress := range []*Peer{f.source, f.other} {
+				ingress.settings.ProcessBindings = append(ingress.settings.ProcessBindings, sourceLeaseGrant(owner))
+			}
+			f.destination.settings.ProcessBindings = []ProcessBinding{{PluginName: owner, Explicit: true,
+				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
+				Send:    map[string]bool{"update": true}}}
 			api, proc := readyProducerServer(t, f.r, owner)
+			// Publish the actual physical source actor before its received events.
+			// Attached observers acquire source state, never a replay completion.
+			sourceUp := func(ingress *Peer, original *Session) {
+				captureRecoveryFixtureOrigin(t, ingress, original, f.ctxID)
+				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
+					PeerAddress: ingress.Settings().Address.String(), PeerOwner: ingress.sourceOwner,
+					ConnectionID: original.connectionID, DestinationSession: original.initialReplay.Load(),
+					EventType: rpc.EventKindState, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+				}}))
+			}
+			for _, ingress := range []*Peer{f.source, f.other} {
+				sourceUp(ingress, ingress.currentSession())
+			}
+			originalDestination := f.destination.currentSession()
+			destinationOwner := f.destination.sourceOwner
+			destinationSession := originalDestination.initialReplay.Load()
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
 			token := f.destination.initialReplayToken()
-			readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+			require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
+				PeerAddress: f.destination.Settings().Address.String(), PeerOwner: destinationOwner,
+				ConnectionID: originalDestination.connectionID, DestinationSession: destinationSession,
+				EventType: rpc.EventKindState, State: rpc.SessionStateUp, InitialReplay: token,
+			}}))
 			readyProducerAwait(t, api, owner, token, false)
 
 			// The callback returns immediately, like asynchronous sent delivery.
@@ -74,11 +100,12 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				msg.AttrsWire = attrs
 				sent <- sentResult{message: msg, err: err}
 			}}
-			f.destination.session.SetMessageCallback(f.r.notifyMessageReceiver)
+			f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 			deliverSent := func(msg bgptypes.RawMessage) {
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 					PeerAddress: f.destination.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.destination.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
+					PeerOwner: destinationOwner, ConnectionID: originalDestination.connectionID, DestinationSession: destinationSession,
 					SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 				}}))
 			}
@@ -107,13 +134,17 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 			}
 			receive := func(source *Peer, raw []byte, fingerprint byte) *ReceivedUpdate {
 				// RFC 4271 Section 4.3: each input carries native NLRIs and MED.
+				original := source.currentSession()
 				update := f.publish(t, source, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, raw, fingerprint))
 				attrs, err := update.WireUpdate.Attrs()
 				require.NoError(t, err)
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 					PeerAddress: source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(source.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionReceived, MessageID: update.WireUpdate.MessageID(),
-					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: update.WireUpdate.MessageID()},
+					PeerOwner: update.SourceOwner, SourceReceipt: update.SourceReceipt, ConnectionID: original.connectionID,
+					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: update.WireUpdate.MessageID(),
+						SourceOwner: update.SourceOwner, SourceReceipt: update.SourceReceipt, SourceConnectionID: original.connectionID,
+						SourceID: uint32(source.SourceID()), SourcePolicyEpoch: update.SourcePolicyEpoch},
 				}}))
 				return update
 			}
@@ -160,6 +191,8 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 
 			// A retained source reconnects without replacing its Peer incarnation.
 			f.source.advanceForwardGeneration()
+			reconnected := recoveryFixtureSession(t, f.source, f.ctxID)
+			sourceUp(f.source, reconnected)
 			fresh := receive(f.source, freshRaw, 3)
 			var pending []bgptypes.RawMessage
 			var freshSent bgptypes.RawMessage

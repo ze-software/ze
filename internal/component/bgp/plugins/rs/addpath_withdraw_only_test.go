@@ -103,6 +103,8 @@ func rsAddPathUpdate(t *testing.T, withdrawn, attrs, nlri []byte) *bgptypes.RawM
 // prefix and Path Identifier."
 func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 	rs := newTestRouteServer(t)
+	source := rsFixtureKey("10.0.0.1", 1, 101)
+	rsFixtureNativeActors(rs, source, rsFixtureKey("10.0.0.2", 2, 102), 202)
 	path1 := []byte{0, 0, 0, 1, 8, 10}
 	path2 := []byte{0, 0, 0, 2, 8, 10}
 	origin := []byte{0x40, 1, 1, 0}
@@ -113,6 +115,7 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 			t.Fatal("no records extracted")
 		}
 		rs.withdrawalMu.Lock()
+		rsFixtureOriginalRecords(records, source, 301, 5)
 		rs.applyNLRIRecords("10.0.0.1", records)
 		rs.withdrawalMu.Unlock()
 		returnNLRIRecords(records)
@@ -134,7 +137,7 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 		commands = append(commands, cmd)
 		mu.Unlock()
 	}
-	rs.sendBatchedWithdrawals("10.0.0.1", entries)
+	rs.sendBatchedWithdrawals(source, entries)
 
 	mu.Lock()
 	defer mu.Unlock()

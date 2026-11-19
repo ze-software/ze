@@ -21,31 +21,36 @@ import (
 // asked for each by name, and for a name neither carries.
 // VALIDATES: a name selects exactly its own session's routes, a negated name
 // every other session's, and a name no session carries none.
-// PREVENTS: a name selector reaching bgp-rib, whose sessions are keyed by
-// address, and matching nothing, so `show bgp rib received peer injector`
+// PREVENTS: a name selector reaching bgp-rib without its recorded peer name
+// and matching nothing, so `show bgp rib received peer injector`
 // answered 0 routes for a session holding 1000.
 func TestRIBShowSelectsASessionByItsName(t *testing.T) {
 	r := newTestRIBManager(t)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	attrs := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	sessions := []struct {
+		owner   uint64
+		session uint64
 		address string
 		name    string
 		nlri    []byte
 	}{
-		{"192.0.2.1", "injector", []byte{24, 10, 0, 1}},
-		{"192.0.2.2", "transit", []byte{24, 10, 0, 2}},
+		{1, 11, "192.0.2.1", "injector", []byte{24, 10, 0, 1}},
+		{2, 12, "192.0.2.2", "transit", []byte{24, 10, 0, 2}},
 	}
 	for _, session := range sessions {
 		peerRIB := storage.NewPeerRIB(session.address)
 		peerRIB.Insert(family.IPv4Unicast, attrs, session.nlri)
-		r.bgpPeers[netip.MustParseAddr(session.address)] = peerRIB
+		r.peerMeta[session.owner] = &peerMetadata{Address: netip.MustParseAddr(session.address)}
+		r.bgpPeers[session.owner] = peerRIB
 		// An attached up records the session with no replay to answer.
 		r.handleStructuredState(&rpc.StructuredEvent{
-			PeerAddress: session.address,
-			PeerName:    session.name,
-			State:       rpc.SessionStateUp,
-			Reason:      rpc.ReasonAttached,
+			PeerOwner:          session.owner,
+			DestinationSession: session.session,
+			PeerAddress:        session.address,
+			PeerName:           session.name,
+			State:              rpc.SessionStateUp,
+			Reason:             rpc.ReasonAttached,
 		})
 	}
 

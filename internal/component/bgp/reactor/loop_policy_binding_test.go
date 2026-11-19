@@ -257,8 +257,9 @@ func TestLoopPolicyManualExportLeavesNativeRS(t *testing.T) {
 		source.Settings().PeerKey():      source,
 		destination.Settings().PeerKey(): destination,
 	}}
+	wantTarget := fixtureForwardTarget(t, destination)
 	skipped, dispatched := reactorForwardRS(r, update, 51, source.Settings().Address, source)
-	if dispatched != 0 || len(skipped) != 1 || skipped[0] != destination.Settings().PeerKey() {
+	if dispatched != 0 || len(skipped) != 1 || skipped[0] != wantTarget {
 		t.Fatalf("unsupported export bypassed policy rail: skipped=%v dispatched=%d", skipped, dispatched)
 	}
 }

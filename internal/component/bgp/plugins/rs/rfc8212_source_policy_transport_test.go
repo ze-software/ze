@@ -8,6 +8,7 @@ package rs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,9 +26,9 @@ var forwardedID = regexp.MustCompile(`[\[,]102[\],]`)
 
 // rsTransportReceived is the text event of one received UPDATE from the
 // source, admitted under policy epoch, announcing prefix.
-func rsTransportReceived(id, epoch uint64, prefix string) string {
-	return fmt.Sprintf("peer %s remote as 65001 received update %d source-policy-epoch %d "+
-		"origin igp next-hop 192.0.2.1 nlri ipv4/unicast add prefix %s", policySource, id, epoch, prefix)
+func rsTransportReceived(id, epoch, receipt uint64, prefix string) string {
+	return fmt.Sprintf("peer %s remote as 65001 received update %d source-policy-epoch %d peer-owner 1 connection-id 101 source-receipt %d "+
+		"origin igp next-hop 192.0.2.1 nlri ipv4/unicast add prefix %s", policySource, id, epoch, receipt, prefix)
 }
 
 // rsTransportPhase sends one lifecycle request of transaction tx1 for the
@@ -64,8 +65,7 @@ func rsTransportDeparture(t *testing.T, engine *pluginengine.Engine) string {
 
 // TestRFC8212SourcePolicyRSTransport drives bgp-rs's lifecycle through the
 // real RunRouteServer entry point and the SDK source-policy callback on
-// DirectBridge. bgp-rs refuses to start on the wire transport (RunRouteServer,
-// TestRefusesExternalProcess), so DirectBridge is its only transport.
+// DirectBridge, with the fixture-issued original source and useful recipient.
 //
 // VALIDATES: the plugin's own entry point admits each request and answers a
 // receipt; finalize after apply drops the source's denied routes, so the
@@ -83,10 +83,25 @@ func TestRFC8212SourcePolicyRSTransport(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
 			engine := pluginengine.Start(t, pluginengine.TransportBridge, RunRouteServer)
+			receipt := engine.IssueSource(policySource, 1)
+			engine.SetRPCHandler(func(_ context.Context, method string, raw json.RawMessage) (any, error) {
+				if method != rpc.MethodForwardCached {
+					return nil, pluginengine.ErrUnhandledRPC
+				}
+				var input rpc.ForwardCachedInput
+				if err := json.Unmarshal(raw, &input); err != nil {
+					return nil, err
+				}
+				if len(input.Targets) != 1 || input.Targets[0] != rsFixtureTarget(policyOther, 2, 202) {
+					return nil, fmt.Errorf("policy output lost useful original target: %+v", input)
+				}
+				return &rpc.CachedWriteOutput{Completed: true, DeadlineMS: input.DeadlineMS}, nil
+			})
 			for _, event := range []string{
-				"peer " + policySource + " remote as 65001 state up",
-				rsTransportReceived(100, 5, "10.1.0.0/24"),
-				rsTransportReceived(101, 5, "10.2.0.0/24"),
+				"peer " + policySource + " remote as 65001 state up reason attached peer-owner 1 connection-id 101 destination-session 201 session-generation 3",
+				"peer " + policyOther + " remote as 65002 state up reason attached peer-owner 2 connection-id 102 destination-session 202 session-generation 3",
+				rsTransportReceived(100, 5, receipt, "10.1.0.0/24"),
+				rsTransportReceived(101, 5, receipt, "10.2.0.0/24"),
 			} {
 				require.NoError(t, engine.Deliver(ctx, event))
 			}
@@ -102,9 +117,8 @@ func TestRFC8212SourcePolicyRSTransport(t *testing.T) {
 			}
 			require.Equal(t, rpc.StatusOK, out.Status, out.Error)
 
-			require.NoError(t, engine.Deliver(ctx, rsTransportReceived(102, 7, "10.3.0.0/24")))
-			// A forward still queued when the down arrives is dropped
-			// (processForward), so the down waits for this one to reach the engine.
+			require.NoError(t, engine.Deliver(ctx, rsTransportReceived(102, 7, receipt, "10.3.0.0/24")))
+			// Wait for useful route 102 at the engine before sending its original DOWN.
 			require.Eventually(t, func() bool {
 				for _, call := range engine.RPCs() {
 					if forwardedID.Match(call.Params) {
@@ -113,7 +127,7 @@ func TestRFC8212SourcePolicyRSTransport(t *testing.T) {
 				}
 				return false
 			}, 10*time.Second, 10*time.Millisecond)
-			require.NoError(t, engine.Deliver(ctx, "peer "+policySource+" remote as 65001 state down"))
+			require.NoError(t, engine.Deliver(ctx, "peer "+policySource+" remote as 65001 state down peer-owner 1 connection-id 101 destination-session 201 session-generation 3"))
 			departure := rsTransportDeparture(t, engine)
 			require.Contains(t, departure, "10.3.0.0/24", "the route admitted after the change departs")
 			if finalize {

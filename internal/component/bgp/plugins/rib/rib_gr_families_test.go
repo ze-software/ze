@@ -23,12 +23,18 @@ func TestGRReceivedFamilyRetentionAndLLGRScope(t *testing.T) {
 			t.Run(scope.name+map[bool]string{false: "/json", true: "/structured"}[structured], func(t *testing.T) {
 				r := setupGRTestRIB(t)
 				peer := netip.MustParseAddr("192.0.2.1")
-				other := netip.MustParseAddr("192.0.2.2")
 				destination := netip.MustParseAddr("192.0.2.3")
-				r.ribOut[destination] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+				r.peerMeta[3] = &peerMetadata{Address: destination}
+				r.ribOut[3] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 					family.IPv4Unicast: {"10.0.0.0/24": {Prefix: "10.0.0.0/24", NextHop: "192.0.2.1", SourcePeer: peer.String()}},
 					family.IPv6Unicast: {"2001:db8::/32": {Prefix: "2001:db8::/32", NextHop: "::1", SourcePeer: peer.String()}},
 				})
+				for _, routes := range r.ribOut[3] {
+					for key, entry := range routes {
+						entry.SourceOwner = 1
+						routes[key] = entry
+					}
+				}
 				t.Cleanup(func() {
 					for _, routes := range r.bgpPeers {
 						routes.Release()
@@ -41,7 +47,8 @@ func TestGRReceivedFamilyRetentionAndLLGRScope(t *testing.T) {
 						}
 					}
 				})
-				r.peerUp[peer] = true
+				r.peerUp[1] = true
+				r.peerMeta[1].Session = 11
 				args := append([]string{peer.String()}, scope.families...)
 				if _, _, err := r.handleCommand("request bgp rib retain-routes", "*", args); err != nil {
 					t.Fatal(err)
@@ -50,14 +57,14 @@ func TestGRReceivedFamilyRetentionAndLLGRScope(t *testing.T) {
 					t.Fatal(err)
 				}
 				if structured {
-					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
+					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateDown})
 				} else {
-					r.handleState(&Event{Peer: mustMarshal(t, map[string]any{"remote": map[string]any{"address": peer.String()}}), State: "down"})
+					r.handleState(&Event{PeerOwner: 1, DestinationSession: 11, Peer: mustMarshal(t, map[string]any{"remote": map[string]any{"address": peer.String()}}), State: "down"})
 				}
 				if _, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{peer.String(), "0", "2", "ipv4/unicast"}); err != nil {
 					t.Fatal(err)
 				}
-				received := r.bgpPeers[peer]
+				received := r.bgpPeers[1]
 				if received == nil {
 					t.Fatal("retained source inventory lost at DOWN")
 				}
@@ -72,14 +79,14 @@ func TestGRReceivedFamilyRetentionAndLLGRScope(t *testing.T) {
 				if found && ipv6.StaleLevel != 1 {
 					t.Fatal("IPv4 LLGR changed another family's stale level")
 				}
-				if r.bgpPeers[other].StaleCount() != 0 {
+				if r.bgpPeers[2].StaleCount() != 0 {
 					t.Fatal("another source was marked stale")
 				}
-				sent4 := r.ribOut[destination][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
+				sent4 := r.ribOut[3][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
 				if sent4.StaleLevel != 2 {
 					t.Fatal("selected sent family did not enter LLGR")
 				}
-				sent6, found := r.ribOut[destination][family.IPv6Unicast][ribOutKey{Prefix: netip.MustParsePrefix("2001:db8::/32")}]
+				sent6, found := r.ribOut[3][family.IPv6Unicast][ribOutKey{Prefix: netip.MustParsePrefix("2001:db8::/32")}]
 				if found != scope.keepIPv6 {
 					t.Fatal("sent ownership differs from retained family scope")
 				}

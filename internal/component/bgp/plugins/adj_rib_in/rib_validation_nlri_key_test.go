@@ -39,13 +39,13 @@ var nlriKeyVPNWithdrawal = []byte{0x70, 0x80, 0x00, 0x00, 0x00, 0x00, 0xfd, 0xe8
 func storeNLRIKeyVPN(t *testing.T, r *AdjRIBInManager, source netip.Addr) compactRouteKey {
 	t.Helper()
 	r.mu.Lock()
-	r.installComplexNLRIs(source, nlriKeyVPN, nlriKeyVPNWire, false, "40010100", "0a000001", 100, 5, 1)
+	r.installComplexNLRIs(receivedPeer{address: source, owner: 1}, nlriKeyVPN, nlriKeyVPNWire, false, "40010100", "0a000001", 100, 5, 1, 41, 0)
 	key, err := r.routeKeyFromNLRI(nlriKeyVPN, nlriKeyVPNWire, 0, false)
 	r.mu.Unlock()
 	require.NoError(t, err)
-	_, stored := r.ribIn[source].Get(key)
+	_, stored := r.ribIn[receivedPeer{address: source, owner: 1}].Get(key)
 	require.True(t, stored, "the VPN route is stored under its NLRI identity")
-	r.peerUp[source] = true
+	r.recordPeerState(source, true, 1, 41)
 	return key
 }
 
@@ -122,7 +122,7 @@ func TestValidationChangeVPNWithdrawalKeyResolves(t *testing.T) {
 
 	bus.routes = nil
 	r.mu.Lock()
-	r.removeComplexNLRIs(source, nlriKeyVPN, nlriKeyVPNWithdrawal, false)
+	r.removeComplexNLRIs(receivedPeer{address: source, owner: 1}, nlriKeyVPN, nlriKeyVPNWithdrawal, false, 41, 101)
 	r.unlockValidation()
 	withdrawn := emittedFor(t, bus, nlriKeyVPN)
 	requireResolves(t, withdrawn, key)
@@ -131,7 +131,7 @@ func TestValidationChangeVPNWithdrawalKeyResolves(t *testing.T) {
 	key = storeNLRIKeyVPN(t, r, source)
 	bus.routes = nil
 	r.mu.Lock()
-	r.removePeerInstalled(source)
+	r.removePeerInstalled(receivedPeer{address: source, owner: 1})
 	r.unlockValidation()
 	dropped := emittedFor(t, bus, nlriKeyVPN)
 	requireResolves(t, dropped, key)

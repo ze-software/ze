@@ -38,7 +38,7 @@ func TestRIBShutdownReleasesOriginalSourceReferences(t *testing.T) {
 				out = transportPhase(t, ctx, engine, transportRequest(t, rpc.SourcePolicyApply, 6))
 				require.Equal(t, rpc.StatusOK, out.Status, out.Error)
 				r.peerMu.RLock()
-				require.NotEmpty(t, r.sourcePolicy[netip.MustParseAddr(transportSource)].sent,
+				require.NotEmpty(t, r.sourcePolicy[sourcePolicyPeerOwner].sent,
 					"an applied transaction must still own its removed sent entry")
 				for _, routes := range r.bgpPeers {
 					retained = append(retained, routes)
@@ -74,6 +74,7 @@ func TestRIBShutdownJoinsReplacedGRCallback(t *testing.T) {
 	defer cancel()
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.151")
+	r.peerMeta[701] = &peerMetadata{Address: peer, Session: 1}
 	entered, release := make(chan struct{}), make(chan struct{})
 	closing := make(chan struct{})
 	r.backgroundCancel = func() { close(closing) }
@@ -82,7 +83,7 @@ func TestRIBShutdownJoinsReplacedGRCallback(t *testing.T) {
 	old, current := &peerGRState{}, &peerGRState{}
 	r.peerMu.Lock()
 	r.startGRExpiryLocked(old, time.Nanosecond, func() { close(entered); <-release })
-	r.grState[peer] = old
+	r.grState[701] = old
 	r.peerMu.Unlock()
 	select {
 	case <-entered:
@@ -92,7 +93,7 @@ func TestRIBShutdownJoinsReplacedGRCallback(t *testing.T) {
 	r.peerMu.Lock()
 	r.stopGRExpiryLocked(old)
 	r.startGRExpiryLocked(current, time.Hour, func() { t.Error("a canceled GR timer ran") })
-	r.grState[peer] = current
+	r.grState[701] = current
 	r.peerMu.Unlock()
 	stopped := make(chan struct{})
 	go func() { r.shutdownReceivedSources(); close(stopped) }()
@@ -128,7 +129,7 @@ func TestRIBShutdownJoinsReadersBeforeSourceRelease(t *testing.T) {
 	f := newSourceFailureFixture(t)
 	r, s := f.r, f.r.sourceLeases
 	peer := netip.MustParseAddr("192.0.2.152")
-	ref, err := s.acquire(t.Context(), peer, 701, 81)
+	ref, err := s.acquire(t.Context(), peer, 701, 81, 41)
 	require.NoError(t, err)
 	entry := storage.NewRouteEntry()
 	entry.SetSourceReference(ref)
@@ -136,7 +137,7 @@ func TestRIBShutdownJoinsReadersBeforeSourceRelease(t *testing.T) {
 	routes.InsertEntry(family.IPv4Unicast, entry, 0, 0, []byte{24, 198, 18, 152})
 	entry.Release()
 	ref.Release()
-	r.bgpPeers[peer] = routes
+	r.bgpPeers[701] = routes
 	ctx, cancel := context.WithCancel(work)
 	r.backgroundCancel = cancel
 	r.backgroundWG.Add(1)
@@ -169,7 +170,7 @@ func TestRIBShutdownJoinsReadersBeforeSourceRelease(t *testing.T) {
 		t.Fatal("shutdown did not finish after the reader returned")
 	}
 	require.Zero(t, ref.References())
-	_, err = s.acquire(t.Context(), peer, 701, 82)
+	_, err = s.acquire(t.Context(), peer, 701, 82, 41)
 	require.Error(t, err, "late intake must be refused before any new source authority is requested")
 	require.Empty(t, s.leases)
 	r.shutdownReceivedSources() // Repeated lifecycle cleanup owns no second release.
@@ -179,21 +180,21 @@ func TestRIBSourceLeaseCachedIntakeWakesOnlyOnChange(t *testing.T) {
 	f := newSourceFailureFixture(t)
 	s := f.r.sourceLeases
 	peer := netip.MustParseAddr("192.0.2.153")
-	first, err := s.acquire(t.Context(), peer, 701, 83)
+	first, err := s.acquire(t.Context(), peer, 701, 83, 41)
 	require.NoError(t, err)
 	require.Empty(t, s.wake, "a live new lease owes no settlement")
 	for range 128 {
-		ref, acquireErr := s.acquire(t.Context(), peer, 701, 83)
+		ref, acquireErr := s.acquire(t.Context(), peer, 701, 83, 41)
 		require.NoError(t, acquireErr)
 		ref.Release()
 	}
 	require.Empty(t, s.wake, "cached UPDATE intake must not scan all source sessions")
-	s.forgetAdmission(peer)
+	s.forgetAdmission(701)
 	require.Empty(t, s.wake, "clearing no fault changes nothing")
-	s.setAdmission(peer, errors.New("controlled admission failure"))
+	s.setAdmission(701, errors.New("controlled admission failure"))
 	require.Len(t, s.wake, 1)
 	<-s.wake
-	second, err := s.acquire(t.Context(), peer, 701, 83)
+	second, err := s.acquire(t.Context(), peer, 701, 83, 41)
 	require.NoError(t, err)
 	require.Len(t, s.wake, 1, "clearing a real warning must wake its report owner")
 	<-s.wake
@@ -208,11 +209,12 @@ func TestRIBSourceLeaseFailureProjectionIsStable(t *testing.T) {
 	f := newSourceFailureFixture(t)
 	s := f.r.sourceLeases
 	peer := netip.MustParseAddr("192.0.2.154")
-	s.admission[peer] = errors.New("admission")
-	s.leases[11] = &ribSourceLease{peer: peer, failure: errors.New("receipt 11")}
-	s.leases[2] = &ribSourceLease{peer: peer, failure: errors.New("receipt 2")}
+	f.r.peerMeta[701] = &peerMetadata{Address: peer}
+	s.admission[701] = errors.New("admission")
+	s.leases[11] = &ribSourceLease{peer: peer, peerOwner: 701, failure: errors.New("receipt 11")}
+	s.leases[2] = &ribSourceLease{peer: peer, peerOwner: 701, failure: errors.New("receipt 2")}
 	for range 128 {
-		require.EqualError(t, s.failures()[peer], "admission\nreceipt 2\nreceipt 11",
+		require.EqualError(t, s.failures()[701], "admission\nreceipt 2\nreceipt 11",
 			"unchanged failures must not generate a new report because map iteration changed")
 	}
 }
@@ -249,7 +251,7 @@ func TestRIBShutdownPreservesIndependentSharedPools(t *testing.T) {
 	require.Greater(t, after[0].revision, before[0].revision)
 	require.Equal(t, before[0].route.Attributes, after[0].route.Attributes)
 	require.Equal(t, uint64(92), after[0].route.SourceReceipt)
-	require.Positive(t, other.bgpPeers[peer].Len())
+	require.Positive(t, other.bgpPeers[701].Len())
 	other.shutdownReceivedSources()
 	require.Zero(t, ref.References(), "B returns its reference at its own shutdown only")
 }

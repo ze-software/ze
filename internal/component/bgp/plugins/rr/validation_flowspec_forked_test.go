@@ -34,7 +34,7 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
+	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), PeerOwner: 701, ConnectionID: 41, Family: fam,
 		NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
 		0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
@@ -67,7 +67,7 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 			}
 			switch query.Operation {
 			case ribevents.FlowSpecPathOf:
-				answer.Results[i] = ribevents.FlowSpecResult{Verdict: true, Path: ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42}}
+				answer.Results[i] = ribevents.FlowSpecResult{Verdict: true, Path: ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42, SourceReceipt: 70, SourcePolicyEpoch: 5}}
 			case ribevents.FlowSpecEligible, ribevents.FlowSpecPresent:
 				answer.Results[i].Verdict = true
 			case ribevents.FlowSpecRedirect:
@@ -79,15 +79,28 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 		}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: data}, nil
 	})
-	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+	bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+		destination, routes := input.Destination, input.Routes
 		if destination != target || len(routes) != 1 || routes[0].SourcePeer != source ||
 			routes[0].NLRIHex != "0501180a0000" || routes[0].Withdraw {
 			t.Errorf("wrong FlowSpec replay: %s %+v", destination, routes)
 		}
 		delivered = append(delivered, "rule-"+strconv.FormatUint(routes[0].MsgID, 10))
-		return nil
+		return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 	})
 	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+		if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+			return result, err
+		}
+		if method == rpc.MethodDispatchCommand {
+			var ready rpc.DispatchCommandInput
+			if err := json.Unmarshal(params, &ready); err != nil {
+				return nil, err
+			}
+			delivered = append(delivered, "ready")
+			done <- struct{}{}
+			return json.Marshal(rpc.DispatchCommandOutput{Status: statusDone, DestinationOwner: ready.DestinationOwner, DestinationSession: ready.DestinationSession, DeadlineMS: ready.DeadlineMS})
+		}
 		var input rpc.UpdateRouteInput
 		if err := json.Unmarshal(params, &input); err != nil {
 			return nil, err
@@ -105,10 +118,12 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
 	})
 	bridge.SetReady()
-	rr := &routeReflector{plugin: plugin, peers: map[string]*peerState{
-		source: {Address: source, Up: true},
-		target: {Address: target, Families: map[family.Family]bool{fam: true}},
-	}}
+	original := rrOriginalFixture(t, source, 701, 41)
+	recipient := rrOriginalFixture(t, target, 702, 42)
+	rr := &routeReflector{plugin: plugin, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+	rrFixtureStart(t, rr, original, 70, 7, 141)
+	rr.peers[recipient] = &peerState{Identity: recipient, Address: target, Families: map[family.Family]bool{fam: true}}
+	t.Cleanup(func() { rr.replays.stop() })
 	t.Cleanup(ribevents.RegisterGateDispatch(rr.dispatchCommand))
 
 	payload, err := json.Marshal(ribevents.FlowSpecGateState{Command: gateCommand})
@@ -121,7 +136,7 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 	}
 	rr.dispatchText(string(envelope))
 
-	rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, State: rpc.SessionStateUp, InitialReplay: 17})
+	rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

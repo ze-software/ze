@@ -88,7 +88,7 @@ func TestBlackholeROAChangeReevaluatesEligibility(t *testing.T) {
 	rp.perPeerActions.Store(&policies)
 	rp.cache.Replace([]VRP{makeVRP("10.0.0.0/24", 24, 65001)})
 	rp.validateNLRIs("192.0.2.50", "", "", 65001, 71, "ipv4/unicast",
-		[]byte{32, 10, 0, 0, 1}, false, false, 65001, false, aspaStateNone, true)
+		[]byte{32, 10, 0, 0, 1}, false, false, 65001, false, aspaStateNone, true, rpkiSource{}, false)
 	initial := rp.buildDecisions(drainRequests(rp.validateCh))
 	require.Len(t, initial, 1)
 	assert.True(t, initial[0].Accept)

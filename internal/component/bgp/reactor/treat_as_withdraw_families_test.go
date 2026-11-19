@@ -104,7 +104,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesDispatchesBoth(t *testing.T) {
 	defer cleanup()
 
 	var dispatched [][]byte
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
@@ -246,7 +246,7 @@ func TestSessionRFC7606TreatAsWithdrawExtraFamilyForwardCacheEligible(t *testing
 		buf     BufHandle
 	}
 	var captured []capture
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
@@ -311,7 +311,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesEntersForwardCache(t *testing.T
 			received++
 		},
 	})
-	session.onMessageReceived = reactor.notifyMessageReceiver
+	session.onMessageReceived = reactor.capturedMessageReceiver
 
 	update := buildTwoFamilyTreatAsWithdrawUpdate()
 	go func() {

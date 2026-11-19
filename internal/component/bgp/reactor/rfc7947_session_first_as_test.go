@@ -96,7 +96,7 @@ func firstASSession(t *testing.T, settings *PeerSettings, peerCaps, pluginCaps [
 func firstASReceive(t *testing.T, s *Session, client net.Conn, body []byte) *wireu.WireUpdate {
 	t.Helper()
 	var received []*wireu.WireUpdate
-	s.SetMessageCallback(func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+	s.SetMessageCallback(func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64,
 	) bool {

@@ -54,11 +54,11 @@ func framedKey(pathID uint32, key []byte) []byte {
 
 // newOpaqueAddPathPeer registers an iBGP peer whose fam is stored with
 // ADD-PATH.
-func newOpaqueAddPathPeer(r *RIBManager, peer netip.Addr, fam family.Family) *storage.PeerRIB {
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
+func newOpaqueAddPathPeer(r *RIBManager, owner uint64, peer netip.Addr, fam family.Family) *storage.PeerRIB {
+	r.peerMeta[owner] = &peerMetadata{Address: peer, PeerASN: 65000, LocalASN: 65000}
 	rib := storage.NewPeerRIB(peer.String())
 	rib.SetAddPath(fam, true)
-	r.bgpPeers[peer] = rib
+	r.bgpPeers[owner] = rib
 	return rib
 }
 
@@ -84,7 +84,7 @@ func TestAddPathOpaqueOneElectionPerRoute(t *testing.T) {
 	for _, tc := range opaqueFamilyCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newTestRIBManagerWithBus(newTestEventBus())
-			rib := newOpaqueAddPathPeer(r, netip.MustParseAddr("192.0.2.31"), tc.fam)
+			rib := newOpaqueAddPathPeer(r, 1, netip.MustParseAddr("192.0.2.31"), tc.fam)
 
 			rib.Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), framedKey(7, tc.key))
 			first, ok := r.checkBestPathChange(tc.fam, framedKey(7, tc.key), true, nil)
@@ -121,10 +121,10 @@ func TestAddPathOpaqueMixedModeMeetInOneElection(t *testing.T) {
 			r := newTestRIBManagerWithBus(newTestEventBus())
 			addPathPeer := netip.MustParseAddr("192.0.2.31")
 			plainPeer := netip.MustParseAddr("192.0.2.1")
-			newOpaqueAddPathPeer(r, addPathPeer, tc.fam).Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), framedKey(7, tc.key))
-			r.peerMeta[plainPeer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
-			r.bgpPeers[plainPeer] = storage.NewPeerRIB(plainPeer.String())
-			r.bgpPeers[plainPeer].Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 9}, 10, 500), tc.key)
+			newOpaqueAddPathPeer(r, 1, addPathPeer, tc.fam).Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), framedKey(7, tc.key))
+			r.peerMeta[2] = &peerMetadata{Address: plainPeer, PeerASN: 65000, LocalASN: 65000}
+			r.bgpPeers[2] = storage.NewPeerRIB(plainPeer.String())
+			r.bgpPeers[2].Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 9}, 10, 500), tc.key)
 
 			assert.Len(t, gatherCandidatesHeld(t, r, tc.fam, framedKey(7, tc.key), true), 2, "framed trigger")
 			assert.Len(t, gatherCandidatesHeld(t, r, tc.fam, tc.key, false), 2, "plain trigger")
@@ -151,7 +151,7 @@ func TestAddPathOpaqueWithdrawalKeepsOrPromotes(t *testing.T) {
 	for _, tc := range opaqueFamilyCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newTestRIBManagerWithBus(newTestEventBus())
-			rib := newOpaqueAddPathPeer(r, netip.MustParseAddr("192.0.2.31"), tc.fam)
+			rib := newOpaqueAddPathPeer(r, 1, netip.MustParseAddr("192.0.2.31"), tc.fam)
 			rib.Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 7}, 10, 100), framedKey(7, tc.key))
 			r.checkBestPathChange(tc.fam, framedKey(7, tc.key), true, nil)
 			rib.Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 9}, 20, 100), framedKey(9, tc.key))

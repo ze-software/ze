@@ -40,7 +40,7 @@ func TestGateQueryAnnouncesCurrentValidationGate(t *testing.T) {
 			defer cancel()
 
 			engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
-			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)))
 			require.NotEmpty(t, gateEmits(t, engine, ribevents.EventGateQuery),
 				"the store asks the gate owners once its subscriptions are live")
 

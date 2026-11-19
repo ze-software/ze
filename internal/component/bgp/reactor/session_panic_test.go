@@ -60,7 +60,7 @@ func readPanicSession(t *testing.T, coalesce bool) {
 	// Only the received UPDATE panics: the callback also sees the NOTIFICATION
 	// the boundary sends (DirectionSent), and a panic there would be a second
 	// defect in the teardown, not the read-path one under test.
-	session.onMessageReceived = func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if kind != msgtype.TypeUPDATE || direction != rpc.DirectionReceived {
@@ -171,7 +171,7 @@ func TestSessionReadPanicWriteLockHeld(t *testing.T) {
 	client, wire, drainErr := pipeSession(t, session)
 	defer func() { _ = client.Close() }()
 
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		panic("BUG: injected read-path panic")
@@ -240,13 +240,13 @@ func TestPeerReadPanicIsolation(t *testing.T) {
 	// the pipe's write-to-read hand-off orders it before the read goroutine's use.
 	sessionA := a.peer.currentSession()
 	forward := sessionA.onMessageReceived
-	sessionA.onMessageReceived = func(addr netip.Addr, kind msgtype.MessageType, raw []byte,
+	sessionA.onMessageReceived = func(captured *Session, addr netip.Addr, kind msgtype.MessageType, raw []byte,
 		update *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, meta map[string]any, source string, sourceID uint64) bool {
 		if kind == msgtype.TypeUPDATE && direction == rpc.DirectionReceived {
 			panic("BUG: injected read-path panic on peer A")
 		}
-		return forward(addr, kind, raw, update, ctxID, direction, buf, meta, source, sourceID)
+		return forward(captured, addr, kind, raw, update, ctxID, direction, buf, meta, source, sourceID)
 	}
 	panicsBefore, _ := bgpPanics().guard.Panics("read")
 

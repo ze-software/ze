@@ -47,14 +47,16 @@ var (
 	agreedBlackhole = []attribute.Community{attribute.CommunityBlackhole}
 )
 
+const blackholePeerOwner uint64 = 1
+
 // blackholeRIB builds a RIBManager with one peer, a Loc-RIB wired in, and the
 // given blackhole configuration for that peer.
 func blackholeRIB(t *testing.T, peer netip.Addr, cfg blackholeConfig) (*RIBManager, *locrib.RIB) {
 	t.Helper()
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
+	r.peerMeta[blackholePeerOwner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
+	r.bgpPeers[blackholePeerOwner] = storage.NewPeerRIB(peer.String())
 	if cfg.hasAnyRule() {
 		m := map[configjson.PeerConfigKey]blackholeConfig{{ID: peer.String()}: cfg}
 		r.blackholeCfg.Store(&m)
@@ -73,17 +75,17 @@ func blackholeMemberRIB(t *testing.T, peer netip.Addr, group string,
 	t.Helper()
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000, GroupName: group}
-	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
+	r.peerMeta[blackholePeerOwner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000, GroupName: group}
+	r.bgpPeers[blackholePeerOwner] = storage.NewPeerRIB(peer.String())
 	r.blackholeCfg.Store(&rules)
 	return r, loc
 }
 
-// announce inserts one route from the peer and returns the best-path change.
-func announce(t *testing.T, r *RIBManager, peer netip.Addr, nlri, attrs []byte) (bestChangeEntry, bool) {
+// announce inserts one route into the named source store and returns its best-path change.
+func announce(t *testing.T, r *RIBManager, owner uint64, nlri, attrs []byte) (bestChangeEntry, bool) {
 	t.Helper()
 	fam := family.Family{AFI: 1, SAFI: 1}
-	r.bgpPeers[peer].Insert(fam, attrs, nlri)
+	r.bgpPeers[owner].Insert(fam, attrs, nlri)
 	return r.checkBestPathChange(fam, nlri, false, nil)
 }
 
@@ -112,7 +114,7 @@ func TestBlackholeRouteTypeStampedOnBestPath(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(32, 10, 0, 0, 1),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -136,7 +138,7 @@ func TestBlackholeNotStampedWithoutAgreement(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(32, 10, 0, 0, 1),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -166,7 +168,7 @@ func TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists(t *testi
 	})
 	require.NotNil(t, r.blackholeCfg.Load(), "the peer must be IN the config map for this case to bite")
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(32, 10, 0, 0, 1),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -191,7 +193,7 @@ func TestBlackholeNotStampedOutsideAuthorization(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(32, 198, 51, 100, 1),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -211,7 +213,7 @@ func TestBlackholeNotStampedWithoutTheCommunity(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(32, 10, 0, 0, 1),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, noExportValue))
 
@@ -235,11 +237,11 @@ func TestBlackholeStampedOnCommunityOnlyReannounce(t *testing.T) {
 	nlri := ipv4Prefix(32, 10, 0, 0, 1)
 	pfx := netip.MustParsePrefix("10.0.0.1/32")
 
-	first, ok := announce(t, r, peer, nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}))
+	first, ok := announce(t, r, blackholePeerOwner, nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}))
 	require.True(t, ok, "first announce not detected")
 	require.Equal(t, routetype.Type(0), first.RouteType)
 
-	second, ok := announce(t, r, peer, nlri,
+	second, ok := announce(t, r, blackholePeerOwner, nlri,
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
 	assert.True(t, ok,
@@ -260,12 +262,12 @@ func TestBlackholeClearedWhenCommunityRemoved(t *testing.T) {
 	nlri := ipv4Prefix(32, 10, 0, 0, 1)
 	pfx := netip.MustParsePrefix("10.0.0.1/32")
 
-	_, ok := announce(t, r, peer, nlri,
+	_, ok := announce(t, r, blackholePeerOwner, nlri,
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 	require.True(t, ok)
 	require.Equal(t, routetype.Blackhole, blackholeLocRIBType(t, loc, pfx))
 
-	change, ok := announce(t, r, peer, nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}))
+	change, ok := announce(t, r, blackholePeerOwner, nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}))
 
 	assert.True(t, ok, "removing the community was suppressed: the discard is permanent")
 	assert.Equal(t, routetype.Type(0), change.RouteType)
@@ -294,14 +296,14 @@ func TestBlackholeRemovedWhenPrefixWithdrawn(t *testing.T) {
 	nlri := ipv4Prefix(32, 10, 0, 0, 1)
 	pfx := netip.MustParsePrefix("10.0.0.1/32")
 
-	_, ok := announce(t, r, peer, nlri,
+	_, ok := announce(t, r, blackholePeerOwner, nlri,
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 	require.True(t, ok)
 	require.Equal(t, routetype.Blackhole, blackholeLocRIBType(t, loc, pfx))
 
 	// The withdraw: the peer's route is gone, and the best path is recomputed
 	// with no candidate left.
-	require.True(t, r.bgpPeers[peer].Remove(fam, nlri), "the peer route was not there to withdraw")
+	require.True(t, r.bgpPeers[blackholePeerOwner].Remove(fam, nlri), "the peer route was not there to withdraw")
 	change, ok := r.checkBestPathChange(fam, nlri, false, nil)
 
 	require.True(t, ok, "the withdraw produced no best-path change: the FIB is never told")
@@ -340,7 +342,7 @@ func TestBlackholeRuleForDynamicGroup(t *testing.T) {
 		r, loc := blackholeMemberRIB(t, member, "ix",
 			map[configjson.PeerConfigKey]blackholeConfig{configjson.GroupKey("ix"): groupRule})
 
-		change, ok := announce(t, r, member, nlri,
+		change, ok := announce(t, r, blackholePeerOwner, nlri,
 			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
 		require.True(t, ok, "best-path change not detected")
@@ -360,7 +362,7 @@ func TestBlackholeRuleForDynamicGroup(t *testing.T) {
 		r, loc := blackholeMemberRIB(t, member, "",
 			map[configjson.PeerConfigKey]blackholeConfig{configjson.GroupKey("ix"): groupRule})
 
-		change, ok := announce(t, r, member, nlri,
+		change, ok := announce(t, r, blackholePeerOwner, nlri,
 			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
 		require.True(t, ok)
@@ -380,7 +382,7 @@ func TestBlackholeRuleForDynamicGroup(t *testing.T) {
 			}},
 		})
 
-		change, ok := announce(t, r, member, nlri,
+		change, ok := announce(t, r, blackholePeerOwner, nlri,
 			blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
 		require.True(t, ok)

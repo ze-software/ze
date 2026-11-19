@@ -83,9 +83,9 @@ func TestRIBReselectOnRuleChange(t *testing.T) {
 	wirePrefix := ipv4Prefix(24, 10, 30, 0)
 	for i, text := range []string{"192.0.2.1", "192.0.2.2"} {
 		peer := netip.MustParseAddr(text)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+		r.peerMeta[uint64(i+1)] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 		routes := storage.NewPeerRIB(text)
-		r.bgpPeers[peer] = routes
+		r.bgpPeers[uint64(i+1)] = routes
 		t.Cleanup(routes.Release)
 		routes.Insert(family.IPv4Unicast, aigpSelectionAttrs([4]byte{198, 51, 100, byte(i + 1)}, nil, 100, 1), wirePrefix)
 	}

@@ -123,7 +123,8 @@ func TestShowPipelineWalkSurvivesConcurrentUpdates(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	nlris := seedShowWalkRIB(t, peerRIB)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	walkBesideRIBWriter(t, peerRIB, nlris, func() {
 		status, _, err := r.handleCommand("show bgp rib", "*", nil)

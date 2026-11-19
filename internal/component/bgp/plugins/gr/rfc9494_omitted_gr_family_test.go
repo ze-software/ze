@@ -37,28 +37,28 @@ func TestLLGROmittedGRFamilyRetainsRealRIB(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					gp, rib := newGRWithRealRIB(t)
-					gp.peerCaps[testPeer] = testCap(6)
+					gp.peerCaps[rib.source.owner] = testCap(6)
 					if conventional {
-						gp.peerCaps[testPeer] = testCap(6, famIPv6)
-						rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+						gp.peerCaps[rib.source.owner] = testCap(6, famIPv6)
+						rib.receivedIPv6(grReceivedAttrs)
 						require.Len(t, rib.routes("2001:db8::/32"), 1)
 					}
-					gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+					gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 						{Family: family.IPv4Unicast, ForwardState: true, LLST: 2},
 						{Family: family.IPv6Unicast, ForwardState: true, LLST: 4},
 					}}
-					declareLocalLLGR(gp, family.IPv4Unicast, family.IPv6Unicast)
+					declareLocalLLGR(gp, rib.source, family.IPv4Unicast, family.IPv6Unicast)
 					rib.received("18c63364", grReceivedAttrs)
 					rib.received("18c63365", grReceivedAttrs+"c00804ffff0007")
 
 					// RFC 9494 Section 4.2: omitted GR families have Restart Time zero.
-					rfc9494Down(gp, path.structured)
+					rfc9494Down(t, gp, path.structured)
 					synctest.Wait()
 					rib.down()
 					rib.requireStale("198.51.100.0/24", 2)
 					require.Contains(t, rib.communities("198.51.100.0/24"), uint32(0xffff0006))
 					require.Empty(t, rib.routes("198.51.101.0/24"), "NO_LLGR is purged at immediate LLGR entry")
-					require.True(t, gp.state.familyRetained(testPeer, family.IPv4Unicast))
+					require.True(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast))
 					if conventional {
 						rib.requireStale("2001:db8::/32", 1)
 						require.NotContains(t, rib.communities("2001:db8::/32"), uint32(0xffff0006))
@@ -72,12 +72,12 @@ func TestLLGROmittedGRFamilyRetainsRealRIB(t *testing.T) {
 					<-time.After(time.Nanosecond)
 					synctest.Wait()
 					require.Empty(t, rib.routes("198.51.100.0/24"))
-					require.False(t, gp.state.familyRetained(testPeer, family.IPv4Unicast))
+					require.False(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast))
 					if !conventional {
 						return
 					}
 					rib.requireStale("2001:db8::/32", 1)
-					require.True(t, gp.state.familyRetained(testPeer, family.IPv6Unicast))
+					require.True(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv6Unicast))
 
 					<-time.After(4*time.Second - time.Nanosecond)
 					synctest.Wait()
@@ -92,7 +92,7 @@ func TestLLGROmittedGRFamilyRetainsRealRIB(t *testing.T) {
 					<-time.After(time.Nanosecond)
 					synctest.Wait()
 					require.Empty(t, rib.routes("2001:db8::/32"))
-					require.False(t, gp.state.peerActive(testPeer))
+					require.False(t, gp.state.peerActive(rib.source))
 				})
 			})
 		}
@@ -115,22 +115,22 @@ func TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry(t *testing.T) {
 		t.Run(path.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				gp, rib := newGRWithRealRIB(t)
-				gp.peerCaps[testPeer] = testCap(6, famIPv6)
-				gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+				gp.peerCaps[rib.source.owner] = testCap(6, famIPv6)
+				gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 					{Family: family.IPv4Unicast, ForwardState: true, LLST: 8},
 					{Family: family.IPv6Unicast, ForwardState: true, LLST: 4},
 				}}
-				declareLocalLLGR(gp, family.IPv4Unicast, family.IPv6Unicast)
+				declareLocalLLGR(gp, rib.source, family.IPv4Unicast, family.IPv6Unicast)
 				rib.received("18c63364", grReceivedAttrs)
-				rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+				rib.receivedIPv6(grReceivedAttrs)
 				// RFC 9494 Section 4.2.
-				rfc9494Down(gp, path.structured)
+				rfc9494Down(t, gp, path.structured)
 				synctest.Wait()
 				rib.down()
 				rib.requireStale("198.51.100.0/24", 2)
 				rib.requireStale("2001:db8::/32", 1)
 				gp.state.mu.Lock()
-				timer := gp.state.peers[testPeer].llgrFamilies[family.IPv4Unicast]
+				timer := gp.state.peers[rib.source.owner].llgrFamilies[family.IPv4Unicast]
 				gp.state.mu.Unlock()
 				require.NotNil(t, timer)
 
@@ -148,7 +148,7 @@ func TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry(t *testing.T) {
 				<-time.After(2 * time.Second)
 				synctest.Wait()
 				require.Empty(t, rib.routes("2001:db8::/32"))
-				require.False(t, gp.state.peerActive(testPeer))
+				require.False(t, gp.state.peerActive(rib.source))
 			})
 		})
 	}
@@ -173,24 +173,24 @@ func TestLLGROmittedGRFamilyWithoutLLSTIsRemoved(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				gp, rib := newGRWithRealRIB(t)
-				gp.peerCaps[testPeer] = testCap(6, famIPv6)
+				gp.peerCaps[rib.source.owner] = testCap(6, famIPv6)
 				llst := uint32(2)
 				if local {
 					llst = 0
-					declareLocalLLGR(gp, family.IPv4Unicast)
+					declareLocalLLGR(gp, rib.source, family.IPv4Unicast)
 				}
-				gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+				gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 					{Family: family.IPv4Unicast, ForwardState: true, LLST: llst},
 				}}
 				rib.received("18c63364", grReceivedAttrs)
 				// RFC 9494 Sections 4.2 and 5.
-				rfc9494Down(gp, path.structured)
+				rfc9494Down(t, gp, path.structured)
 				rib.down()
 				require.Empty(t, rib.routes("198.51.100.0/24"))
-				require.False(t, gp.state.familyRetained(testPeer, family.IPv4Unicast))
+				require.False(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast))
 				gp.state.mu.Lock()
 				var timer *time.Timer
-				if state := gp.state.peers[testPeer]; state != nil {
+				if state := gp.state.peers[rib.source.owner]; state != nil {
 					timer = state.llgrFamilies[family.IPv4Unicast]
 				}
 				gp.state.mu.Unlock()
@@ -216,22 +216,25 @@ func TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry(t *testing.
 		t.Run(path.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				gp, rib := newGRWithRealRIB(t)
-				gp.peerCaps[testPeer] = testCap(1, famIPv6)
-				gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+				gp.peerCaps[rib.source.owner] = testCap(1, famIPv6)
+				gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 					{Family: family.IPv4Unicast, ForwardState: true, LLST: 10},
 					{Family: family.IPv6Unicast, ForwardState: true, LLST: 2},
 				}}
-				declareLocalLLGR(gp, family.IPv4Unicast, family.IPv6Unicast)
+				declareLocalLLGR(gp, rib.source, family.IPv4Unicast, family.IPv6Unicast)
 				rib.received("18c63364", grReceivedAttrs)
-				rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+				rib.receivedIPv6(grReceivedAttrs)
 				entered := make(chan struct{})
 				release := make(chan struct{})
 				finished := make(chan struct{})
 				gp.dispatchHook = func(command string, args ...string) {
-					if command == "clear bgp rib out" {
-						if len(args) == 2 && args[1] == "ipv4/unicast" {
-							close(entered)
-							<-release
+					if command == "clear bgp rib out-excluding-owner" {
+						if len(args) == 4 {
+							if args[3] == "ipv4/unicast" {
+								require.Equal(t, []string{"owner", "701", "family", "ipv4/unicast"}, args)
+								close(entered)
+								<-release
+							}
 						}
 					}
 					rib.command(command, args...)
@@ -239,7 +242,7 @@ func TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry(t *testing.
 				go func() {
 					defer close(finished)
 					// RFC 9494 Section 4.2.
-					rfc9494Down(gp, path.structured)
+					rfc9494Down(t, gp, path.structured)
 				}()
 				defer func() {
 					close(release)

@@ -50,9 +50,9 @@ func sourceSettlementFixture(t *testing.T) (*sourcePolicyFixture, *ribSourceLeas
 		owner uint64
 	}{{f.source, 1}, {f.alternative, 2}} {
 		receipt := uint64(index) + 201
-		ref, err := s.acquire(t.Context(), source.peer, source.owner, receipt)
+		ref, err := s.acquire(t.Context(), source.peer, source.owner, receipt, 41)
 		require.NoError(t, err)
-		routes := f.r.bgpPeers[source.peer]
+		routes := f.r.bgpPeers[source.owner]
 		for _, fam := range routes.Families() {
 			routes.ModifyFamilyAll(fam, func(entry *storage.RouteEntry) {
 				entry.SourceReceipt = receipt
@@ -62,7 +62,7 @@ func sourceSettlementFixture(t *testing.T) (*sourcePolicyFixture, *ribSourceLeas
 		ref.Release()
 	}
 	unrelated := netip.MustParseAddr("192.0.2.200")
-	ref, err := s.acquire(t.Context(), unrelated, 3, 900)
+	ref, err := s.acquire(t.Context(), unrelated, 3, 900, 41)
 	require.NoError(t, err)
 	ref.Release()
 	require.ErrorContains(t, s.settle(t.Context()), "unrelated source release")
@@ -105,8 +105,8 @@ func TestRIBSourcePolicySettlementIgnoresOtherSource(t *testing.T) {
 			err := f.r.handleSourcePolicy(ctx, sourcePolicyRequest(t, operation, "source-scope", f.source, 5, next))
 			require.NoError(t, err, "a healthy source's phase must not join another source's release")
 			require.Equal(t, before, blocked.Load(), "source-scoped completion must not retry the unrelated release")
-			require.Positive(t, f.r.bgpPeers[f.alternative].Len(), "the alternative's useful stored route survives")
-			require.ErrorContains(t, s.failures()[netip.MustParseAddr("192.0.2.200")], "unrelated source release")
+			require.Positive(t, f.r.bgpPeers[sourcePolicyAlternativePeerOwner].Len(), "the alternative's useful stored route survives")
+			require.ErrorContains(t, s.failures()[3], "unrelated source release")
 		})
 	}
 }
@@ -116,16 +116,16 @@ func TestRIBSourcePolicySettlementIgnoresOtherSource(t *testing.T) {
 func TestRIBSourceDownSettlementIgnoresOtherSource(t *testing.T) {
 	f, s, blocked := sourceSettlementFixture(t)
 	before := blocked.Load()
-	f.r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: f.source.String(),
+	f.r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: sourcePolicyPeerOwner, DestinationSession: 1, PeerAddress: f.source.String(),
 		State: rpc.SessionStateDown, Reason: rpc.ReasonPeerRemoved})
 	require.Equal(t, before, blocked.Load(), "B's DOWN must not retry A's refused release")
-	require.Nil(t, f.r.bgpPeers[f.source])
-	require.Positive(t, f.r.bgpPeers[f.alternative].Len())
+	require.Nil(t, f.r.bgpPeers[sourcePolicyPeerOwner])
+	require.Positive(t, f.r.bgpPeers[sourcePolicyAlternativePeerOwner].Len())
 	s.mu.Lock()
 	_, retained := s.leases[201]
 	s.mu.Unlock()
 	require.False(t, retained, "DOWN still completes its own final release synchronously")
-	require.ErrorContains(t, s.failures()[netip.MustParseAddr("192.0.2.200")], "unrelated source release")
+	require.ErrorContains(t, s.failures()[3], "unrelated source release")
 }
 
 // TestRIBSourcePurgeSettlementIgnoresOtherSource verifies that completing B's
@@ -139,9 +139,9 @@ func TestRIBSourcePurgeSettlementIgnoresOtherSource(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	require.Equal(t, before, blocked.Load())
-	require.Zero(t, f.r.bgpPeers[f.source].Len())
-	require.Positive(t, f.r.bgpPeers[f.alternative].Len(), "a useful unrelated candidate must stay stored")
-	require.ErrorContains(t, s.failures()[netip.MustParseAddr("192.0.2.200")], "unrelated source release")
+	require.Zero(t, f.r.bgpPeers[sourcePolicyPeerOwner].Len())
+	require.Positive(t, f.r.bgpPeers[sourcePolicyAlternativePeerOwner].Len(), "a useful unrelated candidate must stay stored")
+	require.ErrorContains(t, s.failures()[3], "unrelated source release")
 	s.mu.Lock()
 	_, retained := s.leases[201]
 	s.mu.Unlock()

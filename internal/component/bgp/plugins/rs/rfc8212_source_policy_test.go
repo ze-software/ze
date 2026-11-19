@@ -28,7 +28,7 @@ const (
 
 // policyKey is the withdrawal-map key of an IPv4 unicast prefix.
 func policyKey(prefix string) withdrawalKey {
-	return withdrawalKey{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix(prefix)}
+	return withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix(prefix)}
 }
 
 // newPolicyRouteServer is a route server whose source and other peer are up,
@@ -37,16 +37,16 @@ func policyKey(prefix string) withdrawalKey {
 func newPolicyRouteServer(t *testing.T) (*routeServer, *departureLog) {
 	t.Helper()
 	rs := newTestRouteServer(t)
-	for _, peer := range []string{policySource, policyOther} {
-		rs.peers[peer] = &PeerState{Address: peer, Up: true, StateSeen: true}
+	for index, peer := range []string{policySource, policyOther} {
+		rs.peers[rsFixtureKey(peer, uint64(index+1), uint64(index+101))] = &PeerState{Address: peer, DestinationSession: uint64(index + 201), SessionGeneration: 3, Up: true, StateSeen: true}
 	}
 	rs.withdrawals[policySource] = map[withdrawalKey]withdrawalEntry{
-		policyKey("10.1.0.0/24"): {sourcePolicyEpoch: 5},
-		policyKey("10.2.0.0/24"): {sourcePolicyEpoch: 5},
+		policyKey("10.1.0.0/24"): {owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 5},
+		policyKey("10.2.0.0/24"): {owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 5},
 	}
-	rs.withdrawals[policyOther] = map[withdrawalKey]withdrawalEntry{
-		policyKey("10.1.0.0/24"): {sourcePolicyEpoch: 5},
-	}
+	otherKey := policyKey("10.1.0.0/24")
+	otherKey.owner = 2
+	rs.withdrawals[policyOther] = map[withdrawalKey]withdrawalEntry{otherKey: {owner: 2, connectionID: 102, sourceReceipt: 302, sourcePolicyEpoch: 5}}
 	log := &departureLog{}
 	rs.updateRouteHook = log.record
 	t.Cleanup(rs.stopDepartures)
@@ -132,10 +132,13 @@ func TestRFC8212SourcePolicyRSSettlesSource(t *testing.T) {
 		finished := slowWorkers(t, rs)
 		// Slower than the worker item, so only the departure wait covers it.
 		log.delay = 150 * time.Millisecond
-		require.True(t, rs.enqueueDeparture(policySource, map[withdrawalKey]withdrawalEntry{
-			policyKey("10.9.0.0/24"): {generation: 2},
+		rs.mu.Lock()
+		rs.peers[rsFixtureKey(policySource, 1, 100)] = &PeerState{Address: policySource, StateSeen: true}
+		rs.mu.Unlock()
+		require.True(t, rs.enqueueDeparture(rsFixtureKey(policySource, 1, 100), map[withdrawalKey]withdrawalEntry{
+			policyKey("10.9.0.0/24"): {owner: 1, connectionID: 100, sourceReceipt: 300, generation: 2},
 		}))
-		require.True(t, rs.workers.Dispatch(workerKey{sourcePeer: policySource}, workItem{sourcePeer: policySource}))
+		require.True(t, rs.workers.Dispatch(rsFixtureKey(policySource, 1, 101), workItem{sourcePeer: policySource}))
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyPrepare, 0))
 		require.Equal(t, int32(1), finished.Load(), "the queued item was handled before prepare answered")
 		require.Len(t, log.sent(), 1, "the queued departure was sent before prepare answered")
@@ -144,7 +147,7 @@ func TestRFC8212SourcePolicyRSSettlesSource(t *testing.T) {
 		rs, _ := newPolicyRouteServer(t)
 		finished := slowWorkers(t, rs)
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyPrepare, 0))
-		require.True(t, rs.workers.Dispatch(workerKey{sourcePeer: policySource}, workItem{sourcePeer: policySource}))
+		require.True(t, rs.workers.Dispatch(rsFixtureKey(policySource, 1, 101), workItem{sourcePeer: policySource}))
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyApply, 6))
 		require.Equal(t, int32(1), finished.Load(), "the queued relay was handled before apply answered")
 	})
@@ -153,7 +156,7 @@ func TestRFC8212SourcePolicyRSSettlesSource(t *testing.T) {
 		finished := slowWorkers(t, rs)
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyPrepare, 0))
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyApply, 6))
-		require.True(t, rs.workers.Dispatch(workerKey{sourcePeer: policySource}, workItem{sourcePeer: policySource}))
+		require.True(t, rs.workers.Dispatch(rsFixtureKey(policySource, 1, 101), workItem{sourcePeer: policySource}))
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyAbort, 7))
 		require.Equal(t, int32(1), finished.Load(), "the queued relay was handled before abort answered")
 	})
@@ -169,14 +172,14 @@ func TestRFC8212SourcePolicyRSSettlesSource(t *testing.T) {
 func TestRFC8212SourcePolicyRSPrepareRefusals(t *testing.T) {
 	t.Run("down", func(t *testing.T) {
 		rs, _ := newPolicyRouteServer(t)
-		rs.peers[policySource].Up = false
+		rs.peers[rsFixtureKey(policySource, 1, 101)].Up = false
 		err := policyPhase(t, rs, rpc.SourcePolicyPrepare, 0)
 		require.ErrorContains(t, err, "bgp-rs: source "+policySource+" has no established session")
 		require.ErrorContains(t, policyPhase(t, rs, rpc.SourcePolicyApply, 6), "has no prepared source-policy transaction")
 	})
 	t.Run("stale", func(t *testing.T) {
 		rs, _ := newPolicyRouteServer(t)
-		rs.withdrawals[policySource][policyKey("10.3.0.0/24")] = withdrawalEntry{sourcePolicyEpoch: 9}
+		rs.withdrawals[policySource][policyKey("10.3.0.0/24")] = withdrawalEntry{owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 9}
 		err := policyPhase(t, rs, rpc.SourcePolicyPrepare, 0)
 		require.ErrorContains(t, err, "is older than a route already forwarded")
 		require.ErrorContains(t, err, policySource)
@@ -203,7 +206,7 @@ func TestRFC8212SourcePolicyRSFinalize(t *testing.T) {
 	require.Len(t, rs.withdrawals[policyOther], 1, "the other source keeps its route")
 	require.ErrorContains(t, policyPhase(t, rs, rpc.SourcePolicyAbort, 7), "is finalized")
 
-	rs.handleStateDown(policySource, 3)
+	rs.handleStateDown(rsFixtureKey(policySource, 1, 101), 3)
 	rs.stopDepartures()
 	require.Empty(t, log.sent(), "no departure is owed for finalized routes")
 }
@@ -219,7 +222,7 @@ func TestRFC8212SourcePolicyRSDepartureControl(t *testing.T) {
 	require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyPrepare, 0))
 	require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyApply, 6))
 	require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyAbort, 7))
-	rs.handleStateDown(policySource, 3)
+	rs.handleStateDown(rsFixtureKey(policySource, 1, 101), 3)
 	rs.stopDepartures()
 	sent := strings.Join(log.sent(), "\n")
 	require.Contains(t, sent, "10.1.0.0/24")
@@ -251,7 +254,13 @@ func TestRFC8212SourcePolicyRSAbort(t *testing.T) {
 		rs.withdrawalMu.Unlock()
 		require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyAbort, 7))
 		require.Equal(t, map[string]uint64{"10.1.0.0/24": 7}, sourceEpochs(rs))
-		require.Equal(t, uint64(5), rs.withdrawals[policyOther][policyKey("10.1.0.0/24")].sourcePolicyEpoch)
+		otherKey := policyKey("10.1.0.0/24")
+		otherKey.owner = 2
+		rs.withdrawalMu.Lock()
+		other, exists := rs.withdrawals[policyOther][otherKey]
+		rs.withdrawalMu.Unlock()
+		require.True(t, exists, "the independently owned sibling route remains current")
+		require.Equal(t, uint64(5), other.sourcePolicyEpoch)
 		require.ErrorContains(t, policyPhase(t, rs, rpc.SourcePolicyFinalize, 0), "was not applied")
 	})
 }
@@ -265,7 +274,12 @@ func TestRFC8212SourcePolicyRSAbort(t *testing.T) {
 func TestRFC8212SourcePolicyRSDownDropsTransaction(t *testing.T) {
 	rs, _ := newPolicyRouteServer(t)
 	require.NoError(t, policyPhase(t, rs, rpc.SourcePolicyPrepare, 0))
-	rs.handleStateDown(policySource, 3)
+	rs.mu.RLock()
+	original := rs.peers[rsFixtureKey(policySource, 1, 101)]
+	rs.mu.RUnlock()
+	original.nativeMu.Lock()
+	defer original.nativeMu.Unlock()
+	rs.handleStateDown(rsFixtureKey(policySource, 1, 101), 3)
 	err := policyPhase(t, rs, rpc.SourcePolicyApply, 6)
 	require.ErrorContains(t, err, "bgp-rs: source "+policySource+" has no prepared source-policy transaction")
 }

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -23,23 +25,25 @@ import (
 func TestSentCleanupKeepsReceiptAfterProjectionRemoval(t *testing.T) {
 	r := newTestRIBManager(t)
 	source := netip.MustParseAddr("192.0.2.10")
+	r.peerMeta[101] = &peerMetadata{Address: source}
 	destination := netip.MustParseAddr("192.0.2.20")
 	raw := []byte{24, 192, 0, 2}
-	event := nativeSentEvent(t, destination, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
+	event := nativeSentEvent(t, destination, 201, 101, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
 	event.MsgID = 18446744073709551614
 	r.handleSent(event)
 	r.peerMu.Lock()
-	writes := r.pruneSentSourceLocked(source, nil)
+	writes := r.pruneSentSourceLocked(101, nil)
 	r.peerMu.Unlock()
-	if len(writes) != 1 || len(r.ribOut[destination]) != 0 {
+	if len(writes) != 1 || len(r.ribOut[201]) != 0 {
 		t.Fatalf("cleanup did not remove exactly one projected route: writes=%d", len(writes))
 	}
-	replacement := nativeSentEvent(t, destination, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
+	replacement := nativeSentEvent(t, destination, 201, 101, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
 	replacement.MsgID = 18446744073709551615
 	replacement.RouteMeta["source-peer"] = "192.0.2.11"
+	replacement.RouteMeta[bgptypes.SourceOwnerMeta] = "102"
 	r.handleSent(replacement)
 	t.Cleanup(func() {
-		for _, routes := range r.ribOut[destination] {
+		for _, routes := range r.ribOut[201] {
 			for _, entry := range routes {
 				entry.release()
 			}
@@ -66,19 +70,19 @@ func TestSentReplayGroupsKeepDistinctReceipts(t *testing.T) {
 	r := newTestRIBManager(t)
 	destination := netip.MustParseAddr("192.0.2.20")
 	for i, raw := range [][]byte{{24, 192, 0, 2}, {24, 198, 51, 100}} {
-		event := nativeSentEvent(t, destination, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
+		event := nativeSentEvent(t, destination, 201, 101, family.IPv4Unicast, raw, nativeSentAttrs(), false, false)
 		event.MsgID = uint64(i + 101)
 		r.handleSent(event)
 	}
 	t.Cleanup(func() {
-		for _, routes := range r.ribOut[destination] {
+		for _, routes := range r.ribOut[201] {
 			for _, entry := range routes {
 				entry.release()
 			}
 		}
 	})
 	r.peerMu.RLock()
-	groups := r.collectGroupedRibOutRoutes(destination)
+	groups := r.collectGroupedRibOutRoutes(201)
 	r.peerMu.RUnlock()
 	if len(groups) != 2 {
 		t.Fatalf("replay merged distinct sent owners into %d groups", len(groups))
@@ -120,7 +124,7 @@ func TestSentSourceProvenanceExternalJSON(t *testing.T) {
 			{Family: fam, Ordinal: 0, PathID: 0},
 			{Family: fam, Ordinal: 1, PathID: 4294967295},
 		}}
-	encoded := format.AppendSentMessage(nil, &plugin.PeerInfo{Address: destination}, msg,
+	encoded := format.AppendSentMessage(nil, &plugin.PeerInfo{ConnectionID: 41, Address: destination, PeerOwner: 201}, msg,
 		bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatFull})
 	event, err := parseEvent(encoded)
 	if err != nil {
@@ -128,12 +132,12 @@ func TestSentSourceProvenanceExternalJSON(t *testing.T) {
 	}
 	r.handleSent(event)
 	t.Cleanup(func() {
-		for _, entry := range r.ribOut[destination][fam] {
+		for _, entry := range r.ribOut[201][fam] {
 			entry.release()
 		}
 	})
 	for i, prefix := range []string{"192.0.2.0/24", "198.51.100.0/24"} {
-		entry, exists := r.ribOut[destination][fam][ribOutKey{Prefix: netip.MustParsePrefix(prefix)}]
+		entry, exists := r.ribOut[201][fam][ribOutKey{Prefix: netip.MustParsePrefix(prefix)}]
 		if !exists || entry.SourceOwner != 18446744073709551615 || entry.SourceID != 17 ||
 			entry.SourceMessageID != 81 || !entry.SourceAddPath || entry.LocalOrigin ||
 			entry.SourcePeer != "192.0.2.10" {
@@ -150,8 +154,8 @@ func TestSentSourceProvenanceExternalJSON(t *testing.T) {
 }
 
 func TestInitialReplayReceiptExternalStateJSON(t *testing.T) {
-	encoded := format.AppendStateChange(nil, &plugin.PeerInfo{
-		Address: netip.MustParseAddr("192.0.2.20"), InitialReplay: 18446744073709551615,
+	encoded := format.AppendStateChange(nil, &plugin.PeerInfo{ConnectionID: 41,
+		Address: netip.MustParseAddr("192.0.2.20"), PeerOwner: 201, InitialReplay: 18446744073709551615,
 	}, rpc.SessionStateUp, "", nil, plugin.EncodingJSON)
 	event, err := parseEvent(encoded)
 	if err != nil {
@@ -165,18 +169,16 @@ func TestInitialReplayReceiptExternalStateJSON(t *testing.T) {
 func TestInitialReplayRequiresExactReceivedHistory(t *testing.T) {
 	for _, change := range []string{"unchanged", "new-message", "other-path", "removed", "lost-origin"} {
 		t.Run(change, func(t *testing.T) {
-			r := newTestRIBManager(t)
+			r, _ := sourceLeaseTestRIB(t, true)
 			source := netip.MustParseAddr("192.0.2.10")
 			destination := netip.MustParseAddr("192.0.2.20")
 			fam := family.IPv4Unicast
 			received := storage.NewPeerRIB(source.String())
-			r.bgpPeers[source] = received
-			t.Cleanup(received.Release)
+			r.bgpPeers[101] = received
 			received.SetAddPath(fam, true)
 			raw := []byte{0, 0, 0, 7, 24, 192, 0, 2}
-			received.Insert(fam, nativeSentAttrs(), raw)
-			received.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) { entry.MsgID = 81 })
-			event := nativeSentEvent(t, destination, fam, raw[4:], nativeSentAttrs(), false, false)
+			recoveryStoredPath(t, r, source, 101, 701, fam, nativeSentAttrs(), raw, 81)
+			event := nativeSentEvent(t, destination, 201, 101, fam, raw[4:], nativeSentAttrs(), false, false)
 			event.MsgID = 91
 			event.RouteMeta["source-message-id"] = float64(81)
 			event.RouteMeta["source-id"] = float64(17)
@@ -187,7 +189,7 @@ func TestInitialReplayRequiresExactReceivedHistory(t *testing.T) {
 			}
 			r.handleSent(event)
 			t.Cleanup(func() {
-				for _, entry := range r.ribOut[destination][fam] {
+				for _, entry := range r.ribOut[201][fam] {
 					entry.release()
 				}
 			})
@@ -203,7 +205,7 @@ func TestInitialReplayRequiresExactReceivedHistory(t *testing.T) {
 				received.Remove(fam, raw)
 			}
 			r.peerMu.Lock()
-			groups := r.collectPeerUpReplay(destination, true)
+			groups := r.collectPeerUpReplay(201, true)
 			r.peerMu.Unlock()
 			if change != "unchanged" {
 				if len(groups) != 0 {
@@ -230,13 +232,12 @@ func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
 			for _, stale := range []bool{false, true} {
 				name := strconv.FormatBool(addPath) + "/" + strconv.FormatBool(fingerprintHit) + "/" + strconv.FormatBool(stale)
 				t.Run(name, func(t *testing.T) {
-					r := newTestRIBManager(t)
+					r, _ := sourceLeaseTestRIB(t, true)
 					source := netip.MustParseAddr("192.0.2.10")
 					destination := netip.MustParseAddr("192.0.2.20")
 					fam := family.IPv4Unicast
 					received := storage.NewPeerRIB(source.String())
-					r.bgpPeers[source] = received
-					t.Cleanup(received.Release)
+					r.bgpPeers[101] = received
 					received.SetAddPath(fam, addPath)
 					raw := []byte{24, 192, 0, 2}
 					if addPath {
@@ -247,6 +248,13 @@ func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
 						t.Fatal(err)
 					}
 					defer entry.Release()
+					sourceRef, err := r.sourceLeases.acquire(t.Context(), source, 101, 701, 41)
+					require.NoError(t, err)
+					require.NotNil(t, sourceRef)
+					defer sourceRef.Release()
+					entry.SetSourceReference(sourceRef)
+					entry.SourceReceipt = 701
+					r.peerMeta[101] = &peerMetadata{Address: source}
 					entry.MsgID = 81
 					entry.SourcePolicyEpoch = 21
 					received.InsertEntry(fam, entry, fingerprint, size, raw)
@@ -262,7 +270,7 @@ func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
 					}
 					received.InsertEntry(fam, *retained, fingerprint, size, raw)
 
-					event := nativeSentEvent(t, destination, fam, []byte{24, 192, 0, 2}, nativeSentAttrs(), false, false)
+					event := nativeSentEvent(t, destination, 201, 101, fam, []byte{24, 192, 0, 2}, nativeSentAttrs(), false, false)
 					event.MsgID = 91
 					event.SourcePolicyEpoch = 22
 					if stale {
@@ -276,11 +284,11 @@ func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
 					}
 					r.handleSent(event)
 					t.Cleanup(func() {
-						for _, sent := range r.ribOut[destination][fam] {
+						for _, sent := range r.ribOut[201][fam] {
 							sent.release()
 						}
 					})
-					r.peerUp[destination] = false // A known, re-establishing destination.
+					r.peerUp[201] = false // A known, re-establishing destination.
 					announced := 0
 					r.updateHook = func(command string, _ map[string]any) {
 						if command != "update cursor done" {
@@ -289,7 +297,7 @@ func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
 					}
 					r.dispatchHook = func(string) {}
 					r.handleStructuredState(&rpc.StructuredEvent{
-						PeerAddress: destination.String(), State: rpc.SessionStateUp, InitialReplay: 19,
+						PeerOwner: 201, PeerAddress: destination.String(), DestinationSession: 19, State: rpc.SessionStateUp, InitialReplay: 19,
 					})
 					want := 1
 					if stale {

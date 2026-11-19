@@ -55,7 +55,7 @@ func TestReplayForPeerRelaysTheStoredRoutesItself(t *testing.T) {
 		_ = p.Close()
 	})
 
-	const route = `{"source-peer":"10.0.0.9","family":"ipv4/unicast","nlri-hex":"180a0000"}`
+	const route = `{"source-peer":"10.0.0.9","source-owner":"709","source-connection-id":"49","source-receipt":"70","msg-id":80,"nlri-framing":"prefix-only","family":"ipv4/unicast","nlri-hex":"180a0000"}`
 	pages := map[string]string{
 		"0": `{"routes":[` + route + `,` + route + `],"last-index":4,"more":true}`,
 		"4": `{"routes":[` + route + `],"last-index":5,"more":false}`,
@@ -66,6 +66,9 @@ func TestReplayForPeerRelaysTheStoredRoutesItself(t *testing.T) {
 	var calls []replayDispatchCall
 	var relayed []int
 	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+		if command == "request bgp adj-rib-in test-eligibility" {
+			return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(`{"answers":[true]}`)}, nil
+		}
 		mu.Lock()
 		calls = append(calls, replayDispatchCall{command: command, args: slices.Clone(args), peer: peer})
 		mu.Unlock()
@@ -75,29 +78,29 @@ func TestReplayForPeerRelaysTheStoredRoutesItself(t *testing.T) {
 		}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(page)}, nil
 	})
-	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+	bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+		destination, routes := input.Destination, input.Routes
+		assert.Equal(t, uint64(701), input.DestinationOwner)
+		assert.Equal(t, uint64(141), input.DestinationSession)
 		assert.Equal(t, "10.0.0.1", destination)
 		mu.Lock()
 		relayed = append(relayed, len(routes))
 		mu.Unlock()
-		return nil
+		return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 	})
 	bridge.SetReady()
 
-	rr := &routeReflector{
-		plugin: p,
-		peers: map[string]*peerState{
-			"10.0.0.1": {
-				Address:   "10.0.0.1",
-				Up:        true,
-				ReplayGen: 1,
-				Families:  map[family.Family]bool{},
-			},
-		},
-		withdrawals: make(map[string]map[string]withdrawalInfo),
-	}
+	original := rrOriginalFixture(t, "10.0.0.9", 709, 49)
+	target := rrOriginalFixture(t, "10.0.0.1", 701, 41)
+	rrFixtureLease(bridge)
+	rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo), receiveGate: "request bgp adj-rib-in test-eligibility"}
+	rrFixtureStart(t, rr, original, 70, 7, 149)
+	rrFixtureStart(t, rr, target, 0, 7, 141)
+	rr.peers[target].ReplayGen = 1
+	rr.peers[target].Families = map[family.Family]bool{}
+	rrFixtureInventory(t, rr, original, rpc.StoredRoute{Family: "ipv4/unicast", NLRIHex: "180a0000", SourceReceipt: 70, MsgID: 80})
 
-	rr.replayForPeer("10.0.0.1", 1, 17)
+	rr.replayForPeer(context.Background(), peerTarget{identity: target, session: 141, generation: 1}, 17, make(chan struct{}))
 
 	mu.Lock()
 	defer mu.Unlock()

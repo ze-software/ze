@@ -33,11 +33,11 @@ func addPathKey(pathID uint32) []byte {
 
 // newAddPathPeer registers an iBGP peer whose IPv4 unicast family is stored
 // with ADD-PATH.
-func newAddPathPeer(r *RIBManager, peer netip.Addr) *storage.PeerRIB {
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
+func newAddPathPeer(r *RIBManager, owner uint64, peer netip.Addr) *storage.PeerRIB {
+	r.peerMeta[owner] = &peerMetadata{Address: peer, PeerASN: 65000, LocalASN: 65000}
 	rib := storage.NewPeerRIB(peer.String())
 	rib.SetAddPath(famV4, true)
-	r.bgpPeers[peer] = rib
+	r.bgpPeers[owner] = rib
 	return rib
 }
 
@@ -53,7 +53,7 @@ func TestAddPathUnicastOneElectionPerPrefix(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	peer := netip.MustParseAddr("192.0.2.31")
-	rib := newAddPathPeer(r, peer)
+	rib := newAddPathPeer(r, 1, peer)
 
 	rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), addPathKey(7))
 	first, ok := r.checkBestPathChange(famV4, addPathKey(7), true, nil)
@@ -86,10 +86,10 @@ func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.9"))
 	addPathPeer := netip.MustParseAddr("192.0.2.31")
 	plainPeer := netip.MustParseAddr("192.0.2.1")
-	newAddPathPeer(r, addPathPeer).Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), addPathKey(7))
-	r.peerMeta[plainPeer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
-	r.bgpPeers[plainPeer] = storage.NewPeerRIB(plainPeer.String())
-	r.bgpPeers[plainPeer].Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 9}, 0, 500), []byte{0})
+	newAddPathPeer(r, 1, addPathPeer).Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), addPathKey(7))
+	r.peerMeta[2] = &peerMetadata{Address: plainPeer, PeerASN: 65000, LocalASN: 65000}
+	r.bgpPeers[2] = storage.NewPeerRIB(plainPeer.String())
+	r.bgpPeers[2].Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 9}, 0, 500), []byte{0})
 
 	candidates := gatherCandidatesHeld(t, r, famV4, addPathKey(7), true)
 	require.Len(t, candidates, 1, "only the ADD-PATH peer holds 10.0.0.0/8")
@@ -111,7 +111,7 @@ func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.7"), netip.MustParseAddr("10.0.0.9"))
-	rib := newAddPathPeer(r, netip.MustParseAddr("192.0.2.31"))
+	rib := newAddPathPeer(r, 1, netip.MustParseAddr("192.0.2.31"))
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 
 	rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 9}, 10, 100), addPathKey(9))
@@ -143,7 +143,7 @@ func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 func TestAddPathWithdrawalKeepsOrPromotes(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.7"), netip.MustParseAddr("10.0.0.9"))
-	rib := newAddPathPeer(r, netip.MustParseAddr("192.0.2.31"))
+	rib := newAddPathPeer(r, 1, netip.MustParseAddr("192.0.2.31"))
 	rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 7}, 10, 100), addPathKey(7))
 	r.checkBestPathChange(famV4, addPathKey(7), true, nil)
 	rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 9}, 20, 100), addPathKey(9))

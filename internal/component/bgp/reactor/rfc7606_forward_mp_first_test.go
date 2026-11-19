@@ -63,7 +63,7 @@ func TestForwardMovesTrailingMPAttributeFirstSameContext(t *testing.T) {
 	trailing, leading := fwdMPFirstBodies(t, 65000)
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(trailing, ctxID), message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.21"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.21"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	// Stand in for the caller's adoptFwdHandle: the reorder borrows a read-pool buffer.
 	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
@@ -86,7 +86,7 @@ func TestForwardLeadingMPAttributeKeepsZeroCopy(t *testing.T) {
 	_, leading := fwdMPFirstBodies(t, 65000)
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(leading, ctxID), message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.22"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.22"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Len(t, result.rawBodies, 1)
@@ -106,14 +106,14 @@ func TestForwardMovesTrailingMPAttributeFirstAcrossContexts(t *testing.T) {
 	trailing, leading := fwdMPFirstBodies(t, 200000)
 
 	got, ok := buildFwdBody(wireu.NewWireUpdate(trailing, srcCtxID), message.MaxMsgLen, destCtxID, peer,
-		netip.MustParseAddr("192.0.2.23"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.23"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(got.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, got.rawBodies, "mismatched contexts must not reuse the source bytes")
 	require.Len(t, got.updates, 1)
 
 	want, ok := buildFwdBody(wireu.NewWireUpdate(leading, srcCtxID), message.MaxMsgLen, destCtxID, peer,
-		netip.MustParseAddr("192.0.2.24"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.24"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(want.transcodeBuf)
 	require.True(t, ok)
 	require.Len(t, want.updates, 1)

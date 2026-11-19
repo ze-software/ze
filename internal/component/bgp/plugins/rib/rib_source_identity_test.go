@@ -262,7 +262,7 @@ func (peer sourceIdentityPeer) receive(t *testing.T, r *RIBManager, jsonRail boo
 		RawBytes: body, WireUpdate: wu, AttrsWire: aw}
 	if jsonRail {
 		address := netip.MustParseAddr(sourceIdentityAddress)
-		info := pluginapi.PeerInfo{PeerOwner: peer.owner, Name: peer.name,
+		info := pluginapi.PeerInfo{ConnectionID: 41, PeerOwner: peer.owner, Name: peer.name,
 			Address: address, AddressStr: sourceIdentityAddress,
 			PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, RemotePort: peer.remotePort}
 		encoded := format.AppendMessage(nil, &info, message,
@@ -272,7 +272,7 @@ func (peer sourceIdentityPeer) receive(t *testing.T, r *RIBManager, jsonRail boo
 		r.dispatch(event)
 		return
 	}
-	r.dispatchStructured(&rpc.StructuredEvent{EventType: rpc.EventKindUpdate,
+	r.dispatchStructured(&rpc.StructuredEvent{ConnectionID: 41, EventType: rpc.EventKindUpdate,
 		Direction: rpc.DirectionReceived, PeerOwner: peer.owner,
 		PeerAddress: sourceIdentityAddress, PeerName: peer.name,
 		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, RemotePort: peer.remotePort,

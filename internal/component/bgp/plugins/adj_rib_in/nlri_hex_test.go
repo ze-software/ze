@@ -137,7 +137,7 @@ func TestHandleReceivedStructuredAddPathStoresIdentifier(t *testing.T) {
 		},
 	})
 
-	routes, ok := r.ribIn[netip.MustParseAddr("10.0.0.1")]
+	routes, ok := r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}]
 	require.True(t, ok, "should have peer entry")
 	require.Equal(t, 2, routes.Len(), "two Path Identifiers for one prefix are two paths")
 
@@ -164,8 +164,8 @@ func TestHandleReceivedStructuredAddPathStoresIdentifier(t *testing.T) {
 // prefix and an identifier-plus-prefix are both well formed.
 func TestBuildReplayRoutesCarriesFraming(t *testing.T) {
 	r := newTestManager(t)
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = newSeqMap()
-	r.ribIn[netip.MustParseAddr("10.0.0.1")].Put(
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = newSeqMap()
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Put(
 		routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 			Family:      family.IPv4Unicast,
 			AttrHex:     "40010100",
@@ -197,7 +197,7 @@ func onlyStoredRoute(t *testing.T, r *AdjRIBInManager) *RawRoute {
 	// Every caller drives the one source peer testPeerJSON names, so the address
 	// is a property of the fixture rather than an argument.
 	const peer = "10.0.0.1"
-	routes, ok := r.ribIn[netip.MustParseAddr(peer)]
+	routes, ok := r.ribIn[receivedPeer{address: netip.MustParseAddr(peer)}]
 	require.True(t, ok, "no entry for peer %s", peer)
 	require.Equal(t, 1, routes.Len(), "expected exactly one stored route")
 	var out *RawRoute

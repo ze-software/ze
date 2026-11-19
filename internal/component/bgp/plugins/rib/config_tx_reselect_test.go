@@ -43,11 +43,17 @@ func TestRIBReselectOnRelaxASPathChange(t *testing.T) {
 	require.NoError(t, tx.Configure(ribSections(`"multipath":{"maximum-paths":2,"relax-as-path":false}`)))
 
 	wirePrefix := ipv4Prefix(24, 10, 31, 0)
-	for i, text := range []string{"192.0.2.1", "192.0.2.2"} {
-		peer := netip.MustParseAddr(text)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
-		routes := storage.NewPeerRIB(text)
-		r.bgpPeers[peer] = routes
+	for i, source := range []struct {
+		owner   uint64
+		address string
+	}{
+		{1, "192.0.2.1"},
+		{2, "192.0.2.2"},
+	} {
+		peer := netip.MustParseAddr(source.address)
+		r.peerMeta[source.owner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
+		routes := storage.NewPeerRIB(source.address)
+		r.bgpPeers[source.owner] = routes
 		t.Cleanup(routes.Release)
 		routes.Insert(family.IPv4Unicast, relaxAttrs([4]byte{198, 51, 100, byte(i + 1)}, uint32(64500+i)), wirePrefix)
 	}
@@ -81,9 +87,9 @@ func TestRIBReselectOnBlackholeRuleChange(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
 	routes := storage.NewPeerRIB(peer.String())
-	r.bgpPeers[peer] = routes
+	r.bgpPeers[1] = routes
 	t.Cleanup(routes.Release)
 	tx := r.newConfigTx(false)
 	peerBody := func(blackhole string) string {

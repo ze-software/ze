@@ -25,11 +25,27 @@ const (
 	cmdBgpIRR = "show bgp irr"
 )
 
+// showBGPBranchCases preserves the original branch regression cases independently
+// of the implementation. The composition-root tests derive the live population.
+var showBGPBranchCases = []string{
+	"show bgp adj-rib-in",
+	"show bgp decode",
+	"show bgp encode",
+	"show bgp health",
+	"show bgp healthcheck",
+	"show bgp irr",
+	"show bgp peer",
+	"show bgp rib",
+	"show bgp rpki",
+	"show bgp rs",
+	"show bgp update-delay",
+}
+
 // childOwnDeclarations names each child of `show bgp` whose own package
 // declares for it, and what that package declares.
 //
-// Every other child resolves NOTHING, which is what the empty declarations in
-// registerShapes give it. A child that declares for itself does not contradict
+// Every other case resolves NOTHING through the parent inheritance boundary.
+// A child that declares for itself does not contradict
 // that: an empty declaration is a floor and never overrides a value
 // (declarationRegistry.declare in
 // internal/component/command/column_order.go), so the two agree whatever order
@@ -42,7 +58,7 @@ var childOwnDeclarations = map[string]struct {
 	// internal/component/bgp/plugins/cmd/rib/rib.go
 	cmdBgpRib: {command.ShapeTab, []string{"peer", "next-hop"}, "the rib command plugin"},
 	// health.go, in this package: `show bgp health` answers peer rows, so it
-	// declares for itself on the same path this file's loop blanks.
+	// declares for itself on the same path the parent boundary floors.
 	cmdBgpHealth: {command.ShapeTab, []string{"peer"}, "health.go"},
 	// internal/component/bgp/plugins/filter_irr/cmd_irr.go. Its rows hold
 	// addresses only inside an array, which neither transform decorates, so it
@@ -76,7 +92,7 @@ func TestDeclaredShapesReachTheRegistry(t *testing.T) {
 	// inheritance: each is declared on that exact path by the package that owns
 	// the command. Those packages reach this test binary through
 	// internal/component/plugin/all.
-	for _, child := range cmdBgpChildren {
+	for _, child := range showBGPBranchCases {
 		shape, declared := command.ShapeForCommand(child)
 		own, declaresItself := childOwnDeclarations[child]
 		if declaresItself {
@@ -93,8 +109,8 @@ func TestDeclaredShapesReachTheRegistry(t *testing.T) {
 
 // TestShowBgpChildrenDeclareNoAddressField proves no path under `show bgp`
 // inherits the "address" field that `show bgp` declares. The population is
-// cmdBgpChildren itself plus `show bgp peer list`, so a branch added to that
-// list is covered without this test being edited.
+// the original branch regression cases plus `show bgp peer list`. A separate
+// composition-root regression derives every currently registered branch.
 //
 // An address-field list resolves by the longest registered prefix
 // (commandRegistry.lookup in internal/component/command/column_order.go), so a
@@ -102,8 +118,8 @@ func TestDeclaredShapesReachTheRegistry(t *testing.T) {
 // `| origin` would then be published and accepted over an answer holding no
 // address field, and each would decorate nothing.
 func TestShowBgpChildrenDeclareNoAddressField(t *testing.T) {
-	paths := make([]string, 0, len(cmdBgpChildren)+1)
-	paths = append(paths, cmdBgpChildren...)
+	paths := make([]string, 0, len(showBGPBranchCases)+1)
+	paths = append(paths, showBGPBranchCases...)
 	paths = append(paths, cmdBgpPeerList)
 
 	for _, path := range paths {

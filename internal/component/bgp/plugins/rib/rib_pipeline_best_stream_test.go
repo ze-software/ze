@@ -59,11 +59,13 @@ func seedBestPathFixture(t *testing.T, r *RIBManager) {
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrLow, shared)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrHigh, shared)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = peerB
 
 	// 172.16.0.0/24 on peer A alone, carrying a community the other prefix
 	// does not, so the two rows differ in their attribute key set.
@@ -130,7 +132,8 @@ func seedBestPathRows(t testing.TB, r *RIBManager, rows int) *storage.PeerRIB {
 		attrs := concatBytes(testWireOriginIGP, wireASPath(base+uint32(i)), testWireNextHop, testWireLocalPref100)
 		peerRIB.Insert(fam, attrs, nlri)
 	}
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 	return peerRIB
 }
 
@@ -268,7 +271,8 @@ func TestBestPipelineHandleSafeOutsideLock(t *testing.T) {
 	attrs := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrs, nlri)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 
 	r.peerMu.RLock()
 	source := newBestSource(r, "*", nil)

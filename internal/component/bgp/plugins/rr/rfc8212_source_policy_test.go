@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -93,41 +93,53 @@ func newSourcePolicyReflector(t *testing.T) (*routeReflector, *spEngine) {
 	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, args []string, _ string) (*rpc.DispatchCommandOutput, error) {
 		engine.call("dispatch " + command)
 		page, err := json.Marshal(ribevents.ReplayPage{Routes: []rpc.StoredRoute{{SourcePeer: spSource,
-			Family: "ipv4/unicast", NLRIHex: "180a0100", NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: true}}})
+			Family: "ipv4/unicast", NLRIHex: "180a0100", NLRIFraming: rpc.NLRIFramingPrefixOnly, SourceOwner: 1, SourceConnectionID: 41, SourceReceipt: 70, MsgID: 80, Withdraw: true}}})
 		if err != nil {
 			return nil, err
 		}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: page}, nil
 	})
-	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, _ []rpc.StoredRoute) error {
-		engine.call("relay " + destination)
-		return nil
+	bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+		engine.call("relay " + input.Destination)
+		return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 	})
-	bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, command string, _ map[string]any, _ uint64) (uint32, uint32, error) {
-		engine.call("update-route-sel " + command)
-		return 0, 1, nil
+	bridge.SetForwardCached(func(_ context.Context, input rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) {
+		engine.call("rpc " + rpc.MethodForwardCached)
+		return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 	})
-	bridge.SetDispatchRPC(func(_ context.Context, method string, _ json.RawMessage) (json.RawMessage, error) {
-		engine.call("rpc " + method)
-		return json.RawMessage(`{"announced":1,"withdrawn":0}`), nil
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+		if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+			return result, err
+		}
+		if method == rpc.MethodUpdateRoute {
+			var input rpc.UpdateRouteInput
+			if err := json.Unmarshal(params, &input); err != nil {
+				return nil, err
+			}
+			engine.call("update-route-sel " + input.Command)
+			return json.Marshal(rpc.UpdateRouteOutput{Withdrawn: 1})
+		}
+		return nil, fmt.Errorf("unexpected source-policy fixture RPC %s", method)
 	})
 	bridge.SetReady()
 	unicast := func() map[family.Family]bool { return map[family.Family]bool{family.IPv4Unicast: true} }
-	rr := &routeReflector{plugin: p,
-		peers: map[string]*peerState{
-			spSource: {Up: true, Families: unicast()},
-			spOther:  {Up: true, Families: unicast()},
-			spClient: {Up: true, Families: unicast()},
-		},
-		withdrawals: map[string]map[string]withdrawalInfo{
-			spSource: {
-				"ipv4/unicast|10.1.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.1.0.0/24", SourcePolicyEpoch: 5},
-				"ipv4/unicast|10.2.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.2.0.0/24", SourcePolicyEpoch: 5},
-			},
-			spOther: {
-				"ipv4/unicast|10.1.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.1.0.0/24", SourcePolicyEpoch: 5},
-			},
-		}}
+	rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+	original := rrOriginalFixture(t, spSource, 1, 41)
+	other := rrOriginalFixture(t, spOther, 2, 42)
+	client := rrOriginalFixture(t, spClient, 3, 43)
+	rrFixtureStart(t, rr, original, 70, 3, 141)
+	rrFixtureStart(t, rr, other, 71, 3, 142)
+	rrFixtureStart(t, rr, client, 0, 3, 143)
+	for _, actor := range []peerIdentity{original, other, client} {
+		rr.peers[actor].Families = unicast()
+	}
+	rr.withdrawals[spSource] = map[withdrawalKey]withdrawalInfo{
+		{owner: 1, connection: 41, route: "ipv4/unicast|10.1.0.0/24"}: {Family: family.IPv4Unicast, Prefix: "prefix 10.1.0.0/24", NativeHex: "180a0100", MsgID: 80, SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, SourcePolicyEpoch: 5},
+		{owner: 1, connection: 41, route: "ipv4/unicast|10.2.0.0/24"}: {Family: family.IPv4Unicast, Prefix: "prefix 10.2.0.0/24", NativeHex: "180a0200", MsgID: 81, SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, SourcePolicyEpoch: 5},
+	}
+	rr.withdrawals[spOther] = map[withdrawalKey]withdrawalInfo{
+		{owner: 2, connection: 42, route: "ipv4/unicast|10.1.0.0/24"}: {Family: family.IPv4Unicast, Prefix: "prefix 10.1.0.0/24", NativeHex: "180a0100", MsgID: 82, SourceOwner: 2, ConnectionID: 42, SourceReceipt: 71, SourcePolicyEpoch: 5},
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := rr.startValidation(ctx)
 	t.Cleanup(func() {
@@ -158,7 +170,7 @@ func spPhase(rr *routeReflector, op rpc.SourcePolicyOperation, next uint64) erro
 func spEpochs(rr *routeReflector, source string) map[string]uint64 {
 	epochs := make(map[string]uint64)
 	for key, info := range rr.withdrawals[source] {
-		epochs[key] = info.SourcePolicyEpoch
+		epochs[key.route] = info.SourcePolicyEpoch
 	}
 	return epochs
 }
@@ -233,14 +245,14 @@ func TestRFC8212RouteReflectorApplyKeepsFinalizeDrops(t *testing.T) {
 	}
 	spSameEpochs(t, "source routes after apply", spEpochs(rr, spSource),
 		map[string]uint64{"ipv4/unicast|10.1.0.0/24": 5, "ipv4/unicast|10.2.0.0/24": 5})
-	if got := len(rr.sourcePolicy[spSource].pins); got != 2 {
+	if got := len(rr.sourcePolicy[1].pins); got != 2 {
 		t.Fatalf("apply kept %d of 2 pins", got)
 	}
 	if err := spPhase(rr, rpc.SourcePolicyApply, 6); err != nil {
 		t.Fatalf("duplicate apply: %v", err)
 	}
 	// The source's session admits a route after the apply, under its epoch.
-	rr.withdrawals[spSource]["ipv4/unicast|10.3.0.0/24"] = withdrawalInfo{Family: family.IPv4Unicast,
+	rr.withdrawals[spSource][withdrawalKey{owner: 1, connection: 41, route: "ipv4/unicast|10.3.0.0/24"}] = withdrawalInfo{SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast,
 		Prefix: "prefix 10.3.0.0/24", SourcePolicyEpoch: 6}
 	if err := spPhase(rr, rpc.SourcePolicyFinalize, 0); err != nil {
 		t.Fatal(err)
@@ -249,7 +261,7 @@ func TestRFC8212RouteReflectorApplyKeepsFinalizeDrops(t *testing.T) {
 		map[string]uint64{"ipv4/unicast|10.3.0.0/24": 6})
 	spSameEpochs(t, "other source routes after finalize", spEpochs(rr, spOther),
 		map[string]uint64{"ipv4/unicast|10.1.0.0/24": 5})
-	if rr.sourcePolicy[spSource].pins != nil {
+	if rr.sourcePolicy[1].pins != nil {
 		t.Fatal("finalize kept the pins")
 	}
 	if err := spPhase(rr, rpc.SourcePolicyAbort, 7); err == nil {
@@ -279,7 +291,7 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 		}
 		spSameEpochs(t, "source routes", spEpochs(rr, spSource),
 			map[string]uint64{"ipv4/unicast|10.1.0.0/24": 5, "ipv4/unicast|10.2.0.0/24": 5})
-		if rr.sourcePolicy[spSource].pins != nil {
+		if rr.sourcePolicy[1].pins != nil {
 			t.Fatal("abort with target zero kept the pins")
 		}
 		if err := spPhase(rr, rpc.SourcePolicyFinalize, 0); err == nil {
@@ -302,7 +314,7 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 				}
 			}
 			// A later UPDATE replaced 10.2.0.0/24 under the captured epoch.
-			rr.withdrawals[spSource]["ipv4/unicast|10.2.0.0/24"] = withdrawalInfo{Family: family.IPv4Unicast,
+			rr.withdrawals[spSource][withdrawalKey{owner: 1, connection: 41, route: "ipv4/unicast|10.2.0.0/24"}] = withdrawalInfo{SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast,
 				Prefix: "prefix 10.2.0.0/24", Generation: 9, SourcePolicyEpoch: 5}
 			if err := spPhase(rr, rpc.SourcePolicyAbort, 7); err != nil {
 				t.Fatal(err)
@@ -312,7 +324,7 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 				want["ipv4/unicast|10.2.0.0/24"] = 5
 			}
 			spSameEpochs(t, "source routes", spEpochs(rr, spSource), want)
-			if rr.sourcePolicy[spSource].pins != nil {
+			if rr.sourcePolicy[1].pins != nil {
 				t.Fatal("abort kept the pins")
 			}
 		})
@@ -329,18 +341,18 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 // valid reload refused for a family the owner never re-decides.
 func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 	rr, _ := newSourcePolicyReflector(t)
-	rr.peers[spSource].Up = false
+	rr.peers[rrOriginalFixture(t, spSource, 1, 41)].Up = false
 	err := spPhase(rr, rpc.SourcePolicyPrepare, 0)
 	if err == nil || !strings.Contains(err.Error(), spSource) || !strings.Contains(err.Error(), "no established session") {
 		t.Fatalf("prepare of a down source: %v", err)
 	}
 	rr, _ = newSourcePolicyReflector(t)
-	rr.withdrawals[spSource]["ipv4/unicast|10.3.0.0/24"] = withdrawalInfo{Family: family.IPv4Unicast, SourcePolicyEpoch: 6}
+	rr.withdrawals[spSource][withdrawalKey{owner: 1, connection: 41, route: "ipv4/unicast|10.3.0.0/24"}] = withdrawalInfo{SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast, SourcePolicyEpoch: 6}
 	err = spPhase(rr, rpc.SourcePolicyPrepare, 0)
 	if err == nil || !strings.Contains(err.Error(), spSource) || !strings.Contains(err.Error(), "capture the source again") {
 		t.Fatalf("prepare under a stale token: %v", err)
 	}
-	if rr.sourcePolicy[spSource] != nil {
+	if rr.sourcePolicy[1] != nil {
 		t.Fatal("a refused prepare installed a transaction")
 	}
 	rr, _ = newSourcePolicyReflector(t)
@@ -360,11 +372,11 @@ func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 	}
 	rr, _ = newSourcePolicyReflector(t)
 	flowspec := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-	rr.withdrawals[spSource]["ipv4/flowspec|x"] = withdrawalInfo{Family: flowspec, WireForm: true, SourcePolicyEpoch: 5}
+	rr.withdrawals[spSource][withdrawalKey{owner: 1, connection: 41, route: "ipv4/flowspec|x"}] = withdrawalInfo{SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: flowspec, WireForm: true, SourcePolicyEpoch: 5}
 	if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
 		t.Fatalf("prepare with a FlowSpec route: %v", err)
 	}
-	if _, pinned := rr.sourcePolicy[spSource].pins["ipv4/flowspec|x"]; !pinned {
+	if _, pinned := rr.sourcePolicy[1].pins[withdrawalKey{owner: 1, connection: 41, route: "ipv4/flowspec|x"}]; !pinned {
 		t.Fatal("prepare did not pin the FlowSpec route")
 	}
 }
@@ -380,22 +392,22 @@ func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 // its way, which the coordinator's writer join would not see.
 func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
 	work := map[string]func(*testing.T, *routeReflector) error{
-		"departure": func(_ *testing.T, rr *routeReflector) error {
-			if !rr.enqueueDeparture(netip.MustParseAddr(spSource), map[string]withdrawalInfo{
-				"ipv4/unicast|10.9.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.9.0.0/24", Generation: 2},
+		"departure": func(t *testing.T, rr *routeReflector) error {
+			if !rr.enqueueDeparture(rrOriginalFixture(t, spSource, 1, 41), map[withdrawalKey]withdrawalInfo{
+				{owner: 1, connection: 41, route: "ipv4/unicast|10.9.0.0/24"}: {SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast, Prefix: "prefix 10.9.0.0/24", Generation: 2},
 			}) {
 				return context.Canceled
 			}
 			return nil
 		},
 		"forward": func(_ *testing.T, rr *routeReflector) error {
-			go rr.dispatchText("peer " + spSource + " remote as 65001 received update 100 source-policy-epoch 5 " +
+			go rr.dispatchText("peer " + spSource + " remote as 65001 received update 100 peer-owner 1 connection-id 41 source-receipt 70 source-policy-epoch 5 " +
 				"origin igp next " + spSource + " nlri ipv4/unicast add 10.4.0.0/24\n")
 			return nil
 		},
 		"validation": func(t *testing.T, rr *routeReflector) error {
 			rr.dispatchText(validationEvent(t, ribevents.ValidationRoute{
-				Peer: netip.MustParseAddr(spSource), Family: family.IPv4Unicast,
+				Peer: netip.MustParseAddr(spSource), PeerOwner: 1, ConnectionID: 41, Family: family.IPv4Unicast,
 				Prefix: netip.MustParsePrefix("10.1.0.0/24")}))
 			return nil
 		},
@@ -465,8 +477,8 @@ func TestRFC8212RouteReflectorSettleRefusesAtDeadline(t *testing.T) {
 	rr, engine := newSourcePolicyReflector(t)
 	release := engine.arm()
 	t.Cleanup(release)
-	if !rr.enqueueDeparture(netip.MustParseAddr(spSource), map[string]withdrawalInfo{
-		"ipv4/unicast|10.9.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.9.0.0/24", Generation: 2},
+	if !rr.enqueueDeparture(rrOriginalFixture(t, spSource, 1, 41), map[withdrawalKey]withdrawalInfo{
+		{owner: 1, connection: 41, route: "ipv4/unicast|10.9.0.0/24"}: {SourceOwner: 1, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast, Prefix: "prefix 10.9.0.0/24", Generation: 2},
 	}) {
 		t.Fatal("departure not queued")
 	}
@@ -477,7 +489,7 @@ func TestRFC8212RouteReflectorSettleRefusesAtDeadline(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "departure recovery in flight") || !strings.Contains(err.Error(), spSource) {
 		t.Fatalf("prepare behind a held departure: %v", err)
 	}
-	if rr.sourcePolicy[spSource] != nil {
+	if rr.sourcePolicy[1] != nil {
 		t.Fatal("prepare pinned while the departure was in the engine")
 	}
 }

@@ -33,13 +33,14 @@ var unknownASAnnounce = []byte{
 // feedReceivedJSONWithAS drives the JSON rail from the shipped producer
 // (format.AppendMessage) through the rib's own parser and dispatcher, with the
 // peer's AS as the event states it.
-func feedReceivedJSONWithAS(t *testing.T, r *RIBManager, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
+func feedReceivedJSONWithAS(t *testing.T, r *RIBManager, peerOwner uint64, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
 	t.Helper()
 	wu := wireu.NewWireUpdate(unknownASAnnounce, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, err := wu.Attrs()
 	require.NoError(t, err, "the test UPDATE body must parse")
-	peerInfo := pluginapi.PeerInfo{Address: peer, AddressStr: peer.String(), PeerAS: peerAS, LocalAS: 65000}
-	msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: unknownASAnnounce, WireUpdate: wu, AttrsWire: attrs}
+	peerInfo := pluginapi.PeerInfo{ConnectionID: 41, PeerOwner: peerOwner, Address: peer, AddressStr: peer.String(), PeerAS: peerAS, LocalAS: 65000}
+	msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, SourceOwner: peerOwner, RawBytes: unknownASAnnounce, WireUpdate: wu, AttrsWire: attrs}
 	line := format.AppendMessage(nil, &peerInfo, msg, bgptypes.ContentConfig{
 		Encoding: pluginapi.EncodingJSON,
 		Format:   pluginapi.FormatFull,
@@ -51,19 +52,22 @@ func feedReceivedJSONWithAS(t *testing.T, r *RIBManager, peer netip.Addr, peerAS
 
 // feedReceivedStructuredWithAS drives the structured rail with the peer's AS
 // as the event states it.
-func feedReceivedStructuredWithAS(r *RIBManager, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
+func feedReceivedStructuredWithAS(r *RIBManager, peerOwner uint64, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
 	wu := wireu.NewWireUpdate(unknownASAnnounce, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType:   rpc.EventKindUpdate,
+		PeerOwner:   peerOwner,
 		PeerAddress: peer.String(),
 		PeerAS:      peerAS,
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   unknownASAnnounce,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
+			Type:        msgtype.TypeUPDATE,
+			SourceOwner: peerOwner,
+			RawBytes:    unknownASAnnounce,
+			WireUpdate:  wu,
+			AttrsWire:   attrs,
 		},
 	})
 }
@@ -79,11 +83,11 @@ func feedReceivedStructuredWithAS(r *RIBManager, peer netip.Addr, peerAS rpc.Rem
 func TestReceivedUpdateWithUnknownPeerASIsRefusedOnBothRails(t *testing.T) {
 	rails := []struct {
 		name string
-		feed func(t *testing.T, r *RIBManager, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID)
+		feed func(t *testing.T, r *RIBManager, peerOwner uint64, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID)
 	}{
 		{"json", feedReceivedJSONWithAS},
-		{"structured", func(_ *testing.T, r *RIBManager, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
-			feedReceivedStructuredWithAS(r, peer, peerAS, ctxID)
+		{"structured", func(_ *testing.T, r *RIBManager, peerOwner uint64, peer netip.Addr, peerAS rpc.RemoteAS, ctxID bgpctx.ContextID) {
+			feedReceivedStructuredWithAS(r, peerOwner, peer, peerAS, ctxID)
 		}},
 	}
 	for _, rail := range rails {
@@ -93,16 +97,16 @@ func TestReceivedUpdateWithUnknownPeerASIsRefusedOnBothRails(t *testing.T) {
 			unknown := netip.MustParseAddr("192.0.2.1")
 			known := netip.MustParseAddr("192.0.2.2")
 
-			rail.feed(t, r, unknown, rpc.RemoteAS{}, ctxID)
-			rail.feed(t, r, known, rpc.RemoteASOf(65001), ctxID)
+			rail.feed(t, r, 1, unknown, rpc.RemoteAS{}, ctxID)
+			rail.feed(t, r, 2, known, rpc.RemoteASOf(65001), ctxID)
 
 			r.peerMu.RLock()
 			defer r.peerMu.RUnlock()
-			assert.Nil(t, r.bgpPeers[unknown], "an UPDATE with no known peer AS must store no route")
-			assert.Nil(t, r.peerMeta[unknown], "an UPDATE with no known peer AS must record no peer metadata")
-			require.NotNil(t, r.bgpPeers[known], "an UPDATE with a known peer AS must be stored")
-			require.NotNil(t, r.peerMeta[known], "an UPDATE with a known peer AS must record peer metadata")
-			assert.Equal(t, uint32(65001), r.peerMeta[known].PeerASN)
+			assert.Nil(t, r.bgpPeers[1], "an UPDATE with no known peer AS must store no route")
+			assert.Nil(t, r.peerMeta[1], "an UPDATE with no known peer AS must record no peer metadata")
+			require.NotNil(t, r.bgpPeers[2], "an UPDATE with a known peer AS must be stored")
+			require.NotNil(t, r.peerMeta[2], "an UPDATE with a known peer AS must record peer metadata")
+			assert.Equal(t, uint32(65001), r.peerMeta[2].PeerASN)
 		})
 	}
 }

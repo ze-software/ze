@@ -196,7 +196,7 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 		table.mu.Lock()
 		excluded := exclusionSources(admission.keys[k].record.excluded)
 		table.mu.Unlock()
-		if !slices.Contains(excluded, source.Settings().Address) {
+		if !slices.Contains(excluded, source.sourceOwner) {
 			t.Errorf("packed key %d is owed again with excluded %v, want the ended source excluded", k, excluded)
 		}
 	}

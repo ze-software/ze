@@ -29,7 +29,7 @@ type incomingDecodedOpenObservations struct {
 
 func (observed *incomingDecodedOpenObservations) attach(peer *Peer) {
 	prior := peer.messageCallback
-	peer.messageCallback = func(addr netip.Addr, kind msgtype.MessageType, body []byte,
+	peer.messageCallback = func(captured *Session, addr netip.Addr, kind msgtype.MessageType, body []byte,
 		update *wireu.WireUpdate, ctx bgpctx.ContextID, direction rpc.MessageDirection,
 		buffer BufHandle, meta map[string]any, source string, id uint64) bool {
 		if kind == msgtype.TypeOPEN {
@@ -37,7 +37,7 @@ func (observed *incomingDecodedOpenObservations) attach(peer *Peer) {
 			observed.events = append(observed.events, incomingDecodedOpenObservation{direction: direction, body: bytes.Clone(body)})
 			observed.mu.Unlock()
 		}
-		return prior(addr, kind, body, update, ctx, direction, buffer, meta, source, id)
+		return prior(captured, addr, kind, body, update, ctx, direction, buffer, meta, source, id)
 	}
 }
 

@@ -94,7 +94,7 @@ func TestPendingRefusalFailureDiagnostic(t *testing.T) {
 				conn.writeErr = cause
 			}
 
-			rejectPendingConnection(conn, clock.RealClock{}, message.NotifyCease, message.NotifyCeaseConnectionCollision)
+			rejectPendingConnection(conn, clock.RealClock{}, message.NotifyCeaseConnectionCollision)
 
 			require.True(t, conn.closed, "a failed rejection must still close the pending connection")
 			require.Equal(t, wantWrites, conn.writes, "a refused deadline must prevent an unbounded write")
@@ -122,7 +122,7 @@ func TestPendingRefusalFailureDiagnostic(t *testing.T) {
 func TestPendingRefusalSuccess(t *testing.T) {
 	sink := pendingRefusalLog(t)
 	conn := &pendingRefusalConn{}
-	rejectPendingConnection(conn, clock.RealClock{}, message.NotifyCease, message.NotifyCeaseConnectionCollision)
+	rejectPendingConnection(conn, clock.RealClock{}, message.NotifyCeaseConnectionCollision)
 	want := append(bytes.Repeat([]byte{0xff}, 16), 0, 21, 3, 6, 7)
 	require.Equal(t, want, conn.written.Bytes())
 	require.Equal(t, 1, conn.writes)

@@ -118,7 +118,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			if len(announced) != 0 || !bytes.Equal(withdrawn, raw) {
 				t.Fatalf("loss of authorization = add %x del %x", announced, withdrawn)
 			}
-			if !validationRetainsPath(key.Peer, key.PeerOwner, fam, 0, raw) {
+			if !validationRetainsPath(key.Peer, key.PeerOwner, key.ConnectionID, fam, 0, raw) {
 				t.Fatal("infeasible retained route lost ADD-PATH ownership")
 			}
 			eligible = true
@@ -131,7 +131,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 				t.Fatalf("obsolete generation exported over replacement: %x", stale)
 			}
 			present = false
-			if validationRetainsPath(key.Peer, key.PeerOwner, fam, 0, raw) {
+			if validationRetainsPath(key.Peer, key.PeerOwner, key.ConnectionID, fam, 0, raw) {
 				t.Fatal("removed route retained ADD-PATH ownership")
 			}
 		})
@@ -150,7 +150,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst.sendCtx.Store(sourceCtx)
-	t.Cleanup(func() { fwdPathIDs.releaseSource(src.SourceID()) })
+	t.Cleanup(func() { fwdPathIDs.releaseSource(fwdPathSource{sourceID: src.SourceID(), peerOwner: src.sourceOwner}) })
 
 	short := []byte{5, 1, 24, 10, 0, 0}
 	components := []byte{1, 24, 10, 1, 0, 5}
@@ -190,7 +190,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 			}
 			dst.sendCtx.Store(destCtx)
 			var parsed fwdParseCache
-			result, ok := buildFwdBody(wu, message.MaxMsgLen, destCtxID, dst, dst.Settings().Address, &parsed)
+			result, ok := buildFwdBody(wu, message.MaxMsgLen, destCtxID, dst, dst.Settings().Address, &parsed, fwdPathIDFixturePeerOrigin(src))
 			if !ok {
 				t.Fatal("native FlowSpec forward was refused")
 			}
@@ -239,7 +239,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 	withdrawn = append(withdrawn, 0xf0, 5)
 	withdrawn = append(withdrawn, short[1:]...)
 	var memo fwdPathIDMemo
-	memo.source = src.SourceID()
+	memo.origin = fwdPathIDFixturePeerOrigin(src)
 	wire := bytes.Clone(withdrawn)
 	if err := fwdPatchPathIDs(wire, fam, &memo, true); err != nil {
 		t.Fatal(err)
@@ -254,7 +254,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 			key.PathID == 7 && key.NLRI == string(short)
 	}, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
-	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, src.sourceOwner, fam, withdrawn, nil); err != nil {
+	if err := fwdReleaseSection(fwdPathIDFixturePeerOrigin(src), src.Settings().Address, fam, withdrawn, nil); err != nil {
 		t.Fatal(err)
 	}
 	var path fwdPathKey
@@ -263,7 +263,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 		t.Fatal(err)
 	}
 	fwdPathIDs.mu.RLock()
-	_, retained := fwdPathIDs.byPath[src.SourceID()][path]
+	_, retained := fwdPathIDs.byPath[fwdPathSource{sourceID: src.SourceID(), peerOwner: src.sourceOwner}][path]
 	fwdPathIDs.mu.RUnlock()
 	if !retained {
 		t.Fatal("retained FlowSpec path lost its identifier mapping")
@@ -276,7 +276,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 		t.Fatal("retained FlowSpec path lost identity on cache eviction")
 	}
 	present = false
-	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, src.sourceOwner, fam, withdrawn, nil); err != nil {
+	if err := fwdReleaseSection(fwdPathIDFixturePeerOrigin(src), src.Settings().Address, fam, withdrawn, nil); err != nil {
 		t.Fatal(err)
 	}
 	wire = bytes.Clone(withdrawn)
@@ -284,7 +284,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 		t.Fatal(err)
 	}
 	fwdPathIDs.mu.RLock()
-	_, retained = fwdPathIDs.byPath[src.SourceID()][path]
+	_, retained = fwdPathIDs.byPath[fwdPathSource{sourceID: src.SourceID(), peerOwner: src.sourceOwner}][path]
 	fwdPathIDs.mu.RUnlock()
 	if retained {
 		t.Fatal("withdrawal recreated a removed FlowSpec path identifier")

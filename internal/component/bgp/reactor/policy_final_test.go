@@ -206,8 +206,9 @@ func TestPolicyFinalRejectLeavesNativeRSForPolicy(t *testing.T) {
 		destination.refreshForwardFacts()
 		update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(policyChainAdvertisingBody(), ctxID), SourcePeerIP: source.Settings().Address}
 		r := &Reactor{peers: map[netip.AddrPort]*Peer{source.Settings().PeerKey(): source, destination.Settings().PeerKey(): destination}}
+		wantTarget := fixtureForwardTarget(t, destination)
 		skipped, dispatched := reactorForwardRS(r, update, 51, source.Settings().Address, source)
-		if dispatched != 0 || len(skipped) != 1 || skipped[0] != destination.Settings().PeerKey() {
+		if dispatched != 0 || len(skipped) != 1 || skipped[0] != wantTarget {
 			t.Fatalf("final reject skipped=%v dispatched=%d", skipped, dispatched)
 		}
 	}
@@ -263,7 +264,7 @@ func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 		t.Fatal("stale prefiltered announcement escaped final reject")
 	}
 	destination.refreshForwardFacts()
-	batch := recoveryDepartureBatch(netip.Addr{}, "192.0.2.0/24")
+	batch := recoveryDepartureBatch(netip.Addr{}, 0, "192.0.2.0/24")
 	api := &reactorAPIAdapter{r: r}
 	if err := api.WithdrawNLRIBatch(t.Context(), selector.ParseDefault(destination.Settings().Address.String()), batch, plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
@@ -282,9 +283,10 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		r, source, destination, conn, ctxID := newSyncOrderRail(t)
 		r.clock = clock.RealClock{}
 		source.recvCtxID = ctxID
+		originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		destination.session.setSendCtxID(ctxID)
-		destination.session.onMessageReceived = r.notifyMessageReceiver
+		destination.session.onMessageReceived = r.capturedMessageReceiver
 		destination.settings.NextHopMode = NextHopUnchanged
 		destination.refreshForwardFacts()
 		failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
@@ -297,11 +299,11 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 		original := mustHex(t, stored.AttrHex)
 		owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
+			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				NLRI: syncOrderPrefixWire, Attributes: original, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 		})
 		t.Cleanup(owner.Close)
-		if err := recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"); err != nil {
+		if err := recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"); err != nil {
 			t.Fatal(err)
 		}
 		written := recoveryWrittenUpdates(t, conn.written()[before:])

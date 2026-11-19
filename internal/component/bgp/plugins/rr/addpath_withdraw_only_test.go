@@ -52,13 +52,13 @@ func TestWithdrawOnlyUpdateKeepsPathIdentifier(t *testing.T) {
 	// RFC 7911 Section 3: Path Identifier (4 octets), Length (1 octet), Prefix.
 	route := []byte{0, 0, 0, 7, 8, 10}
 	origin := []byte{0x40, 1, 1, 0}
-	rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+	rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 
-	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, nil, origin, route))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, route))
 	if got := len(rr.withdrawals[peer]); got != 1 {
 		t.Fatalf("withdrawal map holds %d routes after the announcement, want 1: %v", got, rr.withdrawals[peer])
 	}
-	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, route, nil, nil))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 81, rrAddPathUpdate(t, route, nil, nil))
 	if got := len(rr.withdrawals[peer]); got != 0 {
 		t.Fatalf("withdrawal map holds %d routes after the withdraw-only UPDATE, want 0: %v", got, rr.withdrawals[peer])
 	}
@@ -83,21 +83,21 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 	path1 := []byte{0, 0, 0, 1, 8, 10}
 	path2 := []byte{0, 0, 0, 2, 8, 10}
 	origin := []byte{0x40, 1, 1, 0}
-	rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+	rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 
-	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path1...), path2...)))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path1...), path2...)))
 	if got := len(rr.withdrawals[peer]); got != 2 {
 		t.Fatalf("withdrawal map holds %d routes after announcing two paths, want 2: %v", got, rr.withdrawals[peer])
 	}
-	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, path1, nil, nil))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 81, rrAddPathUpdate(t, path1, nil, nil))
 	entries := rr.withdrawals[peer]
 	if len(entries) != 1 {
 		t.Fatalf("withdrawal map holds %d routes after withdrawing path 1, want 1 (path 2): %v", len(entries), entries)
 	}
-	want := withdrawalInfo{Family: family.IPv4Unicast, Prefix: "00000002080a", WireForm: true, AddPath: true}
+	want := withdrawalInfo{Family: family.IPv4Unicast, Prefix: "00000002080a", WireForm: true, AddPath: true, PathID: 2, NativeHex: "080a", SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, MsgID: 80}
 	for key, got := range entries {
 		if got != want {
-			t.Fatalf("withdrawal map entry %q = %+v, want %+v", key, got, want)
+			t.Fatalf("withdrawal map entry %v = %+v, want %+v", key, got, want)
 		}
 	}
 }

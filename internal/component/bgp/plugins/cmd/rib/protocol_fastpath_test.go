@@ -128,6 +128,10 @@ func TestProtocolAndFastpathDispatchTheDeclaredValues(t *testing.T) {
 			if c.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), c.wantErr)
+				if c.input == "show bgp rib protocol" {
+					assert.Contains(t, err.Error(), "This command needs protocol: The name of a registered protocol.")
+					assert.Contains(t, err.Error(), "\nfix: show bgp rib protocol protocol <")
+				}
 				assert.False(t, called, "the handler ran on a value the model refuses")
 				return
 			}

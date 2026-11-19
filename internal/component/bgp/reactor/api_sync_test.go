@@ -388,7 +388,7 @@ func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	synced, initialReplay := armAPISyncPeer(t, r, addr, 1179)
 
 	// Bare IP: exactly what the emitters put on the wire.
-	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
+	require.NoError(t, r.SignalPeerAPIReady(context.Background(), addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
 	require.Eventually(t, synced, 2*time.Second, time.Millisecond,
 		"a peer on a non-default port must receive its ready signal")
@@ -404,7 +404,7 @@ func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.11")
 	synced, initialReplay := armAPISyncPeer(t, r, addr, DefaultBGPPort)
 
-	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
+	require.NoError(t, r.SignalPeerAPIReady(context.Background(), addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
 	require.Eventually(t, synced, 2*time.Second, time.Millisecond,
 		"a peer on the default port must receive its ready signal")
@@ -427,7 +427,7 @@ func TestSignalPeerAPIReadyUnknownPeerWarns(t *testing.T) {
 	r := New(&Config{})
 	synced, initialReplay := armAPISyncPeer(t, r, netip.MustParseAddr("192.0.2.12"), 1179)
 
-	require.ErrorIs(t, r.SignalPeerAPIReady("198.51.100.99", plugin.ProcessSender("pusher"), initialReplay), ErrPeerNotFound)
+	require.ErrorIs(t, r.SignalPeerAPIReady(context.Background(), "198.51.100.99", plugin.ProcessSender("pusher"), initialReplay), ErrPeerNotFound)
 
 	require.Never(t, synced, 100*time.Millisecond, time.Millisecond,
 		"a signal for an unknown peer must not lower a different peer's replay fence")

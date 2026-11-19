@@ -72,7 +72,7 @@ func TestValidationPublisherFailureFencesDistinctReceiveChurn(t *testing.T) {
 	bridge := <-bridgeReady
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+	require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)))
 	_, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", nil)
 	require.NoError(t, err)
 	_, err = engine.Execute(ctx, "request bgp adj-rib-in disable-validation", nil)
@@ -90,7 +90,7 @@ func TestValidationPublisherFailureFencesDistinctReceiveChurn(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return bridge.DeliverStructured([]any{&rpc.StructuredEvent{
+		return bridge.DeliverStructured([]any{&rpc.StructuredEvent{ConnectionID: 41,
 			EventType: rpc.EventKindUpdate, PeerAddress: adjTransportSource,
 			SourcePolicyEpoch: 5, PeerOwner: 1,
 			RawMessage: &bgptypes.RawMessage{
@@ -99,7 +99,7 @@ func TestValidationPublisherFailureFencesDistinctReceiveChurn(t *testing.T) {
 			},
 		}})
 	}
-	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(adjTransportSource), PeerOwner: 1,
+	key := ribevents.ValidationRoute{ConnectionID: 41, Peer: netip.MustParseAddr(adjTransportSource), PeerOwner: 1,
 		Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
 	require.NoError(t, deliver(100, 1, false))
 	require.Equal(t, int64(1), acknowledged.Load(), "the real engine callback acknowledged the initial route")

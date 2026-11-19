@@ -50,7 +50,7 @@ func TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld(t *testing.T) {
 		body := fwdShapeBody(nil, attrs, route)
 		require.LessOrEqual(t, message.HeaderLen+len(body), message.MaxMsgLen, "guard: the UPDATE fits")
 
-		result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, dest, &fwdParseCache{})
+		result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, dest, &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		require.True(t, ok, "a route that fits is advertised")
 		require.Len(t, result.rawBodies, 1)
 		assert.Equal(t, body, result.rawBodies[0], "the route is relayed unchanged")
@@ -61,7 +61,7 @@ func TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld(t *testing.T) {
 		body := fwdShapeBody(nil, attrs, route)
 		require.Greater(t, message.HeaderLen+len(body), message.MaxMsgLen, "guard: the single route cannot fit")
 
-		result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, dest, &fwdParseCache{})
+		result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, dest, &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		assert.False(t, ok, "the destination is skipped for this UPDATE")
 		assert.Empty(t, result.rawBodies, "no body carries the route")
 		assert.Empty(t, result.updates, "no parsed UPDATE carries the route")

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // compatibilityBody builds an UPDATE body (RFC 4271 Section 4.3) whose one path
@@ -141,7 +142,7 @@ func TestWithdrawalCompatibilityEveryWriter(t *testing.T) {
 	want := compatibilityBody(t, 15, "000180"+"68"+"800000"+"0000FDE800000001"+"0104")
 	for _, rail := range egressRails {
 		t.Run(rail, func(t *testing.T) {
-			got := egressWrite(t, rail, in)
+			got := egressWrite(t, rail, in, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN})
 			if !bytes.Equal(got, want) {
 				t.Fatalf("%s writer sent:\n got %X\nwant %X", rail, got, want)
 			}

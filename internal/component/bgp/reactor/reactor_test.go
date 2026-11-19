@@ -2226,7 +2226,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 }
 
 // --- Backpressure pause/resume tests ---
-// VALIDATES: AC-7 — Reactor.PausePeer(addr) pauses specific peer's read loop
+// VALIDATES: AC-7 — Reactor.PausePeer(context.Background(), addr, 0, 0) pauses specific peer's read loop
 // PREVENTS: Pause signal not reaching the correct peer
 
 func TestReactorPausePeer(t *testing.T) {
@@ -2247,7 +2247,7 @@ func TestReactorPausePeer(t *testing.T) {
 	}
 
 	// Pause peer 1 only.
-	require.NoError(t, r.PausePeer(addr1))
+	require.NoError(t, r.PausePeer(context.Background(), addr1, 0, 0))
 
 	// Verify peer 1 is paused, peer 2 is not.
 	r.mu.RLock()
@@ -2259,13 +2259,13 @@ func TestReactorPausePeer(t *testing.T) {
 	require.False(t, peer2.isReadPaused(), "peer 2 should not be paused")
 
 	// Resume peer 1.
-	require.NoError(t, r.ResumePeer(addr1))
+	require.NoError(t, r.ResumePeer(context.Background(), addr1, 0, 0))
 	require.False(t, peer1.isReadPaused(), "peer 1 should be resumed")
 
 	// Pause unknown peer should return error.
 	unknown := mustParseAddr("10.0.0.99")
-	require.Error(t, r.PausePeer(unknown))
-	require.Error(t, r.ResumePeer(unknown))
+	require.Error(t, r.PausePeer(context.Background(), unknown, 0, 0))
+	require.Error(t, r.ResumePeer(context.Background(), unknown, 0, 0))
 }
 
 // VALIDATES: AC-8, AC-9 — pauseAllReads/resumeAllReads affects all peers

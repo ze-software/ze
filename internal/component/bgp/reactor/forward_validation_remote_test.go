@@ -42,7 +42,7 @@ func TestForwardValidationRemoteGateBatches(t *testing.T) {
 	calls := 0
 	release := ribevents.RegisterGateDispatch(func(_ context.Context, cmd string, args ...string) (string, json.RawMessage, error) {
 		calls++
-		answer, err := ribevents.AnswerEligibility(args[0], ownerEligible, func(ribevents.ValidationRoute) bool { return true })
+		answer, err := ribevents.AnswerEligibility(args[0], ownerEligible, func(ribevents.ValidationRoute) bool { return true }, nil)
 		if err != nil {
 			return "", nil, err
 		}

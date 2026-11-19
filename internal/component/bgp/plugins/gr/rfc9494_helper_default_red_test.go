@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
@@ -30,7 +31,7 @@ var (
 // LLGR procedures are the only ones that can retain anything, and either family can
 // enter the LLGR period when both OPENs list it in code 71. sentLLGR and receivedLLGR
 // are the LLGR Capability tuples of each OPEN; an empty list leaves code 71 out.
-func rfc9494Opens(gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byte) {
+func rfc9494Opens(t testing.TB, gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byte) {
 	gr := buildGRCapTLV(0, 0, [][4]byte{{0x00, 0x01, 0x01, 0x80}, {0x00, 0x02, 0x01, 0x80}})
 	for _, open := range []struct {
 		direction rpc.MessageDirection
@@ -41,9 +42,9 @@ func rfc9494Opens(gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byt
 			caps = append(caps, buildLLGRCapTLV(open.tuples))
 		}
 		if structured {
-			gp.handleStructuredEvent(&rpc.StructuredEvent{PeerAddress: testPeer,
+			require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{PeerAddress: testPeer, PeerOwner: 701, ConnectionID: 41,
 				EventType: rpc.EventKindOpen, Direction: open.direction,
-				RawMessage: &bgptypes.RawMessage{RawBytes: buildOpenBody(buildCapabilityParam(caps...))}})
+				RawMessage: &bgptypes.RawMessage{RawBytes: buildOpenBody(buildCapabilityParam(caps...))}}))
 			continue
 		}
 		capsJSON := `{"code":64,"value":"00000001018000020180"}`
@@ -54,14 +55,14 @@ func rfc9494Opens(gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byt
 			}
 			capsJSON += `,{"code":71,"value":"` + value + `"}`
 		}
-		event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"` + open.direction.String() +
+		event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"open","direction":"` + open.direction.String() +
 			`"},"peer":{"remote":{"address":"` + testPeer + `","as":65001}},"open":{"asn":65001,` +
 			`"router-id":"1.1.1.1","hold-time":90,"capabilities":[` + capsJSON + `]}}}`
 		if err := gp.handleEvent(event); err != nil {
 			panic("BUG: test OPEN event refused: " + err.Error())
 		}
 	}
-	rfc9494Down(gp, structured)
+	rfc9494Down(t, gp, structured)
 }
 
 // TestRFC9494HelperProceduresOffWithoutLocalConfig drops a session whose peer advertised
@@ -86,7 +87,8 @@ func TestRFC9494HelperProceduresOffWithoutLocalConfig(t *testing.T) {
 		}{{"no-local-llgr", nil}, {"local-ipv6-only", [][7]byte{llgrTupleIPv6}}} {
 			t.Run(path.name+"/"+local.name, func(t *testing.T) {
 				gp, rec := newRecordedGRPlugin()
-				rfc9494Opens(gp, path.structured, local.tuples, [][7]byte{llgrTupleIPv4})
+				t.Cleanup(func() { gp.state.removePeer(grFixtureSource(t, testPeer, 701, 41).grPeer) })
+				rfc9494Opens(t, gp, path.structured, local.tuples, [][7]byte{llgrTupleIPv4})
 
 				sent := rec.all()
 				assert.NotEmpty(t, sent, "the session drop dispatches the base procedures")
@@ -119,16 +121,17 @@ func TestRFC9494HelperProceduresOnPerConfiguredFamily(t *testing.T) {
 	for _, path := range rfc9494Paths {
 		t.Run(path.name, func(t *testing.T) {
 			gp, rec := newRecordedGRPlugin()
-			rfc9494Opens(gp, path.structured, [][7]byte{llgrTupleIPv4}, [][7]byte{llgrTupleIPv4, llgrTupleIPv6})
+			t.Cleanup(func() { gp.state.removePeer(grFixtureSource(t, testPeer, 701, 41).grPeer) })
+			rfc9494Opens(t, gp, path.structured, [][7]byte{llgrTupleIPv4}, [][7]byte{llgrTupleIPv4, llgrTupleIPv6})
 
 			sent := rec.all()
-			assert.Contains(t, sent, "request bgp rib delete-with-community "+testPeer+" "+ipv4+" ffff0007")
-			assert.Contains(t, sent, "request bgp rib attach-community "+testPeer+" "+ipv4+" ffff0006")
-			assert.NotContains(t, sent, "request bgp rib delete-with-community "+testPeer+" "+ipv6+" ffff0007",
+			assert.Contains(t, sent, "request bgp rib source delete-with-community owner 701 connection 41 family "+ipv4+" community ffff0007")
+			assert.Contains(t, sent, "request bgp rib source attach-community owner 701 connection 41 family "+ipv4+" community ffff0006")
+			assert.NotContains(t, sent, "request bgp rib source delete-with-community owner 701 connection 41 family "+ipv6+" community ffff0007",
 				"LLGR entered for a family Ze did not configure")
-			assert.NotContains(t, sent, "request bgp rib attach-community "+testPeer+" "+ipv6+" ffff0006",
+			assert.NotContains(t, sent, "request bgp rib source attach-community owner 701 connection 41 family "+ipv6+" community ffff0006",
 				"LLGR entered for a family Ze did not configure")
-			assert.Contains(t, sent, "request bgp rib purge-stale "+testPeer+" "+ipv6)
+			assert.Contains(t, sent, "request bgp rib source purge-stale owner 701 connection 41 family "+ipv6)
 		})
 	}
 }

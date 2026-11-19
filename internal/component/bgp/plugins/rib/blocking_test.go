@@ -85,13 +85,16 @@ func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
 	// produced by that same session's own sends and replaying them puts a second
 	// copy of the route on the wire (collectPeerUpReplay, rib_replay.go). Without
 	// this earlier down event, state-up is a first session and replays nothing.
-	// The down event records the peer as known without transitioning a session.
+	// Observe an attached predecessor session, then its matching physical DOWN.
+	// Attached observation records ownership without starting replay or readiness.
 	deliverEventSync(t, ctx, mux,
-		`{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"down"}`)
+		`{"type":"state","peer-owner":1,"destination-session":"2","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","reason":"attached"}`)
+	deliverEventSync(t, ctx, mux,
+		`{"type":"state","peer-owner":1,"destination-session":"2","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"down"}`)
 
 	// Step 1: Send a "sent" event to populate ribOut with a route.
 	// This is a "type":"sent" event — the rib plugin stores it in ribOut.
-	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
+	sentEvent := `{"type":"sent","peer-owner":1,"msg-id":1,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
 	deliverEventSync(t, ctx, mux, sentEvent)
 
 	firstUpdateRoute := make(chan struct{})
@@ -164,8 +167,8 @@ func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
 		}
 	})
 
-	stateUpEvent := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","initial-replay":"1"}`
-	probeEvent := `{"type":"sent","msg-id":2,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
+	stateUpEvent := `{"type":"state","peer-owner":1,"destination-session":"1","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","initial-replay":"1"}`
+	probeEvent := `{"type":"sent","peer-owner":1,"msg-id":2,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
 	stateUpDone := make(chan error, 1)
 	go func() {
 		stateUpDone <- deliverEvent(mux, stateUpEvent)
@@ -202,7 +205,7 @@ func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
 	commands = nil
 	commandsMu.Unlock()
 	deliverEventSync(t, ctx, mux,
-		`{"type":"refresh","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"afi":"ipv4","safi":"unicast"}`)
+		`{"type":"refresh","peer-owner":1,"destination-session":"1","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"afi":"ipv4","safi":"unicast"}`)
 	commandsMu.Lock()
 	refreshCommands := slices.Clone(commands)
 	commandsMu.Unlock()

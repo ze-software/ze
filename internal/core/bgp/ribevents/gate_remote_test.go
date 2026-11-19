@@ -48,7 +48,7 @@ func TestRemoteGateAnswersThroughOwnerCommand(t *testing.T) {
 		if cmd != command || len(args) != 1 {
 			return "error", nil, nil
 		}
-		answer, err := AnswerEligibility(args[0], ownerEligible, ownerPresent)
+		answer, err := AnswerEligibility(args[0], ownerEligible, ownerPresent, nil)
 		if err != nil {
 			return "", nil, err
 		}
@@ -111,7 +111,7 @@ func TestRemoteGateAnswersThroughOwnerCommand(t *testing.T) {
 func TestAnswerEligibilityRefusesOversizedBatch(t *testing.T) {
 	yes := func(ValidationRoute, uint64) bool { return true }
 	no := func(ValidationRoute) bool { return false }
-	if _, err := AnswerEligibility("{", yes, no); err == nil {
+	if _, err := AnswerEligibility("{", yes, no, nil); err == nil {
 		t.Fatal("an undecodable request must be refused")
 	}
 	var b strings.Builder
@@ -123,10 +123,10 @@ func TestAnswerEligibilityRefusesOversizedBatch(t *testing.T) {
 		b.WriteString(`{"route":{"peer-address":"192.0.2.1","family":"ipv4/unicast","prefix":"203.0.113.0/24","path-id":0,"nlri":""}}`)
 	}
 	b.WriteString(`]}`)
-	if _, err := AnswerEligibility(b.String(), yes, no); err == nil {
+	if _, err := AnswerEligibility(b.String(), yes, no, nil); err == nil {
 		t.Fatal("a request above EligibilityBatchMax must be refused")
 	}
-	answer, err := AnswerEligibility(`{"queries":[{"route":{"peer-address":"192.0.2.1","family":"ipv4/unicast","prefix":"203.0.113.0/24","path-id":0,"nlri":""}},{"route":{"peer-address":"192.0.2.1","family":"ipv4/unicast","prefix":"203.0.113.0/24","path-id":0,"nlri":""},"present":true}]}`, yes, no)
+	answer, err := AnswerEligibility(`{"queries":[{"route":{"peer-address":"192.0.2.1","family":"ipv4/unicast","prefix":"203.0.113.0/24","path-id":0,"nlri":""}},{"route":{"peer-address":"192.0.2.1","family":"ipv4/unicast","prefix":"203.0.113.0/24","path-id":0,"nlri":""},"present":true}]}`, yes, no, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

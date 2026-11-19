@@ -51,7 +51,7 @@ func TestRFC6396WireCaptureIgnoresSemanticSynthesis(t *testing.T) {
 		s, client, cleanup := setupEstablishedSessionTwoFamilies(t)
 		path, stop := recordSessionWire(t, s)
 		semantic := 0
-		s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, d rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+		s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, d rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 			if d == rpc.DirectionReceived {
 				semantic++
 			}

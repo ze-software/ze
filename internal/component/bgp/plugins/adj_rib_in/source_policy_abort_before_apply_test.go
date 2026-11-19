@@ -25,15 +25,15 @@ func TestRFC8212SourcePolicyAdjRIBInAbortBeforeApply(t *testing.T) {
 	r := f.r
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 0))
-	r.ribIn[f.source].Range(func(_ compactRouteKey, _ uint64, route *RawRoute) bool {
+	r.ribIn[receivedPeer{address: f.source, owner: 1}].Range(func(_ compactRouteKey, _ uint64, route *RawRoute) bool {
 		require.Equal(t, uint64(5), route.SourcePolicyEpoch, "an abort before apply restamped a route")
 		return true
 	})
 	require.True(t, f.eligible(f.source, 0))
 	require.Equal(t, 3, f.replayed(t))
-	_, denied := r.policyDenied[f.source]
+	_, denied := r.policyDenied[1]
 	require.False(t, denied, "an abort before apply left a denial bound")
-	require.Nil(t, r.sourcePolicy[f.source].installed, "abort releases the pins")
+	require.Nil(t, r.sourcePolicy[1].installed, "abort releases the pins")
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 0), "duplicate abort")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 5, 0))

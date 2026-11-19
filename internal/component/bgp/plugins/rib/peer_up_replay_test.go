@@ -30,9 +30,9 @@ func captureRIBLog(t *testing.T) *bytes.Buffer {
 const replayTestPeer = "10.0.0.1"
 
 // stateEventFor builds a state event for the text rail.
-func stateEventFor(t *testing.T, state string) *Event {
+func stateEventFor(t *testing.T, state string, session uint64) *Event {
 	t.Helper()
-	return &Event{Peer: mustMarshal(t, map[string]any{
+	return &Event{PeerOwner: 1, DestinationSession: session, Peer: mustMarshal(t, map[string]any{
 		"state":  state,
 		"remote": map[string]any{"address": replayTestPeer, "as": uint32(65001)},
 	})}
@@ -41,16 +41,17 @@ func stateEventFor(t *testing.T, state string) *Event {
 // oneRouteRibOut pre-populates the peer's Adj-RIB-Out with a single route.
 func oneRouteRibOut(t *testing.T, r *RIBManager) {
 	t.Helper()
-	r.ribOut[netip.MustParseAddr(replayTestPeer)] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr(replayTestPeer)}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 9, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
 	// This fixture represents a locally injected route, not a source-less
 	// forwarded route. Production sent receipts name that origin explicitly.
-	for key, entry := range r.ribOut[netip.MustParseAddr(replayTestPeer)][family.IPv4Unicast] {
+	for key, entry := range r.ribOut[1][family.IPv4Unicast] {
 		entry.LocalOrigin = true
-		r.ribOut[netip.MustParseAddr(replayTestPeer)][family.IPv4Unicast][key] = entry
+		r.ribOut[1][family.IPv4Unicast][key] = entry
 	}
 }
 
@@ -72,14 +73,14 @@ func TestPeerUpReplaySkippedOnFirstSession(t *testing.T) {
 	buf := captureRIBLog(t)
 
 	oneRouteRibOut(t, r)
-	r.handleState(stateEventFor(t, "up"))
+	r.handleState(stateEventFor(t, "up", 11))
 
 	out := buf.String()
 	assert.Contains(t, out, "adj-rib-out replay skipped on a peer's first session",
 		"the suppressed duplicate must be visible; a guard that neither denies nor speaks does not exist")
 	assert.NotContains(t, out, "update-route failed",
 		"no route command may be attempted: attempting one IS the duplicate")
-	assert.Len(t, r.ribOut[netip.MustParseAddr(replayTestPeer)], 1,
+	assert.Len(t, r.ribOut[1], 1,
 		"declining to replay must not discard the Adj-RIB-Out itself")
 }
 
@@ -95,12 +96,12 @@ func TestPeerUpReplayRunsOnReestablishedSession(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// First session, then teardown: the peer is now known to have been up.
-	r.handleState(stateEventFor(t, "up"))
-	r.handleState(stateEventFor(t, "down"))
+	r.handleState(stateEventFor(t, "up", 11))
+	r.handleState(stateEventFor(t, "down", 11))
 
 	buf := captureRIBLog(t)
 	oneRouteRibOut(t, r)
-	r.handleState(stateEventFor(t, "up"))
+	r.handleState(stateEventFor(t, "up", 12))
 
 	out := buf.String()
 	assert.NotContains(t, out, "adj-rib-out replay skipped",
@@ -120,7 +121,7 @@ func TestPeerUpReplayFirstSessionQuietWhenNothingRecorded(t *testing.T) {
 	r := newTestRIBManager(t)
 	buf := captureRIBLog(t)
 
-	r.handleState(stateEventFor(t, "up"))
+	r.handleState(stateEventFor(t, "up", 11))
 
 	assert.NotContains(t, buf.String(), "adj-rib-out replay skipped",
 		"an empty Adj-RIB-Out on a first session is normal and says nothing")
@@ -147,7 +148,7 @@ func TestCollectPeerUpReplayGuard(t *testing.T) {
 			buf := captureRIBLog(t)
 			oneRouteRibOut(t, r)
 
-			groups := r.collectPeerUpReplay(netip.MustParseAddr(replayTestPeer), tc.seenBefore)
+			groups := r.collectPeerUpReplay(1, tc.seenBefore)
 
 			require.Len(t, groups, tc.wantGroups)
 			assert.Equal(t, tc.wantSkipLog,

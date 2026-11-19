@@ -80,7 +80,7 @@ func newCoalesceSession(t *testing.T) (*Session, *[][]byte) {
 
 	var mu sync.Mutex
 	var bodies [][]byte
-	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, rawBytes []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, msgType msgtype.MessageType, rawBytes []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if msgType == msgtype.TypeUPDATE {

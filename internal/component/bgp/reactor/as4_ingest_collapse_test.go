@@ -191,7 +191,7 @@ func collapseReceive(t *testing.T, s *Session, body []byte) *wireu.WireUpdate {
 	t.Helper()
 
 	var dispatched *wireu.WireUpdate
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		dispatched = wu
@@ -486,7 +486,7 @@ func collapseForwardIngest(t *testing.T, attrs []byte, dests []collapseDest) *co
 	sourcePeer.mu.Lock()
 	sourcePeer.session = session
 	sourcePeer.mu.Unlock()
-	session.onMessageReceived = r.notifyMessageReceiver
+	session.onMessageReceived = r.capturedMessageReceiver
 
 	body := makeUpdateBody(nil, attrs, fwdTestNLRI)
 	hdr := message.Header{Length: uint16(message.HeaderLen + len(body)), Type: msgtype.TypeUPDATE} //nolint:gosec // fixture bodies are small
@@ -802,7 +802,7 @@ func TestReceivedBytesReachTheObserversUncollapsed(t *testing.T) {
 
 	var observed []byte
 	var dispatched *wireu.WireUpdate
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, rawBytes []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, rawBytes []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		observed = rawBytes

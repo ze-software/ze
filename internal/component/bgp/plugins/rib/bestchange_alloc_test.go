@@ -27,9 +27,9 @@ func TestCIDRSameBestAllocations(t *testing.T) {
 		r := newTestRIBManagerWithBus(newTestEventBus())
 		electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 		peer := netip.MustParseAddr("192.0.2.1")
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
+		r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65000, LocalASN: 65000}
 		rib := storage.NewPeerRIB(peer.String())
-		r.bgpPeers[peer] = rib
+		r.bgpPeers[1] = rib
 		key := []byte{8, 10}
 		rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), key)
 		if _, changed := r.checkBestPathChange(famV4, key, false, nil); !changed {
@@ -46,7 +46,7 @@ func TestCIDRSameBestAllocations(t *testing.T) {
 		r := newTestRIBManagerWithBus(newTestEventBus())
 		electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 		peer := netip.MustParseAddr("192.0.2.31")
-		rib := newAddPathPeer(r, peer)
+		rib := newAddPathPeer(r, 1, peer)
 		key := addPathKey(7)
 		rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), key)
 		if _, changed := r.checkBestPathChange(famV4, key, true, nil); !changed {

@@ -20,13 +20,13 @@ func stoppedCaptureFixture(t *testing.T) (*RIBManager, netip.Addr, uint64) {
 	t.Helper()
 	r, peer := advertiseCaptureRIB(t)
 	raw := ipv4Prefix(24, 198, 18, 241)
-	advertiseCapturePath(r, peer, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 30, 100), 241, 5)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 30, 100), 241, 5)
 	_, changed := r.checkBestPathChange(family.IPv4Unicast, raw, false, nil)
 	require.True(t, changed)
 	first, err := r.advertiseSnapshot()
 	require.NoError(t, err)
 	require.Len(t, first, 1)
-	advertiseCapturePath(r, peer, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 40, 200), 242, 5)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 40, 200), 242, 5)
 	r.peerMu.Lock()
 	r.stopping = true
 	r.peerMu.Unlock()
@@ -44,7 +44,7 @@ func TestRIBShutdownRefusedMarkDoesNotReconcile(t *testing.T) {
 	require.Len(t, current, 1)
 	require.Equal(t, revision, current[0].revision)
 	require.Equal(t, uint64(241), current[0].route.MessageID)
-	require.Positive(t, r.bgpPeers[peer].Len(), "an admitted reader still owns its useful stored route")
+	require.Positive(t, r.bgpPeers[advertiseCaptureOwner].Len(), "an admitted reader still owns its useful stored route")
 }
 
 // TestRIBShutdownRefusedJSONDoesNotReconcile covers the JSON return defer,
@@ -59,7 +59,7 @@ func TestRIBShutdownRefusedJSONDoesNotReconcile(t *testing.T) {
 	require.Len(t, current, 1)
 	require.Equal(t, revision, current[0].revision)
 	require.Equal(t, uint64(241), current[0].route.MessageID)
-	require.Positive(t, r.bgpPeers[peer].Len())
+	require.Positive(t, r.bgpPeers[advertiseCaptureOwner].Len())
 }
 
 // TestRIBSourceLeaseStoppedOwnerDoesNotReport proves that a direct caller's
@@ -68,11 +68,13 @@ func TestRIBSourceLeaseStoppedOwnerDoesNotReport(t *testing.T) {
 	f := newSourceFailureFixture(t)
 	s := f.r.sourceLeases
 	peer := netip.MustParseAddr("192.0.2.242")
-	s.setAdmission(peer, errors.New("prior source failure"))
-	s.reported[peer] = "previously acknowledged warning"
+	f.r.peerMeta[701] = &peerMetadata{Address: peer}
+	f.r.peerMeta[702] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.243")}
+	s.setAdmission(701, errors.New("prior source failure"))
+	s.reported[701] = "previously acknowledged warning"
 	s.stop()
 	require.False(t, s.reportFailures(context.Background()))
 	require.Empty(t, f.reports, "an ended SDK owner must not raise or clear warnings")
-	s.setAdmission(netip.MustParseAddr("192.0.2.243"), errors.New("late failure"))
+	s.setAdmission(702, errors.New("late failure"))
 	require.Len(t, s.failures(), 1, "late intake must not repopulate stopped fault state")
 }

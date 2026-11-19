@@ -31,7 +31,7 @@ func TestForwardSplitConvertsAddPathContext(t *testing.T) {
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{sourceNLRI})
 	require.Greater(t, message.HeaderLen+len(rawBody), 180, "source UPDATE must force split")
 
-	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 180, destCtxID, peer, netip.MustParseAddr("192.0.2.2"), &fwdParseCache{})
+	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 180, destCtxID, peer, netip.MustParseAddr("192.0.2.2"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies, "mismatched contexts must not use raw source bodies")
 	require.Greater(t, len(result.updates), 1, "destination-encoded update should split")
@@ -60,7 +60,7 @@ func TestForwardSplitConvertsASN4Context(t *testing.T) {
 	attrs := forwardBodyBaseAttrs(t, 200000)
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{forwardBodyNLRIs(70, false)})
 
-	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 170, destCtxID, peer, netip.MustParseAddr("192.0.2.3"), &fwdParseCache{})
+	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 170, destCtxID, peer, netip.MustParseAddr("192.0.2.3"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
 	// read-pool buffer that production returns at cache eviction.
 	defer returnReadBuffer(result.transcodeBuf)
@@ -103,7 +103,7 @@ func TestForwardDoesNotRetranscodeASN2RewrittenWire(t *testing.T) {
 	require.False(t, modFail.failed(), "the fixture rebuild must succeed")
 	require.NotNil(t, rewritten)
 
-	result, ok := buildFwdBody(wireu.NewWireUpdate(rewritten, fwdContextIDWithASN4(srcCtxID, false)), message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{})
+	result, ok := buildFwdBody(wireu.NewWireUpdate(rewritten, fwdContextIDWithASN4(srcCtxID, false)), message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	require.True(t, ok, "already rewritten ASN2 wire must not be transcoded again")
 
 	var forwarded *message.Update
@@ -145,7 +145,7 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 	for _, wire := range wires {
 		func() {
 			// RFC 7911 Section 5: forwarding keeps the negotiated extended NLRI encoding.
-			result, ok := buildFwdBody(wire, 180, ctxID, peer, netip.MustParseAddr("192.0.2.4"), &fwdParseCache{})
+			result, ok := buildFwdBody(wire, 180, ctxID, peer, netip.MustParseAddr("192.0.2.4"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 			defer returnReadBuffer(result.transcodeBuf)
 			require.True(t, ok)
 			require.Empty(t, result.updates, "same-context oversized forwarding must keep rawBodies")
@@ -228,7 +228,7 @@ func TestTranscodeBufferPooled(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
 		result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
-			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{})
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		require.True(t, ok)
 		require.Len(t, result.updates, 1, "guard: a fitting UPDATE must not be split")
 
@@ -256,7 +256,7 @@ func TestTranscodeBufferPooled(t *testing.T) {
 
 		_, before := bufMuxStd.Stats()
 		result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
-			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.21"), &fwdParseCache{})
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.21"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		require.True(t, ok)
 		_, after := bufMuxStd.Stats()
 
@@ -302,7 +302,7 @@ func TestGoldenBytesUnchangedCrossContextTranscode(t *testing.T) {
 	poisonReadPool(t)
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
-		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.30"), &fwdParseCache{})
+		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.30"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	require.True(t, ok)
 	require.Len(t, result.updates, 1, "guard: a fitting UPDATE must not be split")
 	require.NotNil(t, result.transcodeBuf.Buf,
@@ -352,7 +352,7 @@ func TestTranscodeBufferSingleReturn(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 
 		result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
-			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.22"), &fwdParseCache{})
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.22"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		require.True(t, ok)
 
 		// The production ownership chain: the caller adopts onto the entry, and the
@@ -388,7 +388,7 @@ func TestTranscodeBufferSingleReturn(t *testing.T) {
 
 		_, before := bufMuxStd.Stats()
 		result, ok := buildFwdBody(wireu.NewWireUpdate(body, badSrcCtxID),
-			message.MaxMsgLen, badDestCtxID, badPeer, netip.MustParseAddr("192.0.2.23"), &fwdParseCache{})
+			message.MaxMsgLen, badDestCtxID, badPeer, netip.MustParseAddr("192.0.2.23"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 		require.False(t, ok, "guard: malformed NLRI must fail the re-encode")
 
 		_, after := bufMuxStd.Stats()
@@ -400,7 +400,7 @@ func TestTranscodeBufferSingleReturn(t *testing.T) {
 		_, before := bufMuxStd.Stats()
 		for range 8 {
 			result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
-				message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.24"), &fwdParseCache{})
+				message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.24"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 			require.True(t, ok)
 			update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(nil, srcCtxID)}
 			update.adoptFwdHandle(result.transcodeBuf)

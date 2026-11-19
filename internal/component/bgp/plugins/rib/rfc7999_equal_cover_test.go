@@ -28,7 +28,7 @@ func TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(24, 10, 0, 0),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -55,7 +55,7 @@ func TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/25")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(24, 10, 0, 0),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 

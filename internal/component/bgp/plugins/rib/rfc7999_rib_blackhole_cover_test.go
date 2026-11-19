@@ -25,7 +25,7 @@ func TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix(t *testing.T) {
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 
-	change, ok := announce(t, r, peer,
+	change, ok := announce(t, r, blackholePeerOwner,
 		ipv4Prefix(24, 10, 0, 0),
 		blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
@@ -59,7 +59,7 @@ func TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix(t *testing.T) {
 				authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 			})
 
-			change, ok := announce(t, r, peer, tc.nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
+			change, ok := announce(t, r, blackholePeerOwner, tc.nlri, blackholeAttrBytes([4]byte{192, 168, 1, 1}, blackholeValue))
 
 			require.True(t, ok, "best-path change not detected")
 			assert.Equal(t, routetype.Type(0), change.RouteType)

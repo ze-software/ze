@@ -63,7 +63,7 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 		}
 		return wire
 	}
-	announce := func(peer netip.Addr, hop byte, med uint32, wire []byte) {
+	announce := func(peerOwner uint64, peer netip.Addr, hop byte, med uint32, wire []byte) {
 		body := labeledUpdateBody([4]byte{10, 0, 0, hop}, med, wire)
 		if fam == vpnv4Family {
 			body = vpnv4AnnounceBody([4]byte{10, 0, 0, hop}, med, wire)
@@ -77,9 +77,9 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 			binary.BigEndian.PutUint16(body[2:4], uint16(len(body)-4))
 		}
 		// RFC 8277 Section 2.4: announcements establish the session's binding.
-		feedReceivedJSONWithIdentifier(t, r, peer, 1, ctxID, body)
+		feedReceivedJSONWithIdentifier(t, r, peerOwner, peer, 1, ctxID, body)
 	}
-	withdraw := func(peer netip.Addr, wire []byte) {
+	withdraw := func(peerOwner uint64, peer netip.Addr, wire []byte) {
 		wire = bytes.Clone(wire)
 		off := 1
 		if addPath {
@@ -91,15 +91,15 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 			body = vpnv4WithdrawBody(wire)
 		}
 		// RFC 8277 Section 2.4: withdraw using different Compatibility bytes.
-		feedReceivedJSONWithIdentifier(t, r, peer, 1, ctxID, body)
+		feedReceivedJSONWithIdentifier(t, r, peerOwner, peer, 1, ctxID, body)
 	}
 	first := nlri(100, vpnRouteKeyRD, 0)
 	second := nlri(200, vpnRouteKeyRD, 0)
-	announce(peA, 1, 10, first)
-	announce(peB, 2, 20, second)
+	announce(1, peA, 1, 10, first)
+	announce(2, peB, 2, 20, second)
 	beforeRelabel := len(vpnBestChanges(bus, fam))
 	first = nlri(101, vpnRouteKeyRD, 0)
-	announce(peA, 1, 10, first)
+	announce(1, peA, 1, 10, first)
 	relabelChanges := vpnBestChanges(bus, fam)
 	if len(relabelChanges) != beforeRelabel+1 {
 		t.Fatalf("same-winner relabel published %d changes, want one", len(relabelChanges)-beforeRelabel)
@@ -124,22 +124,22 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 	var sibling []byte
 	if addPath {
 		sibling = nlri(300, vpnRouteKeyRD, 7)
-		announce(peA, 3, 30, sibling)
+		announce(1, peA, 3, 30, sibling)
 		remainingA++
 	}
 	if fam == vpnv4Family {
 		otherRD := vpnRouteKeyRD
 		otherRD[7] = 2
-		announce(peA, 4, 1, nlri(400, otherRD, 0))
+		announce(1, peA, 4, 1, nlri(400, otherRD, 0))
 		remainingA++
 		remainingBest++
 	}
 	before := len(vpnBestChanges(bus, fam))
-	withdraw(peA, first)
-	if got := r.bgpPeers[peA].FamilyLen(fam); got != remainingA {
+	withdraw(1, peA, first)
+	if got := r.bgpPeers[1].FamilyLen(fam); got != remainingA {
 		t.Fatalf("PE A Adj-RIB-In = %d, want %d: only the target RD/path may disappear", got, remainingA)
 	}
-	if got := r.bgpPeers[peB].FamilyLen(fam); got != 1 {
+	if got := r.bgpPeers[2].FamilyLen(fam); got != 1 {
 		t.Fatalf("PE B Adj-RIB-In = %d, want 1", got)
 	}
 	changes := vpnBestChanges(bus, fam)
@@ -162,17 +162,17 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 			t.Fatalf("Loc-RIB retains withdrawn PE: %+v, present=%v", best, ok)
 		}
 	}
-	withdraw(peA, first)
+	withdraw(1, peA, first)
 	if got := len(vpnBestChanges(bus, fam)); got != len(changes) {
 		t.Fatalf("duplicate withdrawal published another decision: %d -> %d", len(changes), got)
 	}
 	if addPath {
-		withdraw(peA, sibling)
+		withdraw(1, peA, sibling)
 		if got := len(vpnBestChanges(bus, fam)); got != len(changes) {
 			t.Fatalf("nonbest sibling withdrawal changed the best: %d -> %d", len(changes), got)
 		}
 	}
-	withdraw(peB, second)
+	withdraw(2, peB, second)
 	changes = vpnBestChanges(bus, fam)
 	if len(changes) != before+2 || changes[len(changes)-1].Action != routeaction.Withdraw {
 		t.Fatalf("last path did not publish exactly one withdrawal: %+v", changes)
@@ -185,7 +185,7 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 			t.Fatal("last withdrawn path remains in Loc-RIB")
 		}
 	}
-	withdraw(peB, second)
+	withdraw(2, peB, second)
 	if got := len(vpnBestChanges(bus, fam)); got != len(changes) {
 		t.Fatalf("later duplicate withdrawal published again: %d -> %d", len(changes), got)
 	}

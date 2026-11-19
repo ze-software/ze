@@ -32,17 +32,17 @@ func newQueueSizeTestTx(t *testing.T, envOverride bool) (*workerPool, *sdk.Confi
 
 // newWorkerCapacity creates a worker for a fresh source peer and answers the
 // capacity of its channel: the size a worker built now receives.
-func newWorkerCapacity(t *testing.T, wp *workerPool, source string) int {
+func newWorkerCapacity(t *testing.T, wp *workerPool, source workerKey) int {
 	t.Helper()
-	key := workerKey{sourcePeer: source}
-	if !wp.Dispatch(key, workItem{sourcePeer: source}) {
-		t.Fatalf("dispatch to %s refused", source)
+	key := source
+	if !wp.Dispatch(key, workItem{sourcePeer: source.address.String()}) {
+		t.Fatalf("dispatch to %v refused", source)
 	}
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	w := wp.workers[key]
 	if w == nil {
-		t.Fatalf("no worker for %s", source)
+		t.Fatalf("no worker for %v", source)
 	}
 	return cap(w.ch)
 }
@@ -58,30 +58,30 @@ func TestQueueSizeConfigTxAppliesAReloadedSize(t *testing.T) {
 	if err := tx.Configure(queueSizeSection("8192")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.1"); got != 8192 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.1", 1, 101)); got != 8192 {
 		t.Fatalf("after boot: capacity %d, want 8192", got)
 	}
 
 	if err := tx.Verify(queueSizeSection("16384")); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.2"); got != 8192 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.2", 2, 102)); got != 8192 {
 		t.Fatalf("verify applied the candidate: capacity %d, want 8192 until apply", got)
 	}
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.3"); got != 16384 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.3", 3, 103)); got != 16384 {
 		t.Fatalf("after apply: capacity %d, want 16384", got)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.1"); got != 8192 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.1", 1, 101)); got != 8192 {
 		t.Fatalf("existing worker resized: capacity %d, want 8192 until it is recreated", got)
 	}
 
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.4"); got != 8192 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.4", 4, 104)); got != 8192 {
 		t.Fatalf("after rollback: capacity %d, want 8192", got)
 	}
 
@@ -91,7 +91,7 @@ func TestQueueSizeConfigTxAppliesAReloadedSize(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply without the leaf: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.5"); got != workerQueueSizeDefault {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.5", 5, 105)); got != workerQueueSizeDefault {
 		t.Fatalf("leaf removed: capacity %d, want the default %d", got, workerQueueSizeDefault)
 	}
 }
@@ -110,7 +110,7 @@ func TestQueueSizeConfigTxKeepsSizeWithoutBGPSection(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.1"); got != 8192 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.1", 1, 101)); got != 8192 {
 		t.Fatalf("capacity %d, want 8192", got)
 	}
 }
@@ -137,13 +137,13 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.1"); got != 1234 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.1", 1, 101)); got != 1234 {
 		t.Fatalf("after apply: capacity %d, want 1234 (an unchanged subtree installed the size)", got)
 	}
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.2"); got != 1234 {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.2", 2, 102)); got != 1234 {
 		t.Fatalf("after rollback: capacity %d, want 1234", got)
 	}
 }
@@ -161,7 +161,7 @@ func TestQueueSizeConfigTxEnvOverrideIgnoresReload(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if got := newWorkerCapacity(t, wp, "10.0.0.1"); got != workerQueueSizeDefault {
+	if got := newWorkerCapacity(t, wp, rsFixtureKey("10.0.0.1", 1, 101)); got != workerQueueSizeDefault {
 		t.Fatalf("capacity %d, want the env-chosen %d", got, workerQueueSizeDefault)
 	}
 }

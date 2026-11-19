@@ -165,7 +165,7 @@ func TestPolicyTeardownExitsRun(t *testing.T) {
 	// requestPolicyTeardown from inside this same callback, on this same
 	// goroutine, with Cease / Connection Rejected as its default code pair.
 	var filterRan bool
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		filterRan = true
@@ -451,7 +451,7 @@ func TestTeardownReasonSurvivesBlockedNotification(t *testing.T) {
 				session.bufWriter = bufio.NewWriter(conn)
 				if tc.name == "policy" {
 					establishUpdateReadFixture(t, session)
-					session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+					session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 						_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 						_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 						session.requestPolicyTeardown(message.NotifyCease, message.NotifyCeaseConnectionRejected)

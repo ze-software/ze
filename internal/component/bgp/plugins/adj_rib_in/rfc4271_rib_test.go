@@ -66,17 +66,17 @@ func TestRFC4271AdjRIBInPlacesNewRoute(t *testing.T) {
 	slash8 := routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/8", 0)
 
 	feed(rfc4271Announce(1, 0x08, 0x0a)) // 10.0.0.0/8 via 10.0.0.1
-	require.Equal(t, 1, r.ribIn[peer].Len(), "9-4 positive: the first NLRI is placed")
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: peer}].Len(), "9-4 positive: the first NLRI is placed")
 
 	feed(rfc4271Announce(1, 0x10, 0x0a, 0x01)) // 10.1.0.0/16 via 10.0.0.1
-	require.Equal(t, 2, r.ribIn[peer].Len(), "9-4 positive: a second, distinct NLRI is placed beside the first")
-	first, ok := r.ribIn[peer].Get(slash8)
+	require.Equal(t, 2, r.ribIn[receivedPeer{address: peer}].Len(), "9-4 positive: a second, distinct NLRI is placed beside the first")
+	first, ok := r.ribIn[receivedPeer{address: peer}].Get(slash8)
 	require.True(t, ok, "9-4 positive: 10.0.0.0/8 is found under its own key")
 	assert.Equal(t, "0a000001", first.NHopHex, "the stored route carries the NEXT_HOP it arrived with")
 
 	feed(rfc4271Announce(2, 0x08, 0x0a)) // 10.0.0.0/8 again, via 10.0.0.2
-	assert.Equal(t, 2, r.ribIn[peer].Len(), "9-4 negative: an identical NLRI adds no entry")
-	replaced, ok := r.ribIn[peer].Get(slash8)
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: peer}].Len(), "9-4 negative: an identical NLRI adds no entry")
+	replaced, ok := r.ribIn[receivedPeer{address: peer}].Get(slash8)
 	require.True(t, ok)
 	assert.Equal(t, "0a000002", replaced.NHopHex, "the identical NLRI took the existing slot")
 }

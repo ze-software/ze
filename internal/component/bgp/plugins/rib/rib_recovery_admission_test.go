@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // TestRecoveryAdmissionKeepsWireCandidates compares the same retained path in
@@ -35,10 +36,10 @@ func TestRecoveryAdmissionKeepsWireCandidates(t *testing.T) {
 				transport = "published"
 			}
 			t.Run(tc.name+"/"+transport, func(t *testing.T) {
-				r, loc := nextHopReachabilityRIB(t)
+				r, loc := recoveryAdmissionRIB(t)
 				recoveryTestCleanup(t, r)
 				source := netip.MustParseAddr("192.0.2.11")
-				recoveryAdmissionReceived(r, source, tc.fam, tc.nlri)
+				recoveryAdmissionReceived(t, r, source, 102, 702, tc.fam, tc.nlri)
 				require.False(t, igpcost.Resolve(loc, source).Resolved)
 				r.peerMu.RLock()
 				ordinary := r.gatherCandidatesLocked(tc.fam, tc.nlri, false)
@@ -46,7 +47,7 @@ func TestRecoveryAdmissionKeepsWireCandidates(t *testing.T) {
 				defer releaseCandidates(ordinary)
 				require.Empty(t, ordinary, "wire recovery must not relax forwarding-table feasibility")
 
-				request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), Family: tc.fam,
+				request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), DestinationOwner: 201, Family: tc.fam,
 					Keys: []ribevents.RecoveryKey{recoveryKey(tc.nlri)}}
 				outcomes := recoveryAdmissionLookup(t, r, request, published)
 				require.NoError(t, ribevents.CheckRecoveryAnswer(&request, outcomes))
@@ -79,28 +80,29 @@ func TestRecoveryAdmissionPreservesCandidateGuards(t *testing.T) {
 				transport = "published"
 			}
 			t.Run(name+"/"+transport, func(t *testing.T) {
-				r, _ := nextHopReachabilityRIB(t)
+				r, _ := recoveryAdmissionRIB(t)
 				recoveryTestCleanup(t, r)
 				source := netip.MustParseAddr("192.0.2.11")
-				request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), Family: family.IPv4Unicast,
+				request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), DestinationOwner: 201, Family: family.IPv4Unicast,
 					Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51, 100})}}
 				if name != "absent" {
-					recoveryAdmissionReceived(r, source, request.Family, request.Keys[0].NLRI)
+					recoveryAdmissionReceived(t, r, source, 102, 702, request.Family, request.Keys[0].NLRI)
 				}
 				switch name {
 				case "excluded":
-					request.Keys[0].Excluded = []netip.Addr{source}
+					request.Keys[0].Excluded = []uint64{102}
 				case "down":
-					r.peerUp[source] = false
+					r.peerUp[102] = false
 				case "destination":
 					request.Destination = source
+					request.DestinationOwner = 102
 				case "self-next-hop":
 					self := []netip.Addr{source}
 					r.selfNextHops.Store(&self)
 				case "source-policy":
-					r.bgpPeers[source].ModifyFamilyEntry(request.Family, request.Keys[0].NLRI,
+					r.bgpPeers[102].ModifyFamilyEntry(request.Family, request.Keys[0].NLRI,
 						func(entry *storage.RouteEntry) { entry.SourcePolicyEpoch = 1 })
-					r.bgpPeers[source].DenySourcePolicyThrough(1)
+					r.bgpPeers[102].DenySourcePolicyThrough(1)
 				}
 				outcomes := recoveryAdmissionLookup(t, r, request, published)
 				require.NoError(t, ribevents.CheckRecoveryAnswer(&request, outcomes))
@@ -114,9 +116,8 @@ func TestRecoveryAdmissionPreservesCandidateGuards(t *testing.T) {
 
 // recoveryAdmissionReceived supplies one valid retained route for each gather
 // shape. The VPNv4 value includes a label, RD and prefix; its next-hop RD is zero.
-func recoveryAdmissionReceived(r *RIBManager, source netip.Addr, fam family.Family, raw []byte) {
-	routes := storage.NewPeerRIB(source.String())
-	r.bgpPeers[source], r.peerUp[source] = routes, true
+func recoveryAdmissionReceived(t *testing.T, r *RIBManager, source netip.Addr, owner, receipt uint64, fam family.Family, raw []byte) {
+	t.Helper()
 	attrs := nativeSentAttrs()
 	if fam == family.IPv4Unicast {
 		attrs = appendAttr(attrs, byte(attribute.AttrNextHop), 0x40, source.AsSlice())
@@ -127,8 +128,7 @@ func recoveryAdmissionReceived(r *RIBManager, source netip.Addr, fam family.Fami
 		reach = append(reach, raw...)
 		attrs = appendAttr(attrs, byte(attribute.AttrMPReachNLRI), 0x80, reach)
 	}
-	routes.Insert(fam, attrs, raw)
-	routes.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) { entry.MsgID = 81 })
+	recoveryStoredPath(t, r, source, owner, receipt, fam, attrs, raw, 81)
 }
 
 // recoveryAdmissionLookup exercises either the published callback or the hidden
@@ -154,4 +154,17 @@ func recoveryAdmissionLookup(t *testing.T, r *RIBManager, request ribevents.Reco
 	var outcomes []ribevents.RecoveryOutcome
 	require.NoError(t, json.Unmarshal(encoded, &outcomes))
 	return outcomes
+}
+
+// recoveryAdmissionRIB keeps the actual empty forwarding table and resolver,
+// while its recovery candidates acquire through the real SDK lease fixture.
+func recoveryAdmissionRIB(t *testing.T) (*RIBManager, *locrib.RIB) {
+	t.Helper()
+	r, _ := sourceLeaseTestRIB(t, true)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+	t.Cleanup(func() { r.SetLocRIB(nil) })
+	igpcost.Set(func(addr netip.Addr) igpcost.Distance { return igpcost.Resolve(loc, addr) })
+	t.Cleanup(func() { igpcost.Set(nil) })
+	return r, loc
 }

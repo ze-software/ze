@@ -10,6 +10,7 @@ package reactor
 
 import (
 	"bytes"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
 	"sync"
 	"testing"
@@ -41,7 +42,7 @@ func rsRejectChain(t *testing.T) filterapi.Policy {
 // forwardRSOnce runs one received UPDATE through reactorForwardRS from
 // 10.0.0.1 to a destination at 10.0.0.2 holding export, and answers the
 // skipped list and the bodies the destination was dispatched.
-func forwardRSOnce(t *testing.T, export filterapi.Policy, payload []byte) ([]netip.AddrPort, [][]byte) {
+func forwardRSOnce(t *testing.T, export filterapi.Policy, payload []byte) ([]rpc.ForwardTarget, [][]byte) {
 	t.Helper()
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -84,7 +85,14 @@ func forwardRSOnce(t *testing.T, export filterapi.Policy, payload []byte) ([]net
 		fwdPool: testPool,
 	}
 
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+	wantTarget := fixtureForwardTarget(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, 61, netip.MustParseAddr("10.0.0.1"), src)
+	for _, target := range skipped {
+		if target != wantTarget {
+			t.Fatalf("hand-back lost original target: got=%+v want=%+v", target, wantTarget)
+		}
+	}
 	if dispatched == 0 {
 		return skipped, nil
 	}

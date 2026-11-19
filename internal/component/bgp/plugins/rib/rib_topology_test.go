@@ -128,7 +128,8 @@ func TestGraphCommandAnswerStatus(t *testing.T) {
 func insertGraphRoute(r *RIBManager) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001), []byte{24, 10, 0, 0})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 }
 
 // TestGraphTerminalViaPipeline: `show bgp rib received graph` answers the

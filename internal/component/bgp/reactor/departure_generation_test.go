@@ -28,8 +28,8 @@ const adjOutEverySession = math.MaxUint64
 
 // departureGenerationBatch is a departure of source over 192.0.2.0/24 that
 // answers the end of the session at generation.
-func departureGenerationBatch(source netip.Addr, generation uint64) bgptypes.NLRIBatch {
-	return bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
+func departureGenerationBatch(source netip.Addr, owner, generation uint64) bgptypes.NLRIBatch {
+	return bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source, RecoverySourceOwner: owner,
 		RecoveryGeneration: generation,
 		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast,
 			netip.MustParsePrefix("192.0.2.0/24"), 0, false)}}
@@ -70,7 +70,7 @@ func TestStaleDepartureSparesNewerSessionRoute(t *testing.T) {
 	require.Greater(t, entry.owner.generation, sessionOne, "session 2 owns the key")
 	session := rail.destination.currentSession()
 
-	stale := departureGenerationBatch(source, sessionOne)
+	stale := departureGenerationBatch(source, rail.source.sourceOwner, sessionOne)
 	owed, err := oweDeparture(rail.destination, session, &stale)
 	require.NoError(t, err)
 	require.Empty(t, owed, "session 1's departure owes session 2's retained route")
@@ -79,11 +79,11 @@ func TestStaleDepartureSparesNewerSessionRoute(t *testing.T) {
 	rail.destination.adjOut.mu.Unlock()
 	require.Zero(t, owedKeys, "session 1's departure left a record for session 2's route")
 
-	unnamed := departureGenerationBatch(source, 0)
+	unnamed := departureGenerationBatch(source, rail.source.sourceOwner, 0)
 	_, err = oweDeparture(rail.destination, session, &unnamed)
 	require.Error(t, err, "a departure naming no session must be refused, not defaulted")
 
-	current := departureGenerationBatch(source, entry.owner.generation)
+	current := departureGenerationBatch(source, rail.source.sourceOwner, entry.owner.generation)
 	owed, err = oweDeparture(rail.destination, session, &current)
 	require.NoError(t, err)
 	require.Len(t, owed, 1, "session 2's own departure owes its route")
@@ -108,21 +108,23 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	sessionOne := rail.source.forwardGeneration.Load()
 	session := rail.destination.currentSession()
 
-	departure := departureGenerationBatch(source, sessionOne)
+	departure := departureGenerationBatch(source, rail.source.sourceOwner, sessionOne)
 	owed, err := oweDeparture(rail.destination, session, &departure)
 	require.NoError(t, err)
 	require.Len(t, owed, 1, "session 1's departure owes its route")
 	record := owed[0]
 
+	recoveryFixtureSession(t, rail.source, rail.source.sendCtxID)
 	rail.source.advanceForwardGeneration() // Session 2 reaches Established.
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 2)
+	original := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 	rail.source.advanceForwardGeneration() // Session 2 ends; GR retains its routes.
 
 	table := &rail.destination.adjOut
 	table.mu.Lock()
 	excluded := record.electableExcluded()
 	table.mu.Unlock()
-	require.NotContains(t, excluded, source,
+	require.NotContains(t, excluded, rail.source.sourceOwner,
 		"the source's retained session-2 route is skipped by the election")
 
 	key := departureGenerationKey(t, rail.destination)
@@ -131,7 +133,7 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	require.Equal(t, uint64(1), entry.owner.message, "the owed key keeps session 1's path until decided")
 	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
 
-	retained := ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received,
+	retained := ribevents.RecoveryRoute{Source: original.address, SourceOwner: original.owner, SourceReceipt: original.receipt, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received,
 		AddPath: entry.owner.addPath, MessageID: 2}
 	decided := recoveryAdmitKey{key: key, record: record}
 	admission.unsendableSurvivor(&decided, &retained)
@@ -147,7 +149,7 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 		"a path the destination does not hold cannot be sent from a sessionless source")
 	// The bound is the newest generation issued when the round's source
 	// snapshot was taken, the snapshot the survivor was judged against.
-	require.Equal(t, source, elsewhere.gone.source)
+	require.Equal(t, original.owner, elsewhere.gone.source)
 	require.Zero(t, elsewhere.gone.departed, "an unsendable survivor is no departure")
 	require.GreaterOrEqual(t, elsewhere.gone.generation, rail.source.forwardGeneration.Load(),
 		"the exclusion covers every session the snapshot knew")
@@ -190,7 +192,7 @@ func TestStaleAddPathDepartureSparesNewerSessionIdentifier(t *testing.T) {
 		string([]byte{24, 192, 0, 2}): {ended[0], ended[1], newer}}))
 	t.Cleanup(owner.Close)
 
-	departure := recoveryDepartureBatch(failed.Settings().Address, "192.0.2.0/24")
+	departure := recoveryDepartureBatch(failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24")
 	departure.RecoveryGeneration = sessionOne
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()

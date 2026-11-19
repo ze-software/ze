@@ -35,12 +35,13 @@ var nhWithdrawnPrefix = []byte{24, 198, 51, 100}
 // nhAnnouncedPrefix is 10.0.0.0/24, the route the payload announces.
 var nhAnnouncedPrefix = []byte{24, 10, 0, 0}
 
-// nhPayload builds an announcement of 10.0.0.0/24 with the given NEXT_HOP.
+// nhPayload builds the canonical post-ingress announcement of 10.0.0.0/24
+// with the given NEXT_HOP and four-octet AS_PATH [65001].
 func nhPayload(nextHop string) []byte {
 	addr := netip.MustParseAddr(nextHop).As4()
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN igp
-	aspValue := []byte{0x02, 0x01, 0x00, 0x00}
-	binary.BigEndian.PutUint16(aspValue[2:], 65001)
+	aspValue := []byte{0x02, 0x01, 0x00, 0x00, 0x00, 0x00}
+	binary.BigEndian.PutUint32(aspValue[2:], 65001)
 	attrs = append(attrs, 0x40, 0x02, byte(len(aspValue)))
 	attrs = append(attrs, aspValue...)
 	attrs = append(attrs, 0x40, 0x03, 0x04)
@@ -86,6 +87,7 @@ func nhMixedPayload(nextHop string) []byte {
 func nhForward(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wkParts {
 	t.Helper()
 
+	// The forwarding cache receives post-ingress four-octet AS_PATH bytes.
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
@@ -140,6 +142,7 @@ func nhForward(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wkPa
 func nhForwardRS(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wkParts {
 	t.Helper()
 
+	// The forwarding cache receives post-ingress four-octet AS_PATH bytes.
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
@@ -190,10 +193,14 @@ func nhForwardRS(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wk
 	return got
 }
 
-// nhDest builds an established external destination peer at addr.
+// nhDest builds an established external destination that preserves received next hops.
+// The egress gate must judge the received value rather than Auto's Self replacement.
 func nhDest(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
 	t.Helper()
-	return wkPeer(t, addr, peerAS, ctx, ctxID)
+	peer := wkPeer(t, addr, peerAS, ctx, ctxID)
+	peer.settings.NextHopMode = NextHopUnchanged
+	peer.refreshForwardFacts()
+	return peer
 }
 
 // VALIDATES: a route whose NEXT_HOP is a peer's own address is not advertised to
@@ -291,6 +298,11 @@ func TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress(t *testing.T)
 
 	owner := makeRSPeer(t, nhOwnerAddr, 65001, ctx, ctxID)
 	bystander := makeRSPeer(t, nhBystanderAddr, 65002, ctx, ctxID)
+	// The native relay's destinations are configured route-server clients.
+	for _, client := range []*Peer{owner, bystander} {
+		client.settings.RSClient = true
+		client.refreshForwardFacts()
+	}
 
 	got := nhForwardRS(t, nhPayload(nhOwnerAddr), owner, bystander)
 
@@ -306,16 +318,17 @@ func TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress(t *testing.T)
 	assert.Equal(t, nhAnnouncedPrefix, both.nlri)
 }
 
-// VALIDATES: a configured next-hop rewrite that lands on the destination's own
-// address is refused too, and one that does not is advertised.
+// VALIDATES: the egress predicate classifies a configured rewrite to the
+// destination's own address as peer-own, and a rewrite to another address as not
+// peer-own.
 //
 // RFC requirement: RFC4271-5.1.3-1 positive -- egressNextHopIsPeerOwn reads the
 // operation applyFactsNextHop records, so `next-hop explicit` pointed at a peer's
 // own address is caught at the same gate as a relayed third-party next hop. A
 // policy or a configuration may not grant what the RFC refuses.
-// RFC requirement: RFC4271-5.1.3-1 negative -- a rewrite to any other address is
-// advertised, so the gate reads the rewritten value rather than refusing every
-// destination that rewrites.
+// RFC requirement: RFC4271-5.1.3-1 negative -- a rewrite to another address is
+// not classified as peer-own, so this guard allows it. The predicate reads the
+// rewritten value rather than classifying every rewrite as peer-own.
 //
 // PREVENTS: reading "the payload's next hop" as the whole question. The address on
 // the wire is the one ze writes last, and for a configured mode that is never the
@@ -469,8 +482,8 @@ func nhOriginatedUpdate(nextHop string) *message.Update {
 //
 // RFC requirement: RFC4271-5.1.3-1 positive -- "A route originated by a BGP
 // speaker SHALL NOT be advertised to a peer using an address of that peer as
-// NEXT_HOP." Every originating rail reaches the wire through Session.SendUpdate,
-// so the refusal is asked once, at the writer, rather than once per rail.
+// NEXT_HOP." This typed Session.SendUpdate writer withholds the route whose
+// next hop is the destination peer's own address.
 // RFC requirement: RFC4271-5.1.3-1 negative -- an originated route whose next hop
 // names another router is written unchanged, so the refusal is about WHOSE address
 // it is and not about origination.
@@ -517,6 +530,7 @@ func TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop(t *testing.T) {
 func TestSendAnnounceWithholdsRouteWithPeerOwnNextHop(t *testing.T) {
 	t.Run("withheld when the next hop is the peer itself", func(t *testing.T) {
 		peer, conn := newAnnouncePeer(t, nhOwnerAddr)
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		route := bgptypes.RouteSpec{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr(nhOwnerAddr)),
@@ -530,6 +544,7 @@ func TestSendAnnounceWithholdsRouteWithPeerOwnNextHop(t *testing.T) {
 
 	t.Run("advertised when the next hop is anyone else", func(t *testing.T) {
 		peer, conn := newAnnouncePeer(t, nhOwnerAddr)
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		route := bgptypes.RouteSpec{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("203.0.113.1")),
@@ -557,7 +572,7 @@ func TestSendAnnounceWithholdsRouteWithPeerOwnNextHop(t *testing.T) {
 // fixture is what to fix. Owner decision, 2026-08-15.
 func TestSection513HasNoSameAddressExemption(t *testing.T) {
 	peer := netip.MustParseAddr(nhOwnerAddr)
-	body := nhPayload(nhOwnerAddr)
+	body := nhRawPayload(nhOwnerAddr)
 
 	assert.True(t, originatedNextHopIsPeerOwn(body, peer),
 		"the originate rail refuses the peer's own address whatever Ze's own address is")

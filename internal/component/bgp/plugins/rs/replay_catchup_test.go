@@ -4,10 +4,9 @@
 package rs
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestReplayProgressCoversCut pins the convergence predicate that decides
@@ -100,18 +99,18 @@ func TestReplayProgressCoversCut(t *testing.T) {
 // demand opposite behavior (proceed vs wait).
 func TestDeltaReplayDistinguishesAbsentFromZero(t *testing.T) {
 	answer := func(data string) *routeServer {
-		return &routeServer{
-			dispatchCommandHook: func(string, []string, string) (string, json.RawMessage, error) {
-				return statusDone, json.RawMessage(data), nil
-			},
-			relayStoredRouteHook: func(string, []rpc.StoredRoute) error { return nil },
+		rs := newTestRouteServer(t)
+		rsFixtureRetainedRoute(t, rs, rsFixtureKey("10.0.0.9", 9, 109), 309, 5, 9, "180a0000")
+		rs.dispatchCommandHook = func(string, []string, string) (string, json.RawMessage, error) {
+			return statusDone, json.RawMessage(data), nil
 		}
+		return rs
 	}
 	prev := replayProgress{cursor: 2}
 
 	t.Run("omitted stays nil", func(t *testing.T) {
-		rs := answer(`{"routes":[{"source-peer":"10.0.0.9","family":"ipv4/unicast","nlri-hex":"180a0000"}],"last-index":3,"more":false}`)
-		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "0", prev)
+		rs := answer(`{"routes":[{"source-peer":"10.0.0.9","source-owner":"9","source-connection-id":"109","source-receipt":"309","source-policy-epoch":5,"msg-id":9,"nlri-framing":"prefix-only","family":"ipv4/unicast","nlri-hex":"180a0000"}],"last-index":3,"more":false}`)
+		p, err := rs.deltaReplay(context.WithValue(t.Context(), replayTargetKey{}, rsFixtureTarget("10.0.0.1", 1, 201)), "10.0.0.1", "0", prev)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,7 +124,7 @@ func TestDeltaReplayDistinguishesAbsentFromZero(t *testing.T) {
 
 	t.Run("explicit zero is present and zero", func(t *testing.T) {
 		rs := answer(`{"routes":[],"last-index":0,"more":false,"ingested-msg-id":0}`)
-		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "8", prev)
+		p, err := rs.deltaReplay(context.WithValue(t.Context(), replayTargetKey{}, rsFixtureTarget("10.0.0.1", 1, 201)), "10.0.0.1", "8", prev)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +144,7 @@ func TestDeltaReplayDistinguishesAbsentFromZero(t *testing.T) {
 
 	t.Run("malformed payload is an error, not a position", func(t *testing.T) {
 		rs := answer(`not json`)
-		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "8", prev)
+		p, err := rs.deltaReplay(context.WithValue(t.Context(), replayTargetKey{}, rsFixtureTarget("10.0.0.1", 1, 201)), "10.0.0.1", "8", prev)
 		if err == nil {
 			t.Fatal("an undecodable page must fail the replay step")
 		}

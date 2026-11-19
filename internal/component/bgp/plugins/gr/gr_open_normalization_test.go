@@ -50,7 +50,7 @@ func TestNormalizedOpenRetainsNativeFamilies(t *testing.T) {
 						if shape.both {
 							wantFamilies = append(wantFamilies, family.IPv6Unicast)
 						}
-						cap := gp.peerCaps[testPeer]
+						cap := gp.peerCaps[rib.source.owner]
 						if cap == nil {
 							t.Fatal("received OPEN did not publish GR capability")
 						}
@@ -66,8 +66,8 @@ func TestNormalizedOpenRetainsNativeFamilies(t *testing.T) {
 						}
 						rib.received("18c63364", grReceivedAttrs)
 						rib.received("18c63365", grReceivedAttrs+"c00804ffff0007")
-						rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
-						rfc9494Down(gp, received.structured)
+						rib.receivedIPv6(grReceivedAttrs)
+						rfc9494Down(t, gp, received.structured)
 						rib.down()
 						rib.requireStale("198.51.100.0/24", 1)
 						rib.requireStale("198.51.101.0/24", 1)
@@ -89,7 +89,7 @@ func TestNormalizedOpenRetainsNativeFamilies(t *testing.T) {
 							rib.requireStale("2001:db8::/32", 2)
 						}
 						for _, fam := range wantFamilies {
-							command := "clear bgp rib out !" + testPeer + " " + fam.String()
+							command := "clear bgp rib out-excluding-owner owner 701 family " + fam.String()
 							if !slices.Contains(rec.all(), command) {
 								t.Errorf("family-native readvertisement missing: %s", command)
 							}
@@ -118,13 +118,16 @@ func normalizedGRTestOpen(t *testing.T, capabilities string) []byte {
 func deliverNormalizedGRTestOpen(t *testing.T, gp *grPlugin, body []byte, direction rpc.MessageDirection, structured bool) {
 	t.Helper()
 	if structured {
-		gp.handleStructuredEvent(&rpc.StructuredEvent{
-			PeerAddress: testPeer, EventType: rpc.EventKindOpen, Direction: direction,
+		if err := gp.handleStructuredEvent(&rpc.StructuredEvent{
+			PeerAddress: testPeer, PeerOwner: 701, ConnectionID: 41,
+			EventType: rpc.EventKindOpen, Direction: direction,
 			RawMessage: &bgptypes.RawMessage{RawBytes: body},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 		return
 	}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr(testPeer), PeerAS: rpc.RemoteASOf(1), LocalAS: 1}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr(testPeer), AddressStr: testPeer, PeerOwner: 701, ConnectionID: 41, PeerAS: rpc.RemoteASOf(1), LocalAS: 1}
 	encoder := format.NewJSONEncoder("test")
 	if err := gp.handleEvent(encoder.Open(&peer, format.DecodeOpen(body), direction, 1)); err != nil {
 		t.Fatal(err)

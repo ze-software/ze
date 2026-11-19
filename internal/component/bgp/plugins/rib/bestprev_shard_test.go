@@ -77,8 +77,8 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("10.0.0.1")
 	peerRIB := storage.NewPeerRIB(peerAddr.String())
-	r.bgpPeers[peerAddr] = peerRIB
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 
 	var wg sync.WaitGroup
 	for g := range goroutines {
@@ -136,12 +136,12 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 		defer wg.Done()
 		for i := range iterations {
 			r.peerMu.Lock()
-			peerRIB := r.bgpPeers[peerAddr]
+			peerRIB := r.bgpPeers[1]
 			if peerRIB == nil {
 				peerRIB = storage.NewPeerRIB(peerAddr.String())
-				r.bgpPeers[peerAddr] = peerRIB
+				r.bgpPeers[1] = peerRIB
 			}
-			r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+			r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 			r.peerMu.Unlock()
 
 			prefix := []byte{32, 10, 0, 0, byte(i)}
@@ -156,11 +156,11 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 		defer wg.Done()
 		for range iterations {
 			r.peerMu.Lock()
-			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[1]; peerRIB != nil {
 				peerRIB.Release()
-				delete(r.bgpPeers, peerAddr)
+				delete(r.bgpPeers, 1)
 			}
-			delete(r.peerMeta, peerAddr)
+			delete(r.peerMeta, 1)
 			r.peerMu.Unlock()
 		}
 	}()
@@ -174,8 +174,8 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 	// vice versa) would indicate a forgotten map update in one of the
 	// paths.
 	r.peerMu.RLock()
-	_, hasRIB := r.bgpPeers[peerAddr]
-	_, hasMeta := r.peerMeta[peerAddr]
+	_, hasRIB := r.bgpPeers[1]
+	_, hasMeta := r.peerMeta[1]
 	r.peerMu.RUnlock()
 	assert.Equal(t, hasRIB, hasMeta, "ribInPool and peerMeta must be consistent for this peer")
 }
@@ -220,8 +220,8 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 			// rib_structured.go::handleReceivedStructured.
 			r.peerMu.Lock()
 			peerRIB := storage.NewPeerRIB(peerAddr.String())
-			r.bgpPeers[peerAddr] = peerRIB
-			r.peerMeta[peerAddr] = &peerMetadata{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
+			r.bgpPeers[uint64(p+1)] = peerRIB
+			r.peerMeta[uint64(p+1)] = &peerMetadata{Address: peerAddr, PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
 			r.peerMu.Unlock()
 
 			// Phase 2+3: PeerRIB.Insert uses its own lock; checkBestPathChange

@@ -49,17 +49,17 @@ func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessB
 
 // --- ReactorPeerController ---
 
-func (m *mockReactor) Stop()                                                  {}
-func (m *mockReactor) DisablePeer(netip.Addr, string) error                   { return nil }
-func (m *mockReactor) EnablePeer(netip.Addr) error                            { return nil }
-func (m *mockReactor) TeardownPeer(_ netip.Addr, _, _ uint8, _ []byte) error  { return nil }
-func (m *mockReactor) PausePeer(_ netip.Addr) error                           { return nil }
-func (m *mockReactor) ResumePeer(_ netip.Addr) error                          { return nil }
-func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
-func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
-func (m *mockReactor) DrainPeerSync(_ context.Context) error                  { return nil }
-func (m *mockReactor) RemovePeer(_ netip.Addr) error                          { return nil }
-func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { return nil }
+func (m *mockReactor) Stop()                                                         {}
+func (m *mockReactor) DisablePeer(netip.Addr, string) error                          { return nil }
+func (m *mockReactor) EnablePeer(netip.Addr) error                                   { return nil }
+func (m *mockReactor) TeardownPeer(_ netip.Addr, _, _ uint8, _ []byte) error         { return nil }
+func (m *mockReactor) PausePeer(_ context.Context, _ netip.Addr, _, _ uint64) error  { return nil }
+func (m *mockReactor) ResumePeer(_ context.Context, _ netip.Addr, _, _ uint64) error { return nil }
+func (m *mockReactor) FlushForwardPool(_ context.Context) error                      { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error        { return nil }
+func (m *mockReactor) DrainPeerSync(_ context.Context) error                         { return nil }
+func (m *mockReactor) RemovePeer(_ netip.Addr) error                                 { return nil }
+func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error           { return nil }
 
 // --- ReactorConfigurator ---
 
@@ -82,12 +82,14 @@ func (m *mockReactor) SetConfigTree(_ map[string]any) {}
 
 // --- ReactorStartupCoordinator ---
 
-func (m *mockReactor) SignalAPIReady()                                              {}
-func (m *mockReactor) AddAPIProcessCount(_ int)                                     {}
-func (m *mockReactor) SignalPluginStartupComplete() error                           { return nil }
-func (m *mockReactor) SignalPeerAPIReady(_ string, _ plugin.Sender, _ uint64) error { return nil }
-func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)                             {}
-func (m *mockReactor) SignalPeerUpBarrier(_ string)                                 {}
+func (m *mockReactor) SignalAPIReady()                    {}
+func (m *mockReactor) AddAPIProcessCount(_ int)           {}
+func (m *mockReactor) SignalPluginStartupComplete() error { return nil }
+func (m *mockReactor) SignalPeerAPIReady(_ context.Context, _ string, _ plugin.Sender, _ uint64) error {
+	return nil
+}
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int) {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)     {}
 
 // --- ReactorCacheCoordinator ---
 

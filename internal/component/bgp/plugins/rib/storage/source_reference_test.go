@@ -11,7 +11,7 @@ import (
 
 func TestSourceReferenceCloneLifetime(t *testing.T) {
 	wakes := 0
-	source := NewSourceReference(1, func() { wakes++ })
+	source := NewSourceReference(1, 41, func() { wakes++ })
 	entry := NewRouteEntry()
 	entry.SetSourceReference(source)
 	source.Release()
@@ -46,7 +46,7 @@ func TestSourceReferenceStorageRefresh(t *testing.T) {
 				entry, fp, attrLen, err := ParseRouteEntry(attrs)
 				require.NoError(t, err)
 				defer entry.Release()
-				first := NewSourceReference(1, nil)
+				first := NewSourceReference(1, 41, nil)
 				entry.SourceReceipt = 7
 				entry.SetSourceReference(first)
 				first.Release()
@@ -56,7 +56,7 @@ func TestSourceReferenceStorageRefresh(t *testing.T) {
 				require.True(t, found)
 				pinned := stored.Clone()
 				require.NotNil(t, pinned)
-				second := NewSourceReference(2, nil)
+				second := NewSourceReference(2, 41, nil)
 				entry.SourceReceipt = 8
 				entry.SetSourceReference(second)
 				second.Release()
@@ -67,7 +67,7 @@ func TestSourceReferenceStorageRefresh(t *testing.T) {
 				require.Equal(t, int64(2), second.References())
 				pinned.Release()
 				require.Zero(t, first.References())
-				third := NewSourceReference(3, nil)
+				third := NewSourceReference(3, 41, nil)
 				entry.SourceReceipt = 9
 				entry.SetSourceReference(third)
 				third.Release()

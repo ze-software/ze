@@ -79,20 +79,23 @@ func flowspecWithdrawBody(nlri []byte) []byte {
 // RFC requirement: RFC8955-6-5 positive -- two Flow Specification paths for the same NLRI (AFI 1 / SAFI 133) from two peers go through path selection: the lower-MED path is published as best with its own MED, and when it is withdrawn the surviving path is published as best with its MED (Section 6).
 func TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes(t *testing.T) {
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	SetEventBus(bus)
+	r, calls := sourceLeaseTestRIBWithForwarding(t, true, false)
+	// These are the original two issuers, not addresses converted to authority.
+	calls.issued = map[uint64]uint64{1: 1, 2: 2}
 
 	peerA := netip.MustParseAddr("192.0.2.1")
 	peerB := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peerA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerMeta[peerB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerA, PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[2] = &peerMetadata{Address: peerB, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlri := flowspecNLRI(24, 10, 0, 0) // destination 10.0.0.0/24
-	flowValidationReceive(t, r, peerA, 65001, 1, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, 1, peerA, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(flowValidationPath(2, 65001), netip.MustParseAddr("1.1.1.1"), 0, nil), false)
 
 	// Peer A announces with MED 200.
-	feedReceived(r, peerA, ctxID, flowspecAnnounceBody(200, nlri))
+	flowValidationReceiveBody(t, r, 1, peerA, ctxID, flowspecAnnounceBody(200, nlri))
 
 	changes := vpnBestChanges(bus, flowspecFamily)
 	if len(changes) != 1 {
@@ -113,7 +116,7 @@ func TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes(t *testing.T) {
 	}
 
 	// Peer B announces the same NLRI with a lower MED, so it wins.
-	feedReceived(r, peerB, ctxID, flowspecAnnounceBody(100, nlri))
+	flowValidationReceiveBody(t, r, 2, peerB, ctxID, flowspecAnnounceBody(100, nlri))
 
 	changes = vpnBestChanges(bus, flowspecFamily)
 	if len(changes) != 2 {
@@ -131,7 +134,7 @@ func TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes(t *testing.T) {
 	}
 
 	// Peer B withdraws: peer A's path is best again.
-	feedReceived(r, peerB, ctxID, flowspecWithdrawBody(nlri))
+	flowValidationReceiveBody(t, r, 2, peerB, ctxID, flowspecWithdrawBody(nlri))
 
 	changes = vpnBestChanges(bus, flowspecFamily)
 	if len(changes) != 3 {
@@ -159,20 +162,23 @@ func TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes(t *testing.T) {
 // RFC requirement: RFC8955-6-5 negative -- a second Flow Specification path for the same NLRI with a HIGHER MED loses path selection: no best-change is published for it and the published best keeps the first path's MED (Section 6).
 func TestRFC8955FlowSpecLosingPathIsNeverPublished(t *testing.T) {
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	SetEventBus(bus)
+	r, calls := sourceLeaseTestRIBWithForwarding(t, true, false)
+	// These are the original two issuers, not addresses converted to authority.
+	calls.issued = map[uint64]uint64{1: 1, 2: 2}
 
 	peerA := netip.MustParseAddr("192.0.2.1")
 	peerB := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peerA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerMeta[peerB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerA, PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[2] = &peerMetadata{Address: peerB, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlri := flowspecNLRI(24, 10, 0, 0)
-	flowValidationReceive(t, r, peerA, 65001, 1, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, 1, peerA, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(flowValidationPath(2, 65001), netip.MustParseAddr("1.1.1.1"), 0, nil), false)
 
-	feedReceived(r, peerA, ctxID, flowspecAnnounceBody(100, nlri))
-	feedReceived(r, peerB, ctxID, flowspecAnnounceBody(200, nlri))
+	flowValidationReceiveBody(t, r, 1, peerA, ctxID, flowspecAnnounceBody(100, nlri))
+	flowValidationReceiveBody(t, r, 2, peerB, ctxID, flowspecAnnounceBody(200, nlri))
 
 	changes := vpnBestChanges(bus, flowspecFamily)
 	if len(changes) != 1 {

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -94,7 +95,15 @@ func newCommitFixture(t *testing.T, options ...commitPeerOption) (*reactorAPIAda
 		if option.established {
 			peer.state.Store(int32(PeerStateEstablished))
 
-			ctx := bgpctx.EncodingContextForASN4(true)
+			ctx := bgpctx.NewEncodingContext(
+				&capability.PeerIdentity{
+					LocalASN: settings.LocalAS,
+					PeerASN:  settings.PeerAS,
+					Internal: settings.IsIBGP(),
+				},
+				&capability.EncodingCaps{ASN4: true},
+				bgpctx.DirectionSend,
+			)
 			ctxID, registerErr := bgpctx.Registry.Register(ctx)
 			require.NoError(t, registerErr)
 			peer.sendCtx.Store(ctx)
@@ -115,6 +124,7 @@ func newCommitFixture(t *testing.T, options ...commitPeerOption) (*reactorAPIAda
 
 			peer.mu.Lock()
 			peer.session = session
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 			peer.mu.Unlock()
 		}
 

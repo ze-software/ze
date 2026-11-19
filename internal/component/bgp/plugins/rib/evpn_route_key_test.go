@@ -76,15 +76,15 @@ func TestEVPNRelabelReplacesTheRoute(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.31")
-	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: pe, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	first := evpnMACRoute(0, 100)
 	second := evpnMACRoute(0, 200)
-	feedReceived(r, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, first))
-	feedReceived(r, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, second))
+	feedReceived(r, 1, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, first))
+	feedReceived(r, 1, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, second))
 
-	peer := r.bgpPeers[pe]
+	peer := r.bgpPeers[1]
 	if got := peer.FamilyLen(evpnFamily); got != 1 {
 		t.Fatalf("PE stores %d EVPN routes, want 1: the new label replaces the old", got)
 	}
@@ -121,14 +121,14 @@ func TestEVPNWithdrawWithOtherLabelAndESIRemovesTheRoute(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.32")
-	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: pe, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	announced := evpnMACRoute(0, 100)
-	feedReceived(r, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, announced))
-	feedReceived(r, pe, ctxID, evpnWithdrawBody(evpnMACRoute(7, 0)))
+	feedReceived(r, 1, pe, ctxID, evpnAnnounceBody([4]byte{10, 0, 0, 1}, 100, announced))
+	feedReceived(r, 1, pe, ctxID, evpnWithdrawBody(evpnMACRoute(7, 0)))
 
-	if got := r.bgpPeers[pe].FamilyLen(evpnFamily); got != 0 {
+	if got := r.bgpPeers[1].FamilyLen(evpnFamily); got != 0 {
 		t.Fatalf("PE stores %d EVPN routes after the withdrawal, want 0", got)
 	}
 	changes := vpnBestChanges(bus, evpnFamily)

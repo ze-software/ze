@@ -54,8 +54,8 @@ func TestForwardPathIDMPGeneration(t *testing.T) {
 			firstSource := source.SourceID(4401 + index*2)
 			secondSource := firstSource + 1
 			t.Cleanup(func() {
-				fwdPathIDs.releaseSource(firstSource)
-				fwdPathIDs.releaseSource(secondSource)
+				fwdPathIDs.releaseSource(fwdPathSource{sourceID: firstSource, peerOwner: uint64(firstSource) + 1})
+				fwdPathIDs.releaseSource(fwdPathSource{sourceID: secondSource, peerOwner: uint64(secondSource) + 1})
 			})
 			emit := func(src source.SourceID, asn uint32, prefixes [2]netip.Prefix, withdraw bool) [2]uint32 {
 				t.Helper()
@@ -76,7 +76,7 @@ func TestForwardPathIDMPGeneration(t *testing.T) {
 				original := bytes.Clone(body)
 				wire := fwdPathIDWire(body, srcCtxID, src)
 				result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer,
-					netip.MustParseAddr("192.0.2.60"), &fwdParseCache{})
+					netip.MustParseAddr("192.0.2.60"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 				if !ok {
 					t.Fatal("valid MP UPDATE did not forward")
 				}

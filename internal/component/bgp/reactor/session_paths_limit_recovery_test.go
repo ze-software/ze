@@ -83,7 +83,7 @@ func TestPathsLimitRecoveryFallsBackOnLookupError(t *testing.T) {
 	})
 	t.Cleanup(owner.Close)
 
-	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24", "192.0.3.0/24"))
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24", "192.0.3.0/24"))
 
 	require.Equal(t, []uint16{2, 0}, requests.limits(),
 		"the limited lookup fails, then the same keys are asked with no limit")

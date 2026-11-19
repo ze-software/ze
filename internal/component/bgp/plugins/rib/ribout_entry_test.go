@@ -114,20 +114,23 @@ func TestRibOutSourceOwnership(t *testing.T) {
 	fam := family.IPv4Unicast
 	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
 	raw := []byte{24, 10, 0, 0}
+	r.peerMeta[101] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.10")}
 	first := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[201] = &peerMetadata{Address: first}
 	second := netip.MustParseAddr("192.0.2.2")
-	r.storeSentEntries(first, fam, raw, false, ribOutEntry{}, "192.0.2.10", false, false, nil, 0)
-	r.storeSentEntries(second, fam, raw, false, ribOutEntry{}, "192.0.2.11", false, false, nil, 0)
-	assert.Equal(t, "192.0.2.10", r.ribOut[first][fam][key].SourcePeer)
-	assert.Equal(t, "192.0.2.11", r.ribOut[second][fam][key].SourcePeer)
+	r.peerMeta[202] = &peerMetadata{Address: second}
+	r.storeSentEntries(201, fam, raw, false, ribOutEntry{SourceOwner: 101}, "192.0.2.10", false, false, nil, 0)
+	r.storeSentEntries(202, fam, raw, false, ribOutEntry{SourceOwner: 102}, "192.0.2.11", false, false, nil, 0)
+	assert.Equal(t, "192.0.2.10", r.ribOut[201][fam][key].SourcePeer)
+	assert.Equal(t, "192.0.2.11", r.ribOut[202][fam][key].SourcePeer)
 	_, _, err := r.markStaleCommand([]string{"192.0.2.10", "0", "2"})
 	require.NoError(t, err)
-	assert.Equal(t, uint8(2), r.ribOut[first][fam][key].StaleLevel)
-	assert.Zero(t, r.ribOut[second][fam][key].StaleLevel, "a different destination's origin must stay fresh")
-	r.removeSentNLRIs(first, fam, raw, false)
-	r.removeSentNLRIs(first, fam, raw, false)
-	assert.Equal(t, "192.0.2.11", r.ribOut[second][fam][key].SourcePeer)
-	r.removeSentNLRIs(second, fam, raw, false)
+	assert.Equal(t, uint8(2), r.ribOut[201][fam][key].StaleLevel)
+	assert.Zero(t, r.ribOut[202][fam][key].StaleLevel, "a different destination's origin must stay fresh")
+	r.removeSentNLRIs(201, fam, raw, false)
+	r.removeSentNLRIs(201, fam, raw, false)
+	assert.Equal(t, "192.0.2.11", r.ribOut[202][fam][key].SourcePeer)
+	r.removeSentNLRIs(202, fam, raw, false)
 	assert.Empty(t, r.ribOut)
 }
 
@@ -139,14 +142,15 @@ func TestRibOutSourceReplay(t *testing.T) {
 	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
 	raw := []byte{24, 10, 0, 0}
 	peer := netip.MustParseAddr("192.0.2.1")
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{StaleLevel: 2}, "192.0.2.10", false, false, nil, 0)
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", true, false, nil, 0)
-	assert.Equal(t, "192.0.2.10", r.ribOut[peer][fam][key].SourcePeer)
-	assert.Equal(t, uint8(2), r.ribOut[peer][fam][key].StaleLevel)
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", false, false, nil, 0)
-	assert.Empty(t, r.ribOut[peer][fam][key].SourcePeer)
-	assert.Zero(t, r.ribOut[peer][fam][key].StaleLevel)
-	r.removeSentNLRIs(peer, fam, raw, false)
+	r.peerMeta[201] = &peerMetadata{Address: peer}
+	r.storeSentEntries(201, fam, raw, false, ribOutEntry{StaleLevel: 2, SourceOwner: 101}, "192.0.2.10", false, false, nil, 0)
+	r.storeSentEntries(201, fam, raw, false, ribOutEntry{}, "", true, false, nil, 0)
+	assert.Equal(t, "192.0.2.10", r.ribOut[201][fam][key].SourcePeer)
+	assert.Equal(t, uint8(2), r.ribOut[201][fam][key].StaleLevel)
+	r.storeSentEntries(201, fam, raw, false, ribOutEntry{}, "", false, false, nil, 0)
+	assert.Empty(t, r.ribOut[201][fam][key].SourcePeer)
+	assert.Zero(t, r.ribOut[201][fam][key].StaleLevel)
+	r.removeSentNLRIs(201, fam, raw, false)
 }
 
 func TestReconstructRoute_InvalidHandle(t *testing.T) {

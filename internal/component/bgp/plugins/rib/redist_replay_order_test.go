@@ -25,11 +25,11 @@ func TestRedistReplayEmitsUnderEmitLock(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	peerAddr := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), prefix)
+	r.bgpPeers[1] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[1].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), prefix)
 	r.checkBestPathChange(fam, prefix, false, nil)
 
 	unordered, replayed := 0, 0

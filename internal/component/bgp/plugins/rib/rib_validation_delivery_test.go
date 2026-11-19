@@ -31,7 +31,7 @@ import (
 // TestDisabledRPKISelectionFirstReceiveBecomesSelectable.
 func TestValidationChangeArrivesAsEnvelopedText(t *testing.T) {
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	r := validationSourceRIB(t, bus)
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(func() { r.SetLocRIB(nil) })
 	// The engine's delivery to a subscriber with SetEnvelope: the batch, as
@@ -57,14 +57,18 @@ func TestValidationChangeArrivesAsEnvelopedText(t *testing.T) {
 	body := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0,
 		0x40, 3, 4, 192, 0, 2, 9, 24, 203, 0, 113}
 	wu := wireu.NewWireUpdate(body, bgpctx.APIContextID)
+	wu.SetSourceOwner(validationSourceOwner)
+	wu.SetSourceReceipt(validationSourceReceipt)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
 		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+		PeerOwner: validationSourceOwner, ConnectionID: validationSourceConnection,
+		SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5,
 		MessageID:  10,
-		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
+		RawMessage: &bgptypes.RawMessage{MessageID: 10, SourceOwner: validationSourceOwner, SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}
 	// The receiver's generation fence excludes the path until the receiver
 	// stores it, so selection starts empty.

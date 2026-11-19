@@ -26,17 +26,23 @@ import (
 func TestAdjRIBInInvalidCloseRetainsNothing(t *testing.T) {
 	t.Run("structured", func(t *testing.T) {
 		gp, rec := newRecordedGRPlugin()
-		gp.peerCaps[testPeer] = testCap(120, famIPv4)
+		source := grFixtureSource(t, testPeer, 701, 41)
+		gp.recordSentLLGR(source, nil)
+		t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
+		gp.peerCaps[701] = testCap(120, famIPv4)
 
-		gp.handleStructuredState(testPeer, rpc.SessionStateDown, rpc.ReasonAdjRIBInInvalid)
+		gp.handleStructuredState(source, rpc.SessionStateDown, rpc.ReasonAdjRIBInInvalid)
 
 		assert.Empty(t, rec.all(), "an invalid Adj-RIB-In takes the normal BGP procedures")
 	})
 	t.Run("json event", func(t *testing.T) {
 		gp, rec := newRecordedGRPlugin()
-		gp.peerCaps[testPeer] = testCap(120, famIPv4)
+		source := grFixtureSource(t, testPeer, 701, 41)
+		gp.recordSentLLGR(source, nil)
+		t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
+		gp.peerCaps[701] = testCap(120, famIPv4)
 
-		gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": rpc.ReasonAdjRIBInInvalid})
+		gp.handleStateEvent(source, map[string]any{"state": "down", "reason": rpc.ReasonAdjRIBInInvalid})
 
 		assert.Empty(t, rec.all(), "an invalid Adj-RIB-In takes the normal BGP procedures")
 	})

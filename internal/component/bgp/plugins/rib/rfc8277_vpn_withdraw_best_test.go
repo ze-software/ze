@@ -39,8 +39,8 @@ func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 			electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 			peA := netip.MustParseAddr("192.0.2.1")
 			peB := netip.MustParseAddr("192.0.2.2")
-			r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-			r.peerMeta[peB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+			r.peerMeta[1] = &peerMetadata{Address: peA, PeerASN: 65001, LocalASN: 65000}
+			r.peerMeta[2] = &peerMetadata{Address: peB, PeerASN: 65001, LocalASN: 65000}
 			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 			if err != nil {
 				t.Fatalf("register context: %v", err)
@@ -48,18 +48,18 @@ func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 
 			nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
 			nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)
-			feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriA))
-			feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 200, nlriB))
+			feedReceived(r, 1, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriA))
+			feedReceived(r, 2, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 200, nlriB))
 			before := len(vpnBestChanges(bus, vpnv4Family))
 
 			withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 0x0a)
 			withdrawn[1], withdrawn[2], withdrawn[3] = tc.compatibility[0], tc.compatibility[1], tc.compatibility[2]
-			feedReceived(r, peA, ctxID, vpnv4WithdrawBody(withdrawn))
+			feedReceived(r, 1, peA, ctxID, vpnv4WithdrawBody(withdrawn))
 
-			if got := r.bgpPeers[peA].FamilyLen(vpnv4Family); got != 0 {
+			if got := r.bgpPeers[1].FamilyLen(vpnv4Family); got != 0 {
 				t.Fatalf("PE A stores %d routes after its withdrawal, want 0", got)
 			}
-			if got := r.bgpPeers[peB].FamilyLen(vpnv4Family); got != 1 {
+			if got := r.bgpPeers[2].FamilyLen(vpnv4Family); got != 1 {
 				t.Fatalf("PE B stores %d routes, want 1", got)
 			}
 			if n := bestRecordCount(r, vpnv4Family); n != 1 {

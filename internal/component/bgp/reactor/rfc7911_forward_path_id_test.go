@@ -67,10 +67,10 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 	secondWire := wireu.NewWireUpdate(fromAS65002, ctxID)
 	secondWire.SetSourceID(2)
 
-	firstResult, ok := buildFwdBody(firstWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
+	firstResult, ok := buildFwdBody(firstWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{}, fwdPathIDFixtureOrigin(firstWire))
 	require.True(t, ok, "first source UPDATE must forward")
 	defer returnReadBuffer(firstResult.transcodeBuf)
-	secondResult, ok := buildFwdBody(secondWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
+	secondResult, ok := buildFwdBody(secondWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{}, fwdPathIDFixtureOrigin(secondWire))
 	require.True(t, ok, "second source UPDATE must forward")
 	defer returnReadBuffer(secondResult.transcodeBuf)
 

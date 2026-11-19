@@ -147,7 +147,18 @@ func forwardPreferredWidth(t *testing.T, body, want []byte) {
 	f.destination.refreshForwardFacts()
 	// Authorization is not this root's claim. Admit only the independent
 	// expected route, so incorrect emission cannot authorize itself.
-	key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, Family: fam, NLRI: string(want)}
+	originalSession := f.source.currentSession()
+	if originalSession == nil {
+		t.Fatal("FlowSpec fixture has no original source Session")
+	}
+	key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, PeerOwner: f.source.sourceOwner,
+		ConnectionID: connectionIDOf(originalSession), Family: fam, NLRI: string(want)}
+	if key.PeerOwner == 0 {
+		t.Fatal("FlowSpec fixture has no original source owner")
+	}
+	if key.ConnectionID == 0 {
+		t.Fatal("FlowSpec fixture has no original source connection")
+	}
 	ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 	// RFC 8955 Sections 4.2.2.5/6/8/10: observe the actual forwarding sink.

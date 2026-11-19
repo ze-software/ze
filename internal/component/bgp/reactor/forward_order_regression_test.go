@@ -185,7 +185,7 @@ func TestForwardAIGPLiveGenerationEndsWithSourceSession(t *testing.T) {
 				}
 				old := f.source
 				old.setState(PeerStateConnecting)
-				f.r.forgetClosedPeer(old)
+				f.r.forgetClosedPeer(old, old.currentSession())
 				f.r.notifyPeerClosed(old, closeWithReason("forwarding regression"))
 				if boundary == "reconnect" {
 					old.setState(PeerStateEstablished)

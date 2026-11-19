@@ -128,7 +128,7 @@ func startMPLinkNeighborHolding(t *testing.T, holdSeconds uint16) *mpLinkNeighbo
 	link.peer.SetReactor(reactor)
 	// A long reconnect delay keeps the run loop from redialing inside the test window.
 	link.peer.setReconnectDelay(time.Minute, time.Minute)
-	link.peer.messageCallback = func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+	link.peer.messageCallback = func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64,
 	) bool {

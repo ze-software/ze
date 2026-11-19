@@ -26,7 +26,7 @@ func claimedManagerWithRoute(t *testing.T) (*AdjRIBInManager, *[]string) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	var destinations []string
 	r.routeRelayer = func(dest string, routes []rpc.StoredRoute) error {
@@ -122,7 +122,7 @@ func TestSelfReplayCoversAPeerTheOwnerIsNotFed(t *testing.T) {
 			Family: family.IPv4Unicast, AttrHex: "40010100",
 			NHopHex: "0a000001", NLRIHex: "180a0000",
 		})
-		r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+		r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 		var got []string
 		r.routeRelayer = func(d string, routes []rpc.StoredRoute) error {
 			if len(routes) > 0 {

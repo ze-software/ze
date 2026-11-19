@@ -30,7 +30,7 @@ func TestSelectedWriterSentReceiptKeepsRetainedOriginal(t *testing.T) {
 	route.Retained, route.StaleLevel = true, rpc.SelectedStale
 	var receipt, epoch, message uint64
 	var sourceAddress string
-	f.peer.session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
+	f.peer.session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
 		_ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, original string, id uint64) bool {
 		require.Equal(t, rpc.DirectionSent, direction)
 		origin := update.SentOrigin()
@@ -64,7 +64,7 @@ func TestSelectedWriterWithdrawalReceiptKeepsOriginalAdmission(t *testing.T) {
 	var origins []wireu.SentOrigin
 	var messages []uint64
 	var addresses []string
-	f.peer.session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
+	f.peer.session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
 		_ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, original string, id uint64) bool {
 		require.Equal(t, rpc.DirectionSent, direction)
 		origin := update.SentOrigin()

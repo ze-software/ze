@@ -56,28 +56,31 @@ func bestChangePrefixes(bus *testEventBus, action routeaction.Action) []netip.Pr
 // feedReceived drives handleReceivedStructured with a WireUpdate built from a raw
 // UPDATE body under the given encoding context, exactly as the reactor would after
 // synthesizing a withdrawal.
-func feedReceived(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, body []byte) {
-	feedReceivedFromGroup(r, peer, "", ctxID, body)
+func feedReceived(r *RIBManager, peerOwner uint64, peer netip.Addr, ctxID bgpctx.ContextID, body []byte) {
+	feedReceivedFromGroup(r, peerOwner, peer, "", ctxID, body)
 }
 
 // feedReceivedFromGroup is feedReceived for a session that belongs to a peer
 // group. group is what bgp/server's getStructuredEvent puts on every event for
 // such a session, and it is the only identity a session the reactor created
 // from a dynamic group shares with the operator's config document.
-func feedReceivedFromGroup(r *RIBManager, peer netip.Addr, group string, ctxID bgpctx.ContextID, body []byte) {
+func feedReceivedFromGroup(r *RIBManager, peerOwner uint64, peer netip.Addr, group string, ctxID bgpctx.ContextID, body []byte) {
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType:   rpc.EventKindUpdate,
+		PeerOwner:   peerOwner,
 		PeerAddress: peer.String(),
 		PeerGroup:   group,
 		PeerAS:      rpc.RemoteASOf(65001),
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   body,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
+			Type:        msgtype.TypeUPDATE,
+			SourceOwner: peerOwner,
+			RawBytes:    body,
+			WireUpdate:  wu,
+			AttrsWire:   attrs,
 		},
 	})
 }
@@ -108,8 +111,8 @@ func TestRIBTreatAsWithdrawRemovesInstalledRoute(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0a, // NLRI 10.0.0.0/8
 	}
-	feedReceived(r, peer, ctxID, announce)
-	require.Equal(t, 1, r.bgpPeers[peer].Len(),
+	feedReceived(r, 1, peer, ctxID, announce)
+	require.Equal(t, 1, r.bgpPeers[1].Len(),
 		"a valid UPDATE installs the route in the Adj-RIB-In")
 	require.Equal(t, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
 		bestChangePrefixes(bus, ribevents.BestChangeAdd),
@@ -128,8 +131,8 @@ func TestRIBTreatAsWithdrawRemovesInstalledRoute(t *testing.T) {
 	}
 	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed, "treat-as-withdraw must produce a withdrawal for an announced route")
-	feedReceived(r, peer, ctxID, withdrawal)
-	assert.Equal(t, 0, r.bgpPeers[peer].Len(),
+	feedReceived(r, 1, peer, ctxID, withdrawal)
+	assert.Equal(t, 0, r.bgpPeers[1].Len(),
 		"AC-1: treat-as-withdraw removes the route from the Adj-RIB-In")
 	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
 		bestChangePrefixes(bus, ribevents.BestChangeWithdraw),
@@ -149,8 +152,8 @@ func TestRIBTreatAsWithdrawRemovesInstalledRoute(t *testing.T) {
 	}
 	newWithdraw, changed2 := message.SynthesizeWithdraw(newAnnounce, false)
 	require.True(t, changed2)
-	feedReceived(r, peer, ctxID, newWithdraw)
-	assert.Equal(t, 0, r.bgpPeers[peer].Len(),
+	feedReceived(r, 1, peer, ctxID, newWithdraw)
+	assert.Equal(t, 0, r.bgpPeers[1].Len(),
 		"AC-5: withdrawing a never-installed prefix installs nothing")
 	assert.Equal(t, eventsBefore, bus.eventCount(),
 		"AC-5: withdrawing a never-installed prefix publishes no best-change event")
@@ -185,8 +188,8 @@ func TestRIBTreatAsWithdrawAddPathPreservesPathID(t *testing.T) {
 	}
 	announce = append(announce, path42...)
 	announce = append(announce, path43...)
-	feedReceived(r, peer, ctxID, announce)
-	require.Equal(t, 2, r.bgpPeers[peer].Len(), "both ADD-PATH routes install")
+	feedReceived(r, 1, peer, ctxID, announce)
+	require.Equal(t, 2, r.bgpPeers[1].Len(), "both ADD-PATH routes install")
 
 	// Re-advertise ONLY path 42 with a malformed ORIGIN, run through the synthesis.
 	malformed := []byte{
@@ -199,12 +202,12 @@ func TestRIBTreatAsWithdrawAddPathPreservesPathID(t *testing.T) {
 	malformed = append(malformed, path42...)
 	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed)
-	feedReceived(r, peer, ctxID, withdrawal)
+	feedReceived(r, 1, peer, ctxID, withdrawal)
 
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 1, r.bgpPeers[1].Len(),
 		"AC-6: exactly the (pathID 42) path is withdrawn; the sibling path survives")
-	_, found42 := r.bgpPeers[peer].Lookup(family.IPv4Unicast, path42)
+	_, found42 := r.bgpPeers[1].Lookup(family.IPv4Unicast, path42)
 	assert.False(t, found42, "AC-6: path ID 42 must be withdrawn")
-	_, found43 := r.bgpPeers[peer].Lookup(family.IPv4Unicast, path43)
+	_, found43 := r.bgpPeers[1].Lookup(family.IPv4Unicast, path43)
 	assert.True(t, found43, "AC-6: path ID 43 (same prefix, different path) must remain")
 }

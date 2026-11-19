@@ -13,12 +13,12 @@ import (
 // carries no limit pair.
 // PREVENTS: the IPC writer and the command parser drifting apart.
 func TestRecoveryArgsRoundTrip(t *testing.T) {
-	source := netip.MustParseAddr("192.0.2.11")
+	const sourceOwner uint64 = 42
 	for _, limit := range []uint16{0, 1, 2, 65535} {
-		request := RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), Family: family.IPv4Unicast,
+		request := RecoveryRequest{Destination: netip.MustParseAddr("192.0.2.20"), DestinationOwner: 41, Family: family.IPv4Unicast,
 			AddPath: true, SentAddPath: true, Limit: limit, Keys: []RecoveryKey{
 				{NLRI: []byte{0, 0, 0, 1, 24, 198, 51, 100}},
-				{NLRI: []byte{0, 0, 0, 2, 24, 198, 51, 101}, Excluded: []netip.Addr{source}},
+				{NLRI: []byte{0, 0, 0, 2, 24, 198, 51, 101}, Excluded: []uint64{sourceOwner}},
 			}}
 		args := AppendRecoveryArgs(nil, &request)
 		if got := slices.Contains(args, recoveryLimitKeyword); got != (limit > 0) {
@@ -33,6 +33,9 @@ func TestRecoveryArgsRoundTrip(t *testing.T) {
 		}
 		if parsed.Destination != request.Destination {
 			t.Fatalf("destination %s, want %s", parsed.Destination, request.Destination)
+		}
+		if parsed.DestinationOwner != request.DestinationOwner {
+			t.Fatalf("destination owner %d, want %d", parsed.DestinationOwner, request.DestinationOwner)
 		}
 		if parsed.Family != request.Family {
 			t.Fatalf("family %s, want %s", parsed.Family, request.Family)

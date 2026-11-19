@@ -72,11 +72,11 @@ func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 		bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{labeledFamily: true}))
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
-	feedReceivedIBGP(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 20,
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 20,
 		labeledNLRI(7, true, pfx, []uint32{100})))
-	feedReceivedIBGP(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 10,
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 10,
 		labeledNLRI(9, true, pfx, []uint32{200})))
-	require.Equal(t, 2, r.bgpPeers[peer].Len(), "precondition: two paths stored")
+	require.Equal(t, 2, r.bgpPeers[1].Len(), "precondition: two paths stored")
 
 	for _, key := range [][]byte{{0, 0, 0, 7, 8, 10}, {0, 0, 0, 9, 8, 10}} {
 		candidates := gatherCandidatesHeld(t, r, labeledFamily, key, true)
@@ -92,19 +92,22 @@ func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 // speaker are both in AS 65000, so a route with an empty AS_PATH names the local
 // AS as its neighbor AS and the MED step compares it (RFC 4271 Section
 // 9.1.2.2 (c)).
-func feedReceivedIBGP(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, body []byte) {
+func feedReceivedIBGP(r *RIBManager, peerOwner uint64, peer netip.Addr, ctxID bgpctx.ContextID, body []byte) {
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType:   rpc.EventKindUpdate,
+		PeerOwner:   peerOwner,
 		PeerAddress: peer.String(),
 		PeerAS:      rpc.RemoteASOf(65000),
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   body,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
+			Type:        msgtype.TypeUPDATE,
+			SourceOwner: peerOwner,
+			RawBytes:    body,
+			WireUpdate:  wu,
+			AttrsWire:   attrs,
 		},
 	})
 }

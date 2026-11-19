@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+	"fmt"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -40,25 +41,54 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	entered := make(chan struct{}, downs)
 	release := make(chan struct{})
 	sources := make(chan string, downs)
-	bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, _ string, meta map[string]any, _ uint64) (uint32, uint32, error) {
-		source, _ := meta["recovery-source"].(string)
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+		if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+			return result, err
+		}
+		var input rpc.UpdateRouteInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, err
+		}
+		if method != rpc.MethodUpdateRoute {
+			return nil, fmt.Errorf("unexpected worker RPC %s", method)
+		}
+		source, ok := input.Meta["recovery-source"].(string)
+		if !ok {
+			return nil, fmt.Errorf("departure has no source: %+v", input)
+		}
 		sources <- source
 		entered <- struct{}{}
 		<-release
-		return 0, 1, nil
+		return json.Marshal(rpc.UpdateRouteOutput{Withdrawn: 1})
 	})
 	bridge.SetReady()
-	rr := &routeReflector{plugin: p, withdrawals: make(map[string]map[string]withdrawalInfo)}
+	rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+	rrFixtureStart(t, rr, rrOriginalFixture(t, "203.0.113.254", 900, 900), 0, 7, 1900)
+	t.Cleanup(rr.stopDepartures)
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
 
 	addresses := make([]string, downs)
 	for i := range downs {
 		addresses[i] = netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}).String()
-		rr.withdrawals[addresses[i]] = map[string]withdrawalInfo{
-			"ipv4/unicast|10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.0.0.0/24"},
+		original := rrOriginalFixture(t, addresses[i], uint64(1000+i), uint64(2000+i))
+		rrFixtureStart(t, rr, original, uint64(3000+i), 7, uint64(4000+i))
+		rr.withdrawals[addresses[i]] = map[withdrawalKey]withdrawalInfo{
+			{owner: original.owner, connection: original.connection, route: "ipv4/unicast|10.0.0.0/24"}: {SourceOwner: original.owner, ConnectionID: original.connection, SourceReceipt: uint64(3000 + i), Family: family.IPv4Unicast, Prefix: "prefix 10.0.0.0/24"},
 		}
 	}
 
-	rr.handleStateDown(addresses[0], 7)
+	for _, state := range rr.peers {
+		if state.Identity.owner != 900 {
+			state.DestinationSession = 0
+		}
+	}
+	rr.handleStateDown(rrOriginalFixture(t, addresses[0], 1000, 2000), 7)
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
@@ -67,8 +97,8 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	before := runtime.NumGoroutine()
 	returned := make(chan struct{})
 	go func() {
-		for _, address := range addresses[1:] {
-			rr.handleStateDown(address, 7)
+		for index, address := range addresses[1:] {
+			rr.handleStateDown(rrOriginalFixture(t, address, uint64(1001+index), uint64(2001+index)), 7)
 		}
 		close(returned)
 	}()
@@ -126,12 +156,12 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 // departure queued after it is refused.
 // PREVENTS: shutdown starting departure workers only to stop them.
 func TestStopDeparturesWithoutDepartureStartsNothing(t *testing.T) {
-	rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+	rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 	rr.stopDepartures()
 	if rr.departures != nil {
 		t.Fatal("stopDepartures started the departure workers with no departure queued")
 	}
-	if rr.enqueueDeparture(netip.MustParseAddr("192.0.2.1"), map[string]withdrawalInfo{}) {
+	if rr.enqueueDeparture(rrOriginalFixture(t, "192.0.2.1", 701, 41), map[withdrawalKey]withdrawalInfo{}) {
 		t.Fatal("enqueueDeparture after stopDepartures answered true")
 	}
 	if rr.departures != nil {

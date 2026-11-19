@@ -10,10 +10,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestAIGPCostWithheldBeforeFirstAdvertisementRecovers pins the recovery of a
@@ -222,6 +220,7 @@ func (f *aigpReplayFixture) addSource(t *testing.T, address string) *Peer {
 	peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
 	peer.settings.NextHopMode = NextHopSelf
 	peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}}
+	acceptingPolicies(t, peer.settings)
 	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.sendCtx.Store(bgpctx.Registry.Get(f.ctxID))
 	peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID
@@ -249,9 +248,7 @@ func (f *aigpReplayFixture) receiveFrom(t *testing.T, source *Peer, metric uint6
 	copy(nh, source.Settings().Address.AsSlice())
 	wu := wireu.NewWireUpdate(body, f.ctxID)
 	wu.SetSourceID(source.SourceID())
-	if !f.r.notifyMessageReceiver(source.Settings().Address, msgtype.TypeUPDATE, body, wu, f.ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0) {
-		t.Fatal("UPDATE not delivered")
-	}
+	aigpFixturePublish(t, f, source, source.currentSession(), body, wu)
 	f.ids = append(f.ids, wu.MessageID())
 	return wu.MessageID()
 }
@@ -391,7 +388,11 @@ func TestAIGPRecoveryWithdrawalRemovesDecidedRecords(t *testing.T) {
 		if withheld != 1 {
 			t.Fatalf("records=%d after the withheld route, want its cost-withheld record", withheld)
 		}
-		f.r.invalidateAIGPReceived(f.source.Settings().Address, wireu.NewWireUpdate(body, f.ctxID))
+		update := wireu.NewWireUpdate(body, f.ctxID)
+		update.SetSourceID(f.source.SourceID())
+		update.SetSourceOwner(f.source.sourceOwner)
+		update.SetSourceReceipt(f.source.currentSession().sourceReceiptID())
+		f.r.invalidateAIGPReceived(f.source.Settings().Address, update)
 		if n := commit(f); n != 0 {
 			t.Fatalf("records=%d after a withdrawal over a record whose route is gone, want 0", n)
 		}

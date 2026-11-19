@@ -2,7 +2,6 @@
 package rib
 
 import (
-	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -14,7 +13,7 @@ import (
 func TestLLGRRefreshReplacesMutatedAttributes(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
-	peer := r.bgpPeers[netip.MustParseAddr("192.0.2.1")]
+	peer := r.bgpPeers[1]
 	for _, command := range []struct {
 		name string
 		args []string

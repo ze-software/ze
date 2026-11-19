@@ -27,7 +27,7 @@ import (
 func TestRetentionBusOwnershipLifetime(t *testing.T) {
 	for _, direct := range []bool{false, true} {
 		t.Run(map[bool]string{false: "rpc", true: "bridge"}[direct], func(t *testing.T) {
-			rr, _ := newPeerDownReflector(t)
+			rr, _ := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
 			t.Cleanup(rr.stopDepartures)
 			bus, err := pluginserver.NewServer(nil, nil)
 			if err != nil {
@@ -50,9 +50,9 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			emit := func(peer string, families []family.Family) {
+			emit := func(peer string, owner, connection uint64, families []family.Family) {
 				t.Helper()
-				payload, err := retention.Encode(peer, families)
+				payload, err := retention.Encode(owner, connection, peer, families)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -61,47 +61,57 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 				}
 			}
 			const owned = "192.0.2.1"
-			up := "peer " + owned + " remote as 65001 state up reason attached"
-			down := "peer " + owned + " remote as 65001 state down session-generation 7"
+			up := "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached"
+			down := "peer " + owned + " remote as 65001 state down peer-owner 701 connection-id 41 session-generation 7"
 			deliver(up)
-			entries := map[string]withdrawalInfo{"retained": {Family: family.IPv4Unicast}}
+			entries := map[withdrawalKey]withdrawalInfo{{owner: 701, connection: 41, route: "retained"}: {SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast}}
 			rr.withdrawals[owned] = entries
-			emit(owned, []family.Family{family.IPv4Unicast})
+			emit(owned, 701, 41, []family.Family{family.IPv4Unicast})
 			deliver(down)
-			if len(entries) != 0 {
-				t.Fatal("owned verdict did not retain its family before DOWN")
+			if len(entries) != 1 {
+				t.Fatal("owned verdict lost its retained family before DOWN")
 			}
-			if kept := rr.retained.Take(owned); kept != nil {
+			for _, info := range entries {
+				if !info.Retained || info.Closing {
+					t.Fatal("owned family became a departure instead of retained authority")
+				}
+			}
+			if kept, err := rr.retained.Take(701, 41); err != nil || kept != nil {
 				t.Fatal("DOWN left a verdict behind")
 			}
-			// The same address's next state lifetime starts without old retention.
+			// The same address's next physical lifetime starts without old retention.
+			up = "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 44 session-generation 8 destination-session 144 reason attached"
+			down = "peer " + owned + " remote as 65001 state down peer-owner 701 connection-id 44 session-generation 8"
 			deliver(up)
-			emit(owned, nil)
+			emit(owned, 701, 44, nil)
 			deliver(down)
-			if kept := rr.retained.Take(owned); kept != nil {
+			if kept, err := rr.retained.Take(701, 44); err != nil || kept != nil {
 				t.Fatal("empty verdict survived its DOWN")
 			}
 			const churn = 32
 			for i := range churn {
 				peer := "198.51.100." + strconv.Itoa(i+1)
 				if i%2 == 0 {
-					emit(peer, []family.Family{family.IPv4Unicast})
+					emit(peer, uint64(1000+i), uint64(2000+i), []family.Family{family.IPv4Unicast})
 				} else {
-					emit(peer, nil)
+					emit(peer, uint64(1000+i), uint64(2000+i), nil)
 				}
 			}
 			// A detached former owner is as unrelated as a never-attached peer.
-			emit(owned, []family.Family{family.IPv4Unicast})
+			emit(owned, 701, 41, []family.Family{family.IPv4Unicast})
 			if err := proc.DrainEventsApplied(ctx); err != nil {
 				t.Fatal(err)
 			}
 			for i := range churn {
 				peer := "198.51.100." + strconv.Itoa(i+1)
-				if kept := rr.retained.Take(peer); kept != nil {
+				if kept, err := rr.retained.Take(uint64(1000+i), uint64(2000+i)); err != nil || kept != nil {
 					t.Errorf("unowned peer %s left a verdict: %v", peer, kept)
 				}
 			}
-			if kept := rr.retained.Take(owned); kept != nil {
+			if kept, err := rr.retained.Take(701, 41); err != nil || kept != nil {
+				t.Error("detached former owner reinstalled its original physical verdict")
+			}
+			if kept, err := rr.retained.Take(701, 44); err != nil || kept != nil {
 				t.Error("former owner's terminal DOWN did not close admission")
 			}
 		})
@@ -112,25 +122,32 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 // callbacks, including an attached session, against the same verdict consumer.
 // Recreating an address must not inherit the previous lifetime's verdict.
 func TestRetentionStructuredOwnershipLifetime(t *testing.T) {
-	rr, _ := newPeerDownReflector(t)
+	rr, _ := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
 	t.Cleanup(rr.stopDepartures)
 	const peer = "192.0.2.1"
-	for _, reason := range []string{rpc.ReasonNotification, rpc.ReasonPeerRemoved} {
+	for index, reason := range []string{rpc.ReasonNotification, rpc.ReasonPeerRemoved} {
+		connection := uint64(41 + index)
 		rr.handleStructuredState(&rpc.StructuredEvent{
-			PeerAddress: peer, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+			PeerAddress: peer, PeerOwner: 701, ConnectionID: connection, SessionGeneration: 7, DestinationSession: 141 + uint64(index), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
 		})
-		rr.dispatchText(retentionEvent(t, peer, family.IPv4Unicast))
-		entries := map[string]withdrawalInfo{"retained": {Family: family.IPv4Unicast}}
+		rrFixtureStart(t, rr, rrOriginalFixture(t, peer, 701, connection), 70+uint64(index), 7, 141+uint64(index))
+		rr.dispatchText(retentionEvent(t, peer, 701, connection, family.IPv4Unicast))
+		entries := map[withdrawalKey]withdrawalInfo{{owner: 701, connection: connection, route: "retained"}: {SourceOwner: 701, ConnectionID: connection, SourceReceipt: 70 + uint64(index), Family: family.IPv4Unicast}}
 		rr.withdrawals[peer] = entries
 		rr.handleStructuredState(&rpc.StructuredEvent{
-			PeerAddress: peer, State: rpc.SessionStateDown, Reason: reason,
+			PeerAddress: peer, PeerOwner: 701, ConnectionID: connection, State: rpc.SessionStateDown, Reason: reason,
 			SessionGeneration: 7,
 		})
-		if len(entries) != 0 {
+		if len(entries) != 1 {
 			t.Fatal("structured lifetime lost its GR verdict before DOWN")
 		}
-		rr.dispatchText(retentionEvent(t, peer, family.IPv4Unicast))
-		if kept := rr.retained.Take(peer); kept != nil {
+		for _, info := range entries {
+			if !info.Retained || info.Closing {
+				t.Fatal("structured retained family became a departure")
+			}
+		}
+		rr.dispatchText(retentionEvent(t, peer, 701, connection, family.IPv4Unicast))
+		if kept, err := rr.retained.Take(701, connection); err != nil || kept != nil {
 			t.Fatal("structured DOWN left admission open")
 		}
 	}
@@ -138,7 +155,7 @@ func TestRetentionStructuredOwnershipLifetime(t *testing.T) {
 
 // retentionLifetimeProcess owns one process delivery worker and, for RPC, one
 // callback reader. Cleanup stops and joins both, including on failed assertions.
-func retentionLifetimeProcess(t *testing.T, direct bool, apply func(string)) *process.Process {
+func retentionLifetimeProcess(t *testing.T, direct bool, apply func(string) error) *process.Process {
 	t.Helper()
 	engine, consumer := net.Pipe()
 	conn := ipc.NewPluginConn(engine, engine)
@@ -157,7 +174,9 @@ func retentionLifetimeProcess(t *testing.T, direct bool, apply func(string)) *pr
 			if err := json.Unmarshal(raw, &text); err != nil {
 				return err
 			}
-			apply(text)
+			if err := apply(text); err != nil {
+				return err
+			}
 		}
 		return nil
 	}

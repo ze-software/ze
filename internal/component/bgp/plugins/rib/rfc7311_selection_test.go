@@ -60,10 +60,10 @@ func TestAIGPSelectsStoredRoutesBeforeASPath(t *testing.T) {
 	peerA, peerB := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")
 	nhA, nhB := [4]byte{198, 51, 100, 1}, [4]byte{198, 51, 100, 2}
 	aigpSelectionNextHopRoutes(t, loc, family.IPv4Unicast, netip.AddrFrom4(nhA), netip.AddrFrom4(nhB))
-	for _, peer := range []netip.Addr{peerA, peerB} {
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
-		r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
-		p := r.bgpPeers[peer]
+	for i, peer := range []netip.Addr{peerA, peerB} {
+		r.peerMeta[uint64(i+1)] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
+		r.bgpPeers[uint64(i+1)] = storage.NewPeerRIB(peer.String())
+		p := r.bgpPeers[uint64(i+1)]
 		t.Cleanup(p.Release)
 	}
 	igpcost.Set(func(nh netip.Addr) igpcost.Distance {
@@ -76,8 +76,8 @@ func TestAIGPSelectsStoredRoutesBeforeASPath(t *testing.T) {
 	t.Cleanup(func() { igpcost.Set(nil) })
 	prefix := ipv4Prefix(24, 10, 20, 0)
 	metricA, metricB := uint64(5), uint64(20)
-	r.bgpPeers[peerA].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, &metricA, 100, 1), prefix)
-	r.bgpPeers[peerB].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhB, &metricB, 100, 3), prefix)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, &metricA, 100, 1), prefix)
+	r.bgpPeers[2].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhB, &metricB, 100, 3), prefix)
 	winner, changed := r.checkBestPathChange(family.IPv4Unicast, prefix, false, nil)
 	require.True(t, changed)
 	require.Equal(t, netip.AddrFrom4(nhB), winner.NextHop)
@@ -87,13 +87,13 @@ func TestAIGPSelectsStoredRoutesBeforeASPath(t *testing.T) {
 	require.Len(t, replay, 1)
 	require.Equal(t, uint64(20), replay[0].AIGP)
 
-	r.bgpPeers[peerA].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, nil, 101, 1), prefix)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, nil, 101, 1), prefix)
 	winner, changed = r.checkBestPathChange(family.IPv4Unicast, prefix, false, nil)
 	require.True(t, changed)
 	require.Equal(t, netip.AddrFrom4(nhA), winner.NextHop, "LOCAL_PREF precedes AIGP")
 	require.False(t, winner.AIGPPresent)
 
-	r.bgpPeers[peerA].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, nil, 100, 1), prefix)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, aigpSelectionAttrs(nhA, nil, 100, 1), prefix)
 	winner, changed = r.checkBestPathChange(family.IPv4Unicast, prefix, false, nil)
 	require.True(t, changed)
 	require.Equal(t, netip.AddrFrom4(nhB), winner.NextHop, "missing AIGP is not a zero-cost path")
@@ -121,9 +121,9 @@ func TestAIGPDistanceChangeReselectsRetainedRoutes(t *testing.T) {
 	wirePrefix := ipv4Prefix(24, 10, 20, 0)
 	for i, text := range []string{"192.0.2.1", "192.0.2.2"} {
 		peer := netip.MustParseAddr(text)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+		r.peerMeta[uint64(i+1)] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 		routes := storage.NewPeerRIB(text)
-		r.bgpPeers[peer] = routes
+		r.bgpPeers[uint64(i+1)] = routes
 		t.Cleanup(routes.Release)
 		routes.Insert(family.IPv4Unicast, aigpSelectionAttrs([4]byte{198, 51, 100, byte(i + 1)}, &metric, 100, 1), wirePrefix)
 	}
@@ -173,13 +173,13 @@ func TestAIGPDistanceChangeReselectsRetainedRoutes(t *testing.T) {
 
 		wirePrefix := ipv4Prefix(24, 10, 20, 0)
 		receivedMetric := uint64(10)
-		for _, candidate := range []struct{ peer, nextHop netip.Addr }{
+		for i, candidate := range []struct{ peer, nextHop netip.Addr }{
 			{peer: netip.MustParseAddr("192.0.2.2"), nextHop: nextHopA},
 			{peer: netip.MustParseAddr("192.0.2.1"), nextHop: nextHopB},
 		} {
-			r.peerMeta[candidate.peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+			r.peerMeta[uint64(i+1)] = &peerMetadata{Address: candidate.peer, PeerASN: 65001, LocalASN: 65001}
 			routes := storage.NewPeerRIB(candidate.peer.String())
-			r.bgpPeers[candidate.peer] = routes
+			r.bgpPeers[uint64(i+1)] = routes
 			t.Cleanup(routes.Release)
 			routes.Insert(fam, aigpSelectionAttrs(candidate.nextHop.As4(), &receivedMetric, 100, 1), wirePrefix)
 		}
@@ -217,12 +217,12 @@ func TestAIGPDistanceChangeReselectsRetainedRoutes(t *testing.T) {
 		require.Equal(t, igpcost.Distance{Cost: 20, Resolved: true}, igpcost.Resolve(loc, nextHopB))
 		require.Eventually(t, func() bool { return winnerIs(nextHopB) }, 5*time.Second, 10*time.Millisecond,
 			"the production subscriber must reselect after recursive AIGP changes")
-		for peer, routes := range r.bgpPeers {
+		for owner, routes := range r.bgpPeers {
 			entry, found := routes.Lookup(fam, wirePrefix)
-			require.True(t, found, "received path retained for %s", peer)
+			require.True(t, found, "received path retained for owner %d", owner)
 			metric, present := entryAIGP(entry)
-			require.True(t, present, "received AIGP retained for %s", peer)
-			require.Equal(t, receivedMetric, metric, "received AIGP is not accumulated for %s", peer)
+			require.True(t, present, "received AIGP retained for owner %d", owner)
+			require.Equal(t, receivedMetric, metric, "received AIGP is not accumulated for owner %d", owner)
 		}
 
 		_, changed = loc.Insert(fam, recursivePrefix, recursivePath)
@@ -261,9 +261,9 @@ func TestAIGPSelectionResolvesMultiprotocolNextHop(t *testing.T) {
 	metric := uint64(10)
 	for i, address := range []string{"192.0.2.1", "192.0.2.2"} {
 		peer := netip.MustParseAddr(address)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+		r.peerMeta[uint64(i+1)] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 		routes := storage.NewPeerRIB(address)
-		r.bgpPeers[peer] = routes
+		r.bgpPeers[uint64(i+1)] = routes
 		t.Cleanup(routes.Release)
 		// A mixed UPDATE retains a legacy NEXT_HOP for its IPv4 routes.
 		// It must not replace the IPv6 MP_REACH next hop during selection.

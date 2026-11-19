@@ -19,9 +19,6 @@ import (
 func recoveryTestCleanup(t *testing.T, r *RIBManager) {
 	t.Helper()
 	t.Cleanup(func() {
-		for _, peer := range r.bgpPeers {
-			peer.Release()
-		}
 		for _, families := range r.ribOut {
 			for _, routes := range families {
 				for _, entry := range routes {
@@ -33,14 +30,15 @@ func recoveryTestCleanup(t *testing.T, r *RIBManager) {
 }
 
 // recoveryKey names one key and its excluded sources for a test request.
-func recoveryKey(raw []byte, excluded ...netip.Addr) ribevents.RecoveryKey {
+func recoveryKey(raw []byte, excluded ...uint64) ribevents.RecoveryKey {
 	return ribevents.RecoveryKey{NLRI: raw, Excluded: excluded}
 }
 
 // recoveryReceived installs one received path for peer, with LOCAL_PREF pref
 // and message ID id; a non-nil asPath replaces the default AS_PATH. raw carries
 // a four-octet path identifier when addPath is set.
-func recoveryReceived(r *RIBManager, peer netip.Addr, raw []byte, pref byte, id uint64, addPath bool, asPath []byte) []byte {
+func recoveryReceived(t *testing.T, r *RIBManager, peer netip.Addr, owner, receipt uint64, raw []byte, pref byte, id uint64, addPath bool, asPath []byte) []byte {
+	t.Helper()
 	attrs := nativeSentAttrs()
 	if asPath != nil {
 		attrs = []byte{0x40, 1, 1, 0}
@@ -48,17 +46,44 @@ func recoveryReceived(r *RIBManager, peer netip.Addr, raw []byte, pref byte, id 
 	}
 	attrs = appendAttr(attrs, byte(attribute.AttrNextHop), 0x40, peer.AsSlice())
 	attrs = appendAttr(attrs, byte(attribute.AttrLocalPref), 0x40, []byte{0, 0, 0, pref})
-	rib, found := r.bgpPeers[peer]
-	if !found {
-		rib = storage.NewPeerRIB(peer.String())
-		r.bgpPeers[peer], r.peerUp[peer] = rib, true
-	}
 	if addPath {
-		rib.SetAddPath(family.IPv4Unicast, true)
+		if r.bgpPeers[owner] == nil {
+			routes, err := storage.NewAddressPeerRIB(peer)
+			require.NoError(t, err)
+			r.bgpPeers[owner] = routes
+		}
+		r.bgpPeers[owner].SetAddPath(family.IPv4Unicast, true)
 	}
-	rib.Insert(family.IPv4Unicast, attrs, raw)
-	rib.ModifyFamilyEntry(family.IPv4Unicast, raw, func(entry *storage.RouteEntry) { entry.MsgID = id })
+	recoveryStoredPath(t, r, peer, owner, receipt, family.IPv4Unicast, attrs, raw, id)
 	return attrs
+}
+
+// recoveryStoredPath gives positive recovery candidates the same successful SDK
+// lease authority as received storage. The actor and receipt are fixture inputs,
+// independent of the displayed address and UPDATE message ID. Each actor
+// in this fixture retains its original physical connection 41.
+func recoveryStoredPath(t *testing.T, r *RIBManager, peer netip.Addr, owner, receipt uint64, fam family.Family, attrs, raw []byte, message uint64) {
+	t.Helper()
+	require.NotNil(t, r.sourceLeases)
+	source, err := r.sourceLeases.acquire(t.Context(), peer, owner, receipt, 41)
+	require.NoError(t, err)
+	require.NotNil(t, source)
+	defer source.Release()
+	entry, fingerprint, size, err := storage.ParseRouteEntry(attrs)
+	require.NoError(t, err)
+	defer entry.Release()
+	entry.MsgID = message
+	entry.SourceReceipt = receipt
+	entry.SetSourceReference(source)
+	routes := r.bgpPeers[owner]
+	if routes == nil {
+		routes, err = storage.NewAddressPeerRIB(peer)
+		require.NoError(t, err)
+		r.bgpPeers[owner] = routes
+	}
+	r.peerMeta[owner] = &peerMetadata{Address: peer, ConnectionID: 41}
+	r.peerUp[owner] = true
+	routes.InsertEntry(fam, entry, fingerprint, size, raw)
 }
 
 // recoverySources lists the survivors' sources in answer order.
@@ -75,19 +100,19 @@ func recoverySources(outcome ribevents.RecoveryOutcome) []netip.Addr {
 // PREVENTS: a blind source-DOWN withdrawal replacing an available survivor, or
 // replaying the failed source's attributes under the survivor's address.
 func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	failed := netip.MustParseAddr("192.0.2.10")
 	backup := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	raw := []byte{24, 198, 51, 100}
-	recoveryReceived(r, failed, raw, 200, 80, false, nil)
-	backupAttrs := recoveryReceived(r, backup, raw, 100, 81, false, nil)
-	event := nativeSentEvent(t, dest, family.IPv4Unicast, raw, backupAttrs, false, false)
+	recoveryReceived(t, r, failed, 101, 701, raw, 200, 80, false, nil)
+	backupAttrs := recoveryReceived(t, r, backup, 102, 702, raw, 100, 81, false, nil)
+	event := nativeSentEvent(t, dest, 201, 101, family.IPv4Unicast, raw, backupAttrs, false, false)
 	event.RouteMeta["source-message-id"] = float64(80)
 	r.handleSent(event)
-	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
-		Keys: []ribevents.RecoveryKey{recoveryKey(raw, failed)}}
+	request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
+		Keys: []ribevents.RecoveryKey{recoveryKey(raw, 101)}}
 	// RFC 4271 Section 6: query the same whole-set selection used by live changes.
 	outcomes, err := r.recoveryRoutes(request)
 	require.NoError(t, err)
@@ -117,9 +142,9 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 		require.Equal(t, before, after, "replacement attribute %d", wanted)
 	}
 	// Reading recovery is not a destructive second received-route lifecycle.
-	require.Contains(t, r.bgpPeers, failed)
+	require.Contains(t, r.bgpPeers, uint64(101))
 	// The external command must reach the exact same producer and framing.
-	status, answer, err := r.recoveryCommand("", []string{dest.String(), family.IPv4Unicast.String(),
+	status, answer, err := r.recoveryCommand("", []string{dest.String(), "201", family.IPv4Unicast.String(),
 		"false", "false", ribevents.FormatRecoveryKey(&request.Keys[0])})
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
@@ -128,6 +153,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	// Re-forwarding a backup before the fatal event does not remove the need
 	// to advertise the surviving selection after the failed source is removed.
 	event.RouteMeta["source-peer"] = backup.String()
+	event.RouteMeta["source-owner"] = "102"
 	event.RouteMeta["source-message-id"] = float64(81)
 	r.handleSent(event)
 	// RFC 4271 Section 6: an already advertised survivor remains the replacement.
@@ -139,15 +165,16 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	// withdraws is the reactor writer's owed record, which a departure creates
 	// only where the departed source's ended session owns the entry
 	// (TestAdjOutDepartureOwesOnlyDepartedSession).
-	r.peerUp[backup] = false
+	r.peerUp[102] = false
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
 	require.True(t, outcomes[0].Withdraw)
 	require.Empty(t, outcomes[0].Sent, "a non-ADD-PATH key names no Sent")
-	r.peerUp[backup] = true
+	r.peerUp[102] = true
 
 	// RFC 4271 Section 3.1: a later advertisement already replaced the old path.
 	event.RouteMeta["source-peer"] = failed.String()
+	event.RouteMeta["source-owner"] = "101"
 	event.RouteMeta["source-message-id"] = float64(91)
 	r.handleSent(event)
 	outcomes, err = r.recoveryRoutes(request)
@@ -155,7 +182,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	require.Empty(t, outcomes[0].Sent, "a non-ADD-PATH key names no Sent")
 
 	// With no survivor, only the failed advertisement is withdrawn.
-	r.peerUp[backup] = false
+	r.peerUp[102] = false
 	event.RouteMeta["source-message-id"] = float64(80)
 	r.handleSent(event)
 	// RFC 4271 Section 6: no feasible replacement leaves a withdrawal.
@@ -171,16 +198,16 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 // path stays electable (AC-9).
 // PREVENTS: an owner withdrawal excluding the source's surviving ADD-PATH path.
 func TestRecoveryOwnerWithdrawalKeepsSourceOtherPaths(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	owner := netip.MustParseAddr("192.0.2.10")
 	other := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	prefix := []byte{24, 198, 51, 100}
 	remaining := append([]byte{0, 0, 0, 2}, prefix...)
-	recoveryReceived(r, owner, remaining, 200, 80, true, nil)
-	recoveryReceived(r, other, prefix, 100, 81, false, nil)
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	recoveryReceived(t, r, owner, 101, 701, remaining, 200, 80, true, nil)
+	recoveryReceived(t, r, other, 102, 702, prefix, 100, 81, false, nil)
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{recoveryKey(prefix)}})
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
@@ -199,11 +226,11 @@ func TestRecoveryOwnerWithdrawalKeepsSourceOtherPaths(t *testing.T) {
 // set for a key no source holds any more (AC-2).
 // PREVENTS: an empty answer read as "nothing to do" instead of WITHDRAW.
 func TestRecoveryOwnerWithdrawalAnswersWithdrawWhenNoSurvivor(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	prefix := []byte{24, 198, 51, 100}
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{recoveryKey(prefix)}})
 	require.NoError(t, err)
 	require.Equal(t, []ribevents.RecoveryOutcome{{NLRI: prefix, Withdraw: true}}, outcomes)
@@ -213,20 +240,20 @@ func TestRecoveryOwnerWithdrawalAnswersWithdrawWhenNoSurvivor(t *testing.T) {
 // inventory does not hold (round-2 I-4).
 // PREVENTS: the election depending on a ribOut entry and answering nothing.
 func TestRecoveryElectsWithoutSentEntry(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	source := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	prefix := []byte{24, 198, 51, 100}
-	recoveryReceived(r, source, prefix, 100, 81, false, nil)
-	require.Empty(t, r.ribOut[dest])
-	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	recoveryReceived(t, r, source, 102, 702, prefix, 100, 81, false, nil)
+	require.Empty(t, r.ribOut[201])
+	request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{recoveryKey(prefix)}}
 	outcomes, err := r.recoveryRoutes(request)
 	require.NoError(t, err)
 	require.False(t, outcomes[0].Withdraw)
 	require.Equal(t, []netip.Addr{source}, recoverySources(outcomes[0]))
-	r.peerUp[source] = false
+	r.peerUp[102] = false
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
 	require.True(t, outcomes[0].Withdraw)
@@ -237,18 +264,18 @@ func TestRecoveryElectsWithoutSentEntry(t *testing.T) {
 // that holds two ADD-PATH paths for the prefix: neither is a candidate.
 // PREVENTS: a departure electing the departed source's second path.
 func TestRecoveryDepartureExcludesEverySourceCandidate(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	departed := netip.MustParseAddr("192.0.2.10")
 	survivor := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	prefix := []byte{24, 198, 51, 100}
 	for id := range byte(2) {
-		recoveryReceived(r, departed, append([]byte{0, 0, 0, id + 1}, prefix...), 250, 80, true, nil)
+		recoveryReceived(t, r, departed, 101, 701, append([]byte{0, 0, 0, id + 1}, prefix...), 250, 80, true, nil)
 	}
-	recoveryReceived(r, survivor, prefix, 100, 81, false, nil)
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
-		Keys: []ribevents.RecoveryKey{recoveryKey(prefix, departed)}})
+	recoveryReceived(t, r, survivor, 102, 702, prefix, 100, 81, false, nil)
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
+		Keys: []ribevents.RecoveryKey{recoveryKey(prefix, 101)}})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{survivor}, recoverySources(outcomes[0]))
 }
@@ -258,7 +285,7 @@ func TestRecoveryDepartureExcludesEverySourceCandidate(t *testing.T) {
 // PREVENTS: a merged departure honoring only one source, or an exclusion
 // leaking from one key to another in the same request.
 func TestRecoveryMergedExclusionSet(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	first := netip.MustParseAddr("192.0.2.10")
 	second := netip.MustParseAddr("192.0.2.12")
@@ -267,12 +294,12 @@ func TestRecoveryMergedExclusionSet(t *testing.T) {
 	merged := []byte{24, 198, 51, 100}
 	open := []byte{24, 198, 51, 101}
 	for _, raw := range [][]byte{merged, open} {
-		recoveryReceived(r, first, raw, 250, 80, false, nil)
-		recoveryReceived(r, second, raw, 200, 82, false, nil)
-		recoveryReceived(r, survivor, raw, 100, 81, false, nil)
+		recoveryReceived(t, r, first, 101, 701, raw, 250, 80, false, nil)
+		recoveryReceived(t, r, second, 103, 703, raw, 200, 82, false, nil)
+		recoveryReceived(t, r, survivor, 102, 702, raw, 100, 81, false, nil)
 	}
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
-		Keys: []ribevents.RecoveryKey{recoveryKey(merged, first, second), recoveryKey(open)}})
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
+		Keys: []ribevents.RecoveryKey{recoveryKey(merged, 101, 103), recoveryKey(open)}})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{survivor}, recoverySources(outcomes[0]))
 	require.Equal(t, []netip.Addr{first, second, survivor}, recoverySources(outcomes[1]))
@@ -283,20 +310,20 @@ func TestRecoveryMergedExclusionSet(t *testing.T) {
 // PREVENTS: the destination being offered its own route back, or a withdrawal
 // where another source survives.
 func TestRecoveryExcludesDestinationCandidate(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	owner := netip.MustParseAddr("192.0.2.10")
 	survivor := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	prefix := []byte{24, 198, 51, 100}
-	recoveryReceived(r, dest, prefix, 250, 79, false, nil)
-	recoveryReceived(r, owner, prefix, 200, 80, false, nil)
-	recoveryReceived(r, survivor, prefix, 100, 81, false, nil)
+	recoveryReceived(t, r, dest, 201, 801, prefix, 250, 79, false, nil)
+	recoveryReceived(t, r, owner, 101, 701, prefix, 200, 80, false, nil)
+	recoveryReceived(t, r, survivor, 102, 702, prefix, 100, 81, false, nil)
 	for _, tc := range []struct {
-		excluded []netip.Addr
+		excluded []uint64
 		want     []netip.Addr
-	}{{nil, []netip.Addr{owner, survivor}}, {[]netip.Addr{owner}, []netip.Addr{survivor}}} {
-		outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	}{{nil, []netip.Addr{owner, survivor}}, {[]uint64{101}, []netip.Addr{survivor}}} {
+		outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 			Keys: []ribevents.RecoveryKey{recoveryKey(prefix, tc.excluded...)}})
 		require.NoError(t, err)
 		require.Equal(t, tc.want, recoverySources(outcomes[0]))
@@ -309,26 +336,28 @@ func TestRecoveryExcludesDestinationCandidate(t *testing.T) {
 // transitive, so no sort could produce the order.
 // PREVENTS: survivors in storage order, or sorted with a non-transitive comparator.
 func TestRecoveryAnswersOrderedCandidates(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	low, mid, high := netip.MustParseAddr("192.0.2.11"), netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
 	electionFixtureLocRIB(t, r, low, mid, high)
 	ladder := []byte{24, 198, 51, 100}
-	recoveryReceived(r, low, ladder, 100, 81, false, nil)
-	recoveryReceived(r, high, ladder, 250, 83, false, nil)
-	recoveryReceived(r, mid, ladder, 200, 82, false, nil)
+	recoveryReceived(t, r, low, 102, 702, ladder, 100, 81, false, nil)
+	recoveryReceived(t, r, high, 104, 704, ladder, 250, 83, false, nil)
+	recoveryReceived(t, r, mid, 103, 703, ladder, 200, 82, false, nil)
 	medSet := []byte{24, 198, 51, 101}
 	for i, path := range []struct {
-		peer netip.Addr
-		as   byte
-		med  byte
-	}{{low, 1, 50}, {mid, 2, 10}, {high, 1, 20}} {
-		attrs := recoveryReceived(r, path.peer, medSet, 100, uint64(90+i), false, []byte{0x40, 2, 4, 2, 1, 0xfd, path.as})
+		peer    netip.Addr
+		owner   uint64
+		receipt uint64
+		as      byte
+		med     byte
+	}{{low, 102, 702, 1, 50}, {mid, 103, 703, 2, 10}, {high, 104, 704, 1, 20}} {
+		attrs := recoveryReceived(t, r, path.peer, path.owner, path.receipt, medSet, 100, uint64(90+i), false, []byte{0x40, 2, 4, 2, 1, 0xfd, path.as})
 		attrs = appendAttr(attrs, byte(attribute.AttrMED), 0x80, []byte{0, 0, 0, path.med})
-		r.bgpPeers[path.peer].Insert(family.IPv4Unicast, attrs, medSet)
+		recoveryStoredPath(t, r, path.peer, path.owner, path.receipt, family.IPv4Unicast, attrs, medSet, 0)
 	}
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{recoveryKey(ladder), recoveryKey(medSet)}})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{high, mid, low}, recoverySources(outcomes[0]))
@@ -357,14 +386,14 @@ func TestRecoveryAnswersOrderedCandidates(t *testing.T) {
 // answer missing a key or holding no outcome (AC-11).
 // PREVENTS: a dropped key read downstream as "no survivor".
 func TestRecoveryAnswersEveryRequestedKey(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	source := netip.MustParseAddr("192.0.2.11")
 	dest := netip.MustParseAddr("192.0.2.20")
 	held := []byte{24, 198, 51, 100}
 	gone := []byte{24, 198, 51, 101}
-	recoveryReceived(r, source, held, 100, 81, false, nil)
-	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	recoveryReceived(t, r, source, 102, 702, held, 100, 81, false, nil)
+	request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{recoveryKey(gone), recoveryKey(held), recoveryKey(gone)}}
 	outcomes, err := r.recoveryRoutes(request)
 	require.NoError(t, err)
@@ -406,7 +435,7 @@ func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 		{"evpn", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, nativeEVPNRoute()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newTestRIBManager(t)
+			r, _ := sourceLeaseTestRIB(t, true)
 			recoveryTestCleanup(t, r)
 			failed := netip.MustParseAddr("192.0.2.10")
 			backup := netip.MustParseAddr("192.0.2.11")
@@ -414,20 +443,21 @@ func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 			for _, path := range []struct {
 				id      uint32
 				source  netip.Addr
+				owner   uint64
 				message uint64
 			}{
-				{0, failed, 80}, {7, failed, 80}, {17, backup, 81}, {99, failed, 91},
+				{0, failed, 101, 80}, {7, failed, 101, 80}, {17, backup, 102, 81}, {99, failed, 101, 91},
 			} {
 				raw := make([]byte, 4+len(tc.raw))
 				binary.BigEndian.PutUint32(raw, path.id)
 				copy(raw[4:], tc.raw)
-				event := nativeSentEvent(t, dest, tc.fam, raw, nativeSentAttrs(), true, false)
+				event := nativeSentEvent(t, dest, 201, path.owner, tc.fam, raw, nativeSentAttrs(), true, false)
 				event.RouteMeta["source-peer"] = path.source.String()
 				event.RouteMeta["source-message-id"] = float64(path.message)
 				r.handleSent(event)
 			}
-			request := ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
-				Keys: []ribevents.RecoveryKey{recoveryKey(tc.raw, failed)}, SentAddPath: true}
+			request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: tc.fam,
+				Keys: []ribevents.RecoveryKey{recoveryKey(tc.raw, 101)}, SentAddPath: true}
 			// RFC 7911 Section 3: the failed source's advertised IDs depart,
 			// its reconnected identifier 99 included: the RIB holds no session
 			// generation, so the reactor's writer is the reconnect guard
@@ -443,14 +473,14 @@ func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 				key, ok := ribOutRouteKeyForAction(tc.fam, sent, true, true)
 				require.True(t, ok)
 				ids[key.PathID] = true
-				require.Contains(t, r.ribOut[dest][tc.fam], key)
+				require.Contains(t, r.ribOut[201][tc.fam], key)
 				if tc.fam.SAFI == family.SAFIMPLSLabel || tc.fam.SAFI == family.SAFIVPN {
 					require.Equal(t, []byte{0x80, 0, 0}, sent[5:8])
 				}
-				r.handleSent(nativeSentEvent(t, dest, tc.fam, sent, nil, true, true))
+				r.handleSent(nativeSentEvent(t, dest, 201, 101, tc.fam, sent, nil, true, true))
 			}
 			require.Equal(t, map[uint32]bool{0: true, 7: true, 99: true}, ids)
-			require.Len(t, r.ribOut[dest][tc.fam], 1, "only the survivor remains")
+			require.Len(t, r.ribOut[201][tc.fam], 1, "only the survivor remains")
 			// RFC 7911 Section 3: repeating DOWN cannot withdraw a different path.
 			outcomes, err = r.recoveryRoutes(request)
 			require.NoError(t, err)
@@ -468,19 +498,21 @@ func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 // prefix, and require the sent identity and a WITHDRAW answer.
 // PREVENTS: the per-key lookup missing the labeled route's sent identity.
 func TestRecoveryLabeledKeyMatchesNativeSentStack(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
 	failed := netip.MustParseAddr("192.0.2.10")
 	dest := netip.MustParseAddr("192.0.2.20")
 	advertised := []byte{72, 0, 6, 64, 0, 12, 129, 198, 51, 100}
-	r.handleSent(nativeSentEvent(t, dest, fam, advertised, nativeSentAttrs(), false, false))
+	event := nativeSentEvent(t, dest, 201, 101, fam, advertised, nativeSentAttrs(), false, false)
+	event.RouteMeta["source-peer"] = failed.String()
+	r.handleSent(event)
 	asked := []byte{48, 0, 9, 1, 198, 51, 100}
 	identity, err := recoveryIdentity(fam, asked, false)
 	require.NoError(t, err)
-	require.Contains(t, r.ribOut[dest][fam], identity, "the one-label key names the advertised stack's identity")
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: fam,
-		Keys: []ribevents.RecoveryKey{recoveryKey(asked, failed)}})
+	require.Contains(t, r.ribOut[201][fam], identity, "the one-label key names the advertised stack's identity")
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: fam,
+		Keys: []ribevents.RecoveryKey{recoveryKey(asked, 101)}})
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
 	require.True(t, outcomes[0].Withdraw)
@@ -493,27 +525,28 @@ func TestRecoveryLabeledKeyMatchesNativeSentStack(t *testing.T) {
 // the reconnect guard), and survives actual sent-withdrawal projection without
 // a restart for each path.
 func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	failed := netip.MustParseAddr("192.0.2.10")
 	backup := netip.MustParseAddr("192.0.2.11")
 	destination := netip.MustParseAddr("192.0.2.20")
-	request := ribevents.RecoveryRequest{Destination: destination,
+	request := ribevents.RecoveryRequest{Destination: destination, DestinationOwner: 201,
 		Family: family.IPv4Unicast, AddPath: true, SentAddPath: true}
-	args := []string{destination.String(), request.Family.String(), "true", "true"}
+	args := []string{destination.String(), "201", request.Family.String(), "true", "true"}
 	for prefix := range 64 {
 		raw := []byte{0, 0, 0, 42, 24, 198, 51, byte(prefix)}
-		key := recoveryKey(raw, failed)
+		key := recoveryKey(raw, 101)
 		request.Keys = append(request.Keys, key, key)
 		args = append(args, ribevents.FormatRecoveryKey(&key), ribevents.FormatRecoveryKey(&key))
 		for _, path := range []struct {
 			id      uint32
 			source  netip.Addr
+			owner   uint64
 			message uint64
-		}{{0, failed, 80}, {7, failed, 80}, {17, backup, 81}, {99, failed, 91}} {
+		}{{0, failed, 101, 80}, {7, failed, 101, 80}, {17, backup, 102, 81}, {99, failed, 101, 91}} {
 			sent := bytes.Clone(raw)
 			binary.BigEndian.PutUint32(sent, path.id)
-			event := nativeSentEvent(t, destination, request.Family, sent, nativeSentAttrs(), true, false)
+			event := nativeSentEvent(t, destination, 201, path.owner, request.Family, sent, nativeSentAttrs(), true, false)
 			event.RouteMeta["source-peer"] = path.source.String()
 			event.RouteMeta["source-message-id"] = float64(path.message)
 			r.handleSent(event)
@@ -540,9 +573,9 @@ func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	}
 	require.Len(t, unique, 192, "every prefix and every failed sent identifier exactly once")
 	for _, sent := range unique {
-		r.handleSent(nativeSentEvent(t, destination, request.Family, sent, nil, true, true))
+		r.handleSent(nativeSentEvent(t, destination, 201, 101, request.Family, sent, nil, true, true))
 	}
-	require.Len(t, r.ribOut[destination][request.Family], 64, "only the survivors remain")
+	require.Len(t, r.ribOut[201][request.Family], 64, "only the survivors remain")
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
 	for _, outcome := range outcomes {
@@ -599,16 +632,16 @@ func TestRecoverySentNLRIUsesRegisteredWithdrawal(t *testing.T) {
 				if !addPath {
 					return
 				}
-				r := newTestRIBManager(t)
+				r, _ := sourceLeaseTestRIB(t, true)
 				recoveryTestCleanup(t, r)
 				failed := netip.MustParseAddr("192.0.2.10")
 				dest := netip.MustParseAddr("192.0.2.20")
-				event := nativeSentEvent(t, dest, tc.fam, announced, nativeSentAttrs(), true, false)
+				event := nativeSentEvent(t, dest, 201, 101, tc.fam, announced, nativeSentAttrs(), true, false)
 				event.RouteMeta["source-peer"] = failed.String()
 				event.RouteMeta["source-message-id"] = float64(80)
 				r.handleSent(event)
-				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
-					Keys: []ribevents.RecoveryKey{recoveryKey(announced[4:], failed)}, SentAddPath: true})
+				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: tc.fam,
+					Keys: []ribevents.RecoveryKey{recoveryKey(announced[4:], 101)}, SentAddPath: true})
 				require.NoError(t, err)
 				require.Len(t, outcomes, 1)
 				require.Equal(t, [][]byte{want}, outcomes[0].Sent, "the departure answer carries the registered framing")
@@ -634,14 +667,14 @@ func TestRecoverySentNLRIRefusalFailsTheAnswer(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
 	failed := netip.MustParseAddr("192.0.2.10")
 	broken := ribOutKey{Native: string([]byte{24, 198, 51}), PathID: 7}
-	entry := ribOutEntry{AddPath: true, SourcePeer: failed.String()}
+	entry := ribOutEntry{AddPath: true, SourcePeer: failed.String(), SourceOwner: 101}
 	_, err := recoverySentNLRI(fam, broken, entry)
 	require.Error(t, err)
 
 	identity := broken
 	identity.PathID = 0
 	request := ribevents.RecoveryRequest{Family: fam, SentAddPath: true,
-		Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51}, failed)}}
+		Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51}, 101)}}
 	outcomes := make([]ribevents.RecoveryOutcome, 1)
 	err = recoverySentAddPathLocked(&request, []ribOutKey{identity}, map[ribOutKey]ribOutEntry{broken: entry}, outcomes)
 	require.Error(t, err, "a refused sent identity must fail the answer")
@@ -678,16 +711,17 @@ func limitedFixture(t *testing.T, r *RIBManager, dest, multi, mid, high netip.Ad
 		copy(raw[4:], prefix)
 		return raw
 	}
-	recoveryReceived(r, multi, framed(1), 100, 81, true, nil)
-	recoveryReceived(r, multi, framed(2), 150, 82, true, nil)
-	recoveryReceived(r, mid, prefix, 200, 83, false, nil)
-	recoveryReceived(r, high, prefix, 250, 84, false, nil)
-	recoveryReceived(r, multi, framed(3), 255, 85, true, nil)
+	recoveryReceived(t, r, multi, 102, 702, framed(1), 100, 81, true, nil)
+	recoveryReceived(t, r, multi, 102, 702, framed(2), 150, 82, true, nil)
+	recoveryReceived(t, r, mid, 103, 703, prefix, 200, 83, false, nil)
+	recoveryReceived(t, r, high, 104, 704, prefix, 250, 84, false, nil)
+	recoveryReceived(t, r, multi, 102, 702, framed(3), 255, 85, true, nil)
 	for _, sent := range []struct {
 		id     uint32
 		source netip.Addr
-	}{{10, multi}, {30, multi}, {40, high}} {
-		event := nativeSentEvent(t, dest, family.IPv4Unicast, framed(sent.id), nativeSentAttrs(), true, false)
+		owner  uint64
+	}{{10, multi, 102}, {30, multi, 102}, {40, high, 104}} {
+		event := nativeSentEvent(t, dest, 201, sent.owner, family.IPv4Unicast, framed(sent.id), nativeSentAttrs(), true, false)
 		event.RouteMeta["source-peer"] = sent.source.String()
 		event.RouteMeta["source-message-id"] = float64(85)
 		r.handleSent(event)
@@ -705,7 +739,7 @@ func limitedFixture(t *testing.T, r *RIBManager, dest, multi, mid, high netip.Ad
 // PREVENTS: a limited request answered by the unlimited ADD-PATH WITHDRAW, by
 // arrival order, or by a sort, and a bound the answer exceeds.
 func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	multi := netip.MustParseAddr("192.0.2.11")
@@ -714,7 +748,7 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 	key := limitedFixture(t, r, dest, multi, mid, high)
 	limited := func(limit uint16, keys ...ribevents.RecoveryKey) []ribevents.RecoveryOutcome {
 		t.Helper()
-		request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+		request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 			AddPath: true, SentAddPath: true, Limit: limit, Keys: keys}
 		outcomes, err := r.recoveryRoutes(request)
 		require.NoError(t, err)
@@ -724,7 +758,7 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 	whole := []limitedPath{{multi, 3}, {high, 0}, {mid, 0}, {multi, 2}, {multi, 1}}
 
 	// The unlimited election over the same candidates is the reference order.
-	full, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	full, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		AddPath: true, Keys: []ribevents.RecoveryKey{recoveryKey(key)}})
 	require.NoError(t, err)
 	require.Equal(t, whole, limitedSurvivors(full[0]))
@@ -742,11 +776,11 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 	require.Equal(t, whole, limitedSurvivors(limited(65535, recoveryKey(key))[0]))
 
 	// A named source is skipped, nobody else.
-	require.Equal(t, []limitedPath{{high, 0}, {mid, 0}}, limitedSurvivors(limited(2, recoveryKey(key, multi))[0]))
+	require.Equal(t, []limitedPath{{high, 0}, {mid, 0}}, limitedSurvivors(limited(2, recoveryKey(key, 102))[0]))
 
 	// A better arrival displaces the second best.
 	better := netip.MustParseAddr("192.0.2.14")
-	recoveryReceived(r, better, key[4:], 252, 86, false, nil)
+	recoveryReceived(t, r, better, 105, 705, key[4:], 252, 86, false, nil)
 	require.Equal(t, []limitedPath{{multi, 3}, {better, 0}}, limitedSurvivors(limited(2, recoveryKey(key))[0]))
 
 	// A key nobody holds is WITHDRAW, with no sent identifier.
@@ -758,13 +792,15 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 	// The MED set: two neighbor ASes make the comparator non-transitive.
 	medSet := []byte{24, 198, 51, 101}
 	for i, path := range []struct {
-		peer netip.Addr
-		as   byte
-		med  byte
-	}{{mid, 1, 50}, {high, 2, 10}, {better, 1, 20}} {
-		attrs := recoveryReceived(r, path.peer, medSet, 100, uint64(90+i), false, []byte{0x40, 2, 4, 2, 1, 0xfd, path.as})
+		peer    netip.Addr
+		owner   uint64
+		receipt uint64
+		as      byte
+		med     byte
+	}{{mid, 103, 703, 1, 50}, {high, 104, 704, 2, 10}, {better, 105, 705, 1, 20}} {
+		attrs := recoveryReceived(t, r, path.peer, path.owner, path.receipt, medSet, 100, uint64(90+i), false, []byte{0x40, 2, 4, 2, 1, 0xfd, path.as})
 		attrs = appendAttr(attrs, byte(attribute.AttrMED), 0x80, []byte{0, 0, 0, path.med})
-		r.bgpPeers[path.peer].Insert(family.IPv4Unicast, attrs, medSet)
+		recoveryStoredPath(t, r, path.peer, path.owner, path.receipt, family.IPv4Unicast, attrs, medSet, 0)
 	}
 	r.peerMu.RLock()
 	remaining := r.gatherPrefixCandidatesLocked(family.IPv4Unicast, netip.MustParsePrefix("198.51.101.0/24"))
@@ -791,14 +827,14 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 // every identifier the excluded source owns at the destination.
 // PREVENTS: the limited election leaking into source-DOWN recovery.
 func TestRecoveryUnlimitedAddPathUnchanged(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	multi := netip.MustParseAddr("192.0.2.11")
 	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
 	key := limitedFixture(t, r, dest, multi, mid, high)
-	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
-		AddPath: true, SentAddPath: true, Keys: []ribevents.RecoveryKey{recoveryKey(key, multi)}})
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
+		AddPath: true, SentAddPath: true, Keys: []ribevents.RecoveryKey{recoveryKey(key, 102)}})
 	require.NoError(t, err)
 	require.True(t, outcomes[0].Withdraw, "an unlimited ADD-PATH request runs no election")
 	require.Empty(t, outcomes[0].Survivors)
@@ -814,16 +850,16 @@ func TestRecoveryUnlimitedAddPathUnchanged(t *testing.T) {
 // malformed limit is refused rather than read as unbounded.
 // PREVENTS: an external RIB electing over the whole set, or a typo answered.
 func TestRecoveryCommandParsesLimit(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	multi := netip.MustParseAddr("192.0.2.11")
 	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
 	key := limitedFixture(t, r, dest, multi, mid, high)
-	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+	request := ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: family.IPv4Unicast,
 		AddPath: true, SentAddPath: true, Limit: 2, Keys: []ribevents.RecoveryKey{recoveryKey(key)}}
 	args := ribevents.AppendRecoveryArgs(nil, &request)
-	require.Equal(t, []string{"limit", "2"}, args[4:6])
+	require.Equal(t, []string{"limit", "2"}, args[5:7])
 	outcomes, err := r.recoveryRoutes(request)
 	require.NoError(t, err)
 	status, answer, err := r.recoveryCommand("", args)
@@ -832,7 +868,7 @@ func TestRecoveryCommandParsesLimit(t *testing.T) {
 	require.Equal(t, outcomes, answer)
 	require.Len(t, outcomes[0].Survivors, 2)
 
-	heads := args[:4]
+	heads := args[:5]
 	encoded := ribevents.FormatRecoveryKey(&request.Keys[0])
 	for _, tc := range []struct {
 		name string

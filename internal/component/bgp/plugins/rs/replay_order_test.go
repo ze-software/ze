@@ -39,6 +39,7 @@ func newReplayOrderFixture(t *testing.T) *replayOrderFixture {
 	}
 	t.Cleanup(func() { f.releaseOnce.Do(func() { close(f.release) }) })
 
+	replayRoute := rsFixtureRetainedRoute(t, f.rs, rsFixtureKey("10.0.0.9", 9, 109), 309, 5, 9, "180a0000")
 	entered := make(chan struct{})
 	var enterOnce sync.Once
 	f.rs.dispatchCommandHook = func(cmd string, args []string, _ string) (string, json.RawMessage, error) {
@@ -48,7 +49,7 @@ func newReplayOrderFixture(t *testing.T) *replayOrderFixture {
 		if len(args) >= 2 && args[1] == "0" {
 			enterOnce.Do(func() { close(entered) })
 			<-f.release
-			return statusDone, testReplayPage(1, 1), nil
+			return statusDone, testReplayPage(1, 1, replayRoute), nil
 		}
 		// The delta pass past the first page: the store has nothing newer.
 		return statusDone, testReplayPage(0, 0), nil
@@ -77,14 +78,14 @@ func newReplayOrderFixture(t *testing.T) *replayOrderFixture {
 
 	fams := map[family.Family]bool{family.IPv4Unicast: true}
 	f.rs.mu.Lock()
-	f.rs.peers[f.source] = &PeerState{Address: f.source, Up: true, StateSeen: true, Families: fams}
-	f.rs.peers[f.other] = &PeerState{Address: f.other, Up: true, StateSeen: true, Families: fams}
-	f.rs.peers[f.dest] = &PeerState{Address: f.dest, Families: fams}
+	f.rs.peers[rsFixtureKey(f.source, 1, 101)] = &PeerState{Address: f.source, DestinationSession: 201, SessionGeneration: 3, Up: true, StateSeen: true, Families: fams}
+	f.rs.peers[rsFixtureKey(f.other, 3, 103)] = &PeerState{Address: f.other, DestinationSession: 203, SessionGeneration: 3, Up: true, StateSeen: true, Families: fams}
+	f.rs.peers[rsFixtureKey(f.dest, 2, 102)] = &PeerState{Address: f.dest, DestinationSession: 202, SessionGeneration: 3, Families: fams}
 	// Message 1 was taken delivery of before dest came up: it is the replay's.
 	f.rs.seenMsgID = 1
 	f.rs.mu.Unlock()
 
-	f.rs.handleState(&Event{PeerAddr: f.dest, State: "up"})
+	f.rs.handleState(&Event{PeerAddr: f.dest, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):
@@ -106,7 +107,7 @@ func (f *replayOrderFixture) endReplay(t *testing.T) {
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		f.rs.mu.RLock()
-		p := f.rs.peers[f.dest]
+		p := f.rs.peers[rsFixtureKey(f.dest, 2, 102)]
 		cleared := p != nil && p.replayDone == nil
 		f.rs.mu.RUnlock()
 		if cleared {
@@ -132,7 +133,7 @@ func TestReplayDoesNotDelayOtherDestinations(t *testing.T) {
 	f := newReplayOrderFixture(t)
 	fams := map[family.Family]bool{family.IPv4Unicast: true}
 
-	key := workerKey{sourcePeer: f.source}
+	key := rsFixtureKey(f.source, 1, 101)
 	liveDone := make(chan struct{})
 	go func() {
 		defer close(liveDone)

@@ -36,11 +36,11 @@ func (probe *preEstablishedUpdateProbe) configure(t *testing.T, peer *Peer) {
 	t.Helper()
 	acceptingPolicies(t, peer.settings)
 	prior := peer.messageCallback
-	peer.messageCallback = func(addr netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, ctx bgpctx.ContextID, direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
+	peer.messageCallback = func(captured *Session, addr netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, ctx bgpctx.ContextID, direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
 		if kind == msgtype.TypeUPDATE && direction == rpc.DirectionReceived {
 			probe.callbacks.Add(1)
 		}
-		return prior(addr, kind, body, update, ctx, direction, buffer, meta, source, id)
+		return prior(captured, addr, kind, body, update, ctx, direction, buffer, meta, source, id)
 	}
 }
 

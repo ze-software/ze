@@ -24,14 +24,15 @@ func selfNextHopRIB(t *testing.T, nextHop netip.Addr, peers ...string) (*RIBMana
 	t.Helper()
 	r := newTestRIBManager(t)
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr(selfAddr), nextHop)
-	for _, p := range peers {
+	for i, p := range peers {
 		addr := netip.MustParseAddr(p)
-		r.peerMeta[addr] = &peerMetadata{
+		r.peerMeta[uint64(i+1)] = &peerMetadata{
+			Address:      addr,
 			PeerASN:      65001,
 			LocalASN:     65000,
 			LocalAddress: netip.MustParseAddr(selfAddr),
 		}
-		r.bgpPeers[addr] = storage.NewPeerRIB(addr.String())
+		r.bgpPeers[uint64(i+1)] = storage.NewPeerRIB(addr.String())
 	}
 	r.refreshSelfNextHopsLocked()
 	return r, loc
@@ -60,10 +61,9 @@ func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 	peer := "192.0.2.1"
 	r, loc := selfNextHopRIB(t, netip.MustParseAddr("192.168.1.1"), peer)
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := netip.MustParseAddr(peer)
 
 	self := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), self)
+	r.bgpPeers[1].Insert(fam, makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), self)
 	_, ok := r.checkBestPathChange(fam, self, false, nil)
 	assert.False(t, ok, "a route naming this speaker as its next hop makes no best path")
 	_, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
@@ -72,7 +72,7 @@ func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 
 	// The control: the same peer, the same manager, a next hop that is not ours.
 	third := ipv4Prefix(24, 10, 0, 1)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), third)
+	r.bgpPeers[1].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), third)
 	_, ok = r.checkBestPathChange(fam, third, false, nil)
 	require.True(t, ok)
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.1.0/24"))
@@ -101,9 +101,9 @@ func TestRFC4271SelfNextHopDoesNotShadowASoundAlternative(t *testing.T) {
 	// The broken path wins on AS_PATH length if it is allowed to compete: both
 	// carry the same attributes, so the tie would be broken by peer address and
 	// 192.0.2.1 sorts first.
-	r.bgpPeers[netip.MustParseAddr(broken)].Insert(fam,
+	r.bgpPeers[1].Insert(fam,
 		makeAttrBytes(netip.MustParseAddr(selfAddr).As4()), nlri)
-	r.bgpPeers[netip.MustParseAddr(sound)].Insert(fam,
+	r.bgpPeers[2].Insert(fam,
 		makeAttrBytes([4]byte{192, 168, 1, 2}), nlri)
 
 	_, ok := r.checkBestPathChange(fam, nlri, false, nil)
@@ -139,11 +139,11 @@ func TestRFC4271SelfNextHopSetComesFromPeerEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.Lock()
-	r.updatePeerMetadata(&Event{Peer: peer}, peerAddr, 65001)
+	r.updatePeerMetadata(&Event{PeerOwner: 1, Peer: peer}, peerAddr, 65001)
 	r.peerMu.Unlock()
 
-	require.NotNil(t, r.peerMeta[peerAddr])
-	assert.Equal(t, netip.MustParseAddr(selfAddr), r.peerMeta[peerAddr].LocalAddress,
+	require.NotNil(t, r.peerMeta[1])
+	assert.Equal(t, netip.MustParseAddr(selfAddr), r.peerMeta[1].LocalAddress,
 		"the local address the event carries is what the RIB stores")
 
 	set := r.selfNextHops.Load()
@@ -156,7 +156,7 @@ func TestRFC4271SelfNextHopSetComesFromPeerEvents(t *testing.T) {
 
 	// The session goes away and takes its address with it.
 	r.peerMu.Lock()
-	delete(r.peerMeta, peerAddr)
+	delete(r.peerMeta, 1)
 	r.refreshSelfNextHopsLocked()
 	r.peerMu.Unlock()
 	assert.False(t, isSelfNextHop(r.selfNextHops.Load(), netip.MustParseAddr(selfAddr)),

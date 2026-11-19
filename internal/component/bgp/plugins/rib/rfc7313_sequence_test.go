@@ -98,8 +98,7 @@ func consumedRefreshRoutes(t *testing.T, groups []bgptypes.NLRIGroup) []refreshR
 func rfc7313SequencedRIB(t *testing.T) (*RIBManager, *[]string) {
 	t.Helper()
 	r, _ := rfc7313ReadyRIB(t)
-	addr := netip.MustParseAddr(rfc7313RefreshPeer)
-	r.ribOut[addr][family.IPv6Unicast] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[1][family.IPv6Unicast] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 3, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
@@ -156,7 +155,8 @@ func TestRFC7313BoRRRoutesEoRRInOneSequence(t *testing.T) {
 		r, sequence := rfc7313SequencedRIB(t)
 
 		r.handleRefresh(&Event{
-			Message: &MessageInfo{Type: rpc.EventKindRefresh},
+			Message:   &MessageInfo{Type: rpc.EventKindRefresh},
+			PeerOwner: 1, DestinationSession: 11,
 			Peer: mustMarshal(t, map[string]any{
 				"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65002)},
 				"remote": map[string]any{"address": rfc7313RefreshPeer, "as": uint32(65001)},
@@ -173,7 +173,7 @@ func TestRFC7313BoRRRoutesEoRRInOneSequence(t *testing.T) {
 
 		// Route refresh wire: AFI (2 octets), message subtype (1), SAFI (1). Subtype 0.
 		r.handleRefreshStructured(&rpc.StructuredEvent{
-			PeerAddress: rfc7313RefreshPeer,
+			PeerAddress: rfc7313RefreshPeer, PeerOwner: 1, DestinationSession: 11,
 			RawMessage: &bgptypes.RawMessage{
 				RawBytes: []byte{0x00, byte(family.AFIIPv4), 0x00, byte(family.SAFIUnicast)},
 			},

@@ -117,14 +117,15 @@ func TestSelectedPolicyStateRailsSkipConnectionBookkeeping(t *testing.T) {
 			require.NoError(t, d.destinationUp(peer, 884))
 			require.NoError(t, d.barrier(ctx, peer))
 			selectedDispatchAwait(t, ctx, requests)
-			r := &RIBManager{selectedDispatch: d, peerUp: map[netip.Addr]bool{peer: false}}
+			const owner uint64 = 184
+			r := &RIBManager{selectedDispatch: d, peerUp: map[uint64]bool{owner: false}}
 			deliver := func(eligible bool) {
 				if typed {
-					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateUp,
+					r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: owner, PeerAddress: peer.String(), State: rpc.SessionStateUp,
 						Reason: rpc.ReasonExportPolicy, DestinationSession: 884, SelectedDestination: eligible})
 					return
 				}
-				info := &plugin.PeerInfo{Address: peer, PeerAS: rpc.RemoteASOf(65001), DestinationSession: 884, SelectedDestination: eligible}
+				info := &plugin.PeerInfo{PeerOwner: owner, Address: peer, PeerAS: rpc.RemoteASOf(65001), DestinationSession: 884, SelectedDestination: eligible}
 				event := mustParseEvent(t, string(bgpformat.AppendStateChange(nil, info, rpc.SessionStateUp, rpc.ReasonExportPolicy, nil, plugin.EncodingJSON)))
 				require.Equal(t, eligible, event.SelectedDestination, "the real wire envelope must preserve projected eligibility")
 				r.handleState(event)
@@ -136,7 +137,7 @@ func TestSelectedPolicyStateRailsSkipConnectionBookkeeping(t *testing.T) {
 			require.NoError(t, r.settleEvents(ctx))
 			replayed := selectedDispatchAwait(t, ctx, requests)
 			require.Len(t, replayed.Routes, 1)
-			require.False(t, r.peerUp[peer], "policy reconciliation must not report a connection transition")
+			require.False(t, r.peerUp[owner], "policy reconciliation must not report a connection transition")
 		})
 	}
 }

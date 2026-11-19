@@ -21,13 +21,17 @@ func rfc7313ReadyRIB(t *testing.T) (*RIBManager, *[]string) {
 	t.Helper()
 	r := newTestRIBManager(t)
 	addr := netip.MustParseAddr(rfc7313RefreshPeer)
-	r.ribOut[addr] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	r.peerUp[addr] = true
+	// Observe the original live control tuple before requesting a refresh.
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: addr.String(), PeerOwner: 1, DestinationSession: 11,
+		State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+	})
 
 	dispatched := &[]string{}
 	r.dispatchHook = func(cmd string) { *dispatched = append(*dispatched, cmd) }
@@ -70,7 +74,8 @@ func TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR(t *testing.T) {
 		r, dispatched := rfc7313ReadyRIB(t)
 
 		r.handleRefresh(&Event{
-			Message: &MessageInfo{Type: rpc.EventKindRefresh},
+			Message:   &MessageInfo{Type: rpc.EventKindRefresh},
+			PeerOwner: 1, DestinationSession: 11,
 			Peer: mustMarshal(t, map[string]any{
 				"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65002)},
 				"remote": map[string]any{"address": rfc7313RefreshPeer, "as": uint32(65001)},
@@ -89,7 +94,7 @@ func TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR(t *testing.T) {
 		// Route refresh wire: AFI (2 octets), message subtype (1), SAFI (1).
 		// Subtype 0 is the normal refresh request that starts the re-advertisement.
 		r.handleRefreshStructured(&rpc.StructuredEvent{
-			PeerAddress: rfc7313RefreshPeer,
+			PeerAddress: rfc7313RefreshPeer, PeerOwner: 1, DestinationSession: 11,
 			RawMessage: &bgptypes.RawMessage{
 				RawBytes: []byte{0x00, byte(family.AFIIPv4), 0x00, byte(family.SAFIUnicast)},
 			},
@@ -108,10 +113,11 @@ func TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR(t *testing.T) {
 func TestRFC7313NoMarkersWhenNoRefreshStarts(t *testing.T) {
 	t.Run("peer is down", func(t *testing.T) {
 		r, dispatched := rfc7313ReadyRIB(t)
-		delete(r.peerUp, netip.MustParseAddr(rfc7313RefreshPeer))
+		delete(r.peerUp, 1)
 
 		r.handleRefresh(&Event{
-			Message: &MessageInfo{Type: rpc.EventKindRefresh},
+			Message:   &MessageInfo{Type: rpc.EventKindRefresh},
+			PeerOwner: 1, DestinationSession: 11,
 			Peer: mustMarshal(t, map[string]any{
 				"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65002)},
 				"remote": map[string]any{"address": rfc7313RefreshPeer, "as": uint32(65001)},
@@ -129,7 +135,7 @@ func TestRFC7313NoMarkersWhenNoRefreshStarts(t *testing.T) {
 		// Subtype 1 is a BoRR from the peer, not a request to re-advertise. Only
 		// subtype 0 starts a route refresh (RFC 7313 Section 4).
 		r.handleRefreshStructured(&rpc.StructuredEvent{
-			PeerAddress: rfc7313RefreshPeer,
+			PeerAddress: rfc7313RefreshPeer, PeerOwner: 1, DestinationSession: 11,
 			RawMessage: &bgptypes.RawMessage{
 				RawBytes: []byte{0x00, byte(family.AFIIPv4), 0x01, byte(family.SAFIUnicast)},
 			},

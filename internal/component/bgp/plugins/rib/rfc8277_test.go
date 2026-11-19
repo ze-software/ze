@@ -74,8 +74,8 @@ func labeledWithdrawBody(nlriBytes []byte) []byte {
 
 // labelsFor reads back the MPLS label stack a peer's Adj-RIB-In holds for a
 // labeled unicast prefix. cidrBytes is the label-stripped NLRI key.
-func labelsFor(r *RIBManager, peer netip.Addr, cidrBytes []byte) []uint32 {
-	peerRIB := r.bgpPeers[peer]
+func labelsFor(r *RIBManager, peerOwner uint64, cidrBytes []byte) []uint32 {
+	peerRIB := r.bgpPeers[peerOwner]
 	if peerRIB == nil {
 		return nil
 	}
@@ -103,30 +103,30 @@ func TestLabeledImplicitWithdrawalNoAddPath(t *testing.T) {
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	cidr := []byte{8, 10}
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{100})))
-	require.Equal(t, 1, r.bgpPeers[peer].Len(), "U1 installs the labeled route")
-	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr))
+	require.Equal(t, 1, r.bgpPeers[1].Len(), "U1 installs the labeled route")
+	require.Equal(t, []uint32{100}, labelsFor(r, 1, cidr))
 
 	// U2: same prefix, same peer, new label. Section 2.5 makes this an
 	// implicit withdrawal of U1, not a second binding.
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{200})))
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 1, r.bgpPeers[1].Len(),
 		"U2 implicitly withdraws U1: one binding for the prefix, not two")
-	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr),
+	assert.Equal(t, []uint32{200}, labelsFor(r, 1, cidr),
 		"the new label replaces the old one at the same next hop")
 
 	// Negative: an UPDATE for a different prefix carries no implicit
 	// withdrawal of the first binding.
 	other := netip.MustParsePrefix("10.1.0.0/16")
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, other, []uint32{300})))
-	assert.Equal(t, 2, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 2, r.bgpPeers[1].Len(),
 		"a different prefix must not implicitly withdraw the earlier binding")
-	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr),
+	assert.Equal(t, []uint32{200}, labelsFor(r, 1, cidr),
 		"the earlier prefix keeps its label")
-	assert.Equal(t, []uint32{300}, labelsFor(r, peer, []byte{16, 10, 1}))
+	assert.Equal(t, []uint32{300}, labelsFor(r, 1, []byte{16, 10, 1}))
 }
 
 // TestLabeledImplicitWithdrawalAddPath pins RFC 8277 Section 2.5 for a session
@@ -151,32 +151,32 @@ func TestLabeledImplicitWithdrawalAddPath(t *testing.T) {
 	cidr7 := []byte{0, 0, 0, 7, 8, 10}
 	cidr9 := []byte{0, 0, 0, 9, 8, 10}
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(7, true, pfx, []uint32{100})))
-	require.Equal(t, 1, r.bgpPeers[peer].Len())
-	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7))
+	require.Equal(t, 1, r.bgpPeers[1].Len())
+	require.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7))
 
 	// Negative: a different path ID is a NEW route entry; path 7's entry stays.
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(9, true, pfx, []uint32{200})))
-	assert.Equal(t, 2, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 2, r.bgpPeers[1].Len(),
 		"different Path Identifiers are separate routes for the same prefix")
-	_, found7 := r.bgpPeers[peer].Lookup(labeledFamily, cidr7)
+	_, found7 := r.bgpPeers[1].Lookup(labeledFamily, cidr7)
 	assert.True(t, found7, "path 7 must not be withdrawn by an UPDATE for path 9")
 
 	// Positive: the same path ID is an implicit withdrawal of the earlier
 	// UPDATE for that path -- no third entry appears and the label is replaced.
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(9, true, pfx, []uint32{300})))
-	assert.Equal(t, 2, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 2, r.bgpPeers[1].Len(),
 		"re-advertising path 9 replaces it rather than adding a third route")
-	assert.Equal(t, []uint32{300}, labelsFor(r, peer, cidr9),
+	assert.Equal(t, []uint32{300}, labelsFor(r, 1, cidr9),
 		"the same Path Identifier makes U2 an implicit withdrawal of U1")
 
 	// An explicit MP_UNREACH for path 9 removes exactly that path's entry.
-	feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{300})))
-	assert.Equal(t, 1, r.bgpPeers[peer].Len())
-	_, stillFound7 := r.bgpPeers[peer].Lookup(labeledFamily, cidr7)
+	feedReceived(r, 1, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{300})))
+	assert.Equal(t, 1, r.bgpPeers[1].Len())
+	_, stillFound7 := r.bgpPeers[1].Lookup(labeledFamily, cidr7)
 	assert.True(t, stillFound7, "withdrawing path 9 leaves path 7 installed")
 }
 
@@ -207,27 +207,27 @@ func TestRFC8277AddPathLabelsBoundPerPath(t *testing.T) {
 	cidr7 := []byte{0, 0, 0, 7, 8, 10}
 	cidr9 := []byte{0, 0, 0, 9, 8, 10}
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(7, true, pfx, []uint32{100})))
-	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7))
+	require.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7))
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(9, true, pfx, []uint32{200})))
-	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+	assert.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7),
 		"a different Path Identifier must not unbind path 7's label")
-	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr9), "path 9 binds its own label")
+	assert.Equal(t, []uint32{200}, labelsFor(r, 1, cidr9), "path 9 binds its own label")
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(9, true, pfx, []uint32{300})))
-	assert.Equal(t, []uint32{300}, labelsFor(r, peer, cidr9),
+	assert.Equal(t, []uint32{300}, labelsFor(r, 1, cidr9),
 		"the same Path Identifier binds the new label and unbinds the old one")
-	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+	assert.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7),
 		"relabelling path 9 must not touch path 7's label")
 
-	feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{300})))
-	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+	feedReceived(r, 1, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{300})))
+	assert.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7),
 		"withdrawing path 9 leaves path 7's label bound")
-	assert.Nil(t, labelsFor(r, peer, cidr9), "the withdrawn path holds no label")
+	assert.Nil(t, labelsFor(r, 1, cidr9), "the withdrawn path holds no label")
 }
 
 // TestRFC8277AddPathSameIdentifierRebinds is the boundary of RFC 8277
@@ -252,14 +252,14 @@ func TestRFC8277AddPathSameIdentifierRebinds(t *testing.T) {
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	cidr7 := []byte{0, 0, 0, 7, 8, 10}
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(7, true, pfx, []uint32{100})))
-	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7))
+	require.Equal(t, []uint32{100}, labelsFor(r, 1, cidr7))
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(7, true, pfx, []uint32{200})))
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(), "the same Path Identifier names the same route")
-	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr7),
+	assert.Equal(t, 1, r.bgpPeers[1].Len(), "the same Path Identifier names the same route")
+	assert.Equal(t, []uint32{200}, labelsFor(r, 1, cidr7),
 		"the same Path Identifier rebinds the route: label 100 does not survive beside 200")
 }
 
@@ -313,9 +313,9 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	cidr := []byte{8, 10}
 
 	// Peer A: label 100, MED 10 (the better MED). Peer B: label 200, MED 20.
-	feedReceivedIBGP(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceivedIBGP(r, 1, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{100})))
-	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceivedIBGP(r, 2, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{200})))
 
 	candidates := gatherCandidatesHeld(t, r, labeledFamily, cidr, false)
@@ -330,9 +330,9 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 
 	// Negative: swap the labels only. Nothing about the selection may move,
 	// which is what "comparable" means -- the label is not a tie-break.
-	feedReceivedIBGP(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceivedIBGP(r, 1, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{200})))
-	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceivedIBGP(r, 2, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{100})))
 
 	swapped := gatherCandidatesHeld(t, r, labeledFamily, cidr, false)
@@ -341,7 +341,7 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	require.NotNil(t, bestSwapped)
 	assert.Equal(t, peerA.String(), bestSwapped.PeerAddr,
 		"the label value must not change which route wins")
-	assert.Equal(t, []uint32{200}, labelsFor(r, peerA, cidr),
+	assert.Equal(t, []uint32{200}, labelsFor(r, 1, cidr),
 		"the winner's own label follows the winning route")
 	assert.Equal(t, uint32(10), bestSwapped.MED, "MED still wins after the label swap")
 	assert.Equal(t, 1, bestRecordCount(r, labeledFamily), "swapping labels creates no second best")

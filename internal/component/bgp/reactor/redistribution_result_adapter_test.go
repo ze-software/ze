@@ -15,3 +15,14 @@ func (b *serialRedistributionWireBoundary) UpdateRouteResult(ctx context.Context
 	a, w, err := b.UpdateRoute(ctx, peer, command)
 	return &rpc.UpdateRouteOutput{Announced: a, Withdrawn: w}, err
 }
+
+func (b *redistributionNextHopBoundary) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return b.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (b *redistributionNextHopBoundary) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {}
+
+func (b *serialRedistributionWireBoundary) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return b.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (b *serialRedistributionWireBoundary) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {
+}

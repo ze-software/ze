@@ -44,7 +44,7 @@ func TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored(t *testing.T) {
 	defer cleanup()
 
 	var delivered [][]byte
-	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if msgType == msgtype.TypeROUTEREFRESH {
 			delivered = append(delivered, append([]byte(nil), raw...))
 		}

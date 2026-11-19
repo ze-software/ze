@@ -35,12 +35,18 @@ func TestRetentionProducerBusLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			var owner, unrelated retention.Ledger
-			owner.Begin(removalTestPeer)
+			if err := owner.Begin(701, 41); err != nil {
+				t.Fatal(err)
+			}
 			const down = "owner-down"
 			decisions := make(chan map[family.Family]bool, 1)
 			ownProc := retentionBusRecipient(t, bus, "owner", func(text string) error {
 				if text == down {
-					decisions <- owner.Take(removalTestPeer)
+					kept, err := owner.Take(701, 41)
+					if err != nil {
+						return err
+					}
+					decisions <- kept
 					return nil
 				}
 				envelope, ok := retention.Accepts(text)
@@ -56,15 +62,15 @@ func TestRetentionProducerBusLifecycle(t *testing.T) {
 				}
 				return unrelated.Record(envelope)
 			})
-			gp := newGRPluginWithGRCap()
+			gp := newGRPluginWithGRCap(t)
 			gp.sdk = retentionBusEmitter(t, ctx, bus, direct)
 			var commands []string
 			gp.dispatchHook = func(command string, _ ...string) { commands = append(commands, command) }
 			t.Cleanup(func() {
-				gp.state.removePeer(removalTestPeer)
-				gp.state.removePeer("192.0.2.99")
+				gp.state.removePeer(grFixtureSource(t, removalTestPeer, 701, 41).grPeer)
+				gp.state.removePeer(grFixtureSource(t, "192.0.2.99", 702, 42).grPeer)
 			})
-			gp.handleStructuredState(removalTestPeer, rpc.SessionStateDown, rpc.ReasonTCPFailure)
+			gp.handleStructuredState(grFixtureSource(t, removalTestPeer, 701, 41), rpc.SessionStateDown, rpc.ReasonTCPFailure)
 			if len(commands) == 0 {
 				t.Fatal("GR DOWN did not run its retention procedure")
 			}
@@ -84,18 +90,26 @@ func TestRetentionProducerBusLifecycle(t *testing.T) {
 			}
 			// GR also handles a peer outside both forwarders' state populations.
 			const unowned = "192.0.2.99"
-			gp.peerCaps[unowned] = gp.peerCaps[removalTestPeer]
-			gp.handleStructuredState(unowned, rpc.SessionStateDown, rpc.ReasonTCPFailure)
-			gp.handleStructuredState(unowned, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+			source := grFixtureSource(t, unowned, 702, 42)
+			gp.recordSentLLGR(source, nil)
+			unownedCap := *gp.peerCaps[701]
+			unownedCap.connectionID = 42
+			gp.peerCaps[702] = &unownedCap
+			gp.handleStructuredState(source, rpc.SessionStateDown, rpc.ReasonTCPFailure)
+			gp.handleStructuredState(source, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
 			for _, proc := range []*process.Process{ownProc, otherProc} {
 				if err := proc.DrainEventsApplied(ctx); err != nil {
 					t.Fatal(err)
 				}
 			}
 			for _, ledger := range []*retention.Ledger{&owner, &unrelated} {
-				for _, peer := range []string{removalTestPeer, unowned} {
-					if kept := ledger.Take(peer); kept != nil {
-						t.Errorf("unowned or consumed peer %s retained a verdict: %v", peer, kept)
+				for _, source := range []grSource{grFixtureSource(t, removalTestPeer, 701, 41), grFixtureSource(t, unowned, 702, 42)} {
+					kept, err := ledger.Take(source.owner, source.connectionID)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if kept != nil {
+						t.Errorf("unowned or consumed peer %v retained a verdict: %v", source, kept)
 					}
 				}
 			}

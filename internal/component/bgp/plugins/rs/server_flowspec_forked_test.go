@@ -29,7 +29,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 	const source, target = "192.0.2.1", "192.0.2.2"
 	const gateCommand = "request bgp rib flowspec-gate"
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
+	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), PeerOwner: 1, ConnectionID: 101, Family: fam,
 		NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
 		0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
@@ -38,6 +38,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 	t.Cleanup(func() { ribevents.NoteFlowSpecGate(ribevents.FlowSpecGateState{}) })
 
 	bridge := rpc.NewDirectBridge()
+	rsFixtureSourceLeaseEvaluator(bridge)
 	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() { _ = engineEnd.Close() })
 	plugin := sdk.NewWithConn("rs-flowspec-forked-test", rpc.NewBridgedConn(pluginEnd, bridge))
@@ -62,7 +63,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 			}
 			switch query.Operation {
 			case ribevents.FlowSpecPathOf:
-				answer.Results[i] = ribevents.FlowSpecResult{Verdict: true, Path: ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42}}
+				answer.Results[i] = ribevents.FlowSpecResult{Verdict: true, Path: ribevents.FlowSpecPath{Attributes: attrs, SourceReceipt: 301, SourcePolicyEpoch: 5, MsgID: 42}}
 			case ribevents.FlowSpecEligible, ribevents.FlowSpecPresent:
 				answer.Results[i].Verdict = true
 			case ribevents.FlowSpecRedirect:
@@ -74,13 +75,14 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 		}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: data}, nil
 	})
-	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+	bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+		destination, routes := input.Destination, input.Routes
 		if destination != target || len(routes) != 1 || routes[0].SourcePeer != source ||
 			routes[0].NLRIHex != "0501180a0000" || routes[0].Withdraw {
 			t.Errorf("wrong FlowSpec replay: %s %+v", destination, routes)
 		}
 		delivered = append(delivered, "rule-"+strconv.FormatUint(routes[0].MsgID, 10))
-		return nil
+		return &rpc.CachedWriteOutput{Completed: true, DeadlineMS: input.DeadlineMS}, nil
 	})
 	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.UpdateRouteInput
@@ -94,15 +96,22 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 		delivered = append(delivered, "eor")
 		return json.RawMessage(`{"result":{"announced":0,"withdrawn":0}}`), nil
 	})
-	bridge.SetDispatchCommand(func(context.Context, string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchNative(func(ctx context.Context, method string, value any) (any, bool, error) {
+		if method != rpc.MethodDispatchCommand {
+			return rsFixtureNativeOperation(ctx, method, value)
+		}
+		input, err := rsFixtureCommandInput(value)
+		if err != nil {
+			return nil, true, err
+		}
 		delivered = append(delivered, "ready")
 		done <- struct{}{}
-		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
+		return rsFixtureBoundCommand(input), true, nil
 	})
 	bridge.SetReady()
-	rs := &routeServer{plugin: plugin, seenMsgID: 42, peers: map[string]*PeerState{
-		source: {Address: source, Up: true},
-		target: {Address: target, Families: map[family.Family]bool{fam: true}},
+	rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), plugin: plugin, seenMsgID: 42, peers: map[workerKey]*PeerState{
+		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true},
+		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, Families: map[family.Family]bool{fam: true}},
 	}}
 	t.Cleanup(ribevents.RegisterGateDispatch(rs.dispatchCommand))
 
@@ -116,7 +125,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 	}
 	rs.dispatchText(string(envelope))
 
-	rs.handleState(&Event{PeerAddr: target, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

@@ -68,10 +68,10 @@ func TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r, bus := flowValidationFixture(t)
-			flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, netip.Addr{}, 0, nil), false)
+			flowValidationReceive(t, r, 1, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, netip.Addr{}, 0, nil), false)
 			raw := append([]byte{byte(len(tc.components))}, tc.components...)
-			flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, raw, flowValidationAttrs(sequence, netip.Addr{}, 100, drop), false)
-			key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
+			flowValidationReceive(t, r, 1, peer, 65001, 2, flowspecFamily, raw, flowValidationAttrs(sequence, netip.Addr{}, 100, drop), false)
+			key := ribevents.ValidationRoute{ConnectionID: 41, PeerOwner: 1, Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
 			if got := ribevents.RouteEligible(key, 2); got != tc.want {
 				t.Fatalf("eligibility = %v, want %v", got, tc.want)
 			}

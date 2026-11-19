@@ -25,7 +25,7 @@ func noLLGRSweepRIB(t *testing.T, withNoLLGR bool) (*RIBManager, *testEventBus) 
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	peerAddr := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 
 	attrs := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	// The route without NO_LLGR still carries a community, so the sweep's
@@ -36,8 +36,8 @@ func noLLGRSweepRIB(t *testing.T, withNoLLGR bool) (*RIBManager, *testEventBus) 
 	}
 	attrs = concatBytes(attrs, community)
 	prefix := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
-	r.bgpPeers[peerAddr].Insert(family.IPv4Unicast, attrs, prefix)
+	r.bgpPeers[1] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[1].Insert(family.IPv4Unicast, attrs, prefix)
 	change, ok := r.checkBestPathChange(family.IPv4Unicast, prefix, false, nil)
 	require.True(t, ok, "setup: the route becomes the best path")
 	publishBestChanges([]bestChangeEntry{change}, family.IPv4Unicast)
@@ -106,5 +106,5 @@ func TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, before, bus.eventCount(), "no best-change for a route that keeps its place")
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "the route is retained")
+	assert.Equal(t, 1, r.bgpPeers[1].Len(), "the route is retained")
 }

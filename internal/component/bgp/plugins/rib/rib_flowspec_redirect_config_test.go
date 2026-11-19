@@ -45,9 +45,9 @@ func TestFlowSpecRedirectDynamicGroupLookup(t *testing.T) {
 				t.Fatal("the BGP delivery was ignored")
 			}
 
-			r := &RIBManager{peerMeta: make(map[netip.Addr]*peerMetadata)}
+			r := &RIBManager{peerMeta: make(map[uint64]*peerMetadata)}
 			r.flowSpecRedirectCfg.Store(&cfg.redirect)
-			for _, session := range []struct {
+			for i, session := range []struct {
 				name    string
 				address string
 				group   string
@@ -63,10 +63,10 @@ func TestFlowSpecRedirectDynamicGroupLookup(t *testing.T) {
 				t.Run(session.name, func(t *testing.T) {
 					addr := netip.MustParseAddr(session.address)
 					r.peerMu.Lock()
-					r.peerMeta[addr] = &peerMetadata{GroupName: session.group}
+					r.peerMeta[uint64(i+1)] = &peerMetadata{Address: addr, GroupName: session.group}
 					r.peerMu.Unlock()
 					r.peerMu.RLock()
-					got := r.flowSpecRedirectChecked(addr)
+					got := r.flowSpecRedirectChecked(uint64(i+1), addr)
 					r.peerMu.RUnlock()
 					if got != session.want {
 						t.Errorf("session %s in group %q: redirect check = %v, want %v", addr, session.group, got, session.want)

@@ -113,7 +113,7 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 			}
 		},
 	})
-	source.session.onMessageReceived = r.notifyMessageReceiver
+	source.session.onMessageReceived = r.capturedMessageReceiver
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
 	// RFC 9012 Sections 11 and 13: receive validation precedes export policy.
 	err, kept := source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
@@ -323,7 +323,7 @@ func teSessionFilterDownstream(t *testing.T, sent, original []byte, filtered boo
 	t.Helper()
 	downstream, _ := tePropagationPeer(t, "192.0.2.9", 65001, family.IPv4Unicast)
 	received := 0
-	downstream.session.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+	downstream.session.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		received++

@@ -26,7 +26,7 @@ func retainedReceive(t *testing.T, r *AdjRIBInManager, msgID uint64, body []byte
 	wu := wireu.NewWireUpdate(body, ctxID)
 	attrs, err := wu.Attrs()
 	require.NoError(t, err)
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerOwner: 1,
 		RawMessage: &bgptypes.RawMessage{
 			Type: msgtype.TypeUPDATE, MessageID: msgID, WireUpdate: wu, AttrsWire: attrs, SourceOwner: 1,
@@ -38,7 +38,7 @@ func retainedDecision(t *testing.T, r *AdjRIBInManager, action string, pathID, m
 	t.Helper()
 	_, _, err := r.handleCommand("request bgp adj-rib-in batch-validate", []string{
 		action, "192.0.2.1", "ipv4/unicast", "203.0.113.0/24",
-		strconv.FormatUint(pathID, 10), "1", strconv.FormatUint(msgID, 10),
+		strconv.FormatUint(pathID, 10), "1", strconv.FormatUint(msgID, 10), "1", "41",
 	}, "")
 	require.NoError(t, err)
 }
@@ -88,9 +88,9 @@ func TestASPARetainedPathReplayRecovery(t *testing.T) {
 	require.Equal(t, uint32(1), routes[0].PathID, "the rejected sibling is not replayable")
 
 	retained, _ := retainedRelay(t, r, "request bgp adj-rib-in replay-path",
-		"192.0.2.99", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0")
+		"192.0.2.99", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", "41")
 	require.Equal(t, []rpc.StoredRoute{{
-		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 40,
+		SourcePeer: "192.0.2.1", SourceOwner: 1, SourceConnectionID: 41, Family: "ipv4/unicast", MsgID: 40,
 		AttrHex: hex.EncodeToString(body[4:18]), NextHopHex: "0a000001",
 		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly,
 	}}, retained, "targeted reconciliation retains original bytes for the reactor gate")
@@ -110,9 +110,9 @@ func TestASPARetainedPathReplayRecovery(t *testing.T) {
 
 	retainedReceive(t, r, 41, []byte{0, 8, 0, 0, 0, 0, 24, 203, 0, 113, 0, 0})
 	gone, _ := retainedRelay(t, r, "request bgp adj-rib-in replay-path",
-		"192.0.2.99", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0")
+		"192.0.2.99", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", "41")
 	require.Equal(t, []rpc.StoredRoute{{
-		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", Withdraw: true,
+		SourcePeer: "192.0.2.1", SourceOwner: 1, SourceConnectionID: 41, Family: "ipv4/unicast", Withdraw: true,
 		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly,
 	}}, gone, "an absent path is an explicit withdrawal, not an empty announcement")
 	routes, _ = retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
@@ -154,7 +154,7 @@ func TestASPARetainedEarlyReplacementSurvivesTimeout(t *testing.T) {
 	retainedDecision(t, r, "a", 0, 51)
 	routes, _ = retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
 	require.Equal(t, []rpc.StoredRoute{{
-		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 51,
+		SourcePeer: "192.0.2.1", SourceOwner: 1, SourceConnectionID: 41, Family: "ipv4/unicast", MsgID: 51,
 		AttrHex: hex.EncodeToString(body[4:18]), NextHopHex: "0a000002",
 		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, routes, "recovery must use the replacement's bytes, never the expired predecessor")

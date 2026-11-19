@@ -14,7 +14,6 @@
 package rib
 
 import (
-	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,6 +64,7 @@ func TestHandleReceived_PoolStorage_StoresTypedFamilies(t *testing.T) {
 			})
 
 			event := &Event{
+				PeerOwner:     1,
 				Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 411},
 				Peer:          peerJSON,
 				RawAttributes: "40010100",
@@ -76,7 +76,7 @@ func TestHandleReceived_PoolStorage_StoresTypedFamilies(t *testing.T) {
 
 			r.handleReceived(event)
 
-			peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+			peerRIB := r.bgpPeers[1]
 			require.NotNil(t, peerRIB, "a PeerRIB must be created for %s", tc.fam)
 			assert.Equal(t, tc.want, peerRIB.Len(),
 				"%s: both NLRIs must be carved and stored", tc.fam)

@@ -297,26 +297,27 @@ func TestAddressRemovedStopsAListenerNoClaimantNeeds(t *testing.T) {
 //
 // VALIDATES: an added and a removed 192.168.1.1, an address no peer here is
 // bound to, rebuild the forwarding snapshot of a peer whose local address is
-// ::1, taking its next-hop wire form from the 16-octet form back to the
+// 2001:db8:1::1, taking its next-hop wire form from the 16-octet form back to the
 // 32-octet one.
 // PREVENTS: a surviving session keeping a stale answer, which appends a link-local
 // Section 3 now forbids or omits one it now requires.
 func TestInterfaceAddrEventRefreshesEveryPeerLinkScope(t *testing.T) {
+	shared := netip.MustParsePrefix("2001:db8:1::1/64")
 	other := netip.MustParsePrefix("192.168.1.1/24")
 	for _, tc := range []struct {
 		name          string
 		before, after []netip.Prefix
 	}{
-		{"addr-added", nil, []netip.Prefix{other}},
-		{"addr-removed", []netip.Prefix{other}, nil},
+		{"addr-added", []netip.Prefix{shared}, []netip.Prefix{shared, other}},
+		{"addr-removed", []netip.Prefix{shared, other}, []netip.Prefix{shared}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			table := &fakeAddressTable{prefixes: tc.before}
 			table.install(t)
 			r := newIfaceTestReactor(t)
 
-			s := NewPeerSettings(netip.MustParseAddr("::1"), 65000, 65000, 0x01010101)
-			s.LocalAddress = netip.MustParseAddr("::1")
+			s := NewPeerSettings(netip.MustParseAddr("2001:db8:1::2"), 65000, 65000, 0x01010101)
+			s.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 			s.LinkLocal = netip.MustParseAddr("fe80::1")
 			s.NextHopMode = NextHopSelf
 			peer := NewPeer(s)
@@ -338,7 +339,7 @@ func TestInterfaceAddrEventRefreshesEveryPeerLinkScope(t *testing.T) {
 			sync.apply()
 
 			assert.Equal(t, nhModeSelfV6LL, peer.forwardFacts().nhMode,
-				"the re-read table puts ::1 and the peer on the loopback subnet, so Section 3 includes the link-local")
+				"the re-read table puts this speaker's global and the peer on one subnet, so Section 3 includes the link-local")
 			ll := netip.MustParseAddr("fe80::1").As16()
 			assert.Equal(t, ll[:], peer.forwardFacts().nhGlobalLL[16:],
 				"RFC 2545 Section 3: the link-local address is the SECOND of the two")

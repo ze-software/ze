@@ -41,15 +41,15 @@ func TestRFC9117AuthorizationUsesLongestCoveringRoute(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r, bus := flowValidationFixture(t)
-			flowValidationReceive(t, r, shortPeer, 65001, 1, family.IPv4Unicast,
+			flowValidationReceive(t, r, 1, shortPeer, 65001, 1, family.IPv4Unicast,
 				[]byte{8, 10}, flowValidationAttrs(flowValidationPath(2, 65001), shortOrigin, 0, nil), false)
-			flowValidationReceive(t, r, longPeer, 65002, 2, family.IPv4Unicast,
+			flowValidationReceive(t, r, 2, longPeer, 65002, 2, family.IPv4Unicast,
 				[]byte{16, 10, 1}, flowValidationAttrs(flowValidationPath(2, 65002), longOrigin, 0, nil), false)
 			raw := flowspecNLRI(24, 10, 1, 1)
 			drop := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
-			flowValidationReceive(t, r, flowPeer, tc.peerAS, 3, flowspecFamily, raw,
+			flowValidationReceive(t, r, 3, flowPeer, tc.peerAS, 3, flowspecFamily, raw,
 				flowValidationAttrs(flowValidationPath(2, tc.firstAS), tc.originator, 0, drop), false)
-			key := ribevents.ValidationRoute{Peer: flowPeer, Family: flowspecFamily, NLRI: string(raw)}
+			key := ribevents.ValidationRoute{ConnectionID: 41, PeerOwner: 3, Peer: flowPeer, Family: flowspecFamily, NLRI: string(raw)}
 			if got := ribevents.RouteEligible(key, 3); got != tc.want {
 				t.Fatalf("eligibility = %v, want %v", got, tc.want)
 			}

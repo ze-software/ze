@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -23,36 +24,22 @@ import (
 
 // newIntegrationRouteServer creates a RouteServer with live net.Pipe SDK
 // connections and an engine-side RPC conn for verifying RPCs.
-func newIntegrationRouteServer(t *testing.T) (*routeServer, *rpc.Conn) {
+func newIntegrationRouteServer(t *testing.T) (*routeServer, *rsIntegrationWire) {
 	t.Helper()
 	pluginEnd, engineEnd := net.Pipe()
+	p := sdk.NewWithConn("rs-integration", pluginEnd)
+	wire := newRSIntegrationWire(t, engineEnd)
+	rs := &routeServer{plugin: p, peers: make(map[workerKey]*PeerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
+	rs.workers = newWorkerPool(rs.processForward, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
-		pluginEnd.Close() //nolint:errcheck // test cleanup
-		engineEnd.Close() //nolint:errcheck // test cleanup
-	})
-
-	p := sdk.NewWithConn("rr-integration", pluginEnd)
-	t.Cleanup(func() {
-		if err := p.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
-		}
-	})
-
-	engineConn := rpc.NewConn(engineEnd, engineEnd)
-
-	rs := &routeServer{
-		plugin:      p,
-		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
-	}
-	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
-	t.Cleanup(func() {
+		wire.cancel()
+		_ = engineEnd.Close()
+		_ = p.Close()
 		rs.workers.Stop()
+		rs.stopDepartures()
+		<-wire.joined
 	})
-
-	return rs, engineConn
+	return rs, wire
 }
 
 // TestRedistribution_ForwardReachesEngine verifies that UPDATE events dispatched
@@ -68,23 +55,23 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 
 	// Register peers: 10.0.0.1 (source), 10.0.0.2 and 10.0.0.3 (targets).
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address: "10.0.0.3", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	for i := 1; i <= 3; i++ {
 		input := fmt.Sprintf(
-			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+			"peer 10.0.0.1 remote as 65001 received update %d peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		)
 		rs.dispatchText(input)
@@ -111,7 +98,10 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 
 		allIDs = append(allIDs, input.IDs...)
 
-		peers := append([]string(nil), input.Destinations...)
+		peers := rsFixtureAddresses(input.Targets)
+		if len(input.Targets) != 2 || !slices.Contains(input.Targets, rsFixtureTarget("10.0.0.2", 2, 202)) || !slices.Contains(input.Targets, rsFixtureTarget("10.0.0.3", 3, 203)) {
+			t.Fatalf("original forward target tuples = %+v", input.Targets)
+		}
 		slices.Sort(peers)
 		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
 			t.Errorf("destinations = %v, want [10.0.0.2 10.0.0.3]", peers)
@@ -141,7 +131,10 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
 
-	input := "peer 10.0.0.1 remote as 65001 received update 42"
+	rs.mu.Lock()
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", Up: true, StateSeen: true}
+	rs.mu.Unlock()
+	input := "peer 10.0.0.1 remote as 65001 received update 42 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5"
 	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -180,22 +173,22 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 
 	// 10.0.0.2 supports ipv4+ipv6, 10.0.0.3 supports only ipv4.
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address: "10.0.0.3", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.2 should be a target.
-	input := "peer 10.0.0.1 remote as 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32"
+	input := "peer 10.0.0.1 remote as 65001 received update 7 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32"
 	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -218,8 +211,8 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	if len(rpcInput.IDs) != 1 || rpcInput.IDs[0] != 7 {
 		t.Errorf("IDs = %v, want [7]", rpcInput.IDs)
 	}
-	if len(rpcInput.Destinations) != 1 || rpcInput.Destinations[0] != "10.0.0.2" {
-		t.Errorf("destinations = %v, want [10.0.0.2] (10.0.0.3 lacks ipv6/unicast)", rpcInput.Destinations)
+	if len(rpcInput.Targets) != 1 || rpcInput.Targets[0] != rsFixtureTarget("10.0.0.2", 2, 202) {
+		t.Errorf("destinations = %v, want [10.0.0.2] (10.0.0.3 lacks ipv6/unicast)", rpcInput.Targets)
 	}
 
 	if err := engineConn.SendResult(ctx, req.ID, nil); err != nil {
@@ -241,12 +234,12 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 
 	// Set up two peers so forwarding has targets
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
@@ -268,7 +261,7 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 	const numUpdates = 100
 	for i := 1; i <= numUpdates; i++ {
 		input := fmt.Sprintf(
-			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+			"peer 10.0.0.1 remote as 65001 received update %d peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		)
 		rs.dispatchText(input)
@@ -299,12 +292,12 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 	// Set up one peer that supports ipv4/unicast only.
 	// UPDATEs with no NLRI will produce releases.
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
@@ -335,12 +328,12 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		var input string
 		if i%2 == 0 {
 			input = fmt.Sprintf(
-				"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+				"peer 10.0.0.1 remote as 65001 received update %d peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 				i, i,
 			)
 		} else {
 			// Empty NLRI → triggers release path
-			input = fmt.Sprintf("peer 10.0.0.1 remote as 65001 received update %d", i)
+			input = fmt.Sprintf("peer 10.0.0.1 remote as 65001 received update %d peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5", i)
 		}
 		rs.dispatchText(input)
 	}
@@ -386,7 +379,7 @@ func TestForwardWorker_DrainOnClose(t *testing.T) {
 	const numItems = 10
 	count.Add(numItems)
 	for i := 1; i <= numItems; i++ {
-		pool.Dispatch(workerKey{sourcePeer: "10.0.0.1"}, workItem{msgID: uint64(i)})
+		pool.Dispatch(rsFixtureKey("10.0.0.1", 1, 101), workItem{msgID: uint64(i)})
 	}
 
 	// Stop must drain all items before returning.
@@ -406,12 +399,12 @@ func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
@@ -425,11 +418,11 @@ func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
 		families := map[family.Family]bool{family.IPv4Unicast: true}
 
 		rs.mu.RLock()
-		targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
+		targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, families)
 		rs.mu.RUnlock()
 
 		if len(targets) > 0 {
-			sel := strings.Join(targets, ",")
+			sel := strings.Join(rsFixtureAddresses(targets), ",")
 			cmd := fmt.Sprintf("cache %d forward %s", msgID, sel)
 			commands = append(commands, cmd)
 		}
@@ -465,30 +458,30 @@ func TestSelectTargets_SingleFamily_AllSupport(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address: "10.0.0.3", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// UPDATE from 10.0.0.1 with ipv4/unicast
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
-	slices.Sort(targets)
+	slices.SortFunc(targets, compareForwardTarget)
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets, got %d: %v", len(targets), targets)
 	}
-	if targets[0] != "10.0.0.2" || targets[1] != "10.0.0.3" {
+	if targets[0].Destination != "10.0.0.2" || targets[1].Destination != "10.0.0.3" {
 		t.Errorf("expected [10.0.0.2, 10.0.0.3], got %v", targets)
 	}
 }
@@ -501,29 +494,29 @@ func TestSelectTargets_SingleFamily_PartialSupport(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}, // No ipv6
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address: "10.0.0.3", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.3 supports it
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv6Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv6Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target, got %d: %v", len(targets), targets)
 	}
-	if targets[0] != "10.0.0.3" {
+	if targets[0].Destination != "10.0.0.3" {
 		t.Errorf("expected [10.0.0.3], got %v", targets)
 	}
 }
@@ -539,25 +532,25 @@ func TestSelectTargets_MultiFamilyUpdate_PartialOverlap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}, // Only ipv4
 	}
 	rs.mu.Unlock()
 
 	// UPDATE from "10.0.0.0" carries both ipv4/unicast and ipv6/unicast
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{
 		family.IPv4Unicast: true,
 		family.IPv6Unicast: true,
 	})
 	rs.mu.RUnlock()
 
-	slices.Sort(targets)
+	slices.SortFunc(targets, compareForwardTarget)
 	// BOTH peers should be targets: 10.0.0.1 supports both, 10.0.0.2 supports ipv4.
 	// Known limitation: peer receives full UPDATE including unnegotiated families.
 	if len(targets) != 2 {
@@ -573,24 +566,24 @@ func TestSelectTargets_ExcludesSourcePeer(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target (excluding source), got %d: %v", len(targets), targets)
 	}
-	if targets[0] != "10.0.0.2" {
+	if targets[0].Destination != "10.0.0.2" {
 		t.Errorf("expected target 10.0.0.2, got %v", targets)
 	}
 }
@@ -603,24 +596,24 @@ func TestSelectTargets_ExcludesDownPeer(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: false,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: false,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target (excluding down peer), got %d: %v", len(targets), targets)
 	}
-	if targets[0] != "10.0.0.2" {
+	if targets[0].Destination != "10.0.0.2" {
 		t.Errorf("expected target 10.0.0.2, got %v", targets)
 	}
 }
@@ -633,15 +626,15 @@ func TestSelectTargets_NilFamilies_AcceptsAll(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: nil, // No OPEN processed yet
 	}
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -660,8 +653,8 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// Peer advertised MP for l2vpn/evpn only — explicitly declined ipv4/unicast
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
 	}
@@ -669,7 +662,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// ipv4/unicast should be rejected — peer explicitly omitted it from MP caps
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -678,7 +671,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// l2vpn/evpn should be accepted — it's in the MP caps
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets = rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -694,15 +687,15 @@ func TestSelectTargets_NoTargets_AllExcluded(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// Source is the only peer
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -722,11 +715,11 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// OPEN with capabilities but NO multiprotocol entries
-	input := "peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
+	input := "peer 10.0.0.1 remote as 65001 received open 0 peer-owner 1 connection-id 101 asn 65001 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
 	rs.dispatchText(input)
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 
 	if peer == nil {
@@ -745,7 +738,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 
 	// Peer is Up=false (no state event yet), so excluded regardless
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (peer is down), got %d: %v", len(targets), targets)
@@ -754,10 +747,12 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	// Set it up and try again with Up=true — now ipv4/unicast should match
 	rs.mu.Lock()
 	peer.Up = true
+	peer.DestinationSession = 201
+	peer.SessionGeneration = 3
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets = rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -776,19 +771,19 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	}
 
 	// State up arrives first (before OPEN)
-	stateInput := "peer 10.0.0.1 remote as 65001 state up"
+	stateInput := "peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3"
 	rs.dispatchText(stateInput)
 
 	// Wait for replay goroutine to complete (replay gate opened).
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		p := rs.peers["10.0.0.1"]
+		p := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 		return p != nil && p.replayDone == nil
 	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 
 	if peer == nil {
@@ -804,7 +799,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 
 	// With nil Families, peer should accept ALL families
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -823,23 +818,23 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	}
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
-	openInput := "peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
+	openInput := "peer 10.0.0.1 remote as 65001 received open 0 peer-owner 1 connection-id 101 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
 	rs.dispatchText(openInput)
 
 	// Step 2: State up
-	stateInput := "peer 10.0.0.1 remote as 65001 state up"
+	stateInput := "peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3"
 	rs.dispatchText(stateInput)
 
 	// Wait for replay goroutine to complete (replay gate opened).
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		p := rs.peers["10.0.0.1"]
+		p := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 		return p != nil && p.replayDone == nil
 	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 
 	if !peer.Up {
@@ -857,7 +852,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// ipv4/unicast UPDATE should target this peer
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target for ipv4/unicast, got %d", len(targets))
@@ -865,7 +860,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// l2vpn/evpn UPDATE should NOT target this peer
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets(nil, "10.0.0.0", 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets = rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.0", 100, 200), 0, map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets for l2vpn/evpn, got %d: %v", len(targets), targets)
@@ -891,14 +886,14 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 		{"10.0.0.3", []family.Family{family.IPv4Unicast}},
 	}
 
-	for _, p := range peers {
+	for index, p := range peers {
 		fam := make(map[family.Family]bool)
 		for _, f := range p.families {
 			fam[f] = true
 		}
 		rs.mu.Lock()
-		rs.peers[p.addr] = &PeerState{
-			Address:      p.addr,
+		rs.peers[rsFixtureKey(p.addr, uint64(index+1), uint64(index+101))] = &PeerState{
+			Address: p.addr, DestinationSession: uint64(index + 201), SessionGeneration: 3,
 			Up:           true,
 			Families:     fam,
 			Capabilities: map[string]bool{"route-refresh": true, "multiprotocol": true},
@@ -907,7 +902,7 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	}
 
 	// Peer 1 sends an UPDATE with 10.0.0.0/24
-	updateInput := "peer 10.0.0.1 remote as 65001 received update 100 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
+	updateInput := "peer 10.0.0.1 remote as 65001 received update 100 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
 	rs.dispatchText(updateInput)
 	flushWorkers(t, rs)
 
@@ -921,14 +916,14 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 
 	// Verify forward targets: should be 10.0.0.2 and 10.0.0.3 (not source 10.0.0.1)
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
-	slices.Sort(targets)
+	slices.SortFunc(targets, compareForwardTarget)
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets, got %d: %v", len(targets), targets)
 	}
-	if targets[0] != "10.0.0.2" || targets[1] != "10.0.0.3" {
+	if targets[0].Destination != "10.0.0.2" || targets[1].Destination != "10.0.0.3" {
 		t.Errorf("expected [10.0.0.2, 10.0.0.3], got %v", targets)
 	}
 }
@@ -946,11 +941,11 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 	famIPv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	famIPv6VPN := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}
 	famEVPN := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
-	peerFamilies := map[string][]family.Family{
-		"10.0.0.1": {family.IPv4Unicast, famIPv4FS, family.IPv6Unicast, famIPv6FS, famIPv4VPN, famIPv6VPN, famEVPN},
-		"10.0.0.2": {family.IPv4Unicast, family.IPv6Unicast, famIPv4VPN},
-		"10.0.0.3": {family.IPv4Unicast, family.IPv6Unicast, famIPv4FS, famEVPN},
-		"10.0.0.4": {family.IPv4Unicast, family.IPv6Unicast, famIPv6VPN, famIPv6FS},
+	peerFamilies := map[workerKey][]family.Family{
+		rsFixtureKey("10.0.0.1", 1, 101): {family.IPv4Unicast, famIPv4FS, family.IPv6Unicast, famIPv6FS, famIPv4VPN, famIPv6VPN, famEVPN},
+		rsFixtureKey("10.0.0.2", 2, 102): {family.IPv4Unicast, family.IPv6Unicast, famIPv4VPN},
+		rsFixtureKey("10.0.0.3", 3, 103): {family.IPv4Unicast, family.IPv6Unicast, famIPv4FS, famEVPN},
+		rsFixtureKey("10.0.0.4", 4, 104): {family.IPv4Unicast, family.IPv6Unicast, famIPv6VPN, famIPv6FS},
 	}
 
 	for addr, families := range peerFamilies {
@@ -960,7 +955,7 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 		}
 		rs.mu.Lock()
 		rs.peers[addr] = &PeerState{
-			Address:      addr,
+			Address: addr.address.String(), DestinationSession: addr.owner + 200, SessionGeneration: 3,
 			Up:           true,
 			Families:     fam,
 			Capabilities: map[string]bool{"route-refresh": true, "multiprotocol": true},
@@ -970,49 +965,49 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		source    string
+		source    workerKey
 		families  map[family.Family]bool
 		wantCount int
 		wantAddrs []string // sorted
 	}{
 		{
 			name:      "ipv4/unicast from peer1 → all others",
-			source:    "10.0.0.1",
+			source:    rsFixtureKey("10.0.0.1", 1, 101),
 			families:  map[family.Family]bool{family.IPv4Unicast: true},
 			wantCount: 3,
 			wantAddrs: []string{"10.0.0.2", "10.0.0.3", "10.0.0.4"},
 		},
 		{
 			name:      "ipv4/flow from peer1 → only peer3",
-			source:    "10.0.0.1",
+			source:    rsFixtureKey("10.0.0.1", 1, 101),
 			families:  map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.3"},
 		},
 		{
 			name:      "l2vpn/evpn from peer1 → only peer3",
-			source:    "10.0.0.1",
+			source:    rsFixtureKey("10.0.0.1", 1, 101),
 			families:  map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.3"},
 		},
 		{
 			name:      "ipv6/mpls-vpn from peer1 → only peer4",
-			source:    "10.0.0.1",
+			source:    rsFixtureKey("10.0.0.1", 1, 101),
 			families:  map[family.Family]bool{{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.4"},
 		},
 		{
 			name:      "ipv6/unicast from peer2 → peers 1,3,4",
-			source:    "10.0.0.2",
+			source:    rsFixtureKey("10.0.0.2", 2, 102),
 			families:  map[family.Family]bool{family.IPv6Unicast: true},
 			wantCount: 3,
 			wantAddrs: []string{"10.0.0.1", "10.0.0.3", "10.0.0.4"},
 		},
 		{
 			name:      "ipv4/mpls-vpn from peer2 → only peer1",
-			source:    "10.0.0.2",
+			source:    rsFixtureKey("10.0.0.2", 2, 102),
 			families:  map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.1"},
@@ -1025,7 +1020,7 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 			targets := rs.selectForwardTargets(nil, tt.source, 0, tt.families)
 			rs.mu.RUnlock()
 
-			slices.Sort(targets)
+			slices.SortFunc(targets, compareForwardTarget)
 			if len(targets) != tt.wantCount {
 				t.Errorf("expected %d targets, got %d: %v", tt.wantCount, len(targets), targets)
 			}
@@ -1034,8 +1029,8 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 					t.Errorf("missing target %s", want)
 					continue
 				}
-				if targets[i] != want {
-					t.Errorf("target[%d] = %s, want %s", i, targets[i], want)
+				if targets[i].Destination != want {
+					t.Errorf("target[%d] = %v, want %s", i, targets[i], want)
 				}
 			}
 		})
@@ -1051,7 +1046,7 @@ func TestPropagation_UpdateBeforeAnyPeerKnown(t *testing.T) {
 
 	// No peers registered at all
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -1067,14 +1062,14 @@ func TestPropagation_UpdateWhenOnlySourceKnown(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -1090,18 +1085,18 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 	}
 	rs.mu.Unlock()
 
 	// VPN UPDATE with NLRI
-	input := "peer 10.0.0.1 remote as 65001 received update 200 origin igp next-hop 192.168.1.1 nlri ipv4/mpls-vpn add prefix 10.0.0.0/24"
+	input := "peer 10.0.0.1 remote as 65001 received update 200 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/mpls-vpn add raw 700001010000fde8000000010a0000"
 	rs.dispatchText(input)
 	flushWorkers(t, rs)
 
@@ -1125,10 +1120,10 @@ func TestPropagation_VPNRoute(t *testing.T) {
 
 	// Verify forward target
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 0, map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true})
 	rs.mu.RUnlock()
 
-	if len(targets) != 1 || targets[0] != "10.0.0.2" {
+	if len(targets) != 1 || targets[0].Destination != "10.0.0.2" {
 		t.Errorf("expected target [10.0.0.2], got %v", targets)
 	}
 }
@@ -1141,14 +1136,14 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// Add route.
-	addInput := "peer 10.0.0.1 remote as 65001 received update 100 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
+	addInput := "peer 10.0.0.1 remote as 65001 received update 100 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
 	rs.dispatchText(addInput)
 	flushWorkers(t, rs)
 
@@ -1160,7 +1155,7 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	}
 
 	// Withdraw route.
-	delInput := "peer 10.0.0.1 remote as 65001 received update 101 nlri ipv4/unicast del prefix 10.0.0.0/24"
+	delInput := "peer 10.0.0.1 remote as 65001 received update 101 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 nlri ipv4/unicast del prefix 10.0.0.0/24"
 	rs.dispatchText(delInput)
 	flushWorkers(t, rs)
 
@@ -1180,22 +1175,25 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}}
 	rs.mu.Unlock()
 
 	// Populate withdrawal map for multiple families.
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}:   {},
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}:   {},
-		{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}: {},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}:   {owner: 1, connectionID: 101, sourceReceipt: 301},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}:   {owner: 1, connectionID: 101, sourceReceipt: 301},
+		{owner: 1, fam: family.IPv6Unicast, prefix: netip.MustParsePrefix("2001:db8::/32")}: {owner: 1, connectionID: 101, sourceReceipt: 301},
 	}
 	rs.withdrawalMu.Unlock()
 
 	// Peer goes down.
-	downInput := "peer 10.0.0.1 remote as 65001 state down"
+	downInput := "peer 10.0.0.1 remote as 65001 state down peer-owner 1 connection-id 101 destination-session 201 session-generation 3"
 	rs.dispatchText(downInput)
+	if err := rs.settlePendingDown(t.Context(), rsFixtureKey("10.0.0.1", 1, 101)); err != nil {
+		t.Fatal(err)
+	}
 
 	rs.withdrawalMu.Lock()
 	wdLen := len(rs.withdrawals["10.0.0.1"])

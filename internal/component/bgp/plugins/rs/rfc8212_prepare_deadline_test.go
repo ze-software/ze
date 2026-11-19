@@ -48,7 +48,7 @@ func TestRFC8212PrepareTimeoutDoesNotLockSource(t *testing.T) {
 	err := rs.handleSourcePolicy(settledAtDeadline{ctx}, input("tx-late", rpc.SourcePolicyPrepare))
 	require.ErrorContains(t, err, "reached its deadline while settling")
 	rs.withdrawalMu.Lock()
-	held := rs.sourcePolicy[policySource]
+	held := rs.sourcePolicy[1]
 	rs.withdrawalMu.Unlock()
 	require.Nil(t, held, "a prepare past its deadline pinned the source")
 

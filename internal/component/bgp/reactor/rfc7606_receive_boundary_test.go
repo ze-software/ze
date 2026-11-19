@@ -92,7 +92,7 @@ func receiveBoundaryDiagnosticSession(t *testing.T, extended bool) (*Session, ne
 		local: netip.MustParseAddr("192.0.2.254"), remote: settings.Address,
 	})
 	capture := &dispatchCapture{}
-	s.SetMessageCallback(func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+	s.SetMessageCallback(func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64,
 	) bool {
@@ -353,7 +353,7 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 				s, client := firstASSession(t, settings, caps, caps)
 				s.nextHopScope.Store(&receiveNextHopScope{local: netip.MustParseAddr("192.0.2.1")})
 				var captured []*wireu.WireUpdate
-				s.SetMessageCallback(func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+				s.SetMessageCallback(func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 					wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 					_ BufHandle, _ map[string]any, _ string, _ uint64,
 				) bool {
@@ -712,7 +712,7 @@ func TestReceiveAdmissionSurvivesIdleTransition(t *testing.T) {
 			}
 			require.Equal(t, state, s.State())
 			dispatches := 0
-			s.SetMessageCallback(func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+			s.SetMessageCallback(func(_ *Session, _ netip.Addr, typ msgtype.MessageType, _ []byte,
 				_ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 				_ BufHandle, _ map[string]any, _ string, _ uint64,
 			) bool {

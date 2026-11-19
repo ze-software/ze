@@ -23,9 +23,9 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 			peer := netip.MustParseAddr("192.0.2.1")
 			first := compactRouteKey{Fam: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.113.0/24")}
 			second := compactRouteKey{Fam: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.114.0/24")}
-			r.ribIn[peer] = newSeqMap()
+			r.ribIn[receivedPeer{address: peer, owner: 1}] = newSeqMap()
 			for index, key := range []compactRouteKey{first, second} {
-				r.ribIn[peer].Put(key, uint64(index+1), &RawRoute{Family: key.Fam, SourceOwner: 1})
+				r.ribIn[receivedPeer{address: peer, owner: 1}].Put(key, uint64(index+1), &RawRoute{ConnectionID: 41, Family: key.Fam, SourceOwner: 1})
 			}
 			r.peerUp[peer] = true
 			r.validationEnabled, r.validationGate = true, true
@@ -38,7 +38,7 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 			if _, _, err := r.rejectRoutesCommand([]string{peer.String(), "ipv4/unicast", first.Prefix.String(), "0"}); !errors.Is(err, failure) {
 				t.Fatalf("initial refusal = %v", err)
 			}
-			if _, present := r.ribIn[peer].Get(first); present {
+			if _, present := r.ribIn[receivedPeer{address: peer, owner: 1}].Get(first); present {
 				t.Fatal("initial command did not remove its route before publication")
 			}
 			if ordinary {
@@ -49,7 +49,7 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 					t.Fatalf("next command refusal = %v", err)
 				}
 			}
-			routes := r.ribIn[peer]
+			routes := r.ribIn[receivedPeer{address: peer, owner: 1}]
 			present := false
 			if routes != nil {
 				_, present = routes.Get(second)
@@ -64,7 +64,7 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 				if err := r.validationFailure(); !errors.Is(err, failure) {
 					t.Errorf("ordinary refusal lost the terminal publication cause: %v", err)
 				}
-				if ribevents.RouteEligible(ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: second.Fam, Prefix: second.Prefix}, 0) {
+				if ribevents.RouteEligible(ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: 1, Family: second.Fam, Prefix: second.Prefix}, 0) {
 					t.Error("ordinary refusal left the validation lookup open")
 				}
 				return

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"runtime"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,6 +41,10 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	rs.plugin = p
 	entered := make(chan struct{}, downs)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(func() { unblock(); rs.stopDepartures() })
+	admitted := make(chan string, downs)
 	sources := make(chan string, downs)
 	bridge.SetDispatchRPC(func(_ context.Context, _ string, raw json.RawMessage) (json.RawMessage, error) {
 		var input rpc.UpdateRouteInput
@@ -47,22 +52,33 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 			return nil, err
 		}
 		source, _ := input.Meta["recovery-source"].(string)
-		sources <- source
-		entered <- struct{}{}
-		<-release
+		if input.PeerSelector == "198.51.100.254" {
+			sources <- source
+		}
+		select {
+		case <-release:
+		default:
+			admitted <- source
+			entered <- struct{}{}
+			<-release
+		}
 		return json.RawMessage(`{"announced":0,"withdrawn":1}`), nil
 	})
 	bridge.SetReady()
 
 	addresses := make([]string, downs)
+	keys := make([]workerKey, downs)
+	rs.handleState(&Event{PeerAddr: "198.51.100.254", PeerOwner: 254, ConnectionID: 354, DestinationSession: 454, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
 	for i := range downs {
 		addresses[i] = netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}).String()
+		keys[i] = rsFixtureKey(addresses[i], uint64(i+1), uint64(i+101))
+		rs.handleState(&Event{PeerAddr: addresses[i], PeerOwner: keys[i].owner, ConnectionID: keys[i].connectionID, DestinationSession: uint64(i + 201), SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
 		rs.withdrawals[addresses[i]] = map[withdrawalKey]withdrawalEntry{
-			{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {},
+			{owner: keys[i].owner, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {owner: keys[i].owner, connectionID: keys[i].connectionID},
 		}
 	}
 
-	rs.handleStateDown(addresses[0], 7)
+	rs.handleStateDown(keys[0], 7)
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
@@ -71,8 +87,8 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	before := runtime.NumGoroutine()
 	returned := make(chan struct{})
 	go func() {
-		for _, address := range addresses[1:] {
-			rs.handleStateDown(address, 7)
+		for _, source := range keys[1:] {
+			rs.handleStateDown(source, 7)
 		}
 		close(returned)
 	}()
@@ -101,14 +117,20 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	close(release)
+	unblock()
 	rs.stopDepartures()
 	close(sources)
 	var got []string
 	for source := range sources {
 		got = append(got, source)
 	}
-	first := slices.Clone(got[:departureWorkers])
+	if len(got) != downs {
+		t.Fatalf("useful observer saw %d departures, want %d", len(got), downs)
+	}
+	first := make([]string, 0, departureWorkers)
+	for range departureWorkers {
+		first = append(first, <-admitted)
+	}
 	slices.Sort(first)
 	want := slices.Clone(addresses[:departureWorkers])
 	slices.Sort(want)
@@ -135,7 +157,7 @@ func TestStopDeparturesWithoutDepartureStartsNothing(t *testing.T) {
 	if rs.departures != nil {
 		t.Fatal("stopDepartures started the departure workers with no departure queued")
 	}
-	if rs.enqueueDeparture("192.0.2.1", map[withdrawalKey]withdrawalEntry{}) {
+	if rs.enqueueDeparture(rsFixtureKey("192.0.2.1", 1, 101), map[withdrawalKey]withdrawalEntry{}) {
 		t.Fatal("enqueueDeparture after stopDepartures answered true")
 	}
 	if rs.departures != nil {

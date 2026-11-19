@@ -42,14 +42,16 @@ func selfAttachSetup(t *testing.T, lateNLRI []byte) *RIBManager {
 
 	llgrRIB := storage.NewPeerRIB(selfAttachLLGRPeer.String())
 	llgrRIB.Insert(family.IPv4Unicast, preferred, []byte{24, 10, 0, 0})
-	r.bgpPeers[selfAttachLLGRPeer] = llgrRIB
+	r.peerMeta[1] = &peerMetadata{Address: selfAttachLLGRPeer}
+	r.bgpPeers[1] = llgrRIB
 
 	freshRIB := storage.NewPeerRIB(selfAttachFreshPeer.String())
 	freshRIB.Insert(family.IPv4Unicast, ordinary, []byte{24, 10, 0, 0})
 	if lateNLRI != nil {
 		freshRIB.Insert(family.IPv4Unicast, ordinary, lateNLRI)
 	}
-	r.bgpPeers[selfAttachFreshPeer] = freshRIB
+	r.peerMeta[2] = &peerMetadata{Address: selfAttachFreshPeer}
+	r.bgpPeers[2] = freshRIB
 
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{selfAttachLLGRPeer.String(), "120"})
 	require.NoError(t, err)

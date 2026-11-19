@@ -62,21 +62,24 @@ func ingressStaleMeta() map[string]any {
 
 // feedReceivedIBGPMeta is feedReceivedIBGP with the route metadata the
 // reactor's ingress steps put on the received event.
-func feedReceivedIBGPMeta(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, body []byte, meta map[string]any) {
+func feedReceivedIBGPMeta(r *RIBManager, peerOwner uint64, peer netip.Addr, ctxID bgpctx.ContextID, body []byte, meta map[string]any) {
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType:   rpc.EventKindUpdate,
+		PeerOwner:   peerOwner,
 		PeerAddress: peer.String(),
 		PeerAS:      rpc.RemoteASOf(65000),
 		LocalAS:     65000,
 		Meta:        meta,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   body,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
-			Meta:       meta,
+			Type:        msgtype.TypeUPDATE,
+			SourceOwner: peerOwner,
+			RawBytes:    body,
+			WireUpdate:  wu,
+			AttrsWire:   attrs,
+			Meta:        meta,
 		},
 	})
 }
@@ -92,8 +95,8 @@ func receivedStaleSetup(t *testing.T, community [4]byte, meta map[string]any) (*
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	low := netip.MustParseAddr("192.0.2.1")
 	high := netip.MustParseAddr("192.0.2.2")
-	feedReceivedIBGPMeta(r, low, ctxID, receivedStaleUpdate(community), meta)
-	feedReceivedIBGP(r, high, ctxID, identifierTestUpdate())
+	feedReceivedIBGPMeta(r, 1, low, ctxID, receivedStaleUpdate(community), meta)
+	feedReceivedIBGP(r, 2, high, ctxID, identifierTestUpdate())
 	return r, ctxID, low, high
 }
 
@@ -158,7 +161,7 @@ func TestRFC9494ReceivedOtherCommunityCompetesNormally(t *testing.T) {
 func TestRFC9494ReceivedLLGRStaleRefreshedFreshCompetesNormally(t *testing.T) {
 	r, ctxID, low, _ := receivedStaleSetup(t, communityLLGRStaleWire, ingressStaleMeta())
 
-	feedReceivedIBGP(r, low, ctxID, receivedPlainUpdate())
+	feedReceivedIBGP(r, 1, low, ctxID, receivedPlainUpdate())
 
 	explanation := receivedStaleWinner(t, r)
 	assert.Equal(t, BestStepLocalPref, explanation.Steps[0].Step)
@@ -212,12 +215,12 @@ func TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally(t *testing.
 func TestRFC9494ReceivedStaleEqualRefreshFollowsLatestUpdate(t *testing.T) {
 	r, ctxID, low, high := receivedStaleSetup(t, communityLLGRStaleWire, nil)
 
-	feedReceivedIBGPMeta(r, low, ctxID, receivedStaleUpdate(communityLLGRStaleWire), ingressStaleMeta())
+	feedReceivedIBGPMeta(r, 1, low, ctxID, receivedStaleUpdate(communityLLGRStaleWire), ingressStaleMeta())
 	explanation := receivedStaleWinner(t, r)
 	assert.Equal(t, BestStepStale, explanation.Steps[0].Step, "the re-sent UPDATE marked stale")
 	assert.Equal(t, high.String(), explanation.Winner.PeerAddr)
 
-	feedReceivedIBGPMeta(r, low, ctxID, receivedStaleUpdate(communityLLGRStaleWire), nil)
+	feedReceivedIBGPMeta(r, 1, low, ctxID, receivedStaleUpdate(communityLLGRStaleWire), nil)
 	explanation = receivedStaleWinner(t, r)
 	assert.Equal(t, BestStepLocalPref, explanation.Steps[0].Step, "the re-sent UPDATE unmarked")
 	assert.Equal(t, low.String(), explanation.Winner.PeerAddr)

@@ -29,7 +29,7 @@ func fastPathServedAnnounce(t *testing.T) *bgptypes.RawMessage {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu, ReactorForwarded: true}
+	return &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu, ReactorForwarded: true, SourceOwner: 1, SourceConnectionID: 101, SourceReceipt: 301, SourcePolicyEpoch: 5}
 }
 
 // TestFastPathServedUpdateReachesAPeerEstablishedAfterIt proves that an
@@ -62,17 +62,17 @@ func TestFastPathServedUpdateReachesAPeerEstablishedAfterIt(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, StateSeen: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, StateSeen: true}
 	// Up after the UPDATE was numbered (receipt 50 > 40), cut below it.
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true, StateSeen: true, ForwardFrom: 10, InitialReplay: 50}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, StateSeen: true, ForwardFrom: 10, InitialReplay: 50}
 	// Up before the UPDATE was numbered: the fast path served it.
-	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true, StateSeen: true, ForwardFrom: 10, InitialReplay: 20}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true, StateSeen: true, ForwardFrom: 10, InitialReplay: 20}
 	// Up after the UPDATE, but its cut covers it: the replay carries it.
-	rs.peers["10.0.0.4"] = &PeerState{Address: "10.0.0.4", Up: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60}
+	rs.peers[rsFixtureKey("10.0.0.4", 4, 104)] = &PeerState{Address: "10.0.0.4", DestinationSession: 204, SessionGeneration: 3, Up: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60}
 	rs.mu.Unlock()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
-	rs.processForward(key, workItem{msgID: 40, sourcePeer: "10.0.0.1", msg: fastPathServedAnnounce(t), reactorForwarded: true})
+	key := rsFixtureKey("10.0.0.1", 1, 101)
+	rs.processForward(key, workItem{msgID: 40, sourcePeer: "10.0.0.1", sourceOwner: 1, sourceReceipt: 301, sourcePolicyEpoch: 5, msg: fastPathServedAnnounce(t), reactorForwarded: true})
 	rs.flushWorkerBatch(key)
 
 	mu.Lock()

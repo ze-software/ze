@@ -53,10 +53,10 @@ const (
 // fwdPathEntries counts the identifiers the table currently holds for this
 // file's ingress peer. An EXACT count is the only useful assertion here: a bound
 // stated as "fewer than N" passes on a leak that is merely slower.
-func fwdPathEntries() int {
+func fwdPathEntries(src *Peer) int {
 	fwdPathIDs.mu.RLock()
 	defer fwdPathIDs.mu.RUnlock()
-	return len(fwdPathIDs.byPath[fwdChurnSource])
+	return len(fwdPathIDs.byPath[fwdPathSource{sourceID: fwdChurnSource, peerOwner: src.sourceOwner}])
 }
 
 // fwdChurnRail wires one source peer and one ADD-PATH destination behind the
@@ -105,8 +105,8 @@ func fwdChurnRailWith(t *testing.T, reflected bool) (*Reactor, *Peer, *Peer, *re
 	}
 	dst.SetReactor(r)
 
-	t.Cleanup(func() { fwdPathIDs.releaseSource(fwdChurnSource) })
-	require.Equal(t, 0, fwdPathEntries(), "guard: the table holds nothing for this source yet")
+	t.Cleanup(func() { fwdPathIDs.releaseSource(fwdPathSource{sourceID: fwdChurnSource, peerOwner: src.sourceOwner}) })
+	require.Equal(t, 0, fwdPathEntries(src), "guard: the table holds nothing for this source yet")
 
 	return r, src, dst, conn, ctxID
 }
@@ -120,15 +120,7 @@ func fwdChurnRelay(t *testing.T, r *Reactor, src *Peer, ctxID bgpctx.ContextID, 
 	wire := wireu.NewWireUpdate(body, ctxID)
 	wire.SetMessageID(updateID)
 	wire.SetSourceID(fwdChurnSource)
-	update := &ReceivedUpdate{
-		WireUpdate:         wire,
-		SourcePeerIP:       src.Settings().Address,
-		SourcePeerStr:      src.addrString,
-		ReceivedAt:         time.Now(),
-		receivedPeer:       src,
-		receivedGeneration: src.forwardGeneration.Load(),
-		SourcePolicyEpoch:  src.sourcePolicyEpoch.Load(),
-	}
+	update := fwdPathIDFixtureReceived(t, src, wire)
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)
 
@@ -214,12 +206,12 @@ func TestForwardPathIDsFreedOnRelayedWithdraw(t *testing.T) {
 
 		updateID++
 		fwdChurnRelay(t, r, src, ctxID, updateID, pathIDTestBody(t, fwdChurnSourceAS, received))
-		require.Equal(t, 1, fwdPathEntries(),
+		require.Equal(t, 1, fwdPathEntries(src),
 			"cycle %d: the announced path must hold exactly one identifier", cycle)
 
 		updateID++
 		fwdChurnRelay(t, r, src, ctxID, updateID, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
-		require.Equal(t, 0, fwdPathEntries(),
+		require.Equal(t, 0, fwdPathEntries(src),
 			"cycle %d: the withdrawn path kept its identifier, so the table grows by one for every identifier the client ever uses", cycle)
 	}
 	announced, withdrawn := fwdChurnSent(t, dst, conn)
@@ -248,13 +240,13 @@ func TestForwardPathIDWithdrawCarriesTheAnnouncedValue(t *testing.T) {
 	// The same path again, with a different AS_PATH: a replacement, not a second
 	// path (RFC 7911 Section 5).
 	fwdChurnRelay(t, r, src, ctxID, 9202, pathIDTestBody(t, fwdChurnSourceAS+9, received))
-	require.Equal(t, 2, fwdPathEntries(),
+	require.Equal(t, 2, fwdPathEntries(src),
 		"a replacement must retain both paths for this prefix")
 
 	fwdChurnRelay(t, r, src, ctxID, 9203, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
-	require.Equal(t, 1, fwdPathEntries(), "withdrawing one path must retain the sibling")
+	require.Equal(t, 1, fwdPathEntries(src), "withdrawing one path must retain the sibling")
 	fwdChurnRelay(t, r, src, ctxID, 9204, fwdShapeBody(fwdPathIDNLRI(received+1), nil, nil))
-	require.Equal(t, 0, fwdPathEntries())
+	require.Equal(t, 0, fwdPathEntries(src))
 
 	announced, withdrawn := fwdChurnSent(t, dst, conn)
 	require.Len(t, announced, 3, "the recipient must receive two paths and one replacement")
@@ -280,7 +272,7 @@ func TestForwardPathIDWithdrawOfUnknownPathLeavesNothing(t *testing.T) {
 	for cycle := range 8 {
 		updateID++
 		fwdChurnRelay(t, r, src, ctxID, updateID, fwdShapeBody(fwdPathIDNLRI(uint32(cycle)+1), nil, nil))
-		require.Equal(t, 0, fwdPathEntries(),
+		require.Equal(t, 0, fwdPathEntries(src),
 			"withdraw %d for a path ze never advertised left an entry behind", cycle)
 	}
 }
@@ -301,14 +293,21 @@ func TestForwardPathIDKeepsTheSourceOfARebuiltFrame(t *testing.T) {
 
 	const received = 7
 	// Establish the identity before reflection changes the frame's attributes.
-	want := fwdForwardOnePathID(t,
-		fwdPathIDWire(pathIDTestBody(t, fwdChurnSourceAS, received), ctxID, fwdChurnSource), ctxID, dst)
+	baseline := fwdPathIDWire(pathIDTestBody(t, fwdChurnSourceAS, received), ctxID, fwdChurnSource)
+	baseline.SetMessageID(9399)
+	baselineUpdate := fwdPathIDFixtureReceived(t, src, baseline)
+	baselineOrigin, err := newFwdPathOrigin(baselineUpdate)
+	require.NoError(t, err)
+	baselineResult, ok := buildFwdBody(baseline, message.MaxMsgLen, ctxID, dst, dst.Settings().Address, &fwdParseCache{}, baselineOrigin)
+	require.True(t, ok)
+	defer returnReadBuffer(baselineResult.transcodeBuf)
+	want := forwardedPathID(t, baselineResult)
 	fwdChurnRelay(t, r, src, ctxID, 9400, pathIDTestBody(t, fwdChurnSourceAS, received))
-	require.Equal(t, 1, fwdPathEntries(),
+	require.Equal(t, 1, fwdPathEntries(src),
 		"the rebuilt frame keyed its path under another source, so this client's paths share one identifier with every other client's")
 
 	fwdChurnRelay(t, r, src, ctxID, 9401, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
-	require.Equal(t, 0, fwdPathEntries(),
+	require.Equal(t, 0, fwdPathEntries(src),
 		"the withdraw freed a key this path never held")
 	announced, withdrawn := fwdChurnSent(t, dst, conn)
 	require.Equal(t, []uint32{want}, announced, "the rebuilt frame must replace the existing path")
@@ -341,13 +340,13 @@ func TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt(t *testing.T) {
 
 	fwdChurnRelay(t, r, src, ctxID, 9500, pathIDTestBody(t, fwdChurnSourceAS, kept))
 	fwdChurnRelay(t, r, src, ctxID, 9501, pathIDTestBody(t, fwdChurnSourceAS, gone))
-	require.Equal(t, 2, fwdPathEntries(), "guard: the source advertises two paths for the prefix")
+	require.Equal(t, 2, fwdPathEntries(src), "guard: the source advertises two paths for the prefix")
 
 	// One UPDATE withdrawing both pairs and announcing one of them back.
 	both := append(fwdPathIDNLRI(kept), fwdPathIDNLRI(gone)...)
 	fwdChurnRelay(t, r, src, ctxID, 9502,
 		fwdShapeBody(both, forwardBodyBaseAttrs(t, fwdChurnSourceAS), fwdPathIDNLRI(kept)))
-	require.Equal(t, 1, fwdPathEntries(),
+	require.Equal(t, 1, fwdPathEntries(src),
 		"the pair the same UPDATE announced was freed, so ze no longer names a path the destination holds")
 
 	// The re-advertisement is what makes the loss visible: it must leave under

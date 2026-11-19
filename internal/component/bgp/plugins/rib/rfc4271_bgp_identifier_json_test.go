@@ -30,14 +30,16 @@ import (
 // Nothing here builds a peerMetadata or a Candidate. The defect this file pins
 // lives between the two rails, so a test that starts after the parse cannot
 // see it.
-func feedReceivedJSONWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr, remoteRouterID uint32, ctxID bgpctx.ContextID, body []byte) {
+func feedReceivedJSONWithIdentifier(t *testing.T, r *RIBManager, peerOwner uint64, peer netip.Addr, remoteRouterID uint32, ctxID bgpctx.ContextID, body []byte) {
 	t.Helper()
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, err := wu.Attrs()
 	require.NoError(t, err, "the test UPDATE body must parse")
 
-	peerInfo := pluginapi.PeerInfo{
+	peerInfo := pluginapi.PeerInfo{ConnectionID: 41,
 		Address:    peer,
+		PeerOwner:  peerOwner,
 		AddressStr: peer.String(),
 		PeerAS:     rpc.RemoteASOf(65001),
 		LocalAS:    65000,
@@ -46,10 +48,11 @@ func feedReceivedJSONWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr
 		RemoteRouterID: remoteRouterID,
 	}
 	msg := types.RawMessage{
-		Type:       msgtype.TypeUPDATE,
-		RawBytes:   body,
-		WireUpdate: wu,
-		AttrsWire:  attrs,
+		Type:        msgtype.TypeUPDATE,
+		SourceOwner: peerOwner,
+		RawBytes:    body,
+		WireUpdate:  wu,
+		AttrsWire:   attrs,
 	}
 	// format=full is what the rib requires of an event (handleReceived refuses
 	// one without raw fields), and json is the encoding an external plugin
@@ -90,8 +93,8 @@ func TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail(t *testing.T) {
 	// step g) disagree and the winner names the step that ran.
 	lowAddress := netip.MustParseAddr("192.0.2.1")
 	highAddress := netip.MustParseAddr("192.0.2.2")
-	feedReceivedJSONWithIdentifier(t, r, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
-	feedReceivedJSONWithIdentifier(t, r, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
+	feedReceivedJSONWithIdentifier(t, r, 1, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
+	feedReceivedJSONWithIdentifier(t, r, 2, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
 
 	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2, "both peers announced the prefix, so both are candidates")
@@ -120,8 +123,8 @@ func TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress(t *tes
 	shared := identifierFor(t, "10.0.0.7")
 	lowAddress := netip.MustParseAddr("192.0.2.1")
 	highAddress := netip.MustParseAddr("192.0.2.2")
-	feedReceivedJSONWithIdentifier(t, r, lowAddress, shared, ctxID, identifierTestUpdate())
-	feedReceivedJSONWithIdentifier(t, r, highAddress, shared, ctxID, identifierTestUpdate())
+	feedReceivedJSONWithIdentifier(t, r, 1, lowAddress, shared, ctxID, identifierTestUpdate())
+	feedReceivedJSONWithIdentifier(t, r, 2, highAddress, shared, ctxID, identifierTestUpdate())
 
 	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2)
@@ -147,10 +150,10 @@ func TestPeerEventCarriesTheRemoteAndLocalIdentifiersSeparately(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	peer := netip.MustParseAddr("192.0.2.1")
 
-	feedReceivedJSONWithIdentifier(t, r, peer, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
+	feedReceivedJSONWithIdentifier(t, r, 1, peer, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
 
 	r.peerMu.RLock()
-	meta := r.peerMeta[peer]
+	meta := r.peerMeta[1]
 	r.peerMu.RUnlock()
 	require.NotNil(t, meta, "a received UPDATE records the peer")
 	assert.Equal(t, identifierFor(t, "10.0.0.9"), meta.RemoteRouterID,

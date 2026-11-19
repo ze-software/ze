@@ -41,11 +41,18 @@ func (f *aigpReplayFixture) forwardViaRIB(t *testing.T, id uint64) {
 	attrStart := 4 + len(withdrawn)
 	attrEnd := attrStart + int(binary.BigEndian.Uint16(payload[attrStart-2:attrStart]))
 	attrs := bytes.Clone(payload[attrStart:attrEnd])
-	source := f.source.Settings().Address.String()
+	// Replay only the immutable provenance already published with this UPDATE.
+	// The receipt store resolves its original connection, never a current peer.
+	source := update.SourcePeerIP.String()
+	connection := sourceReceipts.originalConnectionID(update.SourceReceipt, update.SourceOwner)
+	require.NotZero(t, update.SourceOwner)
+	require.NotZero(t, update.SourceReceipt)
+	require.NotZero(t, connection)
 	var routes []rpc.StoredRoute
 	collect := func(data []byte, family string, withdraw bool) {
 		_, err := nlrisplit.SplitFlowSpec(data, false, func(rule []byte) bool {
-			route := rpc.StoredRoute{SourcePeer: source, SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(), Family: family, MsgID: id, Withdraw: withdraw,
+			route := rpc.StoredRoute{SourcePeer: source, SourceOwner: update.SourceOwner, SourceReceipt: update.SourceReceipt,
+				SourceConnectionID: connection, SourcePolicyEpoch: update.SourcePolicyEpoch, Family: family, MsgID: id, Withdraw: withdraw,
 				NLRIHex: hex.EncodeToString([]byte(ribevents.FlowSpecKey(rule))), NLRIFraming: rpc.NLRIFramingPrefixOnly}
 			if !withdraw {
 				route.AttrHex = hex.EncodeToString(attrs)

@@ -33,7 +33,7 @@ import (
 type owedFenceRecord struct {
 	record   *adjOutOwed
 	epoch    uint64
-	excluded []netip.Addr
+	excluded []uint64
 }
 
 // record reads the single owed record under the table mutex.
@@ -50,9 +50,9 @@ func (rail *owedRail) record(t *testing.T) owedFenceRecord {
 	return owedFenceRecord{}
 }
 
-// exclusionSources returns the sources of a record's exclusions, in order.
-func exclusionSources(excluded []adjOutExclusion) []netip.Addr {
-	sources := make([]netip.Addr, 0, len(excluded))
+// exclusionSources returns the original stable Peer owners of exclusions, in order.
+func exclusionSources(excluded []adjOutExclusion) []uint64 {
+	sources := make([]uint64, 0, len(excluded))
 	for _, exclusion := range excluded {
 		sources = append(sources, exclusion.source)
 	}
@@ -60,12 +60,13 @@ func exclusionSources(excluded []adjOutExclusion) []netip.Addr {
 }
 
 // departure runs the departure command for the rail's source over prefix, as
-// bgp-rs's DOWN handling does, and reports its result on the channel.
-func (rail *owedRail) departure(t *testing.T, source netip.Addr, prefix string) chan error {
+// bgp-rs's DOWN handling does, and reports its result on the channel. owner
+// MUST name the captured original Peer; it is never inferred from source.
+func (rail *owedRail) departure(t *testing.T, source netip.Addr, owner uint64, prefix string) chan error {
 	t.Helper()
 	// Every session so far: this rail tests the record's merge and fences,
 	// not which session a departure answers.
-	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
+	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source, RecoverySourceOwner: owner,
 		RecoveryGeneration: adjOutEverySession,
 		NLRIs:              []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false)}}
 	done := make(chan error, 1)
@@ -102,10 +103,10 @@ func departureResult(t *testing.T, done chan error) error {
 }
 
 // owedSurvivor answers one lookup with a single surviving candidate.
-func owedSurvivor(source netip.Addr, epoch uint64, p []byte) owedAnswer {
+func owedSurvivor(source recoveryFixtureOrigin, epoch uint64, p []byte) owedAnswer {
 	attributes := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}
 	return func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: epoch,
+		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source.address, SourceOwner: source.owner, SourceReceipt: source.receipt, SourcePolicyEpoch: epoch,
 			NLRI: p, Attributes: attributes, NextHop: []byte{192, 0, 2, 1}, MessageID: 7})
 	}
 }
@@ -136,16 +137,16 @@ func TestOwedKeyMergesDepartureAndWithdrawal(t *testing.T) {
 	require.Equal(t, first.epoch, merged.epoch, "a lifecycle removal moves no epoch")
 
 	rail.source.advanceForwardGeneration() // The owner's session is no longer current.
-	done := rail.departure(t, sourceAddr, "192.0.2.0/24")
+	done := rail.departure(t, sourceAddr, rail.source.sourceOwner, "192.0.2.0/24")
 	lowEventually(t, func() bool { return len(rail.record(t).excluded) == 1 }, "the departure merges")
 	departed := rail.record(t)
 	require.Same(t, first.record, departed.record, "a departure merges into the record")
-	require.Equal(t, []netip.Addr{sourceAddr}, departed.excluded)
+	require.Equal(t, []uint64{rail.source.sourceOwner}, departed.excluded)
 	require.NotEqual(t, first.epoch, departed.epoch, "a departure merge moves the epoch")
 
 	rail.release <- nil // The held round answers the question asked before the merge.
 	request = rail.request(t)
-	require.Equal(t, []netip.Addr{sourceAddr}, request.Keys[0].Excluded,
+	require.Equal(t, []uint64{rail.source.sourceOwner}, request.Keys[0].Excluded,
 		"the next round asks with the departed source excluded")
 	require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
 		"an admission for a stale epoch writes nothing")
@@ -193,11 +194,12 @@ func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 				// tells the departure that the live source no longer owns P.
 				rail.source.unbindProcesses(nil, []string{"bgp-rs"})
 			}
-			departed := rail.source.Settings().Address
+			departed := rail.source
+			// The negative uses another actual Peer incarnation, never a made-up owner.
 			if tc.other {
-				departed = netip.MustParseAddr("198.51.100.7")
+				departed = NewPeer(&PeerSettings{Address: netip.MustParseAddr("198.51.100.7"), LocalAS: 65000, PeerAS: 65001})
 			}
-			done := rail.departure(t, departed, tc.prefix)
+			done := rail.departure(t, departed.Settings().Address, departed.sourceOwner, tc.prefix)
 			if !tc.owesTheP {
 				require.NoError(t, departureResult(t, done))
 				require.Empty(t, rail.owed(), "nothing is owed")
@@ -206,7 +208,7 @@ func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 			}
 			request := rail.request(t)
 			require.Equal(t, p, request.Keys[0].NLRI)
-			require.Equal(t, []netip.Addr{departed}, request.Keys[0].Excluded)
+			require.Equal(t, []uint64{departed.sourceOwner}, request.Keys[0].Excluded)
 			rail.release <- nil
 			require.NoError(t, departureResult(t, done))
 			updates := recoveryWrittenUpdates(t, rail.conn.written())
@@ -235,7 +237,7 @@ func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 		owner := ribevents.PublishRecovery(recoveryAddPathAnswer(map[string][][]byte{
 			string([]byte{24, 192, 0, 2}): {ended[0], ended[1], newer}}))
 		t.Cleanup(owner.Close)
-		require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+		require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 		var got [][]byte
 		for _, written := range recoveryWrittenUpdates(t, conn.written()[setup:]) {
 			require.Empty(t, written.NLRI)
@@ -266,13 +268,14 @@ func owedRecordCount(destination *Peer) int {
 func TestOwedKeyFenceInterleavings(t *testing.T) {
 	t.Run("chosen-candidate-withdrew", func(t *testing.T) {
 		rail := newOwedRail(t)
+		originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 		p := []byte{24, 192, 0, 2}
 		rail.forward(t, false, p)
 		rail.forward(t, true, p)
 		rail.request(t)
 		rail.forward(t, true, p) // A withdrawal of the candidate the round elects.
 		mover := rail.record(t)
-		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p)
+		rail.release <- owedSurvivor(originalSource, rail.source.sourcePolicyEpoch.Load(), p)
 		request := rail.request(t)
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
 			"a candidate that withdrew after the snapshot is not written")
@@ -309,7 +312,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		table.mu.Lock()
 		excluded, moved := exclusionSources(record.excluded), record.epoch != epoch
 		table.mu.Unlock()
-		require.Equal(t, []netip.Addr{source.Settings().Address}, excluded)
+		require.Equal(t, []uint64{source.sourceOwner}, excluded)
 		require.True(t, moved, "the re-owe moves the epoch")
 	})
 	// (k): the chosen survivor's live source accepted an UPDATE of another
@@ -349,13 +352,14 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 	// staged. The round writes the survivor and asks the RIB nothing more.
 	t.Run("survivor-source-advanced-before-staging-writes", func(t *testing.T) {
 		rail := newOwedRail(t)
+		originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 		p := []byte{24, 192, 0, 2}
 		rail.source.acceptedReceive(1).complete(1)
 		rail.forward(t, false, p)
 		rail.forward(t, true, p)
 		rail.request(t)
 		rail.source.acceptedReceive(2).complete(2) // After the round's cut.
-		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p)
+		rail.release <- owedSurvivor(originalSource, rail.source.sourcePolicyEpoch.Load(), p)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decides the key")
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the survivor is written")
 		select {
@@ -371,6 +375,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 	// a new epoch. The next round must publish the newer revision.
 	t.Run("chosen-candidate-reannounced", func(t *testing.T) {
 		rail := newOwedRail(t)
+		originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 		p := []byte{24, 192, 0, 2}
 		rail.forward(t, false, p)
 		rail.forward(t, true, p)
@@ -380,7 +385,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
 			"the re-announcement cannot bypass the outstanding election")
 		mover := rail.record(t)
-		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p) // The older revision.
+		rail.release <- owedSurvivor(originalSource, rail.source.sourcePolicyEpoch.Load(), p) // The older revision.
 		request := rail.request(t)
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
 			"the drained round may decide before the newer revision is elected")
@@ -392,9 +397,8 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		// marks the newer revision the next round answers with.
 		med := []byte{0x80, 0x04, 0x04, 0, 0, 0, 2}
 		newerAttrs := append([]byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}, med...)
-		source := rail.source.Settings().Address
 		rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-			return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
+			return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 				NLRI: p, Attributes: newerAttrs, NextHop: []byte{192, 0, 2, 1}, MessageID: 8})
 		}
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
@@ -417,14 +421,20 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 	t.Run("survivor-gone-reowes", func(t *testing.T) {
 		rail := newOwedRail(t)
 		p := []byte{24, 192, 0, 2}
-		gone := netip.MustParseAddr("203.0.113.99")
+		gonePeer := rfc8212RecoverySource(rail.r, rail.source, "203.0.113.99", 0xcb007163)
+		goneSession := recoveryFixtureSession(t, gonePeer, rail.source.sendCtxID)
+		gone := captureRecoveryFixtureOrigin(t, gonePeer, goneSession, rail.source.sendCtxID)
+		endSession(gonePeer)
+		rail.r.mu.Lock()
+		delete(rail.r.peers, gonePeer.Settings().PeerKey())
+		rail.r.mu.Unlock()
 		rail.forward(t, false, p)
 		rail.forward(t, true, p)
 		before := rail.record(t)
 		rail.request(t)
 		rail.release <- owedSurvivor(gone, 0, p)
 		request := rail.request(t)
-		require.Equal(t, []netip.Addr{gone}, request.Keys[0].Excluded,
+		require.Equal(t, []uint64{gone.owner}, request.Keys[0].Excluded,
 			"a survivor that no longer resolves is excluded from the next round")
 		after := rail.record(t)
 		require.Same(t, before.record, after.record)

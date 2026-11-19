@@ -62,7 +62,7 @@ func TestForwardSplitsMixedShapeSameContextThatFits(t *testing.T) {
 	require.Equal(t, 2, fwdShapeFieldCount(t, body), "guard: the fixture must start non-compliant")
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.10"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	require.True(t, ok)
 	require.Empty(t, result.updates, "same-context forwarding must stay on the raw path")
 	require.Greater(t, len(result.rawBodies), 1, "a mixed UPDATE must be split even when it fits")
@@ -89,7 +89,7 @@ func TestForwardSplitMixedShapeWithdrawalsFirst(t *testing.T) {
 
 	body := fwdShapeBody(forwardBodyNLRIs(3, false), forwardBodyBaseAttrs(t, 65000), forwardBodyNLRIs(4, false))
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.11"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	require.True(t, ok)
 
 	seenAnnounce := false
@@ -124,7 +124,7 @@ func TestForwardCompliantShapeKeepsZeroCopy(t *testing.T) {
 
 	wu := wireu.NewWireUpdate(body, ctxID)
 	result, ok := buildFwdBody(wu, message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.12"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.12"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wu))
 	require.True(t, ok)
 	require.Len(t, result.rawBodies, 1)
 	require.Same(t, &body[0], &result.rawBodies[0][0],
@@ -141,7 +141,7 @@ func TestForwardEndOfRIBUnaffected(t *testing.T) {
 	body := fwdShapeBody(nil, nil, nil)
 	wu := wireu.NewWireUpdate(body, ctxID)
 	result, ok := buildFwdBody(wu, message.MaxMsgLen, ctxID, peer,
-		netip.MustParseAddr("192.0.2.13"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.13"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wu))
 	require.True(t, ok)
 	require.Len(t, result.rawBodies, 1)
 	assert.Same(t, &body[0], &result.rawBodies[0][0], "an EoR must be forwarded verbatim")
@@ -167,7 +167,7 @@ func TestForwardSplitsMixedShapeAcrossContextsThatFits(t *testing.T) {
 	require.LessOrEqual(t, message.HeaderLen+len(body), message.MaxMsgLen, "guard: must FIT")
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID), message.MaxMsgLen, destCtxID, peer,
-		netip.MustParseAddr("192.0.2.14"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.14"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	// The pool release below stands in for the caller's adoptFwdHandle, which
 	// production does at cache eviction. buildFwdBody borrows a read-pool buffer, so
 	// without the release this test leaks one per run.
@@ -198,7 +198,7 @@ func TestForwardCompliantShapeAcrossContextsNotSplit(t *testing.T) {
 
 	body := fwdShapeBody(nil, forwardBodyBaseAttrs(t, 200000), forwardBodyNLRIs(4, false))
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID), message.MaxMsgLen, destCtxID, peer,
-		netip.MustParseAddr("192.0.2.15"), &fwdParseCache{})
+		netip.MustParseAddr("192.0.2.15"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
 	// read-pool buffer that production returns at cache eviction.
 	defer returnReadBuffer(result.transcodeBuf)

@@ -254,6 +254,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 	})
 	t.Run("initial-replay-over-contested-entry-owed", func(t *testing.T) {
 		rail := newOwedRail(t)
+		originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 		other := adjOutTestOtherSource(rail.r, rail.source)
 		attachRecoveryOwner(t, rail.r, rail.source, other)
 		adjOutTestForward(t, rail.destination, rail.source, p, 11)
@@ -261,7 +262,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail.request(t)
 		// The RIB elects the revision the destination holds: nothing is
 		// written, the record goes, and the entry stays contested.
-		rail.release <- owedSurvivorMessage(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p, 11)
+		rail.release <- owedSurvivorMessage(originalSource, rail.source.sourcePolicyEpoch.Load(), p, 11)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
 		entry, _ := adjOutTestEntry(rail.destination)
 		require.Same(t, rail.source, entry.owner.source)
@@ -390,7 +391,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		table.mu.Unlock()
 		require.True(t, key.addPath, "the first write installed the path at an ADD-PATH key")
 		table.mu.Lock()
-		table.owe(key, rail.destination.currentSession(), family.IPv4Unicast, prefix).exclude(adjOutExclusion{source: other.Settings().Address,
+		table.owe(key, rail.destination.currentSession(), family.IPv4Unicast, prefix).exclude(adjOutExclusion{source: other.sourceOwner,
 			generation: adjOutEverySession, departed: adjOutEverySession})
 		table.mu.Unlock()
 
@@ -502,11 +503,12 @@ func TestAdjOutContestedBitAndTombstone(t *testing.T) {
 	t.Run("recovery-write-sets-bit", func(t *testing.T) {
 		rail := newOwedRail(t)
 		other := adjOutTestOtherSource(rail.r, rail.source)
+		originalOther := captureRecoveryFixtureOrigin(t, other, recoveryFixtureSession(t, other, rail.source.sendCtxID), rail.source.sendCtxID)
 		attachRecoveryOwner(t, rail.r, rail.source, other)
 		adjOutTestForward(t, rail.destination, rail.source, p, 11)
 		rail.forward(t, true, p) // The owner withdraws P: owed.
 		rail.request(t)
-		rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
+		rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, 21)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
 		entry, held := adjOutTestEntry(rail.destination)
 		require.True(t, held)

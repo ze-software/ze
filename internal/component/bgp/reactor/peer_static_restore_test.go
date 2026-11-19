@@ -27,6 +27,7 @@ import (
 // wire until the session restarts.
 func TestExitWithdrawRestoresConfiguredRoute(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.settings.StaticRoutes = []StaticRoute{
 		staticRouteAt("10.0.0.0/24", "10.9.9.9"),
 		staticRouteAt("10.0.1.0/24", "10.9.9.9"),
@@ -90,6 +91,7 @@ func TestExitWithdrawRestoresConfiguredVPNAndLabeledRoutes(t *testing.T) {
 	vpn := family.Family{AFI: family.AFIIPv4, SAFI: 128}
 	labeled := family.Family{AFI: family.AFIIPv4, SAFI: 4}
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, vpn, labeled)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast, vpn, labeled)
 
 	configuredVPN := staticRouteAt("10.0.0.0/24", "10.9.9.9")
 	configuredVPN.RD = "65000:1"

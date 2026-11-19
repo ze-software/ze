@@ -50,7 +50,7 @@ func TestReceivePublicationFollowPanicPreservesPrimaryOwnership(t *testing.T) {
 			}
 			session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65000, Internal: true})
 			collapseEstablish(t, session)
-			session.onMessageReceived = r.notifyMessageReceiver
+			session.onMessageReceived = r.capturedMessageReceiver
 			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 			if err != nil {
 				t.Fatal(err)

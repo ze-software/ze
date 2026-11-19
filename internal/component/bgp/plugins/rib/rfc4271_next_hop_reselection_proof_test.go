@@ -62,9 +62,9 @@ func TestRFC4271ImmediateNextHopChangeRepeatsSelection(t *testing.T) {
 	})
 	t.Cleanup(func() { igpcost.Set(nil) })
 	peer := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+	r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 	routes := storage.NewPeerRIB(peer.String())
-	r.bgpPeers[peer] = routes
+	r.bgpPeers[1] = routes
 	t.Cleanup(routes.Release)
 	routes.Insert(family.IPv4Unicast,
 		aigpSelectionAttrs(learned.As4(), nil, 100, 1), ipv4Prefix(24, 10, 77, 0))

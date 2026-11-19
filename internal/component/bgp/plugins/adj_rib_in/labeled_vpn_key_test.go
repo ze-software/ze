@@ -149,12 +149,12 @@ func TestLabeledUnicastRoutesKeyOnTheirPrefix(t *testing.T) {
 	feedStructured(t, r, source, mpAnnounce(ipv4Labeled, nextHop, second))
 	feedStructured(t, r, both, mpAnnounce(ipv4Labeled, nextHop, first, second))
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 2, r.ribIn[source].Len(), "two labeled prefixes in two UPDATEs are two routes")
-	require.NotNil(t, r.ribIn[both])
-	assert.Equal(t, 2, r.ribIn[both].Len(), "two labeled prefixes in one UPDATE are two routes")
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: source}].Len(), "two labeled prefixes in two UPDATEs are two routes")
+	require.NotNil(t, r.ribIn[receivedPeer{address: both}])
+	assert.Equal(t, 2, r.ribIn[receivedPeer{address: both}].Len(), "two labeled prefixes in one UPDATE are two routes")
 
-	stored, ok := r.ribIn[source].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", 0))
+	stored, ok := r.ribIn[receivedPeer{address: source}].Get(routeKeyFromStrings(ipv4Labeled, "10.0.1.0/24", 0))
 	require.True(t, ok, "the route is keyed on the prefix behind its label")
 	assert.Equal(t, hex.EncodeToString(first), stored.NLRIHex, "the stored NLRI keeps its own label")
 	assert.Equal(t, rpc.NLRIFramingPrefixOnly, stored.NLRIFraming)
@@ -186,8 +186,8 @@ func TestVPNRoutesKeyOnDistinguisherAndPrefix(t *testing.T) {
 		feedStructured(t, r, source, mpAnnounce(ipv4VPN, nextHop, n))
 	}
 
-	require.NotNil(t, r.ribIn[source])
-	assert.Equal(t, 3, r.ribIn[source].Len(), "RD and prefix together identify a VPN route")
+	require.NotNil(t, r.ribIn[receivedPeer{address: source}])
+	assert.Equal(t, 3, r.ribIn[receivedPeer{address: source}].Len(), "RD and prefix together identify a VPN route")
 	want := []string{hex.EncodeToString(otherPrefix), hex.EncodeToString(control), hex.EncodeToString(otherRD)}
 	slices.Sort(want)
 	assert.Equal(t, want, replayedNLRIs(r, target, source), "every stored VPN route is replayed")

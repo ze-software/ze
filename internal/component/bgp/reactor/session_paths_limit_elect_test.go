@@ -225,10 +225,10 @@ func TestPathsLimitElectionReusesMintedIdentifier(t *testing.T) {
 	if err := fwdPathKeyFor(&key, family.IPv4Unicast, 4, pathsLimitNLRI(0, pathsLimitElectPrefix)[4:], false, scratch[:]); err != nil {
 		t.Fatal(err)
 	}
-	minted := table.generatePath(source.SourceID(9), &key)
+	minted := table.generatePath(fwdPathOrigin{source: fwdPathSource{sourceID: source.SourceID(9), peerOwner: 10}, connectionID: 41, messageID: 1}, &key)
 	table.retain(minted)
 	table.release(minted) // The destination's slot leaves on demotion.
-	if again := table.generatePath(source.SourceID(9), &key); again != minted {
+	if again := table.generatePath(fwdPathOrigin{source: fwdPathSource{sourceID: source.SourceID(9), peerOwner: 10}, connectionID: 41, messageID: 1}, &key); again != minted {
 		t.Fatalf("re-elected path minted %d, want its earlier identifier %d", again, minted)
 	}
 }

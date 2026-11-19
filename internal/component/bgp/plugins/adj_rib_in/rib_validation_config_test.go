@@ -139,7 +139,7 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 			t.Run(delivery+"/"+ownership, func(t *testing.T) {
 				const source, target = "192.0.2.1", "192.0.2.2"
 				fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-				key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), PeerOwner: 1, Family: fam,
+				key := ribevents.ValidationRoute{ConnectionID: 41, Peer: netip.MustParseAddr(source), PeerOwner: 1, Family: fam,
 					PathID: 7, NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 				own := key
 				own.Peer = netip.MustParseAddr(target)
@@ -162,7 +162,8 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 				plugin := sdk.NewWithConn("adj-rib-in-flowspec-test", rpc.NewBridgedConn(pluginEnd, bridge))
 				t.Cleanup(func() { _ = plugin.Close() })
 				var delivered []string
-				bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+				bridge.SetRelayStoredRoute(func(_ context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+					destination, routes := input.Destination, input.Routes
 					if destination != target || len(routes) != 1 || routes[0].SourcePeer != source ||
 						routes[0].MsgID != 42 || routes[0].PathID != 7 || routes[0].Withdraw ||
 						routes[0].NLRIFraming != rpc.NLRIFramingPrefixOnly || routes[0].NLRIHex != "0501180a0000" ||
@@ -170,7 +171,7 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 						t.Errorf("wrong authoritative FlowSpec replay: %s %+v", destination, routes)
 					}
 					delivered = append(delivered, "rule")
-					return nil
+					return &rpc.CachedWriteOutput{Completed: true, DeadlineMS: input.DeadlineMS}, nil
 				})
 				bridge.SetDispatchCommand(func(_ context.Context, _ string) (*rpc.DispatchCommandOutput, error) {
 					delivered = append(delivered, "ready")
@@ -195,10 +196,10 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 				}
 				if delivery == "structured" {
 					r.handleStructuredState(&rpc.StructuredEvent{
-						PeerAddress: target, State: rpc.SessionStateUp, UnheldRoles: unheld, InitialReplay: 41,
+						PeerAddress: target, PeerOwner: 2, State: rpc.SessionStateUp, UnheldRoles: unheld, InitialReplay: 41,
 					})
 				} else {
-					r.handleState(&bgp.Event{Type: "state", State: stateUp, UnheldRoles: unheld, InitialReplay: 41,
+					r.handleState(&bgp.Event{PeerOwner: 2, Type: "state", State: stateUp, UnheldRoles: unheld, InitialReplay: 41,
 						Peer: mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: target, AS: 65001}})})
 				}
 				want := []string{"rule", "ready"}

@@ -256,6 +256,7 @@ func newAnnounceFactPeer(t *testing.T, dest announceFactPeer) (*Peer, *recording
 	peer.negotiated.Store(NewNegotiatedCapabilities(neg))
 
 	session := NewSession(settings)
+	session.negotiated = neg
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
 	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))

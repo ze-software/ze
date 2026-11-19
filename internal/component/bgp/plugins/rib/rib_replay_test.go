@@ -1,7 +1,6 @@
 package rib
 
 import (
-	"net/netip"
 	"strings"
 	"testing"
 
@@ -187,7 +186,7 @@ func TestReplayHashIncludesAllCommunities(t *testing.T) {
 func TestReplayEmptyRibOut(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	groups := r.collectGroupedRibOutRoutes(netip.MustParseAddr("10.0.0.1"))
+	groups := r.collectGroupedRibOutRoutes(1)
 
 	assert.Empty(t, groups, "a peer with no Adj-RIB-Out has nothing to replay")
 }
@@ -236,7 +235,7 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 		require.Empty(t, r.ribOut, "precondition: Adj-RIB-Out must be empty")
 
 		r.handleState(&Event{
-			InitialReplay: initialReplay,
+			InitialReplay: initialReplay, PeerOwner: 1, DestinationSession: initialReplay,
 			Peer: mustMarshal(t, map[string]any{
 				"state":  "up",
 				"remote": map[string]any{"address": addr, "as": uint32(65001)},
@@ -258,7 +257,7 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 		r.handleStructuredState(&rpc.StructuredEvent{
 			PeerAddress:   addr,
 			State:         rpc.SessionStateUp,
-			InitialReplay: initialReplay,
+			InitialReplay: initialReplay, PeerOwner: 1, DestinationSession: initialReplay,
 		})
 
 		require.Equal(t, []string{"request peer " + addr + " plugin session ready session 18446744073709551615"}, dispatched,
@@ -283,16 +282,17 @@ func TestPeerUpEmptyRibOutSignalsReadyOnceOnly(t *testing.T) {
 	var dispatched []string
 	r.dispatchHook = func(cmd string) { dispatched = append(dispatched, cmd) }
 
-	up := &rpc.StructuredEvent{PeerAddress: addr, State: rpc.SessionStateUp}
+	up := &rpc.StructuredEvent{PeerAddress: addr, PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateUp}
 	r.handleStructuredState(up)
 	require.Len(t, dispatched, 1, "the down->up edge signals ready")
 
 	r.handleStructuredState(up)
 	assert.Len(t, dispatched, 1, "a repeated up event is not a transition and must not re-signal")
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: addr, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: addr, PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateDown})
 	assert.Len(t, dispatched, 1, "a down event must not signal ready")
 
+	up.DestinationSession = 12
 	r.handleStructuredState(up)
 	assert.Len(t, dispatched, 2, "a fresh down->up edge signals ready again")
 }

@@ -28,8 +28,8 @@ func rfc8212SupersedeEpoch(peer *Peer) uint64 {
 }
 
 // rfc8212RecoverySurvivor is source's route for p admitted at epoch.
-func rfc8212RecoverySurvivor(source *Peer, epoch uint64, p []byte, message uint64) ribevents.RecoveryRoute {
-	return ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: epoch,
+func rfc8212RecoverySurvivor(source recoveryFixtureOrigin, epoch uint64, p []byte, message uint64) ribevents.RecoveryRoute {
+	return ribevents.RecoveryRoute{Source: source.address, SourceOwner: source.owner, SourceReceipt: source.receipt, SourcePolicyEpoch: epoch,
 		NLRI: p, Attributes: rfc8212RecoveryAttributes, NextHop: []byte{192, 0, 2, 1}, MessageID: message}
 }
 
@@ -75,14 +75,15 @@ func TestRFC8212RecoveryStaleOnlySurvivorWithdraws(t *testing.T) {
 	address := rail.source.Settings().Address
 	adjOutTestForward(t, rail.destination, rail.source, p, 11)
 	before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+	staleOriginal := captureRecoveryFixtureOrigin(t, stale, recoveryFixtureSession(t, stale, rail.source.sendCtxID), rail.source.sendCtxID)
 	staleEpoch := rfc8212SupersedeEpoch(stale)
 
 	rail.source.advanceForwardGeneration() // A's session ended.
-	done := rail.departure(t, address, "192.0.2.0/24")
-	require.Equal(t, []netip.Addr{address}, rail.request(t).Keys[0].Excluded,
+	done := rail.departure(t, address, rail.source.sourceOwner, "192.0.2.0/24")
+	require.Equal(t, []uint64{rail.source.sourceOwner}, rail.request(t).Keys[0].Excluded,
 		"the departed source is excluded")
 	rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, rfc8212RecoverySurvivor(stale, staleEpoch, p, 21))
+		return recoverySurvivorAnswer(request, p, rfc8212RecoverySurvivor(staleOriginal, staleEpoch, p, 21))
 	}
 
 	require.NoError(t, departureResult(t, done))
@@ -113,16 +114,18 @@ func TestRFC8212RecoveryStaleSurvivorYieldsToCurrent(t *testing.T) {
 	address := rail.source.Settings().Address
 	adjOutTestForward(t, rail.destination, rail.source, p, 11)
 	before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+	staleOriginal := captureRecoveryFixtureOrigin(t, stale, recoveryFixtureSession(t, stale, rail.source.sendCtxID), rail.source.sendCtxID)
 	staleEpoch := rfc8212SupersedeEpoch(stale)
+	currentOriginal := captureRecoveryFixtureOrigin(t, current, recoveryFixtureSession(t, current, rail.source.sendCtxID), rail.source.sendCtxID)
 	currentEpoch := current.advanceSourcePolicyEpoch()
 
 	rail.source.advanceForwardGeneration() // A's session ended.
-	done := rail.departure(t, address, "192.0.2.0/24")
+	done := rail.departure(t, address, rail.source.sourceOwner, "192.0.2.0/24")
 	rail.request(t)
 	rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		outcomes := recoverySurvivorAnswer(request, p, rfc8212RecoverySurvivor(stale, staleEpoch, p, 21))
+		outcomes := recoverySurvivorAnswer(request, p, rfc8212RecoverySurvivor(staleOriginal, staleEpoch, p, 21))
 		for i := range outcomes {
-			outcomes[i].Survivors = append(outcomes[i].Survivors, rfc8212RecoverySurvivor(current, currentEpoch, p, 31))
+			outcomes[i].Survivors = append(outcomes[i].Survivors, rfc8212RecoverySurvivor(currentOriginal, currentEpoch, p, 31))
 		}
 		return outcomes
 	}
@@ -162,8 +165,9 @@ func TestRFC8212PathsLimitStaleSurvivorKeepsDepartureWithdrawals(t *testing.T) {
 	stale, _ := newAnnouncePeer(t, "192.0.2.11")
 	r.peers[stale.Settings().PeerKey()] = stale
 	attachRecoveryOwner(t, r, stale)
+	staleOriginal := captureRecoveryFixtureOrigin(t, stale, stale.currentSession(), destination.sendContextID())
 	staleEpoch := rfc8212SupersedeEpoch(stale)
-	survivor := rfc8212RecoverySurvivor(stale, staleEpoch, []byte{24, 192, 0, 2}, 41)
+	survivor := rfc8212RecoverySurvivor(staleOriginal, staleEpoch, []byte{24, 192, 0, 2}, 41)
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		outcomes := make([]ribevents.RecoveryOutcome, len(request.Keys))
 		for i := range request.Keys {
@@ -174,7 +178,7 @@ func TestRFC8212PathsLimitStaleSurvivorKeepsDepartureWithdrawals(t *testing.T) {
 	})
 	t.Cleanup(owner.Close)
 
-	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 
 	var got [][]byte
 	for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {

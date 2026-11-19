@@ -30,7 +30,7 @@ func TestRIBAsksForkedGateInBatches(t *testing.T) {
 
 	eligiblePeer := netip.MustParseAddr("192.0.2.1")
 	eligiblePrefix := netip.MustParsePrefix("203.0.113.0/24")
-	receive := func(peer string, msgID uint64, nlri ...byte) {
+	receive := func(owner uint64, peer string, msgID uint64, nlri ...byte) {
 		attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 9}
 		body := append([]byte{0, 0, 0, byte(len(attrs))}, attrs...)
 		body = append(body, nlri...)
@@ -39,15 +39,15 @@ func TestRIBAsksForkedGateInBatches(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r.handleReceivedStructured(&rpc.StructuredEvent{
-			EventType: rpc.EventKindUpdate, PeerAddress: peer, PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+		r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+			EventType: rpc.EventKindUpdate, PeerOwner: owner, PeerAddress: peer, PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 			MessageID:  msgID,
 			RawMessage: &bgptypes.RawMessage{MessageID: msgID, RawBytes: body, WireUpdate: wu, AttrsWire: wire},
 		})
 	}
-	receive("192.0.2.1", 10, 24, 203, 0, 113, 24, 198, 51, 100, 24, 192, 0, 2)
-	receive("192.0.2.2", 11, 24, 203, 0, 113)
-	receive("192.0.2.3", 12, 24, 203, 0, 113)
+	receive(1, "192.0.2.1", 10, 24, 203, 0, 113, 24, 198, 51, 100, 24, 192, 0, 2)
+	receive(2, "192.0.2.2", 11, 24, 203, 0, 113)
+	receive(3, "192.0.2.3", 12, 24, 203, 0, 113)
 
 	const command = "request test gate eligibility"
 	calls := 0
@@ -55,7 +55,7 @@ func TestRIBAsksForkedGateInBatches(t *testing.T) {
 		calls++
 		answer, err := ribevents.AnswerEligibility(args[0], func(key ribevents.ValidationRoute, _ uint64) bool {
 			return key.Peer == eligiblePeer && key.Prefix == eligiblePrefix
-		}, func(ribevents.ValidationRoute) bool { return true })
+		}, func(ribevents.ValidationRoute) bool { return true }, nil)
 		if err != nil {
 			return "", nil, err
 		}
@@ -89,13 +89,14 @@ func TestRIBAsksForkedGateInBatches(t *testing.T) {
 
 	calls = 0
 	target := netip.MustParseAddr("192.0.2.200")
-	r.ribOut[target] = testRibOutFamilyMap(map[family.Family]map[string]*Route{family.IPv4Unicast: {
+	r.peerMeta[4] = &peerMetadata{Address: target}
+	r.ribOut[4] = testRibOutFamilyMap(map[family.Family]map[string]*Route{family.IPv4Unicast: {
 		"203.0.113.0/24":  {SourcePeer: "192.0.2.1"},
 		"198.51.100.0/24": {SourcePeer: "192.0.2.1"},
 		"192.0.2.0/24":    {SourcePeer: "192.0.2.1"},
 	}})
 	r.peerMu.RLock()
-	routes := r.collectRibOutRoutes(target, family.IPv4Unicast)
+	routes := r.collectRibOutRoutes(4, family.IPv4Unicast)
 	r.peerMu.RUnlock()
 	if len(routes) != 1 {
 		t.Errorf("Adj-RIB-Out refresh carried %d routes, want only the eligible one", len(routes))

@@ -86,10 +86,12 @@ func TestUpdateMetrics(t *testing.T) {
 	// Insert some routes (use dummy family + wire bytes)
 	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 1})
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = peerRIB
 
 	// Populate ribOut with a peer having routes
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
@@ -160,16 +162,20 @@ func TestUpdateMetricsMultiplePeers(t *testing.T) {
 	peer2 := storage.NewPeerRIB("10.0.0.2")
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 1})
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peer1
-	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = peer2
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = peer1
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.bgpPeers[2] = peer2
 
 	// Two peers in ribOut
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
 	})
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.1.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.1.0.0/24"},
 			"10.1.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.1.1.0/24"},
@@ -208,10 +214,14 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peer2 := storage.NewPeerRIB("10.0.0.2")
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = peer1
-	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = peer2
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = peer1
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.bgpPeers[2] = peer2
 
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
@@ -225,8 +235,8 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 	assert.Contains(t, body, `ze_rib_routes_out{peer="10.0.0.1"} 1`)
 
 	// Cycle 2: remove peer 10.0.0.2 from ribInPool and 10.0.0.1 from ribOut
-	delete(r.bgpPeers, netip.MustParseAddr("10.0.0.2"))
-	delete(r.ribOut, netip.MustParseAddr("10.0.0.1"))
+	delete(r.bgpPeers, 2)
+	delete(r.ribOut, 1)
 
 	r.updateMetrics()
 

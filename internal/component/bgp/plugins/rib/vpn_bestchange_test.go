@@ -112,15 +112,15 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 
 	peerA := netip.MustParseAddr("192.0.2.1")
 	peerB := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peerA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerMeta[peerB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerA, PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[2] = &peerMetadata{Address: peerB, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	rd := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	nlri := vpnv4NLRI(100, rd, 0x0a) // label 100, RD 0:0, 10.0.0.0/8
 
 	// Peer A announces with MED 200.
-	feedReceived(r, peerA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlri))
+	feedReceived(r, 1, peerA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlri))
 
 	changes := vpnBestChanges(bus, vpnv4Family)
 	if len(changes) != 1 {
@@ -142,7 +142,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	}
 
 	// Peer B announces the same route with a lower MED, so it wins.
-	feedReceived(r, peerB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlri))
+	feedReceived(r, 2, peerB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlri))
 
 	changes = vpnBestChanges(bus, vpnv4Family)
 	if len(changes) != 2 {
@@ -160,7 +160,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	}
 
 	// Peer B withdraws: peer A's path is best again.
-	feedReceived(r, peerB, ctxID, vpnv4WithdrawBody(nlri))
+	feedReceived(r, 2, peerB, ctxID, vpnv4WithdrawBody(nlri))
 
 	changes = vpnBestChanges(bus, vpnv4Family)
 	if len(changes) != 3 {
@@ -175,7 +175,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	}
 
 	// Peer A withdraws the last path: the route leaves the Loc-RIB.
-	feedReceived(r, peerA, ctxID, vpnv4WithdrawBody(nlri))
+	feedReceived(r, 1, peerA, ctxID, vpnv4WithdrawBody(nlri))
 
 	changes = vpnBestChanges(bus, vpnv4Family)
 	if len(changes) != 4 {
@@ -204,14 +204,14 @@ func TestVPNv4BestChangeKeysOnTheWholeNLRI(t *testing.T) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 
 	peer := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlriVRF1 := vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 0x0a)
 	nlriVRF2 := vpnv4NLRI(200, [8]byte{0, 0, 0, 0, 0, 0, 0, 2}, 0x0a)
 
-	feedReceived(r, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriVRF1))
-	feedReceived(r, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriVRF2))
+	feedReceived(r, 1, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriVRF1))
+	feedReceived(r, 1, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriVRF2))
 
 	changes := vpnBestChanges(bus, vpnv4Family)
 	if len(changes) != 2 {

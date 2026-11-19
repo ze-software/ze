@@ -53,9 +53,9 @@ func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0a, // NLRI 10.0.0.0/8 (the same prefix)
 	}
-	feedReceived(r, peer, ctxID, mixed)
+	feedReceived(r, 1, peer, ctxID, mixed)
 
-	require.Equal(t, 1, r.bgpPeers[peer].Len(),
+	require.Equal(t, 1, r.bgpPeers[1].Len(),
 		"the prefix is installed: Section 4.3 says treat the UPDATE as though WITHDRAWN did not contain it")
 	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
 		bestChangePrefixes(bus, ribevents.BestChangeAdd),
@@ -65,8 +65,8 @@ func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 
 	// The same shape arriving for an ALREADY-installed prefix must leave it installed
 	// rather than flapping it out.
-	feedReceived(r, peer, ctxID, mixed)
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+	feedReceived(r, 1, peer, ctxID, mixed)
+	assert.Equal(t, 1, r.bgpPeers[1].Len(),
 		"a repeat of the same mixed UPDATE leaves the route installed")
 	assert.Empty(t, bestChangePrefixes(bus, ribevents.BestChangeWithdraw),
 		"and still publishes no withdrawal")
@@ -82,11 +82,11 @@ func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 // as though WITHDRAWN did not contain the prefix.
 func TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 	r := newTestRIBManager(t)
-	peer := netip.MustParseAddr("10.0.0.1")
 
 	// 10.0.0.0/8 in BOTH the raw NLRI and the raw Withdrawn map, one family.
 	const wire = "080a" // prefix length 8, one octet 0x0a
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		RawAttributes: "40010100", // ORIGIN IGP
@@ -101,8 +101,8 @@ func TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.NotNil(t, r.bgpPeers[peer], "the peer RIB is created")
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+	require.NotNil(t, r.bgpPeers[1], "the peer RIB is created")
+	assert.Equal(t, 1, r.bgpPeers[1].Len(),
 		"the announce wins on the pool path too: the prefix stays installed")
 }
 
@@ -152,8 +152,8 @@ func TestRIBWithdrawAndAnnounceDifferentPrefixesBothApply(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0a, // NLRI 10.0.0.0/8
 	}
-	feedReceived(r, peer, ctxID, announce)
-	require.Equal(t, 1, r.bgpPeers[peer].Len(), "the first route installs")
+	feedReceived(r, 1, peer, ctxID, announce)
+	require.Equal(t, 1, r.bgpPeers[1].Len(), "the first route installs")
 
 	// Withdraw 10.0.0.0/8 and announce 11.0.0.0/8 in one message.
 	both := []byte{
@@ -165,9 +165,9 @@ func TestRIBWithdrawAndAnnounceDifferentPrefixesBothApply(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0b, // NLRI 11.0.0.0/8
 	}
-	feedReceived(r, peer, ctxID, both)
+	feedReceived(r, 1, peer, ctxID, both)
 
-	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+	assert.Equal(t, 1, r.bgpPeers[1].Len(),
 		"one route leaves and one arrives, so the count is unchanged")
 	assert.Contains(t, bestChangePrefixes(bus, ribevents.BestChangeWithdraw),
 		netip.MustParsePrefix("10.0.0.0/8"),

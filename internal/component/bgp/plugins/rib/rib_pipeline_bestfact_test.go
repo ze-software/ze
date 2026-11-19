@@ -52,11 +52,15 @@ func bestFactRIB(t testing.TB) (*RIBManager, family.Family, []byte) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2"))
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
-	for _, peer := range []string{"192.0.2.1", "192.0.2.2"} {
+	for _, fixture := range []struct {
+		owner uint64
+		peer  string
+	}{{1, "192.0.2.1"}, {2, "192.0.2.2"}} {
+		peer := fixture.peer
 		addr := netip.MustParseAddr(peer)
-		r.peerMeta[addr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-		r.bgpPeers[addr] = storage.NewPeerRIB(peer)
-		r.bgpPeers[addr].Insert(fam, makeAttrBytes(addr.As4()), prefix)
+		r.peerMeta[fixture.owner] = &peerMetadata{Address: addr, PeerASN: 65001, LocalASN: 65000}
+		r.bgpPeers[fixture.owner] = storage.NewPeerRIB(peer)
+		r.bgpPeers[fixture.owner].Insert(fam, makeAttrBytes(addr.As4()), prefix)
 	}
 	return r, fam, prefix
 }

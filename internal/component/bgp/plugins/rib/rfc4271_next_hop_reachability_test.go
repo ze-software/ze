@@ -32,11 +32,11 @@ func nextHopReachabilityRIB(t *testing.T) (*RIBManager, *locrib.RIB) {
 
 // nextHopReachabilityPath stores a received iBGP path before selection starts.
 // The caller MUST join any selection worker before the cleanup releases it.
-func nextHopReachabilityPath(t *testing.T, r *RIBManager, peer, nextHop netip.Addr, preference uint32, nlri []byte) *storage.PeerRIB {
+func nextHopReachabilityPath(t *testing.T, r *RIBManager, peerOwner uint64, peer, nextHop netip.Addr, preference uint32, nlri []byte) *storage.PeerRIB {
 	t.Helper()
 	routes := storage.NewPeerRIB(peer.String())
-	r.bgpPeers[peer] = routes
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+	r.bgpPeers[peerOwner] = routes
+	r.peerMeta[peerOwner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 	t.Cleanup(routes.Release)
 	routes.Insert(family.IPv4Unicast, aigpSelectionAttrs(nextHop.As4(), nil, preference, 1), nlri)
 	return routes
@@ -74,8 +74,8 @@ func TestRFC4271UnresolvedNextHopCannotWinOnLocalPref(t *testing.T) {
 	loc.Insert(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/25"), igpRoute(0))
 	require.True(t, igpcost.Resolve(loc, reachable).Resolved)
 	require.False(t, igpcost.Resolve(loc, unreachable).Resolved)
-	nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), unreachable, 200, wirePrefix)
-	nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.2"), reachable, 100, wirePrefix)
+	nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), unreachable, 200, wirePrefix)
+	nextHopReachabilityPath(t, r, 2, netip.MustParseAddr("192.0.2.2"), reachable, 100, wirePrefix)
 
 	// RFC 4271 Section 9.1.2: exclusion precedes the Phase 2 ranking.
 	_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -95,7 +95,7 @@ func TestRFC4271OnlyUnresolvedNextHopIsNotInstalled(t *testing.T) {
 	r, loc := nextHopReachabilityRIB(t)
 	nextHop := netip.MustParseAddr("198.51.100.129")
 	wirePrefix := ipv4Prefix(24, 10, 41, 0)
-	routes := nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 200, wirePrefix)
+	routes := nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 200, wirePrefix)
 	require.False(t, igpcost.Resolve(loc, nextHop).Resolved)
 
 	// RFC 4271 Section 9.1.2: being the only path does not waive admission.
@@ -118,7 +118,7 @@ func TestRFC4271ReachableZeroCostNextHopIsInstalled(t *testing.T) {
 	require.True(t, distance.Resolved)
 	require.Zero(t, distance.Cost)
 	wirePrefix := ipv4Prefix(24, 10, 42, 0)
-	nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
+	nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
 
 	// RFC 4271 Section 9.1.2: the only feasible path is installed.
 	_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -155,7 +155,7 @@ func TestRFC4271RecursiveNextHopLoopIsNotInstalled(t *testing.T) {
 			loc.Insert(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), recursive)
 			require.False(t, igpcost.Resolve(loc, nextHop).Resolved)
 			wirePrefix := ipv4Prefix(24, 10, 44, 0)
-			nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
+			nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
 
 			// RFC 4271 Section 9.1.2.1: mutual and self recursion fail resolution.
 			_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -191,7 +191,7 @@ func TestRFC4271NextHopCannotDependOnItsProspectiveRoute(t *testing.T) {
 			require.True(t, igpcost.Resolve(loc, nextHop).Resolved,
 				"the existing less-specific route resolves the next hop before this candidate is installed")
 			wirePrefix := ipv4Prefix(24, 10, 45, 0)
-			nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
+			nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
 
 			// RFC 4271 Section 9.1.2: installation must not make NEXT_HOP unresolvable.
 			_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -227,7 +227,7 @@ func TestRFC4271IndependentRecursiveNextHopIsInstalled(t *testing.T) {
 			}
 			require.True(t, igpcost.Resolve(loc, nextHop).Resolved)
 			wirePrefix := ipv4Prefix(24, 10, 46, 0)
-			nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
+			nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
 
 			// RFC 4271 Section 9.1.2.1: independently resolved routes remain feasible.
 			_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -254,7 +254,7 @@ func TestRFC4271SamePrefixConnectedNextHopRemainsUsable(t *testing.T) {
 	connected.HasDistanceOverride, connected.DistanceOverride = true, 0
 	loc.Insert(family.IPv4Unicast, prefix, connected)
 	wirePrefix := ipv4Prefix(24, 10, 47, 0)
-	nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
+	nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHop, 100, wirePrefix)
 
 	// RFC 4271 Section 9.1.2.1: independent direct reachability survives installation.
 	_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
@@ -292,8 +292,8 @@ func TestRFC4271NextHopLossReselectsAndRestorationRecovers(t *testing.T) {
 	nextHopB := netip.MustParseAddr("198.51.100.129")
 	loc.Insert(family.IPv4Unicast, coverA, igpRoute(0))
 	loc.Insert(family.IPv4Unicast, coverB, igpRoute(10))
-	pathA := nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.1"), nextHopA, 200, wirePrefix)
-	pathB := nextHopReachabilityPath(t, r, netip.MustParseAddr("192.0.2.2"), nextHopB, 100, wirePrefix)
+	pathA := nextHopReachabilityPath(t, r, 1, netip.MustParseAddr("192.0.2.1"), nextHopA, 200, wirePrefix)
+	pathB := nextHopReachabilityPath(t, r, 2, netip.MustParseAddr("192.0.2.2"), nextHopB, 100, wirePrefix)
 	startNextHopReachabilitySelection(t, r)
 
 	selected := func(want netip.Addr) bool {

@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+	"fmt"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -21,7 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -41,7 +42,7 @@ func TestVPNWithdrawalLeavesExactReflectorInventory(t *testing.T) {
 			for _, compatibility := range []uint32{0x800000, 0, 0x000641, 0x123450, 0xffffff} {
 				name := fam.String() + "/addpath=" + strconv.FormatBool(addPath) + "/compat=" + strconv.FormatUint(uint64(compatibility), 16)
 				t.Run(name, func(t *testing.T) {
-					rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+					rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 					routes := [][]byte{
 						rrVPNRoute(fam, addPath, 0, 1, 10, 0x000641),
 						rrVPNRoute(fam, addPath, 0, 2, 10, 0x000651),
@@ -122,7 +123,7 @@ func rrApplyVPN(t *testing.T, rr *routeReflector, fam family.Family, addPath boo
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr.updateWithdrawalMapWire("192.0.2.1", &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
+	rrOriginalWire(t, rr, rrOriginalFixture(t, "192.0.2.1", 701, 41), 70, 80, &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
 }
 
 // rrVPNRoute writes [Path ID?][Length][Label/Compatibility:3][RD:8][Prefix].
@@ -160,12 +161,28 @@ func TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 				p := sdk.NewWithConn("rr-vpn-test", rpc.NewBridgedConn(pluginEnd, bridge))
 				t.Cleanup(func() { _ = p.Close() })
 				commands := make(chan string, 2)
-				bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, command string, _ map[string]any, _ uint64) (uint32, uint32, error) {
-					commands <- command
-					return 0, 2, nil
+				bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+					if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+						return result, err
+					}
+					var input rpc.UpdateRouteInput
+					if err := json.Unmarshal(params, &input); err != nil {
+						return nil, err
+					}
+					if method != rpc.MethodUpdateRoute {
+						return nil, fmt.Errorf("unexpected engine RPC %s", method)
+					}
+					commands <- input.Command
+					return json.Marshal(rpc.UpdateRouteOutput{Withdrawn: 2})
 				})
 				bridge.SetReady()
-				rr := &routeReflector{plugin: p, withdrawals: make(map[string]map[string]withdrawalInfo)}
+				rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+				original := rrOriginalFixture(t, "192.0.2.1", 701, 41)
+				recipient := rrOriginalFixture(t, "192.0.2.2", 702, 42)
+				rrFixtureStart(t, rr, original, 70, 7, 141)
+				rrFixtureStart(t, rr, recipient, 0, 7, 142)
+				rr.peers[recipient].Families = map[family.Family]bool{fam: true}
+				t.Cleanup(rr.stopDepartures)
 				target := rrVPNRoute(fam, addPath, 0, 1, 10, 0x000641)
 				first := rrVPNRoute(fam, addPath, 0, 2, 10, 0x000651)
 				second := rrVPNRoute(fam, addPath, 17, 1, 11, 0x000661)
@@ -173,7 +190,7 @@ func TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 					rrApplyVPN(t, rr, fam, addPath, 14, route)
 				}
 				rrApplyVPN(t, rr, fam, addPath, 15, rrVPNRoute(fam, addPath, 0, 1, 10, 0x800000))
-				rr.handleStateDown("192.0.2.1", 7)
+				rr.handleStateDown(original, 7)
 				var command string
 				select {
 				case command = <-commands:

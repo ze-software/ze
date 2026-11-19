@@ -116,8 +116,8 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		t.Fatal("independent connected next-hop prerequisite did not resolve")
 	}
 	r.peerMu.Lock()
-	purgeTestPeer(r, peer, 65001)
-	r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 254}), []byte{24, 198, 18, 255})
+	purgeTestPeer(r, 1, 11, peer, 65001)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 254}), []byte{24, 198, 18, 255})
 	r.peerMu.Unlock()
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, []byte{24, 198, 18, 255}, false, nil); !changed {
 		t.Fatal("seeded route did not become best")
@@ -153,8 +153,19 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		t.Fatal("background election did not reach candidate extraction")
 	}
 	entered := make(chan struct{})
-	r.purgeRemoveHook = func(family.Family, netip.Prefix) {
-		// Re-enter a manager command after peerMu was released by the DOWN path.
+	unsubscribeRemoval := loc.OnChange(func(change locrib.Change) {
+		if change.Kind != locrib.ChangeRemove {
+			return
+		}
+		if change.Family != family.IPv4Unicast {
+			return
+		}
+		if change.Prefix != prefix {
+			return
+		}
+		// A concurrent election can own the withdrawal before DOWN reaches purge.
+		// Hold the actual sink so either producing path must join this removal.
+		// Re-enter a manager command after peerMu was released by the writer.
 		if _, _, err := r.fastpathCommand([]string{"status"}); err != nil {
 			t.Errorf("reentrant tracker status: %v", err)
 		}
@@ -166,7 +177,8 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		if r.locRIB.Load() != loc {
 			t.Error("mirror detached while admitted withdrawal waited to finish")
 		}
-	}
+	})
+	t.Cleanup(unsubscribeRemoval)
 	delivered := make(chan error, 1)
 	deliveryDone := make(chan struct{})
 	t.Cleanup(func() {
@@ -184,7 +196,7 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		// MUST signal completion for test-owned cleanup independently of Run.
 		defer close(deliveryDone)
 		delivered <- bridge.DeliverStructured([]any{&rpc.StructuredEvent{
-			EventType: rpc.EventKindState, PeerAddress: peer.String(), State: rpc.SessionStateDown,
+			EventType: rpc.EventKindState, PeerOwner: 1, DestinationSession: 11, PeerAddress: peer.String(), State: rpc.SessionStateDown,
 		}})
 	}()
 	// The election holds a read admission. A refused read proves the real
@@ -238,13 +250,134 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		t.Fatal("shutdown detached the mirror before the withdrawal removed its route")
 	}
 	r.peerMu.RLock()
-	_, retained := r.bgpPeers[peer]
+	_, retained := r.bgpPeers[1]
 	r.peerMu.RUnlock()
 	if retained {
 		t.Fatal("shutdown retained the departed peer's Adj-RIB-In")
 	}
 	if r.locRIB.Load() != nil {
 		t.Fatal("plugin exit did not detach Loc-RIB")
+	}
+}
+
+// TestRIBPeerDownJoinsConcurrentWithdrawal holds an election's actual mirror
+// removal after its final best record leaves. DOWN must still join that writer
+// before answering, while an unrelated peer keeps its useful route.
+func TestRIBPeerDownJoinsConcurrentWithdrawal(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	r := newTestRIBManager(t)
+	peer := netip.MustParseAddr("192.0.2.241")
+	other := netip.MustParseAddr("192.0.2.242")
+	loc := electionFixtureLocRIB(t, r, peer, other)
+	prefix := netip.MustParsePrefix("198.18.241.0/24")
+	otherPrefix := netip.MustParsePrefix("198.18.242.0/24")
+	wire := []byte{24, 198, 18, 241}
+	otherWire := []byte{24, 198, 18, 242}
+	purgeTestPeer(r, 1, 11, peer, 65001)
+	purgeTestPeer(r, 2, 12, other, 65002)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 241}), wire)
+	r.bgpPeers[2].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 242}), otherWire)
+	for _, route := range [][]byte{wire, otherWire} {
+		if _, changed := r.checkBestPathChange(family.IPv4Unicast, route, false, nil); !changed {
+			t.Fatal("seeded route did not become best")
+		}
+	}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unsubscribeRemoval := loc.OnChange(func(change locrib.Change) {
+		if change.Kind != locrib.ChangeRemove {
+			return
+		}
+		if change.Prefix != prefix {
+			return
+		}
+		close(entered)
+		<-release
+	})
+	t.Cleanup(unsubscribeRemoval)
+	withdrawn := make(chan bool, 1)
+	withdrawalDone := make(chan struct{})
+	down := make(chan struct{})
+	downStarted := false
+	t.Cleanup(func() {
+		// The test context is canceled before cleanup, including after Fatal.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cleanupCancel()
+		// MUST release and join both test-owned writers before mirror cleanup.
+		releaseOnce.Do(func() { close(release) })
+		select {
+		case <-withdrawalDone:
+		case <-cleanupCtx.Done():
+			t.Error("withdrawal did not join during cleanup")
+		}
+		if downStarted {
+			select {
+			case <-down:
+			case <-cleanupCtx.Done():
+				t.Error("DOWN did not join during cleanup")
+			}
+		}
+	})
+	r.bgpPeers[1].Remove(family.IPv4Unicast, wire)
+	go func() {
+		defer close(withdrawalDone) // MUST join before test-owned mirror cleanup.
+		change, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil)
+		withdrawn <- changed && change.Action == ribevents.BestChangeWithdraw
+	}()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("withdrawal did not reach the actual mirror sink")
+	}
+	downStarted = true
+	go func() {
+		// MUST signal completion so test cleanup can join this exact delivery.
+		defer close(down)
+		r.handleStructuredState(&rpc.StructuredEvent{EventType: rpc.EventKindState,
+			PeerOwner: 1, DestinationSession: 11, PeerAddress: peer.String(), State: rpc.SessionStateDown})
+	}()
+	// Observe the real DOWN producer deleting its original source store before
+	// checking completion. Starting its goroutine alone proves no progress.
+	for {
+		r.peerMu.RLock()
+		_, present := r.bgpPeers[1]
+		r.peerMu.RUnlock()
+		if !present {
+			break
+		}
+		if ctx.Err() != nil {
+			t.Fatal("DOWN did not remove its original source store")
+		}
+		runtime.Gosched()
+	}
+	// Negative wait checks completion while the actual sink is held. Only the
+	// release channel permits that sink to finish.
+	select {
+	case <-down:
+		t.Fatal("DOWN returned before its concurrent withdrawal finished")
+	case <-time.After(25 * time.Millisecond):
+	}
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case changed := <-withdrawn:
+		if !changed {
+			t.Fatal("the held election did not publish its withdrawal")
+		}
+	case <-ctx.Done():
+		t.Fatal("withdrawal did not join after release")
+	}
+	select {
+	case <-down:
+	case <-ctx.Done():
+		t.Fatal("DOWN did not join after withdrawal")
+	}
+	if _, present := loc.Lookup(family.IPv4Unicast, prefix); present {
+		t.Fatal("the departed peer's route survived withdrawal")
+	}
+	if _, present := loc.Lookup(family.IPv4Unicast, otherPrefix); !present {
+		t.Fatal("DOWN removed the unrelated peer's useful route")
 	}
 }
 
@@ -259,8 +392,8 @@ func TestRIBPeerDownFencesPendingElection(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.253")
 	prefix := netip.MustParsePrefix("198.18.252.0/24")
 	wirePrefix := []byte{24, 198, 18, 252}
-	purgeTestPeer(r, peer, 65001)
-	r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 253}), wirePrefix)
+	purgeTestPeer(r, 1, 11, peer, 65001)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 253}), wirePrefix)
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil); !changed {
 		t.Fatal("seeded route did not become best")
 	}
@@ -289,7 +422,7 @@ func TestRIBPeerDownFencesPendingElection(t *testing.T) {
 	withdrawn := make(chan struct{})
 	go func() {
 		defer close(withdrawn)
-		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
+		r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: peer.String(), State: rpc.SessionStateDown})
 	}()
 	// The election holds a read admission at the cost lookup. Failed TryRLock
 	// therefore proves DOWN has queued its writer, not merely been scheduled.
@@ -407,9 +540,9 @@ func TestRIBPublicationAllowsPeerReaderDuringDown(t *testing.T) {
 	r := newTestRIBManager(t)
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.252"))
 	peer := netip.MustParseAddr("192.0.2.252")
-	purgeTestPeer(r, peer, 65001)
+	purgeTestPeer(r, 1, 11, peer, 65001)
 	wirePrefix := []byte{24, 198, 18, 251}
-	r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 252}), wirePrefix)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 252}), wirePrefix)
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	var releaseOnce sync.Once
@@ -445,10 +578,10 @@ func TestRIBPublicationAllowsPeerReaderDuringDown(t *testing.T) {
 	withdrawn := make(chan struct{})
 	go func() {
 		defer close(withdrawn)
-		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
+		r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: peer.String(), State: rpc.SessionStateDown})
 	}()
 	for r.peerMu.TryRLock() {
-		_, present := r.bgpPeers[peer]
+		_, present := r.bgpPeers[1]
 		r.peerMu.RUnlock()
 		if !present {
 			break
@@ -492,14 +625,14 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 		t.Fatal("fixture did not find a prefix for both shards")
 	}
 	peer := netip.MustParseAddr("192.0.2.251")
-	purgeTestPeer(r, peer, 65001)
+	purgeTestPeer(r, 1, 11, peer, 65001)
 	for _, wirePrefix := range wirePrefixes {
-		r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 251}), wirePrefix)
+		r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 251}), wirePrefix)
 		if _, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil); !changed {
 			t.Fatal("seeded route did not become best")
 		}
 	}
-	idx, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()})
+	idx, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peer.String()})
 	if !present {
 		t.Fatal("seeded peer has no interner slot")
 	}
@@ -517,7 +650,7 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 	withdrawn := make(chan struct{})
 	go func() {
 		defer close(withdrawn)
-		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
+		r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: peer.String(), State: rpc.SessionStateDown})
 	}()
 	for {
 		shards.shards[0].mu.RLock()
@@ -532,8 +665,8 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 		runtime.Gosched()
 	}
 	r.peerMu.Lock()
-	purgeTestPeer(r, peer, 65002)
-	r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 250}), wirePrefixes[0])
+	purgeTestPeer(r, 1, 12, peer, 65002)
+	r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 250}), wirePrefixes[0])
 	r.peerMu.Unlock()
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefixes[0], false, nil); !changed {
 		t.Fatal("replacement session did not publish its route")
@@ -571,8 +704,8 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefixes[0], false, nil); changed {
 		t.Fatal("unchanged replacement generated another best change")
 	}
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()}); present {
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 12, PeerAddress: peer.String(), State: rpc.SessionStateDown})
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peer.String()}); present {
 		t.Fatal("unchanged election leaked a reference after the final record left")
 	}
 }
@@ -585,30 +718,30 @@ func TestRIBPeerSlotReferencesFollowBestRecords(t *testing.T) {
 	peerA := netip.MustParseAddr("192.0.2.247")
 	peerB := netip.MustParseAddr("192.0.2.248")
 	electionFixtureLocRIB(t, r, peerA, peerB)
-	purgeTestPeer(r, peerA, 65001)
-	purgeTestPeer(r, peerB, 65002)
+	purgeTestPeer(r, 1, 11, peerA, 65001)
+	purgeTestPeer(r, 2, 11, peerB, 65002)
 	prefixes := [][]byte{{24, 198, 18, 247}, {24, 198, 18, 248}}
 	for _, prefix := range prefixes {
-		r.bgpPeers[peerA].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 247}), prefix)
+		r.bgpPeers[1].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 247}), prefix)
 		r.checkBestPathChange(family.IPv4Unicast, prefix, false, nil)
 	}
-	r.bgpPeers[peerB].Insert(family.IPv4Unicast,
+	r.bgpPeers[2].Insert(family.IPv4Unicast,
 		aigpSelectionAttrs([4]byte{192, 0, 2, 248}, nil, 200, 1), prefixes[0])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()}); !present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peerA.String()}); !present {
 		t.Fatal("replacing one best reclaimed the peer's other record")
 	}
-	r.bgpPeers[peerA].Remove(family.IPv4Unicast, prefixes[1])
+	r.bgpPeers[1].Remove(family.IPv4Unicast, prefixes[1])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[1], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()}); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peerA.String()}); present {
 		t.Fatal("ordinary withdrawal did not release the final best record")
 	}
-	r.bgpPeers[peerB].Remove(family.IPv4Unicast, prefixes[0])
+	r.bgpPeers[2].Remove(family.IPv4Unicast, prefixes[0])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerB.String()}); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 2, address: peerB.String()}); present {
 		t.Fatal("replacement winner retained the old winner's slot")
 	}
-	r.bgpPeers[peerA].Remove(family.IPv4Unicast, prefixes[0])
+	r.bgpPeers[1].Remove(family.IPv4Unicast, prefixes[0])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
 	if len(r.bestPathInterner.peerIdx) != 0 {
@@ -633,8 +766,8 @@ func TestRIBCandidateSnapshotSurvivesRouteMutation(t *testing.T) {
 			electionFixtureLocRIB(t, r,
 				netip.MustParseAddr("192.0.2.246"), netip.MustParseAddr("192.0.2.245"))
 			peer := netip.MustParseAddr("192.0.2.246")
-			purgeTestPeer(r, peer, 65001)
-			routes := r.bgpPeers[peer]
+			purgeTestPeer(r, 1, 11, peer, 65001)
+			routes := r.bgpPeers[1]
 			t.Cleanup(routes.Release)
 			prefix := []byte{24, 198, 18, 246}
 			routes.Insert(family.IPv4Unicast,
@@ -712,8 +845,8 @@ func TestRIBPeerDownFencesUnrecordedElection(t *testing.T) {
 	prefix := netip.MustParsePrefix("198.18.244.0/24")
 	wire := []byte{24, 198, 18, 244}
 	attrs := makeAttrBytes([4]byte{192, 0, 2, 244})
-	purgeTestPeer(r, peer, 65001)
-	routes := r.bgpPeers[peer]
+	purgeTestPeer(r, 1, 11, peer, 65001)
+	routes := r.bgpPeers[1]
 	routes.Insert(family.IPv4Unicast, attrs, wire)
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil); !changed {
 		t.Fatal("seeded route did not become best")
@@ -722,7 +855,7 @@ func TestRIBPeerDownFencesUnrecordedElection(t *testing.T) {
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil); !changed {
 		t.Fatal("last winning record was not withdrawn")
 	}
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerName}); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peerName}); present {
 		t.Fatal("last withdrawal retained the peer's slot")
 	}
 	routes.Insert(family.IPv4Unicast, attrs, wire)
@@ -758,7 +891,7 @@ func TestRIBPeerDownFencesUnrecordedElection(t *testing.T) {
 	withdrawn := make(chan struct{})
 	go func() {
 		defer close(withdrawn)
-		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerName, State: rpc.SessionStateDown})
+		r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: peerName, State: rpc.SessionStateDown})
 	}()
 	for r.peerMu.TryRLock() {
 		r.peerMu.RUnlock()
@@ -782,7 +915,7 @@ purgeObserved:
 		default:
 		}
 		r.bestPathInterner.peersMu.RLock()
-		idx, present := r.bestPathInterner.peerIdx[bestPeer{address: peerName}]
+		idx, present := r.bestPathInterner.peerIdx[bestPeer{owner: 1, address: peerName}]
 		pinned := present && r.bestPathInterner.peerRefs[idx] >= 2
 		r.bestPathInterner.peersMu.RUnlock()
 		if pinned {
@@ -804,7 +937,7 @@ purgeObserved:
 	if len(r.collectBestPaths()[family.IPv4Unicast]) != 0 {
 		t.Fatal("unrecorded election retained the departed peer as best")
 	}
-	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerName}); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peerName}); present {
 		t.Fatal("completed DOWN retained a publication peer-slot reference")
 	}
 }
@@ -830,15 +963,15 @@ func TestRIBFailedPublicationReleasesPeerAdmission(t *testing.T) {
 			peer := netip.MustParseAddr("192.0.2.243")
 			prefix := netip.MustParsePrefix("198.18.243.0/24")
 			wire := []byte{24, 198, 18, 243}
-			purgeTestPeer(r, peer, 65001)
-			routes := r.bgpPeers[peer]
+			purgeTestPeer(r, 1, 11, peer, 65001)
+			routes := r.bgpPeers[1]
 			t.Cleanup(routes.Release)
 			routes.Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 243}), wire)
 			for range 2 {
 				if _, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil); changed {
 					t.Fatal("saturated interner allowed a publication")
 				}
-				if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()}); present {
+				if _, present := r.bestPathInterner.peerIdxOf(bestPeer{owner: 1, address: peer.String()}); present {
 					t.Fatal("failed publication retained its peer-slot admission")
 				}
 			}

@@ -22,7 +22,7 @@ func TestPrivateOpenPublicationOwnsBorrowedBodies(t *testing.T) {
 	epoch := newPrivateNegotiationEpoch()
 	var got []incomingDecodedOpenObservation
 	var receipts []BufHandle
-	callback := epoch.messageCallback(func(_ netip.Addr, _ msgtype.MessageType, body []byte,
+	callback := epoch.messageCallback(func(_ *Session, _ netip.Addr, _ msgtype.MessageType, body []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		buffer BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		got = append(got, incomingDecodedOpenObservation{direction: direction, body: bytes.Clone(body)})
@@ -43,10 +43,10 @@ func TestPrivateOpenPublicationOwnsBorrowedBodies(t *testing.T) {
 	localBody := localWire[message.HeaderLen:]
 	wantLocal := bytes.Clone(localBody)
 	wantRemote := bytes.Clone(frame.body())
-	if callback(settings.Address, msgtype.TypeOPEN, localBody, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0) {
+	if callback(nil, settings.Address, msgtype.TypeOPEN, localBody, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0) {
 		t.Fatal("private local OPEN took ownership of its writer's buffer")
 	}
-	if callback(settings.Address, msgtype.TypeOPEN, frame.body(), nil, 0, rpc.DirectionReceived, frame.buffer, nil, "", 0) {
+	if callback(nil, settings.Address, msgtype.TypeOPEN, frame.body(), nil, 0, rpc.DirectionReceived, frame.buffer, nil, "", 0) {
 		t.Fatal("private remote OPEN took ownership of the read-pool handle")
 	}
 	if len(got) != 0 {

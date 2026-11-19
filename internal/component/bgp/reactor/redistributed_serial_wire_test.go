@@ -5,6 +5,7 @@ package reactor
 import (
 	"context"
 	"errors"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"io"
 	"net/netip"
 	"strings"
@@ -61,7 +62,7 @@ func TestRedistributedSerialAnnouncementsKeepBothPrefixes(t *testing.T) {
 	boundary := &serialRedistributionWireBoundary{t: t, adapter: defaultNextHopControlAdapter(peer)}
 	consumer := bgpredist.NewBGPConsumer(boundary)
 	for _, prefix := range []string{"10.82.0.3/32", "172.30.0.0/24"} {
-		consumer.InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{
+		consumer.InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{Protocol: redistevents.RegisterProtocol("ospf"),
 			Prefix: prefix, NextHop: "172.30.0.3", Source: "ospf",
 		})
 	}

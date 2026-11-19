@@ -25,6 +25,7 @@ import (
 func TestRFC8212AbortRestoresBothReleasedSources(t *testing.T) {
 	rail := newOwedRail(t)
 	other := adjOutTestOtherSource(rail.r, rail.source)
+	originalOther := captureRecoveryFixtureOrigin(t, other, recoveryFixtureSession(t, other, rail.source.sendCtxID), rail.source.sendCtxID)
 	attachRecoveryOwner(t, rail.r, rail.source, other)
 	p := syncOrderPrefixWire
 	rail.forward(t, false, p)
@@ -37,7 +38,7 @@ func TestRFC8212AbortRestoresBothReleasedSources(t *testing.T) {
 	e1A := rail.source.openSourcePolicyWindow()
 	owedRailExpected(t, rail.destination, ownershipRailBody(family.IPv4Unicast, true, p, 0), installedA.revision)
 	rail.request(t)
-	rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
+	rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, 21)
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round elected B")
 	installedB, held := adjOutTestEntry(rail.destination)
 	if !held || installedB.owner.source != other || installedB.revision == 0 {
@@ -79,7 +80,7 @@ func TestRFC8212AbortRestoresBothReleasedSources(t *testing.T) {
 	if len(request.Keys) != 1 || !bytes.Equal(request.Keys[0].NLRI, p) {
 		t.Fatalf("the election asked for %v, want P", request.Keys)
 	}
-	rail.release <- owedSurvivorMessage(other.Settings().Address, e2B, p, installedB.revision)
+	rail.release <- owedSurvivorMessage(originalOther, e2B, p, installedB.revision)
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round elected B")
 	written := recoveryWrittenUpdates(t, rail.conn.written())[before:]
 	if len(written) != 1 || len(written[0].NLRI) == 0 {

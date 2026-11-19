@@ -163,8 +163,8 @@ func TestRelayReplayPathRelaysTheAnsweredPath(t *testing.T) {
 				relayed = append(relayed, routes...)
 				return nil
 			}
-			n, err := RelayReplayPath(t.Context(), dispatch, relay, "192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7")
-			if !slices.Equal(gotArgs, []string{"192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7"}) {
+			n, err := RelayReplayPath(t.Context(), dispatch, relay, "192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7", 1, 41)
+			if !slices.Equal(gotArgs, []string{"192.0.2.2", "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "7", "1", "41"}) {
 				t.Errorf("read the store with %v", gotArgs)
 			}
 			if tc.wantErr != (err != nil) {

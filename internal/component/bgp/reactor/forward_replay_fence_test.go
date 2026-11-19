@@ -89,9 +89,10 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 				if s.rsRail {
 					// The fast path hands a fenced destination back, and the
 					// route server's rail forwards it as a live change.
+					wantTarget := fixtureForwardTarget(t, dst)
 					skipped, dispatched := reactorForwardRS(r, update, id, netip.MustParseAddr(forwardSourceAddr), src)
 					require.Equal(t, 0, dispatched, "the fast path must not decide for a fenced destination")
-					require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the fenced destination must be handed back")
+					require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the fenced destination must be handed back")
 				}
 				require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, replayFenceSource(src, s.replay)))
 			}
@@ -389,9 +390,10 @@ func TestRSFastPathHandsAFencedDestinationBack(t *testing.T) {
 	raiseTestReplayFence(dst, replayFenceOwner)
 
 	update := syncOrderPublish(t, r, ctxID, 7700, syncOrderAnnounceBody)
+	wantTarget := fixtureForwardTarget(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, 7700, netip.MustParseAddr(forwardSourceAddr), src)
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
-	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the fenced destination must be handed back")
+	require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the fenced destination must be handed back")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 
 	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay.Load()))
@@ -472,13 +474,15 @@ func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
 		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}, other)
 
+	wantTarget := fixtureForwardTarget(t, dst)
+
 	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
 	require.True(t, raised, "the first pass must have met the other client's export filter")
 	// The other client is only the fence's trigger: whatever rail it is left
 	// to, the claims below are about the fenced destination.
 	handedBack := 0
 	for _, peerKey := range skipped {
-		if peerKey == key.peerAddr {
+		if peerKey == wantTarget {
 			handedBack++
 		}
 	}
@@ -540,9 +544,11 @@ func TestRSFastPathDispatchHandsAFencedDestinationBack(t *testing.T) {
 		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}, dst)
 
+	wantTarget := fixtureForwardTarget(t, dst)
+
 	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
 	require.True(t, raised, "the first pass must have met the export filter")
-	require.Equal(t, []netip.AddrPort{key.peerAddr}, skipped, "the fenced destination must be handed back, once")
+	require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the fenced destination must be handed back, once")
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 }
@@ -597,19 +603,21 @@ func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
 	dst.testInitialSync().sendingInitialRoutes.Store(0)
 
 	update := syncOrderPublish(t, r, ctxID, 7750, syncOrderAnnounceBody)
-	var skipped []netip.AddrPort
+	var skipped []rpc.ForwardTarget
 	dispatched := -1
+	var wantTarget rpc.ForwardTarget
 	dst.SetCallback(func(_, to PeerState) {
 		if to != PeerStateEstablished {
 			return
 		}
+		wantTarget = fixtureForwardTarget(t, dst)
 		handed, sent := reactorForwardRS(r, update, 7750, netip.MustParseAddr(forwardSourceAddr), src)
 		skipped, dispatched = slices.Clone(handed), sent
 	})
 	dst.enterEstablished(dst.testInitialSync())
 
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a destination whose fence is owed")
-	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+	require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the destination must be handed back to the route server")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 	require.True(t, dst.initialUpdateOwed.Load(), "the fence must be up once Established is published")
 
@@ -670,9 +678,10 @@ func TestRSFastPathHandsBackAnUpdateOlderThanTheSession(t *testing.T) {
 	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down for this test to judge the receipt alone")
 
 	older := syncOrderPublish(t, r, ctxID, before, syncOrderAnnounceBody)
+	wantTarget := fixtureForwardTarget(t, dst)
 	skipped, dispatched := reactorForwardRS(r, older, before, netip.MustParseAddr(forwardSourceAddr), src)
 	require.Equal(t, 0, dispatched, "an UPDATE older than the session is the route server's to forward")
-	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+	require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the destination must be handed back to the route server")
 
 	newer := nextMsgID()
 	update := syncOrderPublish(t, r, ctxID, newer, syncOrderAnnounceBody)
@@ -725,9 +734,10 @@ func TestRSFastPathHandsBackADestinationNotYetEstablished(t *testing.T) {
 
 	early := nextMsgID()
 	update := syncOrderPublish(t, r, ctxID, early, syncOrderAnnounceBody)
+	wantTarget := fixtureForwardTarget(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, early, netip.MustParseAddr(forwardSourceAddr), src)
 	require.Equal(t, 0, dispatched, "a session not yet Established is the route server's to serve")
-	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+	require.Equal(t, []rpc.ForwardTarget{wantTarget}, skipped, "the destination must be handed back to the route server")
 
 	dst.enterEstablished(dst.testInitialSync())
 	receipt := dst.session.initialReplay.Load()

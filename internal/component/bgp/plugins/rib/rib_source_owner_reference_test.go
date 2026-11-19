@@ -34,7 +34,7 @@ func TestRIBSourceLeaseReferencePreservesPeerOwner(t *testing.T) {
 			r, calls := sourceLeaseTestRIB(t, native)
 			const owner = ^uint64(0)
 			const receipt uint64 = 8821
-			source, err := r.sourceLeases.acquire(t.Context(), netip.MustParseAddr(sourceIdentityAddress), owner, receipt)
+			source, err := r.sourceLeases.acquire(t.Context(), netip.MustParseAddr(sourceIdentityAddress), owner, receipt, 41)
 			require.NoError(t, err)
 			defer source.Release()
 			view, ok := any(source).(sourceOwnerReferenceView)

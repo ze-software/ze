@@ -73,10 +73,10 @@ func TestWithdrawOnlyUpdateKeepsPathIdentifier(t *testing.T) {
 	}
 
 	textEvent := withdrawOnlyAddPathEvent(t, bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed})
-	// The text form prints an ipv4/unicast prefix alone, with or without ADD-PATH
-	// (docs/architecture/api/text-format.md), so it proves the withdrawal was
-	// framed with the Path Identifier by naming 10.0.0.0/8 and nothing else.
-	if want := "nlri ipv4/unicast del 10.0.0.0/8"; !strings.HasSuffix(strings.TrimSpace(textEvent), want) {
+	// The text section retains the negotiated Path Identifier separately from
+	// the prefix, including on a withdraw-only UPDATE with no attributes
+	// (docs/architecture/api/text-parser.md, "Original native routes in TEXT").
+	if want := "nlri ipv4/unicast info 7 del 10.0.0.0/8"; !strings.HasSuffix(strings.TrimSpace(textEvent), want) {
 		t.Fatalf("text event does not end with %q:\n%s", want, textEvent)
 	}
 }

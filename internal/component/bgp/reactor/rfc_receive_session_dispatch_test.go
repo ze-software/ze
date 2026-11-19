@@ -77,7 +77,7 @@ func setupCapturingSession(t *testing.T, peerAS uint32, localExtended, peerExten
 
 	session := NewSession(settings)
 	capture := &dispatchCapture{}
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {

@@ -57,9 +57,9 @@ func TestIsSRv6Ineligible_InvalidSIDStructure(t *testing.T) {
 	}
 	body[at+4] = 152
 
-	feedReceived(r, peer, ctxID, body)
+	feedReceived(r, 1, peer, ctxID, body)
 
-	if storedPathAdmitted(t, r, fam, nlriKey, peer) {
+	if storedPathAdmitted(t, r, fam, nlriKey, 1, peer) {
 		t.Error("path with an invalid SID Structure admitted to best-path selection, want excluded")
 	}
 }
@@ -80,14 +80,14 @@ func TestSRv6TranspositionAtLabelWidthIsEligible(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 
 	body, nlriKey := vpnv4SRv6Update(0xABCDE, 20)
-	feedReceived(r, peer, ctxID, body)
+	feedReceived(r, 1, peer, ctxID, body)
 
-	if !storedPathAdmitted(t, r, fam, nlriKey, peer) {
+	if !storedPathAdmitted(t, r, fam, nlriKey, 1, peer) {
 		t.Error("path with a 20-bit transposition excluded, want admitted")
 	}
 	// Bits 48..67 of the SID come back from the label: 0xABCDE.
 	want := netip.MustParseAddr("2001:db8:1:abcd:e000::")
-	if sid := storedSRv6SID(t, r, fam, nlriKey, peer); sid != want {
+	if sid := storedSRv6SID(t, r, fam, nlriKey, 1, peer); sid != want {
 		t.Errorf("SID = %v, want %v", sid, want)
 	}
 }

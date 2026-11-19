@@ -83,7 +83,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 			provider := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				lookups.Add(1)
 				if fail {
-					if slices.Contains(request.Keys[0].Excluded, b.peer.Settings().Address) {
+					if slices.Contains(request.Keys[0].Excluded, b.peer.sourceOwner) {
 						excludedLookups.Add(1)
 						return prior.Lookup(request)
 					}
@@ -137,6 +137,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 
 			batch := adjOutBatch(prefix.String(), "10.0.0.1")
 			batch.RecoverySource = a.peer.Settings().Address
+			batch.RecoverySourceOwner = a.peer.sourceOwner
 			batch.RecoveryGeneration = a.peer.forwardGeneration.Load()
 			lowLiveDepart(t, a)
 			session := destination.peer.currentSession()

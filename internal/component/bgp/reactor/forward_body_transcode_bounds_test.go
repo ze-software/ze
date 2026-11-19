@@ -26,7 +26,7 @@ func TestForwardTranscodeAttributeSectionBounds(t *testing.T) {
 	update, err := message.UnpackUpdate(body)
 	require.NoError(t, err)
 	// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
-	transcoded, handle, err := fwdUpdateForDestination(update, srcCtxID, destCtxID, 0)
+	transcoded, handle, err := fwdUpdateForDestination(update, srcCtxID, destCtxID, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(handle)
 	require.ErrorIs(t, err, wireu.ErrUpdateMalformed)
 	assert.Nil(t, transcoded)
@@ -34,7 +34,7 @@ func TestForwardTranscodeAttributeSectionBounds(t *testing.T) {
 
 	// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
-		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{})
+		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(result.transcodeBuf)
 	require.False(t, ok, "the destination must be suppressed on a malformed attribute section")
 	assert.Empty(t, result.rawBodies)
@@ -57,7 +57,7 @@ func TestForwardTranscodeSectionBoundaryPreservesNLRI(t *testing.T) {
 	}
 	// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
-		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{})
+		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{}, fwdPathOrigin{source: fwdPathSource{sourceID: 0, peerOwner: 1}, connectionID: 41, messageID: 1})
 	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Len(t, result.updates, 1)

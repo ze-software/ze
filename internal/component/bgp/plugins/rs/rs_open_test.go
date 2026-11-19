@@ -77,7 +77,7 @@ func TestRouteServerReadsExtendedOpen(t *testing.T) {
 			if extended := body[9] == 255 && body[10] == 255; extended != (tc.filler == 200) {
 				t.Fatalf("the test OPEN's framing is not the case's (extended=%v)", extended)
 			}
-			ev := parseStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer}, &bgptypes.RawMessage{RawBytes: body})
+			ev := parseStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer, PeerOwner: 1, ConnectionID: 101, DestinationSession: 201}, &bgptypes.RawMessage{RawBytes: body})
 			if ev == nil {
 				t.Fatal("no event for a readable OPEN")
 			}
@@ -94,9 +94,9 @@ func TestRouteServerReadsExtendedOpen(t *testing.T) {
 				t.Fatalf("capabilities %q", got)
 			}
 
-			rs := &routeServer{peers: map[string]*PeerState{}}
+			rs := &routeServer{peers: map[workerKey]*PeerState{}}
 			rs.handleOpen(ev)
-			if families := rs.peers[openTestPeer].Families; len(families) != 1 || !families[family.IPv6Unicast] {
+			if families := rs.peers[rsFixtureKey(openTestPeer, 1, 101)].Families; len(families) != 1 || !families[family.IPv6Unicast] {
 				t.Fatalf("families %v, want exactly ipv6/unicast", families)
 			}
 		})
@@ -114,7 +114,7 @@ func TestRouteServerReadsExtendedOpen(t *testing.T) {
 	for _, tc := range refused {
 		t.Run(tc.name, func(t *testing.T) {
 			log := captureRSLog(t)
-			if ev := parseStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer}, &bgptypes.RawMessage{RawBytes: tc.body}); ev != nil {
+			if ev := parseStructuredOpen(&rpc.StructuredEvent{PeerAddress: openTestPeer, PeerOwner: 1, ConnectionID: 101, DestinationSession: 201}, &bgptypes.RawMessage{RawBytes: tc.body}); ev != nil {
 				t.Fatalf("an unreadable OPEN produced %+v", ev.Open)
 			}
 			lines := strings.Split(strings.TrimSpace(log.String()), "\n")
@@ -134,11 +134,11 @@ func TestRouteServerReadsExtendedOpen(t *testing.T) {
 // peers: present and sorted for an up peer with a recorded set, absent for a
 // down peer and for an up peer whose Families is nil.
 func TestRouteServerPeerStatusFamilies(t *testing.T) {
-	rs := &routeServer{peers: map[string]*PeerState{
-		"192.0.2.1": {Address: "192.0.2.1", Up: true, Families: map[family.Family]bool{family.IPv6Unicast: true, family.IPv4Unicast: true}},
-		"192.0.2.2": {Address: "192.0.2.2", Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
-		"192.0.2.3": {Address: "192.0.2.3", Up: false, Families: map[family.Family]bool{family.IPv6Unicast: true}},
-		"192.0.2.4": {Address: "192.0.2.4", Up: true},
+	rs := &routeServer{peers: map[workerKey]*PeerState{
+		rsFixtureKey("192.0.2.1", 1, 101): {Address: "192.0.2.1", Up: true, Families: map[family.Family]bool{family.IPv6Unicast: true, family.IPv4Unicast: true}},
+		rsFixtureKey("192.0.2.2", 2, 102): {Address: "192.0.2.2", Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
+		rsFixtureKey("192.0.2.3", 3, 103): {Address: "192.0.2.3", Up: false, Families: map[family.Family]bool{family.IPv6Unicast: true}},
+		rsFixtureKey("192.0.2.4", 4, 104): {Address: "192.0.2.4", Up: true},
 	}}
 	want := map[string][]string{
 		"192.0.2.1": {"ipv4/unicast", "ipv6/unicast"},

@@ -98,6 +98,9 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 // the RS rail in production. The caller chooses capture or allocation-free sink.
 func rsSelectionWriter(t testing.TB, peer *Peer, writer io.Writer) *Session {
 	t.Helper()
+	if !peer.asn4() {
+		t.Fatal("RS selection fixture requires four-octet AS_PATH encoding")
+	}
 	session := NewSession(peer.Settings())
 	session.adjOut = &peer.adjOut
 	session.SetSourceID(peer.SourceID())
@@ -109,6 +112,7 @@ func rsSelectionWriter(t testing.TB, peer *Peer, writer io.Writer) *Session {
 	}
 	session.bufWriter = bufio.NewWriterSize(writer, message.MaxMsgLen)
 	peer.session = session
+	negotiateForwardTestFamilies(peer, peer.negotiated.Load().Families()...)
 	t.Cleanup(session.timers.StopAll)
 	return session
 }
@@ -157,11 +161,13 @@ func TestReactorForwardRSRetrySelection(t *testing.T) {
 		h.dests[i].settings.ExportPolicy = mustPolicy(t, frefs("bgp-rs:active"), routepolicy.FinalAccept)
 		h.dests[i].refreshForwardFacts()
 	}
+	fixtureForwardOrigin(t, h.update, source, source.testInitialSync())
+	wantTarget := fixtureForwardTarget(t, h.dests[4])
 	skipped, dispatched, retry := reactorForwardRSSection(r, h.update, h.update.WireUpdate, selected, 1, h.update.SourcePeerIP, source)
 	if dispatched != 1 || len(retry) != 0 {
 		t.Fatalf("dispatched %d, retry %d; want 1, 0", dispatched, len(retry))
 	}
-	if len(skipped) != 1 || skipped[0] != h.dests[4].Settings().PeerKey() {
+	if len(skipped) != 1 || skipped[0] != wantTarget {
 		t.Fatalf("skipped %v; want only the selected destination whose export chain cannot run (%v)",
 			skipped, h.dests[4].Settings().PeerKey())
 	}

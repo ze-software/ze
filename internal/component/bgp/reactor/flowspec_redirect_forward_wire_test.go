@@ -83,7 +83,18 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 				f.destination.settings.SendCommunity = dest.community
 				f.destination.refreshForwardFacts()
 				raw := mustHex(t, tc.nlri)
-				key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, Family: tc.fam, NLRI: string(raw)}
+				originalSession := f.source.currentSession()
+				if originalSession == nil {
+					t.Fatal("FlowSpec fixture has no original source Session")
+				}
+				key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, PeerOwner: f.source.sourceOwner,
+					ConnectionID: connectionIDOf(originalSession), Family: tc.fam, NLRI: string(raw)}
+				if key.PeerOwner == 0 {
+					t.Fatal("FlowSpec fixture has no original source owner")
+				}
+				if key.ConnectionID == 0 {
+					t.Fatal("FlowSpec fixture has no original source connection")
+				}
 				ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 				t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 				id := f.receive(t, flowRedirectPayload(t, tc.fam, raw, tc.received.AsSlice()))

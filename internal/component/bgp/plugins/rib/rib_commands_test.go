@@ -211,7 +211,8 @@ func TestInboundShowWithAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
@@ -246,7 +247,8 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
@@ -271,7 +273,8 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	med := uint32(100)
 	localPref := uint32(200)
-	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:           family.IPv4Unicast,
@@ -325,8 +328,9 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	in1 := storage.NewPeerRIB("192.0.2.1")
 	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0})
 	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in1
-	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = in1
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
@@ -336,7 +340,8 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 	// Peer .2: one received route, nothing advertised.
 	in2 := storage.NewPeerRIB("192.0.2.2")
 	in2.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 1, 0})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = in2
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = in2
 
 	status, ok := r.status("").(map[string]any)
 	require.True(t, ok)
@@ -372,9 +377,10 @@ func TestRibStatusFamilyScopedRouteCounts(t *testing.T) {
 	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0})
 	in.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1})
 	in.Insert(family.IPv6Unicast, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = in
 	// Advertised: two IPv4, one IPv6 (Adj-RIB-Out).
-	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
@@ -433,7 +439,8 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4)
 	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 
 	// Without filter: both families
 	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "192.0.2.1")
@@ -462,7 +469,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlri1)
 	peerRIB.Insert(fam, attrBytes, nlri2)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
 	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "192.0.2.1")
@@ -479,7 +487,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:  family.IPv4Unicast,
@@ -502,7 +511,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasMED, "MED should be absent when nil")
 }
 
-// TestInjectUsesProtocolSlot verifies request bgp rib inject stores in bgpPeers.
+// TestInjectUsesProtocolSlot verifies request bgp rib inject stores in the synthetic BGP protocol slot.
 func TestInjectUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
@@ -513,12 +522,12 @@ func TestInjectUsesProtocolSlot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
-	require.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")])
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.NotNil(t, r.ribInPool[bgpProtocolID]["10.0.0.1"])
+	assert.Equal(t, 1, r.ribInPool[bgpProtocolID]["10.0.0.1"].Len())
 
 	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	_, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
+	_, found := r.ribInPool[bgpProtocolID]["10.0.0.1"].Lookup(ipv4Uni, nlri)
 	assert.True(t, found)
 }
 
@@ -556,7 +565,7 @@ func TestInjectRFC5549ExtendedNextHop(t *testing.T) {
 
 	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	entry, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
+	entry, found := r.ribInPool[bgpProtocolID]["10.0.0.1"].Lookup(ipv4Uni, nlri)
 	require.True(t, found, "injected route must be stored")
 
 	nh := extractMPNextHopAddr(entry.GetBundle())
@@ -578,7 +587,7 @@ func TestInjectIPv6NextHopNativeFamily(t *testing.T) {
 
 	nlri, err := prefixToWire("ipv6/unicast", "2001:db8:1::/48", 0, false)
 	require.NoError(t, err)
-	entry, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv6Uni, nlri)
+	entry, found := r.ribInPool[bgpProtocolID]["10.0.0.1"].Lookup(ipv6Uni, nlri)
 	require.True(t, found, "injected route must be stored")
 
 	nh := extractMPNextHopAddr(entry.GetBundle())
@@ -690,16 +699,15 @@ func TestReceivedShowRendersExtendedNextHop(t *testing.T) {
 	assert.Equal(t, "2001:db8::1", route["next-hop"], "received show must render the extended next-hop")
 }
 
-// TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw reads from bgpPeers.
+// TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw removes its synthetic BGP protocol entry.
 func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
-	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 
 	_, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.ribInPool[bgpProtocolID]["10.0.0.1"].Len())
 
 	status, data, err := r.handleCommand("request bgp rib withdraw", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
@@ -710,8 +718,5 @@ func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, true, m["existed"])
 
-	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
-	require.NoError(t, err)
-	_, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
-	assert.False(t, found)
+	assert.Nil(t, r.ribInPool[bgpProtocolID]["10.0.0.1"], "withdraw removes the last manually injected route")
 }

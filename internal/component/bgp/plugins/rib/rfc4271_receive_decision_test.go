@@ -76,8 +76,8 @@ func newRFC4271ReceiveHarness(t testing.TB) *rfc4271ReceiveHarness {
 	return &rfc4271ReceiveHarness{bus: bus, r: r, loc: loc, ctxID: ctxID}
 }
 
-func (h *rfc4271ReceiveHarness) receive(peer netip.Addr, body []byte) {
-	feedReceived(h.r, peer, h.ctxID, body)
+func (h *rfc4271ReceiveHarness) receive(peerOwner uint64, peer netip.Addr, body []byte) {
+	feedReceived(h.r, peerOwner, peer, h.ctxID, body)
 }
 
 // bestNextHop returns the Loc-RIB best path's next hop for prefix, or the zero Addr and
@@ -103,12 +103,12 @@ func TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.10")
 	nh := [4]byte{10, 0, 0, 1}
 
-	h.receive(peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
-	require.Equal(t, 2, h.r.bgpPeers[peer].Len(), "both announced routes are in the Adj-RIB-In")
+	h.receive(1, peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
+	require.Equal(t, 2, h.r.bgpPeers[1].Len(), "both announced routes are in the Adj-RIB-In")
 
-	h.receive(peer, rfc4271Update([][]byte{rfc4271Prefix8(10)}, nh, nil, nil))
+	h.receive(1, peer, rfc4271Update([][]byte{rfc4271Prefix8(10)}, nh, nil, nil))
 
-	assert.Equal(t, 1, h.r.bgpPeers[peer].Len(), "the withdrawn route left the Adj-RIB-In")
+	assert.Equal(t, 1, h.r.bgpPeers[1].Len(), "the withdrawn route left the Adj-RIB-In")
 	_, found := h.bestNextHop("10.0.0.0/8")
 	assert.False(t, found, "the withdrawn route is out of service in the Loc-RIB")
 	assert.Contains(t, bestChangePrefixes(h.bus, ribevents.BestChangeWithdraw),
@@ -129,18 +129,18 @@ func TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.11")
 	nh := [4]byte{10, 0, 0, 1}
 
-	h.receive(peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
-	h.receive(peer, rfc4271Update([][]byte{rfc4271Prefix8(10)}, nh, nil, nil))
+	h.receive(1, peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
+	h.receive(1, peer, rfc4271Update([][]byte{rfc4271Prefix8(10)}, nh, nil, nil))
 
-	require.Equal(t, 1, h.r.bgpPeers[peer].Len(), "one route remains after the withdrawal")
+	require.Equal(t, 1, h.r.bgpPeers[1].Len(), "one route remains after the withdrawal")
 	got, found := h.bestNextHop("11.0.0.0/8")
 	require.True(t, found, "11.0.0.0/8 was not in the WITHDRAWN field and stays in service")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), got)
 	assert.NotContains(t, bestChangePrefixes(h.bus, ribevents.BestChangeWithdraw),
 		netip.MustParsePrefix("11.0.0.0/8"), "no withdrawal is published for a route the field did not name")
 
-	h.receive(peer, rfc4271Update([][]byte{rfc4271Prefix8(12)}, nh, nil, nil))
-	assert.Equal(t, 1, h.r.bgpPeers[peer].Len(), "withdrawing an unannounced prefix removes nothing")
+	h.receive(1, peer, rfc4271Update([][]byte{rfc4271Prefix8(12)}, nh, nil, nil))
+	assert.Equal(t, 1, h.r.bgpPeers[1].Len(), "withdrawing an unannounced prefix removes nothing")
 }
 
 // VALIDATES: a received route whose NLRI is identical to a stored one replaces it: the
@@ -154,10 +154,10 @@ func TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder(t *testing.T) {
 	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.12")
 
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
 
-	assert.Equal(t, 1, h.r.bgpPeers[peer].Len(), "the identical NLRI replaced the stored route")
+	assert.Equal(t, 1, h.r.bgpPeers[1].Len(), "the identical NLRI replaced the stored route")
 	got, found := h.bestNextHop("10.0.0.0/8")
 	require.True(t, found)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), got, "the new route is the one in service")
@@ -175,10 +175,10 @@ func TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter(t *testing.
 	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.13")
 
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001, 65002, 65003}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001, 65002, 65003}, [][]byte{rfc4271Prefix8(10)}))
 
-	assert.Equal(t, 1, h.r.bgpPeers[peer].Len(), "the older route is not kept beside the newer")
+	assert.Equal(t, 1, h.r.bgpPeers[1].Len(), "the older route is not kept beside the newer")
 	got, found := h.bestNextHop("10.0.0.0/8")
 	require.True(t, found)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), got,
@@ -196,7 +196,7 @@ func TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess(t *testing.T) {
 	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.14")
 
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
 
 	got, found := h.bestNextHop("10.0.0.0/8")
 	require.True(t, found, "the Decision Process installed the route")
@@ -218,13 +218,13 @@ func TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects(t *testing.T) {
 	peerA := netip.MustParseAddr("192.0.2.15")
 	peerB := netip.MustParseAddr("192.0.2.16")
 
-	h.receive(peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
-	h.receive(peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(2, peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
 	got, found := h.bestNextHop("10.0.0.0/8")
 	require.True(t, found)
 	require.Equal(t, netip.MustParseAddr("10.0.0.1"), got, "peer A's shorter AS_PATH is selected first")
 
-	h.receive(peerA, rfc4271Update([][]byte{rfc4271Prefix8(10)}, [4]byte{}, nil, nil))
+	h.receive(1, peerA, rfc4271Update([][]byte{rfc4271Prefix8(10)}, [4]byte{}, nil, nil))
 
 	got, found = h.bestNextHop("10.0.0.0/8")
 	require.True(t, found, "the Decision Process selected the remaining route")
@@ -243,12 +243,12 @@ func TestRFC4271SelectedRouteReplacesTheLocRIBRoute(t *testing.T) {
 	peerA := netip.MustParseAddr("192.0.2.17")
 	peerB := netip.MustParseAddr("192.0.2.18")
 
-	h.receive(peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
 	got, found := h.bestNextHop("10.0.0.0/8")
 	require.True(t, found)
 	require.Equal(t, netip.MustParseAddr("10.0.0.1"), got)
 
-	h.receive(peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(2, peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
 
 	got, found = h.bestNextHop("10.0.0.0/8")
 	require.True(t, found)
@@ -267,8 +267,8 @@ func TestRFC4271LocRIBHoldsOnlyTheReplacingRoute(t *testing.T) {
 	peerA := netip.MustParseAddr("192.0.2.19")
 	peerB := netip.MustParseAddr("192.0.2.20")
 
-	h.receive(peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
-	h.receive(peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(1, peerA, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001, 65002}, [][]byte{rfc4271Prefix8(10)}))
+	h.receive(2, peerB, rfc4271Update(nil, [4]byte{10, 0, 0, 2}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
 
 	group, found := h.loc.Lookup(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"))
 	require.True(t, found)
@@ -296,7 +296,7 @@ func TestRFC4271OverlappingReceivedRoutesAreBothInstalled(t *testing.T) {
 	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.21")
 
-	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001},
+	h.receive(1, peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001},
 		[][]byte{rfc4271Prefix8(10), rfc4271Prefix24(10, 0, 0)}))
 
 	assert.ElementsMatch(t,
@@ -333,14 +333,14 @@ func TestRFC4271OverlappingRouteArrivalDisplacesNeither(t *testing.T) {
 			peer := netip.MustParseAddr("192.0.2.22")
 			nh := [4]byte{10, 0, 0, 1}
 
-			h.receive(peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{tc.first}))
-			h.receive(peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{tc.second}))
+			h.receive(1, peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{tc.first}))
+			h.receive(1, peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{tc.second}))
 
 			assert.Empty(t, bestChangePrefixes(h.bus, ribevents.BestChangeWithdraw),
 				"no overlapping route was withdrawn")
 			_, found := h.bestNextHop(tc.firstPrefix)
 			assert.True(t, found, "the earlier route %s stays installed", tc.firstPrefix)
-			assert.Equal(t, 2, h.r.bgpPeers[peer].Len(), "both routes are held")
+			assert.Equal(t, 2, h.r.bgpPeers[1].Len(), "both routes are held")
 		})
 	}
 }
@@ -358,11 +358,11 @@ func TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.23")
 	nh := [4]byte{10, 0, 0, 1}
 
-	h.receive(peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
-	h.receive(peer, rfc4271Update([][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}, nh, []uint32{65001},
+	h.receive(1, peer, rfc4271Update(nil, nh, []uint32{65001}, [][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}))
+	h.receive(1, peer, rfc4271Update([][]byte{rfc4271Prefix8(10), rfc4271Prefix8(11)}, nh, []uint32{65001},
 		[][]byte{rfc4271Prefix8(10)}))
 
-	assert.Equal(t, 1, h.r.bgpPeers[peer].Len(), "10.0.0.0/8 stays, 11.0.0.0/8 left")
+	assert.Equal(t, 1, h.r.bgpPeers[1].Len(), "10.0.0.0/8 stays, 11.0.0.0/8 left")
 	_, found := h.bestNextHop("10.0.0.0/8")
 	assert.True(t, found, "the prefix named in both fields stays installed")
 	_, found = h.bestNextHop("11.0.0.0/8")

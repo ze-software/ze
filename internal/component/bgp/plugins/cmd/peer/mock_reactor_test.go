@@ -137,15 +137,17 @@ func (m *mockReactor) CreatedPeers() map[netip.Addr]string { return nil }
 // runtime.
 func (m *mockReactor) RestoreCreatedPeers(map[string]any, map[netip.Addr]string) error { return nil }
 
-func (m *mockReactor) SetConfigTree(_ map[string]any)                         {}
-func (m *mockReactor) SignalAPIReady()                                        {}
-func (m *mockReactor) AddAPIProcessCount(_ int)                               {}
-func (m *mockReactor) SignalPluginStartupComplete() error                     { return nil }
-func (m *mockReactor) SignalPeerAPIReady(string, plugin.Sender, uint64) error { return nil }
-func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)                       {}
-func (m *mockReactor) SignalPeerUpBarrier(_ string)                           {}
-func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool)                 {}
-func (m *mockReactor) UnregisterCacheConsumer(_ string)                       {}
+func (m *mockReactor) SetConfigTree(_ map[string]any)     {}
+func (m *mockReactor) SignalAPIReady()                    {}
+func (m *mockReactor) AddAPIProcessCount(_ int)           {}
+func (m *mockReactor) SignalPluginStartupComplete() error { return nil }
+func (m *mockReactor) SignalPeerAPIReady(context.Context, string, plugin.Sender, uint64) error {
+	return nil
+}
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)           {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
+func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
 func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }
@@ -157,12 +159,12 @@ func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute, _ plug
 }
 func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
-func (m *mockReactor) PausePeer(addr netip.Addr) error {
+func (m *mockReactor) PausePeer(_ context.Context, addr netip.Addr, _, _ uint64) error {
 	m.pausedPeers = append(m.pausedPeers, addr)
 	return nil
 }
 
-func (m *mockReactor) ResumePeer(addr netip.Addr) error {
+func (m *mockReactor) ResumePeer(_ context.Context, addr netip.Addr, _, _ uint64) error {
 	m.resumedPeers = append(m.resumedPeers, addr)
 	return nil
 }

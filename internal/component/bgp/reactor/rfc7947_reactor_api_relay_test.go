@@ -651,7 +651,7 @@ func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
 // when ze relays that path's withdraw.
 func relayIngressPathID(t *testing.T, src *Peer, received uint32) uint32 {
 	t.Helper()
-	memo := fwdPathIDMemo{source: src.SourceID()}
+	memo := fwdPathIDMemo{origin: fwdPathIDFixturePeerOrigin(src)}
 	id, err := memo.framed(family.IPv4Unicast, received, relayStoredNLRIWire, false)
 	require.NoError(t, err)
 	return id

@@ -27,9 +27,12 @@ import (
 // peer's routes are deleted by the normal BGP procedures.
 func TestRFC4724NotificationCloseRetainsNothing(t *testing.T) {
 	gp, rec := newRecordedGRPlugin()
-	gp.peerCaps[testPeer] = testCap(120, famIPv4)
+	source := grFixtureSource(t, testPeer, 701, 41)
+	gp.recordSentLLGR(source, nil)
+	t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
+	gp.peerCaps[701] = testCap(120, famIPv4)
 
-	gp.handleStructuredState(testPeer, rpc.SessionStateDown, rpc.ReasonNotification)
+	gp.handleStructuredState(source, rpc.SessionStateDown, rpc.ReasonNotification)
 
 	assert.Empty(t, rec.all(), "a NOTIFICATION close takes the normal BGP procedures")
 }
@@ -37,21 +40,28 @@ func TestRFC4724NotificationCloseRetainsNothing(t *testing.T) {
 // TestRFC4724TransportCloseRetains delivers the two downs the reactor sends for a session
 // that ended with no NOTIFICATION: a lost transport and a close ze made itself.
 //
-// VALIDATES: both run the session-down sequence (purge-stale, retain, mark-stale).
+// VALIDATES: both retain the captured original source and mark its routes stale.
+// A previous retained lifetime would additionally owe its own purge.
 // PREVENTS: a fix for the NOTIFICATION case that stops retaining for every close.
 //
 // RFC requirement: RFC4724-4-2 negative -- a down with reason rpc.ReasonTCPFailure or
 // rpc.ReasonLocalClose for a GR-capable peer is not a NOTIFICATION close, and dispatches
-// the three-command retention sequence.
+// the exact source-scoped retain and stale-marking sequence.
 func TestRFC4724TransportCloseRetains(t *testing.T) {
 	for _, reason := range []string{rpc.ReasonTCPFailure, rpc.ReasonLocalClose} {
 		t.Run(reason, func(t *testing.T) {
 			gp, rec := newRecordedGRPlugin()
-			gp.peerCaps[testPeer] = testCap(120, famIPv4)
+			source := grFixtureSource(t, testPeer, 701, 41)
+			gp.recordSentLLGR(source, nil)
+			t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
+			gp.peerCaps[701] = testCap(120, famIPv4)
 
-			gp.handleStructuredState(testPeer, rpc.SessionStateDown, reason)
+			gp.handleStructuredState(source, rpc.SessionStateDown, reason)
 
-			assert.Len(t, rec.all(), 3, "the session-down sequence purges, retains and marks stale")
+			assert.Equal(t, []string{
+				"request bgp rib source retain-routes owner 701 connection 41 on-down families ipv4/unicast",
+				"request bgp rib source mark-stale owner 701 connection 41 restart-time 120",
+			}, rec.all(), "the first DOWN retains and marks its exact original source; it has no prior stale lifetime to purge")
 		})
 	}
 }

@@ -30,11 +30,7 @@ func TestGRReadsExtendedOpen(t *testing.T) {
 		filler int
 	}{{"base form", 10}, {"RFC 9072 form", 200}} {
 		t.Run(tc.name, func(t *testing.T) {
-			gp := &grPlugin{
-				peerCaps:     make(map[string]*grPeerCap),
-				peerLLGRCaps: make(map[string]*llgrPeerCap),
-				state:        newGRStateManager(nil),
-			}
+			gp := grEventFixture(t, testPeer, 701, 41)
 			params := []capability.OptionalParam{
 				// Graceful Restart: restart time 120, IPv4 unicast with F set.
 				capability.RawParam(2, []byte{64, 6, 0x00, 0x78, 0x00, 0x01, 0x01, 0x80}),
@@ -53,10 +49,10 @@ func TestGRReadsExtendedOpen(t *testing.T) {
 			buf := make([]byte, open.Len(nil))
 			open.WriteTo(buf, 0, nil)
 
-			gp.handleStructuredOpen(testPeer, &bgptypes.RawMessage{RawBytes: buf[message.HeaderLen:]})
+			gp.handleStructuredOpen(grFixtureSource(t, testPeer, 701, 41), &bgptypes.RawMessage{RawBytes: buf[message.HeaderLen:]})
 
 			gp.mu.Lock()
-			peerCap, ok := gp.peerCaps[testPeer]
+			peerCap, ok := gp.peerCaps[701]
 			gp.mu.Unlock()
 			if !ok {
 				t.Fatal("the peer's Graceful Restart Capability was not stored")

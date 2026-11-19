@@ -126,12 +126,12 @@ func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 	fam := family.Family{AFI: 1, SAFI: 1}
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[1] = storage.NewPeerRIB(peerAddr.String())
 
 	withNH := ipv4Prefix(24, 10, 0, 0)
-	r.bgpPeers[peerAddr].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), withNH)
+	r.bgpPeers[1].Insert(fam, makeAttrBytes([4]byte{192, 168, 1, 1}), withNH)
 	_, ok := r.checkBestPathChange(fam, withNH, false, nil)
 	require.True(t, ok)
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
@@ -140,7 +140,7 @@ func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 
 	// Same peer, a prefix announced with ORIGIN only -- no NEXT_HOP attribute.
 	noNH := ipv4Prefix(24, 10, 0, 1)
-	r.bgpPeers[peerAddr].Insert(fam, []byte{0x40, 0x01, 0x01, 0x00}, noNH)
+	r.bgpPeers[1].Insert(fam, []byte{0x40, 0x01, 0x01, 0x00}, noNH)
 	_, ok = r.checkBestPathChange(fam, noNH, false, nil)
 	require.True(t, ok)
 	best, found = loc.Best(fam, netip.MustParsePrefix("10.0.1.0/24"))
@@ -166,13 +166,13 @@ func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 func TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerAddr := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65001, LocalASN: 65000}
 
 	entry, err := storage.ParseAttributes([]byte{0x40, 0x01, 0x01, 0x00})
 	require.NoError(t, err)
 	defer entry.Release()
 
-	c := r.extractCandidate(family.IPv4Unicast, peerAddr, peerAddr.String(), entry)
+	c := r.extractCandidate(family.IPv4Unicast, 1, peerAddr, peerAddr.String(), entry)
 	assert.Equal(t, uint32(100), c.LocalPref,
 		"external route ranked by the locally configured degree of preference")
 	assert.NotEqual(t, uint32(0), c.LocalPref, "not left undefined")
@@ -193,7 +193,7 @@ func TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy(t *testing.T) {
 func TestRFC4271DegreeOfPreferenceNotAHardcodedConstant(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerAddr := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peerAddr, PeerASN: 65000, LocalASN: 65000}
 
 	raw := []byte{
 		0x40, 0x01, 0x01, 0x00,
@@ -203,7 +203,7 @@ func TestRFC4271DegreeOfPreferenceNotAHardcodedConstant(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	c := r.extractCandidate(family.IPv4Unicast, peerAddr, peerAddr.String(), entry)
+	c := r.extractCandidate(family.IPv4Unicast, 1, peerAddr, peerAddr.String(), entry)
 	assert.Equal(t, uint32(250), c.LocalPref)
 }
 
@@ -223,13 +223,13 @@ func rfc4271MEDAttrs(med byte) []byte {
 }
 
 // rfc4271MEDCandidate extracts the candidate such a route produces at one peer.
-func rfc4271MEDCandidate(t *testing.T, r *RIBManager, peer netip.Addr, attrs []byte) *Candidate {
+func rfc4271MEDCandidate(t *testing.T, r *RIBManager, owner uint64, peer netip.Addr, attrs []byte) *Candidate {
 	t.Helper()
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[owner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
 	entry, err := storage.ParseAttributes(attrs)
 	require.NoError(t, err)
 	t.Cleanup(entry.Release)
-	return r.extractCandidate(family.IPv4Unicast, peer, peer.String(), entry)
+	return r.extractCandidate(family.IPv4Unicast, owner, peer, peer.String(), entry)
 }
 
 // TestAbsentMedStillComparesAsZeroInPhaseTwo verifies a route carrying no
@@ -251,11 +251,11 @@ func rfc4271MEDCandidate(t *testing.T, r *RIBManager, peer netip.Addr, attrs []b
 func TestAbsentMedStillComparesAsZeroInPhaseTwo(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	absent := rfc4271MEDCandidate(t, r, netip.MustParseAddr("192.0.2.1"), rfc4271NoMEDAttrs())
+	absent := rfc4271MEDCandidate(t, r, 1, netip.MustParseAddr("192.0.2.1"), rfc4271NoMEDAttrs())
 	require.Equal(t, uint32(0), absent.MED, "no MULTI_EXIT_DISC means the lowest possible value")
 	require.Equal(t, uint32(65001), absent.FirstAS, "the MED step needs a neighboring AS to match on")
 
-	carried := rfc4271MEDCandidate(t, r, netip.MustParseAddr("192.0.2.2"), rfc4271MEDAttrs(1))
+	carried := rfc4271MEDCandidate(t, r, 2, netip.MustParseAddr("192.0.2.2"), rfc4271MEDAttrs(1))
 	require.Equal(t, uint32(1), carried.MED)
 	require.Equal(t, absent.FirstAS, carried.FirstAS)
 
@@ -283,8 +283,8 @@ func TestAbsentMedStillComparesAsZeroInPhaseTwo(t *testing.T) {
 func TestAbsentMedTiesAnExplicitMedOfZero(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	absent := rfc4271MEDCandidate(t, r, netip.MustParseAddr("192.0.2.1"), rfc4271NoMEDAttrs())
-	explicit := rfc4271MEDCandidate(t, r, netip.MustParseAddr("192.0.2.2"), rfc4271MEDAttrs(0))
+	absent := rfc4271MEDCandidate(t, r, 1, netip.MustParseAddr("192.0.2.1"), rfc4271NoMEDAttrs())
+	explicit := rfc4271MEDCandidate(t, r, 2, netip.MustParseAddr("192.0.2.2"), rfc4271MEDAttrs(0))
 	require.Equal(t, absent.MED, explicit.MED, "the same value reaches the step from both routes")
 
 	_, step := comparePair(absent, explicit)

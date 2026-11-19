@@ -399,8 +399,10 @@ func TestSelectedOriginWriterSentReceiptsStayLocal(t *testing.T) {
 	f := newSelectedOriginFixture(t, false)
 	route, _ := f.issue(t, selectedOriginBuildInput(), 1)
 	var origins []wireu.SentOrigin
-	f.peer.session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
+	originalSession := f.peer.session
+	originalSession.onMessageReceived = func(captured *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, update *wireu.WireUpdate,
 		_ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, original string, id uint64) bool {
+		require.Same(t, originalSession, captured, "sent callback retains its original Session")
 		require.Equal(t, rpc.DirectionSent, direction)
 		require.Empty(t, original)
 		require.Zero(t, id)

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -134,8 +135,8 @@ func TestDeclaredShapeSpellingIsOneTheEngineParses(t *testing.T) {
 // peerStatus writes rather than a fixture kept in step by hand.
 func TestDeclaredColumnsExistInPayload(t *testing.T) {
 	rs := newTestRouteServer(t)
-	rs.peers["192.0.2.1"] = &PeerState{Address: "192.0.2.1", ASN: 65001, Up: true}
-	rs.peers["2001:db8::1"] = &PeerState{Address: "2001:db8::1", ASN: 65002}
+	rs.peers[rsFixtureKey("192.0.2.1", 1, 101)] = &PeerState{Address: "192.0.2.1", DestinationSession: 201, SessionGeneration: 3, ASN: 65001, Up: true}
+	rs.peers[rsFixtureKey("2001:db8::1", 21, 121)] = &PeerState{Address: "2001:db8::1", DestinationSession: 221, SessionGeneration: 3, ASN: 65002}
 
 	decl := declByName(t, commandDecls(), wantShapes)["show bgp rs peers"]
 	require.NotEmpty(t, decl.Columns, "`show bgp rs peers` declares no column order")
@@ -202,8 +203,9 @@ func sortedRowKeys(row map[string]any) string {
 // would refuse `| count` and `| first` on a command that can serve them.
 //
 // rowSet (internal/component/command/answer_shape.go) reads an array as rows,
-// and a map as rows only when every value is an object. This answer is one key
-// holding a bool, so neither test can find rows in it, at either level.
+// and a map as rows only when every value is an object. The root includes
+// a scalar and the lifecycle document has distinct collections plus a scalar,
+// so neither level is a single row set. Keep the complete document exact.
 func TestStatusHoldsNoRowSet(t *testing.T) {
 	rs := newTestRouteServer(t)
 
@@ -213,6 +215,13 @@ func TestStatusHoldsNoRowSet(t *testing.T) {
 
 	envelope, isEnvelope := answer.(map[string]any)
 	require.True(t, isEnvelope, "`show bgp rs status` answers an envelope")
-	require.Equal(t, map[string]any{"running": true}, envelope,
-		"one key holding a scalar, which rowSet reads as rows at no level")
+	require.Equal(t, map[string]any{
+		"running": true,
+		"lifecycle": map[string]any{
+			"sources":         []map[string]any{},
+			"active-output":   []rpc.ForwardTarget{},
+			"unknown-output":  []map[string]any{},
+			"settlement-owed": "",
+		},
+	}, envelope, "the complete status document holds distinct collections and scalar fields")
 }

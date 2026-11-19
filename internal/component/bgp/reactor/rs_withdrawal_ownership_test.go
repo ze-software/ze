@@ -408,12 +408,18 @@ func ownershipLiveSameASPeers(t *testing.T) []*lowLivePeer {
 		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
-			{"bgp-rs", "update-received state open-received refresh"},
+			{"bgp-rs", "update state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			if err := EnsureProcessBinding(s, binding.name, binding.receive, "update"); err != nil {
+			// These are the fixture operator's explicit original attachments.
+			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
+			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
 				t.Fatal(err)
 			}
+			if err := parseSendFlags("update", &attachment); err != nil {
+				t.Fatal(err)
+			}
+			s.ProcessBindings = append(s.ProcessBindings, attachment)
 		}
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)

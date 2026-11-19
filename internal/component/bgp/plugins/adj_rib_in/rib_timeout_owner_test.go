@@ -75,7 +75,7 @@ func TestValidationTimeoutOwnerJoinsPublicationBeforeResult(t *testing.T) {
 		})
 		bridge := <-bridgeReady
 		ctx := context.Background()
-		if err := engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)); err != nil {
+		if err := engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", []string{"timeout", "1"}); err != nil {

@@ -50,15 +50,16 @@ func newAdjSourcePolicyFixture(t *testing.T) *adjSourcePolicyFixture {
 		{Fam: family.IPv4Unicast, Prefix: prefix, PathID: 7},
 		{Fam: family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, NLRI: unique.Make("vpn-route")},
 	}
-	r.ribIn[f.source] = newSeqMap()
+	r.ribIn[receivedPeer{address: f.source, owner: 1}] = newSeqMap()
 	for i, key := range f.keys {
-		r.ribIn[f.source].Put(key, uint64(i+1), &RawRoute{Family: key.Fam, AttrHex: "40010100",
+		r.ribIn[receivedPeer{address: f.source, owner: 1}].Put(key, uint64(i+1), &RawRoute{ConnectionID: 41, Family: key.Fam, AttrHex: "40010100",
 			NLRIHex: "180a0100", PathID: key.PathID, HasPathID: key.Fam == family.IPv4Unicast,
 			MsgID: uint64(100 + i), SourcePolicyEpoch: 5, SourceOwner: 1})
 	}
-	r.ribIn[f.other] = newSeqMap()
-	r.ribIn[f.other].Put(f.keys[0], 9, &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NLRIHex: "180a0100", MsgID: 200, SourcePolicyEpoch: 5, SourceOwner: 2})
-	r.peerUp[f.source], r.peerUp[f.other] = true, true
+	r.ribIn[receivedPeer{address: f.other, owner: 2}] = newSeqMap()
+	r.ribIn[receivedPeer{address: f.other, owner: 2}].Put(f.keys[0], 9, &RawRoute{ConnectionID: 41, Family: family.IPv4Unicast, AttrHex: "40010100", NLRIHex: "180a0100", MsgID: 200, SourcePolicyEpoch: 5, SourceOwner: 2})
+	r.recordPeerState(f.source, true, 1, 41)
+	r.recordPeerState(f.other, true, 2, 42)
 	return f
 }
 
@@ -73,7 +74,7 @@ func (f *adjSourcePolicyFixture) eligible(peer netip.Addr, pathID uint32) bool {
 	if peer == f.other {
 		owner = 2
 	}
-	return f.r.routeEligible(ribevents.ValidationRoute{Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast,
+	return f.r.routeEligible(ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("10.1.0.0/24"), PathID: pathID}, 0)
 }
 
@@ -110,17 +111,17 @@ func TestRFC8212SourcePolicyAdjRIBInLifecycle(t *testing.T) {
 	require.True(t, f.eligible(f.other, 0), "another source is untouched")
 	require.Equal(t, 0, f.replayed(t), "a denied path, VPN included, is not replayed")
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "duplicate apply")
-	require.Equal(t, 3, r.ribIn[f.source].Len(), "apply keeps the paths for abort")
+	require.Equal(t, 3, r.ribIn[receivedPeer{address: f.source, owner: 1}].Len(), "apply keeps the paths for abort")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 7))
 	require.True(t, f.eligible(f.source, 0))
 	require.True(t, f.eligible(f.source, 7))
 	require.Equal(t, 3, f.replayed(t), "abort restores replay without Route Refresh")
-	r.ribIn[f.source].Range(func(_ compactRouteKey, _ uint64, route *RawRoute) bool {
+	r.ribIn[receivedPeer{address: f.source, owner: 1}].Range(func(_ compactRouteKey, _ uint64, route *RawRoute) bool {
 		require.Equal(t, uint64(7), route.SourcePolicyEpoch, "a restored path carries the fresh epoch")
 		return true
 	})
-	require.Nil(t, r.sourcePolicy[f.source].installed, "abort releases the pins")
+	require.Nil(t, r.sourcePolicy[1].installed, "abort releases the pins")
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx1", f.source, 5, 0), "finalize after abort is refused")
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 8), "a second abort with another target is refused")
 }
@@ -139,7 +140,7 @@ func TestRFC8212SourcePolicyAdjRIBInFinalizeAndRefusals(t *testing.T) {
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6))
 	r.mu.Lock()
-	r.ribIn[f.source].Delete(f.keys[1]) // The source withdrew identifier seven.
+	r.ribIn[receivedPeer{address: f.source, owner: 1}].Delete(f.keys[1]) // The source withdrew identifier seven.
 	r.mu.Unlock()
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 7))
 	require.True(t, f.eligible(f.source, 0))
@@ -148,12 +149,12 @@ func TestRFC8212SourcePolicyAdjRIBInFinalizeAndRefusals(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 7, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx2", f.source, 7, 8))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx2", f.source, 7, 0))
-	require.Equal(t, 0, r.ribIn[f.source].Len(), "denied paths are not retained for a later recovery")
-	require.Equal(t, 1, r.ribIn[f.other].Len())
+	require.Equal(t, 0, r.ribIn[receivedPeer{address: f.source, owner: 1}].Len(), "denied paths are not retained for a later recovery")
+	require.Equal(t, 1, r.ribIn[receivedPeer{address: f.other, owner: 2}].Len())
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx3", f.source, 8, 0))
 	r.mu.Lock()
-	r.removePeerInstalled(f.source) // The session ended.
+	r.removePeerInstalled(receivedPeer{address: f.source, owner: 1}) // The session ended.
 	r.mu.Unlock()
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx3", f.source, 8, 9), "the session that prepared ended")
 }

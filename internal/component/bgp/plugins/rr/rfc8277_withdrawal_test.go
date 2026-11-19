@@ -15,6 +15,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -64,27 +65,31 @@ func TestLabeledWithdrawalLeavesTheWithdrawalMap(t *testing.T) {
 	t.Parallel()
 	rrLabeledCompatibilityMatrix(t)
 
-	rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+	rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 	const peer = "192.0.2.1"
 
 	// [Length 24+8][label 100, S set][10] and [Length 24+8][label 101, S set][11].
 	announce := []byte{32, 0x00, 0x06, 0x41, 10, 32, 0x00, 0x06, 0x51, 11}
-	rr.updateWithdrawalMapWire(peer, rrLabeledUpdate(t, 14, announce))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 80, rrLabeledUpdate(t, 14, announce))
 	if got := len(rr.withdrawals[peer]); got != 2 {
 		t.Fatalf("withdrawal map holds %d routes after the announcement, want 2: %v", got, rr.withdrawals[peer])
 	}
 
-	rr.updateWithdrawalMapWire(peer, rrLabeledUpdate(t, 15, []byte{32, 0x80, 0x00, 0x00, 10}))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, peer, 701, 41), 70, 81, rrLabeledUpdate(t, 15, []byte{32, 0x80, 0, 0, 10}))
 
 	var left []string
 	for _, info := range rr.withdrawals[peer] {
-		left = append(left, info.Prefix)
+		left = append(left, rrFixtureLabeledPrefix(t, info))
 	}
 	slices.Sort(left)
 	if len(left) != 1 || left[0] != "11.0.0.0/8" {
 		t.Fatalf("withdrawal map holds %v after withdrawing 10.0.0.0/8, want [11.0.0.0/8]", left)
 	}
-	if info := rr.withdrawals[peer][rrLabeledIPv4.String()+"|11.0.0.0/8"]; info.Family != rrLabeledIPv4 {
+	key, err := nativeInventory(withdrawalInfo{Family: rrLabeledIPv4, SourceOwner: 701, ConnectionID: 41}, []byte{32, 0, 6, 0x51, 11}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info := rr.withdrawals[peer][key.key]; info.Family != rrLabeledIPv4 {
 		t.Fatalf("11.0.0.0/8 is not keyed by its family and prefix: %v", rr.withdrawals[peer])
 	}
 }
@@ -100,7 +105,7 @@ func rrLabeledCompatibilityMatrix(t *testing.T) {
 			for _, compatibility := range []uint32{0x800000, 0, 0x000641, 0x123450, 0xffffff} {
 				t.Run(fam.String()+"/addpath="+strconv.FormatBool(addPath)+"/compat="+strconv.FormatUint(uint64(compatibility), 16), func(t *testing.T) {
 					t.Parallel()
-					rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+					rr := &routeReflector{withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
 					prefixes := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("11.0.0.0/8")}
 					if afi == family.AFIIPv6 {
 						prefixes = []netip.Prefix{netip.MustParsePrefix("2001:db8::/32"), netip.MustParsePrefix("2001:db9::/32")}
@@ -118,7 +123,7 @@ func rrLabeledCompatibilityMatrix(t *testing.T) {
 						want[hex.EncodeToString(route)] = true
 					}
 					for _, route := range routes {
-						rr.updateWithdrawalMapWire("192.0.2.1", rrLabeledMatrixUpdate(t, fam, addPath, 14, route))
+						rrOriginalWire(t, rr, rrOriginalFixture(t, "192.0.2.1", 701, 41), 70, 80, rrLabeledMatrixUpdate(t, fam, addPath, 14, route))
 					}
 					rrAssertLabeledInventory(t, rr, fam, want)
 					for i, route := range routes {
@@ -128,7 +133,7 @@ func rrLabeledCompatibilityMatrix(t *testing.T) {
 							offset += 4
 						}
 						withdrawn[offset], withdrawn[offset+1], withdrawn[offset+2] = byte(compatibility>>16), byte(compatibility>>8), byte(compatibility)
-						rr.updateWithdrawalMapWire("192.0.2.1", rrLabeledMatrixUpdate(t, fam, addPath, 15, withdrawn))
+						rrOriginalWire(t, rr, rrOriginalFixture(t, "192.0.2.1", 701, 41), 70, 81, rrLabeledMatrixUpdate(t, fam, addPath, 15, withdrawn))
 						delete(want, rrLabeledInventoryIdentity(route, prefixes[i%2], addPath))
 						rrAssertLabeledInventory(t, rr, fam, want)
 					}
@@ -161,10 +166,10 @@ func rrAssertLabeledInventory(t *testing.T, rr *routeReflector, fam family.Famil
 		if info.Family != fam {
 			t.Fatalf("family = %s, want %s", info.Family, fam)
 		}
-		if info.WireForm != info.AddPath {
+		if !info.WireForm {
 			t.Fatalf("ADD-PATH survivor lacks native framing: %+v", info)
 		}
-		got[info.Prefix] = info.AddPath
+		got[rrFixtureLabeledPrefix(t, info)] = info.AddPath
 	}
 	if len(rr.withdrawals["192.0.2.1"]) != len(want) || !maps.Equal(got, want) {
 		t.Fatalf("retained labeled routes = %v, want exactly %v", got, want)
@@ -196,4 +201,23 @@ func rrLabeledMatrixUpdate(t *testing.T, fam family.Family, addPath bool, code b
 		t.Fatal(err)
 	}
 	return &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu}
+}
+
+// rrFixtureLabeledPrefix compares the old semantic prefix question against the
+// current native representation; ADD-PATH still compares every original byte.
+func rrFixtureLabeledPrefix(t *testing.T, info withdrawalInfo) string {
+	t.Helper()
+	if info.AddPath {
+		return info.Prefix
+	}
+	raw, err := hex.DecodeString(info.NativeHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	cidr, err := nlrisplit.RouteCIDR(info.Family, raw, scratch[:], false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return prefixBytesToKey(cidr, info.Family.AFI == family.AFIIPv6)
 }

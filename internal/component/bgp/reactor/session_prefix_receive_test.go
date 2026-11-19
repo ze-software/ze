@@ -242,7 +242,7 @@ func prefixReceiveSession(t *testing.T, fam family.Family, mode PrefixCountMode,
 func prefixReceive(t *testing.T, s *Session, body []byte, accepted bool) {
 	t.Helper()
 	calls := 0
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		calls++

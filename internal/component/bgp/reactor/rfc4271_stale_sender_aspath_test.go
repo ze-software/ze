@@ -102,7 +102,7 @@ func staleSenderASPathWrite(t *testing.T, judgeAll bool, delta string, peerAS, m
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv4Unicast, NLRIs: []nlri.NLRI{prefix},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.254")),
-		Wire: attribute.NewAttributesWire(sections.Attrs(body), f.ctxID), Stale: 1, Replay: true,
+		Wire:    attribute.NewAttributesWire(sections.Attrs(body), f.ctxID), Stale: 1, Replay: true,
 	}
 	adapter := &reactorAPIAdapter{r: f.r}
 	facts := announceFactsFor(peer, batch.Family, netip.MustParseAddr("192.0.2.254"), peer.IsIBGP(), peer.negotiated.Load())

@@ -32,7 +32,7 @@ func replayCutFixture(t *testing.T, msgID uint64) (*AdjRIBInManager, *[]rpc.Stor
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 		MsgID: msgID,
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	// newTestManager's SDK plugin has closed connections, so the real relay call
 	// fails; the stub is what lets the test observe what the replay selected.

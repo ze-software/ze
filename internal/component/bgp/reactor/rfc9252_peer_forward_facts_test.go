@@ -174,6 +174,7 @@ func TestForwardFactsFilterInfo(t *testing.T) {
 	facts := peer.forwardFacts()
 	require.NotNil(t, facts)
 	assert.Equal(t, filterapi.PeerFilterInfo{
+		PeerOwner: peer.sourceOwner,
 		Address:   netip.MustParseAddr("10.0.0.1"),
 		PeerAS:    65001,
 		LocalAS:   65000,

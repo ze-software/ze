@@ -230,6 +230,14 @@ func TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair(t *testing.T) 
 		t.Run(tc.name, func(t *testing.T) {
 			paired := a2Dest(t, "192.0.2.21", 65021, tc.explicit, true)
 			unpaired := a2Dest(t, "192.0.2.22", 65022, tc.explicit, false)
+			if !tc.explicit.IsValid() {
+				// These cases exercise the received IPv6 field, independently of
+				// ordinary eBGP Auto selecting the speaker's IPv4 next hop.
+				for _, destination := range []*Peer{paired, unpaired} {
+					destination.settings.NextHopMode = NextHopUnchanged
+					destination.refreshForwardFacts()
+				}
+			}
 
 			got := a2Forward(t, tc.rs, a2Payload(tc.nextHop), paired, unpaired)
 

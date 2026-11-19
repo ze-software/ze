@@ -127,8 +127,8 @@ func TestFieldsLLGRSessionParsesCommunitiesWhenGoverned(t *testing.T) {
 // community, it is accepted unmarked. Method: one case list, delivered as
 // the engine's view and as a forked fields object.
 func TestLLGRIngressVerdicts(t *testing.T) {
-	llgrPeer := filterapi.PeerFilterInfo{Address: ingressTestPeer, LLGRAdvertised: true}
-	plainPeer := filterapi.PeerFilterInfo{Address: ingressTestPeer}
+	llgrPeer := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: ingressTestPeer, LLGRAdvertised: true}
+	plainPeer := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: ingressTestPeer}
 	stale2 := []rpc.FilterSet{{Field: "stale", Action: rpc.FilterSetActionSet, Value: json.RawMessage("2")}}
 	for _, tc := range []llgrCase{
 		{"LLGR_STALE from an LLGR session", llgrIngressFilterName, ingressTestUpdate(ingressLLGRStale),
@@ -151,14 +151,14 @@ func TestLLGRIngressVerdicts(t *testing.T) {
 // llgr-advertised and its LLGR_STALE community. Method: one case list,
 // delivered as the engine's view and as a forked fields object.
 func TestLLGREgressVerdicts(t *testing.T) {
-	setEgressState(newTestEgressState(map[string]*llgrPeerCap{"10.0.0.9": {}}))
+	setEgressState(newTestEgressState(map[uint64]*llgrPeerCap{109: {connectionID: 55}}))
 	t.Cleanup(func() { setEgressState(nil) })
 
-	ebgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
-	ibgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000}
-	llgrDest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65001, LocalAS: 65000}
-	source := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
-	silent := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	ebgp := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	ibgp := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 103, Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
+	llgrDest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 109, Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65001, LocalAS: 65000}
+	source := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
+	silent := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	stale := func(dest filterapi.PeerFilterInfo, level uint8) policyview.Session {
 		return policyview.ExportSession(dest, source, true, filterapi.ExportExplicit).WithExportMetadata(map[string]any{"stale": level})
 	}
@@ -166,8 +166,8 @@ func TestLLGREgressVerdicts(t *testing.T) {
 		return policyview.ExportSession(dest, src, true, filterapi.ExportExplicit).WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: true})
 	}
 	fields := func(dest filterapi.PeerFilterInfo, extra string) string {
-		return `{"peer-address":"` + dest.Address.String() + `","peer-as":` + strconv.FormatUint(uint64(dest.PeerAS), 10) +
-			`,"local-as":` + strconv.FormatUint(uint64(dest.LocalAS), 10) + extra + `}`
+		return `{"connection-id":55,"peer-address":"` + dest.Address.String() + `","peer-owner":` + strconv.FormatUint(dest.PeerOwner, 10) + `,"peer-as":` + strconv.FormatUint(uint64(dest.PeerAS), 10) +
+			`,"local-as":` + strconv.FormatUint(uint64(dest.LocalAS), 10) + `,"ibgp":` + strconv.FormatBool(dest.IsIBGP) + extra + `}`
 	}
 	depreference := []rpc.FilterSet{
 		{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65535:65281"`)},
@@ -208,13 +208,13 @@ func TestLLGREgressVerdicts(t *testing.T) {
 // PREVENTS: a member removing the mark, and Ze putting back a community a source it
 // sent no capability to chose to send and the operator chose to scrub.
 func TestLLGREgressKeepsLLGRStale(t *testing.T) {
-	setEgressState(newTestEgressState(map[string]*llgrPeerCap{"10.0.0.9": {}}))
+	setEgressState(newTestEgressState(map[uint64]*llgrPeerCap{109: {connectionID: 55}}))
 	t.Cleanup(func() { setEgressState(nil) })
 
-	ibgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000}
-	llgrDest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65001, LocalAS: 65000}
-	source := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
-	silent := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	ibgp := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 103, Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
+	llgrDest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 109, Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65001, LocalAS: 65000}
+	source := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
+	silent := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	marked, plain, noExport := ingressTestUpdate(ingressLLGRStale), ingressTestPlainUpdate(), ingressTestUpdate(ingressNoExport)
 	restore := rpc.FilterSet{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65535:6"`)}
 	restoreOnly, noRestore := []rpc.FilterSet{restore}, []rpc.FilterSet(nil)
@@ -265,8 +265,8 @@ func TestLLGREgressKeepsLLGRStale(t *testing.T) {
 			view.Reset(wireu.NewWireUpdate(tc.body, 0), session)
 			header := rpc.FilterUpdateInput{Filter: llgrEgressFilterName}
 			fast := rpc.ViewFilterRoute(&header, llgrViewRoute{view: &view, raw: tc.raw})
-			forkedFields := `{"peer-address":"` + tc.dest.Address.String() + `","peer-as":` + strconv.FormatUint(uint64(tc.dest.PeerAS), 10) +
-				`,"local-as":` + strconv.FormatUint(uint64(tc.dest.LocalAS), 10) + tc.fields + `}`
+			forkedFields := `{"connection-id":55,"peer-address":"` + tc.dest.Address.String() + `","peer-owner":` + strconv.FormatUint(tc.dest.PeerOwner, 10) + `,"peer-as":` + strconv.FormatUint(uint64(tc.dest.PeerAS), 10) +
+				`,"local-as":` + strconv.FormatUint(uint64(tc.dest.LocalAS), 10) + `,"ibgp":` + strconv.FormatBool(tc.dest.IsIBGP) + tc.fields + `}`
 			forked := rpc.InputFilterRoute(&rpc.FilterUpdateInput{Filter: llgrEgressFilterName, Raw: tc.raw, Fields: []byte(forkedFields)})
 			for transport, route := range map[string]*sdk.FilterRoute{"fast path": &fast, "forked": &forked} {
 				out, err := evaluateGRFilter(route)
@@ -283,15 +283,15 @@ func TestLLGREgressKeepsLLGRStale(t *testing.T) {
 // answer twice, concurrent calls equal to sequential ones under -race, and
 // an unknown filter name refused rather than accepted.
 func TestLLGRFiltersPassConformance(t *testing.T) {
-	setEgressState(newTestEgressState(map[string]*llgrPeerCap{}))
+	setEgressState(newTestEgressState(map[uint64]*llgrPeerCap{}))
 	t.Cleanup(func() { setEgressState(nil) })
 	route := func(filter string, payload []byte, fields string) sdk.ConformanceRoute {
 		return sdk.ConformanceRoute{Input: rpc.FilterUpdateInput{Filter: filter, Raw: payload, Fields: []byte(fields)}}
 	}
 	routes := []sdk.ConformanceRoute{
 		route(llgrIngressFilterName, ingressTestUpdate(ingressLLGRStale), `{"llgr-advertised":true}`),
-		route(llgrEgressFilterName, ingressTestPlainUpdate(), `{"peer-address":"10.0.0.2","peer-as":65001,"local-as":65000,"stale":2}`),
-		route(llgrEgressFilterName, ingressTestPlainUpdate(), `{"peer-address":"10.0.0.3","peer-as":65000,"local-as":65000,"stale":2}`),
+		route(llgrEgressFilterName, ingressTestPlainUpdate(), `{"connection-id":55,"peer-address":"10.0.0.2","peer-owner":102,"peer-as":65001,"local-as":65000,"ibgp":false,"stale":2}`),
+		route(llgrEgressFilterName, ingressTestPlainUpdate(), `{"connection-id":55,"peer-address":"10.0.0.3","peer-owner":103,"peer-as":65000,"local-as":65000,"ibgp":true,"stale":2}`),
 	}
 	if !sdk.CheckFilterConformance(t, grPluginName, evaluateGRFilter, routes) {
 		t.Fatal("the LLGR evaluator breaks the fast-path contract")

@@ -48,56 +48,56 @@ func TestRFC8277AddPathSameNextHopKeepsIndependentLabels(t *testing.T) {
 	path9 := []byte{0, 0, 0, 9, 8, 10}
 
 	// RFC 8277 Section 2.5: the next hop stays N1 for every announcement.
-	feedReceivedIBGP(r, peer, ctxID, labeledUpdateBody(nextHop, 10,
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledUpdateBody(nextHop, 10,
 		labeledNLRI(7, true, prefix, []uint32{100})))
-	if got := r.bgpPeers[peer].FamilyLen(labeledFamily); got != 1 {
+	if got := r.bgpPeers[1].FamilyLen(labeledFamily); got != 1 {
 		t.Fatalf("paths after U1 = %d, want 1", got)
 	}
-	if got := labelsFor(r, peer, path7); !slices.Equal(got, []uint32{100}) {
+	if got := labelsFor(r, 1, path7); !slices.Equal(got, []uint32{100}) {
 		t.Fatalf("path 7 labels after U1 = %v, want [100]", got)
 	}
 
-	feedReceivedIBGP(r, peer, ctxID, labeledUpdateBody(nextHop, 10,
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledUpdateBody(nextHop, 10,
 		labeledNLRI(9, true, prefix, []uint32{200})))
-	if got := r.bgpPeers[peer].FamilyLen(labeledFamily); got != 2 {
+	if got := r.bgpPeers[1].FamilyLen(labeledFamily); got != 2 {
 		t.Fatalf("paths after a different identifier = %d, want 2", got)
 	}
-	if got := labelsFor(r, peer, path7); !slices.Equal(got, []uint32{100}) {
+	if got := labelsFor(r, 1, path7); !slices.Equal(got, []uint32{100}) {
 		t.Fatalf("path 7 labels after path 9 arrives at the same next hop = %v, want [100]", got)
 	}
-	if got := labelsFor(r, peer, path9); !slices.Equal(got, []uint32{200}) {
+	if got := labelsFor(r, 1, path9); !slices.Equal(got, []uint32{200}) {
 		t.Fatalf("path 9 labels = %v, want [200]", got)
 	}
 
 	// RFC 8277 Section 2.5: "UPDATE U1 is implicitly withdrawn."
-	feedReceivedIBGP(r, peer, ctxID, labeledUpdateBody(nextHop, 10,
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledUpdateBody(nextHop, 10,
 		labeledNLRI(9, true, prefix, []uint32{300})))
-	if got := r.bgpPeers[peer].FamilyLen(labeledFamily); got != 2 {
+	if got := r.bgpPeers[1].FamilyLen(labeledFamily); got != 2 {
 		t.Fatalf("paths after reusing path 9 = %d, want 2", got)
 	}
-	if got := labelsFor(r, peer, path7); !slices.Equal(got, []uint32{100}) {
+	if got := labelsFor(r, 1, path7); !slices.Equal(got, []uint32{100}) {
 		t.Fatalf("path 7 labels after path 9 is relabeled = %v, want [100]", got)
 	}
-	if got := labelsFor(r, peer, path9); !slices.Equal(got, []uint32{300}) {
+	if got := labelsFor(r, 1, path9); !slices.Equal(got, []uint32{300}) {
 		t.Fatalf("path 9 labels after replacement = %v, want [300] alone", got)
 	}
 
 	// RFC 8277 Section 2.4: the path identifier, not Compatibility, names the path.
-	feedReceivedIBGP(r, peer, ctxID, labeledWithdrawBody(
+	feedReceivedIBGP(r, 1, peer, ctxID, labeledWithdrawBody(
 		labeledWithdrawNLRI(9, true, prefix, [3]byte{0x80, 0, 0})))
-	if got := r.bgpPeers[peer].FamilyLen(labeledFamily); got != 1 {
+	if got := r.bgpPeers[1].FamilyLen(labeledFamily); got != 1 {
 		t.Fatalf("paths after withdrawing path 9 = %d, want 1", got)
 	}
-	if _, found := r.bgpPeers[peer].Lookup(labeledFamily, path9); found {
+	if _, found := r.bgpPeers[1].Lookup(labeledFamily, path9); found {
 		t.Fatal("withdrawn path 9 is still stored")
 	}
-	if got := labelsFor(r, peer, path9); len(got) != 0 {
+	if got := labelsFor(r, 1, path9); len(got) != 0 {
 		t.Fatalf("withdrawn path 9 labels = %v, want none", got)
 	}
-	if _, found := r.bgpPeers[peer].Lookup(labeledFamily, path7); !found {
+	if _, found := r.bgpPeers[1].Lookup(labeledFamily, path7); !found {
 		t.Fatal("withdrawing path 9 removed path 7")
 	}
-	if got := labelsFor(r, peer, path7); !slices.Equal(got, []uint32{100}) {
+	if got := labelsFor(r, 1, path7); !slices.Equal(got, []uint32{100}) {
 		t.Fatalf("path 7 labels after withdrawing path 9 = %v, want [100]", got)
 	}
 }

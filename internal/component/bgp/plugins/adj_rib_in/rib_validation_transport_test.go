@@ -44,7 +44,7 @@ func TestValidationChangeEmittedOverTransport(t *testing.T) {
 			engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
 			// The first delivery returns once the callback loop runs, so the
 			// command handler is installed on the bridge before Execute.
-			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)))
 			_, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", nil)
 			require.NoError(t, err)
 			_, err = engine.Execute(ctx, "request bgp adj-rib-in disable-validation", nil)
@@ -99,13 +99,13 @@ func TestValidationGateAnnouncedOverTransport(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
-			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)))
 			_, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", nil)
 			require.NoError(t, err)
 			require.Equal(t, []bool{true}, applyGateAnnouncements(t, engine))
 
 			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100")))
-			route := ribevents.ValidationRoute{
+			route := ribevents.ValidationRoute{ConnectionID: 41,
 				Peer:      netip.MustParseAddr(adjTransportSource),
 				PeerOwner: 1,
 				Family:    family.IPv4Unicast,
@@ -185,7 +185,7 @@ func TestForkedGateServesValidatedVerdicts(t *testing.T) {
 			// The bridge transport registers the store's lookup in memory
 			// (the daemon case); drop it so this process reads the store only
 			// through the command, as the daemon does while the store is forked.
-			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource, 1)))
 			_, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", nil)
 			require.NoError(t, err)
 			ribevents.RegisterValidationLookup(nil, nil)
@@ -197,8 +197,8 @@ func TestForkedGateServesValidatedVerdicts(t *testing.T) {
 			require.NoError(t, err)
 
 			peer := netip.MustParseAddr(adjTransportSource)
-			accepted := ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
-			pending := ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.2.0.0/24")}
+			accepted := ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
+			pending := ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.2.0.0/24")}
 			require.True(t, ribevents.RouteEligible(accepted, 0), "an accepted route must be eligible through the command")
 			require.True(t, ribevents.RouteEligible(accepted, 100), "the accepted route's received generation must be eligible")
 			require.False(t, ribevents.RouteEligible(accepted, 99), "a generation the store does not hold must be refused")

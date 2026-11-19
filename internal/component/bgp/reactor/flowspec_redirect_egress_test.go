@@ -35,7 +35,18 @@ func flowRedirectForward(t *testing.T, fam family.Family, raw, payload []byte, s
 		setup(f)
 	}
 	f.destination.refreshForwardFacts()
-	key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, Family: fam, NLRI: string(raw)}
+	originalSession := f.source.currentSession()
+	if originalSession == nil {
+		t.Fatal("FlowSpec fixture has no original source Session")
+	}
+	key := ribevents.ValidationRoute{Peer: f.source.Settings().Address, PeerOwner: f.source.sourceOwner,
+		ConnectionID: connectionIDOf(originalSession), Family: fam, NLRI: string(raw)}
+	if key.PeerOwner == 0 {
+		t.Fatal("FlowSpec fixture has no original source owner")
+	}
+	if key.ConnectionID == 0 {
+		t.Fatal("FlowSpec fixture has no original source connection")
+	}
 	ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 	id := f.receive(t, payload)

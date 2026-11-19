@@ -67,6 +67,7 @@ func TestRFC2545ThirdPartyLinkLocalAnnounce(t *testing.T) {
 
 	t.Run("common-subnet", func(t *testing.T) {
 		peer, conn := newAnnouncePeer(t, "2001:db8:1::2")
+		negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 		peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 		peer.refreshLinkScopeWith(connected, view)
 
@@ -81,6 +82,7 @@ func TestRFC2545ThirdPartyLinkLocalAnnounce(t *testing.T) {
 
 	t.Run("peer-off-link", func(t *testing.T) {
 		peer, conn := newAnnouncePeer(t, "2001:db8:dead:beef::2")
+		negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 		peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 		peer.refreshLinkScopeWith(connected, view)
 

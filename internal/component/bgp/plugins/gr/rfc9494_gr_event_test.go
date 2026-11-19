@@ -18,19 +18,16 @@ import (
 // VALIDATES: handleOpenEvent extracts cap 64 hex from OPEN JSON, decodes it, stores grPeerCap.
 // PREVENTS: GR capability being lost when peer's OPEN arrives before session-down.
 func TestHandleEventOpenCapture(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// GR capability: restart-time=120 (0x0078), IPv4/unicast F-bit=1 (AFI=1 SAFI=1 flags=0x80)
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"00780001018000020180"}]}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"00780001018000020180"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	gp.mu.Lock()
-	cap, ok := gp.peerCaps["10.0.0.1"]
+	cap, ok := gp.peerCaps[701]
 	gp.mu.Unlock()
 
 	require.True(t, ok, "GR capability should be stored for peer")
@@ -47,18 +44,15 @@ func TestHandleEventOpenCapture(t *testing.T) {
 // VALIDATES: handleOpenEvent ignores OPEN messages without capability code 64.
 // PREVENTS: Spurious GR state for peers without GR capability.
 func TestHandleEventOpenNoGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":1,"name":"multiprotocol","value":"00010001"}]}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":1,"name":"multiprotocol","value":"00010001"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	gp.mu.Lock()
-	_, ok := gp.peerCaps["10.0.0.1"]
+	_, ok := gp.peerCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, ok, "no GR capability should be stored")
@@ -69,24 +63,21 @@ func TestHandleEventOpenNoGR(t *testing.T) {
 // VALIDATES: handleStateEvent on "down" with reason "tcp-failure" activates GR state manager.
 // PREVENTS: GR not activating when the session drops due to TCP failure.
 func TestHandleEventStateDown(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Pre-store GR capability (as if OPEN was received earlier)
-	gp.peerCaps["10.0.0.1"] = &grPeerCap{
+	gp.peerCaps[701] = &grPeerCap{connectionID: 41,
 		RestartTime: 120,
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	// GR state should be active (retain-routes would be dispatched via SDK, but we have no SDK here)
-	assert.True(t, gp.state.peerActive("10.0.0.1"), "GR should be active after tcp-failure down")
+	assert.True(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)), "GR should be active after tcp-failure down")
 }
 
 // TestHandleEventStateDownNotification verifies that NOTIFICATION bypasses GR.
@@ -94,22 +85,19 @@ func TestHandleEventStateDown(t *testing.T) {
 // VALIDATES: handleStateEvent on "down" with reason "notification" does NOT activate GR.
 // PREVENTS: Route retention when session ended due to NOTIFICATION (RFC 4724).
 func TestHandleEventStateDownNotification(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
-	gp.peerCaps["10.0.0.1"] = &grPeerCap{
+	gp.peerCaps[701] = &grPeerCap{connectionID: 41,
 		RestartTime: 120,
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"notification"}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"notification"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
-	assert.False(t, gp.state.peerActive("10.0.0.1"), "GR should NOT activate on NOTIFICATION")
+	assert.False(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)), "GR should NOT activate on NOTIFICATION")
 }
 
 // TestHandleEventStateDownNoGRCap verifies that non-GR peers don't activate GR.
@@ -117,17 +105,14 @@ func TestHandleEventStateDownNotification(t *testing.T) {
 // VALIDATES: handleStateEvent on "down" for peer without stored GR cap does nothing.
 // PREVENTS: GR activation for peers that never advertised GR capability.
 func TestHandleEventStateDownNoGRCap(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
-	assert.False(t, gp.state.peerActive("10.0.0.1"), "no GR for peer without capability")
+	assert.False(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)), "no GR for peer without capability")
 }
 
 // TestHandleEventEOR verifies that EOR event triggers stale route purge tracking.
@@ -135,52 +120,51 @@ func TestHandleEventStateDownNoGRCap(t *testing.T) {
 // VALIDATES: handleEOREvent calls state manager's onEORReceived for the family.
 // PREVENTS: EOR events being ignored, leaving stale routes indefinitely.
 func TestHandleEventEOR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Set up GR state: peer is in GR with IPv4 and IPv6 stale
-	cap := &grPeerCap{
+	cap := &grPeerCap{connectionID: 41,
 		RestartTime: 120,
 		Families: []grCapFamily{
 			{Family: family.IPv4Unicast, ForwardState: true},
 			{Family: family.IPv6Unicast, ForwardState: true},
 		},
 	}
-	gp.state.onSessionDown("10.0.0.1", cap, nil, false)
-	gp.state.onSessionReestablished("10.0.0.1", cap, nil)
+	gp.state.onSessionDown(grFixtureSource(t, "10.0.0.1", 701, 41), cap, nil, false)
+	successor := grFixtureSource(t, "10.0.0.1", 701, 42)
+	gp.recordSentLLGR(successor, nil)
+	successorCap := *cap
+	successorCap.connectionID = 42
+	gp.peerCaps[701] = &successorCap
+	gp.state.onSessionReestablished(successor, &successorCap, nil)
 
 	// EOR for IPv4
-	event := `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv4/unicast"}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"42","message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv4/unicast"}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	// GR should still be active (IPv6 not yet received EOR)
-	assert.True(t, gp.state.peerActive("10.0.0.1"))
+	assert.True(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)))
 
 	// EOR for IPv6 -- completes GR
-	event = `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv6/unicast"}}}`
+	event = `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"42","message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv6/unicast"}}}`
 
 	err = gp.handleEvent(event)
 	require.NoError(t, err)
 
-	assert.False(t, gp.state.peerActive("10.0.0.1"), "GR should complete after all EORs")
+	assert.False(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)), "GR should complete after all EORs")
 }
 
 // TestHandleEventInvalidJSON verifies graceful handling of malformed events.
 //
-// VALIDATES: handleEvent returns nil (no error) for invalid JSON.
+// VALIDATES: handleEvent refuses invalid JSON before any event can change state.
 // PREVENTS: Plugin crash on malformed event delivery.
 func TestHandleEventInvalidJSON(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	err := gp.handleEvent("not json at all")
-	assert.NoError(t, err, "invalid JSON should not cause error")
+	assert.Error(t, err, "invalid JSON must be refused without panicking")
 }
 
 // TestHandleEventUnknownType verifies that unknown event types are ignored.
@@ -188,12 +172,9 @@ func TestHandleEventInvalidJSON(t *testing.T) {
 // VALIDATES: handleEvent silently ignores events with unrecognized message types.
 // PREVENTS: Unexpected behavior or errors from future event types.
 func TestHandleEventUnknownType(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"keepalive"},"peer":{"remote":{"address":"10.0.0.1","as":65001}}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"keepalive"},"peer":{"remote":{"address":"10.0.0.1","as":65001}}}}`
 
 	err := gp.handleEvent(event)
 	assert.NoError(t, err)
@@ -204,34 +185,33 @@ func TestHandleEventUnknownType(t *testing.T) {
 // VALIDATES: handleStateEvent on "up" calls onSessionReestablished with new GR cap.
 // PREVENTS: Stale routes not being purged when peer reconnects without forwarding state.
 func TestHandleEventStateUp(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Set up: peer had GR with IPv4 and IPv6
-	oldCap := &grPeerCap{
+	oldCap := &grPeerCap{connectionID: 41,
 		RestartTime: 120,
 		Families: []grCapFamily{
 			{Family: family.IPv4Unicast, ForwardState: true},
 			{Family: family.IPv6Unicast, ForwardState: true},
 		},
 	}
-	gp.state.onSessionDown("10.0.0.1", oldCap, nil, false)
+	gp.state.onSessionDown(grFixtureSource(t, "10.0.0.1", 701, 41), oldCap, nil, false)
 
+	successor := grFixtureSource(t, "10.0.0.1", 701, 42)
+	gp.recordSentLLGR(successor, nil)
 	// New OPEN only has IPv4 with F-bit=1 (IPv6 missing)
-	gp.peerCaps["10.0.0.1"] = &grPeerCap{
+	gp.peerCaps[701] = &grPeerCap{connectionID: 42,
 		RestartTime: 120,
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"42","message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	// GR should still be active for IPv4 (waiting for EOR)
-	assert.True(t, gp.state.peerActive("10.0.0.1"))
+	assert.True(t, gp.state.peerActive(grFixtureSource(t, "10.0.0.1", 701, 41)))
 }
 
 // TestHandleOpenEventCapHexDecode verifies round-trip from wire hex to stored cap.
@@ -239,10 +219,7 @@ func TestHandleEventStateUp(t *testing.T) {
 // VALIDATES: The exact hex bytes from a real GR capability wire encoding are decoded correctly.
 // PREVENTS: Off-by-one or endianness bugs in hex parsing pipeline.
 func TestHandleOpenEventCapHexDecode(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps: make(map[string]*grPeerCap),
-		state:    newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.2", 701, 41)
 
 	// Build event with known hex: restart-time=300 (0x012C), IPv4/unicast F-bit=1
 	// Wire: 0x012C (flags=0, time=300) + 0x0001 0x01 0x80 (AFI=1, SAFI=1, F=1)
@@ -251,6 +228,7 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 	eventObj := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
+			"peer-owner": uint64(701), "connection-id": "41",
 			"message": map[string]any{"type": "open", "direction": "received"},
 			"peer":    map[string]any{"remote": map[string]any{"address": "10.0.0.2", "as": float64(65002)}},
 			"open": map[string]any{
@@ -269,7 +247,7 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 	require.NoError(t, err)
 
 	gp.mu.Lock()
-	cap, ok := gp.peerCaps["10.0.0.2"]
+	cap, ok := gp.peerCaps[701]
 	gp.mu.Unlock()
 
 	require.True(t, ok)
@@ -290,23 +268,19 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 // (internal/component/bgp/plugins/gr/gr.go:472-489), LLST included, so an accompanied LLGR
 // capability is honored rather than discarded.
 func TestHandleEventOpenLLGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// GR: restart-time=120, ipv4/unicast F=1
 	// LLGR: ipv4/unicast F=1, LLST=3600 (0x000E10)
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"007800010180"},{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"007800010180"},{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	// Verify GR capability stored
 	gp.mu.Lock()
-	grCap, grOK := gp.peerCaps["10.0.0.1"]
-	llgrCap, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	grCap, grOK := gp.peerCaps[701]
+	llgrCap, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	require.True(t, grOK, "GR capability should be stored")
@@ -328,21 +302,17 @@ func TestHandleEventOpenLLGR(t *testing.T) {
 // without code 64 leaves foundGR false, and handleOpenEvent deletes the peer's LLGR entry
 // (internal/component/bgp/plugins/gr/gr.go:493-498), so the received LLGR capability is ignored.
 func TestHandleEventOpenLLGR_NoGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Only LLGR capability, no GR
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+	event := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "no GR capability should be stored")
@@ -428,11 +398,7 @@ func buildLLGRCapTLV(families [][7]byte) []byte {
 // VALIDATES: handleStructuredEvent routes "open" events to the structured OPEN handler.
 // PREVENTS: Structured OPEN events being silently dropped by the dispatcher.
 func TestHandleStructuredEventDispatchOpen(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// GR cap: restart-time=120, IPv4/unicast F-bit=1
 	grCap := buildGRCapTLV(0, 120, [][4]byte{{0x00, 0x01, 0x01, 0x80}})
@@ -440,17 +406,19 @@ func TestHandleStructuredEventDispatchOpen(t *testing.T) {
 	openBody := buildOpenBody(optParams)
 
 	se := &rpc.StructuredEvent{
-		PeerAddress: "10.0.0.1",
-		PeerAS:      rpc.RemoteASOf(65001),
-		EventType:   rpc.EventKindOpen,
-		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{RawBytes: openBody},
+		PeerAddress:  "10.0.0.1",
+		PeerOwner:    701,
+		ConnectionID: 41,
+		PeerAS:       rpc.RemoteASOf(65001),
+		EventType:    rpc.EventKindOpen,
+		Direction:    rpc.DirectionReceived,
+		RawMessage:   &bgptypes.RawMessage{RawBytes: openBody},
 	}
 
-	gp.handleStructuredEvent(se)
+	require.NoError(t, gp.handleStructuredEvent(se))
 
 	gp.mu.Lock()
-	cap, ok := gp.peerCaps["10.0.0.1"]
+	cap, ok := gp.peerCaps[701]
 	gp.mu.Unlock()
 
 	require.True(t, ok, "GR capability should be stored after structured open dispatch")
@@ -466,18 +434,14 @@ func TestHandleStructuredEventDispatchOpen(t *testing.T) {
 // VALIDATES: handleStructuredOpen returns early when RawBytes is nil.
 // PREVENTS: Nil pointer dereference on structured events without wire data.
 func TestHandleStructuredOpenNilRawBytes(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	msg := &bgptypes.RawMessage{RawBytes: nil}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "no GR capability should be stored for nil RawBytes")
@@ -490,11 +454,7 @@ func TestHandleStructuredOpenNilRawBytes(t *testing.T) {
 // VALIDATES: handleStructuredOpen does not crash on truncated/malformed wire data.
 // PREVENTS: Panic or error propagation from invalid wire data in structured events.
 func TestHandleStructuredOpenMalformedBytes(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	tests := []struct {
 		name     string
@@ -509,11 +469,11 @@ func TestHandleStructuredOpenMalformedBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := &bgptypes.RawMessage{RawBytes: tt.rawBytes}
 			// Must not panic
-			gp.handleStructuredOpen("10.0.0.1", msg)
+			gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 			gp.mu.Lock()
-			_, grOK := gp.peerCaps["10.0.0.1"]
-			_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+			_, grOK := gp.peerCaps[701]
+			_, llgrOK := gp.peerLLGRCaps[701]
 			gp.mu.Unlock()
 
 			assert.False(t, grOK, "no GR cap stored for malformed bytes")
@@ -586,21 +546,17 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gp := &grPlugin{
-				peerCaps:     make(map[string]*grPeerCap),
-				peerLLGRCaps: make(map[string]*llgrPeerCap),
-				state:        newGRStateManager(nil),
-			}
+			gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 			grCap := buildGRCapTLV(tt.flags, tt.restartTime, tt.families)
 			optParams := buildCapabilityParam(grCap)
 			openBody := buildOpenBody(optParams)
 
 			msg := &bgptypes.RawMessage{RawBytes: openBody}
-			gp.handleStructuredOpen("10.0.0.1", msg)
+			gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 			gp.mu.Lock()
-			cap, ok := gp.peerCaps["10.0.0.1"]
+			cap, ok := gp.peerCaps[701]
 			gp.mu.Unlock()
 
 			require.True(t, ok, "GR capability should be stored")
@@ -620,11 +576,7 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 // VALIDATES: handleStructuredOpen extracts LLGR capability from raw OPEN wire bytes.
 // PREVENTS: LLGR capability being lost when delivered via structured (DirectBridge) path.
 func TestHandleStructuredOpenValidLLGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// GR: restart-time=120, ipv4/unicast F-bit=1
 	grCap := buildGRCapTLV(0, 120, [][4]byte{{0x00, 0x01, 0x01, 0x80}})
@@ -634,11 +586,11 @@ func TestHandleStructuredOpenValidLLGR(t *testing.T) {
 	openBody := buildOpenBody(optParams)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	grOK := gp.peerCaps["10.0.0.1"]
-	llgrCapResult, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	grOK := gp.peerCaps[701]
+	llgrCapResult, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	require.NotNil(t, grOK, "GR capability should be stored")
@@ -660,11 +612,7 @@ func TestHandleStructuredOpenValidLLGR(t *testing.T) {
 // (internal/component/bgp/plugins/gr/gr.go:281-285), so the LLGR capability is disregarded and
 // never drives an LLGR period.
 func TestHandleStructuredOpenLLGRNoGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Only LLGR capability (code 71), no GR (code 64)
 	llgrCap := buildLLGRCapTLV([][7]byte{{0x00, 0x01, 0x01, 0x80, 0x00, 0x0E, 0x10}})
@@ -672,11 +620,11 @@ func TestHandleStructuredOpenLLGRNoGR(t *testing.T) {
 	openBody := buildOpenBody(optParams)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "no GR capability should be stored")
@@ -689,11 +637,7 @@ func TestHandleStructuredOpenLLGRNoGR(t *testing.T) {
 // VALIDATES: extractGRCaps stops walking when data is too short for a complete TLV.
 // PREVENTS: Out-of-bounds read on malformed capability bytes inside optional params.
 func TestExtractGRCapsTruncatedData(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	tests := []struct {
 		name   string
@@ -725,11 +669,11 @@ func TestExtractGRCapsTruncatedData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Must not panic
-			result := gp.extractGRCaps("10.0.0.1", tt.data, false)
+			result := gp.extractGRCaps(grFixtureSource(t, "10.0.0.1", 701, 41), tt.data, false)
 			assert.Equal(t, tt.wantGR, result, "foundGR mismatch")
 
 			gp.mu.Lock()
-			_, ok := gp.peerCaps["10.0.0.1"]
+			_, ok := gp.peerCaps[701]
 			gp.mu.Unlock()
 			assert.False(t, ok, "no GR cap should be stored for truncated data")
 		})
@@ -748,11 +692,7 @@ func TestExtractGRCapsTruncatedData(t *testing.T) {
 // no-GR cleanup branch (internal/component/bgp/plugins/gr/gr.go:281-285), so both capabilities
 // are retained with their per-family LLST values.
 func TestHandleStructuredOpenGRPlusLLGR(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// GR: restart-time=240, IPv4/unicast F=1, IPv6/unicast F=1
 	grCap := buildGRCapTLV(0, 240, [][4]byte{
@@ -768,11 +708,11 @@ func TestHandleStructuredOpenGRPlusLLGR(t *testing.T) {
 	openBody := buildOpenBody(optParams)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	grResult, grOK := gp.peerCaps["10.0.0.1"]
-	llgrResult, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	grResult, grOK := gp.peerCaps[701]
+	llgrResult, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	// Verify GR
@@ -801,26 +741,24 @@ func TestHandleStructuredOpenGRPlusLLGR(t *testing.T) {
 // VALIDATES: handleStructuredEvent does not dispatch unknown event types.
 // PREVENTS: Unexpected side effects from unrecognized structured event types.
 func TestHandleStructuredEventNonOpenType(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	se := &rpc.StructuredEvent{
-		PeerAddress: "10.0.0.1",
-		PeerAS:      rpc.RemoteASOf(65001),
-		EventType:   rpc.EventKindKeepalive,
-		Direction:   rpc.DirectionReceived,
-		RawMessage:  &bgptypes.RawMessage{RawBytes: []byte{0x04}},
+		PeerAddress:  "10.0.0.1",
+		PeerOwner:    701,
+		ConnectionID: 41,
+		PeerAS:       rpc.RemoteASOf(65001),
+		EventType:    rpc.EventKindKeepalive,
+		Direction:    rpc.DirectionReceived,
+		RawMessage:   &bgptypes.RawMessage{RawBytes: []byte{0x04}},
 	}
 
 	// Must not panic or change state
-	gp.handleStructuredEvent(se)
+	require.NoError(t, gp.handleStructuredEvent(se))
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "keepalive event should not store GR cap")
@@ -833,25 +771,23 @@ func TestHandleStructuredEventNonOpenType(t *testing.T) {
 // VALIDATES: handleStructuredEvent type-asserts RawMessage safely.
 // PREVENTS: Panic when RawMessage is set but is not *bgptypes.RawMessage.
 func TestHandleStructuredEventOpenWrongRawMessageType(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	se := &rpc.StructuredEvent{
-		PeerAddress: "10.0.0.1",
-		PeerAS:      rpc.RemoteASOf(65001),
-		EventType:   rpc.EventKindOpen,
-		Direction:   rpc.DirectionReceived,
-		RawMessage:  "not a RawMessage", // wrong type
+		PeerAddress:  "10.0.0.1",
+		PeerOwner:    701,
+		ConnectionID: 41,
+		PeerAS:       rpc.RemoteASOf(65001),
+		EventType:    rpc.EventKindOpen,
+		Direction:    rpc.DirectionReceived,
+		RawMessage:   "not a RawMessage", // wrong type
 	}
 
 	// Must not panic
-	gp.handleStructuredEvent(se)
+	require.NoError(t, gp.handleStructuredEvent(se))
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "wrong RawMessage type should not store GR cap")
@@ -863,21 +799,17 @@ func TestHandleStructuredEventOpenWrongRawMessageType(t *testing.T) {
 // VALIDATES: handleStructuredOpen handles OPEN messages without any capabilities.
 // PREVENTS: False positives from OPEN messages without GR support.
 func TestHandleStructuredOpenNoCapabilities(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// OPEN with zero-length optional parameters
 	openBody := buildOpenBody(nil)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "no GR cap should be stored without capabilities")
@@ -890,22 +822,18 @@ func TestHandleStructuredOpenNoCapabilities(t *testing.T) {
 // VALIDATES: handleStructuredOpen skips non-capability optional parameters.
 // PREVENTS: Non-capability parameters being misinterpreted as capability data.
 func TestHandleStructuredOpenNonCapabilityParam(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Optional parameter with type 1 (Authentication, deprecated), not type 2
 	authParam := []byte{0x01, 0x02, 0xAA, 0xBB} // type=1, len=2, data=AABB
 	openBody := buildOpenBody(authParam)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	_, grOK := gp.peerCaps["10.0.0.1"]
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, grOK := gp.peerCaps[701]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, grOK, "non-capability param should not produce GR cap")
@@ -918,14 +846,10 @@ func TestHandleStructuredOpenNonCapabilityParam(t *testing.T) {
 // VALIDATES: handleStructuredOpen deletes pre-existing peerLLGRCaps when GR absent.
 // PREVENTS: Stale LLGR state surviving across OPEN messages without GR.
 func TestHandleStructuredOpenLLGRDeletedWhenPreExisting(t *testing.T) {
-	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		state:        newGRStateManager(nil),
-	}
+	gp := grEventFixture(t, "10.0.0.1", 701, 41)
 
 	// Pre-populate LLGR state (as if a previous OPEN had both GR+LLGR)
-	gp.peerLLGRCaps["10.0.0.1"] = &llgrPeerCap{
+	gp.peerLLGRCaps[701] = &llgrPeerCap{connectionID: 41,
 		Families: []llgrCapFamily{{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600}},
 	}
 
@@ -935,10 +859,10 @@ func TestHandleStructuredOpenLLGRDeletedWhenPreExisting(t *testing.T) {
 	openBody := buildOpenBody(optParams)
 
 	msg := &bgptypes.RawMessage{RawBytes: openBody}
-	gp.handleStructuredOpen("10.0.0.1", msg)
+	gp.handleStructuredOpen(grFixtureSource(t, "10.0.0.1", 701, 41), msg)
 
 	gp.mu.Lock()
-	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	_, llgrOK := gp.peerLLGRCaps[701]
 	gp.mu.Unlock()
 
 	assert.False(t, llgrOK, "pre-existing LLGR should be deleted when new OPEN has no GR")

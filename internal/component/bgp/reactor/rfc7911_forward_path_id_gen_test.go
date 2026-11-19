@@ -198,7 +198,7 @@ func TestForwardPathIDStableForEachDestination(t *testing.T) {
 			emit := func(src source.SourceID) uint32 {
 				t.Helper()
 				wire := fwdPathIDWire(pathIDTestBody(t, 65001, 12), ctxID, src)
-				result, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, peer, destination, &fwdParseCache{})
+				result, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, peer, destination, &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 				require.True(t, ok)
 				defer returnReadBuffer(result.transcodeBuf)
 				return forwardedPathID(t, result)
@@ -228,7 +228,7 @@ func TestForwardPathIDLeavesNonAddPathDestinationAlone(t *testing.T) {
 	body := buildRawUpdateBody(nil, forwardBodyBaseAttrs(t, 65001), [][]byte{fwdPathIDBareNLRI()})
 	wire := fwdPathIDWire(body, ctxID, fwdTestSourceA)
 
-	result, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.42"), &fwdParseCache{})
+	result, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.42"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 	require.True(t, ok)
 
 	require.Len(t, result.rawBodies, 1, "a same-context forward must stay on the raw path")
@@ -264,7 +264,8 @@ func TestForwardPathIDFiniteNamespace(t *testing.T) {
 		id     uint32
 	}{{4501, 0}, {4502, ^uint32(0)}}
 	for _, path := range paths {
-		fwdPathIDs.byPath[path.source] = map[fwdPathKey]uint32{key: path.id}
+		origin := fwdPathOrigin{source: fwdPathSource{sourceID: path.source, peerOwner: uint64(path.source) + 1}, connectionID: 41, messageID: 1}
+		fwdPathIDs.byPath[origin.source] = map[fwdPathKey]fwdPathMapping{key: {id: path.id, origin: origin}}
 		fwdPathIDs.used[path.id] = 1
 	}
 	fwdPathIDs.next = ^uint32(0)
@@ -321,7 +322,7 @@ func fwdPathIDBareNLRI() []byte {
 // Identifier the destination frame announces.
 func fwdForwardOnePathID(t *testing.T, wire *wireu.WireUpdate, destCtxID bgpctx.ContextID, peer *Peer) uint32 {
 	t.Helper()
-	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.43"), &fwdParseCache{})
+	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.43"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 	require.True(t, ok, "the UPDATE must forward")
 	t.Cleanup(func() { returnReadBuffer(result.transcodeBuf) })
 	return forwardedPathID(t, result)
@@ -331,7 +332,7 @@ func fwdForwardOnePathID(t *testing.T, wire *wireu.WireUpdate, destCtxID bgpctx.
 // Identifier the destination frame withdraws.
 func fwdForwardOneWithdrawnPathID(t *testing.T, wire *wireu.WireUpdate, destCtxID bgpctx.ContextID, peer *Peer) uint32 {
 	t.Helper()
-	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.44"), &fwdParseCache{})
+	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.44"), &fwdParseCache{}, fwdPathIDFixtureOrigin(wire))
 	require.True(t, ok, "the withdraw must forward")
 	t.Cleanup(func() { returnReadBuffer(result.transcodeBuf) })
 

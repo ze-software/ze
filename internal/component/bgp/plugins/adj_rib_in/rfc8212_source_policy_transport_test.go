@@ -29,8 +29,8 @@ const (
 )
 
 // adjTransportStateUp is the JSON state event that brings peer's session up.
-func adjTransportStateUp(peer string) string {
-	return fmt.Sprintf(`{"type":"state","peer":{"address":%q,"remote":{"address":%q,"as":65001}},"state":"up"}`, peer, peer)
+func adjTransportStateUp(peer string, owner uint64) string {
+	return fmt.Sprintf(`{"type":"state","peer":{"address":%q,"remote":{"address":%q,"as":65001}},"state":"up","peer-owner":%d,"connection-id":"41"}`, peer, peer, owner)
 }
 
 // adjTransportReceived is the format=full JSON event of one received UPDATE
@@ -38,7 +38,7 @@ func adjTransportStateUp(peer string) string {
 // announcing prefix.
 func adjTransportReceived(peer string, owner, id uint64, prefix, nlriHex string) string {
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update","id":%d,"direction":"received"},`+
-		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"peer-owner":%d,"source-policy-epoch":5,`+
+		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"connection-id":"41","peer-owner":%d,"source-policy-epoch":5,`+
 		`"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":%q}},`+
 		`"update":{"attr":{"origin":"igp"},"ipv4/unicast":[{"next-hop":%q,"action":"add","nlri":[%q]}]}}}`,
 		id, peer, peer, owner, nlriHex, peer, prefix)
@@ -51,9 +51,9 @@ func startAdjRIBInOverTransport(t *testing.T, ctx context.Context, transport plu
 	t.Helper()
 	engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
 	for _, event := range []string{
-		adjTransportStateUp(adjTransportSource),
-		adjTransportStateUp(adjTransportOther),
-		adjTransportStateUp(adjTransportTarget),
+		adjTransportStateUp(adjTransportSource, 1),
+		adjTransportStateUp(adjTransportOther, 2),
+		adjTransportStateUp(adjTransportTarget, 3),
 		adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100"),
 		adjTransportReceived(adjTransportSource, 1, 101, "10.2.0.0/24", "180a0200"),
 		adjTransportReceived(adjTransportOther, 2, 102, "10.1.0.0/24", "180a0100"),

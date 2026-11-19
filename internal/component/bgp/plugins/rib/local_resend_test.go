@@ -112,16 +112,17 @@ func TestLocalResendOfOneFamilyBracketsOnlyThatFamily(t *testing.T) {
 func TestLocalResendCarriesConfigRoutes(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr(rfc7313RefreshPeer)
-	r.peerUp[peer] = true
+	r.peerMeta[1] = &peerMetadata{Address: peer, Session: 11}
+	r.peerUp[1] = true
 	body := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 1, 24, 198, 51, 100}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	wu := wireu.NewWireUpdate(body, ctxID)
 	attrs, err := wu.Attrs()
 	require.NoError(t, err)
 	r.handleSentStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		Meta:        map[string]any{"config-static": true},
-		RawMessage:  &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		Meta:       map[string]any{"config-static": true},
+		RawMessage: &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
 	})
 	sequence := &[]string{}
 	r.dispatchHook = func(cmd string) { *sequence = append(*sequence, "marker "+cmd) }
@@ -142,25 +143,26 @@ func TestLocalResendCarriesConfigRoutes(t *testing.T) {
 func TestLocalResendAfterAWithdrawalSendsNothing(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr(rfc7313RefreshPeer)
-	r.peerUp[peer] = true
+	r.peerMeta[1] = &peerMetadata{Address: peer, Session: 11}
+	r.peerUp[1] = true
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	announce := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 1, 24, 198, 51, 100}
 	wu := wireu.NewWireUpdate(announce, ctxID)
 	attrs, err := wu.Attrs()
 	require.NoError(t, err)
 	r.handleSentStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		Meta:        map[string]any{"config-static": true},
-		RawMessage:  &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		Meta:       map[string]any{"config-static": true},
+		RawMessage: &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
 	})
-	require.Len(t, r.collectGroupedRibOutRoutes(peer), 1, "the fixture holds the configured route")
+	require.Len(t, r.collectGroupedRibOutRoutes(1), 1, "the fixture holds the configured route")
 
 	// RFC 4271 Section 4.3: withdrawn routes length 4, the route 198.51.100.0/24,
 	// path attribute length 0.
 	withdraw := wireu.NewWireUpdate([]byte{0, 4, 24, 198, 51, 100, 0, 0}, ctxID)
 	r.handleSentStructured(&rpc.StructuredEvent{
-		PeerAddress: peer.String(),
-		RawMessage:  &bgptypes.RawMessage{WireUpdate: withdraw},
+		PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11,
+		RawMessage: &bgptypes.RawMessage{WireUpdate: withdraw},
 	})
 	sequence := &[]string{}
 	r.dispatchHook = func(cmd string) { *sequence = append(*sequence, "marker "+cmd) }

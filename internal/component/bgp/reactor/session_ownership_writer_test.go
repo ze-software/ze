@@ -474,7 +474,7 @@ func TestFinalWriterSentReceipt(t *testing.T) {
 	defer item.provenance.release()
 	var receipts []wireu.SentOrigin
 	var callbackErr string
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, receipt *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, meta map[string]any, sourcePeer string, _ uint64) bool {
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, receipt *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, meta map[string]any, sourcePeer string, _ uint64) bool {
 		if direction != rpc.DirectionSent || receipt.MessageID() == 0 {
 			callbackErr = "sent callback lacks its accepted-message receipt"
 		}

@@ -31,18 +31,20 @@ func TestRetentionEmittedOnEveryDown(t *testing.T) {
 	} {
 		for _, path := range []string{"structured", "text"} {
 			t.Run(tc.name+" "+path, func(t *testing.T) {
-				gp := newGRPluginWithGRCap()
+				gp := newGRPluginWithGRCap(t)
 				var emitted []string
 				gp.emitHook = func(payload string) { emitted = append(emitted, payload) }
 				if path == "structured" {
-					gp.handleStructuredState(removalTestPeer, rpc.SessionStateDown, tc.reason)
+					gp.handleStructuredState(grFixtureSource(t, removalTestPeer, 701, 41), rpc.SessionStateDown, tc.reason)
 				} else {
-					gp.handleStateEvent(removalTestPeer, map[string]any{"state": "down", "reason": tc.reason})
+					gp.handleStateEvent(grFixtureSource(t, removalTestPeer, 701, 41), map[string]any{"state": "down", "reason": tc.reason})
 				}
 				require.Len(t, emitted, 1, "one verdict per DOWN")
 				var verdict retention.Verdict
 				require.NoError(t, json.Unmarshal([]byte(emitted[0]), &verdict))
 				require.Equal(t, removalTestPeer, verdict.PeerAddress)
+				require.Equal(t, uint64(701), verdict.PeerOwner)
+				require.Equal(t, uint64(41), verdict.ConnectionID)
 				require.Equal(t, tc.want, verdict.Families)
 			})
 		}

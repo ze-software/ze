@@ -75,19 +75,19 @@ func TestNlriKey(t *testing.T) {
 // of a departed source that held more than one.
 func TestHandleStateDown_BatchesByFamily(t *testing.T) {
 	const source = "10.0.0.1"
-	rr, requests := newPeerDownReflector(t)
-	routes := make(map[string]withdrawalInfo)
+	rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, source, 701, 41))
+	routes := make(map[withdrawalKey]withdrawalInfo)
 	ipv4 := make(map[string]bool)
 	for i := range withdrawalBatchSize + 1 {
 		prefix := fmt.Sprintf("prefix 10.%d.%d.0/24", i/256, i%256)
-		routes["ipv4/unicast|"+prefix] = withdrawalInfo{Family: family.IPv4Unicast, Prefix: prefix}
+		routes[withdrawalKey{owner: 701, connection: 41, route: "ipv4/unicast|" + prefix}] = withdrawalInfo{SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast, Prefix: prefix}
 		ipv4[prefix] = true
 	}
-	routes["ipv6/unicast|2001:db8::/32"] = withdrawalInfo{Family: family.IPv6Unicast, Prefix: "prefix 2001:db8::/32"}
-	routes["ipv6/unicast|2001:db8:1::/48"] = withdrawalInfo{Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"}
+	routes[withdrawalKey{owner: 701, connection: 41, route: "ipv6/unicast|2001:db8::/32"}] = withdrawalInfo{SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv6Unicast, Prefix: "prefix 2001:db8::/32"}
+	routes[withdrawalKey{owner: 701, connection: 41, route: "ipv6/unicast|2001:db8:1::/48"}] = withdrawalInfo{SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"}
 	rr.withdrawals[source] = routes
 
-	rr.handleStateDown(source, 7)
+	rr.handleStateDown(rrOriginalFixture(t, source, 701, 41), 7)
 	rr.stopDepartures()
 	close(requests)
 

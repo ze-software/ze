@@ -53,7 +53,7 @@ func TestRFC8212SourcePolicyRIBWriteRefusedFailsPhase(t *testing.T) {
 
 		r.updateRefuseHook = nil
 		require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 7))
-		require.Len(t, r.ribOut[f.destination], 1, "the abort returns the copy to the sent inventory")
+		require.Len(t, r.ribOut[sourcePolicyDestinationPeerOwner], 1, "the abort returns the copy to the sent inventory")
 	})
 
 	t.Run("abort", func(t *testing.T) {

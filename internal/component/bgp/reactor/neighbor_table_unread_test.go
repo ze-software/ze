@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
@@ -45,6 +46,7 @@ func TestNoNeighbourReaderWarnsOncePerPeer(t *testing.T) {
 	peers := make([]*Peer, 0, 2)
 	for _, address := range []string{"2001:db8:1::2", "2001:db8:1::3"} {
 		peer, conn := newAnnouncePeer(t, address)
+		negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 		peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 		peer.refreshLinkScopeWith(connected, unread)
 		for range 2 {

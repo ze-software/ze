@@ -66,11 +66,17 @@ func TestIGPCostChangeReselectsWithoutAIGP(t *testing.T) {
 	loc.Insert(family.IPv4Unicast, coverB, igpRoute(20))
 
 	wirePrefix := ipv4Prefix(24, 10, 20, 0)
-	for i, peerText := range []string{"192.0.2.1", "192.0.2.2"} {
-		peer := netip.MustParseAddr(peerText)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
-		routes := storage.NewPeerRIB(peerText)
-		r.bgpPeers[peer] = routes
+	for i, source := range []struct {
+		owner   uint64
+		address string
+	}{
+		{1, "192.0.2.1"},
+		{2, "192.0.2.2"},
+	} {
+		peer := netip.MustParseAddr(source.address)
+		r.peerMeta[source.owner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
+		routes := storage.NewPeerRIB(source.address)
+		r.bgpPeers[source.owner] = routes
 		t.Cleanup(routes.Release)
 		// The cheaper next hop rides on the peer the later tie-breakers
 		// (BGP Identifier, peer address) would reject, so a winner that
@@ -151,17 +157,18 @@ func TestIGPCostUnresolvedNextHopLosesToReachable(t *testing.T) {
 	// The unresolvable next hops ride on the lower peer addresses, which the
 	// final tie-breaker prefers, so only step (e) can make the reachable path win.
 	for _, entry := range []struct {
+		owner   uint64
 		peer    string
 		nextHop netip.Addr
 	}{
-		{"192.0.2.1", unreachable},
-		{"192.0.2.2", discarded},
-		{"192.0.2.3", reachable},
+		{1, "192.0.2.1", unreachable},
+		{2, "192.0.2.2", discarded},
+		{3, "192.0.2.3", reachable},
 	} {
 		peer := netip.MustParseAddr(entry.peer)
-		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+		r.peerMeta[entry.owner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65001}
 		routes := storage.NewPeerRIB(entry.peer)
-		r.bgpPeers[peer] = routes
+		r.bgpPeers[entry.owner] = routes
 		t.Cleanup(routes.Release)
 		routes.Insert(family.IPv4Unicast, aigpSelectionAttrs(entry.nextHop.As4(), nil, 100, 1), wirePrefix)
 	}

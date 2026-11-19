@@ -31,12 +31,14 @@ func seedCoveringPeers(r *RIBManager) {
 	first.Insert(fam, coveringTestAttrs(), []byte{8, 10})
 	first.Insert(fam, coveringTestAttrs(), []byte{16, 10, 1})
 	first.Insert(fam, coveringTestAttrs(), []byte{24, 192, 0, 2})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = first
+	r.bgpPeers[1] = first
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	second := storage.NewPeerRIB("192.0.2.2")
 	second.Insert(fam, coveringTestAttrs(), []byte{24, 192, 0, 2})
 	second.Insert(fam, coveringTestAttrs(), []byte{8, 10})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = second
+	r.bgpPeers[2] = second
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
 }
 
 // coveringRowKeys runs `show bgp rib` with args through the real handler and
@@ -226,7 +228,8 @@ func TestCoveringReadsOnlyThePath(t *testing.T) {
 	for _, nlri := range [][]byte{{0}, {8, 10}, {16, 10, 1}, {24, 10, 1, 2}} {
 		peerRIB.Insert(fam, coveringTestAttrs(), nlri)
 	}
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	covering := newInboundSource(r, "*", coveringRead{address: netip.MustParseAddr("10.1.2.3")})
 	items := drainSource(covering)
@@ -277,7 +280,8 @@ func TestCoveringIPv6(t *testing.T) {
 	peerRIB.Insert(v6, coveringTestAttrs(), []byte{32, 0x20, 0x01, 0x0d, 0xb9})
 	peerRIB.Insert(family.IPv4Unicast, coveringTestAttrs(), []byte{0})
 	peerRIB.Insert(family.IPv4Unicast, coveringTestAttrs(), []byte{8, 10})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	got := coveringRowKeys(t, r, "received", "covering", "2001:db8:1::5")
 	assert.Equal(t, []string{
@@ -318,7 +322,8 @@ func TestCoveringOrdersAcrossFamilies(t *testing.T) {
 	for _, nlri := range [][]byte{{16, 10, 1}, {24, 10, 1, 2}} {
 		peerRIB.Insert(multicast, coveringTestAttrs(), nlri)
 	}
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	source := newInboundSource(r, "*", coveringRead{address: netip.MustParseAddr("10.1.2.3")})
 	items := drainSource(source)
@@ -352,7 +357,8 @@ func TestCoveringListsEveryAddPathPath(t *testing.T) {
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 1, 16, 10, 1})
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 2, 16, 10, 1})
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 1, 16, 10, 2})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	got := coveringRowKeys(t, r, "received", "covering", "10.1.2.3")
 	require.Len(t, got, 3, "two paths of 10.1.0.0/16 and one of 10.0.0.0/8: %v", got)
@@ -400,9 +406,11 @@ func TestPrefixTextFilterUnchanged(t *testing.T) {
 	for _, nlri := range [][]byte{{24, 10, 0, 0}, {24, 10, 0, 1}, {16, 10, 10}, {8, 10}, {24, 192, 0, 2}} {
 		peerRIB.Insert(fam, coveringTestAttrs(), nlri)
 	}
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
-	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		fam: {
 			"10.0.0.0/24":  {Family: fam, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1"},
 			"10.0.1.0/24":  {Family: fam, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1"},

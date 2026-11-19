@@ -37,7 +37,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 			peer.runInitialSyncNow()
 		}
 		var origins []bool
-		peer.session.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, body []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, meta map[string]any, _ string, _ uint64) bool {
+		peer.session.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, body []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, meta map[string]any, _ string, _ uint64) bool {
 			if typ == msgtype.TypeUPDATE && direction == rpc.DirectionSent && len(body) > 4 {
 				replay, _ := meta["replay"].(bool)
 				origins = append(origins, replay)

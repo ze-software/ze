@@ -124,7 +124,7 @@ func admissionUpdate(last byte) []byte {
 }
 
 func admissionCapture(s *Session, bodies chan<- []byte, before func()) {
-	s.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, body []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, body []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if typ == msgtype.TypeUPDATE {

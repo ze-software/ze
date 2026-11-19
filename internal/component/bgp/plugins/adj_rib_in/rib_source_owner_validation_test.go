@@ -19,11 +19,11 @@ func TestValidationInstalledPathUsesOriginalOwner(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.188")
 	prefix := netip.MustParsePrefix("10.77.0.0/24")
 	key := compactRouteKey{Fam: family.IPv4Unicast, Prefix: prefix}
-	r.ribIn[peer] = newSeqMap()
-	r.ribIn[peer].Put(key, 1, &RawRoute{Family: family.IPv4Unicast, SourceOwner: 1701, MsgID: 71})
+	r.ribIn[receivedPeer{address: peer, owner: 1701}] = newSeqMap()
+	r.ribIn[receivedPeer{address: peer, owner: 1701}].Put(key, 1, &RawRoute{ConnectionID: 41, Family: family.IPv4Unicast, SourceOwner: 1701, MsgID: 71})
 	for _, owner := range []uint64{1701, 1702, 0} {
 		t.Run(strconv.FormatUint(owner, 10), func(t *testing.T) {
-			query := ribevents.ValidationRoute{Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast, Prefix: prefix}
+			query := ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast, Prefix: prefix}
 			require.Equal(t, owner == 1701, r.routeEligible(query, 71))
 			require.Equal(t, owner == 1701, r.routePresent(query))
 		})
@@ -37,12 +37,12 @@ func TestValidationPendingPathUsesOriginalOwner(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.188")
 	prefix := netip.MustParsePrefix("10.77.0.0/24")
 	key := compactRouteKey{Fam: family.IPv4Unicast, Prefix: prefix}
-	r.pending[pendingKey(peer, key)] = &pendingRoute{
-		route: &RawRoute{Family: family.IPv4Unicast, SourceOwner: 1701, MsgID: 71},
+	r.pending[pendingKey(receivedPeer{address: peer, owner: 1701}, key)] = &pendingRoute{
+		route: &RawRoute{ConnectionID: 41, Family: family.IPv4Unicast, SourceOwner: 1701, MsgID: 71},
 	}
 	for _, owner := range []uint64{1701, 1702, 0} {
 		t.Run(strconv.FormatUint(owner, 10), func(t *testing.T) {
-			query := ribevents.ValidationRoute{Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast, Prefix: prefix}
+			query := ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast, Prefix: prefix}
 			require.False(t, r.routeEligible(query, 71))
 			require.Equal(t, owner == 1701, r.routePresent(query))
 		})

@@ -62,20 +62,20 @@ func TestRFC8277LabeledWithdrawIgnoresCompatibility(t *testing.T) {
 			r := newTestRIBManagerWithBus(bus)
 			electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 			peer := netip.MustParseAddr("192.0.2.21")
-			r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+			r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
 			ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-			feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+			feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 				labeledNLRI(0, false, pfx, []uint32{100})))
-			if got := r.bgpPeers[peer].Len(); got != 1 {
+			if got := r.bgpPeers[1].Len(); got != 1 {
 				t.Fatalf("routes after the announcement = %d, want 1", got)
 			}
 
-			feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledWithdrawNLRI(0, false, pfx, tc.value)))
-			if got := r.bgpPeers[peer].Len(); got != 0 {
+			feedReceived(r, 1, peer, ctxID, labeledWithdrawBody(labeledWithdrawNLRI(0, false, pfx, tc.value)))
+			if got := r.bgpPeers[1].Len(); got != 0 {
 				t.Fatalf("routes after the withdrawal = %d, want 0: the Compatibility field names no route", got)
 			}
-			if got := labelsFor(r, peer, []byte{8, 10}); got != nil {
+			if got := labelsFor(r, 1, []byte{8, 10}); got != nil {
 				t.Fatalf("labels after the withdrawal = %v, want none", got)
 			}
 			changes := vpnBestChanges(bus, labeledFamily)
@@ -111,22 +111,22 @@ func TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility(t *testing.T) {
 			ctxID, _ := bgpctx.Registry.Register(
 				bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{labeledFamily: true}))
 
-			feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+			feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 				labeledNLRI(7, true, pfx, []uint32{100})))
-			feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 20,
+			feedReceived(r, 1, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 20,
 				labeledNLRI(9, true, pfx, []uint32{200})))
-			if got := r.bgpPeers[peer].Len(); got != 2 {
+			if got := r.bgpPeers[1].Len(); got != 2 {
 				t.Fatalf("routes after the announcements = %d, want 2", got)
 			}
 
-			feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledWithdrawNLRI(7, true, pfx, tc.value)))
-			if got := r.bgpPeers[peer].Len(); got != 1 {
+			feedReceived(r, 1, peer, ctxID, labeledWithdrawBody(labeledWithdrawNLRI(7, true, pfx, tc.value)))
+			if got := r.bgpPeers[1].Len(); got != 1 {
 				t.Fatalf("routes after withdrawing path 7 = %d, want 1", got)
 			}
-			if _, found := r.bgpPeers[peer].Lookup(labeledFamily, []byte{0, 0, 0, 7, 8, 10}); found {
+			if _, found := r.bgpPeers[1].Lookup(labeledFamily, []byte{0, 0, 0, 7, 8, 10}); found {
 				t.Fatalf("path 7 is still installed after its withdrawal")
 			}
-			if got := labelsFor(r, peer, []byte{0, 0, 0, 9, 8, 10}); !slices.Equal(got, []uint32{200}) {
+			if got := labelsFor(r, 1, []byte{0, 0, 0, 9, 8, 10}); !slices.Equal(got, []uint32{200}) {
 				t.Fatalf("path 9 labels = %v, want [200]: the withdrawal named path 7 only", got)
 			}
 		})

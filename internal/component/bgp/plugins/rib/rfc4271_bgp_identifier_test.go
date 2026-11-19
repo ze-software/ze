@@ -26,22 +26,25 @@ import (
 // Candidate.OriginatorIP and was always correct about it; the defect this file
 // pins was in what FILLED that field, so a test that builds Candidates by hand
 // passes either way and proves nothing (ai/rules/evidence.md).
-func feedReceivedWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr, remoteRouterID uint32, ctxID bgpctx.ContextID, body []byte) {
+func feedReceivedWithIdentifier(t *testing.T, r *RIBManager, peerOwner uint64, peer netip.Addr, remoteRouterID uint32, ctxID bgpctx.ContextID, body []byte) {
 	t.Helper()
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(peerOwner)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
 		EventType:      rpc.EventKindUpdate,
+		PeerOwner:      peerOwner,
 		PeerAddress:    peer.String(),
 		PeerAS:         rpc.RemoteASOf(65001),
 		LocalAS:        65000,
 		RouterID:       identifierFor(t, "192.0.2.254"), // this speaker's own, shared by every peer
 		RemoteRouterID: remoteRouterID,
 		RawMessage: &types.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   body,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
+			Type:        msgtype.TypeUPDATE,
+			SourceOwner: peerOwner,
+			RawBytes:    body,
+			WireUpdate:  wu,
+			AttrsWire:   attrs,
 		},
 	})
 }
@@ -99,8 +102,8 @@ func TestBestPathStepFComparesThePeerBGPIdentifier(t *testing.T) {
 	// step g) disagree and the winner names the step that ran.
 	lowAddress := netip.MustParseAddr("192.0.2.1")
 	highAddress := netip.MustParseAddr("192.0.2.2")
-	feedReceivedWithIdentifier(t, r, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
-	feedReceivedWithIdentifier(t, r, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
+	feedReceivedWithIdentifier(t, r, 1, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
+	feedReceivedWithIdentifier(t, r, 2, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
 
 	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2, "both peers announced the prefix, so both are candidates")
@@ -128,8 +131,8 @@ func TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress(t *testing.T) {
 	shared := identifierFor(t, "10.0.0.7")
 	lowAddress := netip.MustParseAddr("192.0.2.1")
 	highAddress := netip.MustParseAddr("192.0.2.2")
-	feedReceivedWithIdentifier(t, r, lowAddress, shared, ctxID, identifierTestUpdate())
-	feedReceivedWithIdentifier(t, r, highAddress, shared, ctxID, identifierTestUpdate())
+	feedReceivedWithIdentifier(t, r, 1, lowAddress, shared, ctxID, identifierTestUpdate())
+	feedReceivedWithIdentifier(t, r, 2, highAddress, shared, ctxID, identifierTestUpdate())
 
 	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2)

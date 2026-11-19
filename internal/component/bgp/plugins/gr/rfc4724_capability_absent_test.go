@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
@@ -30,8 +31,8 @@ import (
 //
 // RFC requirement: RFC4724-4.2-8 positive -- on the structured event path, after a TCP failure of a session whose OPEN carried capability 64 with F set for IPv4 and IPv6 unicast, a re-established OPEN with only capability 65, or with no optional parameters, makes the "up" event dispatch purge-stale for both families.
 func TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath(t *testing.T) {
-	purgeIPv4 := "request bgp rib purge-stale " + testPeer + " " + family.IPv4Unicast.String()
-	purgeIPv6 := "request bgp rib purge-stale " + testPeer + " " + family.IPv6Unicast.String()
+	purgeIPv4 := "request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv4Unicast.String()
+	purgeIPv6 := "request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv6Unicast.String()
 	grOpen := buildOpenBody(buildCapabilityParam(buildGRCapTLV(0, 120, [][4]byte{
 		{0x00, 0x01, 0x01, 0x80}, // IPv4 unicast, F set
 		{0x00, 0x02, 0x01, 0x80}, // IPv6 unicast, F set
@@ -46,16 +47,23 @@ func TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath(t *testi
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gp, rec := newRecordedGRPlugin()
+			connection := uint64(41)
+			t.Cleanup(func() { gp.state.removePeer(grFixtureSource(t, testPeer, 701, 41).grPeer) })
 			deliver := func(se *rpc.StructuredEvent) {
 				se.PeerAddress = testPeer
-				gp.handleStructuredEvent(se)
+				se.PeerOwner = 701
+				se.ConnectionID = connection
+				require.NoError(t, gp.handleStructuredEvent(se))
 			}
+			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindOpen, Direction: rpc.DirectionSent, RawMessage: &bgptypes.RawMessage{RawBytes: grOpen}})
 			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindOpen, Direction: rpc.DirectionReceived,
 				RawMessage: &bgptypes.RawMessage{RawBytes: grOpen}})
 			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindState, State: rpc.SessionStateDown, Reason: "tcp-failure"})
 			before := len(rec.all())
-			assert.Equal(t, 3, before, "the first session advertised the capability, so its routes are retained")
+			assert.Equal(t, []string{"request bgp rib source retain-routes owner 701 connection 41 on-down families ipv4/unicast ipv6/unicast", "request bgp rib source mark-stale owner 701 connection 41 restart-time 120"}, rec.all(), "the first session advertised both families; retain and mark its original connection")
 
+			connection = 42
+			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindOpen, Direction: rpc.DirectionSent, RawMessage: &bgptypes.RawMessage{RawBytes: tc.open}})
 			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindOpen, Direction: rpc.DirectionReceived,
 				RawMessage: &bgptypes.RawMessage{RawBytes: tc.open}})
 			deliver(&rpc.StructuredEvent{EventType: rpc.EventKindState, State: rpc.SessionStateUp})

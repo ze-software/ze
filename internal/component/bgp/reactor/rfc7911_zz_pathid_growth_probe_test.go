@@ -29,7 +29,8 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 	for index, mode := range []string{"same-context", "cross-context", "unframed-source"} {
 		t.Run(mode, func(t *testing.T) {
 			src := source.SourceID(4301 + index)
-			t.Cleanup(func() { fwdPathIDs.releaseSource(src) })
+			sourcePeer := newFwdPathIDFixturePeer(src)
+			t.Cleanup(func() { fwdPathIDs.releaseSource(fwdPathSource{sourceID: src, peerOwner: sourcePeer.sourceOwner}) })
 			srcCtxID := destCtxID
 			framed := mode != "unframed-source"
 			if mode == "cross-context" {
@@ -59,8 +60,11 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 					body = fwdShapeBody(section, nil, nil)
 				}
 				wire := fwdPathIDWire(body, srcCtxID, src)
+				originalUpdate := fwdPathIDFixtureReceived(t, sourcePeer, wire)
+				originalOrigin, originErr := newFwdPathOrigin(originalUpdate)
+				require.NoError(t, originErr)
 				result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer,
-					netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
+					netip.MustParseAddr("192.0.2.10"), &fwdParseCache{}, originalOrigin)
 				require.True(t, ok)
 				defer returnReadBuffer(result.transcodeBuf)
 				var update *message.Update
@@ -88,7 +92,7 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 				require.Zero(t, iter.Remaining(), "one complete native prefix must be emitted")
 				if withdraw {
 					// Model cache eviction only after the recipient has its withdrawal.
-					fwdReleaseWithdrawnPathIDs(&ReceivedUpdate{WireUpdate: wire})
+					fwdReleaseWithdrawnPathIDs(originalUpdate)
 				}
 				return id
 			}

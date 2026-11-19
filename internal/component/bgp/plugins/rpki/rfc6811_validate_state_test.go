@@ -21,7 +21,7 @@ func TestRouteStateIsSetFromTheLookup(t *testing.T) {
 	validate := func(t *testing.T, rp *rPKIPlugin) (uint8, uint8) {
 		t.Helper()
 		results := rp.validateNLRIs("192.0.2.50", "", "", 65001, 71, "ipv4/unicast",
-			nlri, false, false, 65001, false, aspaStateNone, false)
+			nlri, false, false, 65001, false, aspaStateNone, false, rpkiSource{}, false)
 		requests := drainRequests(rp.validateCh)
 		require.Len(t, requests, 1)
 		return results["10.0.0.0/24"], requests[0].state

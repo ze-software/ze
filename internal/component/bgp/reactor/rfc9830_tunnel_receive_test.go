@@ -110,7 +110,7 @@ func TestTunnelAnnouncementUnaffectedByPolicyWithdrawal(t *testing.T) {
 	announced := []byte{24, 10, 30, 0}
 	body := makeUpdateBody(nil, attrs, announced)
 	calls := 0
-	s.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		calls++

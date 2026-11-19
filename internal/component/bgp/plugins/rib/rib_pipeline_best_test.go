@@ -39,13 +39,15 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 
 	// Peer B: LOCAL_PREF=200 (winner)
 	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrB, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = peerB
 
 	result := r.bestPipeline("*", []string{"reason"})
 
@@ -95,7 +97,8 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 
 	result := r.bestPipeline("*", []string{"reason"})
 
@@ -132,7 +135,8 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	peer := storage.NewPeerRIB("192.0.2.1")
 	peer.Insert(fam, attr, nlri1)
 	peer.Insert(fam, attr, nlri2)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peer
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peer
 
 	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
 
@@ -187,11 +191,13 @@ func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = peerB
 
 	result := r.bestPipeline("*", nil)
 
@@ -231,10 +237,12 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrBytes, nlriBytes)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = peerB
 
 	result := r.bestPipeline("*", nil)
 
@@ -264,12 +272,14 @@ func TestBestPipelineLockReduced(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlri)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerA
 
 	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrB, nlri)
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
+	r.bgpPeers[2] = peerB
 
 	// Second prefix on peer A only
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24

@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -20,9 +21,9 @@ import (
 func receiptEnvelope(t *testing.T, message *bgptypes.RawMessage, peer string, change func(map[string]any)) string {
 	t.Helper()
 	payload := string(format.AppendMessage(nil, &plugin.PeerInfo{
-		Address: netip.MustParseAddr(peer), PeerAS: rpc.RemoteASOf(65001),
+		Address: netip.MustParseAddr(peer), PeerAS: rpc.RemoteASOf(65001), PeerOwner: message.SourceOwner, ConnectionID: message.SourceConnectionID,
 	}, *message, bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed}))
-	metadata := map[string]any{"peer": peer, "peer-owner": uint64(0), "message-id": message.MessageID,
+	metadata := map[string]any{"peer": peer, "peer-owner": message.SourceOwner, "message-id": message.MessageID,
 		"source-policy-epoch": message.SourcePolicyEpoch, "source-receipt": message.SourceReceipt, "reactor-forwarded": message.ReactorForwarded,
 		"fast-path-skipped": message.FastPathSkipped}
 	if change != nil {
@@ -49,23 +50,25 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 			items := make(chan workItem, 1)
 			rs.workers = newWorkerPool(func(_ workerKey, item workItem) { items <- item }, poolConfig{chanSize: 1})
 			const source = "10.0.0.1"
-			for address, state := range map[string]PeerState{
-				source:     {Up: true, StateSeen: true},
-				"10.0.0.2": {Up: true, StateSeen: true, InitialReplay: 20},
-				"10.0.0.3": {Up: true, StateSeen: true, InitialReplay: 20},
-				"10.0.0.4": {Up: true, StateSeen: true, InitialReplay: 50},
-				"10.0.0.5": {Up: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60},
-				"10.0.0.6": {StateSeen: true},
+			for address, state := range map[workerKey]*PeerState{
+				rsFixtureKey(source, 1, 101):     {Up: true, StateSeen: true},
+				rsFixtureKey("10.0.0.2", 2, 102): {Up: true, StateSeen: true, InitialReplay: 20},
+				rsFixtureKey("10.0.0.3", 3, 103): {Up: true, StateSeen: true, InitialReplay: 20},
+				rsFixtureKey("10.0.0.4", 4, 104): {Up: true, StateSeen: true, InitialReplay: 50},
+				rsFixtureKey("10.0.0.5", 5, 105): {Up: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60},
+				rsFixtureKey("10.0.0.6", 6, 106): {StateSeen: true},
 			} {
-				state.Address = address
-				rs.peers[address] = &state
+				state.Address = address.address.String()
+				state.DestinationSession = address.owner + 200
+				state.SessionGeneration = 3
+				rs.peers[address] = state
 			}
 			message := fastPathServedAnnounce(t)
 			message.Type = msgtype.TypeUPDATE
 			message.Direction = rpc.DirectionReceived
 			message.MessageID = 40
 			message.SourcePolicyEpoch = 7
-			message.FastPathSkipped = []netip.AddrPort{netip.MustParseAddrPort("10.0.0.3:179"), netip.MustParseAddrPort("10.0.0.6:179")}
+			message.FastPathSkipped = []rpc.ForwardTarget{rsFixtureTarget("10.0.0.3", 3, 203), rsFixtureTarget("10.0.0.6", 6, 206)}
 			body := slices.Clone(message.RawBytes)
 			context := message.WireUpdate.SourceCtxID()
 			if transport == "structured" {
@@ -80,7 +83,7 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 			default:
 				t.Fatal("received UPDATE envelope never reached the actual route-server worker")
 			}
-			message.FastPathSkipped[0] = netip.MustParseAddrPort("10.0.0.2:179")
+			message.FastPathSkipped[0] = rsFixtureTarget("10.0.0.2", 2, 202)
 			var forwarded []string
 			rs.forwardCachedHook = func(ids []uint64, targets []string) {
 				if !slices.Equal(ids, []uint64{40}) {
@@ -88,7 +91,7 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 				}
 				forwarded = append(forwarded, targets...)
 			}
-			key := workerKey{sourcePeer: source}
+			key := rsFixtureKey(source, 1, 101)
 			rs.processForward(key, item)
 			rs.flushWorkerBatch(key)
 			if !slices.Equal(forwarded, []string{"10.0.0.3", "10.0.0.4"}) {
@@ -121,11 +124,26 @@ func TestRSFastReceiptRejectsMismatchedIdentity(t *testing.T) {
 		t.Run(field, func(t *testing.T) {
 			rs := newTestRouteServer(t)
 			rs.workers.Stop()
-			items := make(chan workItem, 1)
+			items := make(chan workItem, 2)
 			rs.workers = newWorkerPool(func(_ workerKey, item workItem) { items <- item }, poolConfig{chanSize: 1})
 			message := fastPathServedAnnounce(t)
 			message.Type, message.Direction, message.MessageID, message.SourcePolicyEpoch = msgtype.TypeUPDATE, rpc.DirectionReceived, 40, 7
+			message.SourceOwner = 1
+			message.SourceConnectionID = 101
+			message.SourceReceipt = 301
 			message.Meta = map[string]any{"reactor-forwarded": true}
+			rs.mu.Lock()
+			rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", Up: true, StateSeen: true}
+			rs.mu.Unlock()
+			rs.dispatchText(receiptEnvelope(t, message, "10.0.0.1", nil))
+			select {
+			case item := <-items:
+				if item.msgID != 40 {
+					t.Fatalf("useful original envelope msg=%d", item.msgID)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("useful original receipt did not reach worker")
+			}
 			rs.dispatchText(receiptEnvelope(t, message, "10.0.0.1", func(metadata map[string]any) {
 				if field == "peer" {
 					metadata[field] = "10.0.0.99"

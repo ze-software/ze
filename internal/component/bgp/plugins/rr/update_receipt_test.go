@@ -41,31 +41,27 @@ func TestRRUpdateReceiptDispatch(t *testing.T) {
 			t.Cleanup(func() { _ = p.Close() })
 			var forwarded []string
 			var released []uint64
-			// RR uses UpdateRouteWithMeta, which reaches the generic engine RPC
-			// dispatcher; SetUpdateRouteSel observes a different SDK entry point.
-			bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
-				if method != rpc.MethodUpdateRoute {
-					return nil, fmt.Errorf("unexpected engine method %q", method)
+			bridge.SetForwardCached(func(_ context.Context, input rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) {
+				if len(input.Targets) != 1 || input.Targets[0].DestinationOwner != 702 || input.Targets[0].DestinationSession != 142 {
+					t.Errorf("reflection lost the complete original target: %+v", input.Targets)
 				}
-				var input rpc.UpdateRouteInput
-				if err := json.Unmarshal(params, &input); err != nil {
-					return nil, err
+				for _, id := range input.IDs {
+					forwarded = append(forwarded, fmt.Sprintf("cached %d", id))
 				}
-				if input.PeerSelector != "*" {
-					t.Errorf("reflection selector = %q, want all peers", input.PeerSelector)
-				}
-				forwarded = append(forwarded, input.Command)
-				return json.Marshal(rpc.UpdateRouteOutput{Announced: 1})
+				return rpc.CompletedCachedWrite(input.DeadlineMS, nil), nil
 			})
+			rrFixtureLease(bridge)
 			bridge.SetReleaseCached(func(_ context.Context, ids []uint64) error {
 				released = append(released, ids...)
 				return nil
 			})
 			bridge.SetReady()
-			rr := &routeReflector{plugin: p, peers: make(map[string]*peerState), withdrawals: make(map[string]map[string]withdrawalInfo)}
+			rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+			rrFixtureStart(t, rr, rrOriginalFixture(t, "192.0.2.1", 701, 41), 70, 7, 141)
+			rrFixtureStart(t, rr, rrOriginalFixture(t, "192.0.2.2", 702, 42), 0, 7, 142)
 			const source = "192.0.2.1"
-			const payload = "peer 192.0.2.1 remote as 65001 received update 40 source-policy-epoch 7 origin igp next 192.0.2.1 nlri ipv4/unicast add 10.4.0.0/24\n"
-			metadata := map[string]any{"peer": source, "peer-owner": uint64(0), "message-id": uint64(40), "source-policy-epoch": uint64(7), "source-receipt": uint64(0), "reactor-forwarded": false}
+			const payload = "peer 192.0.2.1 remote as 65001 received update 40 peer-owner 701 connection-id 41 source-receipt 70 source-policy-epoch 7 origin igp next 192.0.2.1 nlri ipv4/unicast add 10.4.0.0/24\n"
+			metadata := map[string]any{"peer": source, "peer-owner": uint64(701), "message-id": uint64(40), "source-policy-epoch": uint64(7), "source-receipt": uint64(70), "reactor-forwarded": false}
 			switch test.mode {
 			case "missing":
 				delete(metadata, test.field)

@@ -90,7 +90,7 @@ func compatibilityRouteState(t *testing.T, safi family.SAFI, addPath bool) {
 				r := newTestRIBManagerWithBus(bus)
 				electionFixtureLocRIB(t, r, hop)
 				peer := netip.MustParseAddr("192.0.2.21")
-				r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+				r.peerMeta[1] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
 				ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{fam: addPath}))
 				if err != nil {
 					t.Fatal(err)
@@ -105,15 +105,15 @@ func compatibilityRouteState(t *testing.T, safi family.SAFI, addPath bool) {
 				}
 				want := make(map[string]bool)
 				for i, route := range routes {
-					feedReceived(r, peer, ctxID, compatibilityBody(fam, hop, uint32(100+i), route, false))
+					feedReceived(r, 1, peer, ctxID, compatibilityBody(fam, hop, uint32(100+i), route, false))
 					want[hex.EncodeToString(route)] = true
 				}
-				assertCompatibilityRoutes(t, r, peer, fam, addPath, want)
+				assertCompatibilityRoutes(t, r, 1, fam, addPath, want)
 				for i, route := range routes {
 					before := len(vpnBestChanges(bus, fam))
-					feedReceived(r, peer, ctxID, compatibilityBody(fam, hop, 0, compatibilityWithdraw(route, addPath, tc.value), true))
+					feedReceived(r, 1, peer, ctxID, compatibilityBody(fam, hop, 0, compatibilityWithdraw(route, addPath, tc.value), true))
 					delete(want, hex.EncodeToString(route))
-					assertCompatibilityRoutes(t, r, peer, fam, addPath, want)
+					assertCompatibilityRoutes(t, r, 1, fam, addPath, want)
 					changes := vpnBestChanges(bus, fam)
 					if len(changes) != before+1 {
 						t.Fatalf("withdrawal published %d changes, want exactly one", len(changes)-before)
@@ -131,16 +131,16 @@ func compatibilityRouteState(t *testing.T, safi family.SAFI, addPath bool) {
 	}
 }
 
-func assertCompatibilityRoutes(t *testing.T, r *RIBManager, peer netip.Addr, fam family.Family, addPath bool, want map[string]bool) {
+func assertCompatibilityRoutes(t *testing.T, r *RIBManager, peerOwner uint64, fam family.Family, addPath bool, want map[string]bool) {
 	t.Helper()
 	got := make(map[string]bool)
-	r.bgpPeers[peer].IterateFamily(fam, func(route []byte, _ storage.RouteEntry) bool {
+	r.bgpPeers[peerOwner].IterateFamily(fam, func(route []byte, _ storage.RouteEntry) bool {
 		if fam.SAFI == family.SAFIMPLSLabel {
 			offset := 0
 			if addPath {
 				offset = 4
 			}
-			labels := pool.ResolveLabels(r.bgpPeers[peer].LookupLabels(fam, route))
+			labels := pool.ResolveLabels(r.bgpPeers[peerOwner].LookupLabels(fam, route))
 			if len(labels) != 1 {
 				t.Fatalf("survivor %x labels = %v, want one original label", route, labels)
 			}
@@ -217,24 +217,24 @@ func compatibilityVPNPromotion(t *testing.T) {
 					electionFixtureLocRIB(t, r, hopA, hopB)
 					peA := netip.MustParseAddr("192.0.2.1")
 					peB := netip.MustParseAddr("192.0.2.2")
-					r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-					r.peerMeta[peB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+					r.peerMeta[1] = &peerMetadata{Address: peA, PeerASN: 65001, LocalASN: 65000}
+					r.peerMeta[2] = &peerMetadata{Address: peB, PeerASN: 65001, LocalASN: 65000}
 					ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{fam: addPath}))
 					if err != nil {
 						t.Fatal(err)
 					}
 					a := compatibilityRoute(fam, addPath, 0, 1, prefix, 100)
 					b := compatibilityRoute(fam, addPath, 17, 1, prefix, 101)
-					feedReceived(r, peA, ctxID, compatibilityBody(fam, hopA, 100, a, false))
-					feedReceived(r, peB, ctxID, compatibilityBody(fam, hopB, 200, b, false))
+					feedReceived(r, 1, peA, ctxID, compatibilityBody(fam, hopA, 100, a, false))
+					feedReceived(r, 2, peB, ctxID, compatibilityBody(fam, hopB, 200, b, false))
 					before := vpnBestChanges(bus, fam)
 					if len(before) != 1 {
 						t.Fatalf("initial changes = %d, want only A's add", len(before))
 					}
 					assertCompatibilityChange(t, &before[0], fam, addPath, routeaction.Add, a)
-					feedReceived(r, peA, ctxID, compatibilityBody(fam, hopA, 0, compatibilityWithdraw(a, addPath, tc.value), true))
-					assertCompatibilityRoutes(t, r, peA, fam, addPath, map[string]bool{})
-					assertCompatibilityRoutes(t, r, peB, fam, addPath, map[string]bool{hex.EncodeToString(b): true})
+					feedReceived(r, 1, peA, ctxID, compatibilityBody(fam, hopA, 0, compatibilityWithdraw(a, addPath, tc.value), true))
+					assertCompatibilityRoutes(t, r, 1, fam, addPath, map[string]bool{})
+					assertCompatibilityRoutes(t, r, 2, fam, addPath, map[string]bool{hex.EncodeToString(b): true})
 					changes := vpnBestChanges(bus, fam)
 					if len(changes) != len(before)+1 {
 						t.Fatalf("promotion changes = %d, want one", len(changes)-len(before))

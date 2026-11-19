@@ -125,7 +125,7 @@ func TestRFC4659ConfiguredIPv6TransportNextHopWire(t *testing.T) {
 				remoteSettings.Capabilities = []capability.Capability{&capability.Multiprotocol{AFI: 2, SAFI: 128}}
 				remote := reactor.NewSession(remoteSettings)
 				updates := make(chan []byte, 16)
-				remote.SetMessageCallback(func(_ netip.Addr, kind msgtype.MessageType, body []byte,
+				remote.SetMessageCallback(func(_ *reactor.Session, _ netip.Addr, kind msgtype.MessageType, body []byte,
 					_ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 					_ reactor.BufHandle, _ map[string]any, _ string, _ uint64) bool {
 					if direction != rpc.DirectionReceived {

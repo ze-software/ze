@@ -39,6 +39,7 @@ func TestRelayRouteJSONMaxBoundsMarshal(t *testing.T) {
 	}{
 		{"empty", rpc.StoredRoute{}},
 		{"widest-scalars", rpc.StoredRoute{
+			SourceOwner: ^uint64(0), SourceReceipt: ^uint64(0), SourceConnectionID: ^uint64(0), InitialUpdate: true,
 			PathID:            ^uint32(0),
 			NLRIFraming:       rpc.NLRIFramingSourceWire,
 			MsgID:             ^uint64(0),
@@ -193,7 +194,7 @@ func TestReplayLastIndexSurvivesMultiChunkRelay(t *testing.T) {
 			NHopHex: "0a000001", NLRIHex: "180a0000",
 		})
 	}
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	var chunkSizes []int
 	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) error {
@@ -234,7 +235,7 @@ func TestReplayCommandReportsRelayFailure(t *testing.T) {
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	relayErr := errors.New("engine refused the frame")
 	r.routeRelayer = func(_ string, _ []rpc.StoredRoute) error { return relayErr }

@@ -266,12 +266,13 @@ func TestRFC8212NativeRSSkipsAbsentExport(t *testing.T) {
 	destination.refreshForwardFacts()
 	update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(policyChainAdvertisingBody(), ctxID), SourcePeerIP: source.Settings().Address}
 	r := &Reactor{peers: map[netip.AddrPort]*Peer{source.Settings().PeerKey(): source, destination.Settings().PeerKey(): destination}}
+	wantTarget := fixtureForwardTarget(t, destination)
 	skipped, dispatched := reactorForwardRS(r, update, 51, source.Settings().Address, source)
-	if dispatched != 0 || len(skipped) != 1 || skipped[0] != destination.Settings().PeerKey() {
+	if dispatched != 0 || len(skipped) != 1 || skipped[0] != wantTarget {
 		t.Fatalf("absent final escaped fast path: skipped=%v dispatched=%d", skipped, dispatched)
 	}
 	skipped, dispatched, retry := reactorForwardRSSection(r, update, update.WireUpdate, []*Peer{destination}, 51, source.Settings().Address, source)
-	if dispatched != 0 || len(retry) != 0 || len(skipped) != 1 || skipped[0] != destination.Settings().PeerKey() {
+	if dispatched != 0 || len(retry) != 0 || len(skipped) != 1 || skipped[0] != wantTarget {
 		t.Fatalf("absent final escaped retry: skipped=%v dispatched=%d retry=%v", skipped, dispatched, retry)
 	}
 }
@@ -963,7 +964,7 @@ func newRFC8212ImportFixtureWith(t *testing.T, wire bool, extra ...string) *rfc8
 		}
 	}
 	peer := fx.peer
-	fx.f.s.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+	fx.f.s.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if typ == msgtype.TypeUPDATE {
@@ -1172,13 +1173,13 @@ func rfc8212SectionRestore(fx *rfc8212ImportFixture) (*atomic.Bool, chan bool) {
 	restored := &atomic.Bool{}
 	seen := make(chan bool, 4)
 	inner := fx.f.s.onMessageReceived
-	fx.f.s.onMessageReceived = func(addr netip.Addr, typ msgtype.MessageType, raw []byte,
+	fx.f.s.onMessageReceived = func(captured *Session, addr netip.Addr, typ msgtype.MessageType, raw []byte,
 		update *wireu.WireUpdate, ctxID bgpctx.ContextID, dir rpc.MessageDirection,
 		buf BufHandle, meta map[string]any, owner string, id uint64) bool {
 		if typ == msgtype.TypeUPDATE {
 			seen <- restored.Load()
 		}
-		return inner(addr, typ, raw, update, ctxID, dir, buf, meta, owner, id)
+		return inner(captured, addr, typ, raw, update, ctxID, dir, buf, meta, owner, id)
 	}
 	return restored, seen
 }

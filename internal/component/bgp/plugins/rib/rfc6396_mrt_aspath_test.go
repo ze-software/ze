@@ -41,7 +41,7 @@ func rfc6396DumpedASPath(t *testing.T, body []byte, asn4 bool) []byte {
 
 	r := newTestRIBManager(t)
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
-	feedReceivedWithIdentifier(t, r, netip.MustParseAddr("192.0.2.1"), identifierFor(t, "192.0.2.1"), ctxID, collapsed[:n])
+	feedReceivedWithIdentifier(t, r, 1, netip.MustParseAddr("192.0.2.1"), identifierFor(t, "192.0.2.1"), ctxID, collapsed[:n])
 
 	record := make([]byte, 0, 512)
 	routes := 0

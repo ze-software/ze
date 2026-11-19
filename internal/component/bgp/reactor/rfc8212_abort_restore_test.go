@@ -230,6 +230,8 @@ func rfc8212AbortRestoreWrite(t *testing.T, target *Peer, body []byte, revision,
 func TestRFC8212AbortRestoreAfterSurvivor(t *testing.T) {
 	rail := newOwedRail(t)
 	other := adjOutTestOtherSource(rail.r, rail.source)
+	originalOther := captureRecoveryFixtureOrigin(t, other, recoveryFixtureSession(t, other, rail.source.sendCtxID), rail.source.sendCtxID)
+	originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 	attachRecoveryOwner(t, rail.r, rail.source, other)
 	p := syncOrderPrefixWire
 	rail.forward(t, false, p)
@@ -242,7 +244,7 @@ func TestRFC8212AbortRestoreAfterSurvivor(t *testing.T) {
 	// round elects B's path.
 	owedRailExpected(t, rail.destination, ownershipRailBody(family.IPv4Unicast, true, p, 0), installed.revision)
 	rail.request(t)
-	rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
+	rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, 21)
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round elected B")
 	survivor, held := adjOutTestEntry(rail.destination)
 	if !held || survivor.owner.source != other {
@@ -263,7 +265,7 @@ func TestRFC8212AbortRestoreAfterSurvivor(t *testing.T) {
 	if len(request.Keys) != 1 || !bytes.Equal(request.Keys[0].NLRI, p) {
 		t.Fatalf("the re-election asked for %v, want P", request.Keys)
 	}
-	rail.release <- owedSurvivorMessage(rail.source.Settings().Address, e2, p, installed.revision)
+	rail.release <- owedSurvivorMessage(originalSource, e2, p, installed.revision)
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round re-elected A")
 	written := recoveryWrittenUpdates(t, rail.conn.written())[before:]
 	if len(written) != 1 || len(written[0].NLRI) == 0 {

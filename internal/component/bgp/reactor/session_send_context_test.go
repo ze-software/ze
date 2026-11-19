@@ -38,7 +38,7 @@ func TestSendContextPublicationWaitsForControlWrite(t *testing.T) {
 			<-release
 		}
 		seen := make(chan bgpctx.ContextID, 2)
-		session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+		session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 			_ *wireu.WireUpdate, id bgpctx.ContextID, _ rpc.MessageDirection,
 			_ BufHandle, _ map[string]any, _ string, _ uint64,
 		) bool {

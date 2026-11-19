@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -109,6 +110,7 @@ func TestRSWithdrawalOwnershipSourceGeneration(t *testing.T) {
 				t.Fatal("gate did not hold the recipient's withdrawal from the old source generation")
 			}
 			f.source.setState(PeerStateStopped)
+			recoveryFixtureSession(t, f.source, f.ctxID)
 			f.source.setState(PeerStateEstablished)
 			if gate.generation == f.source.forwardGeneration.Load() {
 				t.Fatal("source restart did not advance its forwarding generation")
@@ -150,6 +152,7 @@ func TestRSWithdrawalOwnershipRetainedSource(t *testing.T) {
 				withdrawals = 0
 			}
 			f.source.setState(PeerStateStopped)
+			recoveryFixtureSession(t, f.source, f.ctxID)
 			f.source.setState(PeerStateEstablished)
 			f.send(t, "cached", f.source, f.ctxID, syncOrderWithdrawBody)
 			f.marker(t, "cached", 3)
@@ -237,7 +240,7 @@ func TestRSWithdrawalOwnershipNativeIdentity(t *testing.T) {
 					// RFC 4760 Section 4 and RFC 8277 Section 2.4.
 					f.send(t, rail, f.source, ctxID, ownershipRailBody(fam, true, ownershipRailNative(fam, 7, 2, true, 0xde), 0))
 				}
-				f.marker(t, rail, 90)
+				f.markerWithContext(t, rail, ctxID, 90)
 				// RFC 7911 Section 5 and RFC 8277 Section 2.4.
 				ownershipRailAssertNative(t, before, ownershipRailRead(t, f.conn.written(), ctx), fam, nil)
 				for i, id := range []uint32{0, 7, 17} {
@@ -248,7 +251,7 @@ func TestRSWithdrawalOwnershipNativeIdentity(t *testing.T) {
 					// RFC 4271 Section 4.3, RFC 4760 Section 4 and RFC 8277 Section 2.4.
 					f.send(t, rail, f.source, ctxID, ownershipRailBody(fam, true, ownershipRailNative(fam, id, 1, true, compatibility), 0))
 				}
-				f.marker(t, rail, 91)
+				f.markerWithContext(t, rail, ctxID, 91)
 				// RFC 7911 Section 5 and RFC 8277 Section 2.4.
 				ownershipRailAssertNative(t, before, ownershipRailRead(t, f.conn.written(), ctx), fam, []byte{1, 8, 18})
 			})
@@ -275,11 +278,11 @@ func TestRSWithdrawalOwnershipCollapsedPaths(t *testing.T) {
 			}
 			// RFC 4271 Section 4.3 and RFC 7911 Section 3.
 			f.send(t, rail, f.source, id, ownershipRailBody(family.IPv4Unicast, true, pathsLimitNLRI(1, syncOrderPrefix), 0))
-			f.marker(t, rail, 3)
+			f.markerWithContext(t, rail, id, 3)
 			f.assertHistory(t, []byte{1, 2}, 0)
 			// RFC 4271 Section 4.3 and RFC 7911 Section 3.
 			f.send(t, rail, f.source, id, ownershipRailBody(family.IPv4Unicast, true, pathsLimitNLRI(2, syncOrderPrefix), 0))
-			f.marker(t, rail, 4)
+			f.markerWithContext(t, rail, id, 4)
 			f.assertHistory(t, []byte{1, 2}, 1)
 		})
 	}
@@ -415,6 +418,8 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 	})
 	other.sendCtx.Store(source.sendCtx.Load())
 	other.sendCtxID = ctxID
+	other.session = other.newSession()
+	other.session.setSendCtxID(ctxID)
 	other.refreshForwardFacts()
 	r.peers[other.Settings().PeerKey()] = other
 	return &ownershipRailFixture{r: r, source: source, other: other, destination: destination, conn: conn, ctxID: ctxID, id: 91000}
@@ -423,13 +428,19 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 func (f *ownershipRailFixture) publish(t *testing.T, source *Peer, ctxID bgpctx.ContextID, body []byte) *ReceivedUpdate {
 	t.Helper()
 	f.id++
-	update := syncOrderPublish(t, f.r, ctxID, f.id, body)
-	update.WireUpdate.SetSourceID(source.SourceID())
-	update.SourcePeerIP = source.Settings().Address
-	update.SourcePeerStr = source.Settings().Address.String()
-	update.receivedPeer = source
-	update.receivedGeneration = source.forwardGeneration.Load()
-	update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
+	original := source.currentSession()
+	if original == nil {
+		t.Fatal("ownership source has no original ingress Session")
+	}
+	wire := wireu.NewWireUpdate(body, ctxID)
+	wire.SetMessageID(f.id)
+	wire.SetSourceID(source.SourceID())
+	update := &ReceivedUpdate{WireUpdate: wire, SourcePeerIP: source.Settings().Address,
+		SourcePeerStr: source.Settings().Address.String(), ReceivedAt: time.Now()}
+	captureRecoveryFixtureOrigin(t, source, original, ctxID)
+	fixtureForwardOrigin(t, update, source, original)
+	f.r.recentUpdates.Add(update)
+	f.r.recentUpdates.Activate(f.id, 1)
 	return update
 }
 
@@ -496,6 +507,25 @@ func (f *ownershipRailFixture) marker(t *testing.T, rail string, value byte) {
 	// RFC 4271 Section 4.3.
 	f.send(t, rail, f.source, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, raw, value))
 	f.await(t, value, raw)
+}
+
+// markerWithContext emits a useful IPv4 writer fence using this source's
+// explicitly negotiated original ingress context. An ADD-PATH input keeps
+// its identifier bytes even when the destination emits prefix-only NLRI.
+func (f *ownershipRailFixture) markerWithContext(t *testing.T, rail string, contextID bgpctx.ContextID, value byte) {
+	t.Helper()
+	context := bgpctx.Registry.Get(contextID)
+	if context == nil {
+		t.Fatal("ownership marker has no original ingress context")
+	}
+	prefix := []byte{24, 198, 51, value}
+	raw := prefix
+	if context.AddPath(family.IPv4Unicast) {
+		raw = append([]byte{0, 0, 0, 0}, prefix...)
+	}
+	// RFC 4271 Section 4.3 and RFC 7911 Section 3.
+	f.send(t, rail, f.source, contextID, ownershipRailBody(family.IPv4Unicast, false, raw, value))
+	f.await(t, value, prefix)
 }
 
 func (f *ownershipRailFixture) await(t *testing.T, value byte, raw []byte) {

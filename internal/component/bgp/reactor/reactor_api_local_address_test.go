@@ -3,7 +3,6 @@
 package reactor
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -107,7 +107,7 @@ func TestEstablishedStateEventUsesConnectedLocalAddress(t *testing.T) {
 	api.r.messageReceiver = &testDeliveryReceiver{
 		onSent: func(peer plugin.PeerInfo, _ bgptypes.RawMessage) { delivered = peer },
 	}
-	session.SetMessageCallback(api.r.notifyMessageReceiver)
+	session.SetMessageCallback(api.r.capturedMessageReceiver)
 	require.NoError(t, session.sendKeepalive(connected))
 	require.Equal(t, localEndpoint.Addr().Unmap(), delivered.LocalAddress)
 	require.Equal(t, localEndpoint.Port(), delivered.LocalPort)
@@ -129,6 +129,7 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			peer.settings.LocalAddress = netip.Addr{}
 			oldSession, oldClient := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 			peer.session = oldSession
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 			// The gate and the owed marker live on the session: close them on
 			// the one just installed, as newInitialSyncPeer did on its own.
 			peer.setTestInitialSync(1, true)
@@ -151,6 +152,7 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			require.NoError(t, replacement.fsm.Event(fsm.EventBGPOpen))
 			require.NoError(t, replacement.fsm.Event(fsm.EventKeepaliveMsg))
 			peer.session = replacement
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 			// The replacement's own sync is the one that drains: its gate is
 			// closed and its marker owed, as the peer-level gate still was.
 			peer.setTestInitialSync(1, true)
@@ -163,12 +165,14 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, byte(msgtype.TypeUPDATE), packet[18])
 			body := packet[message.HeaderLen:]
-			attrLen := int(binary.BigEndian.Uint16(body[2:4]))
-			attrs := body[4 : 4+attrLen]
+			sections, err := wire.ParseUpdateSections(body)
+			require.NoError(t, err)
+			require.Empty(t, sections.Withdrawn(body), "the replacement must announce the queued route")
+			attrs := sections.Attrs(body)
 			_, hop, found := findPathAttr(attrs, byte(attribute.AttrNextHop))
 			require.True(t, found)
 			require.Equal(t, []byte{127, 0, 0, 2}, hop)
-			require.Equal(t, []byte{24, 10, 20, 0}, body[4+attrLen:])
+			require.Equal(t, []byte{24, 10, 20, 0}, sections.NLRI(body))
 		})
 	}
 }
@@ -279,6 +283,9 @@ func TestStaticSelfStaysOnCapturedSession(t *testing.T) {
 				require.NoError(t, active.fsm.Event(fsm.EventKeepaliveMsg))
 			}
 			peer.session = session
+			// The static builder and both live writers must use the same ASN4 width.
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast)
+			replacement.negotiated = session.negotiated
 			replaced := false
 			r := &Reactor{
 				clock: clock.RealClock{},
@@ -291,7 +298,7 @@ func TestStaticSelfStaysOnCapturedSession(t *testing.T) {
 					},
 				},
 			}
-			session.SetMessageCallback(r.notifyMessageReceiver)
+			session.SetMessageCallback(r.capturedMessageReceiver)
 			var routes []StaticRoute
 			want := make(map[string]bool)
 			for i := range byte(16) {
@@ -316,12 +323,15 @@ func TestStaticSelfStaysOnCapturedSession(t *testing.T) {
 				require.Equal(t, byte(msgtype.TypeUPDATE), packet[18])
 				body := packet[message.HeaderLen:]
 				require.GreaterOrEqual(t, len(body), 4)
-				attrLen := int(binary.BigEndian.Uint16(body[2:4]))
-				require.LessOrEqual(t, 4+attrLen, len(body))
-				_, hop, found := findPathAttr(body[4:4+attrLen], byte(attribute.AttrNextHop))
+				sections, err := wire.ParseUpdateSections(body)
+				require.NoError(t, err)
+				require.Empty(t, sections.Withdrawn(body), "the captured session must receive announcements")
+				attrs := sections.Attrs(body)
+				require.LessOrEqual(t, 4+len(attrs), len(body))
+				_, hop, found := findPathAttr(attrs, byte(attribute.AttrNextHop))
 				require.True(t, found)
 				require.Equal(t, []byte{127, 0, 0, 1}, hop)
-				for prefixes := body[4+attrLen:]; len(prefixes) > 0; prefixes = prefixes[4:] {
+				for prefixes := sections.NLRI(body); len(prefixes) > 0; prefixes = prefixes[4:] {
 					require.GreaterOrEqual(t, len(prefixes), 4)
 					require.Equal(t, byte(24), prefixes[0])
 					got[string(prefixes[:4])] = true

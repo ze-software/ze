@@ -222,7 +222,6 @@ func forwardLocalAS(t *testing.T, topo localASTopology, dests []localASDest) map
 	got := make(map[string]localASFrame, len(dests))
 	seen := make(chan struct{}, len(dests))
 	pool := newFwdPool(func(key fwdKey, items []fwdItem) {
-		mu.Lock()
 		for i := range items {
 			for _, body := range items[i].rawBodies {
 				addr := key.peerAddr.Addr().String()
@@ -236,10 +235,13 @@ func forwardLocalAS(t *testing.T, topo localASTopology, dests []localASDest) map
 				if as4, hasAS4 := bodyPathAttr(t, body, 17); hasAS4 {
 					frame.as4Path = aspathASNs(t, as4, 4)
 				}
+				// Decoder assertions may end this worker; only publication holds mu.
+				// Cleanup MUST be able to join the other workers after such a failure.
+				mu.Lock()
 				got[addr] = frame
+				mu.Unlock()
 			}
 		}
-		mu.Unlock()
 		for i := range items {
 			if items[i].done != nil {
 				items[i].done()
@@ -301,6 +303,7 @@ func makeLocalASPeer(t *testing.T, topo localASTopology, ctx *bgpctx.EncodingCon
 	peer := NewPeer(&PeerSettings{
 		Connection:       ConnectionBoth,
 		Address:          addr,
+		LocalAddress:     netip.MustParseAddr("10.0.0.254"),
 		LocalAS:          dest.localAS,
 		GlobalLocalAS:    topo.globalAS,
 		PeerAS:           dest.peerAS,

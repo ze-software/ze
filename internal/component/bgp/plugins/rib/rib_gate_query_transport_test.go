@@ -38,7 +38,7 @@ func TestGateQueryAnnouncesFlowSpecGate(t *testing.T) {
 			defer cancel()
 
 			engine := pluginengine.Start(t, transport, runRIBPlugin)
-			require.NoError(t, engine.Deliver(ctx, transportStateUp(transportSource, 65001)))
+			require.NoError(t, engine.Deliver(ctx, transportStateUp(transportSource, 65001, 1, 1)))
 			require.Equal(t, []string{ribevents.EventFlowSpecGate, ribevents.EventGateQuery}, ribEmitTypes(t, engine),
 				"at start the RIB announces its FlowSpec gate, then asks the gate owners")
 

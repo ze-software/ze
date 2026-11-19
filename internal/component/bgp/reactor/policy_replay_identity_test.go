@@ -38,8 +38,8 @@ func recipientIdentityRail(t *testing.T, gate *ownershipRailGate) *ownershipRail
 		}
 		f.r.fwdPool.Stop()
 		f.destination.adjOut.reset()
-		fwdPathIDs.releaseSource(f.source.SourceID())
-		fwdPathIDs.releaseSource(f.other.SourceID())
+		fwdPathIDs.releaseSource(fwdPathSource{sourceID: f.source.SourceID(), peerOwner: f.source.sourceOwner})
+		fwdPathIDs.releaseSource(fwdPathSource{sourceID: f.other.SourceID(), peerOwner: f.other.sourceOwner})
 		fwdPathIDs.mu.RLock()
 		remaining := len(fwdPathIDs.used)
 		fwdPathIDs.mu.RUnlock()

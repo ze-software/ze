@@ -28,6 +28,7 @@ func TestSourceReceiptReceivedRails(t *testing.T) {
 			t.Run(testReceiptRailName(jsonRail, labeled), func(t *testing.T) {
 				r := newTestRIBManager(t)
 				peer := netip.MustParseAddr("192.0.2.92")
+				const owner uint64 = 1
 				electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 				t.Cleanup(func() {
 					for _, routes := range r.bgpPeers {
@@ -47,19 +48,20 @@ func TestSourceReceiptReceivedRails(t *testing.T) {
 				require.NoError(t, err)
 				for _, receipt := range []uint64{97, 98, 0} {
 					wu := wireu.NewWireUpdate(body, ctxID)
+					wu.SetSourceOwner(owner)
 					aw, err := wu.Attrs()
 					require.NoError(t, err)
-					msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: 7, SourcePolicyEpoch: 17, SourceReceipt: receipt, RawBytes: body, WireUpdate: wu, AttrsWire: aw}
+					msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: 7, SourcePolicyEpoch: 17, SourceReceipt: receipt, SourceOwner: owner, RawBytes: body, WireUpdate: wu, AttrsWire: aw}
 					if jsonRail {
-						info := pluginapi.PeerInfo{Address: peer, AddressStr: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
+						info := pluginapi.PeerInfo{ConnectionID: 41, PeerOwner: owner, Address: peer, AddressStr: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
 						line := format.AppendMessage(nil, &info, msg, bgptypes.ContentConfig{Encoding: pluginapi.EncodingJSON, Format: pluginapi.FormatFull})
 						event, err := parseEvent(line)
 						require.NoError(t, err)
 						r.dispatch(event)
 					} else {
-						r.handleReceivedStructured(&rpc.StructuredEvent{EventType: rpc.EventKindUpdate, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, SourceReceipt: receipt, RawMessage: &msg})
+						r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41, EventType: rpc.EventKindUpdate, PeerOwner: owner, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, SourceReceipt: receipt, RawMessage: &msg})
 					}
-					stored, found := r.bgpPeers[peer].Lookup(fam, raw)
+					stored, found := r.bgpPeers[owner].Lookup(fam, raw)
 					require.True(t, found)
 					require.Equal(t, receipt, stored.SourceReceipt)
 					require.Equal(t, uint64(17), stored.SourcePolicyEpoch)
@@ -102,14 +104,14 @@ func TestSourceReceiptLabeledFallback(t *testing.T) {
 func TestSourceReceiptCaptureRevision(t *testing.T) {
 	r, peer := advertiseCaptureRIB(t)
 	raw := ipv4Prefix(24, 198, 18, 93)
-	advertiseCapturePath(r, peer, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 30, 100), 79, 89)
-	r.bgpPeers[peer].ModifyFamilyEntry(family.IPv4Unicast, raw, func(entry *storage.RouteEntry) { entry.SourceReceipt = 99 })
+	advertiseCapturePath(t, r, advertiseCaptureOwner, family.IPv4Unicast, raw, unicastAttrs(peer.As4(), 30, 100), 79, 89)
+	advertiseCaptureReceipt(t, r, advertiseCaptureOwner, family.IPv4Unicast, raw, 99, 42)
 	r.checkBestPathChange(family.IPv4Unicast, raw, false, nil)
 	first, err := r.advertiseSnapshot()
 	require.NoError(t, err)
 	require.Len(t, first, 1)
 	require.Equal(t, uint64(99), first[0].route.SourceReceipt)
-	r.bgpPeers[peer].ModifyFamilyEntry(family.IPv4Unicast, raw, func(entry *storage.RouteEntry) { entry.SourceReceipt = 100 })
+	advertiseCaptureReceipt(t, r, advertiseCaptureOwner, family.IPv4Unicast, raw, 100, 43)
 	r.checkBestPathChange(family.IPv4Unicast, raw, false, nil)
 	current, err := r.advertiseSnapshot()
 	require.NoError(t, err)
@@ -123,20 +125,24 @@ func TestSourceReceiptCaptureRevision(t *testing.T) {
 // TestSourceReceiptFlowSpecAndRecoveryViews checks the actual path query and
 // recovery constructor, including their external JSON value representations.
 func TestSourceReceiptFlowSpecAndRecoveryViews(t *testing.T) {
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	peer := netip.MustParseAddr("192.0.2.94")
 	routes := storage.NewPeerRIB(peer.String())
-	t.Cleanup(routes.Release)
-	r.bgpPeers[peer] = routes
+	r.peerMeta[1] = &peerMetadata{Address: peer}
+	r.bgpPeers[1] = routes
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	raw := []byte{2, 1, 0}
 	routes.SetAddPath(fam, true)
 	framed := append([]byte{0, 0, 0, 0}, raw...)
 	routes.Insert(fam, staleInsertAttrs, framed)
+	ref, err := r.sourceLeases.acquire(t.Context(), peer, 1, 39, 41)
+	require.NoError(t, err)
+	defer ref.Release()
 	routes.ModifyFamilyEntry(fam, framed, func(entry *storage.RouteEntry) {
+		entry.SetSourceReference(ref)
 		entry.MsgID, entry.SourcePolicyEpoch, entry.SourceReceipt = 19, 29, 39
 	})
-	path, found := r.flowSpecPath(ribevents.ValidationRoute{Peer: peer, Family: fam, NLRI: string(raw), PathID: 0})
+	path, found := r.flowSpecPath(ribevents.ValidationRoute{ConnectionID: 41, Peer: peer, PeerOwner: 1, Family: fam, NLRI: string(raw), PathID: 0})
 	require.True(t, found)
 	require.Equal(t, uint64(39), path.SourceReceipt)
 	encoded, err := json.Marshal(path)
@@ -147,7 +153,7 @@ func TestSourceReceiptFlowSpecAndRecoveryViews(t *testing.T) {
 	entry, found := routes.LookupRetained(fam, framed)
 	require.True(t, found)
 	t.Cleanup(entry.Release)
-	best := Candidate{PeerIP: peer, Route: string(raw), PathID: 0, AddPath: true, entry: entry}
+	best := Candidate{PeerIP: peer, PeerOwner: 1, Route: string(raw), PathID: 0, AddPath: true, entry: entry}
 	recovery, err := recoveryCandidate(fam, netip.Prefix{}, &best)
 	require.NoError(t, err)
 	require.Equal(t, uint64(39), recovery.SourceReceipt)

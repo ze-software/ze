@@ -32,8 +32,8 @@ func rfc7313RefreshFromPeer(t *testing.T, body []byte) []string {
 	t.Helper()
 	r, sequence := rfc7313SequencedRIB(t)
 	r.handleRefreshStructured(&rpc.StructuredEvent{
-		PeerAddress: rfc7313RefreshPeer,
-		RawMessage:  &bgptypes.RawMessage{RawBytes: body},
+		PeerAddress: rfc7313RefreshPeer, PeerOwner: 1, DestinationSession: 11,
+		RawMessage: &bgptypes.RawMessage{RawBytes: body},
 	})
 	return *sequence
 }
@@ -45,7 +45,8 @@ func rfc7313EventFromPeer(t *testing.T, kind rpc.EventKind) []string {
 	t.Helper()
 	r, sequence := rfc7313SequencedRIB(t)
 	r.dispatch(&Event{
-		Message: &MessageInfo{Type: kind},
+		Message:   &MessageInfo{Type: kind},
+		PeerOwner: 1, DestinationSession: 11,
 		Peer: mustMarshal(t, map[string]any{
 			"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65002)},
 			"remote": map[string]any{"address": rfc7313RefreshPeer, "as": uint32(65001)},

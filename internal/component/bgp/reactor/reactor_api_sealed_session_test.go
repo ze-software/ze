@@ -489,7 +489,7 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 		}})
 	}}
 	session := peer.currentSession()
-	session.SetMessageCallback(f.r.notifyMessageReceiver)
+	session.SetMessageCallback(f.r.capturedMessageReceiver)
 	batch := gateRailBatch()
 	before := batch
 	before.NLRIs = batch.NLRIs[:1]

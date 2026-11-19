@@ -16,10 +16,10 @@ import (
 )
 
 // purgeTestPeer registers an up eBGP peer with an empty Adj-RIB-In.
-func purgeTestPeer(r *RIBManager, addr netip.Addr, asn uint32) {
-	r.peerUp[addr] = true
-	r.peerMeta[addr] = &peerMetadata{PeerASN: asn, LocalASN: 65000}
-	r.bgpPeers[addr] = storage.NewPeerRIB(addr.String())
+func purgeTestPeer(r *RIBManager, owner, session uint64, addr netip.Addr, asn uint32) {
+	r.peerUp[owner] = true
+	r.peerMeta[owner] = &peerMetadata{Address: addr, Session: session, PeerASN: asn, LocalASN: 65000}
+	r.bgpPeers[owner] = storage.NewPeerRIB(addr.String())
 }
 
 // purgedBatches returns the best-change batches the bus recorded.
@@ -59,12 +59,12 @@ func TestPurgeWithdrawKeepsABestElectedConcurrently(t *testing.T) {
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leaving := netip.MustParseAddr("192.0.2.40")
 	arriving := netip.MustParseAddr("192.0.2.41")
-	purgeTestPeer(r, leaving, 65001)
-	purgeTestPeer(r, arriving, 65002)
+	purgeTestPeer(r, 1, 11, leaving, 65001)
+	purgeTestPeer(r, 2, 11, arriving, 65002)
 
 	prefix := ipv4Prefix(24, 10, 40, 0) // 10.40.0.0/24
 	pfx := netip.MustParsePrefix("10.40.0.0/24")
-	r.bgpPeers[leaving].Insert(fam, makeAttrBytes([4]byte{192, 168, 40, 40}), prefix)
+	r.bgpPeers[1].Insert(fam, makeAttrBytes([4]byte{192, 168, 40, 40}), prefix)
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "the leaving peer's path is the first best")
 
@@ -74,7 +74,7 @@ func TestPurgeWithdrawKeepsABestElectedConcurrently(t *testing.T) {
 		go func() {
 			defer close(elected)
 			r.peerMu.RLock()
-			arrivingRIB := r.bgpPeers[arriving]
+			arrivingRIB := r.bgpPeers[2]
 			r.peerMu.RUnlock()
 			arrivingRIB.Insert(hookFam, makeAttrBytes([4]byte{192, 168, 41, 41}), prefix)
 			r.checkBestPathChange(hookFam, prefix, false, nil)
@@ -85,7 +85,7 @@ func TestPurgeWithdrawKeepsABestElectedConcurrently(t *testing.T) {
 		}
 	}
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leaving.String(), State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: leaving.String(), State: rpc.SessionStateDown})
 	select {
 	case <-elected:
 	case <-time.After(10 * time.Second):
@@ -122,25 +122,25 @@ func TestPurgePublishesEachRouteAsItIsElected(t *testing.T) {
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leaving := netip.MustParseAddr("192.0.2.50")
 	surviving := netip.MustParseAddr("192.0.2.51")
-	purgeTestPeer(r, leaving, 65001)
-	purgeTestPeer(r, surviving, 65002)
+	purgeTestPeer(r, 1, 11, leaving, 65001)
+	purgeTestPeer(r, 2, 11, surviving, 65002)
 
 	shared := ipv4Prefix(24, 10, 50, 0) // 10.50.0.0/24, both peers
 	orphan := ipv4Prefix(24, 10, 51, 0) // 10.51.0.0/24, the leaving peer only
 	for _, nlri := range [][]byte{shared, orphan} {
-		r.bgpPeers[leaving].Insert(fam, makeAttrBytes([4]byte{192, 168, 50, 50}), nlri)
+		r.bgpPeers[1].Insert(fam, makeAttrBytes([4]byte{192, 168, 50, 50}), nlri)
 		_, ok := r.checkBestPathChange(fam, nlri, false, nil)
 		require.True(t, ok, "the leaving peer's path is the first best")
 	}
 	// It ties on every attribute step and loses on the higher peer address.
-	r.bgpPeers[surviving].Insert(fam, makeAttrBytes([4]byte{192, 168, 51, 51}), shared)
+	r.bgpPeers[2].Insert(fam, makeAttrBytes([4]byte{192, 168, 51, 51}), shared)
 	_, ok := r.checkBestPathChange(fam, shared, false, nil)
 	require.False(t, ok, "the surviving peer's path does not displace the best")
 
 	bus.mu.Lock()
 	bus.events = nil
 	bus.mu.Unlock()
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leaving.String(), State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 11, PeerAddress: leaving.String(), State: rpc.SessionStateDown})
 
 	batches := purgedBatches(bus)
 	require.Len(t, batches, 2, "one batch for each purged route")

@@ -1387,8 +1387,9 @@ func TestFwdBodyCacheHoistsSupersede(t *testing.T) {
 }
 
 // TestForwardUpdateDirectMissingMsgIDIsLogged verifies AC-7a: when an id is
-// missing from the cache (impossible under the pending-never-expires
-// contract), the fast path logs a BUG and continues the batch.
+// missing or no longer admits lookup, the fast path records the refusal at
+// debug level and continues the batch. Publication abort can close admission
+// while an existing retained forward still owns the entry's bytes.
 //
 // VALIDATES: AC-7a -- no panic on missing id, remaining ids still processed.
 // PREVENTS: Regression where a missing id aborts the entire batch.

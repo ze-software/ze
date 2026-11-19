@@ -24,7 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/selector"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type aigpReplayFixture struct {
@@ -121,7 +120,7 @@ func (f *aigpReplayFixture) receive(t *testing.T, body []byte) uint64 {
 	t.Helper()
 	wu := wireu.NewWireUpdate(body, f.ctxID)
 	wu.SetSourceID(f.source.SourceID())
-	require.True(t, f.r.notifyMessageReceiver(f.source.Settings().Address, msgtype.TypeUPDATE, body, wu, f.ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0))
+	aigpFixturePublish(t, f, f.source, f.source.currentSession(), body, wu)
 	f.ids = append(f.ids, wu.MessageID())
 	return wu.MessageID()
 }
@@ -247,10 +246,10 @@ func TestAIGPQueuedReplayCannotResurrectOldGeneration(t *testing.T) {
 			case "replacement":
 				next = f.receive(t, f.body(t, 200))
 			case "source-disconnect":
-				f.r.forgetClosedPeer(f.source)
+				f.r.forgetClosedPeer(f.source, f.source.currentSession())
 				f.r.notifyPeerClosed(f.source, closeWithReason("test disconnect"))
 			case "destination-disconnect":
-				f.r.forgetClosedPeer(f.destination)
+				f.r.forgetClosedPeer(f.destination, f.destination.currentSession())
 				f.r.notifyPeerClosed(f.destination, closeWithReason("test disconnect"))
 			}
 			close(release)

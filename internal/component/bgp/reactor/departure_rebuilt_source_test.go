@@ -30,24 +30,26 @@ func endSession(source *Peer) {
 
 // oldPeerSessions runs three sessions of source through the generation
 // producer, writes prefix to destination on the last unless prefix is nil, and
-// ends it. It returns the generation the down of that session carries.
-func oldPeerSessions(t *testing.T, rail *owedRail, prefix []byte) uint64 {
+// ends it. It retains that final Session’s issued source facts before ending it.
+func oldPeerSessions(t *testing.T, rail *owedRail, prefix []byte) recoveryFixtureOrigin {
 	t.Helper()
 	for range 3 {
+		recoveryFixtureSession(t, rail.source, rail.source.sendCtxID)
 		rail.source.setState(PeerStateEstablished)
 	}
 	if prefix != nil {
 		adjOutTestForward(t, rail.destination, rail.source, prefix, 1)
 	}
-	ended := rail.source.forwardGeneration.Load()
+	original := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 	endSession(rail.source)
-	return ended
+	return original
 }
 
 // PREVENTS: a departure queued by a removed Peer owing the route a Peer built
 // again for the same address wrote, after that new Peer's session ended under
 // graceful restart, which withdraws a route RFC 4724 Section 4.2 says the
-// speaker MUST retain. Generations are compared by address, so a count that
+// speaker MUST retain. Generations span the process and exclusions identify
+// stable Peer owners, so a count that
 // restarts with each Peer makes the new Peer's session look older than the
 // departure. Method: the old Peer ends its third session and is removed; a
 // new Peer for the address establishes, writes the key and ends; the old
@@ -58,7 +60,7 @@ func TestRebuiltPeerRouteSurvivesOldPeerDeparture(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	ended := oldPeerSessions(t, rail, nil)
+	original := oldPeerSessions(t, rail, nil)
 
 	rebuilt := rebuiltSource(t, rail.source)
 	rebuilt.setState(PeerStateEstablished)
@@ -68,29 +70,30 @@ func TestRebuiltPeerRouteSurvivesOldPeerDeparture(t *testing.T) {
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
 	require.Same(t, rebuilt, entry.owner.source, "the rebuilt Peer owns the key")
-	require.Greater(t, entry.owner.generation, ended,
+	require.Greater(t, entry.owner.generation, original.generation,
 		"a rebuilt Peer's session is newer than every session its predecessor ended")
 
-	stale := departureGenerationBatch(source, ended)
+	stale := departureGenerationBatch(source, rail.source.sourceOwner, original.generation)
 	owed, err := oweDeparture(rail.destination, rail.destination.currentSession(), &stale)
 	require.NoError(t, err)
 	require.Empty(t, owed, "the old Peer's departure owes the rebuilt Peer's retained route")
 }
 
-// PREVENTS: an exclusion bounded by a removed Peer's session staying in force
-// after a Peer built again for the address announced the key and lost that
+// PREVENTS: an exclusion of a removed Peer applying to a distinct stable owner
+// built again at its address after that Peer announced the key and lost that
 // session under graceful restart, so the election skipped its retained route
 // (RFC 4724 Section 4.2). Method: the old Peer's departure owes the key; the
 // rebuilt Peer announces it while it is owed and ends; the round must ask the
 // RIB with the source electable. A record holding both Peers' announcers, the
-// old one first, must still be lifted by the newer.
+// old one first, must not exclude the distinct rebuilt owner. The old owner
+// may remain excluded; no address alias transfers that exclusion.
 func TestRebuiltPeerAnnouncementLiftsOldPeerExclusion(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	ended := oldPeerSessions(t, rail, prefix)
+	original := oldPeerSessions(t, rail, prefix)
 
-	departure := departureGenerationBatch(source, ended)
+	departure := departureGenerationBatch(source, rail.source.sourceOwner, original.generation)
 	owed, err := oweDeparture(rail.destination, rail.destination.currentSession(), &departure)
 	require.NoError(t, err)
 	require.Len(t, owed, 1, "the old Peer's departure owes its route")
@@ -105,17 +108,18 @@ func TestRebuiltPeerAnnouncementLiftsOldPeerExclusion(t *testing.T) {
 	table.mu.Lock()
 	excluded := record.electableExcluded()
 	table.mu.Unlock()
-	require.NotContains(t, excluded, source,
+	require.NotContains(t, excluded, rebuilt.sourceOwner,
 		"the rebuilt Peer's retained route is skipped by the election")
 
 	both := adjOutOwed{
-		excluded: []adjOutExclusion{{source: source, generation: ended, departed: ended}},
+		excluded: []adjOutExclusion{{source: rail.source.sourceOwner, generation: original.generation, departed: original.generation}},
 		announcers: []adjOutAnnouncer{
-			{source: rail.source, generation: ended},
+			{source: rail.source, generation: original.generation},
 			{source: rebuilt, generation: rebuilt.forwardGeneration.Load()},
 		},
 	}
-	require.NotContains(t, both.electableExcluded(), source,
+	require.Contains(t, both.electableExcluded(), rail.source.sourceOwner, "the old owner remains independently excluded")
+	require.NotContains(t, both.electableExcluded(), rebuilt.sourceOwner,
 		"the old Peer's announcer hides the rebuilt Peer's newer one")
 }
 
@@ -132,9 +136,9 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	ended := oldPeerSessions(t, rail, prefix)
+	original := oldPeerSessions(t, rail, prefix)
 
-	departure := departureGenerationBatch(source, ended)
+	departure := departureGenerationBatch(source, rail.source.sourceOwner, original.generation)
 	owed, err := oweDeparture(rail.destination, rail.destination.currentSession(), &departure)
 	require.NoError(t, err)
 	require.Len(t, owed, 1, "the departure owes the source's route")
@@ -143,7 +147,7 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	key := departureGenerationKey(t, rail.destination)
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
-	unheld := ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received + 1,
+	unheld := ribevents.RecoveryRoute{Source: original.address, SourceOwner: original.owner, SourceReceipt: original.receipt, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received + 1,
 		AddPath: entry.owner.addPath, MessageID: 3}
 	decided := recoveryAdmitKey{key: key, record: record}
 	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
@@ -153,8 +157,12 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	table := &rail.destination.adjOut
 	table.mu.Lock()
 	record.exclude(decided.gone)
+	beforeLift := record.electableExcluded()
 	table.mu.Unlock()
+	require.Equal(t, original.owner, decided.gone.source, "the actual original owner is excluded")
+	require.Contains(t, beforeLift, original.owner, "exclusion must exist before a later announcement lifts it")
 
+	recoveryFixtureSession(t, rail.source, rail.source.sendCtxID)
 	rail.source.setState(PeerStateEstablished)
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 4)
 	endSession(rail.source)
@@ -162,7 +170,7 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	table.mu.Lock()
 	excluded := record.electableExcluded()
 	table.mu.Unlock()
-	require.NotContains(t, excluded, source,
+	require.NotContains(t, excluded, rail.source.sourceOwner,
 		"a session started after the decision stays excluded by the unsendable survivor")
 }
 
@@ -182,9 +190,9 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	ended := oldPeerSessions(t, rail, prefix)
+	original := oldPeerSessions(t, rail, prefix)
 
-	departure := departureGenerationBatch(source, ended)
+	departure := departureGenerationBatch(source, rail.source.sourceOwner, original.generation)
 	session := rail.destination.currentSession()
 	owed, err := oweDeparture(rail.destination, session, &departure)
 	require.NoError(t, err)
@@ -198,10 +206,12 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	admission := adapter.newRecoveryAdmission(t.Context(), rail.destination, session,
 		[]recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}})
 	issued := admission.sources.issued
+	later := recoveryFixtureSession(t, rail.source, rail.source.sendCtxID)
 	rail.source.setState(PeerStateEstablished) // Started during the RIB lookup.
+	newOriginal := captureRecoveryFixtureOrigin(t, rail.source, later, rail.source.sendCtxID)
 	require.Greater(t, rail.source.forwardGeneration.Load(), issued)
 
-	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
+	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: newOriginal.address, SourceOwner: newOriginal.owner, SourceReceipt: newOriginal.receipt, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 		PathID: entry.owner.received + 1, AddPath: entry.owner.addPath, MessageID: 3}}}
 	require.NoError(t, adapter.queueRecoveryOutcome(&outcome, 0, family.IPv4Unicast, admission, plugin.OperatorSender()))
 	decided := &admission.keys[0]
@@ -212,7 +222,10 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	table := &rail.destination.adjOut
 	table.mu.Lock()
 	record.exclude(decided.gone)
+	beforeLift := record.electableExcluded()
 	table.mu.Unlock()
+	require.Equal(t, original.owner, decided.gone.source, "the actual original owner is excluded")
+	require.Contains(t, beforeLift, original.owner, "exclusion must exist before a later announcement lifts it")
 
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 4)
 	endSession(rail.source)
@@ -220,7 +233,7 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	table.mu.Lock()
 	excluded := record.electableExcluded()
 	table.mu.Unlock()
-	require.NotContains(t, excluded, source,
+	require.NotContains(t, excluded, rail.source.sourceOwner,
 		"a session started during the lookup stays excluded by the unsendable survivor")
 }
 

@@ -223,6 +223,7 @@ func syncOrderPublish(t *testing.T, r *Reactor, ctxID bgpctx.ContextID, updateID
 		receivedGeneration: source.forwardGeneration.Load(),
 		SourcePolicyEpoch:  source.sourcePolicyEpoch.Load(),
 	}
+	fixtureForwardOrigin(t, update, source, source.currentSession())
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)
 	return update

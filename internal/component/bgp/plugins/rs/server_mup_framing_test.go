@@ -65,6 +65,8 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				mupAssertRoutes(t, parsed.Groups[0].Withdraw, routes, addPath)
 
 				rs := newTestRouteServer(t)
+				source := rsFixtureKey("10.0.0.1", 1, 101)
+				rsFixtureNativeActors(rs, source, rsFixtureKey("10.0.0.2", 2, 102), 202)
 				records := wireNLRIRecords(t, mupInventoryMessage(t, fam, addPath, false, section))
 				if records == nil {
 					t.Fatal("native inventory extraction returned nil")
@@ -77,6 +79,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 						t.Fatalf("inventory record %d = %+v, want native %s", i, record, routes[i])
 					}
 				}
+				rsFixtureOriginalRecords(records, source, 301, 5)
 				rs.applyNLRIRecords("10.0.0.1", records)
 				returnNLRIRecords(records)
 				first, err := hex.DecodeString(routes[0])
@@ -87,6 +90,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				if records == nil {
 					t.Fatal("native withdrawal extraction returned nil")
 				}
+				rsFixtureOriginalRecords(records, source, 301, 5)
 				rs.applyNLRIRecords("10.0.0.1", records)
 				returnNLRIRecords(records)
 				entries := rs.withdrawals["10.0.0.1"]
@@ -95,7 +99,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				}
 				var commands []string
 				rs.updateRouteHook = func(_, command string) { commands = append(commands, command) }
-				rs.sendBatchedWithdrawals("10.0.0.1", entries)
+				rs.sendBatchedWithdrawals(source, entries)
 				wantRoutes := slices.Clone(routes[1:])
 				slices.Sort(wantRoutes)
 				want := "update hex nlri " + fam.String()

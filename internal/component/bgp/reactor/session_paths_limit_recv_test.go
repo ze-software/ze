@@ -334,7 +334,7 @@ func recvCeilingSession(t *testing.T, maximum uint32, fams ...family.Family) (*S
 		t.Fatalf("receive ceiling holds %d families, want %d", len(s.pathsLimitRecv), len(fams))
 	}
 	var delivered [][]byte
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		delivered = append(delivered, bytes.Clone(wu.Payload()))

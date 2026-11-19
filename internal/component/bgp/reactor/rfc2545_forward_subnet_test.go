@@ -475,7 +475,7 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 		}
 	})
 	var ids []uint64
-	f.source.session.onMessageReceived = func(addr netip.Addr, typ msgtype.MessageType, received []byte,
+	f.source.session.onMessageReceived = func(captured *Session, addr netip.Addr, typ msgtype.MessageType, received []byte,
 		wu *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, meta map[string]any, sourcePeer string, sourceMessageID uint64) bool {
 		if typ != msgtype.TypeUPDATE || wu == nil {
@@ -493,7 +493,7 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 		} else if !bytes.Equal(wu.Payload(), original) {
 			t.Fatal("Session did not publish the intact native announcement")
 		}
-		kept := f.r.notifyMessageReceiver(addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
+		kept := f.r.capturedMessageReceiver(captured, addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
 		id := wu.MessageID()
 		ids = append(ids, id)
 		f.ids = append(f.ids, id)
@@ -571,8 +571,22 @@ func rfc2545DispatchReceived(t *testing.T, f *aigpReplayFixture, rail string, id
 	if !found {
 		t.Fatal("Session-delivered update missing before RS dispatch")
 	}
+	// Observe the existing Session without refreshing the fixture's chosen
+	// connected-prefix and neighbor scope from the host interface tables.
+	session := f.destination.currentSession()
+	if session == nil {
+		t.Fatal("RFC2545 fixture has no original destination Session")
+	}
+	wantTarget := rpc.ForwardTarget{Destination: f.destination.Settings().PeerKey().String(),
+		DestinationOwner: f.destination.sourceOwner, DestinationSession: session.initialReplay.Load()}
+	if wantTarget.DestinationOwner == 0 {
+		t.Fatal("RFC2545 fixture has no original destination owner")
+	}
+	if wantTarget.DestinationSession == 0 {
+		t.Fatal("RFC2545 fixture has no original destination replay receipt")
+	}
 	skipped, sent := reactorForwardRS(f.r, received, id, f.source.Settings().Address, f.source)
-	handedBack := len(skipped) == 1 && skipped[0] == f.destination.Settings().PeerKey() && sent == 0
+	handedBack := len(skipped) == 1 && skipped[0] == wantTarget && sent == 0
 	switch {
 	case rail == "rs-export" && handedBack:
 		f.forward(t, id)

@@ -36,20 +36,26 @@ const replayStaleSourceMsgID = 77
 func feedReplayStaleSource(r *RIBManager, body []byte, meta map[string]any, msgID uint64) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(5)
+	wu.SetSourceReceipt(705)
 	attrs, _ := wu.Attrs()
-	r.handleReceivedStructured(&rpc.StructuredEvent{
-		EventType:   rpc.EventKindUpdate,
-		PeerAddress: replayStaleSource.String(),
-		PeerAS:      rpc.RemoteASOf(65001),
-		LocalAS:     65000,
-		Meta:        meta,
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+		EventType:     rpc.EventKindUpdate,
+		PeerOwner:     5,
+		SourceReceipt: 705,
+		PeerAddress:   replayStaleSource.String(),
+		PeerAS:        rpc.RemoteASOf(65001),
+		LocalAS:       65000,
+		Meta:          meta,
 		RawMessage: &bgptypes.RawMessage{
-			Type:       msgtype.TypeUPDATE,
-			RawBytes:   body,
-			WireUpdate: wu,
-			AttrsWire:  attrs,
-			Meta:       meta,
-			MessageID:  msgID,
+			Type:          msgtype.TypeUPDATE,
+			RawBytes:      body,
+			WireUpdate:    wu,
+			AttrsWire:     attrs,
+			Meta:          meta,
+			MessageID:     msgID,
+			SourceOwner:   5,
+			SourceReceipt: 705,
 		},
 	})
 }
@@ -61,13 +67,13 @@ func feedReplayStaleSource(r *RIBManager, body []byte, meta map[string]any, msgI
 // which is what the sent handler stores.
 func replayStaleFixture(t *testing.T, stale bool) *RIBManager {
 	t.Helper()
-	r := newTestRIBManager(t)
+	r, _ := sourceLeaseTestRIB(t, true)
 	if stale {
 		feedReplayStaleSource(r, receivedStaleUpdate(communityLLGRStaleWire), ingressStaleMeta(), replayStaleSourceMsgID)
 	} else {
 		feedReplayStaleSource(r, receivedStaleUpdate(communityNoExportWire), nil, replayStaleSourceMsgID)
 	}
-	event := nativeSentEvent(t, replayStaleDestination, family.IPv4Unicast, []byte{8, 10}, nativeSentAttrs(), false, false)
+	event := nativeSentEvent(t, replayStaleDestination, 201, 5, family.IPv4Unicast, []byte{8, 10}, nativeSentAttrs(), false, false)
 	event.MsgID = 101
 	event.RouteMeta = map[string]any{
 		"source-peer":            replayStaleSource.String(),
@@ -76,13 +82,13 @@ func replayStaleFixture(t *testing.T, stale bool) *RIBManager {
 	}
 	r.handleSent(event)
 	t.Cleanup(func() {
-		for _, routes := range r.ribOut[replayStaleDestination] {
+		for _, routes := range r.ribOut[201] {
 			for _, entry := range routes {
 				entry.release()
 			}
 		}
 	})
-	copyEntry, ok := r.ribOut[replayStaleDestination][family.IPv4Unicast][replayStaleKey]
+	copyEntry, ok := r.ribOut[201][family.IPv4Unicast][replayStaleKey]
 	require.True(t, ok, "the destination holds the sent copy")
 	require.Equal(t, uint8(0), copyEntry.StaleLevel, "the sent handler stores the copy at level 0")
 	return r
@@ -92,7 +98,7 @@ func replayStaleFixture(t *testing.T, stale bool) *RIBManager {
 // attachSentSourceCommunityLocked do, so a test can show the rails do not take
 // the received fact from that field.
 func setCopyStaleLevel(r *RIBManager, level uint8) {
-	routes := r.ribOut[replayStaleDestination][family.IPv4Unicast]
+	routes := r.ribOut[201][family.IPv4Unicast]
 	entry := routes[replayStaleKey]
 	entry.StaleLevel = level
 	routes[replayStaleKey] = entry
@@ -141,7 +147,7 @@ func TestPeerUpReplayReportsSourceIngressLevel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := replayStaleFixture(t, tc.stale)
 			r.peerMu.RLock()
-			groups := r.collectPeerUpReplay(replayStaleDestination, true)
+			groups := r.collectPeerUpReplay(201, true)
 			r.peerMu.RUnlock()
 			require.Len(t, groups, 1, "the current copy is replayed")
 			assert.Equal(t, tc.level, groups[0].StaleLevel)
@@ -190,8 +196,8 @@ func TestRIBReplayMetaReadsSourceIngressLevel(t *testing.T) {
 			setCopyStaleLevel(r, tc.copyLevel)
 
 			r.peerMu.RLock()
-			groups := r.collectGroupedRibOutRoutes(replayStaleDestination)
-			refresh := r.collectRibOutRoutes(replayStaleDestination, family.IPv4Unicast)
+			groups := r.collectGroupedRibOutRoutes(201)
+			refresh := r.collectRibOutRoutes(201, family.IPv4Unicast)
 			r.peerMu.RUnlock()
 
 			levels := captureStaleMeta(r)
@@ -213,9 +219,9 @@ func TestRIBReplayMetaReadsSourceIngressLevel(t *testing.T) {
 		feedReplayStaleSource(r, receivedStaleUpdate(communityLLGRStaleWire), ingressStaleMeta(), replayStaleSourceMsgID+1)
 
 		r.peerMu.RLock()
-		copyEntry := r.ribOut[replayStaleDestination][family.IPv4Unicast][replayStaleKey]
+		copyEntry := r.ribOut[201][family.IPv4Unicast][replayStaleKey]
 		current, _ := r.sentSourceState(family.IPv4Unicast, replayStaleKey, copyEntry)
-		refresh := r.collectRibOutRoutes(replayStaleDestination, family.IPv4Unicast)
+		refresh := r.collectRibOutRoutes(201, family.IPv4Unicast)
 		r.peerMu.RUnlock()
 		assert.False(t, current, "the copy no longer matches the source's current revision")
 

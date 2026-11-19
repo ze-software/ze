@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"strings"
@@ -29,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // recoveryAdvertiseFailed establishes sent history through the actual final
@@ -70,9 +72,10 @@ func recoveryOwnerStart(t *testing.T, r *Reactor, destination *Peer) {
 
 // recoveryDepartureBatch is bgp-rs's departure command for source over the
 // IPv4 prefixes, covering every session of the source so far: its callers
-// test the decision, not which session a departure answers.
-func recoveryDepartureBatch(source netip.Addr, prefixes ...string) bgptypes.NLRIBatch {
-	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
+// test the decision, not which session a departure answers. The caller passes
+// the captured original stable owner explicitly; an address grants no owner.
+func recoveryDepartureBatch(source netip.Addr, owner uint64, prefixes ...string) bgptypes.NLRIBatch {
+	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source, RecoverySourceOwner: owner,
 		RecoveryGeneration: adjOutEverySession}
 	for _, prefix := range prefixes {
 		batch.NLRIs = append(batch.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false))
@@ -82,11 +85,11 @@ func recoveryDepartureBatch(source netip.Addr, prefixes ...string) bgptypes.NLRI
 
 // recoveryDepart runs the departure command and returns once every key it
 // owed is decided.
-func recoveryDepart(t *testing.T, r *Reactor, destination *Peer, source netip.Addr, prefixes ...string) error {
+func recoveryDepart(t *testing.T, r *Reactor, destination *Peer, source netip.Addr, sourceOwner uint64, prefixes ...string) error {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	return (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx, recoveryDepartureBatch(source, prefixes...),
+	return (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx, recoveryDepartureBatch(source, sourceOwner, prefixes...),
 		[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
 }
 
@@ -179,9 +182,10 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			source, destination = src, dst
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
+			originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
-			destination.session.onMessageReceived = r.notifyMessageReceiver
+			destination.session.onMessageReceived = r.capturedMessageReceiver
 			failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 			if newerTarget {
 				// RFC 4271 Section 3.1: the live source's newer advertisement
@@ -197,12 +201,12 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			var calls atomic.Int32
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				calls.Add(1)
-				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
+				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 					NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
 			// RFC 4271 Section 6: replacement is admitted only at the final writer.
-			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 			updates := recoveryWrittenUpdates(t, conn.written()[setup:])
 			if newerTarget {
 				require.Zero(t, calls.Load(), "an old DOWN owes nothing where a newer advertisement owns the key")
@@ -233,9 +237,10 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
 	source.recvCtxID = ctxID
+	originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
-	destination.session.onMessageReceived = r.notifyMessageReceiver
+	destination.session.onMessageReceived = r.capturedMessageReceiver
 	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 	setup := len(conn.written())
 	stored := storedIPv4Route(source.Settings().Address.String())
@@ -249,15 +254,16 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 			return recoveryWithdrawAnswer(request), nil
 		}
 		source.setState(PeerStateStopped)
+		recoveryFixtureSession(t, source, ctxID)
 		source.setState(PeerStateEstablished)
-		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
+		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 			NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(owner.Close)
-	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 	requests := lookups.all()
 	require.Len(t, requests, 2)
-	require.ElementsMatch(t, []netip.Addr{failed.Settings().Address, source.Settings().Address},
+	require.ElementsMatch(t, []uint64{failed.sourceOwner, source.sourceOwner},
 		requests[1].Keys[0].Excluded, "the reconnected source's old selection is excluded from the next election")
 	written := recoveryWrittenUpdates(t, conn.written()[setup:])
 	require.Len(t, written, 1)
@@ -275,9 +281,10 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			r, source, destination, conn, ctxID := newSyncOrderRail(t)
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
+			originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
-			destination.session.onMessageReceived = r.notifyMessageReceiver
+			destination.session.onMessageReceived = r.capturedMessageReceiver
 			destination.settings.NextHopMode = NextHopUnchanged
 			destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
 			destination.negotiated.Load().families[family.IPv6Unicast] = true
@@ -316,11 +323,11 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			original, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
+				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 					NLRI: syncOrderPrefixWire, Attributes: original, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
-			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 			require.Equal(t, 1, raw.calls(), "own sections must not invalidate their lookup receipt")
 			var announced, withdrawn, mpWithdrawn int
 			for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
@@ -446,31 +453,70 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 		announced, _ := fatalLengthRecipientRoutes(t, destination)
 		return announced == 3
 	}, "source advertisements reach recipient before recovery")
+	r := source.peer.reactor
+	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
+	require.NotNil(t, command)
+	require.NotNil(t, command.Process)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	// This recipient negotiated no ADD-PATH. Observe its actual SENT store:
+	// a recovery survivor query intentionally leaves Outcome.Sent empty.
+	assertSentPrefixes := func(want []string) {
+		t.Helper()
+		require.NoError(t, command.Process.DrainEventsApplied(ctx))
+		output, err := command.Process.Conn().SendExecuteCommand(ctx, &rpc.ExecuteCommandInput{
+			Serial: "parser-recovery-sent", Command: "show bgp rib", Peer: "*",
+			Args: []string{"sent", "peer", destination.peer.Settings().Address.String(), "json"},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, output)
+		require.Equal(t, rpc.StatusDone, output.Status, string(output.Data))
+		var document struct {
+			Routes []struct {
+				Peer      string `json:"peer"`
+				Direction string `json:"direction"`
+				Family    string `json:"family"`
+				Prefix    string `json:"prefix"`
+			} `json:"routes"`
+		}
+		require.NoError(t, json.Unmarshal(output.Data, &document))
+		var got []string
+		for _, route := range document.Routes {
+			require.Equal(t, destination.peer.Settings().Address.String(), route.Peer)
+			require.Equal(t, "sent", route.Direction)
+			require.Equal(t, family.IPv4Unicast.String(), route.Family)
+			got = append(got, route.Prefix)
+		}
+		require.ElementsMatch(t, want, got, "the registered RIB command reads actual SENT prefixes")
+	}
+	assertSentPrefixes([]string{"203.0.114.0/24", "203.0.115.0/24"})
+
 	lowLiveDepart(t, source)
 	parsed, err := update.ParseUpdateWire(strings.Fields(
 		"nlri ipv4/unicast addpath del 0000000018cb0072 del 0000000718cb0073"), plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, parsed.Groups, 1)
-	r := source.peer.reactor
+	require.Len(t, parsed.Groups[0].Withdraw, 2)
+	for index, route := range parsed.Groups[0].Withdraw {
+		// RFC 7911 Section 3: four identifier octets precede native NLRI.
+		require.True(t, nlri.HasPathID(route), "explicit identifier zero remains present")
+		require.Equal(t, []uint32{0, 7}[index], route.PathID())
+		require.Equal(t, family.IPv4Unicast, route.Family())
+		require.Equal(t, [][]byte{{0, 0, 0, 0, 24, 203, 0, 114}, {0, 0, 0, 7, 24, 203, 0, 115}}[index], route.Bytes())
+		parsedID, payload, err := nlri.SplitPathID(route.Bytes(), nlri.HasPathID(route))
+		require.NoError(t, err)
+		require.Equal(t, []uint32{0, 7}[index], parsedID)
+		require.Equal(t, [][]byte{{24, 203, 0, 114}, {24, 203, 0, 115}}[index], payload)
+	}
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-		RecoverySource: source.peer.Settings().Address, RecoveryGeneration: source.peer.forwardGeneration.Load()}
+		RecoverySource: source.peer.Settings().Address, RecoverySourceOwner: source.peer.sourceOwner, RecoveryGeneration: source.peer.forwardGeneration.Load()}
 	api := &reactorAPIAdapter{r: r}
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
 	require.NoError(t, api.recoverNLRIBatch(ctx, batch, []*Peer{destination.peer}, plugin.OperatorSender()))
 	lowEventually(t, func() bool {
 		_, withdrawn := fatalLengthRecipientRoutes(t, destination)
 		return withdrawn == 3 // The helper returns a two-prefix bit mask, not a count.
 	}, "both exact parsed identities are withdrawn on recipient TCP")
-	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
-	require.NoError(t, command.Process.DrainEventsApplied(ctx))
-	remaining, err := ribevents.RecoveryProvider().Lookup(recoveryDepartureRequest(batch.RecoverySource,
-		destination.peer.Settings().Address, batch.Family, []byte{24, 203, 0, 114}, []byte{24, 203, 0, 115}))
-	require.NoError(t, err)
-	require.Len(t, remaining, 2)
-	for _, outcome := range remaining {
-		require.Empty(t, outcome.Sent, "successful actual withdrawals must prune their sent ownership")
-	}
+	assertSentPrefixes(nil)
 }
 
 // TestRecoveryHardFailureRetiresDestination makes the real lookup owner refuse
@@ -504,7 +550,7 @@ func TestRecoveryHardFailureRetiresDestination(t *testing.T) {
 	defer cancel()
 	err = (&reactorAPIAdapter{r: source.peer.reactor}).recoverNLRIBatch(ctx,
 		bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-			RecoverySource: source.peer.Settings().Address, RecoveryGeneration: source.peer.forwardGeneration.Load()},
+			RecoverySource: source.peer.Settings().Address, RecoverySourceOwner: source.peer.sourceOwner, RecoveryGeneration: source.peer.forwardGeneration.Load()},
 		[]*Peer{destination.peer}, plugin.OperatorSender())
 	require.NoError(t, err, "the owed keys complete with the retired session")
 	lowEventually(t, func() bool {
@@ -541,9 +587,10 @@ func (c recoveryClock) Now() time.Time {
 func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	source.recvCtxID = ctxID
+	originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
-	destination.session.onMessageReceived = r.notifyMessageReceiver
+	destination.session.onMessageReceived = r.capturedMessageReceiver
 	r.clock = clock.RealClock{}
 	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 	setup := conn.written()
@@ -556,7 +603,7 @@ func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	var lookups recoveryLookups
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		if lookups.add(request) == 1 {
-			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
+			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 		}
 		return recoveryWithdrawAnswer(request), nil
@@ -566,10 +613,10 @@ func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	r.clock = recoveryClock{Clock: clock.RealClock{}, onNow: func() {
 		once.Do(func() { source.setState(PeerStateStopped) })
 	}}
-	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"))
 	requests := lookups.all()
 	require.Len(t, requests, 2)
-	require.Contains(t, requests[1].Keys[0].Excluded, source.Settings().Address,
+	require.Contains(t, requests[1].Keys[0].Excluded, source.sourceOwner,
 		"pre-enqueue source loss owes the key again without that source")
 	written := recoveryWrittenUpdates(t, conn.written()[len(setup):])
 	require.Len(t, written, 1)
@@ -591,7 +638,7 @@ func recoveryAddPathRail(t *testing.T) (*Reactor, *Peer, *recordingConn) {
 	destination.sendCtxID = ctxID
 	destination.session.setSendCtxID(ctxID)
 	destination.session.negotiated = forwardFixtureNegotiation(destination)
-	destination.session.onMessageReceived = r.notifyMessageReceiver
+	destination.session.onMessageReceived = r.capturedMessageReceiver
 	return r, destination, conn
 }
 
@@ -634,7 +681,7 @@ func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
 		return answer(request)
 	})
 	t.Cleanup(owner.Close)
-	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24", "192.0.3.0/24"))
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24", "192.0.3.0/24"))
 	require.Equal(t, int32(1), calls.Load(), "one lookup answers every identifier")
 	var got [][]byte
 	for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
@@ -713,6 +760,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			})
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
+			originalSource := captureRecoveryFixtureOrigin(t, source, source.currentSession(), ctxID)
 			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			session := destination.currentSession()
 			session.setSendCtxID(ctxID)
@@ -753,7 +801,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 				}
 				outcomes := recoveryWithdrawAnswer(request)
 				outcomes[1] = recoverySurvivorAnswer(request, nil, ribevents.RecoveryRoute{
-					Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(), NLRI: request.Keys[1].NLRI,
+					Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(), NLRI: request.Keys[1].NLRI,
 					Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81})[1]
 				return outcomes, nil
 			})
@@ -763,7 +811,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			departed := make(chan error, 1)
 			go func() {
 				departed <- (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
-					recoveryDepartureBatch(failed.Settings().Address, "192.0.2.0/24", "192.0.3.0/24", "192.0.4.0/24"),
+					recoveryDepartureBatch(failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24", "192.0.3.0/24", "192.0.4.0/24"),
 					[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
 			}()
 			lowEventually(t, session.tearingDown.Load, "the failed write retires the destination session")
@@ -842,7 +890,7 @@ func TestRecoveryRetryOwnsReplacementSession(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
-			recoveryDepartureBatch(failed.Settings().Address, "192.0.2.0/24"),
+			recoveryDepartureBatch(failed.Settings().Address, failed.sourceOwner, "192.0.2.0/24"),
 			[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
 	}()
 	lowEventually(t, func() bool { return original.tearingDown.Load() },
@@ -892,10 +940,10 @@ func recoveryWithdrawAnswer(request ribevents.RecoveryRequest) []ribevents.Recov
 }
 
 // recoveryDepartureRequest names one departed source's keys at a destination.
-func recoveryDepartureRequest(source, destination netip.Addr, fam family.Family, keys ...[]byte) ribevents.RecoveryRequest {
-	request := ribevents.RecoveryRequest{Destination: destination, Family: fam}
+func recoveryDepartureRequest(source, destination *Peer, fam family.Family, keys ...[]byte) ribevents.RecoveryRequest {
+	request := ribevents.RecoveryRequest{Destination: destination.Settings().Address, DestinationOwner: destination.sourceOwner, Family: fam}
 	for _, raw := range keys {
-		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: []netip.Addr{source}})
+		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: []uint64{source.sourceOwner}})
 	}
 	return request
 }

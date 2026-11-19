@@ -125,6 +125,7 @@ func rsApplyVPN(t *testing.T, rs *routeServer, fam family.Family, addPath bool, 
 		t.Fatal("VPN extraction returned no records")
 	}
 	defer returnNLRIRecords(records)
+	rsFixtureOriginalRecords(records, rsFixtureKey(rsLabeledPeer, 1, 101), 301, 5)
 	rs.applyNLRIRecords(rsLabeledPeer, records)
 }
 
@@ -158,6 +159,8 @@ func TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 		for _, addPath := range []bool{false, true} {
 			t.Run(fam.String()+"/addpath="+strconv.FormatBool(addPath), func(t *testing.T) {
 				rs := newTestRouteServer(t)
+				source := rsFixtureKey(rsLabeledPeer, 1, 101)
+				rsFixtureNativeActors(rs, source, rsFixtureKey("192.0.2.2", 2, 102), 202)
 				target := rsVPNRoute(fam, addPath, 0, 1, 10, 0x000641)
 				first := rsVPNRoute(fam, addPath, 0, 2, 10, 0x000651)
 				second := rsVPNRoute(fam, addPath, 17, 1, 11, 0x000661)
@@ -167,7 +170,7 @@ func TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 				rsApplyVPN(t, rs, fam, addPath, 15, rsVPNRoute(fam, addPath, 0, 1, 10, 0x800000))
 				var commands []string
 				rs.updateRouteHook = func(_, command string) { commands = append(commands, command) }
-				rs.sendBatchedWithdrawals(rsLabeledPeer, rs.withdrawals[rsLabeledPeer])
+				rs.sendBatchedWithdrawals(source, rs.withdrawals[rsLabeledPeer])
 				if len(commands) != 1 {
 					t.Fatalf("peer-down emitted %d commands, want 1", len(commands))
 				}

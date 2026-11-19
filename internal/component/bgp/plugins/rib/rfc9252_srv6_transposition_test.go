@@ -101,7 +101,7 @@ func vpnv4SRv6Update(label uint32, transposLen byte) (body, nlriKey []byte) {
 // session stored) and asks entrySRv6SID, the producer the election calls.
 // It reads the stored path rather than an elected candidate, so a path the
 // election would refuse (isSRv6Ineligible) still has its SID asked.
-func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peer netip.Addr) netip.Addr {
+func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peerOwner uint64, peer netip.Addr) netip.Addr {
 	t.Helper()
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	routeKey, ok := routeIdentity(fam, nlri, false, false, scratch[:])
@@ -110,7 +110,7 @@ func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, 
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	peerRIB := r.bgpPeers[peer]
+	peerRIB := r.bgpPeers[peerOwner]
 	if peerRIB == nil {
 		t.Fatalf("peer %s holds no RIB", peer)
 	}
@@ -148,9 +148,9 @@ func TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel(t *testing.T) {
 	label := uint32(srv6FunctionBits) << (20 - srv6TransposLen)
 
 	body, nlriKey := vpnv4SRv6Update(label, srv6TransposLen)
-	feedReceived(r, peer, ctxID, body)
+	feedReceived(r, 1, peer, ctxID, body)
 
-	got := storedSRv6SID(t, r, fam, nlriKey, peer)
+	got := storedSRv6SID(t, r, fam, nlriKey, 1, peer)
 	want := netip.MustParseAddr(srv6FullSID)
 	if got != want {
 		t.Errorf("SRv6 SID = %v, want %v (partial SID on the wire was %s)", got, want, srv6PartialSID)
@@ -177,9 +177,9 @@ func TestSRv6TranspositionTracksTheLabelValue(t *testing.T) {
 	label := uint32(otherFunction) << (20 - srv6TransposLen)
 
 	body, nlriKey := vpnv4SRv6Update(label, srv6TransposLen)
-	feedReceived(r, peer, ctxID, body)
+	feedReceived(r, 1, peer, ctxID, body)
 
-	got := storedSRv6SID(t, r, fam, nlriKey, peer)
+	got := storedSRv6SID(t, r, fam, nlriKey, 1, peer)
 	want := netip.MustParseAddr("2001:db8:1:1234::")
 	if got != want {
 		t.Errorf("SRv6 SID = %v, want %v", got, want)
@@ -213,16 +213,16 @@ func TestSRv6TranspositionWiderThanLabelFieldIsIneligible(t *testing.T) {
 	label := uint32(srv6FunctionBits) << 4
 	body, nlriKey := vpnv4SRv6Update(label, tooWide)
 
-	feedReceived(r, peer, ctxID, body)
+	feedReceived(r, 1, peer, ctxID, body)
 
-	if sid := storedSRv6SID(t, r, fam, nlriKey, peer); sid.IsValid() {
+	if sid := storedSRv6SID(t, r, fam, nlriKey, 1, peer); sid.IsValid() {
 		t.Errorf("SID = %v, want none: a %d-bit transposition does not fit a 20-bit label field", sid, tooWide)
 	}
 
 	// Section 7: "The path having any such Prefix-SID attribute without any
 	// valid SRv6 SID information MUST be considered ineligible during the
 	// selection of the best path for the corresponding prefix."
-	if storedPathAdmitted(t, r, fam, nlriKey, peer) {
+	if storedPathAdmitted(t, r, fam, nlriKey, 1, peer) {
 		t.Errorf("path admitted to best-path selection, want excluded: a %d-bit transposition leaves it no valid SID", tooWide)
 	}
 }
@@ -230,7 +230,7 @@ func TestSRv6TranspositionWiderThanLabelFieldIsIneligible(t *testing.T) {
 // storedPathAdmitted answers whether the one path peer stored under nlri may
 // enter the decision process, by asking candidateAdmitted, the gate
 // checkRouteBestChange applies to every stored path.
-func storedPathAdmitted(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peer netip.Addr) bool {
+func storedPathAdmitted(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peerOwner uint64, peer netip.Addr) bool {
 	t.Helper()
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	routeKey, ok := routeIdentity(fam, nlri, false, false, scratch[:])
@@ -239,7 +239,7 @@ func storedPathAdmitted(t *testing.T, r *RIBManager, fam family.Family, nlri []b
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	peerRIB := r.bgpPeers[peer]
+	peerRIB := r.bgpPeers[peerOwner]
 	if peerRIB == nil {
 		t.Fatalf("peer %s holds no RIB", peer)
 	}

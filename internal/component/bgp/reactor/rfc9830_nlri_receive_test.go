@@ -83,7 +83,7 @@ func srReceive(t *testing.T, addPath bool, body []byte) srReceipt {
 	t.Cleanup(s.stopSendHoldTimer)
 	t.Cleanup(s.closeConn)
 	var got srReceipt
-	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+	s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
 		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {

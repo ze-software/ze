@@ -11,10 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+	"fmt"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -22,14 +23,15 @@ import (
 // peerDownRequest is one request the route reflector sent on a peer down, as
 // the engine's DirectBridge received it.
 type peerDownRequest struct {
-	selector string
-	command  string
-	meta     map[string]any
+	owner, session uint64
+	selector       string
+	command        string
+	meta           map[string]any
 }
 
 // newPeerDownReflector returns a route reflector wired to a DirectBridge that
 // records every UpdateRouteSel request it is sent.
-func newPeerDownReflector(t *testing.T) (*routeReflector, chan peerDownRequest) {
+func newPeerDownReflector(t *testing.T, original peerIdentity) (*routeReflector, chan peerDownRequest) {
 	t.Helper()
 	bridge := rpc.NewDirectBridge()
 	pluginEnd, engineEnd := net.Pipe()
@@ -37,12 +39,26 @@ func newPeerDownReflector(t *testing.T) (*routeReflector, chan peerDownRequest) 
 	p := sdk.NewWithConn("rr-down-test", rpc.NewBridgedConn(pluginEnd, bridge))
 	t.Cleanup(func() { _ = p.Close() })
 	requests := make(chan peerDownRequest, 4)
-	bridge.SetUpdateRouteSel(func(_ context.Context, sel *selector.Selector, command string, meta map[string]any, _ uint64) (uint32, uint32, error) {
-		requests <- peerDownRequest{selector: sel.String(), command: command, meta: meta}
-		return 0, 2, nil
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+		if result, handled, err := rrFixtureLeaseRPC(method, params); handled {
+			return result, err
+		}
+		var input rpc.UpdateRouteInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, err
+		}
+		if method != rpc.MethodUpdateRoute {
+			return nil, fmt.Errorf("unexpected departure RPC %s", method)
+		}
+		requests <- peerDownRequest{selector: input.PeerSelector, command: input.Command, meta: input.Meta, owner: input.DestinationOwner, session: input.DestinationSession}
+		return json.Marshal(rpc.UpdateRouteOutput{Withdrawn: 2})
 	})
 	bridge.SetReady()
-	return &routeReflector{plugin: p, peers: make(map[string]*peerState), withdrawals: make(map[string]map[string]withdrawalInfo)}, requests
+	rr := &routeReflector{plugin: p, peers: make(map[peerIdentity]*peerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo)}
+	rrFixtureStart(t, rr, original, 70, 7, 141)
+	rrFixtureStart(t, rr, rrOriginalFixture(t, "192.0.2.2", 702, 42), 0, 7, 142)
+	t.Cleanup(rr.stopDepartures)
+	return rr, requests
 }
 
 // TestPeerDownIsSourceOwnedRecovery takes down an ADD-PATH source that holds
@@ -74,7 +90,7 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 			announce: func(t *testing.T, rr *routeReflector) {
 				t.Helper()
 				origin := []byte{0x40, 1, 1, 0}
-				rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
+				rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
 			},
 			command: "update hex nlri ipv4/unicast addpath del " + hex.EncodeToString(path11) + " del " + hex.EncodeToString(path12),
 		},
@@ -89,9 +105,9 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rr, requests := newPeerDownReflector(t)
+			rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
 			tt.announce(t, rr)
-			rr.handleStateDown(source, 7)
+			rr.handleStateDown(rrOriginalFixture(t, source, 701, 41), 7)
 			var got peerDownRequest
 			select {
 			case got = <-requests:
@@ -102,8 +118,11 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 			if got.command != tt.command {
 				t.Fatalf("peer-down command = %q, want %q", got.command, tt.command)
 			}
-			if want := "!" + source; got.selector != want {
+			if want := "192.0.2.2"; got.selector != want {
 				t.Fatalf("peer-down selector = %q, want %q", got.selector, want)
+			}
+			if got.owner != 702 || got.session != 142 {
+				t.Fatalf("departure lost captured destination: %+v", got)
 			}
 			if got.meta["recovery-source"] != source {
 				t.Fatalf("peer-down meta = %v, want recovery-source %s: a plain withdrawal names the source's Path Identifiers to every destination", got.meta, source)
@@ -144,27 +163,28 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 	unicastCommand := "update hex nlri ipv4/unicast addpath del " + hex.EncodeToString(path11) + " del " + hex.EncodeToString(path12)
 	vpnCommand := "update hex nlri " + vpn.IPv4VPN.String() + " addpath del " + hex.EncodeToString(vpn11) + " del " + hex.EncodeToString(vpn12)
 	tests := []struct {
-		name         string
-		retainedPeer string
-		retainedFam  family.Family
-		wantCommands []string
+		name                              string
+		retainedPeer                      string
+		retainedOwner, retainedConnection uint64
+		retainedFam                       family.Family
+		wantCommands                      []string
 	}{
-		{name: "retained unicast", retainedPeer: source, retainedFam: family.IPv4Unicast, wantCommands: []string{vpnCommand}},
-		{name: "retained vpn", retainedPeer: source, retainedFam: vpn.IPv4VPN, wantCommands: []string{unicastCommand}},
-		{name: "another peer retained", retainedPeer: other, retainedFam: family.IPv4Unicast, wantCommands: []string{unicastCommand, vpnCommand}},
+		{name: "retained unicast", retainedPeer: source, retainedOwner: 701, retainedConnection: 41, retainedFam: family.IPv4Unicast, wantCommands: []string{vpnCommand}},
+		{name: "retained vpn", retainedPeer: source, retainedOwner: 701, retainedConnection: 41, retainedFam: vpn.IPv4VPN, wantCommands: []string{unicastCommand}},
+		{name: "another peer retained", retainedPeer: other, retainedOwner: 702, retainedConnection: 42, retainedFam: family.IPv4Unicast, wantCommands: []string{unicastCommand, vpnCommand}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rr, requests := newPeerDownReflector(t)
-			rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
-			rr.dispatchText("peer " + other + " remote as 65002 state up reason attached")
+			rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
+			rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached")
+			rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached")
 			// bgp-gr's verdict reaches bgp-rr as the bgp-gr/retention event,
 			// through the same event handler the DOWN arrives on, before it.
-			rr.dispatchText(retentionEvent(t, tt.retainedPeer, tt.retainedFam))
+			rr.dispatchText(retentionEvent(t, tt.retainedPeer, tt.retainedOwner, tt.retainedConnection, tt.retainedFam))
 			origin := []byte{0x40, 1, 1, 0}
-			rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
+			rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
 			rrApplyVPN(t, rr, vpn.IPv4VPN, true, 14, append(append([]byte{}, vpn11...), vpn12...))
-			rr.handleStateDown(source, 7)
+			rr.handleStateDown(rrOriginalFixture(t, source, 701, 41), 7)
 
 			rr.stopDepartures()
 			close(requests)
@@ -187,9 +207,9 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 
 // retentionEvent renders bgp-gr's verdict retaining fam for peer as the
 // enveloped bgp-gr/retention event bgp-rr's event handler receives.
-func retentionEvent(t *testing.T, peer string, fams ...family.Family) string {
+func retentionEvent(t *testing.T, peer string, owner, connection uint64, fams ...family.Family) string {
 	t.Helper()
-	payload, err := retention.Encode(peer, fams)
+	payload, err := retention.Encode(owner, connection, peer, fams)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,17 +229,17 @@ func TestRetentionVerdictConsumedPerDown(t *testing.T) {
 	unicastCommand := "update hex nlri ipv4/unicast addpath del " + hex.EncodeToString(path11)
 	origin := []byte{0x40, 1, 1, 0}
 
-	rr, requests := newPeerDownReflector(t)
-	rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
-	rr.dispatchText("peer " + other + " remote as 65002 state up reason attached")
-	rr.dispatchText(retentionEvent(t, source, family.IPv4Unicast))
-	rr.dispatchText(retentionEvent(t, other, family.IPv4Unicast))
-	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
-	rr.handleStateDown(source, 7)
-	rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
-	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
-	rr.handleStateDown(source, 8)
-	if retained := rr.retained.Take(other); !retained[family.IPv4Unicast] {
+	rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
+	rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached")
+	rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached")
+	rr.dispatchText(retentionEvent(t, source, 701, 41, family.IPv4Unicast))
+	rr.dispatchText(retentionEvent(t, other, 702, 42, family.IPv4Unicast))
+	rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, path11))
+	rr.handleStateDown(rrOriginalFixture(t, source, 701, 41), 7)
+	rrFixtureStart(t, rr, rrOriginalFixture(t, source, 701, 44), 71, 8, 144)
+	rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 44), 71, 81, rrAddPathUpdate(t, nil, origin, path11))
+	rr.handleStateDown(rrOriginalFixture(t, source, 701, 44), 8)
+	if retained, err := rr.retained.Take(702, 42); err != nil || !retained[family.IPv4Unicast] {
 		t.Fatal("another peer's DOWN consumed this peer's verdict")
 	}
 	rr.stopDepartures()

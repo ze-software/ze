@@ -145,7 +145,7 @@ func TestRSWithdrawalOwnershipCollapsedMixed(t *testing.T) {
 			f.await(t, 42, sibling)
 			f.assertHistory(t, []byte{41, 41}, 0)
 			f.send(t, rail, f.source, ctxID, ownershipRailBody(family.IPv4Unicast, true, pathsLimitNLRI(2, syncOrderPrefix), 0)) // RFC 7911 Section 5.
-			f.marker(t, rail, 86)
+			f.markerWithContext(t, rail, ctxID, 86)
 			f.assertHistory(t, []byte{41, 41}, 1)
 		})
 	}
@@ -221,7 +221,7 @@ func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 			f.send(t, rail, f.source, ctxID, fwdPackUpdateBody(mixed)) // RFC 4271 Section 4.3.
 			f.destination.settings.ExportPolicy, f.r.orderedEgressSteps, f.r.filterTransportSeam = ownExport, ownSteps, nil
 			f.destination.refreshForwardFacts()
-			f.marker(t, rail, 87)
+			f.markerWithContext(t, rail, ctxID, 87)
 			f.assertHistory(t, []byte{51}, 0)
 			announcements, withdrawals := 0, 0
 			for _, event := range ownershipRailRead(t, f.conn.written(), f.destination.sendCtx.Load()) { // RFC 4271 Section 4.3.
@@ -273,9 +273,11 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 		PeerAS:     65001,
 		RouterID:   0x01020358,
 	})
-	t.Cleanup(func() { fwdPathIDs.releaseSource(source.SourceID()) })
+	t.Cleanup(func() {
+		fwdPathIDs.releaseSource(fwdPathSource{sourceID: source.SourceID(), peerOwner: source.sourceOwner})
+	})
 	fwdPathIDs.mu.RLock()
-	initial := len(fwdPathIDs.byPath[source.SourceID()]) + len(fwdPathIDs.bySource[source.SourceID()])
+	initial := len(fwdPathIDs.byPath[fwdPathSource{sourceID: source.SourceID(), peerOwner: source.sourceOwner}]) + len(fwdPathIDs.bySource[fwdPathSource{sourceID: source.SourceID(), peerOwner: source.sourceOwner}])
 	fwdPathIDs.mu.RUnlock()
 	if initial != 0 {
 		t.Fatalf("isolated source starts with %d path-ID mappings", initial)
@@ -284,8 +286,8 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 	t.Cleanup(func() {
 		f.r.fwdPool.Stop()
 		f.destination.adjOut.reset()
-		fwdPathIDs.releaseSource(f.source.SourceID())
-		fwdPathIDs.releaseSource(f.other.SourceID())
+		fwdPathIDs.releaseSource(fwdPathSource{sourceID: f.source.SourceID(), peerOwner: f.source.sourceOwner})
+		fwdPathIDs.releaseSource(fwdPathSource{sourceID: f.other.SourceID(), peerOwner: f.other.sourceOwner})
 	})
 	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -297,6 +299,9 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 	source.recvCtxID = ctxID
 	source.sendCtx.Store(f.source.sendCtx.Load())
 	source.sendCtxID = f.ctxID
+	source.session = source.newSession()
+	source.session.setSendCtxID(f.ctxID)
+	source.session.setRecvCtxID(ctxID)
 	source.refreshForwardFacts()
 	f.r.peers[source.Settings().PeerKey()] = source
 	f.destination.sendCtx.Store(ctx)
@@ -337,7 +342,7 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 		t.Fatal("the 200-ID UPDATE was evicted before the allocation assertion")
 	}
 	fwdPathIDs.mu.RLock()
-	allocated := len(fwdPathIDs.byPath[source.SourceID()]) + len(fwdPathIDs.bySource[source.SourceID()])
+	allocated := len(fwdPathIDs.byPath[fwdPathSource{sourceID: source.SourceID(), peerOwner: source.sourceOwner}]) + len(fwdPathIDs.bySource[fwdPathSource{sourceID: source.SourceID(), peerOwner: source.sourceOwner}])
 	fwdPathIDs.mu.RUnlock()
 	if allocated != 0 {
 		t.Fatalf("unknown withdrawals retained %d path-ID mappings", allocated)
@@ -425,6 +430,7 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 	f := ownershipRailNew(t, nil)
 	f.r.clock = clock.RealClock{}
 	f.source.recvCtxID = f.ctxID
+	originalSource := captureRecoveryFixtureOrigin(t, f.source, f.source.currentSession(), f.ctxID)
 	f.send(t, "cached", f.other, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 72))
 	f.await(t, 72, syncOrderPrefixWire)
 	f.other.advanceForwardGeneration() // A's session is no longer current.
@@ -443,11 +449,11 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 		// A still owns the destination. No withdrawal may reach the wire.
 		f.send(t, "direct", f.source, f.ctxID, syncOrderWithdrawBody)
 		close(withdrawn)
-		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: f.source.Settings().Address, SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(),
+		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(),
 			NLRI: syncOrderPrefixWire, Attributes: candidate.PathAttributes, NextHop: []byte{10, 0, 0, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(lookup.Close)
-	if err := recoveryDepart(t, f.r, f.destination, f.other.Settings().Address, "192.0.2.0/24"); err != nil {
+	if err := recoveryDepart(t, f.r, f.destination, f.other.Settings().Address, f.other.sourceOwner, "192.0.2.0/24"); err != nil {
 		t.Fatal(err)
 	}
 	<-withdrawn
@@ -455,7 +461,7 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 	if len(requests) != 2 {
 		t.Fatalf("a dead candidate's decision must leave the key owed for one more round: %d lookups", len(requests))
 	}
-	if excluded := requests[1].Keys[0].Excluded; len(excluded) != 1 || excluded[0] != f.other.Settings().Address {
+	if excluded := requests[1].Keys[0].Excluded; len(excluded) != 1 || excluded[0] != f.other.sourceOwner {
 		t.Fatalf("the candidate's own withdrawal, not its cut, must refuse the write: excluded %v", excluded)
 	}
 	f.assertHistory(t, []byte{72}, 1)

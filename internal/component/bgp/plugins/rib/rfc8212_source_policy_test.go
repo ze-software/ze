@@ -38,6 +38,12 @@ func runSourcePolicy(t *testing.T, r *RIBManager, op rpc.SourcePolicyOperation, 
 	return r.handleSourcePolicy(context.Background(), sourcePolicyRequest(t, op, txn, peer, epoch, next))
 }
 
+const (
+	sourcePolicyPeerOwner            uint64 = 1
+	sourcePolicyAlternativePeerOwner uint64 = 2
+	sourcePolicyDestinationPeerOwner uint64 = 4
+)
+
 // sourcePolicyFixture is a source and an alternative that both announce
 // 10.1.0.0/24, a prefix only the source announces, and one forwarded copy of
 // the source's shared path at a destination.
@@ -59,21 +65,24 @@ func newSourcePolicyFixture(t *testing.T) *sourcePolicyFixture {
 		destination: netip.MustParseAddr("10.0.0.3")}
 	r := f.r
 	r.updateHook = func(command string, _ map[string]any) { f.commands = append(f.commands, command) }
-	receiveIPv4Route(t, r, f.source.String(), 100, "10.1.0.0/24", "180a0100")
-	receiveIPv4Route(t, r, f.source.String(), 101, "10.2.0.0/24", "180a0200")
-	receiveIPv4Route(t, r, f.alternative.String(), 102, "10.1.0.0/24", "180a0100")
-	for _, peer := range []netip.Addr{f.source, f.alternative, f.destination} {
-		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached})
+	receiveIPv4Route(t, r, f.source.String(), sourcePolicyPeerOwner, 100, "10.1.0.0/24", "180a0100")
+	receiveIPv4Route(t, r, f.source.String(), sourcePolicyPeerOwner, 101, "10.2.0.0/24", "180a0200")
+	receiveIPv4Route(t, r, f.alternative.String(), sourcePolicyAlternativePeerOwner, 102, "10.1.0.0/24", "180a0100")
+	for _, peer := range []struct {
+		owner   uint64
+		address netip.Addr
+	}{{sourcePolicyPeerOwner, f.source}, {sourcePolicyAlternativePeerOwner, f.alternative}, {sourcePolicyDestinationPeerOwner, f.destination}} {
+		r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: peer.owner, DestinationSession: 1, PeerAddress: peer.address.String(), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached})
 	}
 	for _, raw := range [][]byte{{24, 10, 1, 0}, {24, 10, 2, 0}} {
-		r.bgpPeers[f.source].ModifyFamilyEntry(family.IPv4Unicast, raw, func(entry *storage.RouteEntry) { entry.SourcePolicyEpoch = 5 })
+		r.bgpPeers[sourcePolicyPeerOwner].ModifyFamilyEntry(family.IPv4Unicast, raw, func(entry *storage.RouteEntry) { entry.SourcePolicyEpoch = 5 })
 	}
 	handle, err := pool.RibOut.Intern(nativeSentAttrs())
 	require.NoError(t, err)
-	r.ribOut[f.destination] = map[family.Family]map[ribOutKey]ribOutEntry{family.IPv4Unicast: {
+	r.ribOut[sourcePolicyDestinationPeerOwner] = map[family.Family]map[ribOutKey]ribOutEntry{family.IPv4Unicast: {
 		ribOutKey{Prefix: netip.MustParsePrefix("10.1.0.0/24")}: {MsgID: 900, AttrHandle: handle,
 			NativeNLRI: string([]byte{24, 10, 1, 0}), NextHop: "10.0.0.1", SourcePeer: f.source.String(),
-			SourceMessageID: 100, SourcePolicyEpoch: 5},
+			SourceMessageID: 100, SourcePolicyEpoch: 5, SourceOwner: sourcePolicyPeerOwner},
 	}}
 	return f
 }
@@ -115,8 +124,8 @@ func TestRFC8212SourcePolicyRIBLifecycle(t *testing.T) {
 	require.Greater(t, f.bus.eventCount(), events, "apply must publish the source-only prefix's withdrawal")
 	require.Len(t, f.commands, 1, "apply must withdraw the forwarded copy")
 	require.Contains(t, f.commands[0], "10.1.0.0/24")
-	require.Empty(t, r.ribOut[f.destination], "the withdrawn copy leaves the sent inventory")
-	require.Equal(t, 1, r.bgpPeers[f.alternative].Len(), "the alternative is untouched")
+	require.Empty(t, r.ribOut[sourcePolicyDestinationPeerOwner], "the withdrawn copy leaves the sent inventory")
+	require.Equal(t, 1, r.bgpPeers[sourcePolicyAlternativePeerOwner].Len(), "the alternative is untouched")
 
 	events, commands := f.bus.eventCount(), len(f.commands)
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "duplicate apply")
@@ -126,7 +135,7 @@ func TestRFC8212SourcePolicyRIBLifecycle(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 7))
 	require.Equal(t, 1, f.sourceCandidates(t, shared), "abort restores the path")
 	require.Equal(t, 1, f.sourceCandidates(t, only))
-	r.bgpPeers[f.source].IterateFamily(family.IPv4Unicast, func(_ []byte, entry storage.RouteEntry) bool {
+	r.bgpPeers[sourcePolicyPeerOwner].IterateFamily(family.IPv4Unicast, func(_ []byte, entry storage.RouteEntry) bool {
 		require.Equal(t, uint64(7), entry.SourcePolicyEpoch, "a restored path carries the fresh epoch")
 		return true
 	})
@@ -134,10 +143,10 @@ func TestRFC8212SourcePolicyRIBLifecycle(t *testing.T) {
 	require.NotEqual(t, f.commands[0], f.commands[commands])
 	require.Contains(t, f.commands[commands], "nlri ipv4/unicast add 180a0100")
 
-	sent, held := r.ribOut[f.destination][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.1.0.0/24")}]
+	sent, held := r.ribOut[sourcePolicyDestinationPeerOwner][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.1.0.0/24")}]
 	require.True(t, held, "abort returns the announced copy to the sent inventory")
 	require.Equal(t, uint64(7), sent.SourcePolicyEpoch, "the restored copy carries the restored path's epoch")
-	txn := r.sourcePolicy[f.source]
+	txn := r.sourcePolicy[sourcePolicyPeerOwner]
 	require.Nil(t, txn.received, "abort releases the pins")
 	require.Nil(t, txn.sent, "the inventory took the copy's reference")
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx1", f.source, 5, 0), "finalize after abort is refused")
@@ -152,8 +161,8 @@ func TestRFC8212SourcePolicyRIBFinalizeDropsDenied(t *testing.T) {
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyFinalize, "tx1", f.source, 5, 0))
-	require.Equal(t, 0, r.bgpPeers[f.source].Len(), "denied paths are not retained for a later recovery")
-	require.Equal(t, 1, r.bgpPeers[f.alternative].Len())
+	require.Equal(t, 0, r.bgpPeers[sourcePolicyPeerOwner].Len(), "denied paths are not retained for a later recovery")
+	require.Equal(t, 1, r.bgpPeers[sourcePolicyAlternativePeerOwner].Len())
 	require.Len(t, f.commands, 1, "finalize writes nothing more")
 }
 
@@ -164,7 +173,7 @@ func TestRFC8212SourcePolicyRIBRefusesBeforeMutation(t *testing.T) {
 	r := f.r
 	shared := []byte{24, 10, 1, 0}
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "old", f.source, 4, 0), "a token older than an admitted path")
-	require.Nil(t, r.sourcePolicy[f.source])
+	require.Nil(t, r.sourcePolicy[sourcePolicyPeerOwner])
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "apply without prepare")
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "other", f.source, 5, 6), "a foreign transaction")
@@ -178,7 +187,7 @@ func TestRFC8212SourcePolicyRIBRefusesBeforeMutation(t *testing.T) {
 	require.Equal(t, 1, f.sourceCandidates(t, shared), "no refusal changed eligibility")
 	require.Empty(t, f.commands)
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: f.source.String(), State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: sourcePolicyPeerOwner, DestinationSession: 1, PeerAddress: f.source.String(), State: rpc.SessionStateDown})
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "the session that prepared ended")
 }
 
@@ -190,7 +199,7 @@ func TestRFC8212SourcePolicyRIBWithdrawnNotRestored(t *testing.T) {
 	shared := []byte{24, 10, 1, 0}
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6))
-	require.True(t, r.bgpPeers[f.source].Remove(family.IPv4Unicast, shared))
+	require.True(t, r.bgpPeers[sourcePolicyPeerOwner].Remove(family.IPv4Unicast, shared))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyAbort, "tx1", f.source, 5, 7))
 	require.Equal(t, 0, f.sourceCandidates(t, shared), "a withdrawn path is not restored")
 	require.Equal(t, 1, f.sourceCandidates(t, []byte{24, 10, 2, 0}))
@@ -205,9 +214,9 @@ func TestRFC8212SourcePolicyRIBAddPath(t *testing.T) {
 	fam := family.IPv4Unicast
 	received := storage.NewPeerRIB(source.String())
 	received.SetAddPath(fam, true)
-	r.bgpPeers[source] = received
-	r.peerUp[source] = true
-	r.peerMeta[source] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.bgpPeers[sourcePolicyPeerOwner] = received
+	r.peerUp[sourcePolicyPeerOwner] = true
+	r.peerMeta[sourcePolicyPeerOwner] = &peerMetadata{Address: source, PeerASN: 65001, LocalASN: 65000}
 	for i, raw := range [][]byte{{0, 0, 0, 0, 24, 10, 1, 0}, {0, 0, 0, 7, 24, 10, 1, 0}} {
 		received.Insert(fam, nativeSentAttrs(), raw)
 		received.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
@@ -231,14 +240,14 @@ func TestRFC8212SourcePolicyRIBVPN(t *testing.T) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	peA := netip.MustParseAddr("192.0.2.1")
 	peB := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerMeta[peB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerUp[peA], r.peerUp[peB] = true, true
+	r.peerMeta[sourcePolicyPeerOwner] = &peerMetadata{Address: peA, PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[sourcePolicyAlternativePeerOwner] = &peerMetadata{Address: peB, PeerASN: 65001, LocalASN: 65000}
+	r.peerUp[sourcePolicyPeerOwner], r.peerUp[sourcePolicyAlternativePeerOwner] = true, true
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
 	nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
-	feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriA))
-	feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 200, vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)))
+	feedReceived(r, sourcePolicyPeerOwner, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriA))
+	feedReceived(r, sourcePolicyAlternativePeerOwner, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 200, vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)))
 	countA := func() int {
 		n := 0
 		for _, c := range gatherCandidatesHeld(t, r, vpnv4Family, nlriA, false) {

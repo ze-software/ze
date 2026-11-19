@@ -26,7 +26,8 @@ func seedShowRows(t testing.TB, r *RIBManager, rows int) {
 		nlri := []byte{32, 10, byte(i >> 16), byte(i >> 8), byte(i)}
 		peerRIB.Insert(fam, attrBytes, nlri)
 	}
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
 }
 
 // showRecords answers the walk `show bgp rib` produces.
@@ -147,18 +148,22 @@ func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
 	r := newTestRIBManager(t)
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	for _, fixture := range []struct {
-		peer string
-		nlri []byte
+		owner uint64
+		peer  string
+		nlri  []byte
 	}{
-		{peer: "198.51.100.7", nlri: []byte{24, 10, 7, 0}},
-		{peer: "192.0.2.1", nlri: []byte{24, 10, 1, 0}},
+		{owner: 1, peer: "198.51.100.7", nlri: []byte{24, 10, 7, 0}},
+		{owner: 2, peer: "192.0.2.1", nlri: []byte{24, 10, 1, 0}},
 	} {
 		peerRIB := storage.NewPeerRIB(fixture.peer)
 		peerRIB.Insert(family.IPv4Unicast, attrBytes, fixture.nlri)
-		r.bgpPeers[netip.MustParseAddr(fixture.peer)] = peerRIB
+		r.peerMeta[fixture.owner] = &peerMetadata{Address: netip.MustParseAddr(fixture.peer)}
+		r.bgpPeers[fixture.owner] = peerRIB
 	}
 
-	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+
+	r.ribOut[2] = testRibOutFamilyMap(
 		map[family.Family]map[string]*Route{
 			family.IPv6Unicast: {
 				"2001:db8:2::/48": {Family: family.IPv6Unicast, Prefix: "2001:db8:2::/48"},

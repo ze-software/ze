@@ -70,10 +70,7 @@ func TestReceivedNotificationFollowsBufferedUpdate(t *testing.T) {
 	// A path preserving publication order registers the existing frontier wait
 	// instead. Neither outcome depends on sleeping long enough for a callback.
 ready:
-	for {
-		if publication.waiting.Load() {
-			break
-		}
+	for !publication.waiting.Load() {
 		select {
 		case <-receiver.notified:
 			break ready
@@ -213,7 +210,7 @@ func TestReceivedNotificationWaitFailureStillCloses(t *testing.T) {
 					runtime.Gosched()
 				}
 			}
-			var cause error = errReceivePublicationFailed
+			cause := errReceivePublicationFailed
 			if stopped {
 				cause = context.Canceled
 				stopDone := make(chan struct{})

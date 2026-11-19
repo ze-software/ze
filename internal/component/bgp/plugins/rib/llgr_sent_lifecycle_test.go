@@ -39,7 +39,8 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				dest := netip.MustParseAddr("192.0.2.20")
 				control := netip.MustParseAddr("192.0.2.21")
 				peer := storage.NewPeerRIB(source.String())
-				r.bgpPeers[source] = peer
+				r.bgpPeers[101] = peer
+				r.peerMeta[101] = &peerMetadata{Address: source}
 				t.Cleanup(func() {
 					peer.Release()
 					for _, families := range r.ribOut {
@@ -60,19 +61,20 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				peer.ModifyFamilyEntry(tc.fam, in, func(e *storage.RouteEntry) { e.MsgID = 91 })
 				// Egress identifier zero is unrelated to ingress identifier seven.
 				out := append([]byte{0, 0, 0, 0}, tc.wire...)
-				event := nativeSentEvent(t, dest, tc.fam, out, attrs, true, false)
+				event := nativeSentEvent(t, dest, 201, 101, tc.fam, out, attrs, true, false)
 				event.RouteMeta["source-message-id"] = float64(91)
 				event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 7}}
 				r.handleSent(event)
-				other := nativeSentEvent(t, control, tc.fam, out, attrs, true, false)
+				other := nativeSentEvent(t, control, 202, 102, tc.fam, out, attrs, true, false)
 				other.RouteMeta["source-peer"] = "192.0.2.11"
+				other.RouteMeta[bgptypes.SourceOwnerMeta] = "102"
 				other.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 7}}
 				r.handleSent(other)
 				key, ok := ribOutRouteKey(tc.fam, out, true)
 				if !ok {
 					t.Fatal("key rejected")
 				}
-				original := r.ribOut[control][tc.fam][key].AttrHandle
+				original := r.ribOut[202][tc.fam][key].AttrHandle
 				if _, _, err := r.markStaleCommand([]string{source.String(), "0"}); err != nil {
 					t.Fatal(err)
 				}
@@ -82,7 +84,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				peer.Insert(tc.fam, nativeSentAttrs(), freshIn)
 				peer.ModifyFamilyEntry(tc.fam, freshIn, func(e *storage.RouteEntry) { e.MsgID = 92 })
 				freshOut := append([]byte{0, 0, 0, 99}, tc.wire...)
-				fresh := nativeSentEvent(t, dest, tc.fam, freshOut, nativeSentAttrs(), true, false)
+				fresh := nativeSentEvent(t, dest, 201, 101, tc.fam, freshOut, nativeSentAttrs(), true, false)
 				fresh.RouteMeta["source-message-id"] = float64(92)
 				fresh.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 8}}
 				r.handleSent(fresh)
@@ -90,7 +92,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 					if _, _, err := r.attachCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0006"}); err != nil {
 						t.Fatal(err)
 					}
-					entry := r.ribOut[dest][tc.fam][key]
+					entry := r.ribOut[201][tc.fam][key]
 					wire, err := pool.RibOut.Get(entry.AttrHandle)
 					if err != nil {
 						t.Fatal(err)
@@ -117,11 +119,11 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 					event.RouteMeta["replay"] = true
 					r.handleSent(event)
 					delete(event.RouteMeta, "replay")
-					if r.ribOut[dest][tc.fam][key].AttrHandle != entry.AttrHandle {
+					if r.ribOut[201][tc.fam][key].AttrHandle != entry.AttrHandle {
 						t.Fatal("replay rolled back locally decorated attrs")
 					}
 				}
-				removedHandle := r.ribOut[dest][tc.fam][key].AttrHandle
+				removedHandle := r.ribOut[201][tc.fam][key].AttrHandle
 				withdrawals := make(map[string]int)
 				r.updateHook = func(command string, meta map[string]any) {
 					if meta["rib-lifecycle"] != true {
@@ -138,7 +140,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				case "no-llgr":
 					_, _, _ = r.deleteWithCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0007"})
 				case "expiry":
-					r.autoExpireStale(source, r.grState[source])
+					r.autoExpireStale(101, r.grState[101])
 				case "release":
 					if _, err := r.retainRoutes(source.String(), nil, false); err != nil {
 						t.Fatal(err)
@@ -172,14 +174,14 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				if len(withdrawals) != wantWrites {
 					t.Fatalf("withdrew an unowned route: %#v", withdrawals)
 				}
-				if _, remains := r.ribOut[dest][tc.fam][key]; remains {
+				if _, remains := r.ribOut[201][tc.fam][key]; remains {
 					t.Fatal("purged received ownership survived in sent inventory")
 				}
 				wantSurvivors := 1
 				if operation == "release" {
 					wantSurvivors = 0
 				}
-				if len(r.ribOut[dest][tc.fam]) != wantSurvivors {
+				if len(r.ribOut[201][tc.fam]) != wantSurvivors {
 					t.Fatal("purge removed another path's refreshed ownership")
 				}
 				if operation != "no-llgr" {
@@ -187,7 +189,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 						t.Fatal("purged decorated attribute reference leaked")
 					}
 				}
-				if len(r.ribOut[control][tc.fam]) != 1 {
+				if len(r.ribOut[202][tc.fam]) != 1 {
 					t.Fatal("purge removed another source's advertisement")
 				}
 				if wire, err := pool.RibOut.Get(original); err != nil || !bytes.Equal(wire, attrs) {
@@ -196,7 +198,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				// Late replay feedback is not authority to recreate removed ownership.
 				event.RouteMeta["replay"] = true
 				r.handleSent(event)
-				if _, remains := r.ribOut[dest][tc.fam][key]; remains {
+				if _, remains := r.ribOut[201][tc.fam][key]; remains {
 					t.Fatal("late replay resurrected purged ownership")
 				}
 			})
@@ -235,8 +237,9 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 			dest := netip.MustParseAddr("192.0.2.20")
 			control := netip.MustParseAddr("192.0.2.21")
 			peer := storage.NewPeerRIB(source.String())
-			r.bgpPeers[source] = peer
-			r.peerUp[source] = true
+			r.bgpPeers[101] = peer
+			r.peerMeta[101] = &peerMetadata{Address: source}
+			r.peerUp[101] = true
 			t.Cleanup(func() {
 				peer.Release()
 				for _, families := range r.ribOut {
@@ -258,12 +261,13 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 			} {
 				peer.Insert(route.fam, attrs, route.wire)
 				peer.ModifyFamilyEntry(route.fam, route.wire, func(e *storage.RouteEntry) { e.MsgID = 91 })
-				event := nativeSentEvent(t, dest, route.fam, route.wire, attrs, false, false)
+				event := nativeSentEvent(t, dest, 201, 101, route.fam, route.wire, attrs, false, false)
 				event.RouteMeta["source-message-id"] = float64(91)
 				r.handleSent(event)
 			}
-			other := nativeSentEvent(t, control, tc.fam, tc.wire, attrs, false, false)
+			other := nativeSentEvent(t, control, 202, 102, tc.fam, tc.wire, attrs, false, false)
 			other.RouteMeta["source-peer"] = "192.0.2.11"
+			other.RouteMeta[bgptypes.SourceOwnerMeta] = "102"
 			r.handleSent(other)
 			var commands []string
 			r.updateHook = func(command string, _ map[string]any) {
@@ -294,7 +298,7 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 			if onDown {
 				wantPending = 1
 			}
-			if len(r.ribOut[dest][tc.fam]) != wantPending {
+			if len(r.ribOut[201][tc.fam]) != wantPending {
 				t.Fatal("unretained sent ownership did not match the DOWN handoff")
 			}
 			if onDown {
@@ -302,20 +306,20 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 				// only its successful sent withdrawal releases that ownership.
 				// A non-ADD-PATH key names no Sent: the writer's owed record
 				// holds the advertisement it withdraws.
-				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
-					Keys: []ribevents.RecoveryKey{{NLRI: tc.wire, Excluded: []netip.Addr{source}}}})
+				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, DestinationOwner: 201, Family: tc.fam,
+					Keys: []ribevents.RecoveryKey{{NLRI: tc.wire, Excluded: []uint64{101}}}})
 				if err != nil || len(outcomes) != 1 || !outcomes[0].Withdraw || len(outcomes[0].Sent) != 0 {
 					t.Fatalf("DOWN withdrawal handoff: outcomes=%v error=%v", outcomes, err)
 				}
-				r.handleSent(nativeSentEvent(t, dest, tc.fam, tc.wire, nil, false, true))
-				if len(r.ribOut[dest][tc.fam]) != 0 {
+				r.handleSent(nativeSentEvent(t, dest, 201, 101, tc.fam, tc.wire, nil, false, true))
+				if len(r.ribOut[201][tc.fam]) != 0 {
 					t.Fatal("successful sent withdrawal did not prune unretained ownership")
 				}
 			}
-			if len(r.ribOut[dest][family.IPv4Unicast]) != 1 {
+			if len(r.ribOut[201][family.IPv4Unicast]) != 1 {
 				t.Fatal("retained sent family was removed")
 			}
-			if len(r.ribOut[control][tc.fam]) != 1 {
+			if len(r.ribOut[202][tc.fam]) != 1 {
 				t.Fatal("another source's sent family was removed")
 			}
 		})
@@ -332,7 +336,8 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 			source := netip.MustParseAddr("192.0.2.10")
 			dest := netip.MustParseAddr("192.0.2.20")
 			peer := storage.NewPeerRIB(source.String())
-			r.bgpPeers[source] = peer
+			r.bgpPeers[101] = peer
+			r.peerMeta[101] = &peerMetadata{Address: source}
 			t.Cleanup(func() {
 				peer.Release()
 				for _, families := range r.ribOut {
@@ -353,7 +358,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 				peer.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) { entry.MsgID = 91 })
 				out := bytes.Clone(raw)
 				out[3] = byte(41 + i)
-				event := nativeSentEvent(t, dest, fam, out, attrs, true, false)
+				event := nativeSentEvent(t, dest, 201, 101, fam, out, attrs, true, false)
 				event.MsgID = uint64(101 + i)
 				event.RouteMeta["source-message-id"] = float64(91)
 				event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: fam, PathID: uint32(raw[3])}}
@@ -363,7 +368,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 				raw := []byte{32, 32, 1, 13, 184}
 				peer.Insert(family.IPv6Unicast, nativeSentAttrs(), raw)
 				peer.ModifyFamilyEntry(family.IPv6Unicast, raw, func(entry *storage.RouteEntry) { entry.MsgID = 91 })
-				event := nativeSentEvent(t, dest, family.IPv6Unicast, raw, nativeSentAttrs(), false, false)
+				event := nativeSentEvent(t, dest, 201, 101, family.IPv6Unicast, raw, nativeSentAttrs(), false, false)
 				event.MsgID = 103
 				event.RouteMeta["source-message-id"] = float64(91)
 				r.handleSent(event)
@@ -375,7 +380,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 			peer.ModifyFamilyEntry(fam, fresh, func(entry *storage.RouteEntry) { entry.MsgID = 92 })
 			freshKey := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24"), PathID: 41}
 			staleKey := ribOutKey{Prefix: freshKey.Prefix, PathID: 42}
-			before := r.ribOut[dest][fam][freshKey]
+			before := r.ribOut[201][fam][freshKey]
 			var writes []string
 			r.updateHook = func(command string, meta map[string]any) {
 				if meta[bgptypes.SentOwnerMessageMeta] != "102" && meta[bgptypes.SentOwnerMessageMeta] != "103" {
@@ -389,7 +394,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "expiry":
-				r.autoExpireStale(source, r.grState[source])
+				r.autoExpireStale(101, r.grState[101])
 			case "no-llgr":
 				if _, _, err := r.deleteWithCommunityCommand([]string{source.String(), fam.String(), "ffff0007"}); err != nil {
 					t.Fatal(err)
@@ -403,7 +408,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			after, present := r.ribOut[dest][fam][freshKey]
+			after, present := r.ribOut[201][fam][freshKey]
 			if !present || after != before {
 				t.Fatal("lifecycle changed the old sent projection of a freshly received path")
 			}
@@ -411,7 +416,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 			wantCommand := "update text nlri path-information 42 del 192.0.2.0/24"
 			if operation == "attach" {
 				wantWrites = 0
-				decorated := r.ribOut[dest][fam][staleKey]
+				decorated := r.ribOut[201][fam][staleKey]
 				data, err := pool.RibOut.Get(decorated.AttrHandle)
 				if err != nil || !bytes.Contains(data, []byte{255, 255, 0, 6}) {
 					t.Fatal("matching stale received path was not decorated")

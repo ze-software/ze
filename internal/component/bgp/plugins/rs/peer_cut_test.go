@@ -4,6 +4,7 @@
 package rs
 
 import (
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,12 +35,12 @@ func TestPeerUpCutPartitionsRailsExactly(t *testing.T) {
 		}
 		rs.mu.Unlock()
 	}
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "up"})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.2"].Families = families
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Families: families}
-	cut := rs.peers["10.0.0.2"].ForwardFrom
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].Families = families
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
+	cut := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].ForwardFrom
 	rs.mu.Unlock()
 
 	require.Equal(t, uint64(9), cut, "the cut is the newest MessageID seen when the peer came up")
@@ -47,17 +48,17 @@ func TestPeerUpCutPartitionsRailsExactly(t *testing.T) {
 	// At or below the cut: the peer's replay owns these, so no live forward.
 	for _, id := range []uint64{7, 9} {
 		rs.mu.RLock()
-		targets := rs.selectForwardTargets(nil, "10.0.0.1", id, families)
+		targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), id, families)
 		rs.mu.RUnlock()
-		require.NotContains(t, targets, "10.0.0.2",
+		require.NotContains(t, rsFixtureAddresses(targets), "10.0.0.2",
 			"msgID %d is at or below the cut; the Adj-RIB-In replay delivers it, not the live rail", id)
 	}
 
 	// Above the cut: the live rail owns these.
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 10, families)
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 10, families)
 	rs.mu.RUnlock()
-	require.Contains(t, targets, "10.0.0.2", "msgID above the cut must be forwarded live")
+	require.Contains(t, rsFixtureAddresses(targets), "10.0.0.2", "msgID above the cut must be forwarded live")
 }
 
 // TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail pins the rs half of the
@@ -77,21 +78,21 @@ func TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail(t *testing.T) {
 	families := map[family.Family]bool{family.IPv4Unicast: true}
 
 	// No UPDATE has been taken delivery of yet: seenMsgID is still its zero value.
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "up"})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.2"].Families = families
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Families: families}
-	cut := rs.peers["10.0.0.2"].ForwardFrom
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].Families = families
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
+	cut := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].ForwardFrom
 	rs.mu.Unlock()
 
 	require.Zero(t, cut, "nothing seen yet, so the cut is 0")
 
 	for _, id := range []uint64{1, 9, 10} {
 		rs.mu.RLock()
-		targets := rs.selectForwardTargets(nil, "10.0.0.1", id, families)
+		targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), id, families)
 		rs.mu.RUnlock()
-		require.Contains(t, targets, "10.0.0.2",
+		require.Contains(t, rsFixtureAddresses(targets), "10.0.0.2",
 			"msgID %d is above the cut of 0, so the live rail owns it and the replay must not also carry it", id)
 	}
 }
@@ -107,37 +108,40 @@ func TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail(t *testing.T) {
 func TestPeerUpCutCapturedAtomicallyWithForwardTarget(t *testing.T) {
 	rs := newTestRouteServer(t)
 	families := map[family.Family]bool{family.IPv4Unicast: true}
-
+	oldKey := rsFixtureKey("10.0.0.2", 2, 102)
+	newKey := rsFixtureKey("10.0.0.2", 2, 112)
+	source := rsFixtureKey("10.0.0.1", 1, 101)
 	rs.mu.Lock()
 	rs.seenMsgID = 5
 	rs.mu.Unlock()
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "up"})
-
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
 	rs.mu.RLock()
-	require.True(t, rs.peers["10.0.0.2"].Up, "peer is a forward target")
-	require.Equal(t, uint64(5), rs.peers["10.0.0.2"].ForwardFrom,
-		"and carries the cut written in the same critical section")
+	original := rs.peers[oldKey]
+	oldUp, oldCut := original.Up, original.ForwardFrom
 	rs.mu.RUnlock()
-
-	// Session bounces; more UPDATEs are taken delivery of while it is down.
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "down"})
+	require.True(t, oldUp, "peer is a forward target")
+	require.Equal(t, uint64(5), oldCut, "and carries the cut written in the same critical section")
+	// A real physical/output replacement receives a fresh atomic cut.
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "down"})
 	rs.mu.Lock()
 	rs.seenMsgID = 42
 	rs.mu.Unlock()
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", State: "up"})
-
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 112, DestinationSession: 212, State: "up", InitialReplay: 18})
 	rs.mu.Lock()
-	rs.peers["10.0.0.2"].Families = families
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Families: families}
+	rs.peers[newKey].Families = families
+	rs.peers[source] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
 	rs.mu.Unlock()
-
 	rs.mu.RLock()
-	require.Equal(t, uint64(42), rs.peers["10.0.0.2"].ForwardFrom,
-		"the new session re-captures the cut; a stale 5 would lose every route between 5 and 42")
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", 30, families)
+	newCut, newSession := rs.peers[newKey].ForwardFrom, rs.peers[newKey].DestinationSession
+	originalUp := original.Up
+	oldTargets := rs.selectForwardTargets(nil, source, 30, families)
+	usefulTargets := rs.selectForwardTargets(nil, source, 43, families)
 	rs.mu.RUnlock()
-	require.NotContains(t, targets, "10.0.0.2",
-		"msgID 30 predates the new session's cut, so the replay owns it")
+	require.Equal(t, uint64(42), newCut, "the new session re-captures the cut; a stale 5 would lose every route between 5 and 42")
+	require.False(t, originalUp, "original physical actor remains down even after its empty map row is pruned")
+	require.Equal(t, uint64(212), newSession, "successor owns its original output receipt")
+	require.NotContains(t, rsFixtureAddresses(oldTargets), "10.0.0.2", "msgID 30 predates the new session's cut, so the replay owns it")
+	require.Equal(t, []rpc.ForwardTarget{rsFixtureTarget("10.0.0.2", 2, 212)}, usefulTargets, "post-cut output reaches only the useful replacement receipt")
 }
 
 // TestDispatchStructuredAdvancesCutCursor pins that the cursor advances on the

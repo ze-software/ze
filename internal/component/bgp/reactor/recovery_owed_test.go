@@ -82,10 +82,10 @@ func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 
 // owedSurvivorMessage is owedSurvivor with the survivor's received message ID
 // chosen by the caller.
-func owedSurvivorMessage(source netip.Addr, epoch uint64, p []byte, message uint64) owedAnswer {
+func owedSurvivorMessage(source recoveryFixtureOrigin, epoch uint64, p []byte, message uint64) owedAnswer {
 	attributes := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}
 	return func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: epoch,
+		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source.address, SourceOwner: source.owner, SourceReceipt: source.receipt, SourcePolicyEpoch: epoch,
 			NLRI: p, Attributes: attributes, NextHop: []byte{192, 0, 2, 1}, MessageID: message})
 	}
 }
@@ -118,6 +118,7 @@ func TestRecoveryAnswerMatchingEntryWritesNothing(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rail := newOwedRail(t)
+			originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 			if tc.initial {
 				owedRailInitialReplay(t, rail, tc.installed)
 			} else {
@@ -131,7 +132,7 @@ func TestRecoveryAnswerMatchingEntryWritesNothing(t *testing.T) {
 			rail.forward(t, true, p) // The owner withdraws P: owed.
 			request := rail.request(t)
 			require.Equal(t, p, request.Keys[0].NLRI)
-			rail.release <- owedSurvivorMessage(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p, tc.elected)
+			rail.release <- owedSurvivorMessage(originalSource, rail.source.sourcePolicyEpoch.Load(), p, tc.elected)
 			lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
 			written := recoveryWrittenUpdates(t, rail.conn.written())[before:]
 			if !tc.writes {
@@ -209,8 +210,8 @@ func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
 			rail.source.advanceForwardGeneration() // A's first session ended; A is up again.
 			var departures []chan error
 			if departureFirst {
-				departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
-				require.Equal(t, []netip.Addr{address}, rail.request(t).Keys[0].Excluded,
+				departures = append(departures, rail.departure(t, address, rail.source.sourceOwner, "192.0.2.0/24"))
+				require.Equal(t, []uint64{rail.source.sourceOwner}, rail.request(t).Keys[0].Excluded,
 					"the departed session's source is excluded")
 				epoch := owedRailEpoch(t, rail)
 				adjOutTestForward(t, rail.destination, rail.source, p, 12)
@@ -221,7 +222,7 @@ func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
 				rail.request(t)
 				adjOutTestForward(t, rail.destination, rail.source, p, 12)
 				epoch := owedRailEpoch(t, rail)
-				departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
+				departures = append(departures, rail.departure(t, address, rail.source.sourceOwner, "192.0.2.0/24"))
 				lowEventually(t, func() bool { return owedRailEpoch(t, rail) != epoch }, "the departure merges")
 			}
 			written := len(recoveryWrittenUpdates(t, rail.conn.written()))
@@ -232,11 +233,11 @@ func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
 				"an admission for a stale epoch writes nothing")
 
 			rail.source.advanceForwardGeneration() // The announcing session departs.
-			departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
+			departures = append(departures, rail.departure(t, address, rail.source.sourceOwner, "192.0.2.0/24"))
 			epoch := owedRailEpoch(t, rail)
 			lowEventually(t, func() bool { return owedRailEpoch(t, rail) != epoch }, "the second departure merges")
 			rail.release <- nil
-			require.Equal(t, []netip.Addr{address}, rail.request(t).Keys[0].Excluded,
+			require.Equal(t, []uint64{rail.source.sourceOwner}, rail.request(t).Keys[0].Excluded,
 				"once its announcing session departs, A is excluded again")
 			rail.release <- nil
 			for _, done := range departures {
@@ -263,28 +264,30 @@ func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
 	cases := []struct {
 		name   string
 		mover  bool // true: the mover is A, false: B.
-		answer func(a, b *Peer) owedAnswer
+		answer func(a, b recoveryFixtureOrigin, epochA, epochB uint64) owedAnswer
 		writes int
 	}{
 		{name: "non-chosen-mover-written-reowed", mover: true,
-			answer: func(_, b *Peer) owedAnswer {
-				return owedSurvivorMessage(b.Settings().Address, b.sourcePolicyEpoch.Load(), p, 21)
+			answer: func(_, b recoveryFixtureOrigin, _, epochB uint64) owedAnswer {
+				return owedSurvivorMessage(b, epochB, p, 21)
 			}, writes: 1},
 		{name: "chosen-mover-written-reowed", mover: true,
-			answer: func(a, _ *Peer) owedAnswer {
-				return owedSurvivorMessage(a.Settings().Address, a.sourcePolicyEpoch.Load(), p, 13)
+			answer: func(a, _ recoveryFixtureOrigin, epochA, _ uint64) owedAnswer {
+				return owedSurvivorMessage(a, epochA, p, 13)
 			}, writes: 1},
 		{name: "held-choice-nothing-written-reowed", mover: false,
-			answer: func(a, _ *Peer) owedAnswer {
-				return owedSurvivorMessage(a.Settings().Address, a.sourcePolicyEpoch.Load(), p, 11)
+			answer: func(a, _ recoveryFixtureOrigin, epochA, _ uint64) owedAnswer {
+				return owedSurvivorMessage(a, epochA, p, 11)
 			}, writes: 0},
 		{name: "withdraw-answer-written-reowed", mover: false,
-			answer: func(_, _ *Peer) owedAnswer { return nil }, writes: 1},
+			answer: func(_, _ recoveryFixtureOrigin, _, _ uint64) owedAnswer { return nil }, writes: 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rail := newOwedRail(t)
 			other := adjOutTestOtherSource(rail.r, rail.source)
+			originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
+			originalOther := captureRecoveryFixtureOrigin(t, other, recoveryFixtureSession(t, other, rail.source.sendCtxID), rail.source.sendCtxID)
 			attachRecoveryOwner(t, rail.r, rail.source, other)
 			adjOutTestForward(t, rail.destination, rail.source, p, 11)
 			adjOutTestForward(t, rail.destination, other, p, 21)
@@ -296,7 +299,7 @@ func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
 			}
 			epoch := owedRailEpoch(t, rail)
 			before := len(recoveryWrittenUpdates(t, rail.conn.written()))
-			rail.release <- tc.answer(rail.source, other)
+			rail.release <- tc.answer(originalSource, originalOther, rail.source.sourcePolicyEpoch.Load(), other.sourcePolicyEpoch.Load())
 			// No UPDATE reaches the writer from here: the next round is the
 			// mover's own re-owe.
 			request := rail.request(t)
@@ -317,6 +320,7 @@ func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
 		const churn = 1000
 		rail := newOwedRail(t)
 		other := adjOutTestOtherSource(rail.r, rail.source)
+		originalOther := captureRecoveryFixtureOrigin(t, other, recoveryFixtureSession(t, other, rail.source.sendCtxID), rail.source.sendCtxID)
 		attachRecoveryOwner(t, rail.r, rail.source, other)
 		adjOutTestForward(t, rail.destination, rail.source, p, 11)
 		adjOutTestForward(t, rail.destination, other, p, 21)
@@ -327,11 +331,11 @@ func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
 			answered := message
 			message = 100 + uint64(i)
 			adjOutTestForward(t, rail.destination, other, p, message) // B's mover.
-			rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, answered)
+			rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, answered)
 			// RE-OWED: the next round starts with no further UPDATE.
 			require.Equal(t, p, rail.request(t).Keys[0].NLRI, "admission %d was re-owed", i)
 		}
-		rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, message)
+		rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, message)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round after the churn decided P")
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), churn+2,
 			"A's route, then one write per admission: no admission retried without a decision")
@@ -374,7 +378,12 @@ func TestOwnerWithdrawalOwedWhileCandidateInFlight(t *testing.T) {
 				adjOutTestForward(t, rail.destination, rail.source, p, 11)
 				if !inFlight {
 					other.advanceForwardGeneration() // X restarted: its queued forward was dropped.
+					recoveryFixtureSession(t, other, rail.source.sendCtxID)
 				}
+				if other.currentSession() == nil {
+					recoveryFixtureSession(t, other, rail.source.sendCtxID)
+				}
+				originalOther := captureRecoveryFixtureOrigin(t, other, other.currentSession(), rail.source.sendCtxID)
 				if lifecycle {
 					owedRailExpected(t, rail.destination, ownershipRailBody(family.IPv4Unicast, true, p, 0), rail.revision(t))
 				} else {
@@ -382,12 +391,12 @@ func TestOwnerWithdrawalOwedWhileCandidateInFlight(t *testing.T) {
 				}
 				require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "the removal is owed, never bare")
 				rail.request(t)
-				rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
+				rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, 21)
 				lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round elected the candidate")
 				if inFlight {
 					adjOutTestForward(t, rail.destination, other, p, 21) // The held forward arrives.
 					rail.request(t)
-					rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
+					rail.release <- owedSurvivorMessage(originalOther, other.sourcePolicyEpoch.Load(), p, 21)
 					lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the late forward's round decided P")
 				}
 				written := recoveryWrittenUpdates(t, rail.conn.written())

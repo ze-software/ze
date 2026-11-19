@@ -96,10 +96,13 @@ func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
 // holding the departed peer's Link-State routes forever.
 func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 	rs := newTestRouteServer(t)
+	source := rsFixtureKey("10.0.0.1", 1, 101)
+	rsFixtureNativeActors(rs, source, rsFixtureKey("10.0.0.2", 2, 102), 202)
 
 	records := wireNLRIRecords(t, bgplsRawMessage(t))
 	require.NotNil(t, records)
 	rs.withdrawalMu.Lock()
+	rsFixtureOriginalRecords(records, source, 301, 5)
 	rs.applyNLRIRecords("10.0.0.1", records)
 	entries := rs.withdrawals["10.0.0.1"]
 	rs.withdrawalMu.Unlock()
@@ -114,7 +117,7 @@ func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 		mu.Unlock()
 	}
 
-	rs.sendBatchedWithdrawals("10.0.0.1", entries)
+	rs.sendBatchedWithdrawals(source, entries)
 
 	mu.Lock()
 	defer mu.Unlock()

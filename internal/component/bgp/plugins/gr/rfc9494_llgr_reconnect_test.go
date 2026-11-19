@@ -23,10 +23,10 @@ func llgrReconnectCap(families ...llgrCapFamily) *llgrPeerCap {
 // zero, so every family listed in llgrCap enters its LLGR period at once.
 func downIntoLLGR(t *testing.T, mgr *grStateManager, llgrCap *llgrPeerCap, families ...grCapFamily) {
 	t.Helper()
-	mgr.onLLGREnter = func(string, family.Family, uint32) {}
-	mgr.onLLGRFamilyExpired = func(string, family.Family) {}
-	require.True(t, mgr.onSessionDown(testPeer, testCap(0, families...), llgrCap, false), "GR activates")
-	require.True(t, mgr.peerActive(testPeer), "the peer is in its LLGR period")
+	mgr.onLLGREnter = func(grSource, family.Family, uint32) {}
+	mgr.onLLGRFamilyExpired = func(grSource, family.Family) {}
+	require.True(t, mgr.onSessionDown(grFixtureSource(t, testPeer, 701, 41), testCap(0, families...), llgrCap, false), "GR activates")
+	require.True(t, mgr.peerActive(grFixtureSource(t, testPeer, 701, 41)), "the peer is in its LLGR period")
 }
 
 // TestOnSessionReestablished_LLGRFBitClearPurges verifies the first Section 4.2
@@ -44,15 +44,15 @@ func downIntoLLGR(t *testing.T, mgr *grStateManager, llgrCap *llgrPeerCap, famil
 func TestOnSessionReestablished_LLGRFBitClearPurges(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
 	downIntoLLGR(t, mgr, llgrCapIPv4, famIPv4)
 
 	cleared := llgrReconnectCap(llgrCapFamily{Family: family.IPv4Unicast, ForwardState: false, LLST: 3600})
-	purged, wasLLGR := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4), cleared)
+	_, purged, wasLLGR := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4), cleared)
 
 	assert.True(t, wasLLGR, "the peer was in its LLGR period")
 	assert.Equal(t, []family.Family{family.IPv4Unicast}, purged, "F bit clear in the new LLGR capability purges the family")
-	assert.False(t, mgr.peerActive(testPeer), "no stale family remains")
+	assert.False(t, mgr.peerActive(grFixtureSource(t, testPeer, 701, 41)), "no stale family remains")
 }
 
 // TestOnSessionReestablished_FamilyAbsentFromLLGRPurges verifies the second
@@ -68,7 +68,7 @@ func TestOnSessionReestablished_LLGRFBitClearPurges(t *testing.T) {
 func TestOnSessionReestablished_FamilyAbsentFromLLGRPurges(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
 	both := llgrReconnectCap(
 		llgrCapFamily{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
 		llgrCapFamily{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600},
@@ -76,11 +76,11 @@ func TestOnSessionReestablished_FamilyAbsentFromLLGRPurges(t *testing.T) {
 	downIntoLLGR(t, mgr, both, famIPv4, famIPv6)
 
 	onlyIPv6 := llgrReconnectCap(llgrCapFamily{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600})
-	purged, _ := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4, famIPv6), onlyIPv6)
+	_, purged, _ := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4, famIPv6), onlyIPv6)
 
 	assert.Equal(t, []family.Family{family.IPv4Unicast}, purged, "the family the new LLGR capability omits is purged")
-	assert.True(t, mgr.familyRetained(testPeer, family.IPv6Unicast), "the family it lists with F set stays stale until EOR")
-	assert.False(t, mgr.familyRetained(testPeer, family.IPv4Unicast), "the purged family is no longer retained")
+	assert.True(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv6Unicast), "the family it lists with F set stays stale until EOR")
+	assert.False(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast), "the purged family is no longer retained")
 }
 
 // TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily verifies that a
@@ -97,13 +97,13 @@ func TestOnSessionReestablished_FamilyAbsentFromLLGRPurges(t *testing.T) {
 func TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
 	downIntoLLGR(t, mgr, llgrCapIPv4, famIPv4)
 
-	purged, _ := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4), nil)
+	_, purged, _ := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4), nil)
 
 	assert.Equal(t, []family.Family{family.IPv4Unicast}, purged)
-	assert.False(t, mgr.peerActive(testPeer))
+	assert.False(t, mgr.peerActive(grFixtureSource(t, testPeer, 701, 41)))
 }
 
 // TestOnSessionReestablished_LLGRPeriodGRFBitClearPurges verifies that the RFC
@@ -115,10 +115,10 @@ func TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily(t *testing.T) {
 func TestOnSessionReestablished_LLGRPeriodGRFBitClearPurges(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
 	downIntoLLGR(t, mgr, llgrCapIPv4, famIPv4)
 
-	purged, _ := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4NoF), llgrCapIPv4)
+	_, purged, _ := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4NoF), llgrCapIPv4)
 
 	assert.Equal(t, []family.Family{family.IPv4Unicast}, purged, "GR F bit clear purges whatever LLGR says")
 }
@@ -136,13 +136,13 @@ func TestOnSessionReestablished_LLGRPeriodGRFBitClearPurges(t *testing.T) {
 func TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
 	downIntoLLGR(t, mgr, llgrCapIPv4, famIPv4)
 
-	purged, _ := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4), llgrCapIPv4)
+	_, purged, _ := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4), llgrCapIPv4)
 
 	assert.Empty(t, purged, "no bullet holds, so nothing is removed")
-	assert.True(t, mgr.familyRetained(testPeer, family.IPv4Unicast), "stale routes are kept until EOR")
+	assert.True(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast), "stale routes are kept until EOR")
 }
 
 // TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets verifies that the
@@ -160,21 +160,21 @@ func TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily(t *testing.T) 
 func TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets(t *testing.T) {
 	t.Parallel()
 
-	mgr := newGRStateManager(nil)
-	mgr.onLLGREnter = func(string, family.Family, uint32) {}
-	mgr.onLLGRFamilyExpired = func(string, family.Family) {}
+	mgr := grFixtureState(t, grFixtureSource(t, testPeer, 701, 41), nil)
+	mgr.onLLGREnter = func(grSource, family.Family, uint32) {}
+	mgr.onLLGRFamilyExpired = func(grSource, family.Family) {}
 	both := llgrReconnectCap(
 		llgrCapFamily{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
 		llgrCapFamily{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600},
 	)
-	require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4), both, false))
-	require.True(t, mgr.familyRetained(testPeer, family.IPv6Unicast), "ipv6/unicast entered LLGR at DOWN")
+	require.True(t, mgr.onSessionDown(grFixtureSource(t, testPeer, 701, 41), testCap(120, famIPv4), both, false))
+	require.True(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv6Unicast), "ipv6/unicast entered LLGR at DOWN")
 
 	onlyIPv6 := llgrReconnectCap(llgrCapFamily{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600})
-	purged, wasLLGR := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4, famIPv6), onlyIPv6)
+	_, purged, wasLLGR := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4, famIPv6), onlyIPv6)
 
 	assert.True(t, wasLLGR, "the peer had a family in its LLGR period")
 	assert.Empty(t, purged, "ipv4/unicast is judged by the RFC 4724 rule alone")
-	assert.True(t, mgr.familyRetained(testPeer, family.IPv4Unicast))
-	assert.True(t, mgr.familyRetained(testPeer, family.IPv6Unicast))
+	assert.True(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv4Unicast))
+	assert.True(t, mgr.familyRetained(grFixtureSource(t, testPeer, 701, 41), family.IPv6Unicast))
 }

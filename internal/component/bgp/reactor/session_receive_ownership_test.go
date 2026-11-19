@@ -43,7 +43,7 @@ func TestReceiveUpdateDoesNotReadTransferredStorage(t *testing.T) {
 			// for an IPv6 MP_UNREACH must not retroactively change that verdict.
 			body := []byte{0, 0, 0, 10, 0x80, 15, 7, 0, 1, 1, 24, 192, 0, 2}
 			called := false
-			session.onMessageReceived = func(_ netip.Addr, kind msgtype.MessageType, _ []byte,
+			session.onMessageReceived = func(_ *Session, _ netip.Addr, kind msgtype.MessageType, _ []byte,
 				wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 				handle BufHandle, _ map[string]any, _ string, _ uint64) bool {
 				called = true

@@ -49,7 +49,7 @@ func TestRFC9494_FreshRoutesDoNotGetLLGRStale(t *testing.T) {
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(0), result["attached"], "no fresh route may be marked LLGR_STALE")
 
-	entry, found := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
+	entry, found := r.bgpPeers[1].Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
 	require.True(t, found, "the fresh route is still present")
 	assert.Equal(t, storage.StaleLevelFresh, entry.StaleLevel, "fresh route keeps its level")
 	assert.False(t, entry.GetBundle().HasCommunities(), "no community attached to a fresh route")
@@ -68,7 +68,7 @@ func TestRFC9494_FreshRoutesDoNotGetLLGRStale(t *testing.T) {
 func TestRFC9494_StaleRouteWithoutNoLLGRRetained(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
-	peerRIB := r.bgpPeers[netip.MustParseAddr("192.0.2.1")]
+	peerRIB := r.bgpPeers[1]
 
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestRFC9494_StaleRouteWithoutNoLLGRRetained(t *testing.T) {
 func TestRFC9494_LLGRStalePreservedOnFurtherAdvertisement(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
-	peerRIB := r.bgpPeers[netip.MustParseAddr("192.0.2.1")]
+	peerRIB := r.bgpPeers[1]
 
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestRFC9494_LLGRStaleRouteIsLeastPreferred(t *testing.T) {
 		[]string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
 	require.NoError(t, err)
 
-	entry, found := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
+	entry, found := r.bgpPeers[1].Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
 	require.True(t, found)
 	require.GreaterOrEqual(t, entry.StaleLevel, storage.DepreferenceThreshold,
 		"LLGR_STALE route sits at the depreference threshold")
@@ -187,7 +187,7 @@ func TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred(t *testing.T) {
 		[]string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
 	require.NoError(t, err)
 
-	entry, found := r.bgpPeers[netip.MustParseAddr("192.0.2.2")].Lookup(family.IPv4Unicast, []byte{24, 172, 16, 0})
+	entry, found := r.bgpPeers[2].Lookup(family.IPv4Unicast, []byte{24, 172, 16, 0})
 	require.True(t, found)
 	require.Equal(t, storage.StaleLevelFresh, entry.StaleLevel, "unmarked route stays fresh")
 

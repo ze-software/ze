@@ -8,7 +8,9 @@ package rr
 
 import (
 	"context"
+	"encoding/json"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -67,6 +69,13 @@ func TestRFC8212RouteReflectorSourcePolicyTransport(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
 			engine := pluginengine.Start(t, transport, runRouteReflectorCallbacks)
+			receipt := engine.IssueSource(rrTransportSource, 1)
+			engine.SetRPCHandler(func(_ context.Context, method string, _ json.RawMessage) (any, error) {
+				if method == rpc.MethodReleaseCached {
+					return struct{}{}, nil
+				}
+				return nil, pluginengine.ErrUnhandledRPC
+			})
 
 			out := rrTransportPhase(t, ctx, engine, "tx0", rpc.SourcePolicyPrepare, 0)
 			if out.Status != rpc.StatusError {
@@ -74,8 +83,8 @@ func TestRFC8212RouteReflectorSourcePolicyTransport(t *testing.T) {
 			}
 
 			for _, event := range []string{
-				"peer " + rrTransportSource + " remote as 65001 state up\n",
-				"peer " + rrTransportSource + " remote as 65001 received update 100 source-policy-epoch 5 " +
+				"peer " + rrTransportSource + " remote as 65001 state up peer-owner 1 connection-id 41 session-generation 3 destination-session 141 reason attached\n",
+				"peer " + rrTransportSource + " remote as 65001 received update 100 peer-owner 1 connection-id 41 source-receipt " + strconv.FormatUint(receipt, 10) + " source-policy-epoch 5 " +
 					"origin igp next " + rrTransportSource + " nlri ipv4/unicast add 10.1.0.0/24\n",
 			} {
 				if err := engine.Deliver(ctx, event); err != nil {

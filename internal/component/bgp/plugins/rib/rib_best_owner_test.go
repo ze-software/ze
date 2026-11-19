@@ -39,13 +39,13 @@ func TestBestOwnerTieIsStable(t *testing.T) {
 // boundary, rather than looking the address up after the source was retained.
 func TestCandidateKeepsRetainedOwner(t *testing.T) {
 	r := newTestRIBManager(t)
-	source := storage.NewSourceReference(1701, nil)
+	source := storage.NewSourceReference(1701, 41, nil)
 	defer source.Release()
 	var entry storage.RouteEntry
 	entry.SetSourceReference(source)
 	defer entry.Release()
 	address := netip.MustParseAddr("192.0.2.188")
-	candidate := r.extractCandidate(family.IPv4Unicast, address, address.String(), entry)
+	candidate := r.extractCandidate(family.IPv4Unicast, 1701, address, address.String(), entry)
 	require.Equal(t, uint64(1701), candidate.PeerOwner)
 }
 

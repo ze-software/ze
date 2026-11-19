@@ -23,10 +23,11 @@ import (
 )
 
 // receiveIPv4Route installs one IPv4 unicast route from the neighbor at remote.
-func receiveIPv4Route(t *testing.T, r *RIBManager, remote string, id uint64, prefix, nlriHex string) {
+func receiveIPv4Route(t *testing.T, r *RIBManager, remote string, peerOwner, id uint64, prefix, nlriHex string) {
 	t.Helper()
 	r.handleReceived(&Event{
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: id},
+		PeerOwner:     peerOwner,
 		Peer:          mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: remote, AS: 65001}}),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: nlriHex},
@@ -61,17 +62,17 @@ func TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes(t *testing.T) {
 	offender := netip.MustParseAddr("10.0.0.1")
 	bystander := netip.MustParseAddr("10.0.0.9")
 
-	receiveIPv4Route(t, r, offender.String(), 100, "10.1.0.0/24", "180a0100")
-	receiveIPv4Route(t, r, bystander.String(), 101, "10.9.0.0/24", "180a0900")
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: offender.String(), State: rpc.SessionStateUp})
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: bystander.String(), State: rpc.SessionStateUp})
-	require.Equal(t, 1, r.bgpPeers[offender].Len())
-	require.Equal(t, 1, r.bgpPeers[bystander].Len())
+	receiveIPv4Route(t, r, offender.String(), 1, 100, "10.1.0.0/24", "180a0100")
+	receiveIPv4Route(t, r, bystander.String(), 2, 101, "10.9.0.0/24", "180a0900")
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 1, PeerAddress: offender.String(), State: rpc.SessionStateUp})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 2, DestinationSession: 1, PeerAddress: bystander.String(), State: rpc.SessionStateUp})
+	require.Equal(t, 1, r.bgpPeers[1].Len())
+	require.Equal(t, 1, r.bgpPeers[2].Len())
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: offender.String(), State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 1, DestinationSession: 1, PeerAddress: offender.String(), State: rpc.SessionStateDown})
 
-	_, kept := r.bgpPeers[offender]
+	_, kept := r.bgpPeers[1]
 	require.False(t, kept, "the neighbor's received routes must be deleted")
-	require.NotNil(t, r.bgpPeers[bystander], "another neighbor's routes are not the offender's")
-	require.Equal(t, 1, r.bgpPeers[bystander].Len(), "another neighbor's routes are not the offender's")
+	require.NotNil(t, r.bgpPeers[2], "another neighbor's routes are not the offender's")
+	require.Equal(t, 1, r.bgpPeers[2].Len(), "another neighbor's routes are not the offender's")
 }

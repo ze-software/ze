@@ -54,7 +54,7 @@ func TestReplayRoutesWholeTableAcrossPages(t *testing.T) {
 			NLRIHex: "18" + hex.EncodeToString(prefix.Addr().AsSlice()[:3]),
 		})
 	}
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = m
 
 	answers := 0
 	dispatch := func(_ context.Context, command string, args ...string) (string, json.RawMessage, error) {
@@ -138,8 +138,8 @@ func TestReplayRoutesInterleavedSourcesAcrossPages(t *testing.T) {
 	sources := [2]*seqmap.Map[compactRouteKey, *RawRoute]{
 		seqmap.New[compactRouteKey, *RawRoute](), seqmap.New[compactRouteKey, *RawRoute](),
 	}
-	r.ribIn[netip.MustParseAddr("10.0.0.1")] = sources[0]
-	r.ribIn[netip.MustParseAddr("10.0.0.3")] = sources[1]
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = sources[0]
+	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.3")}] = sources[1]
 	const routeCount = 130
 	for i := range routeCount {
 		key, route := replayTestRoute(i, attrHex)
@@ -242,8 +242,8 @@ func TestReplayPageAsymmetricSourcesAcrossPages(t *testing.T) {
 		sources := [2]*seqmap.Map[compactRouteKey, *RawRoute]{
 			seqmap.New[compactRouteKey, *RawRoute](), seqmap.New[compactRouteKey, *RawRoute](),
 		}
-		r.ribIn[netip.MustParseAddr("10.0.0.1")] = sources[0]
-		r.ribIn[netip.MustParseAddr("10.0.0.3")] = sources[1]
+		r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}] = sources[0]
+		r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.3")}] = sources[1]
 		for i := range routeCount {
 			key, route := replayTestRoute(i, attrFor(i))
 			sources[sourceFor(i)].Put(key, uint64(i+1), route)
@@ -298,11 +298,11 @@ func TestReplayPageAsymmetricSourcesAcrossPages(t *testing.T) {
 // sourceCount sources with interleaved sequences, each with a typical 64-byte
 // attribute block.
 func benchmarkReplayStore(routes, sourceCount int) *AdjRIBInManager {
-	r := &AdjRIBInManager{ribIn: make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute])}
+	r := &AdjRIBInManager{ribIn: make(map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute])}
 	sources := make([]*seqmap.Map[compactRouteKey, *RawRoute], sourceCount)
 	for s := range sources {
 		sources[s] = seqmap.New[compactRouteKey, *RawRoute]()
-		r.ribIn[netip.AddrFrom4([4]byte{10, 1, byte(s / 256), byte(s % 256)})] = sources[s]
+		r.ribIn[receivedPeer{address: netip.AddrFrom4([4]byte{10, 1, byte(s / 256), byte(s % 256)})}] = sources[s]
 	}
 	attrHex := strings.Repeat("ab", 64)
 	for i := range routes {

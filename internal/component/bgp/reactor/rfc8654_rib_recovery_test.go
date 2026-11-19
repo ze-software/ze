@@ -361,10 +361,15 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...c
 		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
-			{"bgp-rs", "update-received state open-received refresh"},
+			{"bgp-rs", "update state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			require.NoError(t, EnsureProcessBinding(s, binding.name, binding.receive, "update"))
+			// These are the fixture operator's actual explicit attachments,
+			// including both received and sent UPDATEs for each selected writer.
+			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
+			require.NoError(t, parseReceiveFlags(binding.receive, &attachment))
+			require.NoError(t, parseSendFlags("update", &attachment))
+			s.ProcessBindings = append(s.ProcessBindings, attachment)
 		}
 		require.NoError(t, r.AddPeer(s))
 	}

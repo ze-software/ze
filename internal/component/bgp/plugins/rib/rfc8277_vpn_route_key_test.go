@@ -30,14 +30,14 @@ func TestVPNRouteKeyTwoPEsDifferentLabelsMeetInOneElection(t *testing.T) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	peA := netip.MustParseAddr("192.0.2.1")
 	peB := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerMeta[peB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: peA, PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[2] = &peerMetadata{Address: peB, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
 	nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)
-	feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlriA))
-	feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriB))
+	feedReceived(r, 1, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlriA))
+	feedReceived(r, 2, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriB))
 
 	if got := len(gatherCandidatesHeld(t, r, vpnv4Family, nlriA, false)); got != 2 {
 		t.Fatalf("candidates seen from PE A's NLRI = %d, want 2: one route under two labels", got)
@@ -75,15 +75,15 @@ func TestRFC8277VPNRelabelReplacesTheRoute(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: pe, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	first := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
 	second := vpnv4NLRI(200, vpnRouteKeyRD, 0x0a)
-	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, first))
-	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, second))
+	feedReceived(r, 1, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, first))
+	feedReceived(r, 1, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, second))
 
-	peer := r.bgpPeers[pe]
+	peer := r.bgpPeers[1]
 	if got := peer.FamilyLen(vpnv4Family); got != 1 {
 		t.Fatalf("PE stores %d routes, want 1: the new label replaces the old", got)
 	}
@@ -126,16 +126,16 @@ func TestVPNWithdrawIgnoresCompatibilityValue(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[1] = &peerMetadata{Address: pe, PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	announced := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
-	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, announced))
+	feedReceived(r, 1, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, announced))
 	withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 0x0a)
 	withdrawn[1], withdrawn[2], withdrawn[3] = 0x80, 0x00, 0x00
-	feedReceived(r, pe, ctxID, vpnv4WithdrawBody(withdrawn))
+	feedReceived(r, 1, pe, ctxID, vpnv4WithdrawBody(withdrawn))
 
-	if got := r.bgpPeers[pe].FamilyLen(vpnv4Family); got != 0 {
+	if got := r.bgpPeers[1].FamilyLen(vpnv4Family); got != 0 {
 		t.Fatalf("PE stores %d routes after the withdrawal, want 0", got)
 	}
 	changes := vpnBestChanges(bus, vpnv4Family)

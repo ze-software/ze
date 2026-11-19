@@ -281,7 +281,7 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 								t.Fatalf("source session conn is %T, want *recordingConn", f.source.session.conn)
 							}
 							publications := 0
-							f.source.session.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+							f.source.session.onMessageReceived = func(_ *Session, _ netip.Addr, typ msgtype.MessageType, _ []byte,
 								_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 								_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 								if typ == msgtype.TypeUPDATE {

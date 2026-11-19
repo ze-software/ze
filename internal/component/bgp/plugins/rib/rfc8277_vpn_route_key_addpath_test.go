@@ -21,8 +21,8 @@ import (
 func TestRFC8277VPNAddPathLabelsAreOneElection(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	pe := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	peer := newOpaqueAddPathPeer(r, pe, vpnv4Family)
+	r.peerMeta[1] = &peerMetadata{Address: pe, PeerASN: 65001, LocalASN: 65000}
+	peer := newOpaqueAddPathPeer(r, 1, pe, vpnv4Family)
 
 	path7 := framedKey(7, vpnv4NLRI(100, vpnRouteKeyRD, 0x0a))
 	path9 := framedKey(9, vpnv4NLRI(101, vpnRouteKeyRD, 0x0a))

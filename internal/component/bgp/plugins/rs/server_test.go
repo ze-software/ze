@@ -1,13 +1,13 @@
 package rs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
 	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,34 +22,49 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// newTestRouteServer creates a RouteServer with closed SDK connections for unit testing.
-// The plugin's connections are immediately closed so updateRoute calls fail silently,
-// allowing tests to verify internal state (withdrawal map, peers) without RPC side effects.
+// newTestRouteServer supplies a unit-only engine evaluator. Each test owns its
+// explicit source tuples and records output hooks; this does not authenticate
+// daemon grants or prove a final BGP socket write. Real wire questions use the
+// registered daemon fixture instead.
 func newTestRouteServer(t *testing.T) *routeServer {
+	return newTestRouteServerWithPeerCommand(t, nil)
+}
+
+func newTestRouteServerWithPeerCommand(t *testing.T, peerCommand func(context.Context, any) (any, bool, error)) *routeServer {
 	t.Helper()
 	pluginEnd, remoteEnd := net.Pipe()
-	if err := remoteEnd.Close(); err != nil {
-		t.Logf("close remoteEnd: %v", err)
-	}
-	p := sdk.NewWithConn("rr-test", pluginEnd)
-	t.Cleanup(func() {
-		if err := p.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
+	bridge := rpc.NewDirectBridge()
+	p := sdk.NewWithConn("rs-unit-fixture", rpc.NewBridgedConn(pluginEnd, bridge))
+	bridge.SetDispatchNative(func(ctx context.Context, method string, input any) (any, bool, error) {
+		if method == rpc.MethodDispatchCommand && peerCommand != nil {
+			return peerCommand(ctx, input)
 		}
+		return rsFixtureNativeOperation(ctx, method, input)
 	})
-	rs := &routeServer{
-		// The peer-up replay relays its pages here; a test that inspects them
-		// replaces the hook.
-		relayStoredRouteHook: func(string, []rpc.StoredRoute) error { return nil },
-		plugin:               p,
-		peers:                make(map[string]*PeerState),
-		withdrawals:          make(map[string]map[withdrawalKey]withdrawalEntry),
-	}
-	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
+	bridge.SetDispatchRPC(func(_ context.Context, method string, _ json.RawMessage) (json.RawMessage, error) {
+		if method == rpc.MethodUpdateRoute {
+			return json.RawMessage(`{"announced":0,"withdrawn":0}`), nil
+		}
+		if method == rpc.MethodReleaseCached {
+			return json.RawMessage(`{}`), nil
+		}
+		return nil, fmt.Errorf("unit fixture has no evaluator for %s", method)
+	})
+	bridge.SetDispatchCommand(func(context.Context, string) (*rpc.DispatchCommandOutput, error) {
+		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
+	})
+	bridge.SetReady()
+	rs := &routeServer{plugin: p, peers: make(map[workerKey]*PeerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), relayStoredRouteHook: func(string, []rpc.StoredRoute) error { return nil }}
+	rs.workers = newWorkerPool(rs.processForward, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
 		rs.workers.Stop()
+		rs.stopDepartures()
+		if err := p.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := remoteEnd.Close(); err != nil {
+			t.Error(err)
+		}
 	})
 	return rs
 }
@@ -81,11 +96,11 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 123 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 123 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -94,7 +109,7 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	wk := withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}
+	wk := withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}
 	if _, ok := peerWd[wk]; !ok {
 		t.Fatal("missing withdrawal entry for 10.0.0.0/24")
 	}
@@ -108,24 +123,24 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Pre-populate withdrawal map (simulating prior add).
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301},
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 124 nlri ipv4/unicast del prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 124 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 nlri ipv4/unicast del prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
 	peerWd := rs.withdrawals["10.0.0.1"]
 	rs.withdrawalMu.Unlock()
-	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; found {
+	if _, found := peerWd[withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}]; found {
 		t.Error("expected withdrawal entry removed after del")
 	}
 }
@@ -138,19 +153,19 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}}
 	rs.mu.Unlock()
 
 	// Pre-populate withdrawal map with route that will be withdrawn.
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.2.0/24"}: {},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.2.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301},
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 125 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24 next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32 nlri ipv4/unicast del prefix 10.0.2.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 125 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24 next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32 nlri ipv4/unicast del prefix 10.0.2.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -159,13 +174,13 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	if len(peerWd) != 2 {
 		t.Fatalf("expected 2 withdrawal entries, got %d", len(peerWd))
 	}
-	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; !found {
+	if _, found := peerWd[withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}]; !found {
 		t.Error("missing ipv4/unicast 10.0.0.0/24")
 	}
-	if _, found := peerWd[withdrawalKey{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}]; !found {
+	if _, found := peerWd[withdrawalKey{owner: 1, fam: family.IPv6Unicast, prefix: netip.MustParsePrefix("2001:db8::/32")}]; !found {
 		t.Error("missing ipv6/unicast 2001:db8::/32")
 	}
-	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.2.0/24"}]; found {
+	if _, found := peerWd[withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.2.0/24")}]; found {
 		t.Error("10.0.2.0/24 should have been withdrawn")
 	}
 }
@@ -176,16 +191,21 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 // PREVENTS: Stale routes remaining after session teardown.
 func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
+	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached})
+	original := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 
 	// Populate withdrawal map (replaces old rs.rib.Insert).
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
-		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}: {},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301},
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	if err := rs.settlePendingDown(t.Context(), rsFixtureKey("10.0.0.1", 1, 101)); err != nil {
+		t.Fatal(err)
+	}
 
 	rs.withdrawalMu.Lock()
 	wdLen := len(rs.withdrawals["10.0.0.1"])
@@ -195,7 +215,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	}
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := original
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer state not created")
@@ -219,13 +239,13 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	require.Eventually(t, dispatched.Load, 2*time.Second, time.Millisecond,
 		"expected DispatchCommand to be called for replay")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer state not created")
@@ -249,7 +269,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	require.Eventually(t, func() bool {
 		v := replayCall.Load()
@@ -258,7 +278,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	}, 2*time.Second, time.Millisecond, "expected replay DispatchCommand")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
@@ -283,10 +303,10 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received open 0 peer-owner 1 connection-id 101 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 
 	if peer == nil {
@@ -321,20 +341,20 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:      "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address:      "10.0.0.2",
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
 	}
 	rs.mu.Unlock()
 
 	// handleRefresh calls updateRoute which sends via SDK RPC (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 peer-owner 1 connection-id 101 family ipv4/unicast")
 }
 
 // --- Family/capability filtering tests ---
@@ -347,24 +367,24 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address:  "10.0.0.2",
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address:  "10.0.0.3",
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 100 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 100 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -373,7 +393,7 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	wk6 := withdrawalKey{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}
+	wk6 := withdrawalKey{owner: 1, fam: family.IPv6Unicast, prefix: netip.MustParsePrefix("2001:db8::/32")}
 	if _, ok := peerWd[wk6]; !ok {
 		t.Fatal("missing withdrawal entry for 2001:db8::/32")
 	}
@@ -387,19 +407,19 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:      "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address:  "10.0.0.2",
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.3"] = &PeerState{
-		Address:      "10.0.0.3",
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
+		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3,
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
@@ -407,7 +427,7 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleRefresh forwards to peers via updateRoute (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 peer-owner 1 connection-id 101 family ipv4/unicast")
 }
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
@@ -423,23 +443,23 @@ func TestFilterReplayByFamily(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address:  "10.0.0.2",
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
+		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// handleState/handleStateUp calls updateRoute for route replay.
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	rs.mu.RLock()
-	peer := rs.peers["10.0.0.1"]
+	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
@@ -483,8 +503,8 @@ func TestHandleCommand_Peers(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", ASN: 65001, Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", ASN: 65002, Up: false}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, ASN: 65001, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, ASN: 65002, Up: false}
 	rs.mu.Unlock()
 
 	status, data, err := rs.handleCommand("show bgp rs peers")
@@ -582,11 +602,11 @@ func TestBatchForwardSingleFlushOnDrain(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText(buildTestUpdate("10.0.0.1", 1))
+	rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), 1))
 	flushWorkers(t, rs)
 
 	cmdMu.Lock()
@@ -614,18 +634,18 @@ func TestDispatchPauseOnBackpressure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Dispatch enough updates to trigger backpressure (>75% of 8 = >6).
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 
 	// Check that peer is marked as paused.
 	rs.mu.RLock()
-	paused := rs.pausedPeers["10.0.0.1"]
+	paused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 
 	if !paused {
@@ -641,6 +661,8 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 	rs := newTestRouteServer(t)
 	rs.workers.Stop()
 	block := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(block) }) }
 	var processed atomic.Int32
 	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
 		if processed.Add(1) == 1 {
@@ -648,34 +670,34 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 		}
 	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
 	rs.wireFlowControl()
-	t.Cleanup(func() { rs.workers.Stop() })
+	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Fill channel to trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 
 	// Verify paused.
 	rs.mu.RLock()
-	paused := rs.pausedPeers["10.0.0.1"]
+	paused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if !paused {
 		t.Fatal("expected peer paused before drain")
 	}
 
 	// Unblock worker to drain.
-	close(block)
+	release()
 
 	// Wait for resume (low-water clears pausedPeers).
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return !rs.pausedPeers["10.0.0.1"]
+		return !rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	}, 2*time.Second, time.Millisecond, "peer not resumed after drain")
 }
 
@@ -694,23 +716,23 @@ func TestMultiSourceBackpressure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
-	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Saturate peer 1 and peer 2, leave peer 3 light.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
-		rs.dispatchText(buildTestUpdate("10.0.0.2", 100+i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.2", 2, 102), 100+i))
 	}
 	// Peer 3: only 1 item (no backpressure).
-	rs.dispatchText(buildTestUpdate("10.0.0.3", 200))
+	rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.3", 3, 103), 200))
 
 	rs.mu.RLock()
-	p1 := rs.pausedPeers["10.0.0.1"]
-	p2 := rs.pausedPeers["10.0.0.2"]
-	p3 := rs.pausedPeers["10.0.0.3"]
+	p1 := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
+	p2 := rs.pausedPeers[rsFixtureKey("10.0.0.2", 2, 102)]
+	p3 := rs.pausedPeers[rsFixtureKey("10.0.0.3", 3, 103)]
 	rs.mu.RUnlock()
 
 	if !p1 {
@@ -732,31 +754,34 @@ func TestShutdownResumesAllPeers(t *testing.T) {
 	rs := newTestRouteServer(t)
 	rs.workers.Stop()
 	block := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(block) }) }
 	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
 		<-block
 	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
 	rs.wireFlowControl()
+	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 
 	// Verify paused.
 	rs.mu.RLock()
-	paused := rs.pausedPeers["10.0.0.1"]
+	paused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if !paused {
 		t.Fatal("expected peer paused before shutdown")
 	}
 
 	// Shutdown: resumeAllPaused + stop workers.
-	close(block)
+	release()
 	rs.resumeAllPaused()
 	rs.workers.Stop()
 
@@ -776,6 +801,8 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 	rs := newTestRouteServer(t)
 	rs.workers.Stop()
 	block := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(block) }) }
 	var processed atomic.Int32
 	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
 		if processed.Add(1) == 1 {
@@ -783,37 +810,37 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 		}
 	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
 	rs.wireFlowControl()
-	t.Cleanup(func() { rs.workers.Stop() })
+	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Fill to trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 
 	rs.mu.RLock()
-	paused := rs.pausedPeers["10.0.0.1"]
+	paused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if !paused {
 		t.Fatal("expected peer paused")
 	}
 
 	// Unblock → drain → resume.
-	close(block)
+	release()
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return !rs.pausedPeers["10.0.0.1"]
+		return !rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	}, 2*time.Second, time.Millisecond, "peer not resumed after drain")
 
 	// Dispatch more after resume — should succeed without re-triggering pause.
-	rs.dispatchText(buildTestUpdate("10.0.0.1", 100))
+	rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), 100))
 
 	rs.mu.RLock()
-	rePaused := rs.pausedPeers["10.0.0.1"]
+	rePaused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if rePaused {
 		t.Error("peer should not be re-paused after single dispatch post-drain")
@@ -825,8 +852,22 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 // VALIDATES: AC-14 — pause RPC error logged, processing continues.
 // PREVENTS: RPC timeout blocking the dispatch goroutine or crashing the plugin.
 func TestPauseRPCFailure(t *testing.T) {
-	// newTestRouteServer closes the engine connection, so all updateRoute calls fail.
-	rs := newTestRouteServer(t)
+	// Refuse only the actual pause operation; original source leases remain live.
+	var pauses atomic.Int32
+	rs := newTestRouteServerWithPeerCommand(t, func(ctx context.Context, value any) (any, bool, error) {
+		input, err := rsFixtureCommandInput(value)
+		if err != nil {
+			return nil, true, err
+		}
+		if input.PeerOwner != 1 || input.ConnectionID != 101 {
+			return nil, true, fmt.Errorf("pause lost original physical peer: %+v", input)
+		}
+		if strings.HasSuffix(input.Command, " pause") {
+			pauses.Add(1)
+			return nil, true, fmt.Errorf("intended physical pause refusal")
+		}
+		return rsFixtureNativeOperation(ctx, rpc.MethodDispatchCommand, value)
+	})
 	rs.workers.Stop()
 	block := make(chan struct{})
 	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
@@ -836,18 +877,22 @@ func TestPauseRPCFailure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
-	// Fill to trigger backpressure — pause RPC will fail (closed conn).
+	// Fill to trigger backpressure — the exact original pause RPC returns its intended failure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
+	}
+
+	if got := pauses.Load(); got != 1 {
+		t.Fatalf("actual pause failures=%d, want 1", got)
 	}
 
 	// Verify: peer is tracked as paused despite RPC failure.
 	// The pausedPeers map reflects intent, not RPC success.
 	rs.mu.RLock()
-	paused := rs.pausedPeers["10.0.0.1"]
+	paused := rs.pausedPeers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.RUnlock()
 	if !paused {
 		t.Error("expected peer tracked as paused even though RPC failed")
@@ -862,7 +907,7 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Replace workers to capture the workItem directly.
@@ -878,7 +923,7 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 	t.Cleanup(func() { rs.workers.Stop() })
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 42 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 
 	require.Eventually(t, func() bool {
 		capturedMu.Lock()
@@ -911,11 +956,11 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 99 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 99 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -924,7 +969,7 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	if _, ok := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; !ok {
+	if _, ok := peerWd[withdrawalKey{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}]; !ok {
 		t.Error("missing withdrawal entry for 10.0.0.0/24")
 	}
 }
@@ -949,13 +994,13 @@ func TestProcessForwardSourceNotYetUp(t *testing.T) {
 	// 10.0.0.1: OPEN seen, state event not yet delivered (StateSeen false).
 	// 10.0.0.3: was up, then went down (StateSeen true, Up false).
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1"}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true, StateSeen: true}
-	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", StateSeen: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1"}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, StateSeen: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, StateSeen: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 41 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.1.0.0/24")
-	rs.dispatchText("peer 10.0.0.3 remote as 65003 received update 42 origin igp next-hop 3.3.3.3 nlri ipv4/unicast add prefix 10.3.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 41 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.1.0.0/24")
+	rs.dispatchText("peer 10.0.0.3 remote as 65003 received update 42 peer-owner 3 connection-id 103 source-receipt 303 source-policy-epoch 5 origin igp next-hop 3.3.3.3 nlri ipv4/unicast add prefix 10.3.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -977,19 +1022,23 @@ func TestProcessForwardSourceNotYetUp(t *testing.T) {
 func TestHandleStateMarksStateSeen(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.handleState(&Event{PeerAddr: "10.0.0.1", State: "up"})
+	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, State: "up", InitialReplay: 17})
 	rs.mu.RLock()
-	afterUp := *rs.peers["10.0.0.1"]
+	afterUpSeen, afterUp := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)].StateSeen, rs.peers[rsFixtureKey("10.0.0.1", 1, 101)].Up
 	rs.mu.RUnlock()
-	require.True(t, afterUp.StateSeen, "state=up must set StateSeen")
-	require.True(t, afterUp.Up, "state=up must set Up")
+	require.True(t, afterUpSeen, "state=up must set StateSeen")
+	require.True(t, afterUp, "state=up must set Up")
 
-	rs.handleState(&Event{PeerAddr: "10.0.0.2", State: "down"})
+	rs.handleState(&Event{PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached})
 	rs.mu.RLock()
-	afterDown := *rs.peers["10.0.0.2"]
+	originalDown := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)]
 	rs.mu.RUnlock()
-	require.True(t, afterDown.StateSeen, "state=down must set StateSeen")
-	require.False(t, afterDown.Up, "state=down must clear Up")
+	rs.handleState(&Event{PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "down"})
+	rs.mu.RLock()
+	afterDownSeen, afterDown := originalDown.StateSeen, originalDown.Up
+	rs.mu.RUnlock()
+	require.True(t, afterDownSeen, "state=down must set StateSeen")
+	require.False(t, afterDown, "state=down must clear Up")
 }
 
 // TestWithdrawalMapConsistency verifies withdrawal map is consistent after PeerDown drain.
@@ -1000,14 +1049,14 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Dispatch multiple UPDATEs.
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+			"peer 10.0.0.1 remote as 65001 received update %d peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		))
 	}
@@ -1027,7 +1076,10 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	if err := rs.settlePendingDown(t.Context(), rsFixtureKey("10.0.0.1", 1, 101)); err != nil {
+		t.Fatal(err)
+	}
 
 	// After peer down, withdrawal map should be empty for this peer.
 	require.Eventually(t, func() bool {
@@ -1045,7 +1097,7 @@ func TestReleaseCacheAsync(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// releaseCache should return quickly (async channel send, not blocking RPC).
@@ -1084,8 +1136,8 @@ func TestBatchForwardAccumulation(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Gate: block the worker handler until all items are dispatched.
@@ -1099,7 +1151,7 @@ func TestBatchForwardAccumulation(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 
 	for i := uint64(1); i <= 5; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 
 	close(gate)
@@ -1133,10 +1185,10 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.4"] = &PeerState{Address: "10.0.0.4", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.4", 4, 104)] = &PeerState{Address: "10.0.0.4", DestinationSession: 204, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	families := map[family.Family]bool{family.IPv4Unicast: true}
@@ -1144,19 +1196,19 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	// Call 100 times — with unsorted output, Go map randomness would produce
 	// different orderings, causing batch selector mismatches.
 	rs.mu.RLock()
-	first := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
+	first := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, families)
 	rs.mu.RUnlock()
 
-	want := strings.Join(first, ",")
+	want := strings.Join(rsFixtureAddresses(first), ",")
 	if want != "10.0.0.2,10.0.0.3,10.0.0.4" {
 		t.Fatalf("expected sorted targets, got %q", want)
 	}
 
 	for i := range 100 {
 		rs.mu.RLock()
-		got := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
+		got := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, families)
 		rs.mu.RUnlock()
-		if sel := strings.Join(got, ","); sel != want {
+		if sel := strings.Join(rsFixtureAddresses(got), ","); sel != want {
 			t.Fatalf("iteration %d: selector %q != %q (non-deterministic)", i, sel, want)
 		}
 	}
@@ -1194,12 +1246,12 @@ func TestRSFlushCallsForwardCached(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	for i := uint64(1); i <= 3; i++ {
-		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), i))
 	}
 	flushWorkers(t, rs)
 
@@ -1220,8 +1272,8 @@ func TestRSFlushCallsForwardCached(t *testing.T) {
 }
 
 // buildTestUpdate creates a minimal text-format UPDATE event for testing dispatch.
-func buildTestUpdate(peer string, msgID uint64) string {
-	return fmt.Sprintf("peer %s remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24", peer, msgID)
+func buildTestUpdate(source workerKey, msgID uint64) string {
+	return rsFixtureUpdate(source, 301, 5, msgID, "origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 }
 
 // --- Replay tests (spec rib-03) ---
@@ -1232,6 +1284,7 @@ func buildTestUpdate(peer string, msgID uint64) string {
 // PREVENTS: Thundering herd from ROUTE-REFRESH to all peers.
 func TestHandleStateUpReplay(t *testing.T) {
 	rs := newTestRouteServer(t)
+	replayRoute := rsFixtureRetainedRoute(t, rs, rsFixtureKey("10.0.0.9", 9, 109), 309, 5, 9, "180a0000")
 
 	var mu sync.Mutex
 	var dispatchCmds []dispatchCall
@@ -1241,7 +1294,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 		mu.Lock()
 		dispatchCmds = append(dispatchCmds, dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
 		mu.Unlock()
-		return statusDone, testReplayPage(5, 3), nil
+		return statusDone, testReplayPage(5, 3, replayRoute), nil
 	}
 	rs.updateRouteHook = func(peer, cmd string) {
 		mu.Lock()
@@ -1250,14 +1303,14 @@ func TestHandleStateUpReplay(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 		Capabilities: map[string]bool{"route-refresh": true}}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1", 17)
+	rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 101), 17, 201, 3)
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -1317,14 +1370,14 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1", 17)
+	rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 101), 17, 201, 3)
 
 	// Wait for the terminal EOR signal (or fail on a generous timeout). Once
 	// EOR has fired, replayForPeer has run its fallback path and the dispatch
@@ -1342,7 +1395,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		p := rs.peers["10.0.0.1"]
+		p := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 		return p != nil && p.replayDone == nil
 	}, 2*time.Second, time.Millisecond, "replay gate should have been opened by the fallback path")
 
@@ -1378,17 +1431,17 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, replayDone: make(chan struct{}),
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, replayDone: make(chan struct{}),
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// A replaying peer SHOULD be in forward targets (duplicates are idempotent).
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.2", 0, map[family.Family]bool{family.IPv4Unicast: true})
+	targets := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.2", 2, 102), 0, map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
-	if !slices.Contains(targets, "10.0.0.1") {
+	if !slices.Contains(rsFixtureAddresses(targets), "10.0.0.1") {
 		t.Error("replaying peer 10.0.0.1 should be in forward targets")
 	}
 }
@@ -1399,6 +1452,7 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 // PREVENTS: Missing routes from the gap between full replay and joining forward targets.
 func TestHandleStateUpDelta(t *testing.T) {
 	rs := newTestRouteServer(t)
+	replayRoute := rsFixtureRetainedRoute(t, rs, rsFixtureKey("10.0.0.9", 9, 109), 309, 5, 9, "180a0000")
 
 	var mu sync.Mutex
 	var dispatchCmds []dispatchCall
@@ -1408,17 +1462,17 @@ func TestHandleStateUpDelta(t *testing.T) {
 		isFullReplay := len(args) >= 2 && args[1] == "0"
 		mu.Unlock()
 		if isFullReplay {
-			return statusDone, testReplayPage(5, 3), nil
+			return statusDone, testReplayPage(5, 3, replayRoute), nil
 		}
-		return statusDone, testReplayPage(7, 1), nil
+		return statusDone, testReplayPage(7, 1, replayRoute), nil
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1", 17)
+	rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 101), 17, 201, 3)
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -1458,14 +1512,14 @@ func TestHandleStateUpNonBlocking(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// handleStateUp should return immediately even though replay blocks.
 	done := make(chan struct{})
 	go func() {
-		rs.handleStateUp("10.0.0.1", 17)
+		rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 101), 17, 201, 3)
 		close(done)
 	}()
 
@@ -1503,20 +1557,23 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	// Populate withdrawal map directly.
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
-		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {},
-		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}: {},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 5, msgID: 1},
+		{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 5, msgID: 2},
 	}
 	rs.withdrawalMu.Unlock()
 
 	// Trigger peer down.
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	if err := rs.settlePendingDown(t.Context(), rsFixtureKey("10.0.0.1", 1, 101)); err != nil {
+		t.Fatal(err)
+	}
 
 	select {
 	case <-done:
@@ -1594,20 +1651,21 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
+	originalActor := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.Unlock()
 
 	// First handleStateUp — goroutine A blocks on DispatchCommand.
-	rs.handleStateUp("10.0.0.1", 17)
+	rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 101), 17, 201, 3)
 
 	// Wait for goroutine A to enter the hook and block on firstBlock.
 	require.Eventually(t, func() bool {
 		return callCount.Load() >= 1
 	}, 2*time.Second, time.Millisecond, "goroutine A did not enter dispatch hook")
 
-	// Second handleStateUp — simulates rapid reconnect. Goroutine B starts.
-	rs.handleStateUp("10.0.0.1", 18)
+	// A different physical/output incarnation starts B while original A is held.
+	rs.handleStateUp(rsFixtureKey("10.0.0.1", 1, 111), 18, 211, 4)
 
 	// Wait for goroutine B's hook to return, then let replayForPeer finish.
 	select {
@@ -1620,16 +1678,24 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return rs.peers["10.0.0.1"].replayDone == nil
+		return rs.peers[rsFixtureKey("10.0.0.1", 1, 111)].replayDone == nil
 	}, 2*time.Second, time.Millisecond, "goroutine B did not open its replay gate")
 
 	// Goroutine B completed — verify ReplayGen.
 	rs.mu.RLock()
-	genAfterB := rs.peers["10.0.0.1"].ReplayGen
+	genAfterB := rs.peers[rsFixtureKey("10.0.0.1", 1, 111)].ReplayGen
 	rs.mu.RUnlock()
-	if genAfterB != 2 {
-		t.Errorf("expected ReplayGen=2, got %d", genAfterB)
+	if genAfterB != 1 {
+		t.Errorf("expected first replay of distinct successor physical actor, got generation %d", genAfterB)
 	}
+
+	rs.mu.RLock()
+	originalUp, originalGeneration := originalActor.Up, originalActor.ReplayGen
+	successorOutput := rs.peers[rsFixtureKey("10.0.0.1", 1, 111)].DestinationSession
+	rs.mu.RUnlock()
+	require.False(t, originalUp, "old physical source cannot remain current")
+	require.Equal(t, uint64(1), originalGeneration, "old replay remains owned by its original actor")
+	require.Equal(t, uint64(211), successorOutput, "B keeps its original new output receipt")
 
 	// Now unblock goroutine A (stale).
 	close(firstBlock)
@@ -1638,7 +1704,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	require.Never(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return rs.peers["10.0.0.1"].replayDone != nil
+		return rs.peers[rsFixtureKey("10.0.0.1", 1, 111)].replayDone != nil
 	}, 100*time.Millisecond, time.Millisecond,
 		"stale goroutine must not leave the peer replaying after completing")
 }
@@ -1659,7 +1725,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 	}{
 		{
 			name:     "add ipv4",
-			input:    "peer 10.0.0.1 remote as 65001 received update 42 origin igp as-path 65001,65002 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24\n",
+			input:    "peer 10.0.0.1 remote as 65001 received update 42 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp as-path 65001,65002 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24\n",
 			wantType: eventUpdate,
 			wantID:   42,
 			wantPeer: "10.0.0.1",
@@ -1667,7 +1733,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		},
 		{
 			name:     "del ipv4",
-			input:    "peer 10.0.0.2 remote as 65002 received update 99 nlri ipv4/unicast del prefix 10.0.0.0/24\n",
+			input:    "peer 10.0.0.2 remote as 65002 received update 99 peer-owner 2 connection-id 102 source-receipt 302 source-policy-epoch 5 nlri ipv4/unicast del prefix 10.0.0.0/24\n",
 			wantType: eventUpdate,
 			wantID:   99,
 			wantPeer: "10.0.0.2",
@@ -1675,7 +1741,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		},
 		{
 			name:     "add ipv6",
-			input:    "peer 10.0.0.1 remote as 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32\n",
+			input:    "peer 10.0.0.1 remote as 65001 received update 7 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32\n",
 			wantType: eventUpdate,
 			wantID:   7,
 			wantPeer: "10.0.0.1",
@@ -1715,7 +1781,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 //
 // PREVENTS: State events not being parseable in text format.
 func TestTextStateEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 remote as 65001 state up\n"
+	input := "peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3\n"
 
 	eventType, _, peerAddr, _, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1735,7 +1801,7 @@ func TestTextStateEventParseable(t *testing.T) {
 //
 // PREVENTS: OPEN events not being parseable in text format.
 func TestTextOpenEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 remote as 65001 received open 5 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
+	input := "peer 10.0.0.1 remote as 65001 received open 5 peer-owner 1 connection-id 101 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
 
 	eventType, _, peerAddr, payload, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1792,7 +1858,7 @@ func TestTextOpenASNReadsEveryRFC5396Spelling(t *testing.T) {
 		{"65546", 65546},
 		{"1.10", 65546},
 	} {
-		event := parseTextOpen("peer 10.0.0.1 remote as unknown received open 5 asn " + tc.spelling + " router-id 1.1.1.1 hold-time 90\n")
+		event := parseTextOpen("peer 10.0.0.1 remote as unknown received open 5 peer-owner 1 connection-id 101 asn " + tc.spelling + " router-id 1.1.1.1 hold-time 90\n")
 		if event == nil || event.Open == nil {
 			t.Fatalf("asn %s: parseTextOpen returned no OPEN", tc.spelling)
 		}
@@ -1812,7 +1878,7 @@ func TestTextOpenASNReadsEveryRFC5396Spelling(t *testing.T) {
 // PREVENTS: Withdrawal map not being populated from text events.
 func TestTextUpdateWithdrawalTracking(t *testing.T) {
 	// Add line (comma format: nlri ipv4/unicast add prefix <a>,<b>).
-	addLine := "peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24,10.0.0.0/8\n"
+	addLine := "peer 10.0.0.1 remote as 65001 received update 42 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24,10.0.0.0/8\n"
 	ops := parseTextNLRIOps(addLine)
 
 	addOps, ok := ops["ipv4/unicast"]
@@ -1830,7 +1896,7 @@ func TestTextUpdateWithdrawalTracking(t *testing.T) {
 	}
 
 	// Del line: nlri <family> del
-	delLine := "peer 10.0.0.1 remote as 65001 received update 43 nlri ipv4/unicast del prefix 192.168.1.0/24\n"
+	delLine := "peer 10.0.0.1 remote as 65001 received update 43 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 nlri ipv4/unicast del prefix 192.168.1.0/24\n"
 	wdOps := parseTextNLRIOps(delLine)
 
 	delOps, ok := wdOps["ipv4/unicast"]
@@ -1854,16 +1920,16 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
-	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
-	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
 	rs.mu.Unlock()
 
 	families := map[family.Family]bool{family.IPv4Unicast: true}
 
 	// First call: buffer grows from nil.
 	rs.mu.RLock()
-	buf := rs.selectForwardTargets(nil, "10.0.0.1", 0, families)
+	buf := rs.selectForwardTargets(nil, rsFixtureKey("10.0.0.1", 1, 101), 0, families)
 	rs.mu.RUnlock()
 
 	if len(buf) != 2 {
@@ -1873,7 +1939,7 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 
 	// Second call: reuse existing buffer.
 	rs.mu.RLock()
-	buf = rs.selectForwardTargets(buf, "10.0.0.1", 0, families)
+	buf = rs.selectForwardTargets(buf, rsFixtureKey("10.0.0.1", 1, 101), 0, families)
 	rs.mu.RUnlock()
 
 	if len(buf) != 2 {
@@ -1909,14 +1975,14 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 
 	// Set up peer with two families.
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	// Wait for both EOR commands (one per family) to arrive.
 	require.Eventually(t, func() bool {
@@ -1991,13 +2057,13 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 
 	// Peer with nil families (OPEN not yet processed).
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1",
-		Up:      true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
+		Up: true,
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	// No EOR should be sent for a peer without families.
 	require.Never(t, func() bool {
@@ -2046,14 +2112,14 @@ func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address:  "10.0.0.1",
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
+		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
 
 	select {
 	case <-eorCh:
@@ -2108,17 +2174,17 @@ func TestParseWorkerQueueSize(t *testing.T) {
 // testReplayPage builds the answer bgp-adj-rib-in gives a replay-routes call
 // (ribevents.ReplayPage): n stub routes ending at sequence lastIndex, with no
 // further page.
-func testReplayPage(lastIndex uint64, n int) json.RawMessage {
-	var b strings.Builder
-	b.WriteString(`{"routes":[`)
-	for i := range n {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		b.WriteString(`{"source-peer":"10.0.0.9","family":"ipv4/unicast","nlri-hex":"180a0000"}`)
+func testReplayPage(lastIndex uint64, n int, source ...rpc.StoredRoute) json.RawMessage {
+	routes := make([]rpc.StoredRoute, 0, n)
+	if n != 0 && len(source) != 1 {
+		panic("BUG: replay fixture has no explicit original source row")
 	}
-	b.WriteString(`],"last-index":`)
-	b.WriteString(strconv.FormatUint(lastIndex, 10))
-	b.WriteString(`,"more":false}`)
-	return json.RawMessage(b.String())
+	for range n {
+		routes = append(routes, source[0])
+	}
+	encoded, err := json.Marshal(map[string]any{"routes": routes, "last-index": lastIndex, "more": false})
+	if err != nil {
+		panic("BUG: replay fixture did not marshal: " + err.Error())
+	}
+	return encoded
 }

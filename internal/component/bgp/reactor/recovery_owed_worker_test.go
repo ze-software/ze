@@ -499,7 +499,7 @@ func TestOwedKeyNoRecoveryOwnerWritesWithdrawal(t *testing.T) {
 	}
 
 	rail.forward(t, false, prefixes[0])
-	err := recoveryDepart(t, r, destination, source.Settings().Address, "192.0.2.0/24")
+	err := recoveryDepart(t, r, destination, source.Settings().Address, source.sourceOwner, "192.0.2.0/24")
 	require.Error(t, err, "an ownerless departure reports that no owner can elect")
 	require.True(t, session.tearingDown.Load(), "an ownerless departure retires the destination")
 }

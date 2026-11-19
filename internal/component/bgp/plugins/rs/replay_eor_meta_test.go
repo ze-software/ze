@@ -27,6 +27,7 @@ import (
 func TestReplayEORCarriesReplayMeta(t *testing.T) {
 	const target = "192.0.2.2"
 	bridge := rpc.NewDirectBridge()
+	rsFixtureSourceLeaseEvaluator(bridge)
 	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() { _ = engineEnd.Close() })
 	p := sdk.NewWithConn("rs-eor-test", rpc.NewBridgedConn(pluginEnd, bridge))
@@ -44,10 +45,12 @@ func TestReplayEORCarriesReplayMeta(t *testing.T) {
 		return json.RawMessage(`{"announced":0,"withdrawn":0}`), nil
 	})
 	bridge.SetReady()
-	rs := &routeServer{plugin: p, peers: map[string]*PeerState{
-		target: {Address: target, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
+	rs := &routeServer{plugin: p, peers: map[workerKey]*PeerState{
+		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
 	}}
-	rs.sendEOR(target, 3, 0)
+	if err := rs.sendEOR(context.WithValue(t.Context(), replayTargetKey{}, rsFixtureTarget(target, 2, 202)), rsFixtureKey(target, 2, 102), 3, 17); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(inputs) != 2 {
 		t.Fatalf("want one End-of-RIB per family, got %d: %+v", len(inputs), inputs)

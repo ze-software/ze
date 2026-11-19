@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	bgpformat "github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -23,8 +25,15 @@ import (
 // engine on every receive-only attach (bgp-attach-grant-change-live.ci).
 func TestRIBSkipsReplayOnAttachedUp(t *testing.T) {
 	peer := netip.MustParseAddr("10.0.0.1")
-	const attachedUp = `{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","reason":"attached"}`
-	const plainUp = `{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","initial-replay":"1"}`
+	// The explicit actor is the same original owner as the structured rail.
+	// The real formatter owns each JSON field's representation.
+	info := plugin.PeerInfo{
+		PeerOwner: 1, DestinationSession: 11, Address: peer, AddressStr: peer.String(),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: rpc.RemoteASOf(65001),
+	}
+	attachedUp := string(bgpformat.AppendStateChange(nil, &info, rpc.SessionStateUp, rpc.ReasonAttached, nil, plugin.EncodingJSON))
+	info.DestinationSession, info.InitialReplay = 1, 1
+	plainUp := string(bgpformat.AppendStateChange(nil, &info, rpc.SessionStateUp, "", nil, plugin.EncodingJSON))
 
 	for _, tc := range []struct {
 		name  string
@@ -33,7 +42,7 @@ func TestRIBSkipsReplayOnAttachedUp(t *testing.T) {
 	}{
 		{"text attached", func(t *testing.T, r *RIBManager) { r.handleState(mustParseEvent(t, attachedUp)) }, 0},
 		{"structured attached", func(_ *testing.T, r *RIBManager) {
-			r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached})
+			r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached})
 		}, 0},
 		{"text plain up", func(t *testing.T, r *RIBManager) { r.handleState(mustParseEvent(t, plainUp)) }, 1},
 	} {
@@ -50,7 +59,7 @@ func TestRIBSkipsReplayOnAttachedUp(t *testing.T) {
 				t.Fatalf("ready markers = %d, want %d", ready, tc.ready)
 			}
 			r.peerMu.Lock()
-			up := r.peerUp[peer]
+			up := r.peerUp[1]
 			r.peerMu.Unlock()
 			if !up {
 				t.Fatal("the peer must be recorded up, so its later down purges its routes")

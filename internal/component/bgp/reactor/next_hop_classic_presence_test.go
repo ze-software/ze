@@ -1,5 +1,6 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- classic presence after raw policy
 // Related: forward_next_hop.go -- payloadNextHop and effectiveNextHop
+// Related: ls71_pair_relay_test.go -- exact native mixed-refusal handback
 package reactor
 
 import (
@@ -12,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // A raw policy base can carry classic NLRI without code 3. A configured IPv4
@@ -59,6 +61,63 @@ func TestEffectiveNextHopClassicPresence(t *testing.T) {
 	}
 }
 
+// The received source is valid classic IPv4. Its real export policy introduces
+// a zero-hop FlowSpec sibling and later omits code 3; Explicit4 repairs the
+// attribute. The selected recipient-owned repair must withdraw only classic
+// NLRI, retain the useful FlowSpec rule, and recover both after correction.
+func TestNextHopClassicPolicyRepairRecovery(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		t.Run(nextHopAutoRailName(native), func(t *testing.T) {
+			f, source, replacement := classicPresenceFixture(t)
+			ls71PairChangingPolicy(t, f, replacement)
+			ls71PairRelay(t, f, source, native, false)
+			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
+
+			f.conn.reset()
+			*replacement = classicPresenceBody(t, true, false)
+			f.destination.settings.NextHopAddress = f.destination.settings.Address
+			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+			ls71PairRelay(t, f, source, native, native)
+			classicPresenceAssert(t, f, netip.Addr{}, true)
+
+			f.conn.reset()
+			f.destination.settings.NextHopAddress = netip.MustParseAddr("192.0.2.99")
+			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+			ls71PairRelay(t, f, source, native, false)
+			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
+		})
+	}
+}
+
+// Missing code 3 is not itself a refusal: an otherwise identical policy base
+// repaired with a usable third-party address announces both exact sections.
+func TestNextHopClassicPolicyUsefulRepair(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		t.Run(nextHopAutoRailName(native), func(t *testing.T) {
+			f, source, replacement := classicPresenceFixture(t)
+			*replacement = classicPresenceBody(t, true, false)
+			ls71PairChangingPolicy(t, f, replacement)
+			ls71PairRelay(t, f, source, native, false)
+			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
+		})
+	}
+}
+
+func classicPresenceFixture(t *testing.T) (*aigpReplayFixture, []byte, *[]byte) {
+	t.Helper()
+	tc := nextHopAutoFamilies()[0]
+	f := nextHopAutoFixture(t, tc, true)
+	f.destination.settings.NextHopMode = NextHopExplicit
+	f.destination.settings.NextHopAddress = netip.MustParseAddr("192.0.2.99")
+	for _, peer := range []*Peer{f.source, f.destination} {
+		peer.settings.AIGPSession = new(false)
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast, flowRedirectIPv4)
+		peer.fwdFacts.Store(peer.buildForwardFacts())
+	}
+	replacement := classicPresenceBody(t, true, true)
+	return f, nextHopAutoBody(t, tc, tc.prefix, nil), &replacement
+}
+
 func classicPresenceReach(t *testing.T) []byte {
 	t.Helper()
 	// RFC 8955 framing: a length-five destination-prefix component for
@@ -77,4 +136,39 @@ func classicPresenceBody(t *testing.T, classic, code3 bool) []byte {
 		prefix = mixedV4Legacy
 	}
 	return buildUpdatePayload(attrs, prefix)
+}
+
+func classicPresenceAssert(t *testing.T, f *aigpReplayFixture, hop netip.Addr, refused bool) {
+	t.Helper()
+	var classicAnnouncements, classicWithdrawals, flowAnnouncements int
+	updates := nextHopAutoUpdates(t, f)
+	require.NotEmpty(t, updates)
+	for _, update := range updates {
+		if len(update.NLRI) != 0 {
+			classicAnnouncements++
+			require.False(t, refused, "recipient-owned classic announcement escaped")
+			require.Equal(t, mixedV4Legacy, update.NLRI, "only the policy's exact classic route leaves")
+			_, _, value, present := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
+			require.True(t, present)
+			require.Equal(t, hop.AsSlice(), value)
+		}
+		if len(update.WithdrawnRoutes) != 0 {
+			classicWithdrawals++
+			require.True(t, refused)
+			require.Equal(t, mixedV4Legacy, update.WithdrawnRoutes)
+		}
+		_, _, unreach, withdrawn := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
+		require.False(t, withdrawn, "useful FlowSpec must never be withdrawn: %x", unreach)
+		if _, _, reach, present := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI); present {
+			flowAnnouncements++
+			require.Equal(t, classicPresenceReach(t), reach, "exact useful zero-hop FlowSpec survivor")
+		}
+	}
+	wantAnnouncements, wantWithdrawals := 1, 0
+	if refused {
+		wantAnnouncements, wantWithdrawals = 0, 1
+	}
+	require.Equal(t, wantAnnouncements, classicAnnouncements)
+	require.Equal(t, wantWithdrawals, classicWithdrawals)
+	require.Equal(t, 1, flowAnnouncements)
 }

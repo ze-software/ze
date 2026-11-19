@@ -1302,18 +1302,18 @@ func (m *mockReactorBatch) UpdateDelayStatus() plugin.UpdateDelayStatus {
 	return plugin.UpdateDelayStatus{}
 }
 
-func (m *mockReactorBatch) Stats() plugin.ReactorStats                             { return plugin.ReactorStats{} }
-func (m *mockReactorBatch) Stop()                                                  {}
-func (m *mockReactorBatch) Reload() error                                          { return nil }
-func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                  { return nil }
-func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                    { return nil }
-func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                 { return nil }
-func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                          { return nil }
-func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { return nil }
-func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                           { return nil }
-func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                          { return nil }
-func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error               { return nil }
-func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
+func (m *mockReactorBatch) Stats() plugin.ReactorStats                                    { return plugin.ReactorStats{} }
+func (m *mockReactorBatch) Stop()                                                         {}
+func (m *mockReactorBatch) Reload() error                                                 { return nil }
+func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                         { return nil }
+func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                           { return nil }
+func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                        { return nil }
+func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                                 { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error           { return nil }
+func (m *mockReactorBatch) PausePeer(_ context.Context, _ netip.Addr, _, _ uint64) error  { return nil }
+func (m *mockReactorBatch) ResumePeer(_ context.Context, _ netip.Addr, _, _ uint64) error { return nil }
+func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error                      { return nil }
+func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error        { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	m.eorCalls++
 	return nil
@@ -1352,18 +1352,20 @@ func (m *mockReactorBatch) SetConfigTree(_ map[string]any) {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string, _ plugin.Sender) error {
 	return nil
 }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                                  { return nil }
-func (m *mockReactorBatch) RetainUpdate(_ uint64) error                                  { return nil }
-func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error                       { return nil }
-func (m *mockReactorBatch) ListUpdates() []uint64                                        { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                                              {}
-func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                     {}
-func (m *mockReactorBatch) SignalPluginStartupComplete() error                           { return nil }
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string, _ plugin.Sender, _ uint64) error { return nil }
-func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)                             {}
-func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)                                 {}
-func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)                       {}
-func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error            { return nil }
+func (m *mockReactorBatch) RetainUpdate(_ uint64) error            { return nil }
+func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error { return nil }
+func (m *mockReactorBatch) ListUpdates() []uint64                  { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                        {}
+func (m *mockReactorBatch) AddAPIProcessCount(_ int)               {}
+func (m *mockReactorBatch) SignalPluginStartupComplete() error     { return nil }
+func (m *mockReactorBatch) SignalPeerAPIReady(_ context.Context, _ string, _ plugin.Sender, _ uint64) error {
+	return nil
+}
+func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)       {}
+func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)           {}
+func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool) {}
+func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)       {}
 func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }

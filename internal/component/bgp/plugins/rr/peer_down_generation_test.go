@@ -19,19 +19,19 @@ func TestPeerDownEventGenerationReachesDeparture(t *testing.T) {
 	const source = "192.0.2.1"
 	deliveries := map[string]func(rr *routeReflector){
 		"text": func(rr *routeReflector) {
-			rr.dispatchText("peer " + source + " remote as 65001 state down reason tcp-failure session-generation 9\n")
+			rr.dispatchText("peer " + source + " remote as 65001 state down peer-owner 701 connection-id 41 reason tcp-failure session-generation 9\n")
 		},
 		"structured": func(rr *routeReflector) {
-			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: source,
+			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: source, PeerOwner: 701, ConnectionID: 41,
 				State: rpc.SessionStateDown, SessionGeneration: 9})
 		},
 	}
 	for name, deliver := range deliveries {
 		t.Run(name, func(t *testing.T) {
-			rr, requests := newPeerDownReflector(t)
-			rr.peers = make(map[string]*peerState)
+			rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
+			// Preserve the helper's explicit original UP and captured destination.
 			origin := []byte{0x40, 1, 1, 0}
-			rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, []byte{0, 0, 0, 11, 8, 10}))
+			rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, []byte{0, 0, 0, 11, 8, 10}))
 			deliver(rr)
 			var got peerDownRequest
 			select {

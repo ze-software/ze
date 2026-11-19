@@ -100,7 +100,7 @@ func TestSocketMetricFeedReselectsRetainedRoutes(t *testing.T) {
 	receivedMetric := uint64(10)
 	for i, peer := range []string{"192.0.2.1", "192.0.2.2"} {
 		attrs := aigpSelectionAttrs([4]byte{198, 51, 100, byte(i + 1)}, &receivedMetric, 100, 1)
-		encoded := fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":%q,"remote":{"address":%q,"as":65001},"local":{"as":65000}},"raw":{"attributes":%q,"nlri":{"ipv4/unicast":"180a1400"}},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"198.51.100.%d","nlri":["10.20.0.0/24"]}]}}}}`, i+1, peer, peer, hex.EncodeToString(attrs), i+1)
+		encoded := fmt.Sprintf(`{"type":"bgp","bgp":{"peer-owner":%d,"message":{"type":"update","id":%d},"peer":{"address":%q,"remote":{"address":%q,"as":65001},"local":{"as":65000}},"raw":{"attributes":%q,"nlri":{"ipv4/unicast":"180a1400"}},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"198.51.100.%d","nlri":["10.20.0.0/24"]}]}}}}`, i+1, i+1, peer, peer, hex.EncodeToString(attrs), i+1)
 		event, err := parseEvent([]byte(encoded))
 		require.NoError(t, err)
 		r.dispatch(event)

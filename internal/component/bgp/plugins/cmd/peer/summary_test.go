@@ -1150,7 +1150,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		"ipv4-count", "ipv6-count", "server", "generation", "checked-at", "refreshed-at", "peers",
 	}
 
-	// The branches cmdBgpChildren blocks, each at its shallowest path.
+	// Original branch regression cases, each at its shallowest path.
 	branches := []commandOrder{
 		{command: "show bgp adj-rib-in"},
 		{command: "show bgp decode"},
@@ -1172,15 +1172,6 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 			"max-delay-seconds", "establish-wait-seconds",
 		}}},
 	}
-	// The table is the population, so it MUST name every branch the
-	// registrations block. A path added to cmdBgpChildren and not here would go
-	// untested, and one dropped from cmdBgpChildren would start inheriting.
-	branchNames := make([]string, 0, len(branches))
-	for _, branch := range branches {
-		branchNames = append(branchNames, branch.command)
-	}
-	assert.ElementsMatch(t, cmdBgpChildren, branchNames, "every blocked branch is driven by this table")
-
 	// Every command BENEATH those branches, as an operator types it. None is
 	// registered in its own right except `show bgp peer list`, so each one
 	// proves its branch's empty registration is what answers for it.
@@ -1218,7 +1209,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		// reaches the bare spelling alone, and the selector spelling keeps
 		// inheriting nothing. That is the registry's string-prefix resolution
 		// meeting the dispatcher's selector folding, and it is why
-		// cmdBgpChildren blocks at the SHALLOWEST path.
+		// the parent boundary supplies a floor at the SHALLOWEST path.
 		{command: "show bgp peer 192.0.2.1 capabilities"},
 		{command: "show bgp peer 192.0.2.1 detail"},
 		{command: "show bgp peer 192.0.2.1 history"},

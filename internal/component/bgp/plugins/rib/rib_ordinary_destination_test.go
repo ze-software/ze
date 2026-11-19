@@ -16,7 +16,7 @@ import (
 
 // ordinaryDestinationState enters the actual RIB event router on each rail;
 // the fixture's real SDK loop owns every selected write and readiness request.
-func ordinaryDestinationState(t *testing.T, r *RIBManager, native bool, peer netip.Addr, up, eligible bool, session uint64, reason string) {
+func ordinaryDestinationState(t *testing.T, r *RIBManager, native bool, peer netip.Addr, up, eligible bool, owner, session uint64, reason string) {
 	t.Helper()
 	state := rpc.SessionStateDown
 	textState := "down"
@@ -29,11 +29,11 @@ func ordinaryDestinationState(t *testing.T, r *RIBManager, native bool, peer net
 	}
 	if native {
 		r.dispatchStructured(&rpc.StructuredEvent{EventType: rpc.EventKindState, PeerAddress: peer.String(),
-			State: state, SelectedDestination: eligible, DestinationSession: session, InitialReplay: initial, Reason: reason})
+			State: state, PeerOwner: owner, SelectedDestination: eligible, DestinationSession: session, InitialReplay: initial, Reason: reason})
 		return
 	}
 	payload, err := json.Marshal(Event{Type: "state", Peer: json.RawMessage(fmt.Sprintf(`{"remote":{"address":%q}}`, peer.String())),
-		State: textState, SelectedDestination: eligible, DestinationSession: session, InitialReplay: initial, Reason: reason})
+		State: textState, PeerOwner: owner, SelectedDestination: eligible, DestinationSession: session, InitialReplay: initial, Reason: reason})
 	require.NoError(t, err)
 	r.dispatchText(string(payload))
 }
@@ -52,13 +52,13 @@ func TestOrdinaryDestinationStateStartsSelectedOutput(t *testing.T) {
 			route := selectedDispatchRoute(91, 0x9191)
 			require.NoError(t, r.selectedDispatch.publish(&route))
 
-			ordinaryDestinationState(t, r, native, peers[1], true, false, 192, rpc.ReasonAttached)
+			ordinaryDestinationState(t, r, native, peers[1], true, false, 1192, 192, rpc.ReasonAttached)
 			r.selectedDispatch.mu.Lock()
 			sourceOnly := len(r.selectedDispatch.destinations)
 			r.selectedDispatch.mu.Unlock()
 			require.Zero(t, sourceOnly, "a source-only/explicit-role observer must not acquire ordinary output")
 
-			ordinaryDestinationState(t, r, native, peers[0], true, true, 191, rpc.ReasonAttached)
+			ordinaryDestinationState(t, r, native, peers[0], true, true, 1191, 191, rpc.ReasonAttached)
 			r.selectedDispatch.mu.Lock()
 			destination := r.selectedDispatch.destinations[selectedDestinationID{peer: peers[0], session: 191}]
 			r.selectedDispatch.mu.Unlock()
@@ -78,10 +78,10 @@ func TestOrdinaryDestinationStateStartsSelectedOutput(t *testing.T) {
 
 			// A replacement captured connection must survive a delayed DOWN
 			// for the predecessor, even though both have the same address.
-			ordinaryDestinationState(t, r, native, peers[0], true, true, 193, rpc.ReasonAttached)
+			ordinaryDestinationState(t, r, native, peers[0], true, true, 1191, 193, rpc.ReasonAttached)
 			require.NoError(t, manager.DrainEventDelivery(ctx))
 			selectedDispatchAwait(t, ctx, written)
-			ordinaryDestinationState(t, r, native, peers[0], false, false, 191, "")
+			ordinaryDestinationState(t, r, native, peers[0], false, false, 1191, 191, "")
 			r.selectedDispatch.mu.Lock()
 			ended := r.selectedDispatch.destinations[selectedDestinationID{peer: peers[0], session: 191}]
 			replacement := r.selectedDispatch.destinations[selectedDestinationID{peer: peers[0], session: 193}]
@@ -121,7 +121,7 @@ func TestOrdinaryDestinationEmptyStateReportsReady(t *testing.T) {
 					ready.Add(1)
 					return r.signalSelectedReady(ctx, peer, session)
 				}
-				ordinaryDestinationState(t, r, native, peers[0], true, true, 194, reason)
+				ordinaryDestinationState(t, r, native, peers[0], true, true, 1194, 194, reason)
 				require.NoError(t, manager.DrainEventDelivery(ctx))
 				require.Equal(t, int64(1), ready.Load(), "an empty current selection still owes the captured readiness receipt")
 				receipt := selectedDispatchAwait(t, ctx, receipts)

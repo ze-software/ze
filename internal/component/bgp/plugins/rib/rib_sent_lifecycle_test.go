@@ -51,7 +51,8 @@ func TestRIBSentProjectionOfPurgedOwnerRemoves(t *testing.T) {
 				raw := []byte{24, 192, 0, 2}
 				key := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24")}
 				received := storage.NewPeerRIB(source.String())
-				r.bgpPeers[source] = received
+				r.bgpPeers[101] = received
+				r.peerMeta[101] = &peerMetadata{Address: source}
 				t.Cleanup(received.Release)
 				received.Insert(fam, nativeSentAttrs(), raw)
 				received.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) { entry.MsgID = 81 })
@@ -66,13 +67,13 @@ func TestRIBSentProjectionOfPurgedOwnerRemoves(t *testing.T) {
 
 				recoverySentEvent(t, r, site, destination, fam, raw, tc.marked)
 				t.Cleanup(func() {
-					for _, entry := range r.ribOut[destination][fam] {
+					for _, entry := range r.ribOut[201][fam] {
 						entry.release()
 					}
 				})
 
 				r.peerMu.Lock()
-				_, stored := r.ribOut[destination][fam][key]
+				_, stored := r.ribOut[201][fam][key]
 				pending := append([]sentLifecycleWrite(nil), r.recoveryPending...)
 				r.peerMu.Unlock()
 				if eventPath != 0 {
@@ -179,12 +180,12 @@ func recoverySentEvent(t *testing.T, r *RIBManager, site string, destination net
 			meta[bgptypes.RecoveryWriteMeta] = true
 		}
 		r.handleSentStructured(&rpc.StructuredEvent{
-			PeerAddress: destination.String(), SourcePeerStr: "192.0.2.10", MessageID: 91, Meta: meta,
+			PeerOwner: 201, PeerAddress: destination.String(), SourcePeerStr: "192.0.2.10", MessageID: 91, Meta: meta,
 			RawMessage: &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: wireAttrs, SourceMessageID: 81, SourceOwner: 101},
 		})
 		return
 	}
-	event := nativeSentEvent(t, destination, fam, raw, nativeSentAttrs(), false, false)
+	event := nativeSentEvent(t, destination, 201, 101, fam, raw, nativeSentAttrs(), false, false)
 	event.MsgID = 91
 	event.RouteMeta["source-message-id"] = float64(81)
 	event.RouteMeta[bgptypes.SourceOwnerMeta] = "101"
@@ -306,7 +307,7 @@ func lifecycleProjection(t *testing.T, site string, removed bool, before func(r 
 	recoverySentEvent(t, r, site, destination, fam, []byte{24, 192, 0, 2}, false)
 
 	r.peerMu.Lock()
-	_, stored := r.ribOut[destination][fam][key]
+	_, stored := r.ribOut[201][fam][key]
 	pending := append([]sentLifecycleWrite(nil), r.recoveryPending...)
 	r.peerMu.Unlock()
 	if lifecycle != 0 {
@@ -368,13 +369,14 @@ func lifecycleFeedJSON(t *testing.T, r *RIBManager, source netip.Addr, message u
 	}
 	wu := wireu.NewWireUpdate(body, ctxID)
 	wu.SetMessageID(message)
+	wu.SetSourceOwner(101)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	peer := pluginapi.PeerInfo{Address: source, AddressStr: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
+	peer := pluginapi.PeerInfo{ConnectionID: 41, PeerOwner: 101, Address: source, AddressStr: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
 	line := format.AppendMessage(nil, &peer, bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body,
-		WireUpdate: wu, AttrsWire: attrs, MessageID: message},
+		WireUpdate: wu, AttrsWire: attrs, SourceOwner: 101, MessageID: message},
 		bgptypes.ContentConfig{Encoding: pluginapi.EncodingJSON, Format: pluginapi.FormatFull})
 	event, err := parseEvent(line)
 	if err != nil {
@@ -396,14 +398,15 @@ func lifecycleFeed(t *testing.T, r *RIBManager, source netip.Addr, message uint6
 	}
 	wu := wireu.NewWireUpdate(body, ctxID)
 	wu.SetMessageID(message)
+	wu.SetSourceOwner(101)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.handleReceivedStructured(&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+		EventType: rpc.EventKindUpdate, PeerOwner: 101, PeerAddress: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body, WireUpdate: wu,
-			AttrsWire: attrs, MessageID: message},
+			AttrsWire: attrs, SourceOwner: 101, MessageID: message},
 	})
 }
 
@@ -464,10 +467,11 @@ func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
 				source := netip.MustParseAddr("192.0.2.10")
 				destination := netip.MustParseAddr("192.0.2.20")
 				received := storage.NewPeerRIB(source.String())
-				r.bgpPeers[source] = received
+				r.bgpPeers[101] = received
+				r.peerMeta[101] = &peerMetadata{Address: source}
 				t.Cleanup(func() {
 					received.Release()
-					for _, routes := range r.ribOut[destination] {
+					for _, routes := range r.ribOut[201] {
 						for _, entry := range routes {
 							entry.release()
 						}
@@ -481,12 +485,12 @@ func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
 					received.Remove(tc.fam, in)
 				}
 				r.peerMu.Lock()
-				r.noteReceivedLocked(source, 91)
-				r.fenceSentLifecycleLocked(source)
+				r.noteReceivedLocked(101, 91)
+				r.fenceSentLifecycleLocked(101)
 				r.peerMu.Unlock()
 
 				out := append([]byte{0, 0, 0, 0}, tc.wire...)
-				event := nativeSentEvent(t, destination, tc.fam, out, nativeSentAttrs(), true, false)
+				event := nativeSentEvent(t, destination, 201, 101, tc.fam, out, nativeSentAttrs(), true, false)
 				event.MsgID = 95
 				event.RouteMeta["source-message-id"] = float64(91)
 				event.RouteMeta[bgptypes.SourceOwnerMeta] = "101"
@@ -498,7 +502,7 @@ func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
 					t.Fatal("key rejected")
 				}
 				r.peerMu.Lock()
-				_, stored := r.ribOut[destination][tc.fam][key]
+				_, stored := r.ribOut[201][tc.fam][key]
 				pending := len(r.recoveryPending)
 				r.peerMu.Unlock()
 				if present {

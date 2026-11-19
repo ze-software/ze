@@ -29,21 +29,30 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	previous := eventBusPtr.Load()
 	t.Cleanup(func() { eventBusPtr.Store(previous); ribevents.RegisterValidationLookup(nil, nil) })
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	SetEventBus(bus)
+	// The selecting RIB must acquire its real local source reference through
+	// the SDK lease path. Passive storage cannot prove useful learned selection.
+	r, leases := sourceLeaseTestRIB(t, true)
 	t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
-	t.Cleanup(func() {
-		r.SetLocRIB(nil)
-		for _, routes := range r.bgpPeers {
-			routes.Release()
-		}
-	})
+	// sourceLeaseTestRIB releases the received stores once and settles their
+	// engine leases. Stop this table's readers before that shared cleanup.
+	t.Cleanup(func() { r.SetLocRIB(nil) })
 	bridge := startBurstValidationReceiver(t, bus)
 	const routes = 180000
-	if err := bridge.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindState, State: rpc.SessionStateUp, PeerAddress: "192.0.2.1",
-		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
-	}}); err != nil {
+	const sourceOwner uint64 = 1
+	const sourceSession uint64 = 1
+	const sourceReceipt uint64 = 101
+	const sourceEpoch uint64 = 5
+	state := &rpc.StructuredEvent{
+		EventType: rpc.EventKindState, State: rpc.SessionStateUp,
+		PeerOwner: sourceOwner, DestinationSession: sourceSession, ConnectionID: 41,
+		SourceReceipt: sourceReceipt, PeerAddress: "192.0.2.1",
+		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, Reason: rpc.ReasonAttached,
+	}
+	// This is one source observer, not a destination with replay/send grants.
+	r.dispatchStructured(state)
+	if err := bridge.DeliverStructured([]any{state}); err != nil {
 		t.Fatal(err)
 	}
 	setupCtx, setupCancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -65,14 +74,17 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 			body = append(body, 32, 10, byte(index>>16), byte(index>>8), byte(index))
 		}
 		update := wireu.NewWireUpdate(body, ctxID)
+		update.SetSourceOwner(sourceOwner)
+		update.SetSourceReceipt(sourceReceipt)
 		attributes, err := update.Attrs()
 		if err != nil {
 			t.Fatal(err)
 		}
-		event := &rpc.StructuredEvent{EventType: rpc.EventKindUpdate,
+		event := &rpc.StructuredEvent{ConnectionID: 41, EventType: rpc.EventKindUpdate, PeerOwner: sourceOwner, SourceReceipt: sourceReceipt,
 			PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
-			SourcePolicyEpoch: 5,
+			SourcePolicyEpoch: sourceEpoch,
 			RawMessage: &bgptypes.RawMessage{MessageID: uint64(start + 1), RawBytes: body,
+				SourceOwner: sourceOwner, SourceReceipt: sourceReceipt, SourcePolicyEpoch: sourceEpoch,
 				WireUpdate: update, AttrsWire: attributes}}
 		r.handleReceivedStructured(event)
 		if err := bridge.DeliverStructured([]any{event}); err != nil {
@@ -82,10 +94,30 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	if selected := r.collectBestPaths()[family.IPv4Unicast]; len(selected) != 0 {
 		t.Fatalf("pending routes selected before disable: %d", len(selected))
 	}
+	if acquired := leases.count(rpc.SourceLeaseAcquire, sourceReceipt); acquired != 1 {
+		t.Fatalf("received source acquired %d original leases, want one shared Session lease", acquired)
+	}
+	r.peerMu.RLock()
+	sourceRoutes := r.bgpPeers[sourceOwner]
+	r.peerMu.RUnlock()
+	if sourceRoutes == nil {
+		t.Fatal("original source owner has no received route store")
+	}
 	for index := range routes {
-		key := ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"),
+		native := [5]byte{32, 10, byte(index >> 16), byte(index >> 8), byte(index)}
+		entry, found := sourceRoutes.LookupRetained(family.IPv4Unicast, native[:])
+		if !found {
+			t.Fatalf("original source lost stored route %d before disable", index)
+		}
+		owner, receipt, epoch, message := entry.SourcePeerOwner(), entry.SourceReceipt, entry.SourcePolicyEpoch, entry.MsgID
+		entry.Release()
+		expectedMessage := uint64(index/4096*4096 + 1)
+		if owner != sourceOwner || receipt != sourceReceipt || epoch != sourceEpoch || message != expectedMessage {
+			t.Fatalf("route %d lost its acquired original source: owner=%d receipt=%d epoch=%d message=%d", index, owner, receipt, epoch, message)
+		}
+		key := ribevents.ValidationRoute{ConnectionID: 41, Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: sourceOwner,
 			Family: family.IPv4Unicast, Prefix: burstPrefix(index)}
-		if !ribevents.RoutePresent(key) || ribevents.RouteEligible(key, 0) {
+		if !ribevents.RoutePresent(key) || ribevents.RouteEligible(key, message) {
 			t.Fatalf("admitted route %d is not still pending before disable", index)
 		}
 	}
@@ -126,7 +158,7 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 		for _, change := range changes {
 			address := change.Prefix.Addr().As4()
 			index := int(address[1])<<16 | int(address[2])<<8 | int(address[3])
-			if index >= routes || seen[index] || change.Peer.String() != "192.0.2.1" || change.Family != family.IPv4Unicast {
+			if index >= routes || seen[index] || change.Peer.String() != "192.0.2.1" || change.PeerOwner != sourceOwner || change.Family != family.IPv4Unicast || change.PathID != 0 || change.Prefix != burstPrefix(index) {
 				return fmt.Errorf("recovery change is missing, duplicated or names another path: %+v", change)
 			}
 			seen[index] = true
@@ -159,6 +191,16 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 		t.Fatalf("selected %d/%d retained routes without another UPDATE", len(selected), routes)
 	}
 	for _, index := range []int{0, routes / 2, routes - 1} {
+		key := ribevents.ValidationRoute{ConnectionID: 41, Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: sourceOwner,
+			Family: family.IPv4Unicast, Prefix: burstPrefix(index)}
+		if !ribevents.RoutePresent(key) || !ribevents.RouteEligible(key, uint64(index/4096*4096+1)) {
+			t.Fatalf("retained route %d did not become eligible for its original source", index)
+		}
+		wrong := key
+		wrong.PeerOwner = sourceOwner + 1
+		if ribevents.RoutePresent(wrong) || ribevents.RouteEligible(wrong, 0) {
+			t.Fatalf("retained route %d became visible to an unrelated source owner", index)
+		}
 		path, ok := loc.Best(family.IPv4Unicast, burstPrefix(index))
 		if !ok || path.NextHop != netip.MustParseAddr("192.0.2.9") {
 			t.Fatalf("retained route %s did not reach the forwarding Loc-RIB: %+v present=%v", burstPrefix(index), path, ok)
@@ -173,10 +215,10 @@ func TestValidationSourcePolicyDuplicateFlushesOwedChanges(t *testing.T) {
 	previous := eventBusPtr.Load()
 	t.Cleanup(func() { eventBusPtr.Store(previous); ribevents.RegisterValidationLookup(nil, nil) })
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	r := validationSourceRIB(t, bus)
 	bridge, ctx := startValidationReceiver(t, bus)
 	if err := bridge.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindState, State: rpc.SessionStateUp, PeerAddress: "192.0.2.1",
+		EventType: rpc.EventKindState, State: rpc.SessionStateUp, PeerOwner: validationSourceOwner, DestinationSession: validationSourceSession, ConnectionID: validationSourceConnection, PeerAddress: "192.0.2.1", Reason: rpc.ReasonAttached,
 		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 	}}); err != nil {
 		t.Fatal(err)

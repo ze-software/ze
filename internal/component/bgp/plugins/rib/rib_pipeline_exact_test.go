@@ -123,7 +123,8 @@ func TestExactAnswersOnlyThatPrefix(t *testing.T) {
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{24, 192, 0, 0})
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{2, 192})
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{8, 10})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	got := coveringRowKeys(t, r, "received", "exact", "192.0.0.0/2")
 	assert.Equal(t, []string{"192.0.2.1 192.0.0.0/2"}, got)
@@ -155,7 +156,8 @@ func TestExactReadsOneEntry(t *testing.T) {
 	}
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{8, 10})
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{16, 10, 1})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	exact := newInboundSource(r, "*", exactRead{prefix: netip.MustParsePrefix("10.1.0.0/16")})
 	items := drainSource(exact)
@@ -187,12 +189,14 @@ func TestExactListsEveryAddPathPath(t *testing.T) {
 	addPathPeer.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 2, 16, 10, 1})
 	addPathPeer.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 1, 8, 10})
 	addPathPeer.Insert(fam, coveringTestAttrs(), []byte{0, 0, 0, 1, 24, 10, 1, 2})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = addPathPeer
+	r.bgpPeers[1] = addPathPeer
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	plainPeer := storage.NewPeerRIB("192.0.2.2")
 	plainPeer.Insert(fam, coveringTestAttrs(), []byte{16, 10, 1})
 	plainPeer.Insert(fam, coveringTestAttrs(), []byte{8, 10})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = plainPeer
+	r.bgpPeers[2] = plainPeer
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
 
 	got := coveringRowKeys(t, r, "received", "exact", "10.1.0.0/16")
 	require.Len(t, got, 3, "two paths from the ADD-PATH peer and one from the plain peer: %v", got)
@@ -219,7 +223,8 @@ func TestExactIPv6(t *testing.T) {
 	peerRIB.Insert(v6, coveringTestAttrs(), []byte{32, 0x20, 0x00, 0x00, 0x00})
 	peerRIB.Insert(v6, coveringTestAttrs(), []byte{32, 0x20, 0x01, 0x0d, 0xb8})
 	peerRIB.Insert(family.IPv4Unicast, coveringTestAttrs(), []byte{0})
-	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+	r.bgpPeers[1] = peerRIB
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 
 	assert.Equal(t, []string{"192.0.2.1 2000::/3"}, coveringRowKeys(t, r, "received", "exact", "2000::/3"))
 	assert.ElementsMatch(t, []string{"192.0.2.1 2000::/3", "192.0.2.1 2000::/32"},

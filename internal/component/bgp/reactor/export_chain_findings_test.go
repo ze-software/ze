@@ -116,7 +116,7 @@ func TestRSFastPathPluginChainRefusal(t *testing.T) {
 
 // forwardRSOnceVia is forwardRSOnce with transport answering the
 // destination's plugin filters.
-func forwardRSOnceVia(t *testing.T, export filterapi.Policy, transport filterTransport, payload []byte) ([]netip.AddrPort, [][]byte) {
+func forwardRSOnceVia(t *testing.T, export filterapi.Policy, transport filterTransport, payload []byte) ([]rpc.ForwardTarget, [][]byte) {
 	t.Helper()
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -155,7 +155,14 @@ func forwardRSOnceVia(t *testing.T, export filterapi.Policy, transport filterTra
 		fwdPool:             testPool,
 		filterTransportSeam: transport,
 	}
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+	wantTarget := fixtureForwardTarget(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, 62, netip.MustParseAddr("10.0.0.1"), src)
+	for _, target := range skipped {
+		if target != wantTarget {
+			t.Fatalf("hand-back lost original target: got=%+v want=%+v", target, wantTarget)
+		}
+	}
 	if dispatched == 0 {
 		return skipped, nil
 	}

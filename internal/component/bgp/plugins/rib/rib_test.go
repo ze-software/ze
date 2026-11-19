@@ -130,9 +130,10 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 
 	// New command-style format: family operations with action/next-hop/nlri
 	event := &Event{
-		Type:  "sent",
-		MsgID: 100,
-		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		PeerOwner: 1,
+		Type:      "sent",
+		MsgID:     100,
+		Peer:      mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
@@ -142,12 +143,12 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 
 	r.handleSent(event)
 
-	require.Contains(t, r.ribOut[netip.MustParseAddr("10.0.0.1")], family.IPv4Unicast)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 2)
-	assert.Contains(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
-	assert.Contains(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.1.0/24")})
+	require.Contains(t, r.ribOut[1], family.IPv4Unicast)
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 2)
+	assert.Contains(t, r.ribOut[1][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
+	assert.Contains(t, r.ribOut[1][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.1.0/24")})
 
-	entry := r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
+	entry := r.ribOut[1][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
 	assert.Equal(t, uint64(100), entry.MsgID)
 }
 
@@ -160,9 +161,10 @@ func TestHandleSent_Withdraw(t *testing.T) {
 
 	// First announce
 	announce := &Event{
-		Type:  "sent",
-		MsgID: 100,
-		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		PeerOwner: 1,
+		Type:      "sent",
+		MsgID:     100,
+		Peer:      mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
@@ -170,12 +172,13 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleSent(announce)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 1)
 
 	// Then withdraw
 	withdraw := &Event{
-		Type: "sent",
-		Peer: mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		PeerOwner: 1,
+		Type:      "sent",
+		Peer:      mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {
 				{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}},
@@ -184,7 +187,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	}
 	r.handleSent(withdraw)
 	// After withdrawing all routes in a family, the family map is cleaned up
-	assert.Empty(t, r.ribOut[netip.MustParseAddr("10.0.0.1")])
+	assert.Empty(t, r.ribOut[1])
 }
 
 // TestHandleReceived_StoresRoutes verifies routes are stored in Adj-RIB-In.
@@ -197,6 +200,7 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 	// format=full with raw fields
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 200},
 		Peer:          mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		RawAttributes: "40010100", // ORIGIN IGP
@@ -210,19 +214,19 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")], "PeerRIB should be created")
-	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "should have 2 routes in pool")
+	require.NotNil(t, r.bgpPeers[1], "PeerRIB should be created")
+	assert.Equal(t, 2, r.bgpPeers[1].Len(), "should have 2 routes in pool")
 
 	// Verify specific NLRIs are stored (not just the count)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 	nlri1, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	_, found1 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri1)
+	_, found1 := r.bgpPeers[1].Lookup(ipv4Uni, nlri1)
 	assert.True(t, found1, "10.0.0.0/24 should be in RIB")
 
 	nlri2, err := prefixToWire(family.IPv4Unicast.String(), "10.0.1.0/24", 0, false)
 	require.NoError(t, err)
-	_, found2 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri2)
+	_, found2 := r.bgpPeers[1].Lookup(ipv4Uni, nlri2)
 	assert.True(t, found2, "10.0.1.0/24 should be in RIB")
 }
 
@@ -236,6 +240,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 
 	// First announce with raw fields
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 200},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -247,10 +252,11 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Then withdraw
 	withdraw := &Event{
+		PeerOwner:    1,
 		Message:      &MessageInfo{Type: rpc.EventKindUpdate, ID: 201},
 		Peer:         peerJSON,
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
@@ -261,7 +267,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	assert.Equal(t, 0, r.bgpPeers[1].Len())
 }
 
 // TestHandleState_PeerUp verifies internal state on peer up.
@@ -272,7 +278,8 @@ func TestHandleState_PeerUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
@@ -280,17 +287,19 @@ func TestHandleState_PeerUp(t *testing.T) {
 	})
 
 	event := &Event{
-		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
-		State: "up",
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Type:               "state",
+		Peer:               mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		State:              "up",
 	}
 
 	r.handleState(event)
 
 	// Verify internal state: peer is marked as up
-	assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.1")], "peer should be marked as up")
+	assert.True(t, r.peerUp[1], "peer should be marked as up")
 	// ribOut should be preserved (routes are replayed via SDK RPC, not text output)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 2, "ribOut should still have routes")
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 2, "ribOut should still have routes")
 }
 
 // TestHandleState_PeerDown verifies Adj-RIB-In is cleared on peer down.
@@ -317,6 +326,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 
 	// Pre-populate ribInPool via handleReceived
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -326,32 +336,35 @@ func TestHandleState_PeerDown(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Pre-populate ribOut
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1].Session = 11
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
+	r.peerUp[1] = true
 
 	event := &Event{
-		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
-		State: "down",
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Type:               "state",
+		Peer:               mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		State:              "down",
 	}
 
 	r.handleState(event)
 
 	// ribInPool should be cleared (PeerRIB deleted)
-	_, exists := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	_, exists := r.bgpPeers[1]
 	assert.False(t, exists, "PeerRIB should be deleted on peer down")
-	// peerMeta should be cleared alongside ribInPool
-	_, metaExists := r.peerMeta[netip.MustParseAddr("10.0.0.1")]
-	assert.False(t, metaExists, "peerMeta should be deleted on peer down")
+	// Route facts are cleared; the configured owner keeps its observed address/session fence.
+	assert.Equal(t, &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}, r.peerMeta[1],
+		"peer down clears protocol metadata while preserving its exact session observation")
 	// ribOut should be preserved for replay
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 1)
 }
 
 // TestStatusJSON verifies status command output.
@@ -364,6 +377,7 @@ func TestStatusJSON(t *testing.T) {
 
 	// Add routes via pool storage
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -374,13 +388,15 @@ func TestStatusJSON(t *testing.T) {
 	}
 	r.handleReceived(event)
 
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2"), Session: 11}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.peerUp[netip.MustParseAddr("10.0.0.2")] = true
+	r.peerMeta[1].Session = 11
+	r.peerUp[1] = true
+	r.peerUp[2] = true
 
 	status := r.status("")
 	assert.Contains(t, dataStr(t, status), `"running":true`)
@@ -403,8 +419,9 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 		{
 			name: "sent_to_ribOut",
 			event: &Event{
-				Type: "sent",
-				Peer: mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+				PeerOwner: 1,
+				Type:      "sent",
+				Peer:      mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 				FamilyOps: map[family.Family][]FamilyOperation{
 					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 				},
@@ -415,6 +432,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 		{
 			name: "update_to_ribInPool",
 			event: &Event{
+				PeerOwner:     1,
 				Message:       &MessageInfo{Type: rpc.EventKindUpdate},
 				Peer:          json.RawMessage(`{"address":"10.0.0.1","local":{"address":"","as":0},"remote":{"address":"10.0.0.1","as":65001}}`),
 				RawAttributes: "40010100",
@@ -458,7 +476,8 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -467,6 +486,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	// Pre-populate ribInPool via handleReceived
 	peerJSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -488,9 +508,11 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 				state = "down"
 			}
 			event := &Event{
-				Type:  "state",
-				Peer:  peer,
-				State: state,
+				PeerOwner:          1,
+				DestinationSession: 11,
+				Type:               "state",
+				Peer:               peer,
+				State:              state,
 			}
 			r.handleState(event)
 			done <- true
@@ -504,7 +526,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 
 	// Verify no panic and state is consistent
 	r.peerMu.RLock()
-	_, hasRibOut := r.ribOut[netip.MustParseAddr("10.0.0.1")]
+	_, hasRibOut := r.ribOut[1]
 	r.peerMu.RUnlock()
 
 	// ribOut should always exist (we never delete it)
@@ -663,6 +685,7 @@ func TestHandleCommand_RIBStatus(t *testing.T) {
 	// Add route via pool storage
 	peerJSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -673,8 +696,9 @@ func TestHandleCommand_RIBStatus(t *testing.T) {
 	}
 	r.handleReceived(announce)
 
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1].Session = 11
+	r.peerUp[1] = true
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {},
 			"10.0.1.0/24": {},
@@ -699,6 +723,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	// Add routes via pool storage for peer 10.0.0.1
 	peer1JSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
 	event1 := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peer1JSON,
 		RawAttributes: "40010100",
@@ -712,6 +737,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	// Add routes via pool storage for peer 10.0.0.2
 	peer2JSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}, "remote": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}})
 	event2 := &Event{
+		PeerOwner:     2,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 101},
 		Peer:          peer2JSON,
 		RawAttributes: "40010100",
@@ -783,6 +809,7 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 	// Add routes via pool storage for peer 10.0.0.1
 	peer1JSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
 	event1 := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peer1JSON,
 		RawAttributes: "40010100",
@@ -796,6 +823,7 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 	// Add routes via pool storage for peer 10.0.0.2
 	peer2JSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}, "remote": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}})
 	event2 := &Event{
+		PeerOwner:     2,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 101},
 		Peer:          peer2JSON,
 		RawAttributes: "40010100",
@@ -812,10 +840,10 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
 
 	// 10.0.0.1 should be emptied (PeerRIB deleted)
-	_, exists1 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	_, exists1 := r.bgpPeers[1]
 	assert.False(t, exists1, "peer 10.0.0.1 PeerRIB should be deleted")
 	// 10.0.0.2 should remain
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.2")].Len())
+	assert.Equal(t, 1, r.bgpPeers[2].Len())
 }
 
 // TestHandleCommand_RIBShowSent verifies sent show with selector.
@@ -825,12 +853,14 @@ func TestHandleCommand_RIBInboundClear(t *testing.T) {
 func TestHandleCommand_RIBShowSent(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
@@ -850,18 +880,20 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 func TestHandleCommand_RIBOutboundResend(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2"), Session: 11}
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.peerUp[netip.MustParseAddr("10.0.0.2")] = true
+	r.peerUp[1] = true
+	r.peerUp[2] = true
 
 	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
@@ -881,12 +913,13 @@ func TestHandleCommand_RIBOutboundResend_DownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is DOWN
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	// peerUp[netip.MustParseAddr("10.0.0.1")] is NOT set (peer is down)
+	// peerUp[1] is NOT set (peer is down)
 
 	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
@@ -918,6 +951,7 @@ func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 	// Populate test data
 	peerJSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -927,8 +961,9 @@ func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1].Session = 11
+	r.peerUp[1] = true
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.1.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
@@ -1018,7 +1053,11 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut with routes
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1", PeerOwner: 1, DestinationSession: 11,
+		State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+	})
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
@@ -1027,7 +1066,6 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 			"2001:db8::/32": {MsgID: 3, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
 
 	var markers []string
 	type sentRoute struct {
@@ -1042,10 +1080,12 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 
 	// Simulate refresh request for IPv4 unicast
 	event := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindRefresh},
-		Peer:    mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
-		AFI:     family.AFIIPv4,
-		SAFI:    family.SAFIUnicast,
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Message:            &MessageInfo{Type: rpc.EventKindRefresh},
+		Peer:               mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		AFI:                family.AFIIPv4,
+		SAFI:               family.SAFIUnicast,
 	}
 
 	r.handleRefresh(event)
@@ -1071,9 +1111,9 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	}, markers)
 
 	// Peer should still be up after refresh
-	assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.1")], "peer should still be up after refresh")
+	assert.True(t, r.peerUp[1], "peer should still be up after refresh")
 	// RibOut should be unchanged (refresh re-advertises, doesn't modify)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")], 2, "ribOut should have 2 families unchanged after refresh")
+	assert.Len(t, r.ribOut[1], 2, "ribOut should have 2 families unchanged after refresh")
 }
 
 // TestHandleRefresh_PeerNotUp verifies refresh is ignored for down peers.
@@ -1089,25 +1129,28 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is not up
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	// peerUp[netip.MustParseAddr("10.0.0.1")] is NOT set (peer is down)
+	// peerUp[1] is NOT set (peer is down)
 
 	event := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindRefresh},
-		Peer:    mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
-		AFI:     family.AFIIPv4,
-		SAFI:    family.SAFIUnicast,
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Message:            &MessageInfo{Type: rpc.EventKindRefresh},
+		Peer:               mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		AFI:                family.AFIIPv4,
+		SAFI:               family.SAFIUnicast,
 	}
 
 	// Should not panic, just return early
 	r.handleRefresh(event)
 
 	// Peer should still be down
-	assert.False(t, r.peerUp[netip.MustParseAddr("10.0.0.1")], "peer should remain down")
+	assert.False(t, r.peerUp[1], "peer should remain down")
 }
 
 // TestHandleRefresh_IPv6Family verifies refresh for IPv6 unicast.
@@ -1117,7 +1160,8 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 func TestHandleRefresh_IPv6Family(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -1125,21 +1169,23 @@ func TestHandleRefresh_IPv6Family(t *testing.T) {
 			"2001:db8::/32": {MsgID: 1, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
+	r.peerUp[1] = true
 
 	event := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindRefresh},
-		Peer:    mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
-		AFI:     family.AFIIPv6,
-		SAFI:    family.SAFIUnicast,
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Message:            &MessageInfo{Type: rpc.EventKindRefresh},
+		Peer:               mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		AFI:                family.AFIIPv6,
+		SAFI:               family.SAFIUnicast,
 	}
 
 	// Should not panic - output goes through SDK RPC
 	r.handleRefresh(event)
 
 	// State should be preserved
-	assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.1")])
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")], 2, "ribOut should have 2 families")
+	assert.True(t, r.peerUp[1])
+	assert.Len(t, r.ribOut[1], 2, "ribOut should have 2 families")
 }
 
 // =============================================================================
@@ -1157,6 +1203,7 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 	// Raw attrs: ORIGIN IGP (40 01 01 00)
 	// Raw NLRI: 10.0.0.0/24 (18 0a 00 00)
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		RawAttributes: "40010100",                                               // ORIGIN IGP
@@ -1169,8 +1216,8 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 	r.handleReceived(event)
 
 	// Should be stored in pool storage
-	assert.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")], "PeerRIB should be created")
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "should have 1 route in pool")
+	assert.NotNil(t, r.bgpPeers[1], "PeerRIB should be created")
+	assert.Equal(t, 1, r.bgpPeers[1].Len(), "should have 1 route in pool")
 }
 
 // TestHandleReceived_PoolStorage_MultipleNLRIs verifies multiple NLRIs in one UPDATE.
@@ -1182,6 +1229,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 302},
 		Peer:          mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		RawAttributes: "40010100",
@@ -1193,7 +1241,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 
 	r.handleReceived(event)
 
-	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "should have 2 routes in pool")
+	assert.Equal(t, 2, r.bgpPeers[1].Len(), "should have 2 routes in pool")
 }
 
 // TestHandleReceived_PoolStorage_Withdraw verifies withdrawal removes from pool.
@@ -1206,6 +1254,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 
 	// First: announce
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 303},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1215,10 +1264,11 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Then: withdraw
 	withdraw := &Event{
+		PeerOwner:    1,
 		Message:      &MessageInfo{Type: rpc.EventKindUpdate, ID: 304},
 		Peer:         peerJSON,
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
@@ -1228,7 +1278,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 	}
 	r.handleReceived(withdraw)
 
-	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "route should be withdrawn")
+	assert.Equal(t, 0, r.bgpPeers[1].Len(), "route should be withdrawn")
 }
 
 // TestHandleState_PeerDown_ClearsPoolStorage verifies pool cleared on peer down.
@@ -1241,6 +1291,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 
 	// Add route via pool storage
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 305},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1250,19 +1301,22 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	r.peerMeta[1].Session = 11
+	r.peerUp[1] = true
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Peer goes down
 	stateDown := &Event{
-		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
-		State: "down",
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Type:               "state",
+		Peer:               mustMarshal(t, PeerInfoJSON{Remote: PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
+		State:              "down",
 	}
 	r.handleState(stateDown)
 
 	// Pool should be cleared
-	if peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]; peerRIB != nil {
+	if peerRIB := r.bgpPeers[1]; peerRIB != nil {
 		assert.Equal(t, 0, peerRIB.Len(), "pool should be empty after peer down")
 	}
 }
@@ -1278,6 +1332,7 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 	// IPv6 NLRI: 2001:db8::/32
 	// Wire format: [prefix-len:1][prefix-bytes:4] = [32][20][01][0d][b8]
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 400},
 		Peer:          peerJSON,
 		RawAttributes: "40010100", // ORIGIN IGP
@@ -1289,8 +1344,8 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 
 	r.handleReceived(event)
 
-	assert.NotNil(t, r.bgpPeers[netip.MustParseAddr("::1")], "PeerRIB should be created for IPv6 peer")
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("::1")].Len(), "should have 1 IPv6 route in pool")
+	assert.NotNil(t, r.bgpPeers[1], "PeerRIB should be created for IPv6 peer")
+	assert.Equal(t, 1, r.bgpPeers[1].Len(), "should have 1 IPv6 route in pool")
 }
 
 // TestHandleReceived_PoolStorage_StoresEVPN verifies EVPN NLRIs reach the
@@ -1304,6 +1359,7 @@ func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 
 	// One valid EVPN NLRI: route-type=2, length=3, body deadbe.
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 401},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1315,7 +1371,7 @@ func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 
 	r.handleReceived(event)
 
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.bgpPeers[1]
 	require.NotNil(t, peerRIB, "PeerRIB should be created for EVPN peer")
 	assert.Equal(t, 1, peerRIB.Len(), "one EVPN NLRI should be stored")
 }
@@ -1330,6 +1386,7 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 
 	// Add routes via pool storage
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 306},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1339,7 +1396,8 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 		},
 	}
 	r.handleReceived(event)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
+	r.peerMeta[1].Session = 11
+	r.peerUp[1] = true
 
 	status := r.status("")
 	assert.Contains(t, dataStr(t, status), `"routes-in":2`, "status should count pool routes")
@@ -1355,6 +1413,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 
 	// Add route via pool storage
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 307},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1366,7 +1425,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	r.handleReceived(event)
 
 	// Verify route is in pool
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Call show command via handleCommand (unified pipeline, received scope)
 	status, data, err := r.handleCommand("show bgp rib", "*", []string{"received"})
@@ -1387,6 +1446,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 
 	// Add route via pool storage
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 308},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1396,7 +1456,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 		},
 	}
 	r.handleReceived(event)
-	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Call clear command via handleCommand
 	status, data, err := r.handleCommand("clear bgp rib in", "*", []string{"10.0.0.1"})
@@ -1405,7 +1465,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
 
 	// Verify pool is cleared (entry deleted to avoid memory leak)
-	_, exists := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	_, exists := r.bgpPeers[1]
 	assert.False(t, exists, "pool entry should be deleted")
 }
 
@@ -1541,12 +1601,13 @@ func TestWireToPrefix(t *testing.T) {
 func TestDispatch_RefreshEvents(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
+	r.peerUp[1] = true
 
 	tests := []struct {
 		name      string
@@ -1560,10 +1621,12 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			event := &Event{
-				Message: &MessageInfo{Type: tt.eventType},
-				Peer:    mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
-				AFI:     family.AFIIPv4,
-				SAFI:    family.SAFIUnicast,
+				PeerOwner:          1,
+				DestinationSession: 11,
+				Message:            &MessageInfo{Type: tt.eventType},
+				Peer:               mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+				AFI:                family.AFIIPv4,
+				SAFI:               family.SAFIUnicast,
 			}
 
 			// Should not panic
@@ -1733,6 +1796,7 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 	// 10.0.0.0/24 with path-id 42: 00 00 00 2a 18 0a 00 00
 	// 10.0.1.0/24 with path-id 43: 00 00 00 2b 18 0a 00 01
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1747,15 +1811,15 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")], "PeerRIB should be created")
-	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "should have 2 ADD-PATH routes in pool")
+	require.NotNil(t, r.bgpPeers[1], "PeerRIB should be created")
+	assert.Equal(t, 2, r.bgpPeers[1].Len(), "should have 2 ADD-PATH routes in pool")
 
 	// Verify actual stored wire bytes contain correct ADD-PATH NLRIs (not garbage from wrong parsing).
 	// With addPath=true: key is [path-id:4][prefix-len:1][prefix-bytes].
 	// With addPath=false: path-id bytes would be misread as prefix-lengths, producing different keys.
 	ipv4u := family.IPv4Unicast
-	_, found42 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
-	_, found43 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
+	_, found42 := r.bgpPeers[1].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	_, found43 := r.bgpPeers[1].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
 	assert.True(t, found42, "route with path-id 42 (10.0.0.0/24) must be stored with correct ADD-PATH wire key")
 	assert.True(t, found43, "route with path-id 43 (10.0.1.0/24) must be stored with correct ADD-PATH wire key")
 }
@@ -1770,6 +1834,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 
 	// First announce with ADD-PATH
 	announce := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
@@ -1785,11 +1850,12 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 
 	// Verify announcement stored with correct ADD-PATH wire key
 	ipv4u := family.IPv4Unicast
-	_, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	_, found := r.bgpPeers[1].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
 	require.True(t, found, "route must be stored with ADD-PATH wire key before withdrawal")
 
 	// Then withdraw with ADD-PATH
 	withdraw := &Event{
+		PeerOwner:    1,
 		Message:      &MessageInfo{Type: rpc.EventKindUpdate, ID: 301},
 		Peer:         peerJSON,
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "0000002a180a0000"},
@@ -1801,7 +1867,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len(), "ADD-PATH withdrawal should remove the route")
+	assert.Equal(t, 0, r.bgpPeers[1].Len(), "ADD-PATH withdrawal should remove the route")
 }
 
 // TestExtractCandidate_PoolWiring verifies extractCandidate reads pool handles correctly.
@@ -1824,6 +1890,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	rawAttrs := "4001010040020A020200" + "00FDE900" + "00FDEA80040400000032400504000000C8"
 
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 500},
 		Peer:          peerJSON,
 		RawAttributes: rawAttrs,
@@ -1835,12 +1902,12 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	r.handleReceived(event)
 
 	// Verify peerMeta was populated from the event.
-	require.NotNil(t, r.peerMeta[netip.MustParseAddr("10.0.0.1")], "peerMeta should be populated")
-	assert.Equal(t, uint32(65001), r.peerMeta[netip.MustParseAddr("10.0.0.1")].PeerASN)
-	assert.Equal(t, uint32(65000), r.peerMeta[netip.MustParseAddr("10.0.0.1")].LocalASN)
+	require.NotNil(t, r.peerMeta[1], "peerMeta should be populated")
+	assert.Equal(t, uint32(65001), r.peerMeta[1].PeerASN)
+	assert.Equal(t, uint32(65000), r.peerMeta[1].LocalASN)
 
 	// Extract candidate from pool entry.
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.bgpPeers[1]
 	require.NotNil(t, peerRIB)
 
 	var entry storage.RouteEntry
@@ -1852,7 +1919,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	})
 	require.True(t, found, "should have a route entry")
 
-	c := r.extractCandidate(family.IPv4Unicast, netip.MustParseAddr("10.0.0.1"), "10.0.0.1", entry)
+	c := r.extractCandidate(family.IPv4Unicast, 1, netip.MustParseAddr("10.0.0.1"), "10.0.0.1", entry)
 
 	assert.Equal(t, "10.0.0.1", c.PeerAddr)
 	assert.Equal(t, uint32(65001), c.PeerASN, "PeerASN from peerMeta")
@@ -1867,8 +1934,8 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 // TestPeerMetadataCleanup_ClearAndRelease verifies peerMeta is cleaned up by
 // inboundEmptyJSON (clear bgp rib in) and releaseRoutesJSON (request bgp rib release-routes).
 //
-// VALIDATES: peerMeta deleted alongside ribInPool in clear and release paths.
-// PREVENTS: peerMeta memory leak when routes are cleared or GR-released.
+// VALIDATES: Route-derived peer metadata is cleared with routes; configured-owner observations survive.
+// PREVENTS: Stale protocol facts surviving a clear or GR release, or losing the current session fence.
 func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 	t.Run("clear bgp rib in", func(t *testing.T) {
 		r := newTestRIBManager(t)
@@ -1877,6 +1944,7 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)},
 		})
 		event := &Event{
+			PeerOwner:     1,
 			Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
@@ -1886,14 +1954,14 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			},
 		}
 		r.handleReceived(event)
-		require.NotNil(t, r.peerMeta[netip.MustParseAddr("10.0.0.1")], "peerMeta should exist before clear")
+		require.NotNil(t, r.peerMeta[1], "peerMeta should exist before clear")
 
 		r.inboundEmpty("*")
 
-		_, ribExists := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+		_, ribExists := r.bgpPeers[1]
 		assert.False(t, ribExists, "ribInPool should be cleared")
-		_, metaExists := r.peerMeta[netip.MustParseAddr("10.0.0.1")]
-		assert.False(t, metaExists, "peerMeta should be cleared with ribInPool")
+		assert.Equal(t, &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}, r.peerMeta[1],
+			"clear removes protocol facts while preserving only the observed configured-owner address")
 	})
 
 	t.Run("request bgp rib release-routes", func(t *testing.T) {
@@ -1903,6 +1971,7 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)},
 		})
 		event := &Event{
+			PeerOwner:     1,
 			Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
@@ -1912,17 +1981,17 @@ func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 			},
 		}
 		r.handleReceived(event)
-		require.NotNil(t, r.peerMeta[netip.MustParseAddr("10.0.0.1")], "peerMeta should exist before release")
+		require.NotNil(t, r.peerMeta[1], "peerMeta should exist before release")
 
 		// Mark peer as retained, then release.
-		r.retainedPeers[netip.MustParseAddr("10.0.0.1")] = true
+		r.retainedPeers[1] = true
 		r.releaseRoutes("*")
 
-		_, ribExists := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+		_, ribExists := r.bgpPeers[1]
 		assert.False(t, ribExists, "ribInPool should be cleared on release")
-		_, metaExists := r.peerMeta[netip.MustParseAddr("10.0.0.1")]
-		assert.False(t, metaExists, "peerMeta should be cleared on release")
-		_, retainExists := r.retainedPeers[netip.MustParseAddr("10.0.0.1")]
+		assert.Equal(t, &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}, r.peerMeta[1],
+			"release removes protocol facts while preserving only the observed configured-owner address")
+		_, retainExists := r.retainedPeers[1]
 		assert.False(t, retainExists, "retainedPeers should be cleared on release")
 	})
 }
@@ -1935,8 +2004,9 @@ func TestHandleSentPerFamily(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	event := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner: 1,
+		Message:   &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
+		Peer:      mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 			family.IPv6Unicast: {{NextHop: "::1", Action: routeaction.Add, NLRIs: []any{"2001:db8::/32"}}},
@@ -1945,7 +2015,7 @@ func TestHandleSentPerFamily(t *testing.T) {
 	r.handleSent(event)
 
 	// Verify per-family structure
-	peerFamilies := r.ribOut[netip.MustParseAddr("10.0.0.1")]
+	peerFamilies := r.ribOut[1]
 	require.Len(t, peerFamilies, 2, "should have 2 family maps")
 	require.Contains(t, peerFamilies, family.IPv4Unicast)
 	require.Contains(t, peerFamilies, family.IPv6Unicast)
@@ -1966,8 +2036,9 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 
 	// Add routes in two families
 	add := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner: 1,
+		Message:   &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
+		Peer:      mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 			family.IPv6Unicast: {{NextHop: "::1", Action: routeaction.Add, NLRIs: []any{"2001:db8::/32"}}},
@@ -1977,8 +2048,9 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 
 	// Withdraw one ipv4 route
 	del := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner: 1,
+		Message:   &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
+		Peer:      mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}}},
 		},
@@ -1986,8 +2058,8 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 	r.handleSent(del)
 
 	// ipv4 should have 1 route, ipv6 untouched
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 1)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv6Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv6Unicast], 1)
 }
 
 // TestHandleSentWithdrawalCleansEmptyMaps verifies empty maps are removed.
@@ -1999,19 +2071,21 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 
 	// Add one route
 	add := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner: 1,
+		Message:   &MessageInfo{Type: rpc.EventKindUpdate, ID: 1},
+		Peer:      mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(add)
-	require.Contains(t, r.ribOut, netip.MustParseAddr("10.0.0.1"))
+	require.Contains(t, r.ribOut, uint64(1))
 
 	// Withdraw the only route
 	del := &Event{
-		Message: &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner: 1,
+		Message:   &MessageInfo{Type: rpc.EventKindUpdate, ID: 2},
+		Peer:      mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		FamilyOps: map[family.Family][]FamilyOperation{
 			family.IPv4Unicast: {{Action: routeaction.Del, NLRIs: []any{"10.0.0.0/24"}}},
 		},
@@ -2019,7 +2093,7 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 	r.handleSent(del)
 
 	// Both family map and peer map should be gone
-	_, hasPeer := r.ribOut[netip.MustParseAddr("10.0.0.1")]
+	_, hasPeer := r.ribOut[1]
 	assert.False(t, hasPeer, "empty peer map should be removed from ribOut")
 }
 
@@ -2029,10 +2103,11 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 // PREVENTS: Sending routes from other families on route refresh.
 func TestHandleRefreshPerFamily(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.peerUp[1] = true
 
 	// Pre-populate ribOut with two families
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -2043,16 +2118,18 @@ func TestHandleRefreshPerFamily(t *testing.T) {
 
 	// Request refresh for ipv4/unicast only
 	refreshEvent := &Event{
-		Peer: mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
-		AFI:  family.AFIIPv4, SAFI: family.SAFIUnicast,
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Peer:               mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		AFI:                family.AFIIPv4, SAFI: family.SAFIUnicast,
 	}
 	// handleRefresh sends routes via SDK (closed pipe in test, no-op),
 	// but we can verify it doesn't panic and the ribOut is unchanged.
 	r.handleRefresh(refreshEvent)
 
 	// ribOut should be unchanged (routes are sent, not removed)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv4Unicast], 1)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")][family.IPv6Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut[1][family.IPv6Unicast], 1)
 }
 
 // TestHandleStateReplayAllFamilies verifies all families are replayed on peer-up.
@@ -2063,7 +2140,8 @@ func TestHandleStateReplayAllFamilies(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut with two families
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -2074,12 +2152,14 @@ func TestHandleStateReplayAllFamilies(t *testing.T) {
 
 	// Peer comes up
 	upEvent := &Event{
-		Peer: mustMarshal(t, map[string]any{"state": "up", "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		PeerOwner:          1,
+		DestinationSession: 11,
+		Peer:               mustMarshal(t, map[string]any{"state": "up", "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 	}
 	r.handleState(upEvent)
 
 	// ribOut should be preserved (routes are replayed, not consumed)
-	assert.Len(t, r.ribOut[netip.MustParseAddr("10.0.0.1")], 2, "both families should still be in ribOut")
+	assert.Len(t, r.ribOut[1], 2, "both families should still be in ribOut")
 }
 
 // TestOutboundResendAllFamilies verifies resend without family sends everything.
@@ -2088,8 +2168,9 @@ func TestHandleStateReplayAllFamilies(t *testing.T) {
 // PREVENTS: Per-family restructuring accidentally losing routes on resend.
 func TestOutboundResendAllFamilies(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.peerUp[1] = true
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -2116,8 +2197,9 @@ func TestOutboundResendAllFamilies(t *testing.T) {
 // PREVENTS: Resending routes from other families.
 func TestOutboundResendSingleFamily(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.peerUp[1] = true
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
@@ -2143,7 +2225,8 @@ func TestOutboundResendSingleFamily(t *testing.T) {
 // PREVENTS: Per-family restructuring breaking route counts.
 func TestStatusJSONMultiFamilyCount(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
@@ -2165,7 +2248,8 @@ func TestStatusJSONMultiFamilyCount(t *testing.T) {
 // PREVENTS: Pipeline missing routes from some families.
 func TestOutboundSourceMultiFamily(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
@@ -2214,14 +2298,16 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers, both up, both with routes in ribOut
-	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
-	r.peerUp[netip.MustParseAddr("10.0.0.2")] = true
-	r.ribOut[netip.MustParseAddr("10.0.0.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), Session: 11}
+	r.peerUp[1] = true
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2"), Session: 11}
+	r.peerUp[2] = true
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.1.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.1.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
-	r.ribOut[netip.MustParseAddr("10.0.0.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[2] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.2.0.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.2.0.0/24", NextHop: "2.2.2.2"},
 		},
@@ -2250,8 +2336,10 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers with routes in ribInPool
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = storage.NewPeerRIB("10.0.0.2")
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = storage.NewPeerRIB("10.0.0.1")
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.bgpPeers[2] = storage.NewPeerRIB("10.0.0.2")
 
 	// Clear only 10.0.0.1
 	status, data, err := r.handleCommand("clear bgp rib in", "*", []string{"10.0.0.1"})
@@ -2260,8 +2348,8 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"cleared"`)
 
 	// 10.0.0.1 should be gone, 10.0.0.2 should remain
-	_, has1 := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
-	_, has2 := r.bgpPeers[netip.MustParseAddr("10.0.0.2")]
+	_, has1 := r.bgpPeers[1]
+	_, has2 := r.bgpPeers[2]
 	assert.False(t, has1, "10.0.0.1 should be cleared")
 	assert.True(t, has2, "10.0.0.2 should remain")
 }
@@ -2274,8 +2362,10 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers with routes
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = storage.NewPeerRIB("10.0.0.2")
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = storage.NewPeerRIB("10.0.0.1")
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.bgpPeers[2] = storage.NewPeerRIB("10.0.0.2")
 
 	// Retain only 10.0.0.1
 	status, data, err := r.handleCommand("request bgp rib retain-routes", "*", []string{"10.0.0.1"})
@@ -2283,8 +2373,8 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"retained-peers":1`)
 
-	assert.True(t, r.retainedPeers[netip.MustParseAddr("10.0.0.1")], "10.0.0.1 should be retained")
-	assert.False(t, r.retainedPeers[netip.MustParseAddr("10.0.0.2")], "10.0.0.2 should NOT be retained")
+	assert.True(t, r.retainedPeers[1], "10.0.0.1 should be retained")
+	assert.False(t, r.retainedPeers[2], "10.0.0.2 should NOT be retained")
 }
 
 // TestReleaseRoutesSelectorFromArgs verifies request bgp rib release-routes extracts selector from args.
@@ -2295,10 +2385,12 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two retained peers
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.2")] = storage.NewPeerRIB("10.0.0.2")
-	r.retainedPeers[netip.MustParseAddr("10.0.0.1")] = true
-	r.retainedPeers[netip.MustParseAddr("10.0.0.2")] = true
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = storage.NewPeerRIB("10.0.0.1")
+	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.2")}
+	r.bgpPeers[2] = storage.NewPeerRIB("10.0.0.2")
+	r.retainedPeers[1] = true
+	r.retainedPeers[2] = true
 
 	// Release only 10.0.0.1
 	status, data, err := r.handleCommand("request bgp rib release-routes", "*", []string{"10.0.0.1"})
@@ -2306,8 +2398,8 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"released-peers":1`)
 
-	assert.False(t, r.retainedPeers[netip.MustParseAddr("10.0.0.1")], "10.0.0.1 should be released")
-	assert.True(t, r.retainedPeers[netip.MustParseAddr("10.0.0.2")], "10.0.0.2 should still be retained")
+	assert.False(t, r.retainedPeers[1], "10.0.0.1 should be released")
+	assert.True(t, r.retainedPeers[2], "10.0.0.2 should still be retained")
 }
 
 // TestOutboundResendNoArgError verifies clear bgp rib out returns error with no args.
@@ -2338,7 +2430,7 @@ func TestInjectRoute_Basic(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"peer":"10.0.0.1"`)
 
 	// Verify route is in RIB.
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.ribInPool[bgpProtocolID]["10.0.0.1"]
 	require.NotNil(t, peerRIB, "PeerRIB should exist after inject")
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
@@ -2362,7 +2454,7 @@ func TestInjectRoute_AllAttributes(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	// Verify route exists and has attributes by looking it up.
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.ribInPool[bgpProtocolID]["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 
 	nlriBytes, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
@@ -2390,8 +2482,7 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"existed":true`)
 
 	// Verify route is gone.
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
-	assert.Equal(t, 0, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
+	assert.Nil(t, r.ribInPool[bgpProtocolID]["10.0.0.1"], "withdraw removes the final manually injected route and its empty peer slot")
 }
 
 // TestInjectRoute_VisibleInShow verifies injected routes appear in bgp rib show.
@@ -2479,7 +2570,7 @@ func TestInjectRoute_IPv6(t *testing.T) {
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"injected":"2001:db8::/32"`)
 
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.ribInPool[bgpProtocolID]["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 2, SAFI: 1}))
 }
@@ -2517,7 +2608,7 @@ func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should still be exactly 1 route (implicit withdraw replaced the old one).
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.ribInPool[bgpProtocolID]["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
@@ -2557,7 +2648,7 @@ func TestInjectRoute_IPv6NhopRealPeerNoCapability(t *testing.T) {
 
 	// Simulate a real peer with metadata but no ExtendedNextHop capability.
 	// ContextID 0 means no encoding context (JSON event path, no structured event).
-	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &peerMetadata{PeerASN: 65000, LocalASN: 65001, ContextID: 0}
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), PeerASN: 65000, LocalASN: 65001, ContextID: 0}
 
 	// ContextID 0 = no capability info, should accept with warning.
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
@@ -2576,7 +2667,7 @@ func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
 	ctx := bgpctx.NewEncodingContext(nil, nil, bgpctx.DirectionRecv)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &peerMetadata{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1"), PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
 
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "2001:db8::1",
@@ -2639,7 +2730,7 @@ func TestInjectRoute_IPv4Multicast(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
-	peerRIB := r.bgpPeers[netip.MustParseAddr("10.0.0.1")]
+	peerRIB := r.ribInPool[bgpProtocolID]["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 2}))
 }
@@ -2671,7 +2762,7 @@ func TestInjectRoute_NoAttributes(t *testing.T) {
 
 	nlriBytes, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	entry, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	entry, found := r.ribInPool[bgpProtocolID]["10.0.0.1"].Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
 	require.True(t, found)
 	require.NotNil(t, entry)
 }
@@ -2787,14 +2878,15 @@ func TestParseASNList(t *testing.T) {
 	}
 }
 
-// TestBGPRouteStoredInProtocolSlot verifies that BGP routes land in the
-// netip.Addr-keyed bgpPeers map and never in a string-keyed ribInPool
-// protocol namespace (those hold non-BGP composite keys, e.g. BMP).
+// TestBGPRouteStoredInProtocolSlot verifies that received BGP routes land in
+// the configured-owner-keyed bgpPeers map. Receiving a peer update does not
+// create a synthetic manual-input slot or a monitor protocol namespace.
 func TestBGPRouteStoredInProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 
 	event := &Event{
+		PeerOwner:     1,
 		Message:       &MessageInfo{Type: rpc.EventKindUpdate},
 		Peer:          mustMarshal(t, map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
 		RawAttributes: "40010100",
@@ -2805,24 +2897,25 @@ func TestBGPRouteStoredInProtocolSlot(t *testing.T) {
 	}
 	r.handleReceived(event)
 
-	require.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")])
-	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
+	require.NotNil(t, r.bgpPeers[1])
+	assert.Equal(t, 1, r.bgpPeers[1].Len())
 
-	// Verify no BGP namespace appears in ribInPool: BGP storage is bgpPeers
-	// only, so protocol-injection paths cannot shadow it.
+	// This received-only setup creates no manual BGP protocol slot; received
+	// peer storage and synthetic manual input remain independent.
 	assert.Nil(t, r.ribInPool[bgpProtocolID], "ribInPool must not grow a bgp namespace")
 }
 
-// TestGatherCandidatesOnlyBGP verifies gatherCandidatesLocked iterates
-// only the BGP protocol slot, ignoring other protocol slots.
+// TestGatherCandidatesOnlyBGP verifies gatherCandidatesLocked includes the
+// received BGP source while ignoring unrelated monitor protocol slots.
 func TestGatherCandidatesOnlyBGP(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 	nlri := []byte{24, 10, 0, 0}
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, nlri)
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers[1].Insert(ipv4Uni, attrBytes, nlri)
 
 	monitorID := redistevents.RegisterProtocol("test-monitor")
 	monitorPeers := make(map[string]*storage.PeerRIB)
@@ -2846,8 +2939,9 @@ func TestShowIteratesAllProtocols(t *testing.T) {
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("10.0.0.1")}
+	r.bgpPeers[1] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers[1].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
 
 	monitorID := redistevents.RegisterProtocol("test-show-monitor")
 	monitorPeers := make(map[string]*storage.PeerRIB)

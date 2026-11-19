@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"net/netip"
 	"strings"
 	"testing"
@@ -99,7 +100,7 @@ func TestRedistributedGatewayUsesDestinationNextHopPolicy(t *testing.T) {
 					peer := NewPeer(settings)
 					peer.session, _ = newConnectedLocalSession(t, settings, "127.0.0.1")
 					boundary := &redistributionNextHopBoundary{t: t, peer: peer, queued: queued}
-					bgpredist.NewBGPConsumer(boundary).InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{
+					bgpredist.NewBGPConsumer(boundary).InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{Protocol: redistevents.RegisterProtocol("ospf"),
 						Prefix: "10.0.0.9/32", NextHop: tc.gateway, Source: "ospf",
 					})
 					require.Equal(t, 1, boundary.count, "the route must reach the announcement resolver")

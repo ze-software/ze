@@ -14,33 +14,67 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+const (
+	advertiseCaptureOwner            uint64 = 701
+	advertiseCaptureAlternativeOwner uint64 = 702
+)
+
 // advertiseCaptureRIB retains real received storage and resolves its next hop
 // through the election's normal forwarding table. Each test owns its manager.
 func advertiseCaptureRIB(t *testing.T) (*RIBManager, netip.Addr) {
 	t.Helper()
-	r := newTestRIBManager(t)
+	r, calls := sourceLeaseTestRIB(t, true)
+	// These are the original fixture actors and issuing sessions. The SDK
+	// boundary refuses an unissued receipt or a receipt rebound to another owner.
+	calls.mu.Lock()
+	calls.issued = map[uint64]uint64{
+		701: advertiseCaptureOwner,
+		702: advertiseCaptureAlternativeOwner,
+		99:  advertiseCaptureOwner,
+		100: advertiseCaptureOwner,
+	}
+	calls.mu.Unlock()
 	peer := netip.MustParseAddr("192.0.2.71")
 	electionFixtureLocRIB(t, r, peer)
-	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.peerUp[peer] = true
-	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
-	t.Cleanup(func() {
-		for _, routes := range r.bgpPeers {
-			routes.Release()
-		}
-	})
+	r.peerMeta[advertiseCaptureOwner] = &peerMetadata{Address: peer, PeerASN: 65001, LocalASN: 65000}
+	r.peerUp[advertiseCaptureOwner] = true
+	var err error
+	r.bgpPeers[advertiseCaptureOwner], err = storage.NewAddressPeerRIB(peer)
+	require.NoError(t, err)
 	return r, peer
 }
 
 // advertiseCapturePath installs the message/epoch on the exact retained entry.
 // The snapshot MUST read this entry, never the source's current session epoch.
-func advertiseCapturePath(r *RIBManager, peer netip.Addr, fam family.Family, raw, attrs []byte, message, epoch uint64) {
-	routes := r.bgpPeers[peer]
+func advertiseCapturePath(t *testing.T, r *RIBManager, owner uint64, fam family.Family, raw, attrs []byte, message, epoch uint64) {
+	t.Helper()
+	routes := r.bgpPeers[owner]
+	require.NotNil(t, routes)
 	routes.Insert(fam, attrs, raw)
-	routes.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
+	require.True(t, routes.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
 		entry.MsgID = message
 		entry.SourcePolicyEpoch = epoch
-	})
+	}))
+	advertiseCaptureReceipt(t, r, owner, fam, raw, owner, 41)
+}
+
+// advertiseCaptureReceipt replaces the issuing Session on an existing path.
+// The caller MUST supply its original physical connection. This helper MUST
+// acquire through the SDK before storing the reference; metadata supplies only
+// the observed address, never an owner, connection or receipt.
+func advertiseCaptureReceipt(t *testing.T, r *RIBManager, owner uint64, fam family.Family, raw []byte, receipt, connectionID uint64) {
+	t.Helper()
+	meta, observed := r.peerMeta[owner]
+	require.True(t, observed)
+	require.NotNil(t, meta)
+	ref, err := r.sourceLeases.acquire(t.Context(), meta.Address, owner, receipt, connectionID)
+	require.NoError(t, err)
+	require.NotNil(t, ref)
+	defer ref.Release()
+	require.True(t, r.bgpPeers[owner].ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
+		entry.SetSourceReference(ref)
+		entry.SourceReceipt = receipt
+	}))
 }
 
 // TestAdvertiseCaptureOwnsElectedRevision holds an old captured winner across
@@ -50,7 +84,7 @@ func TestAdvertiseCaptureOwnsElectedRevision(t *testing.T) {
 	fam := family.IPv4Unicast
 	raw := ipv4Prefix(24, 198, 18, 71)
 	attrs := unicastAttrs(peer.As4(), 30, 100)
-	advertiseCapturePath(r, peer, fam, raw, attrs, 71, 701)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, attrs, 71, 701)
 	_, changed := r.checkBestPathChange(fam, raw, false, nil)
 	require.True(t, changed, "the ordinary election must choose a useful winner first")
 	first, err := r.advertiseSnapshot()
@@ -68,7 +102,7 @@ func TestAdvertiseCaptureOwnsElectedRevision(t *testing.T) {
 	saved := bytes.Clone(first[0].route.Attributes)
 
 	attrs[3] = 2
-	advertiseCapturePath(r, peer, fam, raw, attrs, 72, 702)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, attrs, 72, 702)
 	_, changed = r.checkBestPathChange(fam, raw, false, nil)
 	require.True(t, changed)
 	second, err := r.advertiseSnapshot()
@@ -89,7 +123,7 @@ func TestAdvertiseCaptureUnchangedWinnerKeepsRevision(t *testing.T) {
 	fam := family.IPv4Unicast
 	raw := ipv4Prefix(24, 198, 18, 72)
 	attrs := unicastAttrs(peer.As4(), 30, 200)
-	advertiseCapturePath(r, peer, fam, raw, attrs, 80, 801)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, attrs, 80, 801)
 	_, changed := r.checkBestPathChange(fam, raw, false, nil)
 	require.True(t, changed)
 	first, err := r.advertiseSnapshot()
@@ -98,17 +132,18 @@ func TestAdvertiseCaptureUnchangedWinnerKeepsRevision(t *testing.T) {
 
 	_, changed = r.checkBestPathChange(fam, raw, false, nil)
 	require.False(t, changed)
-	advertiseCapturePath(r, peer, fam, raw, attrs, 82, 801)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, attrs, 82, 801)
 	_, changed = r.checkBestPathChange(fam, raw, false, nil)
 	require.False(t, changed, "identical route receipt does not change the selected route")
 	loser := netip.MustParseAddr("192.0.2.72")
 	electionFixtureLocRIB(t, r, peer, loser)
-	r.peerMeta[loser] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[loser] = storage.NewPeerRIB(loser.String())
-	advertiseCapturePath(r, loser, fam, raw, unicastAttrs(loser.As4(), 30, 100), 81, 802)
+	r.peerMeta[advertiseCaptureAlternativeOwner] = &peerMetadata{Address: loser, PeerASN: 65001, LocalASN: 65000}
+	r.bgpPeers[advertiseCaptureAlternativeOwner], err = storage.NewAddressPeerRIB(loser)
+	require.NoError(t, err)
+	advertiseCapturePath(t, r, advertiseCaptureAlternativeOwner, fam, raw, unicastAttrs(loser.As4(), 30, 100), 81, 802)
 	_, changed = r.checkBestPathChange(fam, raw, false, nil)
 	require.False(t, changed, "a lower LOCAL_PREF path cannot nominate a selected advertisement")
-	r.bgpPeers[loser].Remove(fam, raw)
+	r.bgpPeers[advertiseCaptureAlternativeOwner].Remove(fam, raw)
 	_, changed = r.checkBestPathChange(fam, raw, false, nil)
 	require.False(t, changed)
 	current, err := r.advertiseSnapshot()
@@ -122,13 +157,13 @@ func TestAdvertiseCaptureEpochChangeRefreshesSnapshot(t *testing.T) {
 	r, peer := advertiseCaptureRIB(t)
 	fam := family.IPv4Unicast
 	raw := ipv4Prefix(24, 198, 18, 73)
-	advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 30, 100), 90, 901)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 30, 100), 90, 901)
 	_, changed := r.checkBestPathChange(fam, raw, false, nil)
 	require.True(t, changed)
 	first, err := r.advertiseSnapshot()
 	require.NoError(t, err)
 	require.Len(t, first, 1)
-	r.bgpPeers[peer].ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
+	r.bgpPeers[advertiseCaptureOwner].ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) {
 		entry.SourcePolicyEpoch = 902
 	})
 	r.checkBestPathChange(fam, raw, false, nil)
@@ -147,7 +182,7 @@ func TestAdvertiseCaptureStaleChangeRefreshesSnapshot(t *testing.T) {
 	r, peer := advertiseCaptureRIB(t)
 	fam := family.IPv4Unicast
 	raw := ipv4Prefix(24, 198, 18, 74)
-	advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 30, 100), 100, 1001)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 30, 100), 100, 1001)
 	_, changed := r.checkBestPathChange(fam, raw, false, nil)
 	require.True(t, changed)
 	first, err := r.advertiseSnapshot()
@@ -171,7 +206,7 @@ func TestAdvertiseCaptureNativePathZeroKeepsIndependentKeys(t *testing.T) {
 	for _, tc := range opaqueFamilyCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			r, peer := advertiseCaptureRIB(t)
-			routes := r.bgpPeers[peer]
+			routes := r.bgpPeers[advertiseCaptureOwner]
 			routes.SetAddPath(tc.fam, true)
 			other := bytes.Clone(tc.key)
 			if tc.fam == vpnv4Family {
@@ -180,8 +215,8 @@ func TestAdvertiseCaptureNativePathZeroKeepsIndependentKeys(t *testing.T) {
 				other[9] = 2 // The independent EVPN route has another RD.
 			}
 			zero := framedKey(0, tc.key)
-			advertiseCapturePath(r, peer, tc.fam, zero, unicastAttrs(peer.As4(), 30, 100), 110, 1101)
-			advertiseCapturePath(r, peer, tc.fam, framedKey(0, other), unicastAttrs(peer.As4(), 30, 100), 111, 1101)
+			advertiseCapturePath(t, r, advertiseCaptureOwner, tc.fam, zero, unicastAttrs(peer.As4(), 30, 100), 110, 1101)
+			advertiseCapturePath(t, r, advertiseCaptureOwner, tc.fam, framedKey(0, other), unicastAttrs(peer.As4(), 30, 100), 111, 1101)
 			r.checkBestPathChange(tc.fam, zero, true, nil)
 			r.checkBestPathChange(tc.fam, framedKey(0, other), true, nil)
 			first, err := r.advertiseSnapshot()
@@ -193,7 +228,7 @@ func TestAdvertiseCaptureNativePathZeroKeepsIndependentKeys(t *testing.T) {
 				require.Equal(t, selected.route.NLRI[4:], selected.keyNLRI)
 			}
 			replacement := framedKey(9, tc.key)
-			advertiseCapturePath(r, peer, tc.fam, replacement, unicastAttrs(peer.As4(), 30, 200), 112, 1102)
+			advertiseCapturePath(t, r, advertiseCaptureOwner, tc.fam, replacement, unicastAttrs(peer.As4(), 30, 200), 112, 1102)
 			r.checkBestPathChange(tc.fam, replacement, true, nil)
 			current, err := r.advertiseSnapshot()
 			require.NoError(t, err)
@@ -226,7 +261,7 @@ func TestAdvertiseCaptureAbsenceReleasesUnsentKeys(t *testing.T) {
 	var firstRevision uint64
 	for key := range byte(64) {
 		raw := ipv4Prefix(24, 198, 19, key)
-		advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 30, 100), uint64(key)+1, 1201)
+		advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 30, 100), uint64(key)+1, 1201)
 		r.checkBestPathChange(fam, raw, false, nil)
 		selected, err := r.advertiseSnapshot()
 		require.NoError(t, err)
@@ -234,7 +269,7 @@ func TestAdvertiseCaptureAbsenceReleasesUnsentKeys(t *testing.T) {
 		if key == 0 {
 			firstRevision = selected[0].revision
 		}
-		r.bgpPeers[peer].Remove(fam, raw)
+		r.bgpPeers[advertiseCaptureOwner].Remove(fam, raw)
 		_, changed := r.checkBestPathChange(fam, raw, false, nil)
 		require.True(t, changed, "an elected route's absence is a useful retirement change")
 		selected, err = r.advertiseSnapshot()
@@ -246,7 +281,7 @@ func TestAdvertiseCaptureAbsenceReleasesUnsentKeys(t *testing.T) {
 		require.Zero(t, retained, "never-admitted withdrawn keys leave no tombstones")
 	}
 	raw := ipv4Prefix(24, 198, 19, 0)
-	advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 30, 100), 200, 1202)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 30, 100), 200, 1202)
 	r.checkBestPathChange(fam, raw, false, nil)
 	selected, err := r.advertiseSnapshot()
 	require.NoError(t, err)
@@ -262,13 +297,13 @@ func TestAdvertiseCaptureRevisionExhaustionFailsClosed(t *testing.T) {
 	fam := family.IPv4Unicast
 	raw := ipv4Prefix(24, 198, 18, 75)
 	r.advertise.revision = math.MaxUint64 - 1
-	advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 30, 100), 210, 2101)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 30, 100), 210, 2101)
 	r.checkBestPathChange(fam, raw, false, nil)
 	last, err := r.advertiseSnapshot()
 	require.NoError(t, err)
 	require.Len(t, last, 1)
 	require.Equal(t, uint64(math.MaxUint64), last[0].revision)
-	advertiseCapturePath(r, peer, fam, raw, unicastAttrs(peer.As4(), 20, 100), 211, 2102)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, raw, unicastAttrs(peer.As4(), 20, 100), 211, 2102)
 	r.checkBestPathChange(fam, raw, false, nil)
 	_, err = r.advertiseSnapshot()
 	require.ErrorContains(t, err, "revision exhausted")
@@ -281,10 +316,10 @@ func TestAdvertiseCaptureRevisionExhaustionFailsClosed(t *testing.T) {
 func TestAdvertiseCaptureFlowSpecUsesAuthorizedWinner(t *testing.T) {
 	r, peer := advertiseCaptureRIB(t)
 	originator := netip.MustParseAddr("1.1.1.1")
-	flowValidationReceive(t, r, peer, 65001, 220, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, advertiseCaptureOwner, peer, 65001, 220, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(flowValidationPath(2, 65001), originator, 0, nil), false)
 	raw := flowspecNLRI(24, 10, 77, 0)
-	flowValidationReceive(t, r, peer, 65001, 221, flowspecFamily, raw,
+	flowValidationReceive(t, r, advertiseCaptureOwner, peer, 65001, 221, flowspecFamily, raw,
 		flowValidationAttrs(flowValidationPath(2, 65001), originator, 30, nil), false)
 	first, err := r.advertiseSnapshot()
 	require.NoError(t, err)
@@ -304,7 +339,7 @@ func TestAdvertiseCaptureFlowSpecUsesAuthorizedWinner(t *testing.T) {
 		require.Equal(t, uint64(221), selected.route.MessageID)
 	}
 	require.True(t, captured, "FlowSpec's independent winner producer must feed selected capture")
-	flowValidationReceive(t, r, peer, 65001, 222, flowspecFamily, raw,
+	flowValidationReceive(t, r, advertiseCaptureOwner, peer, 65001, 222, flowspecFamily, raw,
 		flowValidationAttrs(flowValidationPath(2, 65001), originator, 20, nil), false)
 	current, err := r.advertiseSnapshot()
 	require.NoError(t, err)

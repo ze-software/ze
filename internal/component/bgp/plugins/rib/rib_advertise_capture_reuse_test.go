@@ -23,9 +23,9 @@ func TestAdvertiseCaptureLabelSlotReuseChangesRevision(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
 	prefix := netip.MustParsePrefix("198.18.76.0/24")
 	cidr := ipv4Prefix(24, 198, 18, 76)
-	routes := r.bgpPeers[peer]
+	routes := r.bgpPeers[advertiseCaptureOwner]
 	attrs := unicastAttrs(peer.As4(), 30, 100)
-	routes.Insert(fam, attrs, cidr)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, cidr, attrs, 0, 0)
 	const oldLabel uint32 = 900001
 	old := pool.InternLabels([]uint32{oldLabel})
 	require.True(t, old.IsValid())
@@ -60,7 +60,7 @@ func TestAdvertiseCaptureLabelSlotReuseChangesRevision(t *testing.T) {
 			require.NoError(t, pool.Labels.Release(replacement))
 		}
 	})
-	routes.Insert(fam, attrs, cidr)
+	advertiseCapturePath(t, r, advertiseCaptureOwner, fam, cidr, attrs, 0, 0)
 	require.True(t, routes.SetLabelsIfRouteExists(fam, cidr, replacement))
 	transferred = true
 	_, changed = r.checkBestPathChange(fam, cidr, false, nil)

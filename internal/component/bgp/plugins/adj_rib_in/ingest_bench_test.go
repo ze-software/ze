@@ -102,7 +102,7 @@ func benchIngest(b *testing.B, body []byte) {
 	source := netip.MustParseAddr("192.0.2.1")
 	se := benchEvent(b, source, body)
 	r.handleReceivedStructured(se)
-	if got := r.ribIn[source].Len(); got != benchRoutes {
+	if got := r.ribIn[receivedPeer{address: source}].Len(); got != benchRoutes {
 		b.Fatalf("stored %d routes, want %d", got, benchRoutes)
 	}
 	b.ReportAllocs()
@@ -132,7 +132,7 @@ func BenchmarkAnnounceWithdrawVPN800(b *testing.B) {
 	withdraw := benchEvent(b, source, mpWithdraw(ipv4VPN, vpnWithdrawn()...))
 	r.handleReceivedStructured(announce)
 	r.handleReceivedStructured(withdraw)
-	if got := r.ribIn[source].Len(); got != 0 {
+	if got := r.ribIn[receivedPeer{address: source}].Len(); got != 0 {
 		b.Fatalf("%d routes left after the withdrawal, want 0", got)
 	}
 	b.ReportAllocs()

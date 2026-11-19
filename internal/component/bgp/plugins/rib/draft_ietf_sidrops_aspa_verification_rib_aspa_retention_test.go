@@ -24,6 +24,35 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// The original source is the same fixture owner and physical connection used
+// by flowValidationReceive. Its receipt is issued by the SDK lease fixture.
+const validationSourceOwner uint64 = 1
+const validationSourceConnection uint64 = 41
+const validationSourceReceipt uint64 = 1
+const validationSourceSession uint64 = 1
+
+// validationSourceState describes that original physical actor. Attached UP
+// records its receive lifetime without requesting a destination replay.
+func validationSourceState(state rpc.SessionState) *rpc.StructuredEvent {
+	return &rpc.StructuredEvent{
+		EventType: rpc.EventKindState, State: state, PeerAddress: "192.0.2.1",
+		PeerOwner: validationSourceOwner, ConnectionID: validationSourceConnection,
+		DestinationSession: validationSourceSession, Reason: rpc.ReasonAttached,
+		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+	}
+}
+
+// validationSourceRIB acquires each received path's source through the existing
+// SDK boundary. The fixed issuer refuses a receipt from any other owner.
+func validationSourceRIB(t *testing.T, bus *testEventBus) *RIBManager {
+	t.Helper()
+	SetEventBus(bus)
+	r, leases := sourceLeaseTestRIBWithForwarding(t, true, false)
+	leases.issued = map[uint64]uint64{validationSourceReceipt: validationSourceOwner}
+	r.handleStructuredState(validationSourceState(rpc.SessionStateUp))
+	return r
+}
+
 // startValidationReceiver runs the actual registered Adj-RIB-In plugin and its
 // startup handshake. Tests feed its public bridge, never its private route map.
 func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge, context.Context) {
@@ -111,6 +140,9 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 	if _, err := bridge.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, ""); err != nil {
 		t.Fatal(err)
 	}
+	if err := bridge.DeliverStructured([]any{validationSourceState(rpc.SessionStateUp)}); err != nil {
+		t.Fatal(err)
+	}
 	return bridge, ctx
 }
 
@@ -125,13 +157,18 @@ func validationReceive(t *testing.T, bridge *rpc.DirectBridge, r *RIBManager, ms
 		t.Fatal(err)
 	}
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(validationSourceOwner)
+	wu.SetSourceReceipt(validationSourceReceipt)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
 		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
-		RawMessage: &bgptypes.RawMessage{MessageID: msgID, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
+		PeerOwner: validationSourceOwner, ConnectionID: validationSourceConnection,
+		SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5,
+		MessageID:  msgID,
+		RawMessage: &bgptypes.RawMessage{MessageID: msgID, SourceOwner: validationSourceOwner, SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}
 	// Deliberately let the selecting RIB receive first: it must consult the
 	// other plugin's gate rather than assuming plugin delivery order.
@@ -146,7 +183,7 @@ func validationDecision(t *testing.T, bridge *rpc.DirectBridge, ctx context.Cont
 	t.Helper()
 	if text {
 		_, err := bridge.ExecuteCommand(ctx, "decision", "request bgp adj-rib-in batch-validate",
-			[]string{action, "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", strconv.FormatUint(msgID, 10)}, "")
+			[]string{action, "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", strconv.FormatUint(msgID, 10), strconv.FormatUint(validationSourceOwner, 10), strconv.FormatUint(validationSourceConnection, 10)}, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -159,6 +196,7 @@ func validationDecision(t *testing.T, bridge *rpc.DirectBridge, ctx context.Cont
 	if _, err := validator([]rpc.ValidationDecision{{
 		Accept: action == "a", Ineligible: action == "i", PeerAddr: "192.0.2.1",
 		Family: "ipv4/unicast", Prefix: "203.0.113.0/24", ValState: 1, MsgID: msgID,
+		PeerOwner: validationSourceOwner, ConnectionID: validationSourceConnection,
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +251,7 @@ func TestASPARetentionReceiveRecovery(t *testing.T) {
 		for _, arrival := range []string{"early", "pending", "installed"} {
 			t.Run(strconv.FormatBool(text)+"/"+arrival, func(t *testing.T) {
 				bus := newTestEventBus()
-				r := newTestRIBManagerWithBus(bus)
+				r := validationSourceRIB(t, bus)
 				loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 				unsubscribe := ribevents.ValidationChange.Subscribe(bus, r.validationChanged)
 				t.Cleanup(unsubscribe)
@@ -259,7 +297,7 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 	for _, removal := range []string{"withdraw", "session", "origin-reject"} {
 		t.Run(removal, func(t *testing.T) {
 			bus := newTestEventBus()
-			r := newTestRIBManagerWithBus(bus)
+			r := validationSourceRIB(t, bus)
 			loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"), netip.MustParseAddr("192.0.2.10"))
 			t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 			bridge, ctx := startValidationReceiver(t, bus)
@@ -283,10 +321,11 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 					t.Fatalf("raw message is %T", event.RawMessage)
 				}
 				wu := wireu.NewWireUpdate(body, msg.WireUpdate.SourceCtxID())
-				event.RawMessage = &bgptypes.RawMessage{MessageID: 12, RawBytes: body, WireUpdate: wu}
+				event.RawMessage = &bgptypes.RawMessage{MessageID: 12, SourceOwner: validationSourceOwner, SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5, RawBytes: body, WireUpdate: wu}
 				r.handleReceivedStructured(event)
 			case "session":
-				event = &rpc.StructuredEvent{EventType: rpc.EventKindState, State: rpc.SessionStateDown, PeerAddress: "192.0.2.1"}
+				event = validationSourceState(rpc.SessionStateDown)
+				event.Reason = rpc.ReasonTCPFailure
 				r.handleStructuredState(event)
 			case "origin-reject":
 				validationDecision(t, bridge, ctx, true, "r", 11)
@@ -309,7 +348,7 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 // leaves the selecting RIB dark when it consumes an UPDATE before Adj-RIB-In.
 func TestDisabledRPKISelectionFirstReceiveBecomesSelectable(t *testing.T) {
 	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
+	r := validationSourceRIB(t, bus)
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 	bridge, ctx := startValidationReceiver(t, bus)
@@ -320,14 +359,18 @@ func TestDisabledRPKISelectionFirstReceiveBecomesSelectable(t *testing.T) {
 	body := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0,
 		0x40, 3, 4, 192, 0, 2, 9, 24, 203, 0, 113}
 	wu := wireu.NewWireUpdate(body, bgpctx.APIContextID)
+	wu.SetSourceOwner(validationSourceOwner)
+	wu.SetSourceReceipt(validationSourceReceipt)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
 		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+		PeerOwner: validationSourceOwner, ConnectionID: validationSourceConnection,
+		SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5,
 		MessageID:  10,
-		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
+		RawMessage: &bgptypes.RawMessage{MessageID: 10, SourceOwner: validationSourceOwner, SourceReceipt: validationSourceReceipt, SourcePolicyEpoch: 5, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}
 	// The receiver's generation fence must initially exclude the path. This
 	// assertion prevents an always-eligible gate from satisfying the test.

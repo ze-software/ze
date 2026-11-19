@@ -192,10 +192,12 @@ func TestRFC4271WholeSetMEDRIBBestChange(t *testing.T) {
 		r := newTestRIBManagerWithBus(bus)
 		electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.3"), netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("192.0.2.1"))
 		c := wholeSetMEDCandidates()
+		// Stable fixture actors are distinct from their next-hop addresses.
+		owners := [3]uint64{31, 32, 33}
 		prefix := []byte{24, 203, 0, 113}
 		for _, i := range order {
 			// RFC 4271 Section 9.1.2.2: actual received attributes feed extraction.
-			wholeSetMEDReceive(t, r, &c[i], false)
+			wholeSetMEDReceive(t, r, owners[i], &c[i], false)
 		}
 		assertWholeSetMEDLocRIB(t, r, c[1].PeerIP)
 		// An unchanged election must not publish a spurious best-change.
@@ -203,11 +205,11 @@ func TestRFC4271WholeSetMEDRIBBestChange(t *testing.T) {
 			t.Fatalf("order %v: unchanged whole-set winner republished", order)
 		}
 		before := bus.eventCount()
-		wholeSetMEDReceive(t, r, &c[0], true)
+		wholeSetMEDReceive(t, r, owners[0], &c[0], true)
 		assertWholeSetMEDLocRIB(t, r, c[2].PeerIP)
 		assertWholeSetMEDChange(t, bus, before, c[2].PeerIP)
 		before = bus.eventCount()
-		wholeSetMEDReceive(t, r, &c[0], false)
+		wholeSetMEDReceive(t, r, owners[0], &c[0], false)
 		assertWholeSetMEDLocRIB(t, r, c[1].PeerIP)
 		assertWholeSetMEDChange(t, bus, before, c[1].PeerIP)
 	}
@@ -234,8 +236,9 @@ func assertWholeSetMEDChange(t *testing.T, bus *testEventBus, before int, nextHo
 }
 
 // wholeSetMEDReceive sends literal RFC 4271 Section 4.3 UPDATE fields through
-// the production receive entry point. The three paths have distinct next hops.
-func wholeSetMEDReceive(t *testing.T, r *RIBManager, c *Candidate, withdraw bool) {
+// the production receive entry point. The caller MUST preserve each original
+// fixture owner across its announces and withdrawal; addresses are next hops.
+func wholeSetMEDReceive(t *testing.T, r *RIBManager, owner uint64, c *Candidate, withdraw bool) {
 	t.Helper()
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	if err != nil {
@@ -255,17 +258,18 @@ func wholeSetMEDReceive(t *testing.T, r *RIBManager, c *Candidate, withdraw bool
 		body = []byte{0, 4, 24, 203, 0, 113, 0, 0}
 	}
 	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetSourceOwner(owner)
 	attrs, err := wu.Attrs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	// RFC 4271 Section 9.1.2.2: selection follows the received UPDATE.
 	r.handleReceivedStructured(&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: c.PeerAddr,
+		EventType: rpc.EventKindUpdate, PeerAddress: c.PeerAddr, PeerOwner: owner, ConnectionID: 41,
 		PeerAS: rpc.RemoteASOf(c.PeerASN), LocalAS: c.LocalASN,
 		RemoteRouterID: identifierFor(t, c.OriginatorIP.String()),
 		RawMessage: &types.RawMessage{
-			Type: msgtype.TypeUPDATE, RawBytes: body, WireUpdate: wu, AttrsWire: attrs,
+			Type: msgtype.TypeUPDATE, SourceOwner: owner, RawBytes: body, WireUpdate: wu, AttrsWire: attrs,
 		},
 	})
 }

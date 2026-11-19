@@ -115,7 +115,7 @@ func TestRawOpaqueInjectionFlushesBeforeRetirement(t *testing.T) {
 			peer, conn := rawOwnershipPeer(t)
 			s := peer.session
 			var receipts int
-			s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+			s.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 				receipts++
 				return false
 			}
@@ -167,7 +167,7 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 				t.Fatal(err)
 			}
 			var localReceipts int
-			peer.session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, receipt *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+			peer.session.onMessageReceived = func(_ *Session, _ netip.Addr, _ msgtype.MessageType, _ []byte, receipt *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 				localReceipts++
 				if receipt == nil {
 					t.Error("raw advertisement has no sent receipt")
