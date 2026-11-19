@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-1-interactive-prototype.md, spec-fleet-1-device-registry.md |
+| Depends | spec-fleet-1-device-registry.md |
 | Phase | 2/6 |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -152,6 +152,19 @@ Opened by the eye control; the row is named in the URL as `id`.
 | One grammar for every table | The alarms, tasks and audit tables use the same forms with their own fields |
 | Label edits are configuration edits | Labels live in the hub's configuration (`fleet-1`), so a bulk label edit goes through the editor and commit like any other change, and is reviewable before it applies |
 | Saved filters are per user | Stored in the hub's state store under the user's name; they are a personal convenience, not configuration |
+
+### Carried from the prototype
+
+The prototype (`spec-fleet-ui-1-interactive-prototype`, closed 2026-11-19,
+approved by the owner as built) left these to this spec. The package, the
+seam and the sample build are described in `docs/architecture/fleet-interface.md`.
+
+| Item | What the prototype does | What this spec owes |
+|------|-------------------------|---------------------|
+| Fleet as a web mode | Fleet is reached at `/fleet/` and through its portal entry only | Make Fleet a selectable web mode in the existing shells' mode switch, with their markup and fixtures |
+| The real enabling condition | The fleet routes mount only when a data source is registered, and the only source is the sample one, which no shipped build links (`sourceRegistered` in `internal/component/web/fleetui/register.go`) | Register the real source, built over the command dispatcher, and mount the routes when the daemon serves managed devices |
+| Sign out | The account menu holds the theme switch and the link to the other web modes. The web server has no sign-out route in any mode | Add the sign-out entry the umbrella's header row names, over a sign-out route of the web package's session handling |
+| Side panel and a later sort | Opening a row asks for the side panel fragment alone, so the table's sort and page links keep the address they were drawn with, and following one closes the panel (`PanelLink` paragraph of `docs/architecture/fleet-interface.md`). Approved as built | Decide with the owner whether a sort keeps the open row, when the table becomes functional |
 
 ### Data this spec reads
 

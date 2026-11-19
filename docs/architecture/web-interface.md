@@ -125,7 +125,9 @@ as it answers any address no route owns.
 
 The routes, the addresses under them and their package are described in
 `fleet-interface.md`.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildActionHandler, buildAuditExportHandler -->
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered -->
+<!-- source: internal/component/web/fleetui/handler_action.go -- newActionHandler -->
+<!-- source: internal/component/web/fleetui/handler_audit.go -- newAuditExportHandler -->
 <!-- source: internal/component/web/fleetui/register_device_pages.go -- consolePattern -->
 
 ## Offline backup workspace

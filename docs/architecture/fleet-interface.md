@@ -459,7 +459,7 @@ for that card alone, and every other card renders.
 <!-- source: internal/component/web/fleetui/handler_dashboard.go -- dashboardCard, mustRegisterDashboardCard, dashboardContent, dashboardView, renderDashboardCard, dashboardOfflineSlot, dashboardCardFragment -->
 <!-- source: internal/component/web/fleetui/handler_chart.go -- dashboardCharts, dashboardChartBudget, chartAnswer -->
 <!-- source: internal/component/web/fleetui/handler_dashboard_cards.go -- busiestCardView, alarmsCardView -->
-<!-- source: internal/component/web/fleetui/links_test.go -- TestDashboardLinkCountsEqualTargetRows -->
+<!-- source: internal/component/web/fleetui/links_test.go -- TestDashboardPeerLinksCountTheirRows, TestDashboardInterfaceLinksCountTheirRows, TestDashboardAlarmLinksCountTheirRows, TestDashboardPausedRolloutLinkCountsItsRows -->
 
 ### The devices table
 

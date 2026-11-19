@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
@@ -220,7 +220,7 @@ verb, no command and no stored format.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | confirmed: by the parser read (`TemplateFileParser.Parse` keeps every line before `package` in `Header`, `generator.writeHeader` writes them before the package clause) and by a generation run. Not load-bearing: the phase 1 finding below needs no build line in the package |
-| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | `test/web/fleet-shell-preferences.wb`: the End key on the handle, then the root element's `style` read by the `attribute` expectation, which holds the custom property only on the object-model path | unvalidated until that test runs: the script is written both ways (phase 3 findings). A green run confirms the custom property path under the content security policy; a red on the `style` read with `aria-valuenow` at 28 shows the fallback. The drag itself stays the owner's browser check |
+| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | `test/web/fleet-shell-preferences.wb`: the End key on the handle, then the root element's `style` read by the `attribute` expectation, which holds the custom property only on the object-model path | confirmed: `test/web/fleet-shell-preferences.wb` ran green in the seven-case fleet browser run on the final code, so the `style` read found the custom property set through the object model under the content security policy. The drag itself was the owner's browser check, and he approved the prototype as built |
 | A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | broken as worded, fallback taken. The generator derives a compound constraint only for a package it discovers (`discoverPlugins` over `pluginDirs`), and it does not discover this one, so nothing is derived. The fallback is lighter than stated: `sameFeatureImporter` exempts every file under the web package's directory, so the compound line is written by hand in the two hub import files only. The wrong assumption read the BGP precedent as general |
 | A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | confirmed: by reading (`startWebServer` sets `authWrap = zeweb.InsecureMiddleware`, and the route loop wraps `WrapAuth` with it) and by a browser session against a review build started with the insecure option, which opened `/fleet/` with no login |
 | A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | confirmed. The asset check reads each listed directory with `os.ReadDir` and does not descend, so it never reads the fleet directory; the fleet package carries its own asset guard. The htmx check walks the web package recursively (`collectFiles`), so it reads the fleet directory with no new row |
@@ -248,7 +248,7 @@ verb, no command and no stored format.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Sample build, `GET /fleet/` | → | The fleet shell renders the estate dashboard of the sample estate | `TestFleetShellRendersSampleEstate` |
-| Sample build, browser opens `/fleet/` | → | Shell, tree and dashboard are visible | `test/web/fleet-prototype-renders.wb` (written, pending run under `ze.tags=ze_fleet_ui_sample`) |
+| Sample build, browser opens `/fleet/` | → | Shell, tree and dashboard are visible | `test/web/fleet-prototype-renders.wb` (green under `ze.tags=ze_fleet_ui_sample`) |
 | Standard build | → | No fleet route is mounted | `TestFleetRoutesAbsentWithoutSource` |
 | Every shipped flavour | → | The sample package is not linked | `TestShippedZeLinksNoFleetSample` |
 | Build without `ze_fleet_ui` | → | The binary holds no fleet symbol | `cmd/ze/hub/build_tag_fleet_ui_absent_test.go` |
@@ -307,13 +307,13 @@ verb, no command and no stored format.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fleet-prototype-renders` | `test/web/fleet-prototype-renders.wb` | The interface opens on the sample estate | written, pending run |
-| `fleet-tree-selects-device` | `test/web/fleet-tree-selects-device.wb` | Filtering the tree and selecting a device opens its page | written, pending run |
-| `fleet-devices-filter` | `test/web/fleet-devices-filter.wb` | A filter narrows the table, survives a reload, and a row opens the side panel | written, pending run; the sort of user story 3 is not asserted (a sort header has no unique accessible name to click) |
-| `fleet-estate-to-failing-devices` | `test/web/fleet-estate-to-failing-devices.wb` | A dashboard count leads to exactly the rows it counts | written, pending run |
-| `fleet-live-updates` | `test/web/fleet-live-updates.wb` | A stepped event changes the tree, the table and the header's running-task count without a reload | written, pending run; started held (`ze.web.fleet.sample.held=true`), stepped by the header's Step (`fleet-proto-step`) once the page's stream is open (`data-fleet-stream`): step 1 adds cpe-lon-03 to the table filtered to `state:offline` and puts Offline in its tree row, step 9 ends T-2051 and the count goes from 2 to 1 |
-| `fleet-device-console` | `test/web/fleet-device-console.wb` | A sample command typed in the console shows its answer | written, pending run |
-| `fleet-shell-preferences` | `test/web/fleet-shell-preferences.wb` | Theme and sidebar width persist across a reload | written, pending run; asserts the theme and the width (custom property) across a reload; the drag stays a human check |
+| `fleet-prototype-renders` | `test/web/fleet-prototype-renders.wb` | The interface opens on the sample estate | green on the final code |
+| `fleet-tree-selects-device` | `test/web/fleet-tree-selects-device.wb` | Filtering the tree and selecting a device opens its page | green on the final code |
+| `fleet-devices-filter` | `test/web/fleet-devices-filter.wb` | A filter narrows the table, survives a reload, and a row opens the side panel | green on the final code; the sort of user story 3 is not asserted (a sort header has no unique accessible name to click) |
+| `fleet-estate-to-failing-devices` | `test/web/fleet-estate-to-failing-devices.wb` | A dashboard count leads to exactly the rows it counts | green on the final code |
+| `fleet-live-updates` | `test/web/fleet-live-updates.wb` | A stepped event changes the tree, the table and the header's running-task count without a reload | green on the final code; started held (`ze.web.fleet.sample.held=true`), stepped by the header's Step (`fleet-proto-step`) once the page's stream is open (`data-fleet-stream`): step 1 adds cpe-lon-03 to the table filtered to `state:offline` and puts Offline in its tree row, step 9 ends T-2051 and the count goes from 2 to 1 |
+| `fleet-device-console` | `test/web/fleet-device-console.wb` | A sample command typed in the console shows its answer | green on the final code |
+| `fleet-shell-preferences` | `test/web/fleet-shell-preferences.wb` | Theme and sidebar width persist across a reload | green on the final code; asserts the theme and the width (custom property) across a reload; the drag stays a human check |
 
 ## Files to Modify
 - `feature-gates.txt` - the `ze_fleet_ui` line
@@ -538,6 +538,7 @@ What the five page families decided that departs from or adds to this spec and i
 | Process | pid 46189, recorded in `tmp/session/2026-11-18-205620/scratch/fleet-review.pid`; config store `tmp/session/2026-11-18-205620/scratch/fleet-review-config`, log `tmp/session/2026-11-18-205620/scratch/fleet-review.log` |
 | Started by | The main session of this spec, on 2026-11-19 |
 | Removal condition | Stopped and the scratch binary removed when the owner ends the review |
+| Ended | The owner ended the review with his approval on 2026-11-19. At closure the review build was still running (pid 95652 by the pid file, `ze-fleet-review start --web 59440 --web-only`) and the scratch binary was still present: the main session that started it owes the stop and the removal (closure report, owed commands) |
 
 ## Owner review record
 
@@ -583,3 +584,176 @@ What the five page families decided that departs from or adds to this spec and i
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove` this spec's path only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- The fleet package `internal/component/web/fleetui`, gated by `ze_fleet_ui` (`feature-gates.txt`), linked by `cmd/ze/hub/register_fleet_ui.go`. Its routes register through `web.RegisterWebRoute` from `init()` in `register.go` and mount only when a source is registered (`sourceRegistered`); the two prototype-only routes mount only over a `Stepper` (`stepperRegistered`).
+- The data source seam (`source.go` and the `source_*.go` files), the address scheme (`url.go`, `ParseAddress`), the display state (`state.go`), the filter grammar (`filter.go`, `ParseFilter`), tree grouping (`tree.go`), and the joins of facts into views (`derive.go`, `summary.go`).
+- The shell, the tree, the header search, the event stream and the component set (`shell.templ`, `handler_shell.go`, `handler_tree.go`, `handler_search.go`, `handler_events.go`, `component_*.templ`), with its own assets under `/fleet/assets/`.
+- Every page family of children 2 to 6 on the sample estate: devices, dashboards and charts, device tabs and console, tasks, alarms and states, config, rollouts, audit and administration (`handler_*.go`, `page_*.templ`, `register_*_pages.go`).
+- The sample source `fleetui/sample` and its registration `fleetui/sample/register`, linked only under the tag `ze_fleet_ui_sample`, outside the manifest (`cmd/ze/hub/register_fleet_ui_sample.go`), with the held start `ze.web.fleet.sample.held` for the browser tests.
+- Shared guards extended for a nested package: `markupcheck.AssertAssetsResolveIn` and `assetFindings` reading one directory (`internal/test/markupcheck/assets.go`), `golden.Set.Files` leaving a nested Go package to its own set (`internal/test/golden/golden.go`), and the `attribute` expectation of the browser harness (`internal/component/web/testing/expect.go`).
+- Seven browser tests `test/web/fleet-*.wb` and the tag selection of the web runner (`internal/test/runner/build_tags.go`).
+
+### Bugs Found/Fixed
+- Closure: three source anchors named symbols not declared where named (Review Gate, finding 1).
+
+### Documentation Updates
+- `docs/architecture/fleet-interface.md` (new), `docs/architecture/web-interface.md` (the fleet routes), `docs/architecture/web-components.md`, `docs/architecture/core-design.md` section 19, `docs/architecture/plugin/feature-gates.md`, `docs/functional-tests.md`, `docs/architecture/testing/runner-architecture.md` and `ci-format.md`, all in the implementation commits.
+- Closure: `fleet-interface.md` line 462 repointed to the four link tests of `links_test.go`; `web-interface.md` line 128 repointed to `newActionHandler` (`handler_action.go`) and `newAuditExportHandler` (`handler_audit.go`).
+- `./le doc check all` after the fix: the source anchor section went from 8 undeclared symbols to 5, none under a fleet page. The remaining failures belong to other sessions' work in the shared checkout: 4 local handlers of `show fleet divergence` and `request fleet divergence revert` with no YANG command, `ze-cos:cleanup` with no handler, and anchors under `l2tp`, `iface`, `bgp/plugins/rib` and `core-design.md` line 3522.
+
+### Deviations from Plan
+- Opening a side panel fetches the panel alone, so the table's sort and page links keep the address they were drawn with, and a later sort closes the panel (`PanelLink` paragraph of `docs/architecture/fleet-interface.md`, `panelLink` in `handler_shell.go`). Approved by the owner as built; carried into `spec-fleet-ui-2-estate-tree-and-device-tables.md`, "Carried from the prototype".
+- `TestFleetPagesRender` was not written under that name. Every registered page is proven answered by `TestFleetDemoTourCoversEveryRegisteredPage` (`internal/le/site/fleetdemo/tour_test.go`, over the sample source) and every gallery address by `TestGalleryAddressesAreAnswered` (`gallery_links_test.go`), beside one render test per page family.
+- AC-7: an address under `/fleet/` in a standard build reaches the web server's catch-all, so the answer is whatever that handler gives an unknown address (phase 1 findings).
+- AC-8: a flavor that does not link the hub cannot name the fleet package, so `TestShippedZeLinksNoFleetSample` requires the sample absent from every flavor and the fleet package present in at least one.
+- The phase findings above record the rest: no build line in the package, no tier row, the held start, the action registry, the sub-view parameter.
+- Closure departed from the skill's uncommitted-diff assumption: the entry status was `in-progress`, but every implementation commit had landed, so the review read `git diff 7380b7d204..HEAD` over the spec's files, as the `verification` row of the skill prescribes, and commit A carries the closure edits only.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: the gate tooling would derive the `ze_web` dependency for a package nested under the web package | The generator derives a constraint only for a package it discovers, and it does not discover this one | `./le arch tier check` in phase 1 | Compound build line written in the two hub import files; recorded in A-3 |
+| approach | Source anchors were written for symbols that a later refactor renamed or that were never committed under that name | `links_test.go` holds four link tests; the action and audit routes are built by closures over `newActionHandler` and `newAuditExportHandler` | `./le doc check all` at closure | Repointed in this closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The fleet package, its compile gate and its routes | Done | `feature-gates.txt` line 258, `fleetui/register.go` `init`, `cmd/ze/hub/register_fleet_ui.go` | |
+| Every component of the umbrella's set | Done | `fleetui/component_*.templ`, `component_gallery.go` | `TestComponentGalleryDrawsEveryComponent` |
+| Every page of children 2 to 6 on sample data | Done | `fleetui/register_*_pages.go`, `handler_*.go`, `page_*.templ` | `TestFleetDemoTourCoversEveryRegisteredPage` |
+| The owner's review and its corrections | Done | Owner review record row 1 | Approved as built, no correction |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFleetShellRendersSampleEstate`, `fleet-prototype-renders.wb`, `fleet-shell-preferences.wb` (theme) | |
+| AC-2 | Done | The seven `fleet-*.wb`, `TestTaskActionsAnswerThePrototypeToast`, `TestDevicesBulkPostAnswersPrototypeToast`, the owner's review | Sort click not asserted in a browser test (no unique accessible name); sorting proven by the unit tests of `table.go` |
+| AC-3 | Changed | `TestFleetDemoTourCoversEveryRegisteredPage`, `TestGalleryAddressesAreAnswered` | In place of `TestFleetPagesRender` |
+| AC-4 | Done | `TestFleetURLRoundTrip`, `fleet-devices-filter.wb` (filter survives a reload) | |
+| AC-5 | Done | `TestFleetStylesUseVariablesOnly`, `TestFleetStylesDeclareEveryVariable` | |
+| AC-6 | Done | `TestStatesPageRendersEveryGallerySection`, `TestGalleryAddressesAreAnswered` | |
+| AC-7 | Done | `TestFleetRoutesAbsentWithoutSource`, `TestBuildTag_FleetUI_DormantWithoutSource` | Catch-all answer, Deviations |
+| AC-8 | Done | `TestShippedZeLinksNoFleetSample`, `TestFleetSampleTagLinksTheSample` | |
+| AC-9 | Done | `TestBuildTag_FleetUI_AbsentBinaryDropsFleetSymbols` | Rerun on the final code owed |
+| AC-10 | Done | Owner review record row 1, commit `290951e355` | "the prototype is excellent" |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestFleetURLRoundTrip`, `TestDeviceDisplayStatePrecedence`, `TestFilterParse`, `TestTreeGrouping`, `TestFleetStylesUseVariablesOnly` | Done | `fleetui/url_test.go`, `state_test.go`, `filter_test.go`, `tree_test.go`, `style_test.go` | |
+| `TestFleetViewDataIsTyped`, `TestFleetNoGoFileBuildsMarkup`, `TestFleetTemplatesAvoidInlineScriptAndStyle` | Done | `fleetui/guard_test.go` | |
+| `TestFleetShellRendersSampleEstate`, `TestSampleEstateInvariants` | Done | `fleetui/sample/handler_test.go`, `estate_test.go` | |
+| `TestFleetPagesRender` | Changed | `internal/le/site/fleetdemo/tour_test.go` | `TestFleetDemoTourCoversEveryRegisteredPage` |
+| `TestFleetRoutesAbsentWithoutSource` | Done | `fleetui/register_test.go` | |
+| `TestShippedZeLinksNoFleetSample` | Done | `cmd/ze/fleet_sample_absent_test.go` | |
+| The seven functional tests | Done | `test/web/fleet-*.wb` | Green in the seven-case run |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `feature-gates.txt`, `docs/architecture/web-interface.md`, `feature-gates.md`, `core-design.md`, `spec-fleet-ui-0-umbrella.md` | Done | |
+| `internal/le/arch/tier/testdata/tier_non_engine_categories.txt` | Changed | No row needed (phase 1 findings) |
+| `internal/le/web/assets/webassets.go` | Changed | Not needed: A-5 confirmed |
+| `fleetui/` sources, assets, `sample/` | Done | |
+| `cmd/ze/hub/register_fleet_ui.go`, `register_fleet_ui_sample.go`, the three tag tests, `cmd/ze/fleet_sample_absent_test.go` | Done | Plus `build_tag_fleet_ui_dormant_test.go` |
+| `docs/architecture/fleet-interface.md` | Done | |
+
+### Audit Summary
+- **Total items:** 4 requirements, 10 AC, 7 test rows, 6 file rows
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (AC-3, `TestFleetPagesRender`, two file rows), each in Deviations or the phase findings
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The owner can open the whole interface in a browser, click through and correct it | User review over the real entry point | Review build at commit `fc44d67279` on the loopback address; the owner's approval, Owner review record row 1 |
+| The prototype is the real interface: real routes, shell, components, htmx fragments and event stream | Functional (browser) | Seven `test/web/fleet-*.wb` green through the web server's mounted routes, `fleet-live-updates.wb` over the event stream |
+| Only the data is sample, and no shipped build carries it | Build-flavor test | `TestShippedZeLinksNoFleetSample` and `TestFleetSampleTagLinksTheSample`, green on the final code |
+| A standard build carries the package dormant | Unit over the registry | `TestFleetRoutesAbsentWithoutSource`, `TestBuildTag_FleetUI_DormantWithoutSource` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Fleet as a selectable web mode in the existing shells | Changes their markup and fixtures, decided with the functional work | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (amended: "Carried from the prototype") |
+| The real enabling condition and the real source | The commands do not exist yet | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (amended) |
+| Sign out in the account menu | The web server has no sign-out route in any mode | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (amended) |
+| The devices table column chooser | Columns are fixed in the prototype | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` ("The operator chooses which columns show") |
+| An interface row's traffic chart, a BGP peer's capabilities, families, counters and state history, the streaming Logs tab, the console bound to a device | `DeviceSeries` takes no interface, `Peer` carries none of them, the console answers fixed sample commands | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` |
+| Template preview and the YANG editor on a device's configuration | The source answers no template text; the editor belongs to the web package | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` |
+| Stream metrics and the real stream's bounds | Deferred with the real event stream | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
+| An audit entry's device list | The audit target is text | `plan/post-release/features/spec-fleet-3-audit-trail.md` |
+| The link from a rollout's batches to their tasks | A rollout holds no task identifier | `plan/post-release/features/spec-fleet-5-staged-rollout.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-ui-1-interactive-prototype-15269d3e-0e9f-48a2-918c-3e6749565424.md` |
+| `./le spec review check` | clean, over the files commit A carries |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1: wiring and security over the route registration, the hub imports, the auth wrap, the event stream, the request bounds, the panic traces, the shared guard changes, and documentation drift. Round 2: the anchor fixes and the spec amendments only |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Three source anchors named symbols not declared where named: `TestDashboardLinkCountsEqualTargetRows` never existed in a committed `links_test.go`, and `buildActionHandler` and `buildAuditExportHandler` left `register.go` in `84008023ac` | `docs/architecture/fleet-interface.md:462`, `docs/architecture/web-interface.md:128` | Repointed to the four link tests, `newActionHandler` and `newAuditExportHandler` |
+
+### Run 1 notes (no fix owed)
+- `web.AccountMiddleware` (`internal/component/web/auth.go`) is an exported wrap that names an account with no authentication. Its one non-test caller is `fleetui.NewRoutes`, whose one caller is `internal/le/site/fleetdemo/render.go`; the hub mounts the fleet routes through `RegisterWebRoute` under `WrapAuth` and `WrapMutation` only.
+- Every request input is bounded: filter 512 characters and 32 terms (`ParseFilter`), stream scope 2048 (`parseScope`), action and console bodies by `http.MaxBytesReader`, 64 subscriptions of 64 events each (`Feed.Subscribe`, `Feed.Publish`, which ends a lagging subscription), 10 search results (`searchView`). No `bugAddressKind` panic is reachable from a request: `parseObject` never answers `ObjectUnspecified` without an error.
+- The two shared guard scope changes (`assetFindings` reading one directory, `golden.Set.Files` leaving a nested package) move no existing coverage: the web and looking-glass packages, their only other callers, hold no `.templ` or `page_assets.go` below their root, and the fleet package runs both guards over itself. No ze-test-judge verdict for them is recorded in a commit trailer.
+- `./le test weakened check base 7380b7d204` reports no finding under the files of this spec.
+
+### Run 2
+- Scope: the two anchor repoints and the five spec edits. `./le doc check all` shows no undeclared anchor under a fleet page. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `cmd/ze/hub/register_fleet_ui.go`, `register_fleet_ui_sample.go`, `build_tag_fleet_ui_{absent,dormant,present}_test.go` | Yes | `git ls-files cmd/ze/hub` |
+| `test/web/fleet-{device-console,devices-filter,estate-to-failing-devices,live-updates,prototype-renders,shell-preferences,tree-selects-device}.wb` | Yes | `git ls-files test/web` |
+| `docs/architecture/fleet-interface.md`, the twelve files of `fleetui/assets/` | Yes | `git ls-files` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-6 | Shell, pages, addresses, styles and states on the sample estate | `./le test unit pkg path ./internal/component/web/fleetui/` and the sample packages green (200 golden fixtures); the seven fleet browser tests green, on the final code |
+| AC-7, AC-9 | Dormant without a source; no fleet symbol without the gate | The hub tag tests, owed again on the final code |
+| AC-8 | No shipped flavor links the sample | `TestShippedZeLinksNoFleetSample`, `TestFleetSampleTagLinksTheSample` green on 2026-11-19 |
+| AC-10 | Owner approval | Owner review record row 1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Sample build, browser opens `/fleet/` | `test/web/fleet-prototype-renders.wb` | Yes: green in the seven-case run |
+| Standard build | `TestFleetRoutesAbsentWithoutSource` (`register_test.go`) | Yes: reads `sourceRegistered` over an empty slot |
+| Every shipped flavour | `TestShippedZeLinksNoFleetSample` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TemplateFileParser.Parse` keeps the header lines; not load-bearing |
+| A-2 | confirmed | `fleet-shell-preferences.wb` green |
+| A-3 | broken | Mistake Log row 1 |
+| A-4 | confirmed | `startWebServer` sets `InsecureMiddleware`; the review build opened `/fleet/` with no login |
+| A-5 | confirmed | The asset check does not descend; the htmx check walks the fleet directory |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Fleet routes (`web-interface.md`) | `register.go` `init`, `handler_action.go` `newActionHandler`, `handler_audit.go` `newAuditExportHandler` | Yes, after finding 1 |
+| Dashboard links (`fleet-interface.md`) | `links_test.go`, the four link tests | Yes, after finding 1 |
+| Side panel behavior (`fleet-interface.md`, `PanelLink`) | `handler_shell.go` `panelLink`, `assets/fleet.js` `followPanel` | Yes |
+| Feature list, user guide, CLI, config: No | The package is dormant in every shipped build; `features/fleet-management.md` changes when a page becomes functional | Yes |

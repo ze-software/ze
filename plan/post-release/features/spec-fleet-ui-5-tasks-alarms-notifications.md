@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-1-interactive-prototype.md, spec-fleet-1-device-registry.md, spec-fleet-4-inventory-health.md |
+| Depends | spec-fleet-1-device-registry.md, spec-fleet-4-inventory-health.md |
 | Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

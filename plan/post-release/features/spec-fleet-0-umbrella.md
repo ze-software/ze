@@ -177,7 +177,8 @@ Out of Scope table above are superseded, and two children are added to this set.
 | 9 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The hub relays an operator's command to a device over the managed channel, under a profile the device grants, with streaming, deadline, cancellation and audit on both sides | fleet-1 |
 
 The command answers the interface reads are proposed by the sample answers of
-`plan/post-release/features/spec-fleet-ui-1-interactive-prototype.md`. They are
+the fleet interface's sample source, `internal/component/web/fleetui/sample`
+(`docs/architecture/fleet-interface.md`). They are
 input to the design of `fleet-1`, `fleet-4`, `fleet-8` and `fleet-9`: a child
 that settles a different answer shape changes the samples in the same work.
 

@@ -58,7 +58,7 @@ components it composes.
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 1 | `plan/post-release/features/spec-fleet-ui-1-interactive-prototype.md` | The Fleet mode shell, the URL scheme, the visual tokens, every shared component and every page of this set, navigable in a browser on sample data. Ends with the owner's review; his corrections are applied here and to this umbrella | - |
+| 1 | `spec-fleet-ui-1-interactive-prototype` (closed 2026-11-19, approved by the owner as built; the result is described in `docs/architecture/fleet-interface.md`) | The Fleet mode shell, the URL scheme, the visual tokens, every shared component and every page of this set, navigable in a browser on sample data. Ends with the owner's review; his corrections are applied here and to this umbrella | - |
 | 2 | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | Tree views built from labels, the devices table, the filter language, saved filters, selection and bulk actions, the device side panel | fleet-ui-1 (approved), fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` | Estate, group and device dashboards, their cards and charts | fleet-ui-2, fleet-4, fleet-8 |
 | 4 | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` | The device tabs that show live device state through the relay, and the per-device browser CLI | fleet-ui-2, fleet-9 |
