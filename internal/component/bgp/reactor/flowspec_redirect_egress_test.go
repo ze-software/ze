@@ -309,7 +309,10 @@ func TestRelayFlowSpecRedirectNextHop(t *testing.T) {
 	attrs := payload[4:]
 	update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
 	update.WireUpdate.SetSourceID(src.SourceID())
-	key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: flowRedirectIPv4, NLRI: string(raw)}
+	// Manual relay resolves the live peer by address but carries no original
+	// source receipt, so validation sees the peer owner and a zero connection.
+	key := ribevents.ValidationRoute{Peer: src.Settings().Address, PeerOwner: src.sourceOwner,
+		Family: flowRedirectIPv4, NLRI: ribevents.FlowSpecKey(raw)}
 	ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key },
 		func(got ribevents.ValidationRoute) bool { return got == key }, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })

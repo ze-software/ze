@@ -19,7 +19,13 @@ func TestFlowSpecRouteServerReplayKeepsActions(t *testing.T) {
 	peers := flowForwardLiveRouter(t, "self")
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	raw := mustHex(t, "050118c00002")
-	key := ribevents.ValidationRoute{Peer: peers[0].peer.Settings().Address, Family: fam, NLRI: string(raw)}
+	source := peers[0].peer
+	connectionID := connectionIDOf(source.currentSession())
+	if connectionID == 0 {
+		t.Fatal("FlowSpec source has no established connection")
+	}
+	key := ribevents.ValidationRoute{Peer: source.Settings().Address, PeerOwner: source.sourceOwner,
+		ConnectionID: connectionID, Family: fam, NLRI: ribevents.FlowSpecKey(raw)}
 	peers[0].send(t, flowForwardFrame(flowForwardPayload(t, fam, raw, mustHex(t, "c0000202"))))
 	lowEventually(t, func() bool { return ribevents.RoutePresent(key) }, "retained unauthorized FlowSpec rule")
 	if ribevents.RouteEligible(key, 0) {

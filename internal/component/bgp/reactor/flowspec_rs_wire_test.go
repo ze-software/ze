@@ -127,9 +127,15 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 			{"bgp-rs", "update-received state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			if err := EnsureProcessBinding(s, binding.name, binding.receive, "update"); err != nil {
+			// Source leases use the operator's explicit attachment to this process.
+			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
+			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
 				t.Fatal(err)
 			}
+			if err := parseSendFlags("update", &attachment); err != nil {
+				t.Fatal(err)
+			}
+			s.ProcessBindings = append(s.ProcessBindings, attachment)
 		}
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)

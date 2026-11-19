@@ -175,7 +175,8 @@ func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 			if !present {
 				continue
 			}
-			route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
+			route := rpc.StoredRoute{SourcePeer: key.Peer.String(), SourceOwner: key.PeerOwner,
+				SourceReceipt: path.SourceReceipt, SourceConnectionID: key.ConnectionID, Family: key.Family.String(),
 				PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
 				SourcePolicyEpoch: path.SourcePolicyEpoch,
 				NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
