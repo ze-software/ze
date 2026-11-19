@@ -2,18 +2,18 @@ Demo lab
 
 # Looking Glass Graph Demo
 
-A realistic UK topology with real external ASNs populates the Looking Glass topology graph. The native plugin test suite checks it in a browser.
+Ze's looking glass, replayed from a real run: Ze collects routes from eleven simulated BGP speakers, and every page and graph below is the answer it gave. A second lab checks the graphs against a hand-built UK network with real AS names.
 
 `Daemon`
 
-Injects 36 routes into a running Ze instance that describes a small but realistic network: a core ring (Telehouse, Leeds, Manchester, Birmingham) with edge sites (Slough, Bradford), peered with real external ASNs: NTT (transit), Cogent (transit), Cloudflare (peering), and Akamai (peering), all under AS65000.
+The replay comes from a functional test. It generates a network from a seed: five routers of AS65000, one of them a route reflector, and six external neighbours on eBGP. Each speaker holds a real BGP session to Ze and announces the routes a model of the network computed for it. The test asks the looking glass for its pages and its three graphs and compares every answer with the model, router by router, before the recorder keeps a copy for this page.
 
-The Go test runner starts a real Looking Glass in an isolated workspace, injects the routes, checks the topology graph and route views, then tears the instance down.
+The UK lab injects 36 routes for a small network: a core ring (Telehouse, Leeds, Manchester, Birmingham) with edge sites (Slough, Bradford) under AS65000, peered with NTT and Cogent for transit and Cloudflare and Akamai for peering. It checks the AS path and next-hop drawings byte for byte, AS names included, which a stub name server supplies. As that stub listens on port 53, this lab runs on Linux only.
 
-- **What this lab tests:** The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network
-- **Topology:** AS65000 core ring + edge sites, external peers NTT/Cogent/Cloudflare/Akamai
-- **Requires:** Go toolchain
-- **Source:** [internal/le/interoplab/bgp/](https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp)
+- **What this lab tests:** The looking glass pages and its three graphs (AS path, next hop, trace) over real BGP sessions, compared with what a model of the network computed
+- **Topology:** Replay: five routers of AS65000 with a route reflector, six external neighbours. UK lab: AS65000 core ring and edge sites, peers NTT, Cogent, Cloudflare and Akamai
+- **Requires:** Go toolchain. The UK lab also needs Linux and permission to bind port 53
+- **Source:** [test/plugin/lg-simulated-network.ci](https://github.com/ze-software/ze/blob/main/test/plugin/lg-simulated-network.ci), [internal/le/interoplab/bgp/](https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp)
 
 ## The looking glass, replayed
 
@@ -40,12 +40,14 @@ The replay runs in your browser and needs JavaScript. [Read the transcript of th
 Recorded by ./le site lg-replay record from commit bad92271a4 (2026-11-19): a real ze, 11 simulated BGP speakers generated from seed 7, 84 recorded answers. 234 values that change from run to run (session uptimes, state-change times, the listener address) are fixed values the recording declares. None of the networks shown is a real one: the prefixes come from 198.18.0.0/15, the range RFC 2544 reserves for benchmarking, the speakers use documentation addresses (RFC 5737), and the AS numbers are private or documentation numbers (RFC 6996, RFC 5398). [Transcript of the tour](https://ze-software.net/labs/looking-glass-graph/replay/transcript.txt).
 
 ```
-# runs the native plugin suite, including the graph lab
-$ ./le functional plugin-test
+# the simulated network behind the replay, on any machine
+$ ./le test bgp plugin --pattern lg-simulated-network
+# the UK lab, Linux only
+$ ./le test bgp plugin --pattern lg-graph-lab
 ```
 
 `Good first lab`
 
-No Docker, no QEMU, no root. If you want to see what Ze's management interfaces look like before running anything else, start here.
+The simulated network needs no Docker, no QEMU and no root. If you want to see Ze's looking glass before running anything else, start here.
 
 - [Looking Glass docs peer and route viewer](https://github.com/ze-software/ze/blob/main/docs/features/looking-glass.md)
