@@ -111,9 +111,10 @@ static {
 
 Each policy route binds to one or more ingress interfaces. The list is an
 OR: the policy matches a packet that arrives on any one of the named
-interfaces. A trailing `*` enables wildcard matching (e.g., `l2tp*`
-matches all L2TP interfaces), and each entry keeps its own wildcard
-state, so one list mixes `eth1` and `l2tp*`.
+interfaces. A trailing `*` enables wildcard matching (e.g., `ppp*`
+matches every PPP session interface, which is how the kernel names Ze's
+L2TP LNS sessions), and each entry keeps its own wildcard state, so one
+list mixes `eth1` and `ppp*`. A VyOS `l2tp*` match converts to `ppp*`.
 
 ```
 policy {

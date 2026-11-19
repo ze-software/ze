@@ -1307,13 +1307,10 @@ accounting records report the address the pool gave (RFC 2866 Section 4.1).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 
-`Delegated-IPv6-Prefix` keeps the requested prefix. Ze refuses it if it
-overlaps a live subscriber's delegation, including one outside every current
-pool block. Otherwise it reserves every configured slot the prefix overlaps.
-Disjoint RADIUS prefixes can share a larger allocation slot; that slot remains
-reserved until the last overlapping subscriber ends.
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- handlePrefix -->
-<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSPrefixLocked -->
+Ze does not read `Delegated-IPv6-Prefix` or `Framed-IPv6-Prefix` from an
+Access-Accept, so no RADIUS-supplied IPv6 prefix reaches a subscriber today.
+L2TP subscribers are IPv4-only.
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
 
 The IPCP DNS offered follows the pool's `dns-source` list. With none written,
 an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,
