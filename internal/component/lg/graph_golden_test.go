@@ -70,22 +70,32 @@ func lgGraphOneExit() traceModeEngine {
 }
 
 // lgGraphGoldenCases draws the two networks in each of the three modes.
+//
+// In the next-hop mode the two external neighbors hold a session with Ze, so
+// they are drawn as their AS. The two `-no-session` cases ask the same rows
+// over a summary that holds the routers alone (outsideTestRoutersOnly): the
+// neighbors' rows are then rows of no peer, every node is an address, and the
+// bytes are those the next-hop graph drew for these rows before it read the
+// summary.
 var lgGraphGoldenCases = []lgGraphCase{
 	{Name: "aspath-two-exits", Query: "", Engine: lgGraphTwoExits()},
 	{Name: "aspath-one-exit", Query: "", Engine: lgGraphOneExit()},
 	{Name: "nexthop-two-exits", Query: "&mode=nexthop", Engine: lgGraphTwoExits()},
 	{Name: "nexthop-one-exit", Query: "&mode=nexthop", Engine: lgGraphOneExit()},
+	{Name: "nexthop-two-exits-no-session", Query: "&mode=nexthop", Engine: outsideTestRoutersOnly(lgGraphTwoExits())},
+	{Name: "nexthop-one-exit-no-session", Query: "&mode=nexthop", Engine: outsideTestRoutersOnly(lgGraphOneExit())},
 	{Name: "trace-two-exits", Query: "&mode=trace", Engine: lgGraphTwoExits()},
 	{Name: "trace-one-exit", Query: "&mode=trace", Engine: lgGraphOneExit()},
 }
 
 // TestLGGraphGoldenOutput captures the whole SVG of a graph with two exits and
-// of a graph with one, in each of the three modes, as a real request to
+// of a graph with one, in each of the three modes, and in the next-hop mode
+// also over a summary with no external session, as a real request to
 // GET /lg/graph answers it.
 //
 // The route capture (TestLGHandlerGoldenOutput) holds one graph per older
 // mode, and that graph has one node: no edge, no second layer, no AS chain.
-// These six are drawings with several layers, so a change to a coordinate, an
+// These eight are drawings with several layers, so a change to a coordinate, an
 // arrow or a label of any of the three layouts shows as a changed byte.
 //
 // VALIDATES: the exact bytes of the AS path, next-hop and trace drawings of

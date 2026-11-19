@@ -223,15 +223,18 @@ type traceRouter struct {
 }
 
 // traceHopEdge is one BGP next hop a walk followed: from a router of the AS
-// to another router, or to the external address a walk leaves the AS toward.
+// to another router, or, where a prefix originates inside the AS, to the
+// address its route points at when that is no router of the AS.
 type traceHopEdge struct {
 	From netip.Addr
 	To   netip.Addr
 }
 
-// traceEntryEdge joins the two halves: from where a walk leaves the AS to the
-// first AS of the exit route's path. From is the exit router when its next hop
-// is its own address, and the external next hop otherwise.
+// traceEntryEdge joins the two halves: from the router a walk leaves the AS
+// at to the first AS of the exit route's path, the AS the traffic is handed
+// to. From is the exit router at both exits: an external next hop is outside
+// the AS, so it is drawn as that AS and never as its address. The walk's
+// statement and its `next-hop=` field still carry the address.
 type traceEntryEdge struct {
 	From netip.Addr
 	AS   uint32
@@ -247,7 +250,7 @@ type traceASEdge struct {
 // so two builds from the same rows are equal whatever order the rows came in.
 type traceGraph struct {
 	Routers    []traceRouter    // By address.
-	Neighbors  []netip.Addr     // External next hops walks leave the AS toward, by address.
+	Neighbors  []netip.Addr     // Next hops of prefixes that originate inside the AS and are no router of it, by address.
 	ASes       []uint32         // Every AS of an exit route's path, by number.
 	HopEdges   []traceHopEdge   // By From, then To.
 	EntryEdges []traceEntryEdge // By From, then AS.
@@ -257,7 +260,8 @@ type traceGraph struct {
 	counts traceCounts // What the graph was built from, for the message of a graph with no walk.
 }
 
-// nodeCount is what the node cap counts: routers, external next hops and ASes.
+// nodeCount is what the node cap counts: routers, the next hops in Neighbors
+// and ASes.
 func (g *traceGraph) nodeCount() int {
 	return len(g.Routers) + len(g.Neighbors) + len(g.ASes)
 }
@@ -592,16 +596,17 @@ func (g *traceGraph) draw() {
 			entries[traceEntryEdge{From: last.Address, AS: walk.ASPath[0]}] = struct{}{}
 			traceASChain(walk.ASPath, ases, steps)
 		case traceEndExitExternalAddress:
+			// The next hop is outside the AS: no node carries its address, and
+			// the exit links straight to the AS the traffic is handed to.
 			last.Exit = true
-			neighbors[walk.NextHop] = struct{}{}
-			hops[traceHopEdge{From: last.Address, To: walk.NextHop}] = struct{}{}
-			entries[traceEntryEdge{From: walk.NextHop, AS: walk.ASPath[0]}] = struct{}{}
+			entries[traceEntryEdge{From: last.Address, AS: walk.ASPath[0]}] = struct{}{}
 			traceASChain(walk.ASPath, ases, steps)
 		case traceEndOriginInside:
 			last.Origin = true
 			// The prefix may originate at a router whose route points at an
-			// address outside the routers of the AS: the hop is drawn, and
-			// no AS follows it.
+			// address that is no router of the AS. The AS path is empty, so
+			// there is no AS to draw that address as: the hop and the
+			// address are drawn, and no AS follows.
 			if walk.NextHop != last.Address {
 				neighbors[walk.NextHop] = struct{}{}
 				hops[traceHopEdge{From: last.Address, To: walk.NextHop}] = struct{}{}

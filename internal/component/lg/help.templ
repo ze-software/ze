@@ -109,6 +109,8 @@ templ helpPage() {
 		<p>
 			Click <strong>Next Hop</strong> to see the internal forwarding topology. Each node is a
 			router (by next-hop IP). Egress routers (whose next-hop is themselves) are highlighted green.
+			A router of your AS is drawn by its address, and a neighbor outside it by its AS number
+			only, in a dashed box: two neighbors of one AS are one node.
 		</p>
 		<p>Useful for spotting asymmetric forwarding or overloaded egress points.</p>
 	</template>
@@ -118,9 +120,10 @@ templ helpPage() {
 			A walk starts at each router of the AS that sent a route for the prefix. It reads that
 			router's next hop, moves to the router whose session address that is, and repeats. A
 			router whose next hop is its own address is the exit, highlighted green as in the next
-			hop graph. A next hop that is the address of no router of the AS is the neighbor the
-			walk leaves the AS toward. From there the graph draws the AS path of the exit route, the
-			origin AS on the right.
+			hop graph. A next hop that is the address of no router of the AS is outside it: the walk
+			leaves the AS there, and the graph links the exit straight to the AS it hands the traffic
+			to, with the address in the line under the graph and never as a node. From there the graph
+			draws the AS path of the exit route, the origin AS on the right.
 		</p>
 		<p>
 			Under the graph, one line per router states how its walk ended: where it leaves the AS,

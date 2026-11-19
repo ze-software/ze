@@ -29,11 +29,15 @@ func mockDispatch() CommandDispatcher {
 		var out string
 		switch {
 		case cmd == cmdBGPOverview:
-			// handleBgpSummary answers the aggregates and the peer rows as
-			// siblings (bgp/plugins/cmd/peer/summary.go), so the fixture is
-			// that shape rather than the bare array it used to be.
-			out = `{"router-id":"1.2.3.4","local-as":"65000","uptime":"1h0m0s","peers-configured":1,"peers-established":1,` +
-				`"peers":[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]}`
+			// Match handleBgpSummary's encoded answer, including numeric AS
+			// and count values, address, and duration-string uptime. The RIB
+			// adds equal received/accepted counts and no filtered count.
+			out = `{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h0m0s","peers-configured":1,"peers-established":1,` +
+				`"peers":[{"name":"peer1","address":"10.0.0.1","remote-as":65001,"description":"","group":"","peer-type":"external",` +
+				`"state":"established","state-changed":"2026-01-15T10:00:00Z","last-error":"","uptime":"1h0m0s",` +
+				`"updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,` +
+				`"eor-received":0,"eor-sent":0,"connections-dropped":0,` +
+				`"routes-received":100,"routes-accepted":100,"routes-sent":50}]}`
 		case cmd == cmdShowVersion:
 			out = `{"version":"ze test (built 2026-01-01)"}`
 		case cmd == cmdShowUptime:

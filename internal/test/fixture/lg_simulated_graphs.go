@@ -29,18 +29,20 @@ const (
 	lgSimulatedGraphNode     = "node"
 	lgSimulatedGraphEdge     = "edge"
 	lgSimulatedGraphEgress   = "egress"
+	lgSimulatedGraphOutside  = "outside"
 	lgSimulatedGraphArrow    = "->"
 	lgSimulatedGraphNoRoutes = "No routes found\n"
 )
 
 // lgSimulatedGraphText is what the fixture reads of one graph in its text
-// form: the nodes, the nodes marked egress, and the edges, each sorted. The
-// layer of a node is not kept: it is the drawing's own arrangement, and the
-// model states none.
+// form: the nodes, the nodes marked egress, the nodes marked outside, and the
+// edges, each sorted. The layer of a node is not kept: it is the drawing's own
+// arrangement, and the model states none.
 type lgSimulatedGraphText struct {
-	nodes  []string
-	egress []string
-	edges  []string // "<from> -> <to>".
+	nodes   []string
+	egress  []string
+	outside []string // The next-hop graph's ASes outside the local one.
+	edges   []string // "<from> -> <to>".
 }
 
 // lgSimulatedReadGraph reads the text form of one graph of the given mode. A
@@ -64,6 +66,9 @@ func lgSimulatedReadGraph(text, mode string) (lgSimulatedGraphText, error) {
 			if slices.Contains(fields[2:], lgSimulatedGraphEgress) {
 				read.egress = append(read.egress, fields[1])
 			}
+			if slices.Contains(fields[2:], lgSimulatedGraphOutside) {
+				read.outside = append(read.outside, fields[1])
+			}
 		case lgSimulatedGraphEdge:
 			if len(fields) != 4 {
 				return read, fmt.Errorf("an edge of the %s graph is not `edge <from> -> <to>`: %q", mode, line)
@@ -82,11 +87,12 @@ func lgSimulatedReadGraph(text, mode string) (lgSimulatedGraphText, error) {
 	return read, nil
 }
 
-// sort orders the three lists, so two graphs compare whatever order they were
+// sort orders the four lists, so two graphs compare whatever order they were
 // read or built in.
 func (g *lgSimulatedGraphText) sort() {
 	slices.Sort(g.nodes)
 	slices.Sort(g.egress)
+	slices.Sort(g.outside)
 	slices.Sort(g.edges)
 }
 
@@ -98,6 +104,9 @@ func lgSimulatedGraphProblem(got, want lgSimulatedGraphText) string {
 	}
 	if !slices.Equal(got.egress, want.egress) {
 		return fmt.Sprintf("marks %v as egress, and the model computed %v", got.egress, want.egress)
+	}
+	if !slices.Equal(got.outside, want.outside) {
+		return fmt.Sprintf("marks %v as outside, and the model computed %v", got.outside, want.outside)
 	}
 	if !slices.Equal(got.edges, want.edges) {
 		return fmt.Sprintf("holds the edges %v, and the model computed %v", got.edges, want.edges)
@@ -139,38 +148,64 @@ func lgSimulatedASPathWant(topology *chaosscenario.Topology, prefix netip.Prefix
 			previous = node
 		}
 	}
-	return lgSimulatedGraphOf(nodes, nil, edges)
+	return lgSimulatedGraphOf(nodes, nil, nil, edges)
 }
 
 // lgSimulatedNextHopWant answers the next-hop graph the model expects for
-// prefix: every speaker and every next hop is a node, a speaker that announces
-// its own address is marked egress, and every other speaker has an edge to its
-// next hop.
+// prefix. A speaker of the AS (an internal session) and an address that is no
+// speaker's are each a node by address. A speaker outside the AS (an external
+// session) is the node of its AS, marked outside, and never its address, so
+// two such speakers of one AS are one node. A router that announces its own
+// address is marked egress, and every other speaker has an edge to the node of
+// its next hop.
+//
+// The session kind and the AS are the model's own (Speaker.Session,
+// Speaker.AS), never read back from the looking glass.
 func lgSimulatedNextHopWant(topology *chaosscenario.Topology, prefix netip.Prefix) lgSimulatedGraphText {
+	outsideAS := map[netip.Addr]string{}
+	for _, speaker := range topology.Speakers() {
+		if speaker.Session == chaosscenario.SessionKindExternal {
+			outsideAS[speaker.Address] = "AS" + strconv.FormatUint(uint64(speaker.AS), 10)
+		}
+	}
 	nodes := map[string]bool{}
 	egress := map[string]bool{}
+	outside := map[string]bool{}
 	edges := map[string]bool{}
+	nodeOf := func(address netip.Addr) string {
+		node, isOutside := outsideAS[address]
+		if !isOutside {
+			return address.String()
+		}
+		outside[node] = true
+		return node
+	}
 	for speaker, announcement := range lgSimulatedAnnouncementsOf(topology, prefix) {
-		from, to := speaker.String(), announcement.NextHop.String()
+		from, to := nodeOf(speaker), nodeOf(announcement.NextHop)
 		nodes[from] = true
 		nodes[to] = true
-		if from == to {
-			egress[from] = true
+		if from != to {
+			edges[from+" "+lgSimulatedGraphArrow+" "+to] = true
 			continue
 		}
-		edges[from+" "+lgSimulatedGraphArrow+" "+to] = true
+		if !outside[from] {
+			egress[from] = true
+		}
 	}
-	return lgSimulatedGraphOf(nodes, egress, edges)
+	return lgSimulatedGraphOf(nodes, egress, outside, edges)
 }
 
-// lgSimulatedGraphOf answers the sorted graph of three sets.
-func lgSimulatedGraphOf(nodes, egress, edges map[string]bool) lgSimulatedGraphText {
+// lgSimulatedGraphOf answers the sorted graph of four sets.
+func lgSimulatedGraphOf(nodes, egress, outside, edges map[string]bool) lgSimulatedGraphText {
 	var graph lgSimulatedGraphText
 	for node := range nodes {
 		graph.nodes = append(graph.nodes, node)
 	}
 	for node := range egress {
 		graph.egress = append(graph.egress, node)
+	}
+	for node := range outside {
+		graph.outside = append(graph.outside, node)
 	}
 	for edge := range edges {
 		graph.edges = append(graph.edges, edge)
@@ -232,13 +267,14 @@ func lgSimulatedASPathGraph(ctx context.Context, base string, topology *chaossce
 }
 
 // lgSimulatedNextHopGraph asks the next-hop graph of every prefix of the model
-// and compares each speaker's next hop and the egress marks with what the
-// model's speakers announce.
+// and compares each speaker's next hop, the egress marks and the ASes drawn
+// for the speakers outside the AS with what the model's speakers announce and
+// the kind of session each holds.
 //
 // It is the one place a real bgp-rib is asked `mode=nexthop` of routes that
 // arrived over sessions.
 func lgSimulatedNextHopGraph(ctx context.Context, base string, topology *chaosscenario.Topology) error {
-	prefixes, egress, edges := 0, 0, 0
+	prefixes, egress, outside, edges := 0, 0, 0, 0
 	for _, prefix := range topology.Prefixes() {
 		text, err := lgSimulatedGraphAnswer(ctx, base, lgSimulatedGraphNextHop, prefix)
 		if err != nil {
@@ -254,17 +290,21 @@ func lgSimulatedNextHopGraph(ctx context.Context, base string, topology *chaossc
 		}
 		prefixes++
 		egress += len(want.egress)
+		outside += len(want.outside)
 		edges += len(want.edges)
 	}
 
 	if egress == 0 {
 		return errors.New("no speaker of the network announces its own address, so the egress mark is unproven")
 	}
+	if outside == 0 {
+		return errors.New("no speaker outside the AS announces a prefix of the network, so the outside AS node is unproven")
+	}
 	if edges == 0 {
 		return errors.New("no speaker of the network announces another address, so the next-hop edge is unproven")
 	}
 	fmt.Fprintf(os.Stderr,
-		"OK: every next-hop graph held each speaker's next hop and the egress marks the model computed: %d prefixes, %d egress marks, %d edges\n",
-		prefixes, egress, edges)
+		"OK: every next-hop graph held each speaker's next hop and the egress marks the model computed: %d prefixes, %d egress marks, %d outside ASes, %d edges\n",
+		prefixes, egress, outside, edges)
 	return nil
 }

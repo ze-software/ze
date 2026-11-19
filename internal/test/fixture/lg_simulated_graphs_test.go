@@ -14,7 +14,8 @@ import (
 // The two graphs in the text forms renderGraphText and renderNextHopGraphText
 // write (internal/component/lg/graph.go, graph_nexthop.go): a node line with
 // its layer, an AS name between the AS and the layer, `egress` and `name=` on
-// a next-hop node, then the edges.
+// a next-hop node of an address, `outside` on a next-hop node of an AS, then
+// the edges.
 const (
 	lgSimulatedASPathSample = "mode aspath\n" +
 		"node AS65101 Transit A layer=1\n" +
@@ -23,6 +24,7 @@ const (
 	lgSimulatedNextHopSample = "mode nexthop\n" +
 		"node 198.51.100.3 layer=1\n" +
 		"node 198.51.100.2 layer=0 egress name=border\n" +
+		"node AS65102 layer=0 outside\n" +
 		"edge 198.51.100.3 -> 198.51.100.2\n"
 )
 
@@ -48,9 +50,10 @@ func TestLGSimulatedReadGraphReadsBothModes(t *testing.T) {
 	nextHop, err := lgSimulatedReadGraph(lgSimulatedNextHopSample, lgSimulatedGraphNextHop)
 	require.NoError(t, err)
 	assert.Equal(t, lgSimulatedGraphText{
-		nodes:  []string{"198.51.100.2", "198.51.100.3"},
-		egress: []string{"198.51.100.2"},
-		edges:  []string{"198.51.100.3 -> 198.51.100.2"},
+		nodes:   []string{"198.51.100.2", "198.51.100.3", "AS65102"},
+		egress:  []string{"198.51.100.2"},
+		outside: []string{"AS65102"},
+		edges:   []string{"198.51.100.3 -> 198.51.100.2"},
 	}, nextHop)
 }
 
@@ -74,25 +77,28 @@ func TestLGSimulatedReadGraphRefusesWhatIsNotTheGraph(t *testing.T) {
 
 // VALIDATES: the graphs expected of a network are the model's announcements:
 // for the prefix whose next hop a border router keeps, every router points at
-// the neighbor's address and only the neighbor is egress; for the prefix the
-// other border router rewrites, that router is egress and the two others point
-// at it.
+// the neighbor, which is outside the AS and so is the node of its AS, and no
+// router is egress; for the prefix the other border router rewrites, that
+// router is egress, the two others point at it, and the neighbor that
+// announces the prefix is the node of its AS. A neighbor's address is no node.
 // PREVENTS: an expectation that states the next-hop-self shape for every
-// prefix, which a next-hop graph of the kept prefix would never match.
+// prefix, which a next-hop graph of the kept prefix would never match, and
+// one that expects a speaker outside the AS by its address.
 func TestLGSimulatedGraphWantFollowsTheModel(t *testing.T) {
 	topology := lgNextHopUnchangedTopology(t)
 
 	assert.Equal(t, lgSimulatedGraphText{
-		nodes:  []string{"198.51.100.1", "198.51.100.2", "198.51.100.3", "203.0.113.1"},
-		egress: []string{"203.0.113.1"},
+		nodes:   []string{"198.51.100.1", "198.51.100.2", "198.51.100.3", "AS65101"},
+		outside: []string{"AS65101"},
 		edges: []string{
-			"198.51.100.1 -> 203.0.113.1", "198.51.100.2 -> 203.0.113.1", "198.51.100.3 -> 203.0.113.1",
+			"198.51.100.1 -> AS65101", "198.51.100.2 -> AS65101", "198.51.100.3 -> AS65101",
 		},
 	}, lgSimulatedNextHopWant(topology, lgNextHopUnchangedPrefixKept))
 	assert.Equal(t, lgSimulatedGraphText{
-		nodes:  []string{"198.51.100.1", "198.51.100.2", "198.51.100.3", "203.0.113.2"},
-		egress: []string{"198.51.100.2", "203.0.113.2"},
-		edges:  []string{"198.51.100.1 -> 198.51.100.2", "198.51.100.3 -> 198.51.100.2"},
+		nodes:   []string{"198.51.100.1", "198.51.100.2", "198.51.100.3", "AS65102"},
+		egress:  []string{"198.51.100.2"},
+		outside: []string{"AS65102"},
+		edges:   []string{"198.51.100.1 -> 198.51.100.2", "198.51.100.3 -> 198.51.100.2"},
 	}, lgSimulatedNextHopWant(topology, lgNextHopUnchangedPrefixSelf))
 
 	assert.Equal(t, lgSimulatedGraphText{
@@ -114,8 +120,14 @@ func TestLGSimulatedGraphProblemNamesTheDifference(t *testing.T) {
 	assert.Contains(t, lgSimulatedGraphProblem(fewer, want), "holds the nodes")
 
 	unmarked := want
-	unmarked.egress = want.egress[:1]
+	unmarked.egress = nil
 	assert.Contains(t, lgSimulatedGraphProblem(unmarked, want), "as egress")
+
+	// A looking glass that drew the neighbor as an exit of the AS: the node
+	// is there, and it carries no outside mark.
+	inside := want
+	inside.outside = nil
+	assert.Contains(t, lgSimulatedGraphProblem(inside, want), "as outside")
 
 	unlinked := want
 	unlinked.edges = want.edges[:1]
@@ -148,12 +160,12 @@ func TestLGNextHopUnchangedHandCheckedAgreesWithTheModel(t *testing.T) {
 }
 
 // lgNextHopUnchangedKeptText is the trace graph of the kept prefix as the looking
-// glass must write it: every router leaves toward the neighbor's address.
+// glass must write it: every router leaves toward the neighbor's address,
+// which each walk's line states and no node carries.
 const lgNextHopUnchangedKeptText = "mode trace\n" +
 	"node router 198.51.100.1 exit\n" +
 	"node router 198.51.100.2 exit\n" +
 	"node router 198.51.100.3 exit\n" +
-	"node neighbor 203.0.113.1\n" +
 	"node AS65101\n" +
 	"node AS65201\n" +
 	"trace ipv4/unicast 198.18.0.0/24 198.51.100.1 routers=198.51.100.1 end=exit-external-address" +

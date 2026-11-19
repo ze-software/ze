@@ -106,6 +106,10 @@ left out. The trace follows BGP next hops only: the hops of the IGP between
 two next hops are not drawn, and the page says so. `format=text` answers the
 same graph as text.
 
+The Next Hop and Trace graphs draw a router of the network by its address and
+a neighbor outside it by its AS number only: a peer with an external session
+is one node per AS, in a dashed box, and its address is not drawn.
+
 A neighbor that connects while the daemon is starting now gets its session:
 the daemon keeps the connection for the peer and runs the session on it when
 the peers start. If the configuration no longer holds that peer, the daemon

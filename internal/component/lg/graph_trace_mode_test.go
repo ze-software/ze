@@ -121,9 +121,14 @@ func TestTraceGraphModeAnswersText(t *testing.T) {
 	}
 	for _, line := range []string{
 		"node router 198.51.100.1 exit\n",
-		"node neighbor 203.0.113.9 name=ixp-lan-a\n",
 		"node AS65101 name=Transit <A>\n",
 		"edge 198.51.100.1 -> AS65101\n",
+		// The exit toward an address outside the AS links to the AS it hands
+		// the traffic to. The address is on the walk's line and is no node; a
+		// node named from the named ranges is TestTraceOriginInsideKeepsItsNextHopNode.
+		"edge 198.51.100.2 -> AS65102\n",
+		"trace ipv4/unicast 198.18.0.0/24 198.51.100.2 routers=198.51.100.2 end=exit-external-address" +
+			" next-hop=203.0.113.9 as-path=65102,64500 says: ",
 		"trace ipv4/unicast 198.18.0.0/24 198.51.100.4 routers=198.51.100.4,198.51.100.3,198.51.100.1" +
 			" end=exit-own-address next-hop=198.51.100.1 as-path=65101,64500 says: ",
 	} {
@@ -157,12 +162,17 @@ func TestTraceGraphModeAnswersSVG(t *testing.T) {
 		">198.18.0.0/24 from 198.51.100.4: leaves the AS at 198.51.100.1, which announces its own address as next hop<",
 		">198.18.0.0/24 from 198.51.100.2: leaves the AS at 198.51.100.2 toward 203.0.113.9, the address of no router of the AS<",
 		">" + template.HTMLEscapeString(traceNote) + "<",
-		"<title>203.0.113.9 - ixp-lan-a</title>",
 		"<title>AS65101 Transit &lt;A&gt;</title>",
 	} {
 		if !strings.Contains(body, part) {
 			t.Errorf("the drawing does not hold %q:\n%s", part, body)
 		}
+	}
+	// The address outside the AS is on the walk's line, asserted above, and is
+	// no node. A node named from the named ranges is
+	// TestTraceOriginInsideKeepsItsNextHopNode.
+	if strings.Contains(body, "<title>203.0.113.9") {
+		t.Errorf("the address outside the AS is drawn as a node:\n%s", body)
 	}
 	if strings.Contains(body, "<A>") {
 		t.Errorf("an AS name reached the drawing unescaped:\n%s", body)
@@ -275,7 +285,8 @@ func TestTraceGraphModeRefusals(t *testing.T) {
 
 // VALIDATES: the layout places the routers left to right in walk order (the
 // client, the reflector, the exit), a second starting router under the first,
-// then the external next hop, then the AS chain with the origin AS last.
+// then the AS chain with the origin AS last. The external next hop of the
+// second exit is no node, so it has no position and takes no column.
 // PREVENTS: a drawing whose columns do not read as the direction of the walk.
 func TestTraceLayoutFollowsTheWalk(t *testing.T) {
 	engine := traceModeFourRouters()
@@ -294,10 +305,13 @@ func TestTraceLayoutFollowsTheWalk(t *testing.T) {
 		return position
 	}
 	client, reflector, exit := at("198.51.100.4"), at("198.51.100.3"), at("198.51.100.1")
-	second, neighbor := at("198.51.100.2"), at("203.0.113.9")
+	second := at("198.51.100.2")
 	first, other, origin := layout.ASes[65101], layout.ASes[65102], layout.ASes[64500]
+	if _, placed := layout.Addresses[netip.MustParseAddr("203.0.113.9")]; placed {
+		t.Errorf("the address outside the AS has a position, and it is no node")
+	}
 
-	columns := []int{client.X, reflector.X, exit.X, neighbor.X, first.X, origin.X}
+	columns := []int{client.X, reflector.X, exit.X, first.X, origin.X}
 	for i := 1; i < len(columns); i++ {
 		if columns[i] <= columns[i-1] {
 			t.Fatalf("column %d starts at %d, not right of %d: %v", i, columns[i], columns[i-1], columns)

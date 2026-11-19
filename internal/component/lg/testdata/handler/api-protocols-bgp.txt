@@ -19,20 +19,20 @@ header: X-Ze-Version: <VERSION>
       "neighbor_address": "10.0.0.1",
       "neighbor_as": 65001,
       "routes": {
-        "exported": 0,
+        "exported": 50,
         "filtered": 0,
-        "imported": 0,
-        "preferred": 0
+        "imported": 100,
+        "preferred": 100
       },
-      "routes_counts_available": false,
-      "routes_exported": 0,
+      "routes_counts_available": true,
+      "routes_exported": 50,
       "routes_filtered": 0,
-      "routes_imported": 0,
-      "routes_received": 0,
+      "routes_imported": 100,
+      "routes_received": 100,
       "state": "established",
       "state_changed": "2026-01-15T10:00:00Z",
       "table": "master",
-      "uptime": 0
+      "uptime": 3600
     }
   }
 }

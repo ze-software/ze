@@ -9,6 +9,7 @@ package lg
 import (
 	"fmt"
 	"html/template"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -22,7 +23,8 @@ type nextHopLayout struct {
 }
 
 // computeNextHopLayout assigns x,y positions using a layered layout.
-// Layers left-to-right: forwarding routers at left, egress at right.
+// Layers left-to-right: forwarding routers at left, egress and the ASes
+// outside at right.
 func computeNextHopLayout(g *nextHopGraph) *nextHopLayout {
 	if len(g.Nodes) == 0 {
 		return &nextHopLayout{Positions: make(map[string]Position)}
@@ -99,8 +101,18 @@ func computeNextHopLayout(g *nextHopGraph) *nextHopLayout {
 	}
 }
 
-// formatNextHopNodeLabel returns the display label for a next-hop graph node.
+// formatNextHopNodeLabel returns the display label for a next-hop graph node:
+// a router's address, after the operator's name for it when there is one, or
+// an outside AS, before its name when the decorator knows one, as the trace
+// labels an AS (traceASLabel).
 func formatNextHopNodeLabel(n NextHopNode) string {
+	if n.Outside {
+		if n.Name == "" {
+			return n.Address
+		}
+		var tb textbuf.Buffer
+		return tb.Str(n.Address).Byte(' ').Str(n.Name).String()
+	}
 	if n.Name != "" {
 		var tb textbuf.Buffer
 		return tb.Str(n.Name).Byte(' ').Str(n.Address).String()
@@ -128,11 +140,31 @@ const (
 	routerNodeEgressClass = "node egress"
 )
 
+// outsideNodeClass is the class of the node of an AS outside the local one in
+// the next-hop graph, and outsideNodeStyle the style block that draws it: a
+// dashed amber box, where a router is blue and an exit green. The AS path
+// graph gives an AS the plain class "node" (layout.go), which is also a
+// router's here, so the outside takes a class of its own to differ visibly.
+//
+// The block is written only into a drawing that holds an outside node, after
+// routerGraphStyle, so a drawing of addresses alone keeps its bytes.
+const (
+	outsideNodeClass = "node outside"
+	outsideNodeStyle = `<style>
+.outside rect { fill: var(--outside-fill, #fff3e0); stroke: var(--outside-stroke, #fb8c00); stroke-dasharray: 6 3; }
+.outside rect:hover { fill: var(--outside-fill-hover, #ffe0b2); stroke: var(--outside-stroke-hover, #ef6c00); }
+</style>`
+)
+
 // renderNextHopGraphSVG renders the next-hop graph as an SVG string.
 func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 	var sb textbuf.Buffer
 
 	writeRouterGraphOpen(&sb, layout.Width, layout.Height)
+	if slices.ContainsFunc(g.Nodes, func(n NextHopNode) bool { return n.Outside }) {
+		sb.WriteString(outsideNodeStyle)
+		sb.WriteString("\n")
+	}
 
 	// Render edges first (behind nodes).
 	for _, e := range g.Edges {
@@ -148,6 +180,12 @@ func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 	for _, n := range g.Nodes {
 		pos, ok := layout.Positions[n.Address]
 		if !ok {
+			continue
+		}
+
+		if n.Outside {
+			label := formatNextHopNodeLabel(n)
+			writeRouterGraphNode(&sb, outsideNodeClass, label, label, pos)
 			continue
 		}
 

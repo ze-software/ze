@@ -63,11 +63,17 @@ const (
 // The one below is a fix the port left standing. routeCountsAvailable
 // (handler_api.go) answered on key PRESENCE, so a count key holding a value
 // getNum cannot read as a number reported the counts as available while
-// publishing four zeros. mockDispatch (server_test.go) sends its counts as
+// publishing four zeros. mockDispatch (server_test.go) then sent its counts as
 // strings, so the captured response claimed a real source over a fabricated
 // zero -- the one thing routes_counts_available exists to prevent
 // (docs/architecture/api/birdwatcher-compat.md Section 7.2).
 const lgPortCountsReadable = "routes_counts_available answers on a readable count, not a present key"
+
+// The fixture now follows handleBgpSummary and mergeRibRouteCounts: numeric
+// counts, equal received/accepted, no filtered count, and peer uptime. The API
+// publishes the counts and seconds, and the UI renders the producer's uptime
+// and zero message counters instead of empty cells.
+const lgPortSummaryProducer = "the summary fixture preserves the producer's numeric counts, equal received/accepted counts and duration uptime"
 
 // The one below is a defect the port left standing and 2026-09-20 repaired.
 // handleAPIStatus dispatched `bgp status`, which no command tree has ever
@@ -133,6 +139,9 @@ const (
 	// lgPortRouteDetailSpan covers the route detail row, which spans the
 	// columns of the table it opens in.
 	lgPortRouteDetailSpan = "the route detail row spans nine columns, the route table's count with Age"
+	// lgPortOutsideAsAS covers the next-hop graph, where a peer whose session
+	// is external is drawn as its AS number and never as its address.
+	lgPortOutsideAsAS = "the next-hop graph draws a peer whose session is external as its AS number, never as its address"
 	// lgPortTraceButton covers the result panel of a search that names a
 	// prefix.
 	lgPortTraceButton = "the result panel offers a third graph button, Trace"
@@ -178,7 +187,7 @@ var lgPortTemplates = map[string]string{
 }
 
 var lgPortHandlers = map[string]string{
-	"api-protocols-bgp.txt":   lgPortCountsReadable,
+	"api-protocols-bgp.txt":   lgPortCountsReadable + ", " + lgPortSummaryProducer,
 	"api-routes-bmp.txt":      lgPortAPIAgeAvailable,
 	"api-routes-export.txt":   lgPortExportScope + ", " + lgPortAPIAgeAvailable,
 	"api-routes-peer.txt":     lgPortAPIAgeAvailable,
@@ -191,10 +200,11 @@ var lgPortHandlers = map[string]string{
 	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPrefixRefusal + ", " + lgPortASPathTitle,
 	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
 
-	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells + ", " + lgPortSummaryProducer,
 	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortSearchHelp + ", " + lgPortFeatureHelp,
 	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts + ", " + lgPortPeerHeaderHistory + ", " + lgPortRouteAge,
-	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells + ", " + lgPortSummaryProducer,
+	"ui-graph-nexthop.txt":       lgPortOutsideAsAS,
 	"ui-route-detail.txt":        lgPortRouteDetailSpan,
 	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
 }

@@ -13,6 +13,7 @@ import (
 	"slices"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // nextHopRange is one range of next-hop addresses and the name the operator
@@ -152,11 +153,15 @@ func (s *LGServer) routeRowsWithNextHopNames(routes []any) []routeRow {
 	return rows
 }
 
-// nameNextHopNodes gives each node of a next-hop graph the name of the range
-// its address is in. It is to that graph what decorateGraphNodes is to the AS
-// path graph.
+// nameNextHopNodes gives each node of a next-hop graph its name: the name of
+// the range its address is in, or, for an AS outside the local one, the AS
+// name the AS path graph shows (decorateGraphNodes).
 func (s *LGServer) nameNextHopNodes(g *nextHopGraph) {
 	for i := range g.Nodes {
+		if g.Nodes[i].Outside {
+			g.Nodes[i].Name = s.resolveASN(textbuf.StringInt(int64(g.Nodes[i].AS)))
+			continue
+		}
 		g.Nodes[i].Name = s.nextHopName(g.Nodes[i].Address)
 	}
 }

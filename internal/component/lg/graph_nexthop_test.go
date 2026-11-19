@@ -13,7 +13,7 @@ func TestBuildNextHopGraphSimple(t *testing.T) {
 		map[string]any{"peer-address": "10.0.5.1", "next-hop": "10.0.5.1"},
 	}
 
-	g := buildNextHopGraph(routes)
+	g := buildNextHopGraph(routes, nextHopOutside{})
 
 	if len(g.Nodes) != 2 {
 		t.Fatalf("nodes = %d, want 2", len(g.Nodes))
@@ -58,7 +58,7 @@ func TestBuildNextHopGraphMultipleEgress(t *testing.T) {
 		map[string]any{"peer-address": "10.0.2.1", "next-hop": "10.0.6.1"},
 	}
 
-	g := buildNextHopGraph(routes)
+	g := buildNextHopGraph(routes, nextHopOutside{})
 
 	if len(g.Nodes) != 5 {
 		t.Fatalf("nodes = %d, want 5", len(g.Nodes))
@@ -85,7 +85,7 @@ func TestBuildNextHopGraphMultipleEgress(t *testing.T) {
 
 func TestBuildNextHopGraphEmpty(t *testing.T) {
 	// VALIDATES: nil routes produce empty graph.
-	g := buildNextHopGraph(nil)
+	g := buildNextHopGraph(nil, nextHopOutside{})
 
 	if len(g.Nodes) != 0 {
 		t.Errorf("nodes = %d, want 0", len(g.Nodes))
@@ -105,7 +105,7 @@ func TestBuildNextHopGraphMissingFields(t *testing.T) {
 		map[string]any{"peer-address": "10.0.5.1", "next-hop": "10.0.5.1"},
 	}
 
-	g := buildNextHopGraph(routes)
+	g := buildNextHopGraph(routes, nextHopOutside{})
 
 	if len(g.Nodes) != 2 {
 		t.Fatalf("nodes = %d, want 2 (invalid routes skipped)", len(g.Nodes))
@@ -125,8 +125,8 @@ func TestBuildNextHopGraphDeterministic(t *testing.T) {
 		map[string]any{"peer-address": "10.0.5.1", "next-hop": "10.0.5.1"},
 	}
 
-	g1 := buildNextHopGraph(routes)
-	g2 := buildNextHopGraph(routes)
+	g1 := buildNextHopGraph(routes, nextHopOutside{})
+	g2 := buildNextHopGraph(routes, nextHopOutside{})
 
 	text1 := renderNextHopGraphText(g1)
 	text2 := renderNextHopGraphText(g2)
@@ -149,7 +149,7 @@ func TestBuildNextHopGraphEgressOnly(t *testing.T) {
 		map[string]any{"peer-address": "10.0.5.1", "next-hop": "10.0.5.1"},
 	}
 
-	g := buildNextHopGraph(routes)
+	g := buildNextHopGraph(routes, nextHopOutside{})
 
 	if len(g.Nodes) != 1 {
 		t.Fatalf("nodes = %d, want 1", len(g.Nodes))
@@ -359,7 +359,7 @@ func TestNextHopNameMostSpecificWins(t *testing.T) {
 	graph := buildNextHopGraph([]any{
 		map[string]any{"peer-address": "198.51.100.7", "next-hop": "198.51.100.7"},
 		map[string]any{"peer-address": "203.0.113.9", "next-hop": "203.0.113.9"},
-	})
+	}, nextHopOutside{})
 	lanOnly.nameNextHopNodes(graph)
 	text := renderNextHopGraphText(graph)
 	if !strings.Contains(text, "node 198.51.100.7 layer=0 egress name=ixp-lan-a\n") {

@@ -450,17 +450,28 @@ exactly these differences.
 
 ## 9. Testing
 
-`internal/component/lg/handler_api_test.go` feeds `transformProtocols` the
-payload the engine actually produces rather than a hand-built map. That test
-exists because an earlier version read `ze["peers"]` while the engine answered
-`{"summary":{"peers":[...]}}`, so every peer was dropped and Alice-LG saw no
-sessions at all. A test built from a hand-written fixture would not have caught
-it, which is why this one MUST keep using the real shape.
+`internal/component/lg/handler_api_test.go` gives `transformProtocols` a JSON
+example of the engine's summary. The aggregates and peer rows are siblings,
+the address key is `address`, AS numbers and route counts are numbers, and
+uptime is a duration string. These types must survive the command boundary
+before the looking glass translates them into the birdwatcher format.
+<!-- source: internal/component/lg/handler_api_test.go -- realSummaryJSON, TestTransformProtocolsRealSummaryShape -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, mergeRibRouteCounts -->
 
-The engine answers the aggregates and the rows as siblings now, so
-`summaryPeers` reads `ze["peers"]` and the envelope is gone. The lesson stands:
-the fixture follows the engine, and `test/ui/lg-peer-table-flat-payload.ci`
-drives the peer table over HTTP for the same reason.
+`TestMockSummaryMatchesRegisteredProducer` runs the registered BGP overview
+producer and compares its encoded payload with the handler golden's fixture.
+The RIB-owned additions have a separate contract test: received and accepted
+are equal numeric counts, sent is numeric, and filtered is absent.
+`TestAPIProtocolsMockPreservesProducerNumbers` checks those values through the
+public HTTP handler, including count availability and uptime in seconds.
+<!-- source: internal/component/lg/summary_producer_test.go -- TestMockSummaryMatchesRegisteredProducer -->
+<!-- source: internal/component/lg/summary_fixture_test.go -- TestMockSummaryRouteCountsAreProducerValues, TestAPIProtocolsMockPreservesProducerNumbers -->
+
+The fixture must follow the producer. An earlier summary envelope mismatch
+dropped every peer while the fixture stayed green.
+`test/ui/lg-peer-table-flat-payload.ci` also drives the peer table over HTTP.
+<!-- source: internal/component/lg/handler_api.go -- summaryPeers -->
+<!-- source: test/ui/lg-peer-table-flat-payload.ci -- peer table HTTP checks -->
 
 The same lesson applies to the RIB. `internal/component/lg/ribfake_test.go`
 answers every `show bgp rib` command with the shape `bgp-rib` produces, and it

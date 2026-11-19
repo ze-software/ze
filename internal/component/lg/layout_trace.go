@@ -27,7 +27,7 @@ const traceLineHeight = 18
 // traceLayout holds where the trace graph draws each node, and the
 // text it writes under the nodes. Only computeTraceLayout builds one.
 type traceLayout struct {
-	Addresses map[netip.Addr]Position // Routers of the AS and external next hops.
+	Addresses map[netip.Addr]Position // Routers of the AS and the next hops of traceGraph.Neighbors.
 	ASes      map[uint32]Position
 	// Ends holds one line per walk, in the order of traceGraph.Walks: the
 	// prefix, the starting router and the sentence of the walk's end. The
@@ -48,8 +48,9 @@ func (l *traceLayout) lineY(i int) int {
 
 // computeTraceLayout places the nodes in columns, left to right in the
 // direction of the walk: a router of the AS in the column of the furthest
-// place a walk reaches it at, then the external next hops, then each AS in the
-// column of its furthest place in an exit route's path, the origin AS last.
+// place a walk reaches it at, then the next hops of traceGraph.Neighbors, then
+// each AS in the column of its furthest place in an exit route's path, the
+// origin AS last.
 //
 // A router's column is below the number of routers and an AS's below the
 // longest path, so the columns are bounded by the node cap the handler applied
@@ -180,7 +181,8 @@ func traceEndLines(g *traceGraph) []string {
 	return lines
 }
 
-// traceAddressLabel is the label of a router or an external next hop: its
+// traceAddressLabel is the label of a router or a next hop of
+// traceGraph.Neighbors: its
 // address, after the operator's name for it when there is one, as the next-hop
 // graph writes it (formatNextHopNodeLabel).
 func traceAddressLabel(address netip.Addr, names traceNames) string {
@@ -248,7 +250,8 @@ func renderTraceGraphSVG(g *traceGraph, layout *traceLayout, names traceNames) s
 	return svg.String()
 }
 
-// writeTraceAddressNode writes the node of a router or an external next hop.
+// writeTraceAddressNode writes the node of a router or of a next hop of
+// traceGraph.Neighbors.
 func writeTraceAddressNode(svg *textbuf.Buffer, class string, address netip.Addr, layout *traceLayout, names traceNames) {
 	var tooltip textbuf.Buffer
 	tooltip.Addr(address).Str(nextHopTooltipName(names.ofAddress(address)))

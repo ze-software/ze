@@ -118,9 +118,34 @@ func (s *LGServer) handleASPathGraph(w http.ResponseWriter, routes []any, format
 	writeSVG(w, renderGraphSVG(graph, layout))
 }
 
-// handleNextHopGraph renders the next-hop forwarding topology graph.
+// handleNextHopGraph renders the next-hop forwarding topology graph: a router
+// of the AS by its address, a peer outside the AS by its AS only.
+//
+// routes is the answer of the one RIB query handleGraph made. The peers
+// outside the AS come from the peer summary, as the routers of the trace do
+// (handleTraceGraph), so the mode adds no RIB query and no command.
 func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, format string) {
-	graph := buildNextHopGraph(routes)
+	summary, failure := s.ask(cmdBGPOverview)
+	if failure != nil {
+		// As for the RIB query: a refusal is not a graph of addresses.
+		http.Error(w, engineRefusal(failure).Error(), failure.status)
+		return
+	}
+
+	outside, err := nextHopOutsideFrom(summary)
+	if err != nil {
+		// A summary that cannot tell a peer outside the AS from a router of
+		// the AS would draw the outside by address, as if it were inside, so
+		// the graph is refused and never drawn that way. As in the trace,
+		// the refusal carries the whole reason to the reader, so this line is
+		// a record of the refused request: it logs at Info.
+		s.logger.Info("next-hop graph refused: the peer summary does not name the peers outside the AS",
+			"command", cmdBGPOverview, "reason", err.Error())
+		http.Error(w, nextHopSummaryRefusal(err).Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	graph := buildNextHopGraph(routes, outside)
 	s.nameNextHopNodes(graph)
 
 	if len(graph.Nodes) == 0 {
@@ -189,14 +214,15 @@ func graphModeRefusal(mode string) *opererr.Error {
 	return opererr.New(
 		"mode "+mode+" is not a graph mode",
 		"the graph is drawn as "+graphModeASPath+" (the AS paths), "+graphModeNextHop+
-			" (the routers and their egress) or "+graphModeTrace+
+			" (the routers, their egress and the ASes outside) or "+graphModeTrace+
 			" (from each router of the AS to the origin AS)",
 		"mode="+graphModeASPath,
 	)
 }
 
-// traceSummaryFix is the fix the refusal below names: the command whose
-// answer the trace could not read, where each peer's type and address show.
+// traceSummaryFix is the fix the two refusals below name: the command whose
+// answer the trace or the next-hop graph could not read, where each peer's
+// type, address and AS show.
 const traceSummaryFix = "ze " + cmdBGPOverview
 
 // traceSummaryRefusal is the operator error the trace mode answers when the
@@ -208,6 +234,20 @@ func traceSummaryRefusal(err error) *opererr.Error {
 		cmdBGPOverview+": "+err.Error(),
 		"the trace tells a router of the AS from an external neighbor by each peer's "+
 			"peer-type and address, so without them it would state a wrong exit",
+		traceSummaryFix,
+	)
+}
+
+// nextHopSummaryRefusal is the operator error the next-hop mode answers when
+// the peer summary does not say which peers are outside the AS. err MUST be
+// the error nextHopOutsideFrom returned. Its first line holds the whole
+// reason, so the log holds no more than the reader was told.
+func nextHopSummaryRefusal(err error) *opererr.Error {
+	return opererr.New(
+		cmdBGPOverview+": "+err.Error(),
+		"the next-hop graph draws a router of the AS by its address and an external neighbor "+
+			"by its AS only, told apart by each peer's peer-type, so without it the graph would "+
+			"draw a neighbor as if it were a router of the AS",
 		traceSummaryFix,
 	)
 }

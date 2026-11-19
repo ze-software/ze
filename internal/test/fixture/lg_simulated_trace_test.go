@@ -20,11 +20,11 @@ const lgSimulatedTraceSample = "mode trace\n" +
 	"node router 198.51.100.2 exit\n" +
 	"node router 198.51.100.3\n" +
 	"node router 198.51.100.4\n" +
-	"node neighbor 203.0.113.9 name=ixp-lan-a\n" +
 	"node AS64500\n" +
 	"node AS65101 name=Transit A\n" +
 	"edge 198.51.100.4 -> 198.51.100.3\n" +
 	"edge 198.51.100.1 -> AS65101\n" +
+	"edge 198.51.100.2 -> AS65102\n" +
 	"trace ipv4/unicast 198.18.0.0/24 198.51.100.1 routers=198.51.100.1 end=exit-own-address" +
 	" next-hop=198.51.100.1 as-path=65101,64500" +
 	" says: leaves the AS at 198.51.100.1, which announces its own address as next hop\n" +

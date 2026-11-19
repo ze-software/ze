@@ -6,12 +6,85 @@
 package lg
 
 import (
+	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"sort"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// fieldRemoteAS is the key of the peer summary a peer's AS is read from
+// (bgp/plugins/cmd/peer/summary.go, handleBgpSummary).
+const fieldRemoteAS = "remote-as"
+
+var errNextHopSummary = errors.New("lg next-hop graph: the peer summary does not say which peers are outside the AS")
+
+// nextHopOutside is the set of peers outside the AS: the peers whose session
+// with Ze is external, each known by its session address and its AS. The graph
+// draws such a peer as its AS and never as its address. Only
+// nextHopOutsideFrom builds one from a summary. The zero value holds no peer,
+// so every address stays an address.
+type nextHopOutside struct {
+	asByAddress map[netip.Addr]uint32
+}
+
+// nextHopOutsideFrom reads the peers outside the AS out of the `show bgp`
+// answer, as traceRoutersFrom reads the routers of the AS: by each row's
+// `peer-type`, which the engine derives from the session's own local AS.
+//
+// A summary that cannot say so is refused: with a peer whose type, address or
+// AS cannot be read, the graph would draw an outside peer as an address, as if
+// it were a router of the AS.
+func nextHopOutsideFrom(summary map[string]any) (nextHopOutside, error) {
+	asByAddress := make(map[netip.Addr]uint32)
+	for _, entry := range summaryPeers(summary) {
+		peer, isRow := entry.(map[string]any)
+		if !isRow {
+			return nextHopOutside{}, fmt.Errorf("%w: a peer entry is not a row", errNextHopSummary)
+		}
+
+		// The set is open: the value arrives from the engine's answer.
+		switch peerType := getStr(peer, fieldPeerType); peerType {
+		case peerTypeInternal:
+			// A router of the AS is drawn by its address, as a row names it.
+			continue
+		case peerTypeExternal:
+		default:
+			return nextHopOutside{}, fmt.Errorf("%w: peer %q carries %s %q, which is neither %s nor %s",
+				errNextHopSummary, peerAddress(peer), fieldPeerType, peerType,
+				peerTypeInternal, peerTypeExternal)
+		}
+
+		address, err := netip.ParseAddr(peerAddress(peer))
+		if err != nil {
+			return nextHopOutside{}, fmt.Errorf("%w: peer address %q is not an IP address",
+				errNextHopSummary, peerAddress(peer))
+		}
+		number, isReadable := asn.FromJSON(getVal(peer, fieldRemoteAS))
+		if !isReadable {
+			return nextHopOutside{}, fmt.Errorf("%w: external peer %q carries no readable %s",
+				errNextHopSummary, peerAddress(peer), fieldRemoteAS)
+		}
+		asByAddress[address.Unmap()] = number
+	}
+	return nextHopOutside{asByAddress: asByAddress}, nil
+}
+
+// asOf answers the AS of the outside peer whose session address is the given
+// text, and whether there is one. A text that is no address, and the address
+// of no external peer, are both no outside peer: the node stays what the row
+// wrote.
+func (o nextHopOutside) asOf(address string) (number uint32, isOutside bool) {
+	parsed, err := netip.ParseAddr(address)
+	if err != nil {
+		return 0, false
+	}
+	number, isOutside = o.asByAddress[parsed.Unmap()]
+	return number, isOutside
+}
 
 // nextHopGraph represents an internal forwarding topology as routers and forwarding links.
 type nextHopGraph struct {
@@ -19,29 +92,57 @@ type nextHopGraph struct {
 	Edges []NextHopEdge
 }
 
-// NextHopNode represents a router in the forwarding topology.
+// NextHopNode represents a node of the forwarding topology: a router by its
+// address, or an AS outside the local one.
 type NextHopNode struct {
-	Address string // Router IP address.
-	Name    string // Operator's name for the range Address is in, "" for none (nexthop_ranges.go).
-	Egress  bool   // True when this router learned the route externally (peer == next-hop).
-	Layer   int    // Hop depth (0 = egress, increasing toward source).
+	// Address identifies the node, and an edge names it: the IP address a row
+	// wrote, or `AS<n>` in the configured notation when Outside.
+	Address string
+	// Name is the operator's name for the range Address is in
+	// (nexthop_ranges.go), or the AS name when Outside. "" for none.
+	Name string
+	// Egress is true when this router learned the route externally (peer == next-hop).
+	Egress bool
+	// Outside is true when the node is an AS outside the local one: every
+	// external peer of that AS is this one node. It is never Egress, which is
+	// a statement about a router of the AS.
+	Outside bool
+	AS      uint32 // The AS number. Read only when Outside.
+	Layer   int    // Hop depth (0 = egress or outside, increasing toward source).
 }
 
-// NextHopEdge represents a forwarding link from one router to another.
+// NextHopEdge represents a forwarding link from one node to another.
 type NextHopEdge struct {
-	From string // Source router (peer-address).
-	To   string // Destination router (next-hop).
+	From string // Source node (peer-address, or the AS of an outside peer).
+	To   string // Destination node (next-hop, or the AS of an outside peer).
 }
 
 // buildNextHopGraph constructs a forwarding topology from routes.
 // Each route needs "peer-address" and "next-hop" fields.
 // A router is egress when peer-address == next-hop (learned externally, next-hop-self).
-func buildNextHopGraph(routes []any) *nextHopGraph {
+//
+// An address that is the session address of a peer outside the AS is drawn as
+// that AS: two external peers of one AS are one node and their edges merge.
+// Every other address is a node of its own, as the row wrote it: a router of
+// the AS, and an address that is no peer of Ze, about which nothing is derived.
+func buildNextHopGraph(routes []any, outside nextHopOutside) *nextHopGraph {
 	type edgeKey struct{ from, to string }
 
 	nodeSet := make(map[string]bool)
 	egressSet := make(map[string]bool)
 	edgeSet := make(map[edgeKey]bool)
+	outsideAS := make(map[string]uint32)
+
+	// nodeOf answers the node an address is drawn as.
+	nodeOf := func(address string) string {
+		number, isOutside := outside.asOf(address)
+		if !isOutside {
+			return address
+		}
+		node := "AS" + asn.Text(number, asn.Configured())
+		outsideAS[node] = number
+		return node
+	}
 
 	for _, r := range routes {
 		route, ok := r.(map[string]any)
@@ -55,6 +156,7 @@ func buildNextHopGraph(routes []any) *nextHopGraph {
 			continue
 		}
 
+		peer, nhop = nodeOf(peer), nodeOf(nhop)
 		nodeSet[peer] = true
 		nodeSet[nhop] = true
 
@@ -65,7 +167,12 @@ func buildNextHopGraph(routes []any) *nextHopGraph {
 		}
 	}
 
-	// Compute layers via BFS from egress nodes.
+	// Compute layers via BFS from the egress nodes and the outside nodes: an
+	// AS outside is where the forwarding ends, whether or not its peer sent Ze
+	// a row of its own.
+	for node := range outsideAS {
+		egressSet[node] = true
+	}
 	layerMap := make(map[string]int)
 	for addr := range egressSet {
 		layerMap[addr] = 0
@@ -106,9 +213,12 @@ func buildNextHopGraph(routes []any) *nextHopGraph {
 	// Build sorted node list (higher layer first, then by address).
 	nodes := make([]NextHopNode, 0, len(nodeSet))
 	for addr := range nodeSet {
+		number, isOutside := outsideAS[addr]
 		nodes = append(nodes, NextHopNode{
 			Address: addr,
-			Egress:  egressSet[addr],
+			Egress:  egressSet[addr] && !isOutside,
+			Outside: isOutside,
+			AS:      number,
 			Layer:   layerMap[addr],
 		})
 	}
@@ -147,12 +257,24 @@ func extractString(route map[string]any, key string) string {
 	return s
 }
 
+// nextHopOutsideMark is the word the text form writes on the node of an AS
+// outside the local one, where a router that is an exit carries `egress`.
+const nextHopOutsideMark = "outside"
+
 // renderNextHopGraphText returns a deterministic text representation for testing.
+//
+// A node line reads `node <address> layer=N [egress] [name=...]` for a router
+// or an address that is no peer, and `node AS<n> layer=N outside` for an AS
+// outside the local one.
 func renderNextHopGraphText(g *nextHopGraph) string {
 	var sb textbuf.Buffer
 	sb.WriteString("mode nexthop\n")
 	for _, n := range g.Nodes {
 		fmt.Fprintf(&sb, "node %s layer=%d", n.Address, n.Layer) //nolint:errcheck // report output
+		if n.Outside {
+			sb.Str(" ").Str(nextHopOutsideMark).Byte('\n')
+			continue
+		}
 		if n.Egress {
 			sb.WriteString(" egress")
 		}

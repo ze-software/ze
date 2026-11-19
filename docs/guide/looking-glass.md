@@ -204,6 +204,34 @@ The birdwatcher API answers the same seconds in its `age` field, with
 <!-- source: internal/component/lg/render.go -- formatElapsed -->
 <!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge -->
 
+### Inside by address, outside by AS number
+
+The next-hop graph and the trace draw the two sides of your network's edge
+differently, so a reader tells them apart at a glance:
+
+| What the address is | How the graphs draw it | Why |
+|---------------------|------------------------|-----|
+| A router of your AS: a peer whose session with Ze is internal (`peer-type` `internal` in `show bgp`) | By its address, with the name of its `next-hop-range` when it is in one. Green when it is an egress | Inside your AS the address is what tells one router from another |
+| A neighbour outside your AS: a peer whose session with Ze is external (`peer-type` `external`) | By its AS number only, with the AS name the AS path graph shows, in a dashed box. Its address is nowhere in the graph. Two neighbours of one AS are one node, and the edges to either meet on it | Outside your AS the looking glass states who the traffic is handed to, never which address of theirs |
+| An address that is no peer of Ze: a next hop with no session, or a route held for a peer with no session | By its address, as a route wrote it | Ze knows no AS for it, and nothing is derived |
+
+In the next-hop graph's text form (`mode=nexthop&format=text`) a router or an
+address reads `node <address> layer=N [egress] [name=<name>]`, and an AS
+outside reads `node AS<n> layer=N outside`. `egress` stays a statement about a
+router of your AS: it announces its own address as next hop. An AS outside is
+never `egress`.
+
+The next-hop graph therefore reads the peer summary beside the routes. When
+the summary cannot be read, or does not say for a peer whether its session is
+internal or external, the graph is refused with the reason and
+`ze show bgp`, as the trace is. It is never drawn with every node as an
+address, because that would show a neighbour as if it were one of your
+routers.
+
+<!-- source: internal/component/lg/graph_nexthop.go -- nextHopOutsideFrom, buildNextHopGraph, renderNextHopGraphText -->
+<!-- source: internal/component/lg/handler_graph.go -- handleNextHopGraph, nextHopSummaryRefusal -->
+<!-- source: internal/component/lg/layout_nexthop.go -- outsideNodeClass, renderNextHopGraphSVG -->
+
 ### Tracing a prefix through the network
 
 When every router of your network holds a session to Ze, the looking glass
@@ -224,8 +252,8 @@ right. Under the graph, one line per router states how its walk ended:
 | The router's next hop, or what Ze holds | The line says | What follows |
 |------------------------------------------|---------------|--------------|
 | Its own address | It leaves the AS at that router, which announces its own address as next hop | The AS path of that route |
-| The address of no router of the AS | It leaves the AS at that router toward that address | The address, then the AS path. The neighbour at that address needs no session with Ze |
-| Either of the two, with an empty AS path | The prefix originates inside the AS at that router | Nothing |
+| The address of no router of the AS | It leaves the AS at that router toward that address | The AS path, starting at the AS the traffic is handed to: the exit router links straight to it. The address is outside your AS, so it is in the line and in the text form's `next-hop=` field, and is never a node. The neighbour at that address needs no session with Ze |
+| Either of the two, with an empty AS path | The prefix originates inside the AS at that router | No AS. A next hop that is no router's address is still drawn by its address: the path is empty, so there is no AS to draw it as, and nothing is derived |
 | A router the walk already crossed | The walk would loop, and at which router | Nothing |
 | A router that sent Ze no route for the prefix | Ze holds no route from that router for the prefix | Nothing |
 | Ze holds several different routes from the router (ADD-PATH) | No row says which one the router chose | Nothing |
@@ -263,14 +291,15 @@ router of the AS to the next. The hops your IGP takes between two consecutive
 next hops are in no route Ze holds, so they lie outside what the graph draws.
 The graph and the help page say so.
 
-The graph draws at most 100 nodes (routers, external next hops and ASes
-together) and says so when a prefix has more. Names from `next-hop-range`
-label the routers and next hops, and AS names label the ASes.
+The graph draws at most 100 nodes (routers, ASes, and the next hops of
+prefixes that originate inside the AS, together) and says so when a prefix
+has more. Names from `next-hop-range` label the routers and those next hops,
+and AS names label the ASes.
 
 The lines under the graph, and the `trace` lines of the text form, stop at
 100. A bare address asks for every prefix that contains it, and each prefix
 is walked from every router that sent it, so such a lookup can hold more
-walks than that. Every walk still gives the graph its routers, next hops and
+walks than that. Every walk still gives the graph its routers and
 ASes; the last line then says how many traces are not listed, and the text
 form ends with an `unlisted traces=<count>` line. Ask for one prefix with its
 length to read all of its traces.

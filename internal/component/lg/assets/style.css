@@ -37,6 +37,10 @@
   --egress-stroke: #4caf50;
   --egress-fill-hover: #c8e6c9;
   --egress-stroke-hover: #388e3c;
+  --outside-fill: #fff3e0;
+  --outside-stroke: #fb8c00;
+  --outside-fill-hover: #ffe0b2;
+  --outside-stroke-hover: #ef6c00;
   --best-bg: #e6f4ea;
 }
 
@@ -80,6 +84,10 @@
     --egress-stroke: #3fb950;
     --egress-fill-hover: #1e3f2e;
     --egress-stroke-hover: #56d364;
+    --outside-fill: #33260f;
+    --outside-stroke: #d29922;
+    --outside-fill-hover: #40300f;
+    --outside-stroke-hover: #e3b341;
     --best-bg: #1a3326;
   }
 }
@@ -92,7 +100,7 @@
   --peer-info-bg: #fff; --shadow: rgba(0,0,0,0.1); --state-up: #22863a; --state-down: #cb2431; --state-unknown: #999;
   --error-bg: #fff3cd; --error-border: #ffc107; --error-text: #856404;
   --node-fill: #f0f4f8; --node-stroke: #4a90d9; --node-stroke-hover: #2a6cb8; --node-fill-hover: #dce8f5; --node-text: #333;
-  --edge-stroke: #999; --egress-fill: #e8f5e9; --egress-stroke: #4caf50; --egress-fill-hover: #c8e6c9; --egress-stroke-hover: #388e3c;
+  --edge-stroke: #999; --egress-fill: #e8f5e9; --egress-stroke: #4caf50; --egress-fill-hover: #c8e6c9; --egress-stroke-hover: #388e3c; --outside-fill: #fff3e0; --outside-stroke: #fb8c00; --outside-fill-hover: #ffe0b2; --outside-stroke-hover: #ef6c00;
   --best-bg: #e6f4ea;
 }
 
@@ -104,7 +112,7 @@
   --peer-info-bg: #25272b; --shadow: rgba(0,0,0,0.3); --state-up: #3fb950; --state-down: #f85149; --state-unknown: #6e7681;
   --error-bg: #3b2e00; --error-border: #9e6a00; --error-text: #f0c000;
   --node-fill: #2a2d32; --node-stroke: #4a90d9; --node-stroke-hover: #5a9ee6; --node-fill-hover: #333842; --node-text: #d4d4d8;
-  --edge-stroke: #6e7681; --egress-fill: #1a3326; --egress-stroke: #3fb950; --egress-fill-hover: #1e3f2e; --egress-stroke-hover: #56d364;
+  --edge-stroke: #6e7681; --egress-fill: #1a3326; --egress-stroke: #3fb950; --egress-fill-hover: #1e3f2e; --egress-stroke-hover: #56d364; --outside-fill: #33260f; --outside-stroke: #d29922; --outside-fill-hover: #40300f; --outside-stroke-hover: #e3b341;
   --best-bg: #1a3326;
 }
 

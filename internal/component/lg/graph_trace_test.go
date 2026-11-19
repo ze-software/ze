@@ -260,10 +260,12 @@ func TestTraceWalkExitsOnOwnAddress(t *testing.T) {
 
 // VALIDATES: AC-27, A-10 -- a next hop that is no router's address leaves the
 // AS at that router toward that address, whether or not the neighbor at that
-// address holds a session with Ze.
-// PREVENTS: a walk that needs a session, or a row, for the external neighbor.
+// address holds a session with Ze. The address is outside the AS, so it is no
+// node: the exit links straight to the first AS of the exit route's path, and
+// the walk's statement and next hop keep the address.
+// PREVENTS: a walk that needs a session, or a row, for the external neighbor,
+// and an outside address drawn as if it were a router of the AS.
 func TestTraceWalkLeavesAtExternalNextHop(t *testing.T) {
-	neighbor := netip.MustParseAddr("203.0.113.9")
 	border := netip.MustParseAddr("198.51.100.2")
 
 	sessions := map[string][]traceTestPeer{
@@ -288,14 +290,17 @@ func TestTraceWalkLeavesAtExternalNextHop(t *testing.T) {
 			trace := traceTestWalkOf(t, g, "198.51.100.2")
 			traceTestExpectWalk(t, trace, traceTestAddrs("198.51.100.2"),
 				traceEndExitExternalAddress, "203.0.113.9", []uint32{65102, 64500})
-			if want := []netip.Addr{neighbor}; !slices.Equal(g.Neighbors, want) {
-				t.Errorf("neighbors = %v, want %v", g.Neighbors, want)
+			if len(g.Neighbors) != 0 {
+				t.Errorf("neighbors = %v, want none: an address outside the AS is drawn as its AS", g.Neighbors)
 			}
-			if want := []traceHopEdge{{From: border, To: neighbor}}; !slices.Equal(g.HopEdges, want) {
-				t.Errorf("hop edges = %v, want %v", g.HopEdges, want)
+			if len(g.HopEdges) != 0 {
+				t.Errorf("hop edges = %v, want none: the walk crossed one router", g.HopEdges)
 			}
-			if want := []traceEntryEdge{{From: neighbor, AS: 65102}}; !slices.Equal(g.EntryEdges, want) {
+			if want := []traceEntryEdge{{From: border, AS: 65102}}; !slices.Equal(g.EntryEdges, want) {
 				t.Errorf("entry edges = %v, want %v", g.EntryEdges, want)
+			}
+			if want := []uint32{64500, 65102}; !slices.Equal(g.ASes, want) {
+				t.Errorf("ASes = %v, want %v", g.ASes, want)
 			}
 			if got := trace.statement(); !strings.Contains(got, "toward 203.0.113.9") {
 				t.Errorf("statement = %q, want the address the walk leaves toward", got)
@@ -433,15 +438,13 @@ func TestTraceGraphTextIsOrdered(t *testing.T) {
 		"node router 198.51.100.2 exit\n" +
 		"node router 198.51.100.3\n" +
 		"node router 198.51.100.4\n" +
-		"node neighbor 203.0.113.9 name=ixp-lan-a\n" +
 		"node AS64500\n" +
 		"node AS65101 name=Transit A\n" +
 		"node AS65102\n" +
-		"edge 198.51.100.2 -> 203.0.113.9\n" +
 		"edge 198.51.100.3 -> 198.51.100.1\n" +
 		"edge 198.51.100.4 -> 198.51.100.3\n" +
 		"edge 198.51.100.1 -> AS65101\n" +
-		"edge 203.0.113.9 -> AS65102\n" +
+		"edge 198.51.100.2 -> AS65102\n" +
 		"edge AS65101 -> AS64500\n" +
 		"edge AS65102 -> AS64500\n" +
 		"trace ipv4/unicast 198.18.0.0/24 198.51.100.1 routers=198.51.100.1 end=exit-own-address" +

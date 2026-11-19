@@ -89,6 +89,11 @@ needs every router of the network to hold a session to Ze from the address it
 writes as next hop, and it does not show the IGP's hops between two BGP next
 hops: [Tracing a prefix through the network](looking-glass.md#tracing-a-prefix-through-the-network).
 
+Both `nexthop` and `trace` draw a router of your AS by its address and a
+neighbour outside it by its AS number only, so an external peer never shows
+as an address:
+[Inside by address, outside by AS number](looking-glass.md#inside-by-address-outside-by-as-number).
+
 For a local test on the box:
 
 ```bash
