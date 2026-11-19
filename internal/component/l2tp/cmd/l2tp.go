@@ -580,10 +580,13 @@ func handleSessionTeardown(ctx *pluginserver.CommandContext, validated command.V
 		if errors.Is(err, l2tp.ErrSessionAmbiguous) {
 			return sessionTeardownAmbiguity(svc, selector, err), nil
 		}
+		if errors.Is(err, l2tp.ErrSessionNotFound) {
+			return sessionTeardownNotFound(selector.SID, err), nil
+		}
 		return sessionTeardownFailure(selector.SID, err), nil
 	}
 	if captured == nil {
-		return sessionTeardownFailure(selector.SID, l2tp.ErrSessionNotFound), nil
+		return sessionTeardownNotFound(selector.SID, l2tp.ErrSessionNotFound), nil
 	}
 	if err := ctx.Context().Err(); err != nil {
 		return sessionTeardownFailure(selector.SID, err), nil

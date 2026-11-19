@@ -208,6 +208,13 @@ func sessionTeardownFailure(sid uint16, cause error) *plugin.Response {
 		"show l2tp sessions"))
 }
 
+func sessionTeardownNotFound(sid uint16, cause error) *plugin.Response {
+	return plugin.OperatorErrorResponse(opererr.Wrap(cause,
+		fmt.Sprintf("L2TP session %d was not cleared", sid),
+		"No L2TP session matches this selector",
+		"show l2tp sessions"))
+}
+
 func sessionTeardownAmbiguity(service l2tp.Service, selector l2tp.SessionSelector, cause error) *plugin.Response {
 	return plugin.OperatorErrorResponse(opererr.Wrap(cause,
 		fmt.Sprintf("L2TP session ID %d is ambiguous", selector.SID),

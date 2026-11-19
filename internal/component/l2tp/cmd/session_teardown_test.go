@@ -88,6 +88,8 @@ func TestHandleSessionTeardownRefusesAmbiguousSelector(t *testing.T) {
 			if test.name == "ambiguous" {
 				require.Contains(t, response.Error, "clear l2tp session id 7 tunnel-id 17 listener 127.0.0.1:1701")
 				require.Contains(t, response.Error, "clear l2tp session id 7 tunnel-id 18 listener 127.0.0.1:1701")
+			} else {
+				require.Contains(t, response.Error, "\nNo L2TP session matches this selector")
 			}
 		})
 	}
