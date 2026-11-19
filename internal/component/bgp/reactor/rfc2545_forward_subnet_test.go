@@ -462,6 +462,21 @@ func rfc2545ReceiveForward(t *testing.T, f *aigpReplayFixture, rail string, body
 func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail string, body []byte,
 	withdrawnAtReceipt bool) (recipient, published []*message.Update) {
 	t.Helper()
+	session := f.source.currentSession()
+	if session == nil {
+		t.Fatal("RFC2545 fixture has no original source Session")
+	}
+	if session.sourceReceiptID() == 0 {
+		if f.source.forwardGeneration.Load() == 0 {
+			f.source.advanceForwardGeneration()
+		}
+		session.setRecvCtxID(f.ctxID)
+		if err := session.captureSourceReceipt(f.source, &sourceReceipts); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(session.closeSourceReceipt)
+	}
+	sourceReceiver := f.r.messageReceiverForPeer(f.source)
 	original := bytes.Clone(body)
 	if !withdrawnAtReceipt {
 		// A gate's withdrawal reaches only a recipient that was advertised
@@ -475,7 +490,7 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 		}
 	})
 	var ids []uint64
-	f.source.session.onMessageReceived = func(captured *Session, addr netip.Addr, typ msgtype.MessageType, received []byte,
+	session.onMessageReceived = session.sourceMessageCallback(func(captured *Session, addr netip.Addr, typ msgtype.MessageType, received []byte,
 		wu *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, meta map[string]any, sourcePeer string, sourceMessageID uint64) bool {
 		if typ != msgtype.TypeUPDATE || wu == nil {
@@ -493,7 +508,7 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 		} else if !bytes.Equal(wu.Payload(), original) {
 			t.Fatal("Session did not publish the intact native announcement")
 		}
-		kept := f.r.capturedMessageReceiver(captured, addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
+		kept := sourceReceiver(captured, addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
 		id := wu.MessageID()
 		ids = append(ids, id)
 		f.ids = append(f.ids, id)
@@ -502,9 +517,9 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 		}
 		t.Cleanup(func() { f.r.recentUpdates.Release(id) })
 		return kept
-	}
+	})
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
-	err, kept := f.source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
+	err, kept := session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
 	if err != nil || !kept {
 		t.Fatalf("Session receive: err=%v kept=%v, want the UPDATE kept and the session up", err, kept)
 	}
