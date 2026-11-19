@@ -719,6 +719,19 @@ enters config mode. In config mode, `delete` remains an editor operation and
 same decision for mutation authorization and stream routing; daemon dispatch
 still applies the authenticated caller's policy.
 
+The terminal authorizes a config-mode line with the permission string the
+editor's own verb table gives its verb (`cli.ConfigPermission`), with `top
+<command>` judged as its command. The SSH session editor gates its dispatch
+with the same table, so the two surfaces cannot judge a verb two ways. The
+strings themselves (`config set`, `config add`, `config delete`, `config
+rename`, `config commit`, `config discard`, `config rollback`, `config save`)
+are declared once in `internal/component/plugin/types.go` beside `config
+edit`, and the web editor's handlers authorize with the same constants.
+
+<!-- source: internal/component/web/cli_terminal.go -- terminalAuthCommand -->
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission, configPermissions -->
+<!-- source: internal/component/plugin/types.go -- ConfigAuthSet, ConfigAuthAdd, ConfigAuthSave -->
+
 Operational completion overlays the current plugin registry on each request.
 Live builtin and plugin argument values come from `Server.WireArgCompletion` on copied
 paths, leaving the shared tree immutable. `GET /cli/complete` accepts `input`,

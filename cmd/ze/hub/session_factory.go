@@ -44,10 +44,16 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 	return func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer, request zessh.SessionRequest) (tea.Model, error) {
 		configPath := params.ConfigPath
 		commitReload := reloadFn
+		// namedConfig is the stored configuration the session edits when it is
+		// not the daemon's own. Each config-mode permission the editor asks for
+		// then carries the name (`config commit client-edge.conf`); the
+		// daemon's own config asks for the bare strings.
+		namedConfig := ""
 		if request.ConfigName != "" {
 			if request.ConfigName != filepath.Base(configPath) {
 				configPath = request.ConfigName
 				commitReload = nil
+				namedConfig = request.ConfigName
 			}
 			if params.Store == nil {
 				return nil, fmt.Errorf("configuration %q unavailable: no persistent store", request.ConfigName)
@@ -126,6 +132,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityDaemon)
 				if modelErr == nil {
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
+					m.SetConfigAuthorizer(sessionConfigAuthorizer(username, remoteAddr, authorizer), namedConfig)
 					m.SetCommandCompleter(cmdCompleter)
 					m.SetRegisteredOperational(registered)
 					m.SetHistory(cli.NewHistory(params.Store, username))
@@ -156,7 +163,10 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 			return nil, fmt.Errorf("configuration editing unavailable: no persistent configuration source")
 		}
 
-		// Fallback: command-only model.
+		// Fallback: command-only model. It holds no editor, so it installs no
+		// config authorizer: every config-mode verb is refused before any
+		// handler with "requires config mode" (dispatchCommandWords), and
+		// operational commands are authorized by the executor.
 		m := cli.NewCommandModel(cli.FilesystemAuthorityDaemon)
 		m.SetCommandCompleter(cmdCompleter)
 		m.SetRegisteredOperational(registered)
@@ -174,6 +184,24 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		}
 		m.SetLoginWarnings(cliWarnings)
 		return m, nil
+	}
+}
+
+// sessionConfigAuthorizer binds the editor's config-mode gate to the policy
+// authentication bound to this connection, never to the daemon's live
+// fallback. Every config permission string is a change, so it is judged in
+// the edit section (isReadOnly false). sshSessionPolicy turns a connection
+// that carries no authorizer into one that denies everything: the SSH editor
+// fails closed exactly as the SSH operational executor and the SSH config
+// upload do. A daemon with no system.authorization still binds an authorizer
+// that allows, so it stays permissive.
+//
+// The attached console shares newSessionEditor and never reaches this
+// function: it authenticates nobody and keeps every verb.
+func sessionConfigAuthorizer(username, remoteAddr string, authorizer plugin.Authorizer) cli.ConfigAuthorizer {
+	policy := sshSessionPolicy(authorizer)
+	return func(permission string) bool {
+		return policy.Authorize(username, remoteAddr, permission, false)
 	}
 }
 

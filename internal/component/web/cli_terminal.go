@@ -210,35 +210,23 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 	}
 }
 
-// terminalAuthCommand maps only state-changing verbs to RBAC commands.
-// Navigation verbs like edit/up/top are intentionally ungated here: in the web
-// CLI bar they only change the visible subtree, unlike the API's "config edit"
-// session creation which opens a mutable config session. `top <command>` is
-// authorized as the command it runs, so `top` never carries a mutation past
-// the gate.
+// terminalAuthCommand answers the permission string a terminal line is
+// authorized with, read from the editor's own verb table (cli.ConfigPermission)
+// so the web terminal and the SSH session editor judge every verb the same
+// way. Navigation verbs like edit/up/top are ungated there: in the web CLI bar
+// they only change the visible subtree, unlike the API's "config edit" session
+// creation which opens a mutable config session. `top <command>` is authorized
+// as the command it runs, so `top` never carries a mutation past the gate. The
+// empty string means the verb is ungated.
 func terminalAuthCommand(cmd cliCommand) string {
 	if inner, underTop := commandBehindTop(cmd); underTop {
 		return terminalAuthCommand(inner)
 	}
-	switch cmd.Verb {
-	case verbSet, verbActivate:
-		return webCommandConfigSet
-	case verbDelete, verbDeactivate:
-		return webCommandConfigDelete
-	case verbCommit:
-		return webCommandConfigCommit
-	case verbDiscard, verbDisconnect:
-		return webCommandConfigDiscard
-	case verbRollback:
-		return webCommandConfigRollback
-	case verbRename:
-		return webCommandConfigRename
-	case verbCopy, verbInsert:
-		return webCommandConfigAdd
-	case verbSave, verbLoad:
-		return webCommandConfigSave
+	permission, gated := cli.ConfigPermission(cmd.Verb)
+	if !gated {
+		return ""
 	}
-	return ""
+	return permission
 }
 
 func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string, registered func(string) bool) string {

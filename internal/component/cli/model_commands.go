@@ -201,6 +201,15 @@ func (m *Model) dispatchCommandWords(parsed CommandWords) (commandResult, error)
 		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmd)
 	}
 
+	// Every config-mode line reaches this point: `top <command>` came back
+	// through here with its inner command, the operational-mode shortcut
+	// dispatches the same line, and a pipe takes `show` alone. A mutating verb
+	// the session's authorizer denies stops here, before any handler touches
+	// the editor.
+	if err := m.authorizeConfigVerb(cmd); err != nil {
+		return commandResult{}, err
+	}
+
 	switch cmd {
 	case cmdExit, cmdQuit:
 		// Handled directly in handleEnter() before dispatch — should not reach here.

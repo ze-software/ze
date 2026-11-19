@@ -812,6 +812,16 @@ fix:
 A config over the bound that already lies inside the daemon's config
 directories is sent by path instead, as `show config validation file <path>`.
 
+The noninteractive completion command uses `completerForBytes` for both its
+file/stdin adapter and `show config supplied completion`. Schema selection
+reads declarations from the supplied configuration and uses modules already
+available to this process; it never starts a declared program. The supplied
+operation carries the configuration and literal editing input in one bounded,
+masked JSON envelope. Context and ghost selection are modeled arguments. Only
+the standalone shell adapter interprets `+` in `--input` as a space.
+<!-- source: internal/component/config/cli/cmd_completion.go -- completerForBytes -->
+<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion -->
+
 ### `ze config fmt`, `dump`, `diff` and `graph` take the same route
 
 The four commands that read a config and answer about it share the route
@@ -1690,6 +1700,45 @@ Trade-off of the inline form: a member value that legitimately begins with
 <!-- source: internal/component/config/meta.go -- MetaEntry.Member -->
 <!-- source: internal/component/config/change_file.go -- StructuralOpInsertMember -->
 <!-- source: internal/component/config/serialize_set.go -- writeLeafListMemberLines, emitValueOrArrayNop -->
+
+### Who may change the candidate
+
+The config editor authorizes each config-mode verb that changes the
+candidate, the store or the running configuration, when its surface installs
+an authorizer (`Model.SetConfigAuthorizer`). The check runs in
+`dispatchCommandWords`, which every config-mode line reaches: `top <command>`
+comes back through it with its inner command, the operational-mode shortcut
+that enters config mode on `set` dispatches the same line, and a pipe accepts
+`show` alone. It runs before the verb's handler, so a refused line leaves the
+candidate and the store as they were.
+
+The verb table (`cli.ConfigPermission`) is the one declaration of which verb is
+asked about with which string; the web terminal reads it too:
+
+| Verbs | Permission |
+|-------|------------|
+| `set`, `activate` | `config set` |
+| `delete`, `deactivate` | `config delete` |
+| `commit` | `config commit` |
+| `discard`, `disconnect` | `config discard` |
+| `rollback` | `config rollback` |
+| `rename` | `config rename` |
+| `copy`, `insert` | `config add` |
+| `save`, `load` | `config save` |
+
+Every other verb (`edit`, `up`, `top`, `show`, `who`, `option`, `help`, `exit`)
+changes nothing and is never asked about. A session on a named stored
+configuration asks with the string, a space, then the name (`config commit
+client-edge.conf`). A refusal reads `command restricted by access control:
+<permission>`, wraps the dispatcher's `ErrUnauthorized` and ends with the fix
+line. The SSH session factory installs the authorizer bound to the
+connection's login, and plain `ze config edit` opens such an SSH session, so
+it is authorized the same way. The attached console and `ze config edit` in
+its file mode (`-f`) and backup mode (`--backup`) authenticate nobody and
+install none, so every verb runs there.
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission, authorizeConfigVerb, configRefusal -->
+<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
+<!-- source: internal/component/cli/model.go -- SetConfigAuthorizer -->
 
 ### CLI Help from YANG
 

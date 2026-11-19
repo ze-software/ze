@@ -22,6 +22,13 @@
 # PREVENTS: Regression of the doubled prefix ("error: error: ...") produced when the
 #           ssh exec handler's "error: " text became the client's error value and the
 #           client prefixed it again.
+#
+# This file judges `ze cli -c`, one operational command. The interactive
+# configuration mode (`set`, `commit` and the other config-mode verbs, judged
+# per verb against the profile's edit section) is proven over a real SSH PTY by
+# TestSSHEditorAuthorizesConfigVerbsOverPTY,
+# TestSSHEditorAuthorizesNamedConfigurationOverPTY and
+# TestConfirmedRollbackSurvivesLostPermission (cmd/ze/hub/session_authz_test.go).
 
 tmpfs=rbac-ssh-only.conf:terminator=EOF_CONF
 environment {

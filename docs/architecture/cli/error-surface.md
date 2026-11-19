@@ -272,6 +272,16 @@ line (`CommitRefusal`).
 <!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal -->
 
+A config-mode verb the session's profile denies is refused the same way, by
+an operator error of three lines: `command restricted by access control:
+<permission>` on row 1 (the dispatcher's wording, followed by the permission
+string the editor asked about, such as `config set`), why on the second, and
+last the fix line, which tells the operator to ask an administrator for a
+profile whose edit section allows that permission. It wraps the dispatcher's `ErrUnauthorized`, so a caller
+classifies it as permission denied without comparing text.
+
+<!-- source: internal/component/cli/config_permission.go -- configRefusal -->
+
 ## A fix is framed for where the operator types it
 
 A fix is the exact text the operator types, so it depends on where they type

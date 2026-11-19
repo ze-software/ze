@@ -28,6 +28,7 @@ import (
 	zepb "github.com/ze-software/ze/api/proto"
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -725,7 +726,7 @@ func (s *zeConfigServiceImpl) EnterSession(ctx context.Context, _ *zepb.Empty) (
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.requireWriteAccess(ctx, api.ConfigAuthEdit); err != nil {
+	if err := s.requireWriteAccess(ctx, plugin.ConfigAuthEdit); err != nil {
 		return nil, err
 	}
 	id, err := s.sessions.Enter(usernameFromContext(ctx))
@@ -739,7 +740,7 @@ func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSet
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.requireWriteAccess(ctx, api.ConfigAuthSet); err != nil {
+	if err := s.requireWriteAccess(ctx, plugin.ConfigAuthSet); err != nil {
 		return nil, err
 	}
 	if err := s.sessions.Set(fromProtoConfigSetRequest(req, usernameFromContext(ctx))); err != nil {
@@ -752,7 +753,7 @@ func (s *zeConfigServiceImpl) DeleteConfig(ctx context.Context, req *zepb.Config
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.requireWriteAccess(ctx, api.ConfigAuthDelete); err != nil {
+	if err := s.requireWriteAccess(ctx, plugin.ConfigAuthDelete); err != nil {
 		return nil, err
 	}
 	if err := s.sessions.Delete(fromProtoConfigDeleteRequest(req, usernameFromContext(ctx))); err != nil {
@@ -776,7 +777,7 @@ func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.Commi
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.requireWriteAccess(ctx, api.ConfigAuthCommit); err != nil {
+	if err := s.requireWriteAccess(ctx, plugin.ConfigAuthCommit); err != nil {
 		return nil, err
 	}
 	caller := callerIdentityFromContext(ctx)
@@ -799,7 +800,7 @@ func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.Sess
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.requireWriteAccess(ctx, api.ConfigAuthDiscard); err != nil {
+	if err := s.requireWriteAccess(ctx, plugin.ConfigAuthDiscard); err != nil {
 		return nil, err
 	}
 	caller := callerIdentityFromContext(ctx)

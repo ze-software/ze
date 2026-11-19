@@ -145,9 +145,11 @@ plugin dispatches command `"show routes"` scoped to peer `"10.0.0.1"`,
 the authorization string is `"peer show routes"`, not
 `"peer 10.0.0.1 show routes"`.
 
-For CLI-entered commands (the common case), the authorization string is exactly
-what the user typed: `show bgp peer list`, `clear counters`,
-`configure`, etc.
+For operational commands entered at the CLI (the common case), the
+authorization string is exactly what the user typed: `show bgp peer list`,
+`clear counters`, etc. Configuration mode is different, and the next section
+covers it.
+<!-- source: internal/component/plugin/server/command.go -- isAuthorized -->
 
 **Every command now starts with its verb, so profile entries must too.** The bare
 forms that once worked without a verb (`bgp summary`, `system memory`, `daemon
@@ -158,6 +160,73 @@ stops covering the command it was written for. Write `show bgp`, `show system`,
 and `request reload` instead.
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
+
+### Configuration mode
+
+A configuration change is never authorized by what the user typed. Each
+change is authorized by a permission string from a fixed table, judged in the
+`edit` section. The SSH session editor, the web editor, the web terminal and
+the REST and gRPC config sessions use the same strings, so one profile entry
+governs a change on every surface.
+
+| Editor verb | Permission string |
+|-------------|-------------------|
+| `set`, `activate` | `config set` |
+| `delete`, `deactivate` | `config delete` |
+| `commit` | `config commit` |
+| `discard`, `disconnect` | `config discard` |
+| `rollback` | `config rollback` |
+| `rename` | `config rename` |
+| `copy`, `insert` | `config add` |
+| `save`, `load` | `config save` |
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
+
+`configure` is never authorized: it only switches the CLI into configuration
+mode, and an entry that matches `configure` matches nothing Ze checks.
+Navigation and display (`edit`, `up`, `top`, `show`, `who`, `option`, `help`)
+are not checked, so a read-only user can browse the configuration. `run
+<command>` is authorized as the operational command it runs. `top <command>`
+is judged as the command it runs, so `top set ...` needs `config set`.
+
+When the profiles load, Ze logs the warning `authz match entry does not match
+any known command` for each prefix entry that matches neither a command nor
+one of these permission strings, such as a misspelled `confg set`. An entry
+`config`, `config commit` or `config commit client-edge.conf` is known and
+logs nothing.
+<!-- source: internal/component/config/infra/authz.go -- unknownMatchEntries, matchesConfigPermission -->
+
+An SSH session that edits another stored configuration than the daemon's own,
+such as a hub editing a client's configuration with `ze config edit
+client-edge.conf`, adds the configuration's name to the string:
+`config commit client-edge.conf`. Prefix matching keeps an entry `config` or
+`config commit` covering it, and an entry that names the file restricts that
+file alone. This profile lets its user change the daemon's configuration and
+edit `client-edge.conf`, but refuses a commit of `client-edge.conf`:
+
+```
+edit {
+    default-action allow
+    entry 10 {
+        action deny
+        match "config commit client-edge.conf"
+    }
+}
+```
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+
+A refused change prints `command restricted by access control:` followed by
+the permission string, then `ask an administrator for a profile whose edit
+section allows <permission>`. Nothing changes:
+not the candidate, not the stored configuration, not the running one.
+
+An SSH session with no authorizer refuses every change. A daemon with no
+`system.authorization` stays permissive (see "Fail-closed behaviour" below).
+The console of `ze start --cli`, and `ze config edit` in file mode (`-f`) or
+backup mode (`--backup`), authenticate nobody and keep every verb.
+`ze config edit` in session mode connects to the daemon over SSH, so it is
+authorized like any SSH session.
+<!-- source: cmd/ze/hub/service_ssh.go -- sshSessionPolicy -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor, runBackupModel -->
 
 ### Web pages that a command grants
 
@@ -288,7 +357,9 @@ Allows all operational commands except dangerous ones. Denies all
 configuration commands. The `edit` section judges every command whose verb is
 not a read verb, so the store maintenance commands `delete data key`,
 `update data key`, `update data config` and `request data repair` are denied
-too, before their handler runs, while `show data check` is allowed.
+too, before their handler runs, while `show data check` is allowed. Every
+configuration-mode change is refused too, because its permission string is
+judged in `edit`; browsing the configuration is not.
 <!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath -->
 <!-- source: internal/test/fixture/storage_live_authz_fixture.go -- storageLiveAuthzReadOnly -->
 
@@ -490,6 +561,8 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | Canonical command builder | `internal/component/aaa/command_args.go` |
 | Read-only verb classification | `internal/component/plugin/server/command.go` (`IsReadOnlyPath`) |
 | Dispatcher authorization check | `internal/component/plugin/server/command.go` (`isAuthorized`, `isAuthorizedCommandArgs`) |
+| Configuration-mode permission table | `internal/component/cli/config_permission.go` (`ConfigPermission`) |
+| SSH editor authorizer binding | `cmd/ze/hub/session_factory.go` (`buildSessionModelFactory`) |
 | Built-in admin profile | `internal/component/authz/authz.go` (`builtinAdminProfile`) |
 | Built-in read-only profile | `internal/component/authz/authz.go` (`builtinReadOnlyProfile`) |
 

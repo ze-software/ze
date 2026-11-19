@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -241,8 +242,9 @@ func extractAuthzConfig(tree *config.Tree) (*authz.Store, error) {
 		}
 	}
 
-	// Warn about match entries that don't match any known builtin command (AC-9).
-	// Warning only — plugins may register commands dynamically at runtime.
+	// Warn about match entries that match neither a known builtin command nor a
+	// config permission string (AC-9). Warning only — plugins may register
+	// commands dynamically at runtime.
 	if err := validateMatchEntries(store); err != nil {
 		return nil, err
 	}
@@ -254,15 +256,38 @@ func extractAuthzConfig(tree *config.Tree) (*authz.Store, error) {
 	return store, nil
 }
 
-// validateMatchEntries warns about profile match entries that don't match
-// any known builtin command prefix. This is a best-effort check because
-// plugins register commands dynamically at runtime. A YANG loader failure is
-// returned, not treated as an empty command set: an empty set would warn on
-// every entry and hide the cause.
+// validateMatchEntries warns about profile match entries that match neither a
+// known builtin command prefix nor a config permission string. This is a
+// best-effort check because plugins register commands dynamically at runtime.
+// A YANG loader failure is returned, not treated as an empty command set: an
+// empty set would warn on every entry and hide the cause.
 func validateMatchEntries(store *authz.Store) error {
+	unknown, err := unknownMatchEntries(store)
+	if err != nil {
+		return err
+	}
+	for _, u := range unknown {
+		infraLogger().Warn("authz match entry does not match any known command",
+			"profile", u.profile, "section", u.section, "match", u.match)
+	}
+	return nil
+}
+
+// unknownMatchEntry is one profile match entry that matches nothing Ze is
+// known to authorize.
+type unknownMatchEntry struct {
+	profile string
+	section string
+	match   string
+}
+
+// unknownMatchEntries returns the prefix entries of the store that match
+// neither a builtin command nor a config permission string, in walk order.
+// Regex entries are never returned: they cannot be prefix-checked.
+func unknownMatchEntries(store *authz.Store) ([]unknownMatchEntry, error) {
 	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return fmt.Errorf("authorization match entries: YANG schema: %w", err)
+		return nil, fmt.Errorf("authorization match entries: YANG schema: %w", err)
 	}
 	wireToPaths := yang.WireMethodToPaths(schema)
 
@@ -273,6 +298,7 @@ func validateMatchEntries(store *authz.Store) error {
 		}
 	}
 
+	var unknown []unknownMatchEntry
 	store.WalkEntries(func(profileName, section string, e authz.Entry) {
 		if e.Regex {
 			return // regex entries can't be prefix-checked
@@ -283,10 +309,45 @@ func validateMatchEntries(store *authz.Store) error {
 				return // match is a prefix of (or matches) a known command
 			}
 		}
-		infraLogger().Warn("authz match entry does not match any known command",
-			"profile", profileName, "section", section, "match", e.Match)
+		if matchesConfigPermission(match) {
+			return
+		}
+		unknown = append(unknown, unknownMatchEntry{profile: profileName, section: section, match: e.Match})
 	})
-	return nil
+	return unknown, nil
+}
+
+// matchesConfigPermission reports whether a lowercased prefix entry reaches a
+// config permission string (plugin.ConfigAuthStrings). These are not
+// dispatcher commands, so the command registry does not know them, yet every
+// surface that changes configuration asks the authorizer with them. The entry
+// reaches one when it is a word-boundary prefix of the string (`config`,
+// `config commit`), which is how the authorizer matches it, or when the string
+// is a word-boundary prefix of the entry (`config commit client-edge.conf`),
+// because a session on a named stored configuration asks the string followed
+// by one space and the configuration's name.
+func matchesConfigPermission(match string) bool {
+	for _, permission := range plugin.ConfigAuthStrings() {
+		if isWordPrefix(match, permission) {
+			return true
+		}
+		if isWordPrefix(permission, match) {
+			return true
+		}
+	}
+	return false
+}
+
+// isWordPrefix reports whether prefix is s, or the start of s followed by a
+// space: the word-boundary rule the authorizer applies to a prefix entry.
+func isWordPrefix(prefix, s string) bool {
+	if !strings.HasPrefix(s, prefix) {
+		return false
+	}
+	if len(s) == len(prefix) {
+		return true
+	}
+	return s[len(prefix)] == ' '
 }
 
 // extractAuthzSection extracts a run or edit authorization section from the config tree.

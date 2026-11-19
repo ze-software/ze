@@ -882,6 +882,39 @@ The `RPCParams` struct does not carry a username field. Authorization checks use
 the `CommandContext.Username` that the server sets from the transport session.
 <!-- source: internal/component/plugin/server/command.go -- CommandContext -->
 
+### Config permission strings
+
+A configuration change is authorized with a config permission string, judged
+against the edit section of the caller's profile. The nine strings are declared
+once, as the `ConfigAuth*` constants of `internal/component/plugin/types.go`,
+and every surface that changes configuration asks with them:
+
+| String | Asked by |
+|--------|----------|
+| `config edit` | REST and gRPC, opening a config session |
+| `config set` | REST and gRPC set; the web editor; `set` and `activate` in the web terminal and the SSH session editor |
+| `config delete` | REST and gRPC delete; the web editor; `delete` and `deactivate` in the terminal and the editor |
+| `config commit` | REST and gRPC commit; the web editor; `commit` in the terminal and the editor; the SSH config upload |
+| `config discard` | REST and gRPC discard; the web editor; `discard` and `disconnect` in the terminal and the editor |
+| `config add` | The web editor's new entry; `copy` and `insert` in the terminal and the editor |
+| `config rename` | The web editor's rename; `rename` in the terminal and the editor |
+| `config rollback` | `rollback` in the terminal and the editor |
+| `config save` | The web graphical import; `save` and `load` in the terminal and the editor |
+
+The four strings the web alone used to spell (`config add`, `config rename`,
+`config rollback`, `config save`) are now declared beside the five the API
+used, byte for byte unchanged, so an operator's profile entries and a TACACS+
+server's command authorization see the same strings from every surface. The
+verb-to-string mapping of the terminal and the session editor is the editor's
+own table, `cli.ConfigPermission`. A session editor working on a named stored
+configuration appends a space and the configuration name
+(`config commit client-edge.conf`), which an entry for the bare string still
+covers by prefix.
+<!-- source: internal/component/plugin/types.go -- ConfigAuthEdit, ConfigAuthAdd, ConfigAuthSave -->
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission, authorizeConfigVerb -->
+<!-- source: internal/component/api/rest/auth.go -- requireWriteAccess -->
+<!-- source: internal/component/web/handler_config.go -- webCommandConfigSet -->
+
 ## Connection Types
 
 ### Socket Clients

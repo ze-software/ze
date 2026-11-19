@@ -9,7 +9,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/plugin"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -26,7 +25,7 @@ func registerSSHConfigUpload(server *zessh.Server, owner *configMutationOwner, r
 		if caller.Authorizer == nil {
 			return configUploadDenied()
 		}
-		if !caller.Authorizer.Authorize(caller.Username, caller.RemoteAddr, api.ConfigAuthCommit, false) {
+		if !caller.Authorizer.Authorize(caller.Username, caller.RemoteAddr, plugin.ConfigAuthCommit, false) {
 			return configUploadDenied()
 		}
 		content, err := configupload.Read(channel)

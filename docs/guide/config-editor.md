@@ -98,6 +98,34 @@ configured entry count, and deduplicate consecutive displayed commands.
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
 
+### Who may change the configuration
+
+On a daemon with `system.authorization` configured, an SSH session, and
+`ze config edit` in session mode, checks every change against the user's
+profile before it runs. Each verb that changes the candidate, the store or the
+running configuration (`set`, `delete`, `commit`, `rollback`, `load` and the
+others) is judged in the profile's `edit` section by its permission string,
+such as `config set` or `config commit`. Browsing is never checked: `edit`,
+`up`, `top`, `show`, `who`, `option` and `help` work for every user. A refused
+line changes nothing and answers:
+
+```
+command restricted by access control: config commit
+ask an administrator for a profile whose edit section allows `config commit`
+```
+
+To allow the change, an
+administrator adds an `allow` entry for that string, or for `config`, to the
+`edit` section of one of your profiles. [Authorization](authorization.md),
+"Configuration mode", lists every verb's string, and the configuration name a
+session on another stored configuration adds to it.
+
+The console of `ze start --cli`, and the file and backup modes of
+`ze config edit`, authenticate nobody and are not checked.
+<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+
 ## Editor Commands
 
 In an SSH session, `load file` reads only a regular configuration file inside

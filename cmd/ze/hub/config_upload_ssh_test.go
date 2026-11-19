@@ -25,7 +25,6 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/ze-software/ze/internal/component/aaa"
-	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -52,7 +51,7 @@ func (sshUploadPolicy) Authorize(username, remote, command string, readOnly bool
 	if readOnly {
 		return false
 	}
-	return command == api.ConfigAuthCommit
+	return command == plugin.ConfigAuthCommit
 }
 
 type sshUploadFixture struct {

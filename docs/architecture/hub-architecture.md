@@ -330,6 +330,36 @@ Unreadable persistent state never selects this mode.
 <!-- source: cmd/ze/hub/main.go -- run, runYANGConfig -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 
+### SSH session model factory
+
+`buildSessionModelFactory` builds the model of each interactive SSH session.
+Authentication binds one authorizer to the connection, the profile policy of
+the accepted generation, and the factory hands it to two places: the
+operational command executor, and the editor's config-mode gate. Every
+config-mode mutation (`set`, `delete`, `commit`, `rollback`, ...) is
+authorized against the user's profile, in the edit section, with the same
+permission strings the web editor, the web terminal and the API use
+(`config set`, `config commit`, ...). A session that names another stored
+configuration asks for the same string followed by the configuration's name
+(`config commit client-edge.conf`), so an existing entry still covers it and an
+entry naming the file restricts that file alone. The daemon's own configuration
+asks for the bare strings. A refused line answers
+`command restricted by access control: <permission>` and leaves the candidate,
+the store and the running configuration untouched. Navigation and display stay
+ungated.
+
+The gate fails closed. A connection that carries no authorizer gets
+`sshSessionPolicy`'s deny-all, the same rule the SSH executor and the SSH config
+upload apply. A daemon with no `system.authorization` still binds an authorizer
+that allows, so it stays permissive. The attached console (`ze start --cli`)
+shares `newSessionEditor` but not this factory: it authenticates nobody and
+keeps every verb. The confirmed-commit window's automatic revert runs on the
+window's worker and never passes through the editor's dispatch, so it still
+runs for a user whose profile lost the edit section while the window was open.
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory, sessionConfigAuthorizer -->
+<!-- source: cmd/ze/hub/service_ssh.go -- sshSessionPolicy -->
+<!-- source: cmd/ze/hub/confirm_window.go -- confirmRevert -->
+
 Shutdown keeps plugin connections and storage open until the SIGHUP worker has
 returned. After the shutdown grace, it cancels the worker and waits for cleanup.
 A second termination signal can force exit during this wait. Commit-driven

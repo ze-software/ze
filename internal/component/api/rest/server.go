@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -592,7 +593,7 @@ func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !s.requireWriteAccess(w, caller, api.ConfigAuthEdit) {
+	if !s.requireWriteAccess(w, caller, plugin.ConfigAuthEdit) {
 		return
 	}
 	id, err := s.sessions.Enter(caller.Username)
@@ -622,7 +623,7 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !s.requireWriteAccess(w, caller, api.ConfigAuthSet) {
+	if !s.requireWriteAccess(w, caller, plugin.ConfigAuthSet) {
 		return
 	}
 	username := caller.Username
@@ -647,9 +648,9 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 	}
 	caller := s.callerIdentity(r)
 	discardRequest := len(parts) == 1 // safe: validateSessionID(id) rejected the empty-id case above
-	authCommand := api.ConfigAuthDelete
+	authCommand := plugin.ConfigAuthDelete
 	if discardRequest {
-		authCommand = api.ConfigAuthDiscard
+		authCommand = plugin.ConfigAuthDiscard
 	}
 	if !s.requireWriteAccess(w, caller, authCommand) {
 		return
@@ -719,7 +720,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !s.requireWriteAccess(w, caller, api.ConfigAuthCommit) {
+	if !s.requireWriteAccess(w, caller, plugin.ConfigAuthCommit) {
 		return
 	}
 	detail, _ := s.sessions.Diff(fromRESTConfigDiffRequest(caller.Username, id))

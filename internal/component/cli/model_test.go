@@ -48,6 +48,8 @@ var knownModelFields = map[string]bool{
 	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,
 	"filesystemAuthority":   true,
 	"registeredOperational": true, // Registry-derived mode/history authority, never live-view state.
+	"configAuthorizer":      true, // Per-verb config-mode authorization the session installs, never live-view state.
+	"configName":            true, // Named stored configuration appended to each permission, never live-view state.
 	"monitorFactory":        true, "monitorSession": true,
 	"activeView": true, "viewFactories": true,
 	"loginWarnings": true,

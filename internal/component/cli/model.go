@@ -233,6 +233,8 @@ type Model struct {
 	commandCompleter      CommandModeCompleter     // Completer for command mode (nil if no daemon)
 	registeredOperational func(string) bool        // Live dispatch recognition, before config-mode convenience.
 	commandExecutor       CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
+	configAuthorizer      ConfigAuthorizer         // Judges each config-mode mutation (nil: no check, see SetConfigAuthorizer)
+	configName            string                   // Named stored configuration the session edits, appended to each permission ("" for the daemon's own)
 	transcript            *TranscriptWriter        // Session transcript the executor records into; nil when disabled
 	filesystemAuthority   FilesystemAuthority      // Whose OS identity would perform filesystem effects.
 
@@ -1163,6 +1165,20 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // A caller that also calls SetStartMode MUST call this one first.
 func (m *Model) SetCommandExecutor(fn CommandExecutor) {
 	m.commandExecutor = fn
+}
+
+// SetConfigAuthorizer installs the check every config-mode mutation passes
+// before its handler runs (authorizeConfigVerb, ConfigPermission). A nil
+// authorize means no check: only a surface that authenticates nobody (the
+// attached console, and `ze config edit` in its file mode `-f` and backup mode
+// `--backup`) leaves it nil. Plain `ze config edit` opens an SSH session and
+// is authorized like one. configName
+// non-empty means the session edits that named stored configuration, and the
+// permission asked is the verb's string, a space, then the name
+// (`config commit client-edge.conf`).
+func (m *Model) SetConfigAuthorizer(authorize ConfigAuthorizer, configName string) {
+	m.configAuthorizer = authorize
+	m.configName = configName
 }
 
 // SetTranscript records every operational command the executor runs and the

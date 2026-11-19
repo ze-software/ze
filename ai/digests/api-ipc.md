@@ -268,7 +268,8 @@ runtime request, see the gotcha below.
 - **Config sessions are a separate authority path.** `ConfigSessionManager` methods
   (`config_session.go`) are reachable only through REST/gRPC-specific routes with their own
   `requireWriteAccess` checks (`rest/server.go`, `grpc/server.go`) using
-  `ConfigAuth*` command strings (`types.go`) as the authorization subject, they never
+  `plugin.ConfigAuth*` command strings (`internal/component/plugin/types.go`, shared
+  with the web editor, the web terminal and the SSH session editor) as the authorization subject, they never
   pass through `Dispatcher.Dispatch` or the plugin registry at all.
 
 ## See also

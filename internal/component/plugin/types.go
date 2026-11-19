@@ -300,6 +300,47 @@ func (r Records) MarshalJSON() ([]byte, error) {
 // them hunting for a typo that does not exist.
 const UnauthorizedMessage = "command restricted by access control"
 
+// Config permission strings: the commands an authorizer is asked about before
+// a configuration change. They are declared once here because every surface
+// that changes configuration asks with them: the SSH session editor (through
+// the verb table in internal/component/cli), the web editor and web terminal,
+// the REST and gRPC config sessions and the SSH config upload. Operators'
+// profile entries and a TACACS+ server's command authorization match these
+// exact strings, so changing one changes what every profile allows.
+//
+// Every one is judged against the edit section of a profile: none starts with
+// a read verb.
+const (
+	ConfigAuthEdit     = "config edit"
+	ConfigAuthSet      = "config set"
+	ConfigAuthAdd      = "config add"
+	ConfigAuthDelete   = "config delete"
+	ConfigAuthRename   = "config rename"
+	ConfigAuthCommit   = "config commit"
+	ConfigAuthDiscard  = "config discard"
+	ConfigAuthRollback = "config rollback"
+	ConfigAuthSave     = "config save"
+)
+
+// ConfigAuthStrings returns every config permission string above, for a
+// reader that needs the whole set: the check that warns about a profile entry
+// matching nothing Ze authorizes reads it, so a string added above is known
+// there without a second list. A new slice on each call, so no caller can
+// change what another one sees.
+func ConfigAuthStrings() []string {
+	return []string{
+		ConfigAuthEdit,
+		ConfigAuthSet,
+		ConfigAuthAdd,
+		ConfigAuthDelete,
+		ConfigAuthRename,
+		ConfigAuthCommit,
+		ConfigAuthDiscard,
+		ConfigAuthRollback,
+		ConfigAuthSave,
+	}
+}
+
 // Response represents an API command response.
 // Serial is included only if command had #N prefix.
 type Response struct {

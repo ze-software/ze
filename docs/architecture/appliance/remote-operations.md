@@ -27,7 +27,8 @@ operator pushes images and config changes without physical access.
 The host requests the `ze-config-upload` SSH subsystem after key authentication
 and pinned host-key verification. The hub registers the subsystem on both daemon
 startup paths. Before reading its body, the receiver authorizes the connection's
-accepted identity for `api.ConfigAuthCommit`, with `readOnly=false`.
+accepted identity for `plugin.ConfigAuthCommit` (`config commit`), with
+`readOnly=false`.
 <!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, applianceHostKeyCallback -->
 <!-- source: cmd/ze/hub/service_ssh.go -- sshBuildImpl, sshBuildStandaloneImpl -->
 <!-- source: cmd/ze/hub/config_upload_ssh.go -- registerSSHConfigUpload -->

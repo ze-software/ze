@@ -192,6 +192,58 @@ func TestSessionFactoryRefusesUnavailableEditTarget(t *testing.T) {
 	require.Nil(t, model)
 }
 
+// typeSessionLine types line into a session model, presses Enter, and runs
+// the command the key answered with, as the bubbletea program would.
+func typeSessionLine(t *testing.T, model cli.Model, line string) cli.Model {
+	t.Helper()
+	model.SetInput(line)
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		updated, _ = updated.Update(cmd())
+	}
+	next, ok := updated.(cli.Model)
+	require.True(t, ok, "updated session model type = %T, want cli.Model", updated)
+	return next
+}
+
+// TestSessionFactoryFailsClosedWithoutAuthorizer builds an editor session
+// whose connection carries no authorizer, which only an SSH server built
+// without one produces. The factory MUST install a gate that denies every
+// config-mode mutation, as the SSH executor and the SSH upload do, while
+// display keeps answering. Method: the factory's real model over a real
+// store; the refusal is read from the view, the candidate from the session's
+// change file and the shared draft.
+//
+// VALIDATES: spec-ssh-editor-authorization AC-11.
+// PREVENTS: a missing authorizer opening the editor as if authorization were
+// unconfigured.
+func TestSessionFactoryFailsClosedWithoutAuthorizer(t *testing.T) {
+	store := newTestStore(t)
+	require.NoError(t, store.WriteFile("router.conf", []byte(authzSeedConfig), 0o600))
+	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
+	require.NoError(t, err)
+	factory := buildSessionModelFactory(server, infra.HookParams{Store: store, ConfigPath: "router.conf"}, nil, nil)
+	created, err := factory(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	require.NoError(t, err)
+	model, ok := created.(cli.Model)
+	require.True(t, ok, "session model type = %T, want cli.Model", created)
+	t.Cleanup(func() { _ = model.Close() })
+
+	model = typeSessionLine(t, model, "set system host denied-host")
+	assert.Contains(t, model.View().Content, plugin.UnauthorizedMessage+": "+plugin.ConfigAuthSet)
+	for _, key := range []string{cli.ChangePath("router.conf", "operator"), cli.DraftPath("router.conf")} {
+		if !store.Exists(key) {
+			continue
+		}
+		data, readErr := store.ReadFile(key)
+		require.NoError(t, readErr)
+		assert.NotContains(t, string(data), "denied-host", "a refused set reached the candidate in %s", key)
+	}
+
+	model = typeSessionLine(t, model, "show system")
+	assert.Contains(t, model.View().Content, authzSeedHost, "display must keep answering without an authorizer")
+}
+
 // TestSessionFactoryRecordsTranscript drives AC-15 and review finding I5: the
 // daemon owns a remote session's model, so with `cli { transcript enabled }` it
 // records every operational command and its answer into its own

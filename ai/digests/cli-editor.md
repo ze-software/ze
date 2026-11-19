@@ -20,7 +20,13 @@ to in-process registry handlers.
    `SetCommandCompleter(cmdCompleter)`, `SetCommandExecutor(executor)` where `executor =
    srv.ExecutorForUser(...)` (`internal/component/ssh/ssh.go`), plus audit recorder and
    stop/restart callbacks (`session_factory.go`; view factories injected via
-   `injectViewFactories` → `cli.RegisteredViews()`). No editor (`ConfigPath` empty) →
+   `injectViewFactories` → `cli.RegisteredViews()`). It also installs the config
+   authorizer on the model: the session authorizer bound at login, wrapped by
+   `sshSessionPolicy` (`service_ssh.go`) so a nil one denies, with the user, the
+   remote address and, for a stored configuration other than the daemon's own
+   (`request.ConfigName`), its name. The attached console and the offline editors
+   (`ze config edit -f`, `--backup`) install none, so they keep every verb.
+   No editor (`ConfigPath` empty) →
    `cli.NewCommandModel()` (`model.go`), an operational-only console. `ze start --cli`
    assembles its model in `newAttachedModel` (`internal/component/cli/client/main.go`)
    over the editor from `attachedConsoleEditor` (`cmd/ze/hub/session_editor.go`,
@@ -34,7 +40,15 @@ to in-process registry handlers.
    dispatch (`model_keys.go`).
 3. **Config edit → tree.** In `ModeConfig`, `executeCommand` (`model_commands.go`) →
    `dispatchCommand` (`model_commands.go`) tokenizes with `tokenizeCommand`
-   (`model_commands.go`, quote-aware, no backslash escapes) and switches on `tokens[0]`
+   (`model_commands.go`, quote-aware, no backslash escapes) and hands the words to
+   `dispatchCommandWords`. After the `top <command>` recursion and before the verb
+   switch, a verb with a permission string in `ConfigPermission`
+   (`config_permission.go`: `set`/`activate` → `config set`, `commit` → `config commit`,
+   ...; the web terminal's `terminalAuthCommand` reads the same table) is asked of the
+   installed config authorizer in the edit section, the configuration name appended for
+   a named configuration. A refusal wraps `pluginserver.ErrUnauthorized` and returns
+   before the handler; navigation and display verbs have no string and are not gated.
+   The verb switch then matches `tokens[0]`
    against the `cmd*` name constants (`model.go`): `set/delete/activate/insert/rename/copy`
    → editor tree mutation (`model_commands_edit.go`), `edit/top/up` → context navigation,
    `show/option` → viewport render. Each returns a `commandResult` (`model.go`) applied by

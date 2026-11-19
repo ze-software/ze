@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/plugin"
 	zeweb "github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/core/audit"
 )
@@ -151,10 +151,10 @@ func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
 	swapAAABundle(bundle, nil)
 
 	authorizer := liveAAABundleAuthorizer{}
-	if authorizer.Authorize("operator", "", api.ConfigAuthSet, false) {
+	if authorizer.Authorize("operator", "", plugin.ConfigAuthSet, false) {
 		t.Fatal("read-only operator unexpectedly allowed config set")
 	}
-	if authorizer.Authorize("operator", "", api.ConfigAuthCommit, false) {
+	if authorizer.Authorize("operator", "", plugin.ConfigAuthCommit, false) {
 		t.Fatal("read-only operator unexpectedly allowed config commit")
 	}
 }

@@ -19,8 +19,8 @@ import (
 	"net/http"
 
 	"github.com/ze-software/ze/internal/component/aaa"
-	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -31,14 +31,14 @@ const (
 )
 
 const (
-	webCommandConfigSet      = api.ConfigAuthSet
-	webCommandConfigAdd      = "config add"
-	webCommandConfigDelete   = api.ConfigAuthDelete
-	webCommandConfigRename   = "config rename"
-	webCommandConfigCommit   = api.ConfigAuthCommit
-	webCommandConfigDiscard  = api.ConfigAuthDiscard
-	webCommandConfigRollback = "config rollback"
-	webCommandConfigSave     = "config save"
+	webCommandConfigSet      = plugin.ConfigAuthSet
+	webCommandConfigAdd      = plugin.ConfigAuthAdd
+	webCommandConfigDelete   = plugin.ConfigAuthDelete
+	webCommandConfigRename   = plugin.ConfigAuthRename
+	webCommandConfigCommit   = plugin.ConfigAuthCommit
+	webCommandConfigDiscard  = plugin.ConfigAuthDiscard
+	webCommandConfigRollback = plugin.ConfigAuthRollback
+	webCommandConfigSave     = plugin.ConfigAuthSave
 )
 
 // ConfigViewData holds all data needed for any config template.
