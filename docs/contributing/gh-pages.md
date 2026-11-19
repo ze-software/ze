@@ -585,6 +585,161 @@ assets, removes staged source files and checks the final output.
 <!-- source: internal/le/site/paths.go -- isSourceOnly -->
 <!-- source: internal/le/site/build.go -- publishable, removeSourceOnly -->
 
+## Looking glass replay
+
+The `labs/looking-glass-graph/` page carries the looking glass itself, replayed
+from a recording: its own pages, stylesheet and scripts, answering from the
+answers a real `ze` gave. It is the web counterpart of the terminal playback
+above, with the same three parts: an action records, the build renders the
+recording, and a player script replays it. No video and no screenshot is
+involved.
+
+### Record
+
+```
+./le site lg-replay record [binary <path-to-ze>] [output <json-file>] [port <port>] [trial]
+```
+
+The recorder refuses a checkout that holds uncommitted changes, before it
+starts anything: the file names the checkout's commit as the code that
+answered, and with uncommitted changes that commit did not. Commit first, then
+record. `trial` records the tree as it is, to try the recorder: the file then
+says `"tree-dirty": true`, and the site build refuses to publish it.
+
+The action starts the simulated network of
+`internal/test/fixture/lg_simulated_network.go` (`RunLGSimulatedNetwork`, the run
+the `plugin/lg-simulated-network` fixture proves) against a real `ze`: eleven
+simulated BGP speakers generated from a seeded topology model. Once every
+check of the fixture has passed, it asks the looking glass over HTTP:
+
+| What | Where it is declared |
+|------|----------------------|
+| The tour: the peers page, one peer's routes, the search page, searches by prefix, by address and by AS path with the end anchor, a route's detail, each graph mode (`aspath`, `nexthop`, `trace`) as SVG and as text | `tour` in `internal/le/site/lgreplay/tour.go`, one list. A new question is one more entry |
+| Every request a recorded answer names with `hx-get`, so each row a recorded page shows has its answer | Derived from the answers, bounded by `exchangesMax` |
+| The stylesheet, scripts and images the recorded pages load | Derived from the answers |
+| The first two messages of the live peer event stream | The stream the peers page names |
+
+It writes `website/data/lg-replay.json`, which is committed. The file holds
+its provenance: the recorder, the commit and the commit's date (`commit-date`),
+whether the checkout held uncommitted changes (`tree-dirty`), the seed and the
+number of speakers. Its keys are kebab-case, as the answers of the rest of the
+tooling are, and the format's version is `schema`: the build and the player
+both refuse a file of another version and name the recorder.
+
+None of the networks in a recording is a real one, and the page and the
+transcript say so beside the provenance. The speakers' addresses come from the
+documentation ranges (RFC 5737) and the AS numbers are private or documentation
+numbers. The prefixes come from `198.18.0.0/15`, the range RFC 2544 reserves
+for benchmarking, and stay there on purpose: IPv4 has three documentation
+blocks, each a `/24`, the speakers already use them, and the model announces up
+to 256 `/24` prefixes, which three `/24` blocks cannot hold without prefixes
+longer than any operator accepts from a neighbour. The benchmarking range is
+routed nowhere on the Internet, so no recorded prefix collides with a real
+network.
+<!-- source: internal/chaos/scenario/topology_generate.go -- topologyInsidePrefix, generateTopologySpec -->
+<!-- source: internal/le/site/lgreplay.go -- lgReplaySimulated, lgReplayProvenance -->
+
+Two recordings of one commit are meant to be byte-identical. Values that
+depend on when the run was made (session uptimes, state-change times, the
+listener address) are replaced by fixed values, and `provenance.normalized`
+lists each rule with the value it writes and how often it applied. Every
+question is asked a second time at least ten seconds after the first pass, and
+`provenance.varies` names each answer that still differed: an empty list is the
+claim that nothing else changes run to run, and a non-empty one says exactly
+which answers do. When the looking glass gains a value that changes with time,
+add its rule to `markupRules` in `recording.go` rather than accepting the entry
+in `varies`.
+
+A run that meets a refused question, a binary answer or a lost session writes
+no file, and its error names the part of the run that failed with the fix for
+that part:
+
+| What failed | The fix the error names |
+|-------------|-------------------------|
+| The work directory could not be made | `TMPDIR=<writable-directory> ./le site lg-replay record` |
+| No free ports from the first port | `./le site lg-replay record port <first-free-port>` |
+| A speaker held no session, or a check of the functional test failed | `./le test fixture plugin/lg-simulated-network <port> <port+1>`, the same network run alone, which names the session or the check |
+| The network holds no route the tour can show | Change the network's parameters, then record again |
+| The looking glass refused a question, or an answer is not text | Correct the question in `tour.go` or the handler that answers it, then record again |
+| The run passed its ten minutes, or was interrupted | Record again |
+<!-- source: internal/le/site/lgreplay/actions.go -- runRecord, recordNetwork, stageFailure, endedRun, refuseUncommitted -->
+<!-- source: internal/le/site/lgreplay/record.go -- record -->
+<!-- source: internal/le/site/lgreplay/recording.go -- Recording, ExchangeKey, markupRules -->
+<!-- source: internal/le/site/lgreplay/tour.go -- tour -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- RunLGSimulatedNetwork -->
+
+### Publish
+
+`./le site build` reads the recording and never records: a checkout without
+the file publishes a block that says the looking glass is not recorded yet. A
+recording whose provenance says the tree was dirty stops the build, with the
+command that records properly: the page names the commit as the code that
+answered, and a trial is not that. To
+see the replay while editing it, render its two producers over the existing
+artifact:
+
+```
+./le --name session site build producer lg-replay producer authored
+```
+
+| Published file | Producer | Content |
+|----------------|----------|---------|
+| `labs/looking-glass-graph/index.html` | `authored` | The page. Its source names the replay with `<!-- site-block: lg-replay -->`, and the block registered under that id is the mount, the tour as a list, the provenance and the transcript link |
+| `labs/looking-glass-graph/replay/frame.html` | `lg-replay` | The frame document: a content security policy, the recording, and the player inline. It fetches nothing |
+| `labs/looking-glass-graph/replay/transcript.txt` | `lg-replay` | The tour as text: each step's caption, request and answer |
+| `assets/lg-replay.js`, `assets/site.css` | `lg-replay`, and every full build | The player and the replay's styles, for the page. A producer run renders no asset, so this producer calls the asset render a full build calls (`RenderAssets`): the command above then shows the replay with nothing else rebuilt |
+
+An authored page carries a generated block by naming it in a `site-block`
+comment. The block's owner registers what it expands to with
+`registerAuthoredBlock`, and a comment that names no registered block stops the
+build.
+<!-- source: internal/le/site/lgreplay.go -- renderLGReplay, lgReplayFrameDocument, lgReplayTranscriptText, lgReplayBlockHTML -->
+<!-- source: internal/le/site/authored.go -- registerAuthoredBlock, expandAuthoredBlocks -->
+
+### Play
+
+`website/assets/js/lg-replay.js` is one file with no dependency and no build
+step. On the page it replaces the fallback with a frame and the tour controls.
+Inside the frame it puts the recorded page in place and answers every request
+the looking glass's scripts make (`fetch`, which htmx and its stream extension
+both use) from the recording, by the same request key the recorder wrote.
+
+- The frame is an `iframe` with `sandbox="allow-scripts allow-forms"` over a
+  generated document. Without `allow-same-origin` the looking glass's scripts
+  cannot reach the site page or its storage, and the frame's policy
+  (`default-src 'none'`) makes the browser refuse any request the player did
+  not answer. A `srcdoc` frame cannot be used: htmx resolves requests against
+  `location.href`, and `about:srcdoc` is no base.
+- The frame document is a file of the site, so a browser can open it with no
+  frame around it, where it would have the site's own origin. The sandbox is
+  an attribute of the page's `iframe`, and a policy in a `meta` element cannot
+  state one, so the player decides before it reads the recording: it plays
+  only when the document is framed and its origin is the opaque one a sandbox
+  gives (`frameRefusal`). Otherwise no recorded markup is parsed and no
+  recorded script is put in place, the document keeps one paragraph that links
+  its page, and `data-lg-replay-frame` on its root element says why.
+- The mount keeps what goes wrong inside the frame in `data-lg-replay-errors`:
+  the first 20 errors, each cut to 300 characters. At that bound the list stops
+  growing and `data-lg-replay-errors-dropped` counts every later error.
+- A request the recording does not hold shows a notice that names it, in the
+  page's status line and where the answer would have gone.
+- The tour presses the page's own controls: a step is played by pressing the
+  element whose `hx-get` asks it, or by filling and submitting the form. A step
+  no control asks (a graph's text form) is shown as text beside the frame.
+- Nothing plays by itself. The frame opens on the first recorded page, and the
+  tour moves only when Play, Next step or Restart is pressed. Play can be
+  paused.
+- Without JavaScript the page shows the tour as a list and a link to the
+  transcript, and no frame.
+
+`TestLGReplayAnswersTheTourFromTheRecording` in
+`internal/le/site/browsertest/lgreplay_test.go` plays a recording in a browser
+and reads the web server's request log.
+`TestLGReplayFrameOpenedDirectlyRunsNothingRecorded` opens the frame document
+itself and reads that nothing recorded ran, and
+`TestLGReplayKeepsABoundedListOfFrameErrors` reads the bound on the errors.
+<!-- source: website/assets/js/lg-replay.js -- mountPlayer, keepError, frameMain, frameRefusal -->
+
 ## Linking a website page from a guide
 
 A guide under `docs/` links a hand-written website page by its repository

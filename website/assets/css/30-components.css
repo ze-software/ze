@@ -1727,3 +1727,90 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
     #proof.index4-evidence .index4-scenario-table :is(tbody,tfoot) td:last-child { grid-column: 1 / -1; margin-top: 0.15rem; white-space: normal; }
     #proof.index4-evidence .index4-scenario-table tfoot tr { border-bottom: 0; }
 }
+
+/* The looking glass replay (assets/js/lg-replay.js, the lg-replay block of
+   internal/le/site/lgreplay.go). The frame is the recorded looking glass with
+   its own stylesheet, so only its box and the tour controls are styled here.
+   Panel, border and text stay neutral, as every content panel does. */
+.lg-replay {
+    margin-block: var(--space-4);
+}
+
+.lg-replay__player {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--panel);
+}
+
+.lg-replay__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.lg-replay__button {
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    background: var(--panel-strong);
+    color: var(--text);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.lg-replay__button[aria-pressed="true"] {
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.lg-replay__caption,
+.lg-replay__status,
+.lg-replay__fallback,
+.lg-replay__unrecorded,
+.lg-replay__provenance {
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--type-small);
+    line-height: 1.5;
+}
+
+.lg-replay__caption {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.lg-replay__status:empty {
+    display: none;
+}
+
+.lg-replay__frame {
+    width: 100%;
+    height: min(46rem, 80vh);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: #fff;
+}
+
+.lg-replay__answer {
+    max-height: 20rem;
+    margin: 0;
+    padding: var(--space-4);
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--panel-strong);
+    color: var(--text);
+    font-size: var(--type-small);
+}
+
+.lg-replay__tour li[aria-current="step"] {
+    font-weight: 700;
+}
+
+.lg-replay__tour code {
+    overflow-wrap: anywhere;
+}

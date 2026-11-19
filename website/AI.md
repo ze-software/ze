@@ -629,6 +629,48 @@ remains in the data file but is not rendered on the homepage. The other-paths st
 deployment destinations beside these four choices.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
+### Looking glass replay
+
+`labs/looking-glass-graph/` replays the looking glass from a recording, the
+way the homepage replays a terminal session: no video, no screenshot. The
+recording is `data/lg-replay.json`, written by `./le site lg-replay record`
+from a real `ze` serving the simulated network, and committed. The build reads
+it and never records. The page source names the replay with
+`<!-- site-block: lg-replay -->`; the `authored` producer expands the block, and
+the `lg-replay` producer writes `replay/frame.html` and `replay/transcript.txt`
+beside the page. `assets/js/lg-replay.js` is the player.
+
+Keep these when you change it:
+
+- The frame stays sandboxed without `allow-same-origin`, and its document keeps
+  the policy `default-src 'none'`. Both are what keeps the looking glass's
+  stylesheet and scripts out of the site page and its requests off the network.
+- The replay never starts by itself and can be paused, as the terminal replays
+  never autoplay.
+- The transcript link and the tour list stay in the page for a reader without
+  JavaScript.
+- The frame document plays only inside the page's sandboxed frame. Opened by
+  itself it would have the site's origin, so the player then puts no recorded
+  markup or script in place and the document shows one paragraph that links
+  its page (`frameRefusal`).
+- The recording is regenerated, never edited by hand. A value that changes run
+  to run gets a rule in the recorder, and the file declares it.
+- The recording comes from a clean checkout: the recorder refuses uncommitted
+  changes unless the line says `trial`, and the build refuses to publish a
+  recording that says `"tree-dirty": true`. The page names the commit as the
+  code that answered.
+- The page and the transcript say that no network shown is a real one. The
+  prefixes come from `198.18.0.0/15` (benchmarking, RFC 2544), because the
+  three IPv4 documentation blocks are `/24`s the speakers already use.
+- The graph modes are `aspath`, `nexthop` and `trace`, the names the looking
+  glass uses in its URL (`/lg/graph?prefix=X&mode=trace`) and on its page.
+
+How it is recorded, published and played: `docs/contributing/gh-pages.md`,
+"Looking glass replay".
+<!-- source: internal/le/site/lgreplay.go -- lgReplayBlockHTML, renderLGReplay, lgReplayPolicy -->
+<!-- source: internal/le/site/lgreplay/actions.go -- runRecord -->
+<!-- source: website/assets/js/lg-replay.js -- mountPlayer -->
+
 ### Site design and content rules
 
 Before adding or restyling a page or component, read the

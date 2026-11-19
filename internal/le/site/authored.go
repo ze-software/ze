@@ -3,6 +3,7 @@
 package site
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"io/fs"
@@ -34,6 +35,58 @@ var (
 // including the indentation before it and the newline after it. A sidebar never
 // nests a second one, so the first closing tag ends the first opening one.
 var authoredSidebarBlock = regexp.MustCompile(`(?s)[ \t]*<aside class="page-sidebar"[^>]*>.*?</aside>\n?`)
+
+// authoredBlockMarker names a generated block inside an authored page:
+// `<!-- site-block: <id> -->`. The page states where the block goes and its
+// owner states what it is, so an authored page can carry content the build
+// derives from data without the page holding a copy of it.
+var authoredBlockMarker = regexp.MustCompile(`<!--\s*site-block:\s*([a-z0-9-]+)\s*-->`)
+
+// authoredBlockRender answers one block's markup for the page at the
+// source-relative path name.
+type authoredBlockRender func(paths Paths, name string) (string, error)
+
+// authoredBlocks holds every registered block by its id. It is filled at init
+// and only read afterwards, so it needs no lock.
+var authoredBlocks = map[string]authoredBlockRender{}
+
+// registerAuthoredBlock adds one block, from the init() of the file that owns
+// it. A second block under one id is a programmer error and panics at init.
+func registerAuthoredBlock(id string, render authoredBlockRender) {
+	if render == nil {
+		panic("BUG: site.registerAuthoredBlock: block " + id + " has no render")
+	}
+	if _, taken := authoredBlocks[id]; taken {
+		panic("BUG: site.registerAuthoredBlock: two blocks are named " + id)
+	}
+	authoredBlocks[id] = render
+}
+
+// expandAuthoredBlocks replaces every block marker of one authored page with
+// its registered block. A marker naming no registered block is refused by
+// name: published as it is, it would be a comment where the page promised
+// content.
+func expandAuthoredBlocks(paths Paths, name, source string) (string, error) {
+	var failure error
+	expanded := authoredBlockMarker.ReplaceAllStringFunc(source, func(marker string) string {
+		id := authoredBlockMarker.FindStringSubmatch(marker)[1]
+		render, registered := authoredBlocks[id]
+		if !registered {
+			failure = errors.Join(failure, fmt.Errorf("the page names the block %q, and no block is registered under that id", id))
+			return marker
+		}
+		block, err := render(paths, name)
+		if err != nil {
+			failure = errors.Join(failure, fmt.Errorf("block %s: %w", id, err))
+			return marker
+		}
+		return block
+	})
+	if failure != nil {
+		return "", failure
+	}
+	return expanded, nil
+}
 
 // renderAuthoredPages publishes every hand-authored page of the website source
 // tree and answers the route of each one.
@@ -139,7 +192,11 @@ func publishAuthoredPage(paths Paths, name string, links pageLinks, facts siteFa
 	if isFrozenTalkPath(name) {
 		return publishFrozenDeck(paths.Output, name, source)
 	}
-	resolved, err := facts.substituteHTML(string(source))
+	expanded, err := expandAuthoredBlocks(paths, name, string(source))
+	if err != nil {
+		return err
+	}
+	resolved, err := facts.substituteHTML(expanded)
 	if err != nil {
 		return err
 	}
