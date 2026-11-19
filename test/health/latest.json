@@ -4,28 +4,28 @@
       "action": "Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test.",
       "annotations": {
         "feature-declined": 0,
-        "gap": 1494,
+        "gap": 1481,
         "linux-limit": 0,
         "lower-layer": 235,
         "not-applicable": 46,
-        "partial": 27,
+        "partial": 32,
         "rollup": 14,
-        "single-polarity": 503
+        "single-polarity": 501
       },
-      "detail": "45.1% of the 4752 MUST rows ze and the OS owe in the walked RFCs ze implements are proven with a recorded break: a discrimination record that still verifies against this tree. 2145 of them are proven by ze, and 0 are performed by the OS with a verified test (OS verified), whose record broke the state ze installs for that layer. Of the rest, 235 are performed by the OS with no verified test yet (a tag alone, a stale record, or a no-break or kernel-producer escape), and 2372 are owed by ze and not proven: proof pending 830 (a tagged test and no recorded break yet), exclusion unchecked 21 (a not-owed claim whose evidence fails its check), not assessed 0 (no tagged test covers the row, so nothing yet says whether ze meets it), not built 1521 (the summary or the audit says the obligation is unmet). 18 further MUST rows are not owed (not applicable, declined, OS blocked) and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator held the rows ze proves alone, and an OS verified row was counted only in the denominator. 0 of the 196 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of every count rather than measured. The gate holds a wider set -- 4802 MUST rows across 204 enrolled RFCs -- and of the 2306 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: one whose evidence fails stays among the rows ze owes, as exclusion unchecked), 1494 known gap (unimplemented, genuinely untested), 27 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 503 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 235 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are owed by the stack, so they count in the MUST rows owed above, and in the proven rows only once a record that broke that producer verifies (OS verified), never in the rows proven by ze, 0 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so the row is counted not owed only once its evidence passes, and otherwise stays among the rows ze owes, as exclusion unchecked, 0 blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the rows ze owes, as not built, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in any count above.",
+      "detail": "45.8% of the 4752 MUST rows ze and the OS owe in the walked RFCs ze implements are proven with a recorded break: a discrimination record that still verifies against this tree. 2176 of them are proven by ze, and 0 are performed by the OS with a verified test (OS verified), whose record broke the state ze installs for that layer. Of the rest, 235 are performed by the OS with no verified test yet (a tag alone, a stale record, or a no-break or kernel-producer escape), and 2341 are owed by ze and not proven: proof pending 807 (a tagged test and no recorded break yet), exclusion unchecked 21 (a not-owed claim whose evidence fails its check), not assessed 0 (no tagged test covers the row, so nothing yet says whether ze meets it), not built 1513 (the summary or the audit says the obligation is unmet). 18 further MUST rows are not owed (not applicable, declined, OS blocked) and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator held the rows ze proves alone, and an OS verified row was counted only in the denominator. 0 of the 196 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of every count rather than measured. The gate holds a wider set -- 4802 MUST rows across 204 enrolled RFCs -- and of the 2295 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: one whose evidence fails stays among the rows ze owes, as exclusion unchecked), 1481 known gap (unimplemented, genuinely untested), 32 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 501 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 235 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are owed by the stack, so they count in the MUST rows owed above, and in the proven rows only once a record that broke that producer verifies (OS verified), never in the rows proven by ze, 0 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so the row is counted not owed only once its evidence passes, and otherwise stays among the rows ze owes, as exclusion unchecked, 0 blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the rows ze owes, as not built, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in any count above.",
       "gated_without_any_test": 0,
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by test, by ze or as OS verified, over the RFCs ze implements",
       "proof_density": {
         "denominator": 4752,
-        "numerator": 2145,
-        "percent": 45.1
+        "numerator": 2176,
+        "percent": 45.8
       },
       "question": "Q2",
       "rfcs_total": 199,
-      "rfcs_without_any_proof": 28,
+      "rfcs_without_any_proof": 27,
       "status": "warn",
-      "value": "2145 / 4752",
+      "value": "2176 / 4752",
       "worst": [
         {
           "gated": 40,
@@ -78,8 +78,8 @@
       "status": "warn",
       "unproven": {
         "denominator": 199,
-        "numerator": 28,
-        "percent": 14.1
+        "numerator": 27,
+        "percent": 13.6
       },
       "unproven_rfcs": [
         "rfc2003",
@@ -100,7 +100,6 @@
         "rfc5905",
         "rfc5998",
         "rfc6397",
-        "rfc6608",
         "rfc6810",
         "rfc7012",
         "rfc7166",
@@ -111,21 +110,21 @@
         "rfc8707",
         "rfc8893"
       ],
-      "value": "28 / 199"
+      "value": "27 / 199"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 45278,
-        "numerator": 109,
+        "denominator": 46243,
+        "numerator": 108,
         "percent": 0.2
       },
       "key": "assert-nothing",
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "109 / 45278 (floor 109)",
+      "value": "108 / 46243 (floor 108)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -148,10 +147,6 @@
           "test": "TestRefreshSessionsGauge"
         },
         {
-          "file": "internal/component/bgp/plugins/filter_irr/filter_irr_test.go",
-          "test": "TestRefreshASNStoreFieldRace"
-        },
-        {
           "file": "internal/component/bgp/plugins/healthcheck/hooks_test.go",
           "test": "TestHookFailureNoEffect"
         },
@@ -166,6 +161,10 @@
         {
           "file": "internal/component/bgp/plugins/rib/rib_pipeline_test.go",
           "test": "TestShowPipelineConcurrentChurn"
+        },
+        {
+          "file": "internal/component/bgp/plugins/rib/storage/sizeof_test.go",
+          "test": "TestRouteEntrySizes"
         }
       ]
     },
@@ -183,19 +182,19 @@
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
-        "bench_funcs": 158,
-        "ci_files": 2911,
+        "bench_funcs": 160,
+        "ci_files": 2995,
         "et_files": 207,
         "fuzz_funcs": 106,
-        "test_files": 8876,
-        "test_funcs": 45320
+        "test_files": 9147,
+        "test_funcs": 46286
       },
-      "detail": "8876 Go test files, 106 fuzz targets, 158 benchmarks, 2911 .ci scenarios, 207 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "9147 Go test files, 106 fuzz targets, 160 benchmarks, 2995 .ci scenarios, 207 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "45320 test functions"
+      "value": "46286 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
@@ -215,17 +214,23 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 8876,
-        "numerator": 3451,
+        "denominator": 9147,
+        "numerator": 3562,
         "percent": 38.9
       },
       "question": "Q2",
       "status": "ok",
-      "value": "3451 / 8876",
+      "value": "3562 / 9147",
       "worst": [
         {
           "area": "internal/chaos/report",
           "files": 6,
+          "negative": 0,
+          "percent": 0.0
+        },
+        {
+          "area": "internal/core/env",
+          "files": 5,
           "negative": 0,
           "percent": 0.0
         },
@@ -242,12 +247,6 @@
           "percent": 0.0
         },
         {
-          "area": "internal/le/workflowcheck",
-          "files": 6,
-          "negative": 0,
-          "percent": 0.0
-        },
-        {
           "area": "internal/plugins/help",
           "files": 10,
           "negative": 0,
@@ -255,15 +254,21 @@
         },
         {
           "area": "internal/core/rib",
-          "files": 24,
+          "files": 26,
           "negative": 1,
-          "percent": 4.2
+          "percent": 3.8
         },
         {
           "area": "internal/chaos/web",
           "files": 16,
           "negative": 1,
           "percent": 6.2
+        },
+        {
+          "area": "internal/le/hookruntime",
+          "files": 46,
+          "negative": 3,
+          "percent": 6.5
         },
         {
           "area": "internal/plugins/redistribute",
@@ -276,12 +281,6 @@
           "files": 27,
           "negative": 2,
           "percent": 7.4
-        },
-        {
-          "area": "internal/le/hookruntime",
-          "files": 39,
-          "negative": 3,
-          "percent": 7.7
         }
       ]
     },
@@ -295,7 +294,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 747,
+          "packages": 758,
           "with_ci": 37,
           "with_fuzz": 45,
           "with_rfc_tag": 143
@@ -311,14 +310,14 @@
     },
     {
       "action": "Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.",
-      "detail": "Reds logged rather than fixed, one shard file per live failure (42 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
+      "detail": "Reds logged rather than fixed, one shard file per live failure (44 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
-      "live": 3,
+      "live": 1,
       "question": "Q3",
-      "resolved": 42,
+      "resolved": 44,
       "status": "warn",
-      "value": "3"
+      "value": "1"
     }
   ]
 }

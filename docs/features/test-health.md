@@ -10,9 +10,9 @@ These measures help assess whether Ze's tests would catch a regression. A growin
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| RFC MUST requirements proven by test, by ze or as OS verified, over the RFCs ze implements | Q2 | **2145 / 4752** (attention) | Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test. |
-| Enrolled RFCs with zero test-proven requirements | Q2 | **28 / 199** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
+| RFC MUST requirements proven by test, by ze or as OS verified, over the RFCs ze implements | Q2 | **2176 / 4752** (attention) | Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **27 / 199** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 6 further metric(s) are within threshold and are listed in full below.
 
@@ -22,7 +22,7 @@ These measures help assess whether Ze's tests would catch a regression. A growin
 
 ### Tests with no reachable failure call
 
-**109 / 45278 (floor 109)** (ok)
+**108 / 46243 (floor 108)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -35,11 +35,11 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bfd/api/registry_test.go | TestSetGetService_ConcurrentNoRace |
 | internal/component/bfd/metrics_test.go | TestMetricsHookStateChangeCounters |
 | internal/component/bfd/metrics_test.go | TestRefreshSessionsGauge |
-| internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshASNStoreFieldRace |
 | internal/component/bgp/plugins/healthcheck/hooks_test.go | TestHookFailureNoEffect |
 | internal/component/bgp/plugins/nlri/evpn/plugin_test.go | TestSetEVPNLogger |
 | internal/component/bgp/plugins/rib/rib_metrics_test.go | TestUpdateMetricsNilRegistry |
 | internal/component/bgp/plugins/rib/rib_pipeline_test.go | TestShowPipelineConcurrentChurn |
+| internal/component/bgp/plugins/rib/storage/sizeof_test.go | TestRouteEntrySizes |
 
 ### time.sleep() calls in .ci tests
 
@@ -55,9 +55,9 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### RFC MUST requirements proven by test, by ze or as OS verified, over the RFCs ze implements
 
-**2145 / 4752** (attention)
+**2176 / 4752** (attention)
 
-45.1% of the 4752 MUST rows ze and the OS owe in the walked RFCs ze implements are proven with a recorded break: a discrimination record that still verifies against this tree. 2145 of them are proven by ze, and 0 are performed by the OS with a verified test (OS verified), whose record broke the state ze installs for that layer. Of the rest, 235 are performed by the OS with no verified test yet (a tag alone, a stale record, or a no-break or kernel-producer escape), and 2372 are owed by ze and not proven: proof pending 830 (a tagged test and no recorded break yet), exclusion unchecked 21 (a not-owed claim whose evidence fails its check), not assessed 0 (no tagged test covers the row, so nothing yet says whether ze meets it), not built 1521 (the summary or the audit says the obligation is unmet). 18 further MUST rows are not owed (not applicable, declined, OS blocked) and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator held the rows ze proves alone, and an OS verified row was counted only in the denominator. 0 of the 196 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of every count rather than measured. The gate holds a wider set -- 4802 MUST rows across 204 enrolled RFCs -- and of the 2306 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: one whose evidence fails stays among the rows ze owes, as exclusion unchecked), 1494 known gap (unimplemented, genuinely untested), 27 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 503 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 235 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are owed by the stack, so they count in the MUST rows owed above, and in the proven rows only once a record that broke that producer verifies (OS verified), never in the rows proven by ze, 0 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so the row is counted not owed only once its evidence passes, and otherwise stays among the rows ze owes, as exclusion unchecked, 0 blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the rows ze owes, as not built, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in any count above.
+45.8% of the 4752 MUST rows ze and the OS owe in the walked RFCs ze implements are proven with a recorded break: a discrimination record that still verifies against this tree. 2176 of them are proven by ze, and 0 are performed by the OS with a verified test (OS verified), whose record broke the state ze installs for that layer. Of the rest, 235 are performed by the OS with no verified test yet (a tag alone, a stale record, or a no-break or kernel-producer escape), and 2341 are owed by ze and not proven: proof pending 807 (a tagged test and no recorded break yet), exclusion unchecked 21 (a not-owed claim whose evidence fails its check), not assessed 0 (no tagged test covers the row, so nothing yet says whether ze meets it), not built 1513 (the summary or the audit says the obligation is unmet). 18 further MUST rows are not owed (not applicable, declined, OS blocked) and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included, so a row that does not bind ze counted against it; until 2026-11-13 its numerator held the rows ze proves alone, and an OS verified row was counted only in the denominator. 0 of the 196 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of every count rather than measured. The gate holds a wider set -- 4802 MUST rows across 204 enrolled RFCs -- and of the 2295 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: one whose evidence fails stays among the rows ze owes, as exclusion unchecked), 1481 known gap (unimplemented, genuinely untested), 32 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 501 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 235 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are owed by the stack, so they count in the MUST rows owed above, and in the proven rows only once a record that broke that producer verifies (OS verified), never in the rows proven by ze, 0 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so the row is counted not owed only once its evidence passes, and otherwise stays among the rows ze owes, as exclusion unchecked, 0 blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the rows ze owes, as not built, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in any count above.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test.
 
@@ -76,7 +76,7 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**28 / 199** (attention)
+**27 / 199** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
@@ -84,15 +84,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**45320 test functions** (ok)
+**46286 test functions** (ok)
 
-8876 Go test files, 106 fuzz targets, 158 benchmarks, 2911 .ci scenarios, 207 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+9147 Go test files, 106 fuzz targets, 160 benchmarks, 2995 .ci scenarios, 207 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**3451 / 8876** (ok)
+**3562 / 9147** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -101,15 +101,15 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | area | negative | files | percent |
 |---|---|---|---|
 | internal/chaos/report | 0 | 6 | 0.0 |
+| internal/core/env | 0 | 5 | 0.0 |
 | internal/core/redistevents | 0 | 5 | 0.0 |
 | internal/core/stats | 0 | 5 | 0.0 |
-| internal/le/workflowcheck | 0 | 6 | 0.0 |
 | internal/plugins/help | 0 | 10 | 0.0 |
-| internal/core/rib | 1 | 24 | 4.2 |
+| internal/core/rib | 1 | 26 | 3.8 |
 | internal/chaos/web | 1 | 16 | 6.2 |
+| internal/le/hookruntime | 3 | 46 | 6.5 |
 | internal/plugins/redistribute | 1 | 14 | 7.1 |
 | internal/component/lg | 2 | 27 | 7.4 |
-| internal/le/hookruntime | 3 | 39 | 7.7 |
 
 ### Technique adoption by package age
 
@@ -122,7 +122,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 747 | 45 | 143 | 37 |
+| 2026 | 758 | 45 | 143 | 37 |
 
 ## Integrity
 
@@ -130,9 +130,9 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 ### Logged known-failing tests
 
-**3** (attention)
+**1** (attention)
 
-Reds logged rather than fixed, one shard file per live failure (42 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
+Reds logged rather than fixed, one shard file per live failure (44 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 
 *Action if this degrades:* Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.
 
