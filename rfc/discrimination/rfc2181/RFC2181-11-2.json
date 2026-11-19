@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-11-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_LabelsUnrestricted",
+    "unit-sha": "cc391335ded32661",
+    "claim-sha": "8474d318e92b36d7",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseHostSet",
+    "producer-sha": "bff740571cbc2765",
+    "break": "line 403: \"fqdn(hn)\" -\u003e \"fqdn(strings.TrimLeft(hn, \\\"_\\\"))\""
+  }
+]

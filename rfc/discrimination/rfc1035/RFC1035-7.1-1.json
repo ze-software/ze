@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResolverMultiplexesRequests",
+    "unit-sha": "680daeb6564cdf4c",
+    "claim-sha": "2e5f9f369bbe5ad5",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::resolveShared",
+    "producer-sha": "b5d70851e5721f39",
+    "break": "line 58: \"keyOf(q.Name, q.Qtype, q.Qclass)\" -\u003e \"keyOf(\\\"\\\", q.Qtype, q.Qclass)\""
+  },
+  {
+    "rid": "RFC1035-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResolverMultiplexesRequests",
+    "unit-sha": "680daeb6564cdf4c",
+    "claim-sha": "d6054b4346280c30",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/limit.go::join",
+    "producer-sha": "c6786c97def44326",
+    "break": "line 138: \"; ok {\" -\u003e \"; ok \u0026\u0026 false {\""
+  }
+]

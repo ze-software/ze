@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-11-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_LabelsUnrestricted",
+    "unit-sha": "cc391335ded32661",
+    "claim-sha": "7d7c62882d9b67d4",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseHostSet",
+    "producer-sha": "bff740571cbc2765",
+    "break": "line 404: \"checkName(\\\"host\\\", host)\" -\u003e \"checkName(\\\"host\\\", strings.ReplaceAll(host, \\\"_\\\", strings.Repeat(\\\"x\\\", 64)))\""
+  }
+]

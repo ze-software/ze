@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-7.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResolverWorkIsLimited",
+    "unit-sha": "9885c778cb4046c0",
+    "claim-sha": "d2807a41a79ee99b",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/limit.go::spendQuery",
+    "producer-sha": "e81e650b002e1c00",
+    "break": "line 177: \"b.queries \u003e= upstreamQueriesMax\" -\u003e \"b.queries \u003e= upstreamQueriesMax*100\""
+  },
+  {
+    "rid": "RFC1035-7.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResolverWorkIsLimited",
+    "unit-sha": "9885c778cb4046c0",
+    "claim-sha": "9955cf0a494de793",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/limit.go::spendRestart",
+    "producer-sha": "17c044b7b4842e18",
+    "break": "line 186: \"b.restarts \u003e= restartsMax\" -\u003e \"b.restarts \u003e= 0\""
+  }
+]

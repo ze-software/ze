@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-10.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_alias_chain_test.go::TestRFC2181AliasLabelAndValueKeptApart",
+    "unit-sha": "af00a8274671b83a",
+    "claim-sha": "fe25725dd91342f5",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::cnameTarget",
+    "producer-sha": "5282e9b5bfcff939",
+    "break": "line 319: \"c.Target\" -\u003e \"c.Hdr.Name\""
+  },
+  {
+    "rid": "RFC2181-10.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_alias_chain_test.go::TestRFC2181AliasLabelAndValueKeptApart",
+    "unit-sha": "af00a8274671b83a",
+    "claim-sha": "ca52a34305c301d7",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
+    "producer-sha": "59fb61b76048d264",
+    "break": "line 237: \"sets[keyOf(current, dns.TypeCNAME, q.Qclass)]\" -\u003e \"func() ([]dns.RR, bool) { for k, v := range sets { if k.qtype == dns.TypeCNAME \u0026\u0026 strings.EqualFold(dns.Fqdn(cnameTarget(v)), dns.Fqdn(current)) { return v, true } }; return nil, false }()\""
+  }
+]

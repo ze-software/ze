@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-7.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResponseMatchedToItsTransmission",
+    "unit-sha": "70b7965ed30399cd",
+    "claim-sha": "c14d9f533a66c965",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+    "producer-sha": "7be4bcb3a1b6190c",
+    "break": "line 58: \"r.Id != query.Id\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC1035-7.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_work_test.go::TestRFC1035ResponseMatchedToItsTransmission",
+    "unit-sha": "70b7965ed30399cd",
+    "claim-sha": "d5efb95964d00387",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+    "producer-sha": "7be4bcb3a1b6190c",
+    "break": "line 58: \"r.Id != query.Id\" -\u003e \"r.Id == query.Id\""
+  }
+]

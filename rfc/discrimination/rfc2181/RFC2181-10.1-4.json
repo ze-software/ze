@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-10.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_alias_data_test.go::TestRFC2181NoAliasBesideOtherData",
+    "unit-sha": "2d2cc122b24e469b",
+    "claim-sha": "f793a8003619d756",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::recordRR",
+    "producer-sha": "7395d94ce62e6180",
+    "break": "line 156: \"dns.TypeA, rec.TTL\" -\u003e \"dns.TypeCNAME, rec.TTL\""
+  },
+  {
+    "rid": "RFC2181-10.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc2181_alias_data_test.go::TestRFC2181NoAliasBesideOtherData",
+    "unit-sha": "2d2cc122b24e469b",
+    "claim-sha": "b081f5279a7acbd3",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::typeMatches",
+    "producer-sha": "f3f4f5693767be03",
+    "break": "line 126: \"return qtype == dns.TypeA\" -\u003e \"return qtype != dns.TypeA\""
+  }
+]

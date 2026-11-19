@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-10.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue",
+    "unit-sha": "916ec93b26bb4304",
+    "claim-sha": "00f2d60bc454f2ff",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::appendNS",
+    "producer-sha": "7a2ab511ba38a3d3",
+    "break": "line 206: \"hdr(nsName, dns.TypeA\" -\u003e \"hdr(zone, dns.TypeA\""
+  }
+]

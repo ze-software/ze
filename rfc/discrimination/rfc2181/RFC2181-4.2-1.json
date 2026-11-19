@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort",
+    "unit-sha": "9a8aa8fdcd10c44e",
+    "claim-sha": "b7d1e2c116ccdfd6",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 138: \"w.WriteMsg(msg)\" -\u003e \"func() error { c, err := net.Dial(w.RemoteAddr().Network(), w.RemoteAddr().String()); if err != nil { return err }; defer c.Close(); wire, err := msg.Pack(); if err != nil { return err }; _, err = c.Write(wire); return err }()\""
+  }
+]

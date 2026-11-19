@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_RRSetEqualTTL",
+    "unit-sha": "79220266dc6f53d3",
+    "claim-sha": "51e99d92924bf8fc",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseHost",
+    "producer-sha": "c4fcfc800e930cba",
+    "break": "line 460: \"addrRecord(ttl, addr)\" -\u003e \"addrRecord(ttl+uint32(len(recs)), addr)\""
+  }
+]

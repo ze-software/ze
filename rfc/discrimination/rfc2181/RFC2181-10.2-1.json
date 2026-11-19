@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/as112/rfc2181_ptr_test.go::TestRFC2181ReverseZonesServeNoPTR",
+    "unit-sha": "01e687afa71e39ac",
+    "claim-sha": "2486170d79c1de52",
+    "route": "mutant",
+    "producer": "internal/plugins/as112/zones.go::answerQuestions",
+    "producer-sha": "169b27ca0f486289",
+    "break": "line 305: \"msg.Ns = append(msg.Ns,\" -\u003e \"msg.Answer = append(msg.Answer,\""
+  },
+  {
+    "rid": "RFC2181-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_alias_chain_test.go::TestRFC2181PTRLookupMayMeetAnAlias",
+    "unit-sha": "3762cf732b312825",
+    "claim-sha": "8f07f45205cc3a05",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::followsAlias",
+    "producer-sha": "f2cdb70be730dbb7",
+    "break": "line 304: \"return qtype != dns.TypeANY\" -\u003e \"return false\""
+  }
+]
