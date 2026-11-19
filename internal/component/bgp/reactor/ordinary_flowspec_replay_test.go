@@ -39,6 +39,14 @@ func TestOrdinarySelectedFlowSpecReplaysToReplacementRecipient(t *testing.T) {
 	loc.Insert(family.IPv4Unicast, host, locrib.Path{Source: protocol, Metric: 7})
 	t.Cleanup(func() { loc.Remove(family.IPv4Unicast, host, protocol, 0) })
 	source := ordinaryFlowSpecConnect(t, peers[0], 0x0a00f101)
+	sourceSession := source.peer.currentSession()
+	if sourceSession == nil {
+		t.Fatal("ordinary FlowSpec source has no established Session")
+	}
+	sourceConnection := sourceSession.connectionID
+	if sourceConnection == 0 {
+		t.Fatal("ordinary FlowSpec source has no original physical connection")
+	}
 	cover := netip.MustParsePrefix("198.19.246.0/24")
 	ownershipLiveSend(t, source, nil, synthesizedNextHopAttrs(settings[0].Address, 65002), cover)
 	ordinarySelectedStored(t, source, cover)
@@ -50,7 +58,7 @@ func TestOrdinarySelectedFlowSpecReplaysToReplacementRecipient(t *testing.T) {
 	if source.peer.sourceOwner == 0 {
 		t.Fatal("ordinary FlowSpec source has no received-path owner")
 	}
-	key := ribevents.ValidationRoute{Peer: settings[0].Address, PeerOwner: source.peer.sourceOwner, Family: fam, NLRI: string(raw)}
+	key := ribevents.ValidationRoute{Peer: settings[0].Address, PeerOwner: source.peer.sourceOwner, ConnectionID: sourceConnection, Family: fam, NLRI: string(raw)}
 	source.send(t, flowForwardFrame(flowForwardPayload(t, fam, raw, nil)))
 	lowEventually(t, func() bool { return ribevents.RouteEligible(key, 0) }, "ordinary retained FlowSpec rule authorized")
 	updates := source.peer.Stats().UpdatesReceived
