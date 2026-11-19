@@ -73,7 +73,7 @@ engine writer.
 Initial readiness follows those final receipts, including for an empty table.
 Explicit route-server and reflector destinations retain their role writer.
 Ordinary refresh reoffers the current selected snapshot and completes after
-final writer receipts, as described in the [plugin process protocol](api/process-protocol.md).
+final writer receipts, as described in the [plugin process protocol](./api/process-protocol.md).
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
 <!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh, refreshMarker -->
@@ -96,7 +96,7 @@ takes the explicit side.
 Transit is explicit on the process side too. The `bgp-rib` plugin is fed a
 peer's routes, and may send to a peer, only where that peer's `attach process`
 block grants it, as for any process
-([API architecture](api/architecture.md), "Attaching a Process to a Peer").
+([API architecture](./api/architecture.md), "Attaching a Process to a Peer").
 Nothing derives that binding for transit. A peer that asks for learned routes
 through an export policy and lacks the grant is reported, with the line that
 adds it.

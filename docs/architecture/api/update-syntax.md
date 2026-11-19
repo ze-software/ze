@@ -924,6 +924,8 @@ finishes after the reactor's initial sync does not repeat it. It writes
 nothing, and still answers as handled, while the session's initial sync owes
 its own marker, and on a peer with `behavior { manual-eor true }`, which
 receives only the markers asked for without `replay-eor`.
+A bound automatic request also answers as handled when the captured
+session's negotiation is known and excludes the requested family.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, AnnounceReplayEOR, announceEOR -->
 <!-- source: internal/component/bgp/types/types.go -- ReplayEORMeta -->
 

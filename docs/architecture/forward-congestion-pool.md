@@ -192,8 +192,9 @@ during the initial sync is written after the operations that sync drains. The
 marker that closes a replay (`AnnounceReplayEOR`) is automatic, and it stands
 down, answered as handled with nothing queued, on a peer with `behavior {
 manual-eor true }`, while the session's initial sync still owes its own marker,
-and once the family is claimed. Otherwise it claims the family and is queued
-the same way.
+and once the family is claimed. A bound replay also stands down when its
+captured session's negotiation is known and excludes the family. Otherwise
+it claims the family and queues the marker.
 
 The item is marked as part of the initial update: it passes the fence behind
 the replay, and the live changes the fence holds follow it. The worker counts
@@ -206,14 +207,17 @@ release it, or a second automatic marker would go out for the family.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, AnnounceReplayEOR, announceEOR -->
 
 The fence belongs to one peer. Other destinations read their own fence, so a
-replay on one peer never delays forwarding to another. The held items are
-queued overflow like any congested destination's, so the controls above apply
-to them unchanged: a denied handle at 80% pool use, and teardown of the worst
-destination at 95% after the grace period. Nothing is dropped in silence. A
-process that never reports keeps the fence up for the life of the session, and
-the same controls are what end it.
+replay on one peer never delays forwarding to another. Held overflow buffers
+still count toward pool denial at 80% and worst-destination teardown at 95%
+after the grace period. A captured forwarding request keeps ownership of its
+source until all admitted destinations finish. Its worker reserves at most a
+channel's worth of additional live carriers and one initial replay carrier in
+overflow. A refusal or cancellation returns to the request as an error. A
+process that never reports readiness keeps its peer's fence up for the life
+of that session.
 <!-- source: internal/component/bgp/reactor/peer.go -- initialUpdateOwed, forwardOrderHold, SignalAPIReady, resetAPISync -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- takeOverflowReleased -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- reserveBoundOverflow, takeOverflowReleased -->
+<!-- source: internal/component/bgp/reactor/relay_bound.go -- boundForwardStage.flush -->
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- RelayStoredRoute -->
 
 ## Buffer Ownership: Zero-Copy with Copy-on-Modify
@@ -223,15 +227,17 @@ is forwarded to N destination peers, all destinations share the same
 source read buffer. The source buffer is released via `done()` when the last
 destination has written to TCP.
 
-The overflow path is the exception, and it applies to EVERY item that takes it,
-modified or not. A channel item drains in microseconds and can alias the source
-entry safely. An overflow item cannot: it sits in `w.overflow` for as long as
+Ordinary asynchronous forwarding copies UPDATE bodies that move into overflow,
+including unmodified bodies. A channel item drains in microseconds and can
+alias the source entry safely. An overflow item sits in `w.overflow` for as long as
 the destination stays behind, and the recent-update cache's safety valve
 force-evicts a passed-over entry after 5 minutes, or 30 seconds while the read
 pool is under pressure. Eviction returns exactly the memory those bodies point
 into. So `dispatchOverflow` copies the item's bodies into the overflow
 `MixedBufMux` handle it already holds, and re-points the item at the copy. When
 there is no handle, or the bodies do not fit one, the copy goes on the heap.
+Captured forwarding carriers borrow a stage whose source remains owned until
+the request joins its destination workers. The carrier owns no route buffer.
 
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies, dispatchOverflow -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- ownOverflowBodies -->
@@ -250,8 +256,9 @@ peers use the shared source buffer.
 | No modification, channel | Source read buffer | No | Most forwards |
 | Egress filter modifies | Destination peer's Outgoing Peer Pool | Yes | AS-PATH prepend, attribute rewrite |
 | Outgoing Peer Pool exhausted | `modBufPool` or fresh allocation | Yes | Modified output buffer fallback |
-| Overflow, any item | The item's forward overflow `MixedBufMux` handle | Yes | Channel full, or the destination is held for its initial sync |
-| Overflow, no handle or too large | Fresh allocation | Yes | Mux absent, congestion denial, pool exhausted |
+| Asynchronous overflow | The item's forward overflow `MixedBufMux` handle | Yes | Channel full, or the destination is held for its initial sync |
+| Asynchronous overflow, no handle or too large | Fresh allocation | Yes | Mux absent, congestion denial, pool exhausted |
+| Captured forwarding carrier | Stage held by the original request through completion | No additional copy | A replay hold or existing ordered overflow keeps the carrier pending |
 
 Each Outgoing Peer Pool pre-allocates 64 buffers at the peer's negotiated
 message size (4K or 64K) in one contiguous allocation. The buffer is returned
