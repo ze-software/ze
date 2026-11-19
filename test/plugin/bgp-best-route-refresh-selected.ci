@@ -1,0 +1,85 @@
+# Question: do complete grants on one named RIB instance provide selected
+# initial replay and answer a recipient's real IPv4 ROUTE-REFRESH on its socket?
+# A unit cannot establish that the shipped daemon joins parsed attachments,
+# incoming type-5 dispatch, grant-gated SDK delivery and the original writer.
+# VALIDATES: spec-bgp-best-route-advertised-to-peers AC-25 completed-graph path.
+# The source elects its route before the recipient connects; both initial replay
+# and requested replay must reach the unchanged recipient. Source UPDATE counts
+# stay unchanged across refresh. Final withdrawal and useful API output follow.
+# Both deciding-plugin transports run. No RS/RR role or command injects refresh.
+# The two foreground daemons can overlap until their observers stop them.
+# Keep distinct leased listeners and disable the runner's single-port override.
+option=env:var=ze_test_bgp_port:value=
+option=timeout:value=150s
+
+stdin=config-internal:terminator=CONFIG_INTERNAL
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal transit-rib { use bgp-rib; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-refresh-selected internal 127.0.0.1:$PORT";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process transit-rib { receive [ update-received state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; route-refresh enable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process transit-rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_INTERNAL
+
+cmd=foreground:seq=1:exec=ze -:stdin=config-internal:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: selected-route internal wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
+
+stdin=config-forked:terminator=CONFIG_FORKED
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external transit-rib { run "ze plugin bgp-rib"; encoder json; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-refresh-selected forked 127.0.0.1:$PORT2";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT2; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process transit-rib { receive [ update-received state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT2; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; route-refresh enable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process transit-rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_FORKED
+
+cmd=foreground:seq=3:exec=ze -:stdin=config-forked:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: selected-route forked wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
