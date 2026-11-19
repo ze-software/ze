@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8956-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv6Basic",
+    "unit-sha": "f79d5cf128fe9a8f",
+    "claim-sha": "3ef0d5b5e66771c3",
+    "route": "mutant",
+    "producer": "internal/core/family/registry.go::MustRegister",
+    "producer-sha": "5801ec59a29086db",
+    "break": "line 305: \"return f\" -\u003e \"return func() Family { if afiName == \\\"ipv6\\\" \u0026\u0026 safiName == \\\"flow\\\" { return Family{AFI: f.AFI, SAFI: f.SAFI + 1} }; if afiName == \\\"ipv6\\\" \u0026\u0026 safiName == \\\"flow-vpn\\\" { return Family{AFI: f.AFI, SAFI: f.SAFI - 1} }; return f }()\""
+  }
+]

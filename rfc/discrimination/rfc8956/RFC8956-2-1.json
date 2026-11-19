@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8956-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv6FlowSpecNegotiatesMultiprotocolCapability",
+    "unit-sha": "761ad1442668b265",
+    "claim-sha": "04f511ca45d7ff92",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/nlri/flowspec/plugin.go::flowSpecFamilies",
+    "producer-sha": "47cfa461a50c5c7f",
+    "break": "line 193: \"names[i] = fam.String()\" -\u003e \"if names[i] = fam.String(); fam == IPv6FlowSpec { names[i] = IPv4FlowSpec.String() }\""
+  }
+]
