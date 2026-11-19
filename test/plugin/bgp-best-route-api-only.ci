@@ -1,0 +1,91 @@
+# Question: can Ze start an internal API-only BGP configuration with default
+# AIGP, send local announcements to both peers, and withhold their learned
+# routes from one another? A unit cannot prove startup keeps the two sessions
+# usable or see which UPDATEs reach their sockets.
+# VALIDATES: spec-bgp-best-route-advertised-to-peers AC-26 startup and wire.
+# Both peers receive API trigger routes before originating distinct prefixes.
+# The observer waits for both inputs to reach Adj-RIB-In before issuing the API
+# fences. Each peer checks its fence and rejects the other peer's prefix.
+option=timeout:value=55s
+
+stdin=source:terminator=SOURCE
+option=asn:value=65000
+option=open:value=router-id:id=192.0.2.2
+option=tcp_connections:value=1
+option=linger:value=true
+option=established-file:path=ac26-source-up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180AFD00
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C000020140050400000064180AFE00
+expect=bgp:conn=1:seq=3:announced=180AFD02
+action=rewrite:conn=1:seq=3:source=ac26-marker:dest=ac26-source-fence
+reject=bgp:conn=1:scope=announced:pattern=180AFE01
+SOURCE
+
+stdin=destination:terminator=DESTINATION
+option=asn:value=65000
+option=open:value=router-id:id=192.0.2.3
+option=tcp_connections:value=1
+option=linger:value=true
+option=established-file:path=ac26-destination-up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180AFD01
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C000020140050400000064180AFE01
+expect=bgp:conn=1:seq=3:announced=180AFD03
+action=rewrite:conn=1:seq=3:source=ac26-marker:dest=ac26-destination-fence
+reject=bgp:conn=1:scope=announced:pattern=180AFE00
+DESTINATION
+
+tmpfs=ac26-marker:terminator=MARKER
+The check peer received its API fence.
+MARKER
+
+tmpfs=ac26-stages.script:terminator=STAGES
+await-file ac26-source-up
+await-file ac26-destination-up
+route 127.0.0.2 update text nhop 192.0.2.1 nlri add 10.253.0.0/24
+route 127.0.0.3 update text nhop 192.0.2.1 nlri add 10.253.1.0/24
+has show bgp adj-rib-in => "key":"ipv4/unicast:10.254.0.0/24"
+has show bgp adj-rib-in => "key":"ipv4/unicast:10.254.1.0/24"
+route 127.0.0.2 update text nhop 192.0.2.1 nlri add 10.253.2.0/24
+route 127.0.0.3 update text nhop 192.0.2.1 nlri add 10.253.3.0/24
+await-file ac26-source-fence
+await-file ac26-destination-fence
+say OK: both internal peers received API fences after their inputs reached Adj-RIB-In
+STAGES
+
+stdin=config:terminator=CONFIG
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external ac26-api {
+  run "le test fixture reload/live-stages ac26-stages.script";
+  encoder json;
+ }
+}
+bgp {
+ router-id 192.0.2.254;
+ peer source {
+  connection { local { ip 127.0.0.1; accept false; } remote { ip 127.0.0.2; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final accept; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process ac26-api { send [ update ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; accept false; } remote { ip 127.0.0.3; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final accept; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process ac26-api { send [ update ]; }
+ }
+}
+CONFIG
+
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=destination
+cmd=foreground:seq=3:exec=ze -:stdin=config:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: both internal peers received API fences after their inputs reached Adj-RIB-In
+reject=stderr:contains=ZE-OBSERVER-FAIL
