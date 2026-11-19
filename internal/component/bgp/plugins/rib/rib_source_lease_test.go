@@ -27,6 +27,8 @@ import (
 type sourceLeaseCalls struct {
 	mu     sync.Mutex
 	values []rpc.SourceLeaseInput
+	// Optional fixed issuer registry: capture fixtures preregister original receipts.
+	issued map[uint64]uint64
 }
 
 func (c *sourceLeaseCalls) count(action rpc.SourceLeaseAction, receipt uint64) int {
@@ -48,6 +50,21 @@ func (c *sourceLeaseCalls) count(action rpc.SourceLeaseAction, receipt uint64) i
 // The callback refuses any operation performed while peerMu is held.
 func sourceLeaseTestRIB(t *testing.T, native bool) (*RIBManager, *sourceLeaseCalls) {
 	t.Helper()
+	return sourceLeaseTestRIBWithForwarding(t, native, true)
+}
+
+// sourceLeaseTestRIBWithForwarding keeps the same SDK lease boundary while
+// allowing receive-only fixtures to retain their original absent forwarding table.
+func sourceLeaseTestRIBWithForwarding(t *testing.T, native, forwarding bool) (*RIBManager, *sourceLeaseCalls) {
+	t.Helper()
+	return sourceLeaseTestRIBWithOutput(t, native, forwarding, nil)
+}
+
+// sourceLeaseTestRIBWithOutput retains the same actual lease fixture and adds
+// one optional real SDK auxiliary writer. No source lease result is fabricated
+// by the output handler; existing callers retain their original fixture.
+func sourceLeaseTestRIBWithOutput(t *testing.T, native, forwarding bool, output func(rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error)) (*RIBManager, *sourceLeaseCalls) {
+	t.Helper()
 	clientEnd, engineEnd := net.Pipe()
 	connection := clientEnd
 	calls := &sourceLeaseCalls{}
@@ -61,6 +78,17 @@ func sourceLeaseTestRIB(t *testing.T, native bool) (*RIBManager, *sourceLeaseCal
 		}
 		r.peerMu.Unlock()
 		calls.mu.Lock()
+		if calls.issued != nil {
+			owner, issued := calls.issued[input.SourceReceipt]
+			if !issued {
+				calls.mu.Unlock()
+				return nil, errors.New("source lease receipt was not issued by this fixture")
+			}
+			if owner != input.PeerOwner {
+				calls.mu.Unlock()
+				return nil, errors.New("source lease owner differs from the issued receipt")
+			}
+		}
 		calls.values = append(calls.values, input)
 		calls.mu.Unlock()
 		return &rpc.SourceLeaseOutput{Action: input.Action, SourceReceipt: input.SourceReceipt, PeerOwner: input.PeerOwner}, nil
@@ -80,6 +108,23 @@ func sourceLeaseTestRIB(t *testing.T, native bool) (*RIBManager, *sourceLeaseCal
 			output, err := handle(input)
 			return output, true, err
 		})
+		bridge.SetDispatchRPC(func(_ context.Context, method string, raw json.RawMessage) (json.RawMessage, error) {
+			if method != rpc.MethodUpdateRoute {
+				return nil, errors.New("unexpected auxiliary engine operation")
+			}
+			if output == nil {
+				return nil, errors.New("unexpected auxiliary writer")
+			}
+			var input rpc.UpdateRouteInput
+			if err := json.Unmarshal(raw, &input); err != nil {
+				return nil, err
+			}
+			result, err := output(input)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(result)
+		})
 		bridge.SetReady()
 		connection = rpc.NewBridgedConn(clientEnd, bridge)
 		close(serverDone)
@@ -88,6 +133,26 @@ func sourceLeaseTestRIB(t *testing.T, native bool) (*RIBManager, *sourceLeaseCal
 		go func() {
 			defer close(serverDone)
 			for request := range engine.Requests() {
+				if request.Method == rpc.MethodUpdateRoute {
+					var input rpc.UpdateRouteInput
+					err := json.Unmarshal(request.Params, &input)
+					var result *rpc.UpdateRouteOutput
+					if err == nil {
+						if output == nil {
+							err = errors.New("unexpected auxiliary writer")
+						} else {
+							result, err = output(input)
+						}
+					}
+					if err != nil {
+						if engine.SendError(context.Background(), request.ID, err.Error()) != nil {
+							return
+						}
+					} else if engine.SendResult(context.Background(), request.ID, result) != nil {
+						return
+					}
+					continue
+				}
 				var input rpc.SourceLeaseInput
 				err := json.Unmarshal(request.Params, &input)
 				if request.Method != rpc.MethodSourceLease {
@@ -112,7 +177,9 @@ func sourceLeaseTestRIB(t *testing.T, native bool) (*RIBManager, *sourceLeaseCal
 	p := sdk.NewWithConn("bgp-rib", connection)
 	r = newRIBManager(p)
 	r.sourceLeases = newRIBSourceLeases(r)
-	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
+	if forwarding {
+		electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
+	}
 	t.Cleanup(func() {
 		for _, routes := range r.bgpPeers {
 			routes.Release()
@@ -148,13 +215,13 @@ func sourceLeaseReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerOwner,
 	require.NoError(t, err)
 	msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: 9, SourcePolicyEpoch: 5, SourceReceipt: receipt, SourceOwner: peerOwner, RawBytes: body, WireUpdate: wu, AttrsWire: aw}
 	if jsonRail {
-		info := pluginapi.PeerInfo{PeerOwner: peerOwner, Address: peer, AddressStr: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
+		info := pluginapi.PeerInfo{ConnectionID: 41, PeerOwner: peerOwner, Address: peer, AddressStr: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
 		line := format.AppendMessage(nil, &info, msg, bgptypes.ContentConfig{Encoding: pluginapi.EncodingJSON, Format: pluginapi.FormatFull})
 		event, err := parseEvent(line)
 		require.NoError(t, err)
 		r.dispatch(event)
 	} else {
-		r.handleReceivedStructured(&rpc.StructuredEvent{EventType: rpc.EventKindUpdate, PeerOwner: peerOwner, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, SourceReceipt: receipt, RawMessage: &msg})
+		r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41, EventType: rpc.EventKindUpdate, PeerOwner: peerOwner, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, SourceReceipt: receipt, RawMessage: &msg})
 	}
 	return fam, []byte{8, 10}
 }
@@ -167,12 +234,13 @@ func TestRIBSourceLeaseCandidateLifetime(t *testing.T) {
 					r, calls := sourceLeaseTestRIB(t, native)
 					peer := netip.MustParseAddr("192.0.2.101")
 					alternate := netip.MustParseAddr("192.0.2.102")
-					r.peerUp[peer] = true
+					r.peerMeta[701] = &peerMetadata{Address: peer, Session: 1}
+					r.peerUp[701] = true
 					fam, raw := sourceLeaseReceive(t, r, peer, 701, 31, jsonRail, labeled)
 					sourceLeaseReceive(t, r, alternate, 702, 41, jsonRail, labeled)
 					require.Equal(t, 1, calls.count(rpc.SourceLeaseAcquire, 31))
 					require.Equal(t, 1, calls.count(rpc.SourceLeaseAcquire, 41), "an alternate also owns a lease")
-					pinned, found := r.bgpPeers[peer].LookupRetained(fam, raw)
+					pinned, found := r.bgpPeers[701].LookupRetained(fam, raw)
 					require.True(t, found)
 					sourceLeaseReceive(t, r, peer, 701, 32, jsonRail, labeled)
 					require.NoError(t, r.sourceLeases.settle(t.Context()))
@@ -182,18 +250,18 @@ func TestRIBSourceLeaseCandidateLifetime(t *testing.T) {
 					require.Equal(t, 1, calls.count(rpc.SourceLeaseRelease, 31))
 					_, err := r.retainRoutes(peer.String(), nil, false)
 					require.NoError(t, err)
-					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown, Reason: rpc.ReasonTCPFailure})
-					require.NotNil(t, r.bgpPeers[peer])
+					r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 701, DestinationSession: 1, PeerAddress: peer.String(), State: rpc.SessionStateDown, Reason: rpc.ReasonTCPFailure})
+					require.NotNil(t, r.bgpPeers[701])
 					require.Positive(t, calls.count(rpc.SourceLeaseRetain, 32))
 					require.Zero(t, calls.count(rpc.SourceLeaseRelease, 32))
 					if jsonRail {
-						r.handleState(&Event{Peer: mustMarshal(t, map[string]any{"remote": map[string]any{"address": peer.String()}}), State: "down", Reason: rpc.ReasonPeerRemoved})
+						r.handleState(&Event{PeerOwner: 701, DestinationSession: 1, Peer: mustMarshal(t, map[string]any{"remote": map[string]any{"address": peer.String()}}), State: "down", Reason: rpc.ReasonPeerRemoved})
 					} else {
-						r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown, Reason: rpc.ReasonPeerRemoved})
+						r.handleStructuredState(&rpc.StructuredEvent{PeerOwner: 701, DestinationSession: 1, PeerAddress: peer.String(), State: rpc.SessionStateDown, Reason: rpc.ReasonPeerRemoved})
 					}
-					require.Nil(t, r.bgpPeers[peer], "permanent removal purges an already-DOWN retained source")
+					require.Nil(t, r.bgpPeers[701], "permanent removal purges an already-DOWN retained source")
 					require.Equal(t, 1, calls.count(rpc.SourceLeaseRelease, 32))
-					require.NotNil(t, r.bgpPeers[alternate])
+					require.NotNil(t, r.bgpPeers[702])
 					require.Zero(t, calls.count(rpc.SourceLeaseRelease, 41))
 					r.sourceLeases.mu.Lock()
 					require.Len(t, r.sourceLeases.leases, 1, "only the remaining current source survives; no receipt history")
@@ -207,7 +275,8 @@ func TestRIBSourceLeaseCandidateLifetime(t *testing.T) {
 func TestRIBSourceLeaseSourcePolicyAbort(t *testing.T) {
 	r, calls := sourceLeaseTestRIB(t, true)
 	peer := netip.MustParseAddr("192.0.2.103")
-	r.peerUp[peer] = true
+	r.peerMeta[1] = &peerMetadata{Address: peer, Session: 1}
+	r.peerUp[1] = true
 	sourceLeaseReceive(t, r, peer, 1, 51, false, false)
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "lease-abort", peer, 5, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "lease-abort", peer, 5, 6))
