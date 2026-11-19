@@ -4,6 +4,7 @@
 package fixture
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -108,12 +109,12 @@ func TestSlowAccountingRequestWireReadsASignedStop(t *testing.T) {
 	if request.identifier != delayed.identifier {
 		t.Fatalf("identifier = %d, want %d", request.identifier, delayed.identifier)
 	}
-	if string(request.authenticator[:]) != string(datagram[4:radius.HeaderLen]) {
+	if !bytes.Equal(request.authenticator[:], datagram[4:radius.HeaderLen]) {
 		t.Fatal("the authenticator read is not the datagram's")
 	}
 	undelayed := delayed
 	undelayed.delay = 0
-	if want := slowAccountingWire(t, undelayed, slowAccountingTestSecret)[radius.HeaderLen:]; string(request.immutable) != string(want) {
+	if want := slowAccountingWire(t, undelayed, slowAccountingTestSecret)[radius.HeaderLen:]; !bytes.Equal(request.immutable, want) {
 		t.Fatalf("immutable = %x, want the attributes with the delay cleared %x", request.immutable, want)
 	}
 

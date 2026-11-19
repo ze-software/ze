@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -38,11 +39,6 @@ const (
 // session's LAC (tunnelL2TPOpenProxySession) uses 0x0321, so ze's ZLB names
 // which of the two tunnels it acknowledges.
 const slowAccountingPeerTunnel = uint16(0x0322)
-
-// slowAccountingLACSession is the Assigned Session ID the ICRQ of
-// tunnelL2TPOpenProxySession gives the session on the LAC's side. The LAC's
-// CDN names its own session by it (RFC 2661 Section 6.12).
-const slowAccountingLACSession = uint16(700)
 
 // slowAccountingCDNAdministrative is the CDN Result Code RFC 2661 Section
 // 4.4.2 lists as "3 - Call disconnected for administrative reasons".
@@ -175,8 +171,12 @@ func slowAccountingMarkerAbsent(path string) error {
 
 // Link a fully written private receipt into its final name. The other process
 // never observes the empty/truncated window of an in-place file write.
+//
+// path is one of the two receipt names above, relative to the working
+// directory the runner gave the test; it is cleaned before any file call.
 func slowAccountingPublish(path, owner string) error {
-	contents, err := os.ReadFile(path)
+	receipt := filepath.Clean(path)
+	contents, err := os.ReadFile(receipt)
 	if err == nil {
 		if string(contents) != owner {
 			return errors.New("proof receipt already belongs to another accounting owner")
@@ -186,7 +186,7 @@ func slowAccountingPublish(path, owner string) error {
 	if !os.IsNotExist(err) {
 		return err
 	}
-	staging := path + ".pending"
+	staging := filepath.Clean(receipt + ".pending")
 	file, err := os.OpenFile(staging, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func slowAccountingPublish(path, owner string) error {
 	if err := errors.Join(writeErr, closeErr); err != nil {
 		return errors.Join(err, os.Remove(staging))
 	}
-	linkErr := os.Link(staging, path)
+	linkErr := os.Link(staging, receipt)
 	return errors.Join(linkErr, os.Remove(staging))
 }
 
@@ -232,8 +232,7 @@ func tunnelSlowAccountingRadius(ctx context.Context, args []string) error {
 		}
 		n, address, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) {
+			if netErr, isNet := errors.AsType[net.Error](err); isNet {
 				if netErr.Timeout() {
 					continue
 				}
@@ -418,11 +417,9 @@ func slowAccountingHelloAck(datagram []byte, wantNR uint16) (acked bool, err err
 // publish on the CLI handler's goroutine instead, and could not show it.
 // The caller MUST own the peer's socket: the link goroutine is stopped.
 func slowAccountingHangUp(peer *tunnelAccountingPeer) error {
-	// RFC 2661 Section 6.12: "The following AVPs MUST be present in the
-	// CDN:" Message Type, Result Code and Assigned Session ID.
-	result := append(tunnelL2TPU16(slowAccountingCDNAdministrative), tunnelL2TPU16(0)...)
-	cdn := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(tunnelL2TPMessageTypeCDN)), tunnelL2TPAVP(true, 1, result)...)
-	cdn = append(cdn, tunnelL2TPAVP(true, tunnelL2TPAVPAssignedSessionID, tunnelL2TPU16(slowAccountingLACSession))...)
+	// The LAC's CDN names its own session by the Assigned Session ID its ICRQ
+	// gave it (RFC 2661 Section 6.12).
+	cdn := tunnelL2TPHangUpCDN(tunnelProxyCallLACSID)
 	if _, err := peer.conn.WriteToUDP(tunnelL2TPControl(peer.localTID, peer.zeSID, peer.ns, peer.nr, cdn), peer.target); err != nil {
 		return err
 	}

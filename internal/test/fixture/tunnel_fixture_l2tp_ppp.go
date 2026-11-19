@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
@@ -31,10 +33,60 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	return state.checkRadius(ctx)
 }
 
-// tunnelL2TPOpenProxySession is shared by accounting and transmit-cap proofs.
-// The caller owns the returned socket and MUST close it. An error closes it
-// here, before ownership can transfer. Peer MRU zero omits that option.
+// tunnelAccountingPeer is the LAC half of one proxy-LCP call: its tunnel's
+// socket and control sequence numbers, ze's session ID, and the PPP state the
+// peer negotiated. Not safe for concurrent use: one goroutine owns it.
+type tunnelAccountingPeer struct {
+	conn           *net.UDPConn
+	target         *net.UDPAddr
+	localTID       uint16
+	zeSID          uint16
+	ns             uint16
+	nr             uint16
+	zeConfReqAcked bool
+	ourIPCPID      byte
+	ourRequestAddr net.IP
+	ourIPCPAcked   bool
+	negotiatedAddr net.IP
+	// silent stops this peer answering LCP echo probes, and makes ze's own
+	// teardown messages expected rather than a failure. It is set once the
+	// Interim-Update has been asserted, to drive the Accounting-Stop.
+	silent bool
+	// startedAt is the wall clock this peer began at. Event-Timestamp is
+	// asserted against it, so a zero or a stale stamp cannot pass.
+	startedAt int64
+}
+
+// tunnelProxyCallLACSID is the Assigned Session ID the LAC gives the one call
+// of tunnelL2TPOpenProxySession.
+const tunnelProxyCallLACSID = 700
+
+// tunnelL2TPOpenProxySession is shared by accounting and transmit-cap proofs:
+// one tunnel carrying one proxy-LCP call. The caller owns the returned socket
+// and MUST close it. An error closes it here, before ownership can transfer.
+// Peer MRU zero omits that option.
 func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU uint16) (*tunnelAccountingPeer, error) {
+	state, err := tunnelL2TPOpenProxyTunnel(ctx, port)
+	if err != nil {
+		return nil, err
+	}
+	if err := state.openProxyCall(tunnelProxyCallLACSID); err != nil {
+		_ = state.conn.Close() //nolint:errcheck // failed fixture setup
+		return nil, err
+	}
+	var line textbuf.Buffer
+	line.Str("OK: ICRP received, ze session id ").Uint16(state.zeSID).
+		Str(" on tunnel ").Uint16(state.localTID).Byte('\n')
+	_ = line.StdOut() //nolint:errcheck // progress line; the assertions are the returned errors
+	state.connectProxyCall(localMRU, peerMRU)
+	return state, nil
+}
+
+// tunnelL2TPOpenProxyTunnel opens one control connection to ze: SCCRQ, then
+// the SCCCN answering the SCCRP's Challenge. Each call dials its own socket,
+// so each tunnel has its own source port and ze keys it apart. The caller
+// owns the returned socket and MUST close it; an error closes it here.
+func tunnelL2TPOpenProxyTunnel(ctx context.Context, port int) (*tunnelAccountingPeer, error) {
 	challenge, _ := tunnelHex("0f1e2d3c4b5a69788796a5b4c3d2e1f0")
 	conn, target, err := tunnelL2TPDial(port)
 	if err != nil {
@@ -61,7 +113,19 @@ func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU
 	digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
 		append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
 	state.sendControl(append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...), 0)
-	icrq := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(10)), tunnelL2TPAVP(true, 14, tunnelL2TPU16(700))...)
+	transferred = true
+	return state, nil
+}
+
+// openProxyCall places one incoming call on the peer's tunnel: an ICRQ whose
+// Assigned Session ID is lacSID, then ze's ICRP, whose Assigned Session ID
+// becomes zeSID. Only an ICRP addressed to lacSID counts, so a tunnel that
+// places several calls one after another reads each call's own answer. The
+// call stays in ze's wait-connect state until connectProxyCall or a CDN; the
+// next control message the peer sends acknowledges the ICRP.
+func (state *tunnelAccountingPeer) openProxyCall(lacSID uint16) error {
+	state.zeSID = 0
+	icrq := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(10)), tunnelL2TPAVP(true, 14, tunnelL2TPU16(lacSID))...)
 	icrq = append(icrq, tunnelL2TPAVP(true, 15, tunnelL2TPU32(42))...)
 	// RFC 2661 Section 4.4.3 Calling Number (AVP 22): "encodes the originating
 	// number for the incoming call ... The M-bit for this AVP MUST be set to
@@ -77,7 +141,11 @@ func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU
 		}
 		parsed, parseErr := tunnelL2TPParseAVPs(packet)
 		if parseErr == nil && tunnelL2TPMessageType(parsed) == 11 && len(parsed[14]) == 2 {
-			state.zeSID = binary.BigEndian.Uint16(parsed[14])
+			// RFC 2661 Section 3.1: "Session ID in each message is that of the
+			// intended recipient, not the sender." An ICRP names the LAC's.
+			if binary.BigEndian.Uint16(packet[6:8]) == lacSID {
+				state.zeSID = binary.BigEndian.Uint16(parsed[14])
+			}
 		}
 		if len(packet) >= 12 && int(binary.BigEndian.Uint16(packet[2:4])) > 12 {
 			ns := binary.BigEndian.Uint16(packet[8:10])
@@ -87,9 +155,15 @@ func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU
 		}
 	}
 	if state.zeSID == 0 {
-		return nil, errors.New("no ICRP received")
+		return errors.New("no ICRP received")
 	}
-	fmt.Printf("OK: ICRP received, ze session id %d on tunnel %d\n", state.zeSID, state.localTID)
+	return nil
+}
+
+// connectProxyCall answers the call's ICRP with the ICCN carrying the proxy
+// LCP AVPs, which moves the call to ze's established state and starts its
+// PPP. Peer MRU zero omits that option.
+func (state *tunnelAccountingPeer) connectProxyCall(localMRU, peerMRU uint16) {
 	var peerOptions []byte
 	if peerMRU != 0 {
 		peerOptions = append(peerOptions, 1, 4, byte(peerMRU>>8), byte(peerMRU))
@@ -112,8 +186,6 @@ func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU
 	iccn = append(iccn, tunnelL2TPAVP(false, 28, peerOptions)...)
 	state.sendControl(iccn, state.zeSID)
 	fmt.Println("OK: ICCN sent with proxy LCP AVPs 26, 27 and 28")
-	transferred = true
-	return state, nil
 }
 
 // tunnelCallingNumber is the originating number this peer puts in the ICRQ.
@@ -126,27 +198,6 @@ const tunnelCallingNumber = "+441632960123"
 // answered, which is how this peer ends the session: it goes silent, and ze
 // tears the session down on its own timer.
 const tunnelTerminateCauseLostCarrier = "2"
-
-type tunnelAccountingPeer struct {
-	conn           *net.UDPConn
-	target         *net.UDPAddr
-	localTID       uint16
-	zeSID          uint16
-	ns             uint16
-	nr             uint16
-	zeConfReqAcked bool
-	ourIPCPID      byte
-	ourRequestAddr net.IP
-	ourIPCPAcked   bool
-	negotiatedAddr net.IP
-	// silent stops this peer answering LCP echo probes, and makes ze's own
-	// teardown messages expected rather than a failure. It is set once the
-	// Interim-Update has been asserted, to drive the Accounting-Stop.
-	silent bool
-	// startedAt is the wall clock this peer began at. Event-Timestamp is
-	// asserted against it, so a zero or a stale stamp cannot pass.
-	startedAt int64
-}
 
 func (peer *tunnelAccountingPeer) sendControl(body []byte, sid uint16) {
 	_, _ = peer.conn.WriteToUDP(tunnelL2TPControl(peer.localTID, sid, peer.ns, peer.nr, body), peer.target)
