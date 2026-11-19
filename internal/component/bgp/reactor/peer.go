@@ -530,7 +530,6 @@ type Peer struct {
 	// under writeMu before reading retained pages and MUST decrement it only
 	// after its replay completion marker, then wakeForwardOverflow.
 	policyReplayHolds atomic.Int32
-	policyReplayEpoch atomic.Uint64 // Identifies one outer hold, including its nested reconciliations.
 	// exportGeneration counts this Peer's export policy changes, zero until the
 	// first. It rises under p.mu with the policy, so buildForwardFacts and
 	// staleChainFor read it together with the chain a decision then runs, and the
@@ -2629,6 +2628,15 @@ func (p *Peer) forwardChannelPending() bool {
 	return p.fwdChannelPending.Load() > 0
 }
 
+// forwardQueuePending samples channel debt before overflow debt. A worker
+// publishes overflow debt before giving up its channel credit.
+func (p *Peer) forwardQueuePending() bool {
+	if p.forwardChannelPending() {
+		return true
+	}
+	return p.forwardOverflowPending()
+}
+
 // withdrawBehindForwards reports whether an announce-rail withdrawal for this
 // peer must join the peer's forward queue instead of reaching the wire at once
 // (announceTarget.queueBehindForwards). A peer that is not Established has
@@ -2654,10 +2662,7 @@ func (p *Peer) withdrawBehindForwards() bool {
 	if p.forwardOrderHold(false) {
 		return true
 	}
-	if p.forwardOverflowPending() {
-		return true
-	}
-	return p.forwardChannelPending()
+	return p.forwardQueuePending()
 }
 
 // wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's

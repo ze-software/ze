@@ -230,9 +230,7 @@ func drainReceiveStore(ctx context.Context, store *pluginserver.RegisteredComman
 // callers; each hold MUST be paired with endPolicyReplay.
 func (p *Peer) beginPolicyReplay(session *Session) {
 	session.writeMu.Lock()
-	if p.policyReplayHolds.Add(1) == 1 {
-		p.policyReplayEpoch.Add(1)
-	}
+	p.policyReplayHolds.Add(1)
 	session.writeMu.Unlock()
 }
 

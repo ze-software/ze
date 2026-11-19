@@ -476,19 +476,15 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 	api, proc := readyProducerServer(t, f.r, owner)
 	peer.resetAPISync([]string{owner})
 	raiseTestReplayFence(peer, owner)
+	session := readyProducerSession(peer)
 	initial := peer.initialReplayToken()
-	readyProducerState(t, proc, peer, rpc.SessionStateUp, initial)
+	readyProducerState(t, proc, peer, session, rpc.SessionStateUp, initial)
 	readyProducerAwait(t, api, owner, initial, false)
 
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(info plugin.PeerInfo, msg bgptypes.RawMessage) {
-		sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-			PeerAddress: info.Address.String(), PeerAS: info.PeerAS, EventType: rpc.EventKindUpdate,
-			Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
-			SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
-		}})
+		sent <- readyProducerSent(proc, info, msg)
 	}}
-	session := peer.currentSession()
 	session.SetMessageCallback(f.r.capturedMessageReceiver)
 	batch := gateRailBatch()
 	before := batch
@@ -515,17 +511,17 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 	}
 	peer.runQueuedTeardown(session, peer.addrString, peerOp{Type: PeerOpTeardown, Notice: ceaseNotice(0, "")})
 	require.True(t, published)
-	readyProducerState(t, proc, peer, rpc.SessionStateDown, 0)
+	readyProducerState(t, proc, peer, session, rpc.SessionStateDown, 0)
 	replacement, conn := newSyncOrderDest(t, peer.sendCtx.Load(), f.ctxID)
 	peer.mu.Lock()
 	peer.session = replacement.session
 	peer.mu.Unlock()
+	nextSession := peer.setTestInitialSync(1, true)
 	peer.setState(PeerStateEstablished)
-	peer.setTestInitialSync(1, true)
 	peer.resetAPISync([]string{owner})
 	raiseTestReplayFence(peer, owner)
 	token := peer.initialReplayToken()
-	readyProducerState(t, proc, peer, rpc.SessionStateUp, token)
+	readyProducerState(t, proc, peer, nextSession, rpc.SessionStateUp, token)
 	readyProducerAwait(t, api, owner, token, false)
 	require.NoError(t, readyProducerAttempt(t, api))
 	require.Equal(t, gateRailPrefixes[:1], wirePrefixes(t, conn.written(), false), "real sent history restores only the previously sent prefix")

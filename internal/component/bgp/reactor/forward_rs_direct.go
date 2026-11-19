@@ -68,6 +68,13 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		return false, false, nil
 	}
 
+	// The earlier fast-path probe may straddle a channel-to-overflow
+	// handoff. Recheck both credits in handoff order under the writer.
+	if peer.forwardQueuePending() {
+		session.releaseFastPathWrites()
+		return false, false, nil
+	}
+
 	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
 		session.releaseFastPathWrites()
 		return true, false, nil

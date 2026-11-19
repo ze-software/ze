@@ -28,6 +28,7 @@ package reactor
 
 import (
 	"bytes"
+	"context"
 	"net/netip"
 	"slices"
 	"sync"
@@ -337,7 +338,7 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	session.holdWrites()
 	defer session.releaseWrites()
 	if peer.policyReplayHolds.Load() != 0 {
-		peer.reactor.fwdPool.requeuePolicyReplay(key, items)
+		peer.reactor.fwdPool.requeueForwardHold(key, items)
 	}
 
 	// Arm the write budget AFTER acquiring the write path so the full budget
@@ -537,11 +538,12 @@ type fwdPool struct {
 	srcStats   map[netip.Addr]*fwdSourceStats
 }
 
-// requeuePolicyReplay returns pre-admitted live work to the existing overflow
-// while a final-policy replay holds the destination. Caller MUST hold writeMu;
-// reconciliation raises its hold under that same lock. Moved items transfer all
-// buffer and completion ownership, so safeBatchHandle MUST see empty originals.
-func (fp *fwdPool) requeuePolicyReplay(key fwdKey, items []fwdItem) {
+// requeueForwardHold returns pre-admitted live work to the existing overflow.
+// Ordinary writes MUST hold writeMu, which also guards policy hold admission.
+// A bound writer can call this after its final writer observed the hold under
+// that lock and wrote nothing. The next attempt rechecks the original target.
+// Moved items transfer ownership, so safeBatchHandle MUST see empty originals.
+func (fp *fwdPool) requeueForwardHold(key fwdKey, items []fwdItem) {
 	first := -1
 	for i := range items {
 		if items[i].peer != nil && !items[i].initialUpdate {
@@ -552,53 +554,54 @@ func (fp *fwdPool) requeuePolicyReplay(key fwdKey, items []fwdItem) {
 	if first < 0 {
 		return
 	}
-	fp.mu.RLock()
-	// Keep shutdown from draining overflow before this ownership transfer ends.
-	defer fp.mu.RUnlock()
+	// Exclude direct channel admission and Stop from the transfer.
+	fp.mu.Lock()
+	defer fp.mu.Unlock()
+	if fp.stopped {
+		return
+	}
 	worker := fp.workers[key]
-	stopped := fp.stopped
 	if worker == nil {
 		return
 	}
-	if stopped {
-		return
-	}
-	epoch := items[first].peer.policyReplayEpoch.Load()
+
 	held := make([]fwdItem, 0, len(items)-first)
+	var fromChannel int64
 	for i := first; i < len(items); i++ {
 		if items[i].peer != nil && items[i].initialUpdate {
 			continue
 		}
 		if items[i].channelCounted {
 			ownOverflowBodies(&items[i])
+			fromChannel++
 		}
-		items[i].uncountOnChannel()
 		held = append(held, items[i])
-		items[i] = fwdItem{}
+		held[len(held)-1].channelCounted = false
 	}
-	// These items were admitted before the fence, so they precede every live
-	// change parked after it. Keep the pending count conservative until the
-	// worker's ordinary batch completion re-derives it from the queue.
+
 	worker.overflowMu.Lock()
-	if worker.policyReplayEpoch != epoch {
-		worker.policyReplayEpoch, worker.policyParked = epoch, 0
-	}
-	// Earlier pre-admitted batches are already parked ahead of newer live
-	// arrivals. Insert after them, not before them. Replay items may occur
-	// between parked live items, and pass the hold independently.
+	defer worker.overflowMu.Unlock()
+	// Earlier pre-admitted batches stay ahead across overlapping holds.
+	// Initial replay can pass the parked live prefix independently.
 	at := worker.policyParkedEnd()
 	worker.overflow = slices.Insert(worker.overflow, at, held...)
 	worker.policyParked += len(held)
-	worker.overflowPending.Store(max(worker.overflowPending.Load(), int64(len(worker.overflow))))
-	if len(held) > 0 {
-		for i := range held {
-			if held[i].peer != nil {
-				held[i].peer.fwdOverflowPending.Store(worker.overflowPending)
-				break
-			}
+	pending := worker.overflowPending.Load() + fromChannel
+	worker.overflowPending.Store(max(pending, int64(len(worker.overflow))))
+	for i := range held {
+		if peer := held[i].peer; peer != nil {
+			peer.fwdOverflowPending.Store(worker.overflowPending)
 		}
 	}
-	worker.overflowMu.Unlock()
+	// Publish overflow debt and its reader's handle before clearing channel
+	// debt. Writers sample channel before overflow, the reverse direction.
+	for i := first; i < len(items); i++ {
+		if items[i].peer != nil && items[i].initialUpdate {
+			continue
+		}
+		items[i].uncountOnChannel()
+		items[i] = fwdItem{}
+	}
 }
 
 // closeRecoveryWrites settles every recovery admission of a batch whose
@@ -741,9 +744,8 @@ type fwdWorker struct {
 	overflowMu sync.Mutex
 	overflow   []fwdItem
 	// Counts writer-parked live items at the front, ignoring replay items.
-	// Protected by overflowMu; reset for each destination replay epoch.
-	policyParked      int
-	policyReplayEpoch uint64
+	// Protected by overflowMu, retained until those items leave the queue.
+	policyParked int
 
 	// overflowPending counts items dispatched to overflow whose bytes have NOT
 	// yet been written to the destination. That is wider than len(w.overflow)
@@ -773,6 +775,11 @@ type fwdWorker struct {
 	// overflowed. Eight bytes on their own pin eight bytes. newWorker is the
 	// only place a fwdWorker is built, and it allocates this.
 	overflowPending *atomic.Int64
+
+	// Live bound overflow has the same budget as the bounded channel.
+	// Initial replay has a separate slot so held live work cannot block it.
+	boundOverflowLive    atomic.Int64
+	boundOverflowInitial atomic.Bool
 
 	// congested tracks whether this worker's channel is full.
 	// Set on TryDispatch failure, cleared when channel drains below low-water.
@@ -1076,6 +1083,88 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item *fwdItem) bool {
 			fp.onCongested(key.peerAddr)
 		}
 		return false
+	}
+}
+
+// tryDispatchBound keeps a standalone full channel bounded. When ordered
+// overflow or a hold already exists, admit live work up to the channel's
+// capacity and keep one separate initial replay slot.
+func (fp *fwdPool) tryDispatchBound(key fwdKey, item *fwdItem) bool {
+	if !item.peer.forwardOrderHold(item.initialUpdate) {
+		if fp.TryDispatch(key, item) {
+			return true
+		}
+	}
+	if fp.reserveBoundOverflow(key, item) {
+		fp.wakeOverflow(key)
+		return true
+	}
+
+	// The predecessor may have settled or the hold lifted while admission
+	// changed lanes. Retry the bounded channel only if the gate now allows it.
+	if item.peer.forwardOrderHold(item.initialUpdate) {
+		return false
+	}
+	return fp.TryDispatch(key, item)
+}
+
+// reserveBoundOverflow adds one carrier to the existing drain. The carrier
+// borrows the stage through its join and holds no queue-owned route buffers.
+func (fp *fwdPool) reserveBoundOverflow(key fwdKey, item *fwdItem) bool {
+	fp.mu.Lock()
+	defer fp.mu.Unlock()
+	if fp.stopped {
+		return false
+	}
+	worker := fp.workers[key]
+	if worker == nil {
+		if !item.peer.forwardOrderHold(item.initialUpdate) {
+			return false
+		}
+		worker = fp.newWorker(key)
+	}
+
+	worker.overflowMu.Lock()
+	defer worker.overflowMu.Unlock()
+	if worker.overflowPending.Load() == 0 {
+		if !item.peer.forwardOrderHold(item.initialUpdate) {
+			return false
+		}
+	}
+	done := item.done
+	if item.initialUpdate {
+		if !worker.boundOverflowInitial.CompareAndSwap(false, true) {
+			return false
+		}
+		item.done = func() {
+			worker.boundOverflowInitial.Store(false)
+			done()
+		}
+	} else {
+		if worker.boundOverflowLive.Load() >= int64(cap(worker.ch)) {
+			return false
+		}
+		worker.boundOverflowLive.Add(1)
+		item.done = func() {
+			worker.boundOverflowLive.Add(-1)
+			done()
+		}
+	}
+	fp.wakeBoundOnCancel(key, item)
+	item.peer.fwdOverflowPending.Store(worker.overflowPending)
+	worker.overflow = append(worker.overflow, *item)
+	worker.overflowPending.Add(1)
+	return true
+}
+
+// wakeBoundOnCancel keeps a forwarded cancellation joinable while a fence
+// remains raised. Its callback borrows neither the carrier nor the stage.
+func (fp *fwdPool) wakeBoundOnCancel(key fwdKey, item *fwdItem) {
+	stopWake := context.AfterFunc(item.boundWrite.ctx, func() { fp.wakeOverflow(key) })
+	done := item.done
+	item.done = func() {
+		stopWake()
+		done()
 	}
 }
 
@@ -1482,7 +1571,12 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 		if start < i {
 			fp.handler(key, items[start:i])
 		}
-		write.run()
+		if write.run() {
+			if items[i].channelCounted {
+				fp.wakeBoundOnCancel(key, &items[i])
+			}
+			fp.requeueForwardHold(key, items[i:i+1])
+		}
 		start = i + 1
 	}
 	if start < len(items) {
@@ -1804,6 +1898,20 @@ func firstOverflowHeld(items []fwdItem) int {
 func overflowItemHeld(item *fwdItem) bool {
 	if item.peer == nil {
 		return false
+	}
+	if write := item.boundWrite; write != nil {
+		if write.ctx.Err() != nil {
+			return false // Join cancellation while the hold remains raised.
+		}
+		if write.session == nil {
+			return false
+		}
+		if item.peer.establishedSession.Load() != write.session {
+			return false // The predecessor cannot wait on its successor's gate.
+		}
+		if write.session.initialReplay.Load() != write.owner.destinationSession {
+			return false
+		}
 	}
 	return item.peer.forwardOrderHold(item.initialUpdate)
 }

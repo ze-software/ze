@@ -121,10 +121,7 @@ func (p *Peer) syncOwed() peerSyncOwed {
 			return peerSyncOwedPolicyReplay
 		}
 	}
-	if p.forwardOverflowPending() {
-		return peerSyncOwedForwards
-	}
-	if p.forwardChannelPending() {
+	if p.forwardQueuePending() {
 		return peerSyncOwedForwards
 	}
 	if handshakeInFlight(session) {

@@ -20,9 +20,12 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -64,11 +67,7 @@ func (a *readyProducerAPI) SignalPeerAPIReady(ctx context.Context, peer string, 
 	return err
 }
 
-func (a *readyProducerAPI) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
-	return nil
-}
-
-func (a *readyProducerAPI) AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (a *readyProducerAPI) AnnounceNLRIBatchResult(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) (*rpc.UpdateRouteOutput, error) {
 	if batch.InitialReplay != 0 {
 		if a.beforeInitial != nil {
 			before := a.beforeInitial
@@ -76,15 +75,15 @@ func (a *readyProducerAPI) AnnounceNLRIBatch(ctx context.Context, sel *selector.
 			before()
 		}
 	}
-	err := a.reactorAPIAdapter.AnnounceNLRIBatch(ctx, sel, batch, sender)
+	output, err := a.reactorAPIAdapter.AnnounceNLRIBatchResult(ctx, sel, batch, sender)
 	if batch.InitialReplay != 0 {
 		a.attempts <- err
 	}
-	return err
+	return output, err
 }
 
-func (a *readyProducerAPI) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
-	err := a.reactorAPIAdapter.RelayStoredRoute(destination, routes, sender)
+func (a *readyProducerAPI) RelayStoredRouteBound(ctx context.Context, destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender, owner plugin.SelectedOwner) error {
+	err := a.reactorAPIAdapter.RelayStoredRouteBound(ctx, destination, routes, sender, owner)
 	if a.afterRelay != nil {
 		a.afterRelay(err)
 	}
@@ -114,6 +113,11 @@ func readyProducerServer(t *testing.T, r *Reactor, name string) (*readyProducerA
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: configs}, api)
 	require.NoError(t, err)
 	api.server = srv
+	r.api = srv
+	require.NoError(t, events.RegisterNamespace("bgp", "update", "state", "refresh"))
+	originalBus := registry.GetEventBus()
+	registry.SetEventBus(srv)
+	t.Cleanup(func() { registry.SetEventBus(originalBus) })
 	mgr := pluginmgr.NewManager()
 	require.NoError(t, mgr.StartAll(t.Context(), nil, nil))
 	t.Cleanup(func() { require.NoError(t, mgr.StopAll(context.Background())) })
@@ -145,19 +149,101 @@ func readyProducerServer(t *testing.T, r *Reactor, name string) (*readyProducerA
 	return api, proc
 }
 
-func readyProducerState(t *testing.T, proc *process.Process, peer *Peer, state rpc.SessionState, token uint64) {
+// readyProducerSession publishes the generation of the fixture's original
+// connection through the same state transition as enterEstablished. Its test
+// EoR and replay fences are set independently by each caller.
+func readyProducerSession(peer *Peer) *Session {
+	session := peer.testInitialSync()
+	if session.publishedGeneration.Load() == 0 {
+		peer.setState(PeerStateEstablished)
+	}
+	return session
+}
+
+func readyProducerReplace(peer *Peer, session *Session) {
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	readyProducerSession(peer).sendingInitialRoutes.Store(0)
+}
+
+func readyProducerOutputGrant(name string) ProcessBinding {
+	binding := sendUpdateOnly(name)
+	binding.Explicit = true
+	binding.Receive = map[string]events.Direction{"state": events.DirBoth, "update": events.DirSent}
+	return binding
+}
+
+func readyProducerState(t *testing.T, proc *process.Process, peer *Peer, session *Session, state rpc.SessionState, token uint64) {
 	t.Helper()
+	readyProducerStateWithReason(t, proc, peer, session, state, token, "")
+}
+
+func readyProducerStateWithReason(t *testing.T, proc *process.Process, peer *Peer, session *Session, state rpc.SessionState, token uint64, reason string) {
+	t.Helper()
+	info := boundPeerInfo(peer, session)
+	require.NotZero(t, info.PeerOwner)
+	require.NotZero(t, info.ConnectionID)
+	require.NotZero(t, info.SessionGeneration)
+	require.NotZero(t, info.DestinationSession)
 	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-		PeerAddress: peer.Settings().Address.String(), EventType: rpc.EventKindState,
-		State: state, InitialReplay: token,
+		PeerAddress: info.AddrStr(), PeerOwner: info.PeerOwner, ConnectionID: info.ConnectionID,
+		PeerAS: info.PeerAS, SessionGeneration: info.SessionGeneration, DestinationSession: info.DestinationSession,
+		EventType: rpc.EventKindState, State: state, InitialReplay: token, Reason: reason,
 	}}))
+}
+
+func readyProducerAttachSource(t *testing.T, peer *Peer, procs ...*process.Process) *Session {
+	t.Helper()
+	for _, proc := range procs {
+		peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, sourceLeaseGrant(proc.Name()))
+	}
+	peer.advanceSourcePolicyEpoch()
+	session := readyProducerSession(peer)
+	for _, proc := range procs {
+		readyProducerStateWithReason(t, proc, peer, session, rpc.SessionStateUp, 0, rpc.ReasonAttached)
+	}
+	return session
+}
+
+func readyProducerReceive(t *testing.T, proc *process.Process, peer *Peer, session *Session, update *ReceivedUpdate) {
+	t.Helper()
+	attrs, err := update.WireUpdate.Attrs()
+	require.NoError(t, err)
+	require.Equal(t, peer.sourceOwner, update.SourceOwner)
+	require.Equal(t, session.sourceReceiptID(), update.SourceReceipt)
+	require.NotZero(t, update.SourceReceipt)
+	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
+		PeerAddress: peer.addrString, PeerAS: rpc.RemoteASOf(peer.PeerAS()), PeerOwner: update.SourceOwner,
+		ConnectionID: session.connectionID, EventType: rpc.EventKindUpdate,
+		Direction: rpc.DirectionReceived, MessageID: update.WireUpdate.MessageID(),
+		SourceReceipt: update.SourceReceipt, SourcePolicyEpoch: update.SourcePolicyEpoch,
+		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs,
+			RawBytes: update.WireUpdate.Payload(), MessageID: update.WireUpdate.MessageID(),
+			SourcePolicyEpoch: update.SourcePolicyEpoch, SourceOwner: update.SourceOwner,
+			SourceConnectionID: session.connectionID, SourceReceipt: update.SourceReceipt},
+	}}))
+}
+
+func readyProducerSent(proc *process.Process, peer plugin.PeerInfo, msg bgptypes.RawMessage) error {
+	return proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
+		PeerAddress: peer.AddrStr(), PeerAS: peer.PeerAS, PeerOwner: peer.PeerOwner,
+		ConnectionID: peer.ConnectionID, DestinationSession: peer.DestinationSession, EventType: rpc.EventKindUpdate,
+		Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
+		SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
+	}})
 }
 
 func readyProducerAwait(t *testing.T, api *readyProducerAPI, owner string, token uint64, rejected bool) {
 	t.Helper()
+	readyProducerAwaitSender(t, api, plugin.ProcessSender(owner), token, rejected)
+}
+
+func readyProducerAwaitSender(t *testing.T, api *readyProducerAPI, sender plugin.Sender, token uint64, rejected bool) {
+	t.Helper()
 	select {
 	case receipt := <-api.ready:
-		require.Equal(t, plugin.ProcessSender(owner), receipt.sender)
+		require.Equal(t, sender, receipt.sender)
 		require.Equal(t, token, receipt.token)
 		if rejected {
 			require.Error(t, receipt.err)
@@ -188,29 +274,37 @@ func TestPeerReadySDKProducers(t *testing.T) {
 	for _, owner := range []string{"bgp-rib", "bgp-rs", "bgp-rr", "bgp-adj-rib-in", "bgp-watchdog"} {
 		t.Run(owner, func(t *testing.T) {
 			r, source, destination, _, ctxID := newSyncOrderRail(t)
+			destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
 			api, proc := readyProducerServer(t, r, owner)
-			oldToken := destination.session.initialReplay.Load()
+			oldSession := readyProducerSession(destination)
+			oldToken := oldSession.initialReplay.Load()
 			replacement, conn := newSyncOrderDest(t, destination.sendCtx.Load(), ctxID)
-			destination.mu.Lock()
-			destination.session = replacement.session
-			destination.mu.Unlock()
-			destination.testInitialSync().sendingInitialRoutes.Store(0)
+			readyProducerReplace(destination, replacement.session)
 			destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(destination, owner)
 			current := destination.initialReplayToken()
+			senderFor := func(token uint64) plugin.Sender {
+				sender := plugin.ProcessSender(owner)
+				if owner == "bgp-rs" || owner == "bgp-rr" {
+					bound, err := sender.WithDestination(destination.sourceOwner, token)
+					require.NoError(t, err)
+					return bound
+				}
+				return sender
+			}
 			live := syncOrderPublish(t, r, ctxID, 8900, syncOrderAnnounceBody)
 			// RFC 4271 Section 9.2: forward the queued announcement to the peer.
 			require.NoError(t, api.forwardUpdateCore(live, 8900, []*Peer{destination}, replayFenceSource(source, false)))
 
-			readyProducerState(t, proc, destination, rpc.SessionStateUp, oldToken)
-			readyProducerAwait(t, api, owner, oldToken, true)
+			readyProducerState(t, proc, destination, oldSession, rpc.SessionStateUp, oldToken)
+			readyProducerAwaitSender(t, api, senderFor(oldToken), oldToken, true)
 			require.False(t, apiSyncReleased(destination))
 			require.True(t, destination.forwardOrderHold(false))
 			require.Empty(t, conn.written())
 
-			readyProducerState(t, proc, destination, rpc.SessionStateDown, 0)
-			readyProducerState(t, proc, destination, rpc.SessionStateUp, current)
-			readyProducerAwait(t, api, owner, current, false)
+			readyProducerState(t, proc, destination, oldSession, rpc.SessionStateDown, 0)
+			readyProducerState(t, proc, destination, replacement.session, rpc.SessionStateUp, current)
+			readyProducerAwaitSender(t, api, senderFor(current), current, false)
 			require.True(t, apiSyncReleased(destination))
 			require.False(t, destination.forwardOrderHold(false))
 			require.Eventually(t, func() bool {
@@ -235,35 +329,26 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			f := ownershipRailNew(t, nil)
 			f.source.settings.PeerAS = 65002
 			f.source.refreshForwardFacts()
-			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+			f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
 			api, proc := readyProducerServer(t, f.r, owner)
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
-			readyProducerState(t, proc, f.destination, rpc.SessionStateUp, f.destination.initialReplayToken())
+			session := readyProducerSession(f.destination)
+			readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, f.destination.initialReplayToken())
 			readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
 
 			// The real final writer and notifyMessageReceiver produce the sent
 			// ownership receipt consumed by the running RIB SDK handler.
 			sent := make(chan error, 2)
 			f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-				sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
-					Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
-					SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
-				}})
+				sent <- readyProducerSent(proc, peer, msg)
 			}}
 			f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 			seed := func(source *Peer, body []byte) {
+				sourceSession := readyProducerAttachSource(t, source, proc)
 				update := f.publish(t, source, f.ctxID, body)
 				// RFC 4271 Section 4.3.
-				attrs, err := update.WireUpdate.Attrs()
-				require.NoError(t, err)
-				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(source.PeerAS()), EventType: rpc.EventKindUpdate,
-					Direction: rpc.DirectionReceived, MessageID: f.id,
-					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
-						SourcePolicyEpoch: update.SourcePolicyEpoch},
-				}}))
+				readyProducerReceive(t, proc, source, sourceSession, update)
 				// RFC 4271 Section 9.2.
 				require.NoError(t, api.ForwardUpdatesDirect([]uint64{f.id}, []netip.AddrPort{f.destination.Settings().PeerKey()}, owner, plugin.OperatorSender()))
 				select {
@@ -299,12 +384,10 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 				// RFC 4271 Section 4.3.
 				return len(parseWireUpdates(t, f.conn.written())) == wantHistory
 			}, 5*time.Second, time.Millisecond, "history must actually flush before reconnect")
-			readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
+			readyProducerState(t, proc, f.destination, session, rpc.SessionStateDown, 0)
 			replacement, conn := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
-			f.destination.mu.Lock()
-			f.destination.session = replacement.session
-			f.destination.mu.Unlock()
-			f.destination.testInitialSync().sendingInitialRoutes.Store(0)
+			session = replacement.session
+			readyProducerReplace(f.destination, session)
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
 			token := f.destination.initialReplayToken()
@@ -318,11 +401,9 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			if mode == "stale-failure" {
 				next, nextConn := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
 				api.beforeInitial = func() {
-					f.destination.mu.Lock()
-					f.destination.session = next.session
-					f.destination.mu.Unlock()
+					readyProducerReplace(f.destination, next.session)
 				}
-				readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
 				readyProducerAwait(t, api, owner, token, true)
 				require.Error(t, readyProducerAttempt(t, api))
 				require.True(t, f.destination.forwardOrderHold(false))
@@ -331,12 +412,13 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 				require.Empty(t, nextConn.written())
 				conn = nextConn
 				token = f.destination.initialReplayToken()
-				readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
+				readyProducerState(t, proc, f.destination, session, rpc.SessionStateDown, 0)
+				session = next.session
 			}
 			live := f.publish(t, f.source, f.ctxID, syncOrderWithdrawBody)
 			// RFC 4271 Section 9.2.
 			require.NoError(t, api.forwardUpdateCore(live, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
-			readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+			readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
 			readyProducerAwait(t, api, owner, token, false)
 			if mode == "source-disappears" {
 				require.ErrorIs(t, readyProducerAttempt(t, api), errAdjOutProvenance)
@@ -359,31 +441,22 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	const owner = "bgp-rib"
 	f := ownershipRailNew(t, nil)
-	f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+	f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
 	api, proc := readyProducerServer(t, f.r, owner)
 	f.destination.resetAPISync([]string{owner})
 	raiseTestReplayFence(f.destination, owner)
-	readyProducerState(t, proc, f.destination, rpc.SessionStateUp, f.destination.initialReplayToken())
+	session := readyProducerSession(f.destination)
+	readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, f.destination.initialReplayToken())
 	readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
 
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-		sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-			PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
-			Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
-			SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
-		}})
+		sent <- readyProducerSent(proc, peer, msg)
 	}}
 	f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
+	sourceSession := readyProducerAttachSource(t, f.source, proc)
 	update := f.publish(t, f.source, f.ctxID, syncOrderAnnounceBody)
-	attrs, err := update.WireUpdate.Attrs()
-	require.NoError(t, err)
-	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-		PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
-		Direction: rpc.DirectionReceived, MessageID: f.id,
-		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
-			SourcePolicyEpoch: update.SourcePolicyEpoch},
-	}}))
+	readyProducerReceive(t, proc, f.source, sourceSession, update)
 	// RFC 4271 Section 9.2: create history through the actual final writer.
 	require.NoError(t, api.ForwardUpdatesDirect([]uint64{update.WireUpdate.MessageID()},
 		[]netip.AddrPort{f.destination.Settings().PeerKey()}, "", plugin.OperatorSender()))
@@ -398,12 +471,10 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 		return len(parseWireUpdates(t, f.conn.written())) == 1
 	}, 5*time.Second, time.Millisecond)
 
-	readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
+	readyProducerState(t, proc, f.destination, session, rpc.SessionStateDown, 0)
 	replacement, conn := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
-	f.destination.mu.Lock()
-	f.destination.session = replacement.session
-	f.destination.mu.Unlock()
-	f.destination.testInitialSync().sendingInitialRoutes.Store(0)
+	session = replacement.session
+	readyProducerReplace(f.destination, session)
 	f.destination.resetAPISync([]string{owner})
 	raiseTestReplayFence(f.destination, owner)
 	token := f.destination.initialReplayToken()
@@ -411,7 +482,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	require.NoError(t, api.forwardUpdateCore(live, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
 	beforeRelease := make(chan []byte, 1)
 	api.beforeReady = func() { beforeRelease <- conn.written() }
-	readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+	readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
 	readyProducerAwait(t, api, owner, token, false)
 	require.NoError(t, readyProducerAttempt(t, api))
 	// RFC 4271 Section 4.3: bytes must precede readiness, not be scheduled by it.
@@ -444,24 +515,22 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				f.destination.sendCtx.Store(ctx)
 				f.destination.sendCtxID = ctxID
 				f.destination.session.setSendCtxID(ctxID)
+				f.destination.settings.Capabilities = []capability.Capability{&capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}}
 				f.destination.negotiated.Load().families[fam] = true
 				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
-				f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+				f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
 				f.destination.refreshForwardFacts()
 				api, proc := readyProducerServer(t, f.r, owner)
 				f.destination.resetAPISync([]string{owner})
 				raiseTestReplayFence(f.destination, owner)
 				initial := f.destination.initialReplayToken()
-				readyProducerState(t, proc, f.destination, rpc.SessionStateUp, initial)
+				session := readyProducerSession(f.destination)
+				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, initial)
 				readyProducerAwait(t, api, owner, initial, false)
 
 				sent := make(chan error, 1)
 				f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-					sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-						PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
-						Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
-						SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
-					}})
+					sent <- readyProducerSent(proc, peer, msg)
 				}}
 				f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 				paths := []struct {
@@ -474,18 +543,12 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 						rd byte
 					}{7, 2})
 				}
+				sourceSession := readyProducerAttachSource(t, f.source, proc)
 				for i, path := range paths {
 					// RFC 7911 Section 3 and RFC 8277 Section 2.4.
 					raw := ownershipRailNative(fam, path.id, path.rd, false, 0)
 					update := f.publish(t, f.source, ctxID, ownershipRailBody(fam, false, raw, byte(i+1)))
-					attrs, err := update.WireUpdate.Attrs()
-					require.NoError(t, err)
-					require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-						PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
-						Direction: rpc.DirectionReceived, MessageID: f.id,
-						RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
-							SourcePolicyEpoch: update.SourcePolicyEpoch},
-					}}))
+					readyProducerReceive(t, proc, f.source, sourceSession, update)
 					require.NoError(t, api.ForwardUpdatesDirect([]uint64{f.id},
 						[]netip.AddrPort{f.destination.Settings().PeerKey()}, owner, plugin.OperatorSender()))
 					select {
@@ -500,13 +563,11 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				}, 5*time.Second, time.Millisecond)
 				history := ownershipRailRead(t, f.conn.written(), ctx)
 
-				readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
+				readyProducerState(t, proc, f.destination, session, rpc.SessionStateDown, 0)
 				replacement, conn := newSyncOrderDest(t, ctx, ctxID)
 				replacement.session.negotiated = forwardFixtureNegotiation(f.destination)
-				f.destination.mu.Lock()
-				f.destination.session = replacement.session
-				f.destination.mu.Unlock()
-				f.destination.testInitialSync().sendingInitialRoutes.Store(0)
+				session = replacement.session
+				readyProducerReplace(f.destination, session)
 				f.destination.resetAPISync([]string{owner})
 				raiseTestReplayFence(f.destination, owner)
 				token := f.destination.initialReplayToken()
@@ -514,11 +575,9 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 					next, nextConn := newSyncOrderDest(t, ctx, ctxID)
 					next.session.negotiated = forwardFixtureNegotiation(f.destination)
 					api.beforeInitial = func() {
-						f.destination.mu.Lock()
-						f.destination.session = next.session
-						f.destination.mu.Unlock()
+						readyProducerReplace(f.destination, next.session)
 					}
-					readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+					readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
 					readyProducerAwait(t, api, owner, token, true)
 					for range paths {
 						require.Error(t, readyProducerAttempt(t, api))
@@ -529,7 +588,8 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 					require.Empty(t, nextConn.written())
 					conn = nextConn
 					token = f.destination.initialReplayToken()
-					readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
+					readyProducerState(t, proc, f.destination, session, rpc.SessionStateDown, 0)
+					session = next.session
 				}
 
 				queueWithdrawal := func(source *Peer, path uint32, rd byte) {
@@ -546,7 +606,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				queueWithdrawal(f.source, 7, 1)
 				beforeRelease := make(chan []byte, 1)
 				api.beforeReady = func() { beforeRelease <- conn.written() }
-				readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
+				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
 				readyProducerAwait(t, api, owner, token, false)
 				for range paths {
 					require.NoError(t, readyProducerAttempt(t, api))
@@ -574,13 +634,9 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 	}
 }
 
-// TestPeerReadyRRReplayErrorCompletion makes RR's real peer-up replay reach a
-// genuine relay refusal in the reactor. RR reads the route from the real
-// Adj-RIB-In and relays it under its own grant, which the destination gives; the
-// relay is refused because the route's source session is no longer established
-// (errRelayNoSource), the race of a source that drops before the late peer's
-// replay. RR must finish that failed attempt and release only the event's
-// Session; a stale receipt cannot credit its successor.
+// TestPeerReadyRRReplayErrorCompletion observes the reflector's genuine
+// source-authority refusal and the resulting held replay fence. A replacement
+// can report ready only after its own stored replay reaches the wire.
 func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 	for _, stale := range []bool{false, true} {
 		name := "current"
@@ -590,81 +646,120 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			const owner = "bgp-rr"
 			f := ownershipRailNew(t, nil)
-			// The RR can send, and it relays the replay itself, so the refusal
-			// below is the engine's own, not a substituted command or a
-			// fabricated error. The route server's send grant stays beside it:
-			// the published UPDATE reaches the destination on the RS fast
-			// path, which reaches no destination without it.
-			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner), rsRelaySendBinding()}
+			f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner), rsRelaySendBinding()}
 			api, proc := readyProducerServer(t, f.r, owner)
 			adj := api.server.ProcessManager().GetProcess("bgp-adj-rib-in")
 			require.NotNil(t, adj)
+			sourceSession := readyProducerAttachSource(t, f.source, adj, proc)
 			update := f.publish(t, f.source, f.ctxID, syncOrderAnnounceBody)
-			// RFC 4271 Section 4.3: seed the actual receive-store SDK consumer.
-			attrs, err := update.WireUpdate.Attrs()
-			require.NoError(t, err)
-			require.NoError(t, adj.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-				PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
-				Direction: rpc.DirectionReceived, MessageID: f.id,
-				RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
-					SourcePolicyEpoch: update.SourcePolicyEpoch},
-			}}))
-			token := f.destination.session.initialReplay.Load()
-			if stale {
-				replacement, conn := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
-				f.destination.mu.Lock()
-				f.destination.session = replacement.session
-				f.destination.mu.Unlock()
-				f.conn = conn
-			}
-			f.destination.testInitialSync().sendingInitialRoutes.Store(0)
+			// RFC 4271 Section 4.3: seed the actual receive store and reflector.
+			readyProducerReceive(t, adj, f.source, sourceSession, update)
+			readyProducerReceive(t, proc, f.source, sourceSession, update)
+
+			original := readyProducerSession(f.destination)
+			originalToken := original.initialReplay.Load()
+			replacement, successorWire := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
+			successor := replacement.session
+			require.NotEqual(t, original.connectionID, successor.connectionID)
+			require.NotEqual(t, originalToken, successor.initialReplay.Load())
+
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
-			// A genuine live announcement proves completed error exits drain the
-			// fence, independently of the replay's deliberately refused route.
-			require.NoError(t, api.forwardUpdateCore(update, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
-			// The source session is down while the late peer's replay runs, so
-			// the replay of its stored route has no source to relay from and the
-			// reactor refuses it (resolveRelaySource). It is back once the
-			// refusal is answered and before RR can report its replay done, so
-			// the held live forward still drains. The worker that writes it
-			// re-checks the source (forwardSourceCurrent, forward_pool.go) and
-			// rightly drops a forward whose source is not established. RR's
-			// readiness follows the refusal at once, so restoring the source
-			// after the test reads relayAttempts raced the drain: hence the
-			// restore inside the relay consumer (afterRelay).
-			f.source.state.Store(int32(PeerStateStopped))
-			api.afterRelay = func(error) { f.source.state.Store(int32(PeerStateEstablished)) }
-			awaitRelayError := func() {
+			queueLive := func(last byte) ownershipRailEvent {
 				t.Helper()
-				select {
-				case err := <-api.relayAttempts:
-					require.ErrorIs(t, err, errRelayNoSource)
-				case <-time.After(5 * time.Second):
-					t.Fatal("RR replay never reached the actual relay consumer")
+				body := append([]byte(nil), syncOrderAnnounceBody...)
+				// The final byte is the third significant octet of the /24.
+				body[len(body)-1] = last
+				item := f.publish(t, f.source, f.ctxID, body)
+				require.NoError(t, api.forwardUpdateCore(item, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
+				return ownershipRailEvent{family: family.IPv4Unicast, key: string(body[len(body)-len(syncOrderPrefixWire):])}
+			}
+			queueLive(4)
+			require.Empty(t, f.conn.written())
+
+			installSuccessor := func() {
+				readyProducerReplace(f.destination, successor)
+				f.destination.resetAPISync([]string{owner})
+				raiseTestReplayFence(f.destination, owner)
+			}
+			if stale {
+				// The original writer has already returned its actual failure
+				// when the replacement is installed. RR has yet to consume it.
+				api.afterRelay = func(err error) {
+					if err != nil {
+						installSuccessor()
+					}
 				}
 			}
-			readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
-			awaitRelayError()
-			readyProducerAwait(t, api, owner, token, stale)
-			if stale {
-				require.False(t, apiSyncReleased(f.destination))
-				require.True(t, f.destination.forwardOrderHold(false))
-				require.Empty(t, f.conn.written())
-				readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
-				token = f.destination.initialReplayToken()
-				f.source.state.Store(int32(PeerStateStopped))
-				readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
-				awaitRelayError()
-				readyProducerAwait(t, api, owner, token, false)
+
+			// Keep the admitted row and original receipt while making the live
+			// source fail the writer's check. It has no retained membership.
+			f.source.state.Store(int32(PeerStateStopped))
+			readyProducerState(t, proc, f.destination, original, rpc.SessionStateUp, originalToken)
+			select {
+			case err := <-api.relayAttempts:
+				require.ErrorContains(t, err, "ended without retained membership")
+			case <-time.After(5 * time.Second):
+				t.Fatal("RR replay never reached the actual relay consumer")
 			}
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			require.ErrorContains(t, proc.SettleEventsApplied(ctx), "stored relay remains owed")
+			cancel()
+
+			// Settlement joined the replay lifecycle. An attempted readiness
+			// receipt would have reached the observation channel by now.
+			require.Empty(t, api.ready)
+			require.False(t, apiSyncReleased(f.destination))
+			require.True(t, f.destination.forwardOrderHold(false))
+			require.Empty(t, f.conn.written())
+			require.Empty(t, successorWire.written())
+			if stale {
+				require.Same(t, successor, f.destination.currentSession())
+			} else {
+				require.Same(t, original, f.destination.currentSession())
+			}
+
+			readyProducerState(t, proc, f.destination, original, rpc.SessionStateDown, 0)
+			if !stale {
+				installSuccessor()
+			}
+			// Restore independently of the refusal and attempt the replacement's
+			// own replay. It does not certify the predecessor's failed output.
+			f.source.state.Store(int32(PeerStateEstablished))
+			live := queueLive(3)
+			beforeReady := make(chan []byte, 1)
+			api.beforeReady = func() { beforeReady <- successorWire.written() }
+			successorToken := successor.initialReplay.Load()
+			readyProducerState(t, proc, f.destination, successor, rpc.SessionStateUp, successorToken)
+			select {
+			case err := <-api.relayAttempts:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("replacement replay never reached the actual relay consumer")
+			}
+			sender, err := plugin.ProcessSender(owner).WithDestination(f.destination.sourceOwner, successorToken)
+			require.NoError(t, err)
+			select {
+			case receipt := <-api.ready:
+				require.Equal(t, sender, receipt.sender)
+				require.Equal(t, successorToken, receipt.token)
+				require.NoError(t, receipt.err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("replacement replay never reached the actual readiness consumer")
+			}
+
+			ctxSend := f.destination.sendCtx.Load()
+			replay := ownershipRailEvent{family: family.IPv4Unicast, key: string(syncOrderPrefixWire)}
+			// RFC 4271 Section 4.3: actual announcements on distinct prefixes
+			// identify the stored replay and the independently queued live delta.
+			require.Equal(t, []ownershipRailEvent{replay}, ownershipRailRead(t, <-beforeReady, ctxSend))
 			require.True(t, apiSyncReleased(f.destination))
 			require.False(t, f.destination.forwardOrderHold(false))
 			require.Eventually(t, func() bool {
-				// RFC 4271 Section 4.3.
-				return len(parseWireUpdates(t, f.conn.written())) == 1
+				return len(ownershipRailRead(t, successorWire.written(), ctxSend)) == 2
 			}, 5*time.Second, time.Millisecond)
-			require.Equal(t, []string{"announce"}, wireKinds(parseWireUpdates(t, f.conn.written())))
+			require.Equal(t, []ownershipRailEvent{replay, live}, ownershipRailRead(t, successorWire.written(), ctxSend))
+			require.Empty(t, f.conn.written(), "the predecessor's queued delta must not reach either writer")
 		})
 	}
 }

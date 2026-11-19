@@ -5399,16 +5399,22 @@ A bound cache call dispatches its complete target set once. Every target uses
 the existing egress pipeline and its captured final writer. The evaluator
 attempts every target on the existing bounded per-peer worker queues before
 joining any writer; a held target cannot prevent a ready sibling from writing.
-A full queue leaves an explicit unsettled failure. Admission and completion
-use the worker's channel count exactly once: refusal adds no pending item, and
-a joined write leaves no channel debt for that carrier. No extra target goroutine
-or unbounded overflow queue is created. The existing cache
+A runnable carrier is refused when the channel is full and no ordered overflow
+is pending. Held work or work behind an existing overflow item can use the
+same worker's ordered overflow. The worker admits at most one channel's worth
+of additional live carriers there and one separate initial replay carrier.
+When a hold moves admitted work from the channel, overflow takes its debt
+before the channel releases it. Initial replay can pass live carriers parked
+behind the replay fence. Cancellation wakes the same worker, and canceled or
+retired work completes without writing to a successor's session.
+The existing cache
 consumer is acknowledged once for each unique ID, after all target writes
 have joined, also on partial refusal or cancellation. A target failure does not
 turn another target's useful output into absence. No per-target call can
 acknowledge shared cached IDs early. A final completion receipt confirms the
 whole call settled; it does not grant send or retained-source authority.
 <!-- source: internal/component/bgp/reactor/relay_bound.go -- ForwardUpdatesBound, boundForwardStage.flush -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- reserveBoundOverflow, requeueForwardHold, takeOverflowReleased -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- forwardUpdates -->
 
 

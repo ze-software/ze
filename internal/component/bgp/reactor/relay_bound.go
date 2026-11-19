@@ -311,14 +311,16 @@ func (stage *boundForwardStage) flush() (result error) {
 			continue
 		}
 		visited[item.peer] = struct{}{}
-		write := &boundForwardTargetWrite{stage: stage, ctx: ctx, peer: item.peer, session: item.session, owner: item, done: make(chan struct{}), err: errBoundForwardUnsettled}
-		carrier := fwdItem{peer: item.peer, session: item.session, boundWrite: write, done: func() { close(write.done) }}
 		pool := item.peer.reactor.fwdPool
 		if pool == nil {
 			result = errors.Join(result, errBoundForwardUnsettled)
 			continue
 		}
-		if !pool.TryDispatch(fwdKey{peerAddr: item.peer.settings.PeerKey()}, &carrier) {
+		write := &boundForwardTargetWrite{stage: stage, ctx: ctx, peer: item.peer,
+			session: item.session, owner: item, pool: pool, done: make(chan struct{}), err: errBoundForwardUnsettled}
+		carrier := fwdItem{peer: item.peer, session: item.session, initialUpdate: item.initialUpdate,
+			boundWrite: write, done: func() { close(write.done) }}
+		if !pool.tryDispatchBound(fwdKey{peerAddr: item.peer.settings.PeerKey()}, &carrier) {
 			result = errors.Join(result, errBoundForwardUnsettled)
 			continue
 		}
@@ -327,7 +329,7 @@ func (stage *boundForwardStage) flush() (result error) {
 	return result
 }
 
-func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, session *Session, owner fwdItem) error {
+func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, session *Session, owner fwdItem, pool *fwdPool) error {
 	if err := stage.current(target, session); err != nil {
 		return err
 	}
@@ -340,8 +342,19 @@ func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, ses
 			s.sentAIGPRevision = 0
 			s.sentAIGPCostWithheld = false
 		}()
+		select {
+		case <-pool.stopCh:
+			return errBoundForwardUnsettled
+		default:
+		}
 		if err := stage.current(target, s); err != nil {
 			return err
+		}
+		if target.forwardOrderHold(owner.initialUpdate) {
+			if owner.initialUpdate {
+				return errBoundForwardUnsettled
+			}
+			return errBoundForwardHeld
 		}
 		for i := range stage.items {
 			item := &stage.items[i]
@@ -365,6 +378,10 @@ func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, ses
 
 var errBoundForwardUnsettled = errors.New("captured forward target did not settle on its bounded worker; reconcile its original stored routes before reporting readiness")
 
+// Internal scheduling outcome. No body was written, so the existing worker
+// can park its already-admitted live carrier and keep the caller joined.
+var errBoundForwardHeld = errors.New("captured live forward is held behind the destination's replay")
+
 // boundForwardTargetWrite is one current request obligation on an existing
 // per-peer worker. The worker MUST call run before the carrier's done callback.
 // The request MUST join done before releasing stage.items or its source guard.
@@ -375,10 +392,21 @@ type boundForwardTargetWrite struct {
 	peer    *Peer
 	session *Session
 	owner   fwdItem
+	pool    *fwdPool
 	done    chan struct{}
 	err     error
 }
 
-func (write *boundForwardTargetWrite) run() {
-	write.err = write.stage.flushPeer(write.ctx, write.peer, write.session, write.owner)
+// run reports whether the carrier must return to overflow without completing.
+func (write *boundForwardTargetWrite) run() bool {
+	if err := write.ctx.Err(); err != nil {
+		write.err = err
+		return false
+	}
+	err := write.stage.flushPeer(write.ctx, write.peer, write.session, write.owner, write.pool)
+	if errors.Is(err, errBoundForwardHeld) {
+		return true
+	}
+	write.err = err
+	return false
 }
