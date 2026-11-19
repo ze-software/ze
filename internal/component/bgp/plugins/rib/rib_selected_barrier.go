@@ -154,7 +154,13 @@ func (d *selectedDispatch) settledLocked(destination *selectedDestination) bool 
 	if destination.refreshActive != nil || len(destination.refreshOrder) != 0 {
 		return false
 	}
-	if destination.reofferLearned || len(destination.inFlight) > 0 {
+	if destination.reofferAll {
+		return false
+	}
+	if destination.reofferLearned {
+		return false
+	}
+	if len(destination.inFlight) > 0 {
 		return false
 	}
 	if destination.failure != nil {

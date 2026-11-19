@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // WithdrawAdvertised withdraws every route each selected peer's current
@@ -55,7 +56,7 @@ func (a *reactorAPIAdapter) WithdrawAdvertised(ctx context.Context, sel *selecto
 	withdrawn := 0
 	var errs []error
 	for _, peer := range peers {
-		count, peerErr := a.withdrawPeerAdvertised(ctx, peer, only, sender)
+		count, peerErr := a.withdrawPeerAdvertised(ctx, peer, only, sender, nil)
 		withdrawn += count
 		if peerErr != nil {
 			errs = append(errs, peerErr)
@@ -66,28 +67,47 @@ func (a *reactorAPIAdapter) WithdrawAdvertised(ctx context.Context, sel *selecto
 
 // withdrawPeerAdvertised withdraws one peer's Adj-RIB-Out. staticMu is held
 // across the withdrawal and the reset of the static set, so a reload delta
-// (deliverStaticRouteDelta) never reads a set the wire no longer holds.
-func (a *reactorAPIAdapter) withdrawPeerAdvertised(ctx context.Context, peer *Peer, only family.Family, sender plugin.Sender) (int, error) {
+// (deliverStaticRouteDelta) never reads a set the wire no longer holds. An
+// ordinary policy change withdraws unselected output here. Its selected owner
+// reconciles selected output without changing admitted origins.
+func (a *reactorAPIAdapter) withdrawPeerAdvertised(ctx context.Context, peer *Peer, only family.Family, sender plugin.Sender, policySession *Session) (int, error) {
 	peer.staticMu.Lock()
 	defer peer.staticMu.Unlock()
 
 	session := peer.currentSession()
+	onlyUnselected := policySession != nil
+	if onlyUnselected && session != policySession {
+		return 0, errRecoveryDestinationClosed
+	}
 	if session == nil {
 		return 0, nil // No connection, so nothing is advertised on one.
 	}
 	address := peer.Settings().Address
-	batches, err := peer.adjOut.withdrawalBatches(session, only)
+	batches, err := peer.adjOut.snapshotWithdrawalBatches(session, only, onlyUnselected)
 	if err != nil {
 		return 0, fmt.Errorf("clear advertised: peer %s: %w", address, err)
 	}
 
-	target, err := selector.Parse(address.String())
+	var target *selector.Selector
+	if len(batches) > 0 {
+		if onlyUnselected {
+			sender, err = sender.WithDestination(peer.sourceOwner, session.initialReplay.Load())
+		} else {
+			target, err = selector.Parse(address.String())
+		}
+	}
 	if err != nil {
 		return 0, fmt.Errorf("clear advertised: peer %s: %w", address, err)
 	}
 	withdrawn := 0
 	for i := range batches {
-		if err := a.WithdrawNLRIBatch(ctx, target, batches[i], sender); err != nil {
+		if onlyUnselected {
+			var output rpc.UpdateRouteOutput
+			err = a.writeWithdrawNLRIBatch(ctx, []*Peer{peer}, batches[i], sender, &output)
+		} else {
+			err = a.WithdrawNLRIBatch(ctx, target, batches[i], sender)
+		}
+		if err != nil {
 			return withdrawn, fmt.Errorf("clear advertised: peer %s family %s: %w", address, batches[i].Family, err)
 		}
 		withdrawn += len(batches[i].NLRIs)
@@ -103,6 +123,10 @@ func (a *reactorAPIAdapter) withdrawPeerAdvertised(ctx context.Context, peer *Pe
 // A table bound to another session holds nothing this session advertised.
 // Safe for concurrent use: it reads the table under mu.
 func (a *adjRIBOut) withdrawalBatches(session *Session, only family.Family) ([]bgptypes.NLRIBatch, error) {
+	return a.snapshotWithdrawalBatches(session, only, false)
+}
+
+func (a *adjRIBOut) snapshotWithdrawalBatches(session *Session, only family.Family, onlyUnselected bool) ([]bgptypes.NLRIBatch, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -112,6 +136,9 @@ func (a *adjRIBOut) withdrawalBatches(session *Session, only family.Family) ([]b
 	byFamily := make(map[family.Family]int)
 	var batches []bgptypes.NLRIBatch
 	for key, entry := range a.routes {
+		if onlyUnselected && entry.selection.owner.Done() != nil {
+			continue
+		}
 		fam := key.path.family
 		if only.AFI != 0 && fam != only {
 			continue

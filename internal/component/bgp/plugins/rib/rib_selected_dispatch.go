@@ -94,6 +94,7 @@ type selectedDestination struct {
 	inFlight        []selectedDispatchItem
 	ready           bool
 	reofferLearned  bool
+	reofferAll      bool
 	failure         error
 	envelope        selectedItemBudget
 	refreshFamilies map[family.Family]struct{}
@@ -444,6 +445,20 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 			if destination.ctx.Err() != nil {
 				d.mu.Unlock()
 				return
+			}
+			if destination.reofferAll {
+				// Re-read the elected union only after the predecessor settles.
+				// Scoped-only origins have no key in the common learned map.
+				// Direct pending insertion forces the same revision through the
+				// new policy without replacing its candidate or source receipt.
+				for key := range d.current {
+					destination.pending[key] = struct{}{}
+				}
+				for key := range d.scoped[originScope{peer: destination.peer, owner: destination.owner}] {
+					destination.pending[key] = struct{}{}
+				}
+				destination.reofferAll = false
+				destination.reofferLearned = false
 			}
 			if destination.reofferLearned {
 				// Consume only after any predecessor request completed. Its

@@ -1126,7 +1126,6 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 	if batch.OriginAdmissionID == 0 {
 		batch.OriginAdmissionID = plugin.OriginAdmissionID(ctx)
 	}
-	destinationOwner, _ := sender.Destination()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -1174,7 +1173,13 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 	if len(peers) == 0 {
 		return nil
 	}
+	return a.writeWithdrawNLRIBatch(ctx, peers, batch, sender, output)
+}
 
+// writeWithdrawNLRIBatch writes output withdrawals after source admission.
+// The caller MUST authorize this peer set and preserve its destination binding.
+func (a *reactorAPIAdapter) writeWithdrawNLRIBatch(ctx context.Context, peers []*Peer, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
+	destinationOwner, _ := sender.Destination()
 	var lastErr error
 	// acceptedCount is what went out: one for each peer whose operations were
 	// queued, and one for each UPDATE written to an established peer, exactly as

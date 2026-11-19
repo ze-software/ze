@@ -19,7 +19,7 @@ import (
 // OnPeerExportPolicy delivers only to the actual selecting process, retaining
 // its process identity through event application and deferred-output settlement.
 // It does not broadcast a synthetic connection or arm peer-up readiness.
-func (d *EventDispatcher) OnPeerExportPolicy(ctx context.Context, peer *plugin.PeerInfo, owner plugin.SelectedOwner) error {
+func (d *EventDispatcher) OnPeerExportPolicy(ctx context.Context, peer *plugin.PeerInfo, owner plugin.SelectedOwner, includeLocal bool) error {
 	proc, err := d.policyEventProcess(peer, owner)
 	if err != nil {
 		return err
@@ -28,7 +28,11 @@ func (d *EventDispatcher) OnPeerExportPolicy(ctx context.Context, peer *plugin.P
 		return err
 	}
 	name, _ := owner.Sender().Process() // policyEventProcess validated it.
-	projected := selectedStatePeer(peer, name, rpc.SessionStateUp, rpc.ReasonExportPolicy)
+	reason := rpc.ReasonExportPolicy
+	if includeLocal {
+		reason = rpc.ReasonExportPolicyAll
+	}
+	projected := selectedStatePeer(peer, name, rpc.SessionStateUp, reason)
 	if !projected.SelectedDestination {
 		return opererr.New("the policy event has no captured ordinary destination", "Policy reconciliation requires the current ready process and its explicit peer attachment", "ze request reload")
 	}
@@ -38,12 +42,12 @@ func (d *EventDispatcher) OnPeerExportPolicy(ctx context.Context, peer *plugin.P
 	delivery := process.EventDelivery{Result: results}
 	var structured *rpc.StructuredEvent
 	if proc.HasStructuredHandler() {
-		structured = getStructuredStateEvent(&projected, rpc.SessionStateUp, rpc.ReasonExportPolicy, nil)
+		structured = getStructuredStateEvent(&projected, rpc.SessionStateUp, reason, nil)
 		delivery.Event = structured
 	} else {
 		var scratch [512]byte
 		delivery.Output = string(format.AppendStateChange(scratch[:0], &projected, rpc.SessionStateUp,
-			rpc.ReasonExportPolicy, nil, proc.Encoding()))
+			reason, nil, proc.Encoding()))
 	}
 	if !proc.DeliverContext(ctx, delivery) {
 		if structured != nil {

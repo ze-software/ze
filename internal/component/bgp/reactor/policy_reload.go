@@ -73,10 +73,11 @@ func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 		// Nothing runs under the lock: acquiring it is the whole barrier.
 		session.writeMu.Lock()
 		session.writeMu.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier
-		_, err := adapter.withdrawPeerAdvertised(ctx, p, family.Family{}, plugin.OperatorSender())
-		if ordinarySelected && changed.learned {
-			return errors.Join(err, p.reconcileSelectedExport(ctx, session))
+		if ordinarySelected {
+			_, err := adapter.withdrawPeerAdvertised(ctx, p, family.Family{}, plugin.OperatorSender(), session)
+			return errors.Join(err, p.reconcileSelectedExport(ctx, session, true))
 		}
+		_, err := adapter.withdrawPeerAdvertised(ctx, p, family.Family{}, plugin.OperatorSender(), nil)
 		return err
 	}
 
@@ -97,8 +98,8 @@ func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 		}
 	}
 	if ordinarySelected {
-		if changed.learned {
-			return p.reconcileSelectedExport(ctx, session)
+		if changed.learned || changed.local {
+			return p.reconcileSelectedExport(ctx, session, changed.local)
 		}
 		return nil
 	}

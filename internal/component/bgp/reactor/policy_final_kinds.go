@@ -44,14 +44,13 @@ func (p *Peer) ordinarySelectedExport() bool {
 }
 
 type peerExportPolicyEvents interface {
-	OnPeerExportPolicy(context.Context, *plugin.PeerInfo, plugin.SelectedOwner) error
+	OnPeerExportPolicy(context.Context, *plugin.PeerInfo, plugin.SelectedOwner, bool) error
 }
 
-// reconcileSelectedExport asks the existing owner to reoffer its current learned
-// selections. It MUST NOT read CurrentSelection as mutation or replay received
-// candidates through an auxiliary store. The event's settlement joins final
-// output, including work admitted before the policy publication.
-func (p *Peer) reconcileSelectedExport(ctx context.Context, session *Session) error {
+// reconcileSelectedExport asks the existing owner to reoffer its current selections.
+// An absent-policy change that keeps local output eligible MUST reoffer learned
+// routes only. Settlement joins final output and earlier admitted work.
+func (p *Peer) reconcileSelectedExport(ctx context.Context, session *Session, includeLocal bool) error {
 	snapshot := p.selectedOwnerSnapshot()
 	if snapshot == nil || snapshot.err != nil || !snapshot.owner.IsSet() || snapshot.owner.Explicit() {
 		return errors.New("export final reconciliation lost its ordinary selecting owner")
@@ -89,7 +88,7 @@ func (p *Peer) reconcileSelectedExport(ctx context.Context, session *Session) er
 	if p.currentSession() != session || p.selectedOwnerSnapshot() != snapshot {
 		return errRecoveryDestinationClosed
 	}
-	if err := dispatcher.OnPeerExportPolicy(ctx, &peer, owner); err != nil {
+	if err := dispatcher.OnPeerExportPolicy(ctx, &peer, owner, includeLocal); err != nil {
 		return fmt.Errorf("export final selected reconciliation: %w", err)
 	}
 	if p.currentSession() != session || p.selectedOwnerSnapshot() != snapshot {

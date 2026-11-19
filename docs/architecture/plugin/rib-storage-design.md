@@ -271,14 +271,14 @@ final writer independently checks permission on every operation.
 
 A targeted `state` up with reason `export-policy` asks only the existing ordinary
 owner to re-evaluate current learned selections on the same captured Session.
-Both JSON and structured handlers consume it before connection/source bookkeeping.
-It arms no initial readiness fence and sends no refresh markers. One coalesced
-bit per destination survives any older in-flight answer; the existing worker
-consumes it after that answer settles and adds only current received selections
-to its pending keys. Local selected origins keep their acknowledged output.
-The event-settlement barrier includes the bit and the resulting final receipts.
+The `export-policy-all` reason also rechecks local selections for that destination.
+Both handlers consume these events before connection bookkeeping. The worker
+waits for the previous answer and then queues the applicable current keys.
+Local origins stay admitted through both events. Learned-only reoffer leaves
+their output in place. The events arm no readiness fence and send no refresh
+markers. The settlement barrier waits for the queued work and its final receipts.
 A late old-Session event cannot create a replacement destination.
-<!-- source: internal/component/bgp/plugins/rib/rib_selected_policy.go -- reofferLearned, consumeExportPolicy -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_policy.go -- reofferExportPolicy, consumeExportPolicy -->
 <!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
 
 The engine also sends `ordinary-replay-owned` to state observers of that
@@ -3859,7 +3859,7 @@ Learned-only export-policy reoffers read each destination's elected scoped
 winner. A common learned key displaced by a local origin in that scope does
 not cause the local origin to be sent again. Other learned keys remain
 eligible for the existing reoffer, and unrelated scopes keep their output.
-<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- runDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- selectedDispatch.run -->
 
 
 An original physical GR cleanup also keeps auxiliary SENT withdrawal debt on

@@ -1865,9 +1865,10 @@ before any export chain runs.
 
 Reload compares and replaces whole policies. An export-final change publishes
 the new forwarding snapshot before reconciling the affected route kinds on the
-existing session. For an ordinary destination, the captured selecting owner
-reoffers its current learned selections and settles their final output receipts.
-It does not replay optional receive-store candidates or losing received routes.
+existing session. The captured ordinary owner reoffers its current learned
+selections and settles their final output receipts. When the local decision
+changes, it also reoffers current local selections. It does not replay
+optional receive-store candidates or losing received routes.
 A learned-only rejection joins the selected stream and final writer, then
 withdraws only recorded ordinary learned output. Local/API/static/default/plugin
 origins are neither withdrawn nor resent by a learned-only transition.
@@ -3910,9 +3911,10 @@ candidate cannot silently become the selected offer after the reload.
 An import-policy change applies to routes received AFTER the swap; it does not
 re-run policy over already-imported routes. An export-final transition also
 reconciles affected route kinds through `reconcileExportFinalKinds`. The ordinary
-selecting owner reoffers current learned selections and settles final receipts;
-a learned-only rejection retires recorded learned output while local origins
-remain untouched. A local disposition change also reconciles configured routes.
+selecting owner reoffers current learned selections and settles final receipts.
+A learned-only rejection retires recorded learned output while local origins
+remain untouched. A local disposition change also rechecks admitted local
+selections and reconciles configured routes.
 Explicit RS/RR and authorized Adj-RIB-In self-replay keep their retained-source
 restoration path. Arbitrary filter-definition changes do not generally
 re-evaluate existing routes.

@@ -849,15 +849,13 @@ on filter RPC errors. Accept continues to the next filter. Exhaustion applies
 the policy final, including empty and inactive-only chains. A raw full-UPDATE
 rewrite stops later filters but still receives the final. Earlier reject,
 fail-closed error and teardown remain terminal. A final-only export change
-reconciles the affected route kinds on the current session. For an ordinary
-destination, the captured selecting owner reoffers only current learned
-selections, and event settlement joins their final output receipts. Optional
-receive-store candidates are not replayed. A learned-only transition neither
-withdraws nor resends local/API/static/default/plugin origins. A change to the
-local disposition withdraws recorded advertisements on rejection and regenerates
-configured local routes on acceptance. Retained API originals keep their
-receipts; a direct one-shot API producer must reannounce if rejection removed
-its output.
+reconciles the affected route kinds on the current session. The ordinary owner
+reoffers current learned selections. If the local decision changes, it also
+reoffers current local selections. Event settlement joins their final output
+receipts. Admitted origins keep their receipts through rejection and can return
+when the policy accepts them again. A learned-only transition leaves local
+output in place. Acceptance also regenerates configured local routes. A direct
+one-shot API producer must reannounce if rejection removed its output.
 <!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
 <!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
 
@@ -1976,20 +1974,22 @@ destination identities, states omitted counts and points to the current
 `selected-output` list in `ze show bgp rib status`.
 
 A live export-final transition uses a targeted `state` event with state `up`,
-reason `export-policy`, the existing `destination-session` and the recipient's
+the existing `destination-session` and the recipient's
 `selected-destination` authority. It reaches only the captured ordinary owner;
 it announces no connection transition and carries no initial-replay token.
-The owner MUST reoffer its current received selections under the new policy,
-MUST preserve local selected origins, and MUST NOT replay received losers or
-emit ROUTE-REFRESH markers. Its existing event-settlement callback joins this
-work through final output receipts. The caller captures an authenticated
+Reason `export-policy` reoffers current learned selections and preserves local
+output. Reason `export-policy-all` reoffers both route kinds when the local
+export decision changes. Both preserve admitted origins and recheck the
+current selection under the new policy. Neither emits ROUTE-REFRESH markers.
+The event-settlement callback joins this work through final output receipts.
+The caller captures an authenticated
 `SelectedOwner`, not only its configured name. Delivery verifies that exact
 current, ready Process and its granted destination-state subscription before
 queueing and after settlement. A same-name replacement cannot receive or
 acknowledge the old owner's reoffer. The engine bounds queue admission with
 `DeliverContext` and reports application or settlement failure to reload.
 <!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
-<!-- source: pkg/plugin/rpc/enums.go -- ReasonExportPolicy -->
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonExportPolicy, ReasonExportPolicyAll -->
 <!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_failure.go -- selectedBarrierError -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_status.go -- unsettledStatus -->

@@ -89,7 +89,7 @@ func TestExportPolicyEventJoinsCapturedOwnerDeferredOutput(t *testing.T) {
 			capturedOwner, err := srv.ProcessManager().GetProcess(owner).SelectedOwner()
 			require.NoError(t, err)
 			result := make(chan error, 1)
-			go func() { result <- NewEventDispatcher(srv).OnPeerExportPolicy(ctx, peer, capturedOwner) }()
+			go func() { result <- NewEventDispatcher(srv).OnPeerExportPolicy(ctx, peer, capturedOwner, false) }()
 			select {
 			case <-entered:
 			case err := <-result:

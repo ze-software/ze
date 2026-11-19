@@ -480,6 +480,14 @@ const ReasonAttached = "attached"
 // replay local origins, or emit ROUTE-REFRESH markers.
 const ReasonExportPolicy = "export-policy"
 
+// ReasonExportPolicyAll requests a reoffer of every current elected route in
+// one existing ordinary selected destination, including its scoped local
+// origins. It revalidates output without withdrawing admitted candidates or
+// promoting losers. Like ReasonExportPolicy, it retains the captured Session,
+// arms no peer-up barrier, and MUST NOT cause a connection transition or emit
+// ROUTE-REFRESH markers.
+const ReasonExportPolicyAll = "export-policy-all"
+
 // The four SessionStateDown reasons below say why an Established session
 // closed. The reactor derives one from what the session observed
 // (internal/component/bgp/reactor/peer_close.go, sessionCloseFor), and every
