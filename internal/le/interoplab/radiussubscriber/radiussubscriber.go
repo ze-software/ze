@@ -46,6 +46,10 @@ const (
 	scenarioSubscriberDNS = "radius-subscriber-dns"
 	scenarioFramedMTU     = "radius-subscriber-framed-mtu"
 
+	// scenarioFramedRouteHidden is the hidden-AVP, Framed-Route,
+	// Message-Authenticator and clear-by-user scenario.
+	scenarioFramedRouteHidden = "l2tp-lns-radius-framed-route-hidden-xl2tpd"
+
 	labDirectory = "test/interop-radius-subscriber"
 
 	// netAdminCapability is what ze's kernel L2TP and the LAC's pppd need
@@ -73,12 +77,13 @@ var networkPrefix = netip.MustParsePrefix("172.26.0.0/24")
 // without a checker breaks the run instead of passing silently.
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		scenarioCoADuplicate:  checker(checkCoADuplicate, timeout),
-		scenarioAcctRestart:   checker(checkAcctRestart, timeout),
-		scenarioCoADisconnect: checker(checkCoADisconnect, timeout),
-		scenarioFramedReject:  checker(checkFramedReject, timeout),
-		scenarioSubscriberDNS: checker(checkSubscriberDNS, timeout),
-		scenarioFramedMTU:     checker(checkFramedMTU, timeout),
+		scenarioCoADuplicate:      checker(checkCoADuplicate, timeout),
+		scenarioAcctRestart:       checker(checkAcctRestart, timeout),
+		scenarioCoADisconnect:     checker(checkCoADisconnect, timeout),
+		scenarioFramedReject:      checker(checkFramedReject, timeout),
+		scenarioSubscriberDNS:     checker(checkSubscriberDNS, timeout),
+		scenarioFramedRouteHidden: checker(checkFramedRouteHidden, timeout),
+		scenarioFramedMTU:         checker(checkFramedMTU, timeout),
 	}
 }
 
@@ -170,6 +175,9 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 	lac := lacPeerConfig(root, lacContainer)
 	if source.Name == scenarioSubscriberDNS {
 		configureSubscriberDNSPeers(source, &server, &lac)
+	}
+	if source.Name == scenarioFramedRouteHidden {
+		configureFramedRouteHiddenPeers(source, &server, &lac)
 	}
 	return interoplab.ScenarioPlan{
 		Source: source,

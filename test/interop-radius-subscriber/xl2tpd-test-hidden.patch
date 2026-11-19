@@ -1,0 +1,38 @@
+xl2tpd 1.3.20: make the -DTEST_HIDDEN build compile and hide the Assigned
+Session ID the way encrypt_avp expects.
+
+Dockerfile.lac builds xl2tpd with -DTEST_HIDDEN so a LAC whose section sets
+`hidden bit = yes` sends AVP 14 hidden (add_callid_avp, avpsend.c), the one
+AVP xl2tpd can hide. Upstream's add_callid_avp still carries `raw++` from
+before the add_header refactor; `raw` is declared nowhere, so that build stops
+at a compile error. encrypt_avp (aaa.c) reads the clear AVP two octets past
+the hidden header it writes, so the clear AVP is written two octets in. With
+hbit unset (every config but the hidden scenario's) shift stays 0 and the
+AVP is the octets the unpatched code writes.
+
+--- a/avpsend.c
++++ b/avpsend.c
+@@ -175,14 +175,20 @@
+ int add_callid_avp (struct buffer *buf, _u16 callid)
+ {
+ #endif
+-    struct half_words *ptr = (struct half_words *) (buf->start + buf->len + sizeof(struct avp_hdr));
++    /* encrypt_avp (aaa.c) rewrites a clear AVP that starts two octets past
++       buf->len into its hidden form, so a hidden Assigned Session ID is
++       written there. The upstream "raw++" names no variable and does not
++       compile. */
++    int shift = 0;
+ #ifdef TEST_HIDDEN
+     if (t->hbit)
+-        raw++;
++        shift = 2;
+ #endif
++    struct half_words *ptr = (struct half_words *) (buf->start + buf->len + shift + sizeof(struct avp_hdr));
++    buf->len += shift;
+     add_header(buf, 0x8, 0xE);
+     ptr->s0 = htons (callid);
+-    buf->len += 0x8;
++    buf->len += 0x8 - shift;
+ #ifdef TEST_HIDDEN
+     if (t->hbit)
+         encrypt_avp (buf, 8, t);

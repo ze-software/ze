@@ -3955,6 +3955,7 @@ is the Dynamic Authorization Client.
 | `l2tp-radius-framed-protocol-reject` | Changes only FreeRADIUS's Framed-Protocol for one user: PPP must establish traffic, SLIP must produce authorization refusal and CHAP failure without Accounting-Start, then PPP must work again |
 | `radius-subscriber-dns` | RFC 2548 Sections 2.7.6 and 2.7.7 through the pool (spec-home-cpe-23b AC-9). The scenario's own users file has FreeRADIUS answer alice with MS-Primary-DNS-Server 198.51.100.53 and MS-Secondary-DNS-Server 198.51.100.54 (`dictionary.microsoft`, Microsoft attributes 28 and 29, moved into the reply by rlm_files' `file_common`), and its own pppd options add `usepeerdns`. The pool writes no `dns-source` and has its own `dns-primary` 203.0.113.53, so its built-in list (radius first) must offer the RADIUS pair: pppd's `create_resolv` writes exactly those two `nameserver` lines to `/etc/ppp/resolv.conf`, and the pool's address must not appear. Not yet run |
 | `radius-subscriber-framed-mtu` | RFC 2865 Section 5.12 on ze's side. The scenario's own users file has FreeRADIUS answer alice with Framed-MTU 1400 (`share/dictionary.rfc2865`, attribute 12, type integer). The suite's pppd names no `mru`, so LCP agrees on the default 1500, and that is what ze's pppN would hold with the Framed-MTU ignored. The checker requires ze's one PPP interface to report kernel MTU 1400 (`ip -j link show type ppp` in ze's container), `show l2tp sessions` to report `"mtu": 1400` beside `"mru": 1500`, so the 1400 cannot come from LCP, and the subscriber to ping through the session. Passes against FreeRADIUS 3.2.10. Forced red: with `pppSession.interfaceMTU` changed to ignore the Framed-MTU, the image rebuilt and the scenario rerun, it fails in the checker with "ze's ppp0 has kernel MTU 1500, want the RADIUS Framed-MTU 1400" while FreeRADIUS still sent Framed-MTU 1400 and Ze logged `framed-mtu=1400` at extraction |
+| `l2tp-lns-radius-framed-route-hidden-xl2tpd` | Ze as LNS behind xl2tpd, with FreeRADIUS, on one session, four ways. Hidden AVPs (RFC 2661 Section 4.3): the scenario's own `xl2tpd.conf` adds `challenge = yes` and `hidden bit = yes`, so the LAC's `-DTEST_HIDDEN` build hides the ICRQ's Assigned Session ID (`add_callid_avp`, under the secret `handle_challenge` read from `l2tp-secrets`) and Ze, whose `shared-secret` matches, reveals it: a tcpdump capture on Ze's LNS port must show every ICRQ carrying AVP 14 with the H bit, and the session must come up. Framed-Route: the scenario's own users file returns `Framed-Route = "203.0.113.128/25 203.0.113.77 1"`, and `ip route show 203.0.113.128/25` in Ze's container must hold one route through the interface Ze routes the subscriber's address through, proto 253, metric 1, with no `via`; with 203.0.113.129/32 on the LAC's loopback, Ze must ping it. Message-Authenticator: a capture of what Ze receives from port 1812 must hold an Access-Accept carrying attribute 80, which FreeRADIUS's `rad_encode` writes first into every Access-Accept, and Ze, which requires it by default, starts the session. Clear by user: `clear l2tp session user alice` through the REST surface must answer the session, then the Accounting-Stop must reach the server's detail file, pppd's `ppp0` must go, and the /25 must leave Ze's kernel. Not yet run |
 
 The server listens as a stock deployment does, `type = auth` on 1812 and
 `type = acct` on 1813 (`site-default`), and ze sends accounting to a server
@@ -3996,6 +3997,25 @@ logs. This keeps the checker's CHAP-refusal observation connected to the peer.
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_subscriber_dns.go -- configureSubscriberDNSPeers, checkSubscriberDNS -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_mtu.go -- configureFramedMTUServerPeer, checkFramedMTU -->
+
+The LAC image builds xl2tpd with `-DTEST_HIDDEN`, the one way xl2tpd 1.3.20
+hides an AVP, and `xl2tpd-test-hidden.patch` makes that build compile:
+upstream's `add_callid_avp` still increments a `raw` pointer the
+`add_header` refactor removed. Every hidden branch tests the tunnel's `hbit`,
+which stays 0 unless a LAC or LNS section sets `hidden bit = yes`, so every
+other scenario, and the topology suite's `xl2tpd-lns` built from the same
+image, sends what an unflagged build sends. The red check for the hidden-AVP
+scenario is `revealHiddenAVPs` returning the body unchanged: the hidden,
+mandatory AVP 14 then refuses the ICRQ with a CDN and no Accounting-Start
+arrives. The scenario does not interpose `test/interop-radius/unsigned-relay.pl`
+for an unsigned negative: the relay would put its own re-encoding between
+FreeRADIUS and Ze, where the capture has to show FreeRADIUS's own answer, and
+the admin-login suite's `radius-admin-pap-unsigned-freeradius` already proves
+the RADIUS client both surfaces share (`internal/component/radius`) discarding
+an unsigned Access-Accept.
+<!-- source: test/interop-radius-subscriber/Dockerfile.lac -- TEST_HIDDEN -->
+<!-- source: test/interop-radius-subscriber/xl2tpd-test-hidden.patch -- add_callid_avp -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_framed_route_hidden.go -- configureFramedRouteHiddenPeers, checkFramedRouteHidden, icrqAssignedSessionID, carriesMessageAuthenticator, judgeFramedRoute, clearSubscriber -->
 
 ### Independent TFTP duplicate-ACK recovery
 

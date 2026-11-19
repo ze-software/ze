@@ -486,25 +486,38 @@ func (s *scenarioLab) waitZeListening(ctx context.Context) error {
 // clearSessions asks ze, through its REST surface, to tear every L2TP session
 // down, which sends each session's Accounting-Stop.
 func (s *scenarioLab) clearSessions(ctx context.Context) error {
+	_, err := s.execute(ctx, "clear l2tp session all")
+	return err
+}
+
+// execute runs one operator command through ze's REST surface and answers
+// the response body. The command carries no quote or backslash, so it is
+// written into the JSON string as it is.
+func (s *scenarioLab) execute(ctx context.Context, command string) (string, error) {
 	result, err := s.lab.Exec(ctx, peerZe, []string{
 		"wget", "-qO-",
 		"--header=Authorization: Bearer secret",
 		"--header=Content-Type: application/json",
-		"--post-data={\"command\":\"clear l2tp session all\"}",
+		"--post-data={\"command\":\"" + command + "\"}",
 		"http://127.0.0.1:17012/api/v1/execute",
 	}, nil)
 	if err != nil {
-		return fmt.Errorf("clear every L2TP session: %w: %s", err, result.Stdout+result.Stderr)
+		return "", fmt.Errorf("%s: %w: %s", command, err, result.Stdout+result.Stderr)
 	}
-	return nil
+	return result.Stdout, nil
 }
 
 // startCapture records every datagram ze's container receives on the CoA port.
 func (s *scenarioLab) startCapture(ctx context.Context) error {
-	err := s.lab.ExecDetached(ctx, peerZe, []string{"tcpdump", "-n", "-U", "-i", "eth0", "-w", capturePath,
-		"udp", "dst", "port", "3799"}, nil)
-	if err != nil {
-		return fmt.Errorf("start tcpdump in ze's container: %w", err)
+	return s.startPacketCapture(ctx, capturePath, "udp", "dst", "port", coaPort)
+}
+
+// startPacketCapture runs tcpdump on ze's eth0 into path, writing each packet
+// as it arrives (-U), for the filter words given, and leaves it running.
+func (s *scenarioLab) startPacketCapture(ctx context.Context, path string, filter ...string) error {
+	argv := append([]string{"tcpdump", "-n", "-U", "-i", "eth0", "-w", path}, filter...)
+	if err := s.lab.ExecDetached(ctx, peerZe, argv, nil); err != nil {
+		return fmt.Errorf("start tcpdump into %s in ze's container: %w", path, err)
 	}
 	return sleepContext(ctx, time.Second)
 }
@@ -522,42 +535,36 @@ func (s *scenarioLab) stopCapture(ctx context.Context) ([]coaDatagram, error) {
 
 // readCapture answers the CoA datagrams the capture file holds so far.
 func (s *scenarioLab) readCapture(ctx context.Context) ([]coaDatagram, error) {
-	encoded, err := s.lab.Query(ctx, peerZe, []string{"base64", capturePath}, nil)
+	capture, err := s.readPacketCapture(ctx, capturePath)
 	if err != nil {
-		return nil, fmt.Errorf("read the capture: %w", err)
-	}
-	capture, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(encoded), ""))
-	if err != nil {
-		return nil, fmt.Errorf("decode the capture: %w", err)
+		return nil, err
 	}
 	return parseCapture(capture)
 }
 
-// parseCapture reads a classic pcap file of Ethernet frames and answers the
-// RADIUS header of each IPv4 UDP datagram in it. Every length is checked
-// against the bytes that remain before it is used.
-//
-// pcap global header 24 octets, then per frame a 16-octet record header whose
-// octets 8..12 are the captured length; Ethernet 14 octets (type at 12..14);
-// IPv4 header of IHL*4 octets (protocol at 9); UDP 8 octets (source port at
-// 0..2, length of header and payload at 4..6); RADIUS Code at 0, Identifier
-// at 1, Authenticator at 4..20.
-func parseCapture(capture []byte) ([]coaDatagram, error) {
-	if len(capture) < 24 {
-		return nil, fmt.Errorf("capture of %d octets has no pcap header", len(capture))
+// readPacketCapture answers the pcap file at path in ze's container, as far
+// as tcpdump has written it.
+func (s *scenarioLab) readPacketCapture(ctx context.Context, path string) ([]byte, error) {
+	encoded, err := s.lab.Query(ctx, peerZe, []string{"base64", path}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("read the capture %s: %w", path, err)
 	}
-	var order binary.ByteOrder = binary.LittleEndian
-	if bytes.Equal(capture[:4], []byte{0xa1, 0xb2, 0xc3, 0xd4}) {
-		order = binary.BigEndian
+	capture, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(encoded), ""))
+	if err != nil {
+		return nil, fmt.Errorf("decode the capture %s: %w", path, err)
+	}
+	return capture, nil
+}
+
+// parseCapture answers the RADIUS header of each IPv4 UDP datagram in a
+// capture: RADIUS Code at 0, Identifier at 1, Authenticator at 4..20.
+func parseCapture(capture []byte) ([]coaDatagram, error) {
+	frames, err := captureFrames(capture)
+	if err != nil {
+		return nil, err
 	}
 	var datagrams []coaDatagram
-	for rest := capture[24:]; len(rest) >= 16; {
-		captured := int(order.Uint32(rest[8:12]))
-		if captured > len(rest)-16 {
-			return nil, fmt.Errorf("capture record claims %d octets, %d remain", captured, len(rest)-16)
-		}
-		frame := rest[16 : 16+captured]
-		rest = rest[16+captured:]
+	for _, frame := range frames {
 		if datagram, ok := radiusOfFrame(frame); ok {
 			datagrams = append(datagrams, datagram)
 		}
@@ -565,29 +572,70 @@ func parseCapture(capture []byte) ([]coaDatagram, error) {
 	return datagrams, nil
 }
 
+// captureFrames reads a classic pcap file and answers its frames. Every
+// length is checked against the bytes that remain before it is used.
+//
+// pcap global header 24 octets, then per frame a 16-octet record header whose
+// octets 8..12 are the captured length.
+func captureFrames(capture []byte) ([][]byte, error) {
+	if len(capture) < 24 {
+		return nil, fmt.Errorf("capture of %d octets has no pcap header", len(capture))
+	}
+	var order binary.ByteOrder = binary.LittleEndian
+	if bytes.Equal(capture[:4], []byte{0xa1, 0xb2, 0xc3, 0xd4}) {
+		order = binary.BigEndian
+	}
+	var frames [][]byte
+	for rest := capture[24:]; len(rest) >= 16; {
+		captured := int(order.Uint32(rest[8:12]))
+		if captured > len(rest)-16 {
+			return nil, fmt.Errorf("capture record claims %d octets, %d remain", captured, len(rest)-16)
+		}
+		frames = append(frames, rest[16:16+captured])
+		rest = rest[16+captured:]
+	}
+	return frames, nil
+}
+
 func radiusOfFrame(frame []byte) (coaDatagram, bool) {
-	if len(frame) < 14+20 || frame[12] != 0x08 || frame[13] != 0x00 {
+	sourcePort, payload, ok := udpOfFrame(frame)
+	if !ok {
 		return coaDatagram{}, false
+	}
+	if len(payload) < 20 {
+		return coaDatagram{}, false
+	}
+	datagram := coaDatagram{sourcePort: sourcePort, code: payload[0], identifier: payload[1], octets: payload}
+	copy(datagram.authenticator[:], payload[4:20])
+	return datagram, true
+}
+
+// udpOfFrame answers the source port and payload of an Ethernet frame that
+// carries an IPv4 UDP datagram, and false for any other frame.
+//
+// Ethernet 14 octets (type at 12..14); IPv4 header of IHL*4 octets (protocol
+// at 9); UDP 8 octets (source port at 0..2, length of header and payload at
+// 4..6).
+func udpOfFrame(frame []byte) (uint16, []byte, bool) {
+	if len(frame) < 14+20 || frame[12] != 0x08 || frame[13] != 0x00 {
+		return 0, nil, false
 	}
 	ip := frame[14:]
 	headerOctets := int(ip[0]&0x0f) * 4
-	if ip[9] != 17 || headerOctets < 20 || len(ip) < headerOctets+8+20 {
-		return coaDatagram{}, false
+	if ip[9] != 17 || headerOctets < 20 || len(ip) < headerOctets+8 {
+		return 0, nil, false
 	}
 	udp := ip[headerOctets:]
 	// The UDP length bounds the payload: a short frame may carry Ethernet
 	// padding past it.
 	udpOctets := int(binary.BigEndian.Uint16(udp[4:6]))
-	if udpOctets < 8+20 {
-		return coaDatagram{}, false
+	if udpOctets < 8 {
+		return 0, nil, false
 	}
 	if udpOctets > len(udp) {
-		return coaDatagram{}, false
+		return 0, nil, false
 	}
-	payload := udp[8:udpOctets]
-	datagram := coaDatagram{sourcePort: binary.BigEndian.Uint16(udp[0:2]), code: payload[0], identifier: payload[1], octets: payload}
-	copy(datagram.authenticator[:], payload[4:20])
-	return datagram, true
+	return binary.BigEndian.Uint16(udp[0:2]), udp[8:udpOctets], true
 }
 
 // withDiagnostics appends each peer's recent log to a scenario failure.

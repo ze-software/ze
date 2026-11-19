@@ -1,0 +1,8 @@
+# The subscriber's Access-Accept carries one Framed-Route (RFC 2865 Section
+# 5.22) whose gateway, 203.0.113.77, is not the address the pool assigns, so
+# Ze installs it as a device route through the session's PPP interface.
+# rlm_files' file_common moves these reply items into the Access-Accept, and
+# rad_encode (src/lib/radius.c) writes its Message-Authenticator first.
+alice	Cleartext-Password := "s3cr3t"
+	Framed-Protocol = PPP,
+	Framed-Route = "203.0.113.128/25 203.0.113.77 1"

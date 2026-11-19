@@ -9,6 +9,16 @@
 #
 # test/interop-l2tp/Dockerfile.lac builds the same two releases with the same
 # pins: change both files together.
+#
+# xl2tpd is built with -DTEST_HIDDEN beside its default DFLAGS, so a LAC
+# section that sets `hidden bit = yes` sends the Assigned Session ID hidden
+# (add_callid_avp, avpsend.c) after a Random Vector, under the secret
+# handle_challenge (aaa.c) read from l2tp-secrets for the tunnel's challenge.
+# Every hidden branch tests the tunnel's hbit, which file.c leaves 0 unless
+# that option is set, so the other scenarios and the topology suite's
+# xl2tpd-lns send what an unflagged build sends. xl2tpd-test-hidden.patch makes
+# that build compile (the patch header says why). The other lab hides nothing,
+# so its xl2tpd keeps the default flags.
 
 FROM alpine:3.24.3 AS build
 
@@ -30,11 +40,13 @@ RUN curl -fsSL -o /src/ppp.tar.gz "https://api.github.com/repos/ppp-project/ppp/
     && make install DESTDIR=/out
 
 WORKDIR /src/xl2tpd
+COPY xl2tpd-test-hidden.patch /src/xl2tpd-test-hidden.patch
 RUN curl -fsSL -o /src/xl2tpd.tar.gz \
         "https://github.com/xelerance/xl2tpd/archive/refs/tags/v${XL2TPD_VERSION}.tar.gz" \
     && echo "${XL2TPD_SHA256}  /src/xl2tpd.tar.gz" | sha256sum -c - \
     && tar -xzf /src/xl2tpd.tar.gz --strip-components=1 \
-    && make -j"$(nproc)" PREFIX=/usr \
+    && patch -p1 < /src/xl2tpd-test-hidden.patch \
+    && make -j"$(nproc)" PREFIX=/usr DFLAGS="-DDEBUG_PPPD -DTRUST_PPPD_TO_DIE -DTEST_HIDDEN" \
     && make install PREFIX=/usr DESTDIR=/out \
     && rm -rf /out/usr/include /out/usr/share \
     && scanelf --needed --nobanner --format '%n#p' --recursive /out \
