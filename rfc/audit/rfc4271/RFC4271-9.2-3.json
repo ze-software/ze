@@ -13,7 +13,7 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "7275e119a589e30c",
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute": "7275e119a589e30c",
-    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "1bfbd33665e4558b"
+    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "3c735934d14283a8"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "996654e65a065ff2",
