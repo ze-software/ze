@@ -49,6 +49,16 @@ can change nothing on the web, the API or the fixed SSH editor. The sample is
 corrected in this work (a small defect found in passing, `ai/META-DECISIONS.md`
 "How agents work").
 
+A second small defect, found while running the tests, is fixed here too
+(AC-15). Loading a profile whose edit entry is `config`, `config set`, `config
+commit` or `config commit client-edge.conf` logged `authz match entry does not
+match any known command`, because `validateMatchEntries`
+(`internal/component/config/infra/authz.go`) compared entries only with the
+command registry, and the config permission strings are not commands. The
+corrected guide sample, and every profile written as the guide documents it,
+warned at each load. Now `unknownMatchEntries` also accepts an entry that
+reaches a string of `plugin.ConfigAuthStrings` at a word boundary.
+
 ## Owner Decisions
 
 | # | Question | Answer | Source |
@@ -66,6 +76,10 @@ corrected in this work (a small defect found in passing, `ai/META-DECISIONS.md`
   → Decision: the section "What string gets matched" says CLI-entered strings are what the user typed, `configure` included. That is wrong for config mode: `configure` is handled locally and never authorized. The page gains the config-mode permission table and loses the `configure` example
 - [ ] `docs/guide/operator-access-rbac.md` - the sample operator profile
   → Constraint: its `operator` profile allows `configure` and `commit`, which match no authorized string. It is rewritten to allow `config` in the edit section and keep the rest denied, and its test section gains a config-mode check
+- [ ] `docs/architecture/api/process-protocol.md` - the `// Design:` page of `internal/component/plugin/types.go`, where the nine strings now live
+  → Constraint: the strings are Go constants of the daemon's authorizer calls, not plugin protocol wire; the page describes no config permission string and gains none
+- [ ] `docs/architecture/config/syntax.md` - the `// Design:` page of `internal/component/config/infra/authz.go` (daemon-startup authorization extraction)
+  → Constraint: the profile syntax is unchanged; AC-15 changes only which prefix entries the load-time check reports as unknown, a warning, never a refusal
 - [ ] `ai/doors/commands-cli.md` - editor and SSH boundaries
   → Constraint: trap "One surface fixed, the other not" (the web CLI and SSH `set` diverged once). The verb-to-permission mapping is declared once and both surfaces read it
 - [ ] `ai/doors/access-security.md` - who can run what
@@ -188,11 +202,11 @@ command authorization read them.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The defect is real at runtime, not only in the reading | Source read on 2026-11-19: the authorizer stops at the session factory | The spec is obsolete | `TestSSHEditorAuthorizesConfigVerbsOverPTY`, run red before the fix | unvalidated |
-| A-2 | No other layer refuses the session before the editor is built | No profile check between authentication and the editor was found | The defect is narrower than stated | Same test, red on the denied user's commit | unvalidated |
-| A-3 | Every config-mode mutation reaches `dispatchCommandWords` | `handleEnter` falls through to `executeCommand`; `top` recurses; pipes accept `show` only | A path bypasses the gate | `TestEveryMutatingEditorVerbHasAPermission` plus the `top` and operational-shortcut rows of the PTY test | unvalidated |
-| A-4 | The CLI package can read the permission strings without an import cycle or a tier refusal | `internal/component/cli` already imports `internal/component/plugin` and `plugin/server`; `internal/component/api` imports neither `cli` nor `web` | The strings move to `internal/component/plugin` instead of staying in `api` | `./le arch tier check` after the move | unvalidated |
-| A-5 | A nil authorizer reaches the factory only when the SSH server was built without one | `setSessionAuthorizer` stores nothing for nil; the hub passes the AAA bundle's authorizer | A permissive daemon would lose editing | AC-10 test with no `system.authorization` | unvalidated |
+| A-1 | The defect is real at runtime, not only in the reading | Source read on 2026-11-19: the authorizer stops at the session factory | The spec is obsolete | `TestSSHEditorAuthorizesConfigVerbsOverPTY`, run red before the fix | confirmed: with the factory's `SetConfigAuthorizer` call removed, `TestSSHEditorAuthorizesConfigVerbsOverPTY`, `TestSSHEditorAuthorizesNamedConfigurationOverPTY`, `TestSessionFactoryFailsClosedWithoutAuthorizer` and `test/plugin/session-editor-authorization.ci` go red; restored, green |
+| A-2 | No other layer refuses the session before the editor is built | No profile check between authentication and the editor was found | The defect is narrower than stated | Same test, red on the denied user's commit | confirmed: the same red proof as A-1; nothing between authentication and the editor refused the denied user |
+| A-3 | Every config-mode mutation reaches `dispatchCommandWords` | `handleEnter` falls through to `executeCommand`; `top` recurses; pipes accept `show` only | A path bypasses the gate | `TestEveryMutatingEditorVerbHasAPermission` plus the `top` and operational-shortcut rows of the PTY test | confirmed: `TestEditorGateRefusesBeforeHandler` covers `top set`, `top top set` and the operational shortcut; `TestEveryMutatingEditorVerbHasAPermission` reads the dispatch switch |
+| A-4 | The CLI package can read the permission strings without an import cycle or a tier refusal | `internal/component/cli` already imports `internal/component/plugin` and `plugin/server`; `internal/component/api` imports neither `cli` nor `web` | The strings move to `internal/component/plugin` instead of staying in `api` | `./le arch tier check` after the move | broken, fallback taken: `docs/architecture/core-design.md` section 19 does not allow `cli` to import `api`, so the nine strings moved to `internal/component/plugin/types.go` and `api.ConfigAuth*` was deleted |
+| A-5 | A nil authorizer reaches the factory only when the SSH server was built without one | `setSessionAuthorizer` stores nothing for nil; the hub passes the AAA bundle's authorizer | A permissive daemon would lose editing | AC-10 test with no `system.authorization` | confirmed: the AC-10 subtest of the PTY test is green with no `system.authorization` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -219,25 +233,37 @@ command authorization read them.
 | SSH PTY session, edit mode, denying profile, typed `set` and `commit` | → | `buildSessionModelFactory` installs the authorizer; `dispatchCommandWords` refuses | `TestSSHEditorAuthorizesConfigVerbsOverPTY` |
 | SSH PTY session naming a stored configuration | → | the same gate with the name suffix | `TestSSHEditorAuthorizesNamedConfigurationOverPTY` |
 | Web CLI bar `set` | → | `terminalAuthCommand` reading the shared mapping | `TestTerminalAuthCommandReadsSharedMapping`, with the existing web terminal authorization tests unchanged and green |
+| Running daemon, `le test fixture plugin/session-editor` driving `ze config edit` over a PTY | → | the SSH session factory and the dispatch gate | `test/plugin/session-editor-authorization.ci` |
+| Profile load (`extractAuthzConfig`, `internal/component/config/infra/authz.go`) | → | `validateMatchEntries` reading `unknownMatchEntries` | `TestUnknownMatchEntriesKnowsConfigPermissions` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | User with the built-in `read-only` profile, SSH session in edit mode on the daemon's configuration, types `set system host-name x` | The line answers with an error that opens with "command restricted by access control", names `config set`, and ends with a fix line; the candidate shows no change | `edit`, `up`, `top`, `show`, `who`, `option`, `help` and `run show version` answer as before, because reading the configuration is not an edit and the web terminal leaves them ungated |
+| AC-1 | User with a `read-only` profile (as the built-in describes: the edit section denied), SSH session in edit mode on the daemon's configuration, types `set system host-name x` | The line answers with an error that opens with "command restricted by access control", names `config set`, and ends with a fix line; the candidate shows no change | `edit`, `up`, `top`, `show`, `who`, `option`, `help` and `run show version` answer as before, because reading the configuration is not an edit and the web terminal leaves them ungated |
 | AC-2 | Same user types `commit` | Refused with the same message naming `config commit`; the running configuration and the store are unchanged | Navigation as in AC-1 |
 | AC-3 | Same user in command mode types `set system host-name x` (the shortcut into config mode) | The session moves to config mode and the line is refused as in AC-1 | The mode switch itself, because `configure` changes nothing |
 | AC-4 | Same user types `top set system host-name x` | Refused as in AC-1 | `top show` answers, judged as `show` |
 | AC-5 | Each mutating editor verb: `set`, `activate`, `delete`, `deactivate`, `commit`, `discard`, `disconnect`, `rollback`, `rename`, `copy`, `insert`, `save`, `load` | Each maps to the permission string the web terminal used for it before this change (`config set`, `config delete`, `config commit`, `config discard`, `config rollback`, `config rename`, `config add`, `config save`), and the web terminal and the SSH editor read the same table | Every other verb maps to no permission, because none of them changes the candidate or the store |
-| AC-6 | User with the `admin` profile, same session, `set system host-name x` then `commit` | Both succeed and `show config running` over SSH exec reports host-name `x` | None refused, because the profile allows the edit section |
+| AC-6 | User with an `admin` profile (as the built-in describes: every section allowed), same session, `set system host-name x` then `commit` | Both succeed and `show config running` over SSH exec reports host-name `x` | None refused, because the profile allows the edit section |
 | AC-7 | Profile whose edit section is `default-action deny` with allow entries `config set` and `config commit` | `set` and `commit` succeed and the running configuration changes; `delete system host-name` is refused naming `config delete` | `set` and `commit` survive, because the profile allows exactly them: per-verb granularity |
 | AC-8 | Session naming stored configuration `client-edge.conf` (declared to fleet-6's check), user whose profile allows the edit section by default with a deny entry `config commit client-edge.conf` | `set` succeeds in the candidate; `commit` is refused naming `config commit client-edge.conf`; the stored bytes of `client-edge.conf` are unchanged; in a second session on the daemon's own configuration the same user's `commit` succeeds | The daemon's own configuration and `set` on the named one survive, because the deny entry names the file and the commit verb only |
 | AC-9 | `admin` user, session naming `client-edge.conf`, `set` then `commit` | The stored bytes of `client-edge.conf` change to include the edit | None refused |
 | AC-10 | Daemon with no `system.authorization`, any authenticated user, `set` then `commit` | Both succeed and the running configuration changes | Every verb, because an unconfigured daemon is documented as permissive |
 | AC-11 | SSH session whose connection carries no session authorizer | Every mutating verb is refused with the access-control message | Navigation and display, as in AC-1, because they change nothing |
-| AC-12 | Attached console (`ze start --cli`) and offline `ze config edit`, `set` then `commit` | Both succeed as today | Every verb, because those surfaces authenticate nobody and run as the local user |
+| AC-12 | Attached console (`ze start --cli`), and `ze config edit` in file mode (`-f`) or backup mode (`--backup`), `set` then `commit` | Both succeed as today | Every verb, because those surfaces authenticate nobody and run as the local user. Plain `ze config edit` is not among them: it opens an SSH session (`runStoredEditor`) and is authorized like one |
 | AC-13 | `admin` user runs `commit confirmed 1`, then the profile is reloaded to deny the edit section, then the window expires | The daemon rolls back to the previous configuration | The automatic rollback, because it is the daemon's action and no verb was typed |
 | AC-14 | The RBAC guide's corrected `operator` profile, applied as written | Over SSH that user can `set` and `commit` a change in config mode, and is refused `clear interface counters all` | The `run` section's allows, as the sample states |
+| AC-15 | A profile whose edit entries are `config`, `config set`, `config commit` and `config commit client-edge.conf` is loaded | The profile loads, the four entries are reported known by `unknownMatchEntries`, and they authorize as written (a session's `config commit client-edge.conf` is matched by the `config commit client-edge.conf` entry) | A real unknown entry (`confg set`, `config frobnicate`, `config commits`) still warns, because the check exists to catch typos |
+
+The built-in `read-only` and `admin` profiles (`builtinReadOnlyProfile`,
+`builtinAdminProfile` in `internal/component/authz/authz.go`) are never
+installed outside tests, so the live store holds only the profiles the
+configuration declares. The tests of AC-1 and AC-6, the Go PTY tests and the
+`.ci` alike, therefore declare `read-only` and `admin` in their configuration.
+That no shipped path installs the built-ins is journal `unwired-feature`
+2026-09-05 (the `builtinReadOnlyProfile` row), owned by
+`plan/release/fixes/spec-wire-or-delete-unreached-code.md`.
 
 ## End-to-End User Stories
 
@@ -259,6 +285,9 @@ command authorization read them.
 | `TestEditorWithoutAuthorizerKeepsEveryVerb` | `internal/component/cli/config_permission_test.go` | AC-12: a model with no config authorizer runs `set` and `commit` | |
 | `TestSessionFactoryFailsClosedWithoutAuthorizer` | `cmd/ze/hub/session_factory_test.go` | AC-11: a nil session authorizer refuses `set` | |
 | `TestTerminalAuthCommandReadsSharedMapping` | `internal/component/web/cli_terminal_test.go` | AC-5: the web terminal's answer for every verb equals the CLI table | |
+| `TestUnknownMatchEntriesKnowsConfigPermissions` | `internal/component/config/infra/authz_match_test.go` | AC-15: `config`, `config set`, `config commit` and `config commit client-edge.conf` are known entries | |
+| `TestUnknownMatchEntriesReportsUnknownEntry` | `internal/component/config/infra/authz_match_test.go` | AC-15 survivors: a misspelt or invented entry is still reported | |
+| `TestUnknownMatchEntriesNeedsWordBoundary` | `internal/component/config/infra/authz_match_test.go` | AC-15 survivors: `config commits` does not reach `config commit` at a word boundary and is reported | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -272,13 +301,19 @@ command authorization read them.
 | `TestSSHEditorAuthorizesNamedConfigurationOverPTY` | `cmd/ze/hub/session_authz_test.go` (`ze_ssh`) | AC-8 and AC-9 through a PTY session that sets the configuration name | |
 | `TestConfirmedRollbackSurvivesLostPermission` | `cmd/ze/hub/session_authz_test.go` (`ze_ssh`) | AC-13 | |
 | `test/plugin/rbac-ssh-only-enforced.ci` | existing | Header updated: it no longer says interactive config mode is untested, and points at the Go PTY tests | |
+| `test/plugin/session-editor-authorization.ci` | new, promoted from `test/draft/plugin/` after its draft and stress runs | AC-1, AC-2, AC-6 against a running daemon: `viewer` (profile `read-only`, edit default deny) types `set bgp router-id 9.9.9.9` and `commit now` in the SSH editor and both are refused naming `config set` and `config commit`, while `show bgp` still answers and `ze cli -c "show bgp"` keeps 1.2.3.4; `admin` (profile `admin`) sets and commits 5.6.7.8 and `show bgp` reports it; the saved file holds 5.6.7.8 and never 9.9.9.9 | |
 
-The functional runner drives `ze cli -c`, which runs one operational command
-and has no terminal, so a `.ci` cannot reach the interactive editor. The PTY
-tests run the real SSH server, the real session factory and the real
-authorization store over a real SSH connection, which is the operator's entry
-point (the harness exists: `cmd/ze/hub/infra_history_owner_test.go` opens a PTY
-session against a built SSH server).
+A `.ci` reaches the interactive editor through
+`le test fixture plugin/session-editor` (`docs/functional-tests.md`, "Driving
+the SSH session editor from a script"), which opens `ze config edit` over a PTY
+against the running daemon, so the new `.ci` proves AC-1, AC-2 and AC-6 end to
+end. The Go PTY tests stay for what the fixture cannot express: the named
+stored configuration (AC-8, AC-9) and the confirmed-commit rollback after the
+profile is reloaded (AC-13). They run the real SSH server, the real session
+factory and the real authorization store over a real SSH connection (the
+harness: `cmd/ze/hub/infra_history_owner_test.go` opens a PTY session against
+a built SSH server). The profiles AC-1 and AC-6 use are declared in each
+test's configuration (see the note under the Acceptance Criteria).
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -290,7 +325,12 @@ session against a built SSH server).
 - `internal/component/cli/model.go` - the config authorizer field and setter; the configuration name it appends
 - `internal/component/web/cli_terminal.go` - `terminalAuthCommand` derives from the CLI table
 - `internal/component/web/handler_config.go` - the `webCommandConfig*` literals give way to the shared declaration
-- `internal/component/api/types.go` - the four missing strings join the five; or all nine move to `internal/component/plugin` if A-4 fails
+- `internal/component/plugin/types.go` - the nine config permission strings (`ConfigAuth*`) and `ConfigAuthStrings`, beside `UnauthorizedMessage` (A-4 broken, fallback taken)
+- `internal/component/api/types.go` - the `ConfigAuth*` block deleted
+- `internal/component/api/rest/server.go`, `internal/component/api/grpc/server.go` - read `plugin.ConfigAuth*`
+- `cmd/ze/hub/config_upload_ssh.go`, `cmd/ze/hub/config_upload_ssh_test.go`, `cmd/ze/hub/auth_e2e_test.go` - read `plugin.ConfigAuth*`
+- `internal/component/cli/model_test.go` - `knownModelFields` names the model's two new fields, `configAuthorizer` and `configName`
+- `internal/component/config/infra/authz.go` - `unknownMatchEntries` knows the config permission strings (AC-15)
 - `cmd/ze/hub/session_factory.go` - install the authorizer (wrapped by `sshSessionPolicy`) with the user, the remote address and the configuration name
 - `cmd/ze/hub/session_factory_test.go` - mutating cases pass an allowing authorizer (R-2)
 - `test/plugin/rbac-ssh-only-enforced.ci` - header only
@@ -301,11 +341,17 @@ session against a built SSH server).
 - `ai/digests/cli-editor.md` - the dispatch flow gains the gate
 - `docs/architecture/config/yang-config-design.md` - the `// Design:` page of `internal/component/cli/model_commands.go`: its config editor section gains the per-verb authorization of an SSH session
 - `docs/architecture/api/architecture.md` - the `// Design:` page of `internal/component/api/types.go` and `internal/component/api/rest/auth.go`: the config session permission strings are now shared with the editor and the web terminal, and the four former web literals join them
+- `docs/architecture/cli/error-surface.md` - the editor's access-control refusal
+- `docs/architecture/web-interface.md` - the web terminal reads the editor's verb table
+- `docs/architecture/appliance/remote-operations.md` - the SSH upload's permission string now comes from `plugin`
+- `ai/digests/api-ipc.md` - the strings moved out of `api`
 
 ## Files to Create
 - `internal/component/cli/config_permission.go` - the verb-to-permission table, the name suffix, the refusal
 - `internal/component/cli/config_permission_test.go` - unit tests above
 - `cmd/ze/hub/session_authz_test.go` - the PTY tests
+- `internal/component/config/infra/authz_match_test.go` - the AC-15 tests
+- `test/plugin/session-editor-authorization.ci` - AC-1, AC-2 and AC-6 against a running daemon
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -353,7 +399,7 @@ session against a built SSH server).
    - Verify: red for the denied rows, green for admin rows
 2. **Phase: Shared permission table** -- declare the nine strings once, the verb table in the CLI package, the web terminal reading it
    - Tests: `TestEveryMutatingEditorVerbHasAPermission`, `TestTerminalAuthCommandReadsSharedMapping`, existing web terminal tests
-   - Files: `config_permission.go`, `api/types.go`, `web/cli_terminal.go`, `web/handler_config.go`
+   - Files: `config_permission.go`, `plugin/types.go` (strings), `api/types.go` (block deleted), `api/rest/server.go`, `api/grpc/server.go`, `cmd/ze/hub/config_upload_ssh.go` and its test, `cmd/ze/hub/auth_e2e_test.go`, `web/cli_terminal.go`, `web/handler_config.go`
    - Verify: web tests unchanged and green; `./le arch tier check`
 3. **Phase: The gate** -- check in `dispatchCommandWords`, refusal text, name suffix
    - Tests: the unit tests of `config_permission_test.go`
@@ -362,6 +408,10 @@ session against a built SSH server).
    - Tests: PTY tests now green, `TestSessionFactoryFailsClosedWithoutAuthorizer`, `TestConfirmedRollbackSurvivesLostPermission`
    - Files: `session_factory.go`, `session_factory_test.go`
 5. **Phase: Docs** -- the guide pages, the architecture page, the digest and the `.ci` header, each edited as the phase that makes it wrong lands
+6. **Phase: Profile entry check (AC-15)** -- `unknownMatchEntries` accepts an entry that reaches a config permission string at a word boundary
+   - Tests: `TestUnknownMatchEntriesKnowsConfigPermissions`, `TestUnknownMatchEntriesReportsUnknownEntry`, `TestUnknownMatchEntriesNeedsWordBoundary`
+   - Files: `internal/component/config/infra/authz.go`, `authz_match_test.go`
+7. **Phase: Functional test** -- `test/plugin/session-editor-authorization.ci`, drafted under `test/draft/plugin/`, promoted after its draft and stress runs
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -405,6 +455,10 @@ session against a built SSH server).
 
 ## Design Insights
 
+- The editor's Update goroutine reads the editor while a dispatched command mutates it: the race detector reports it on any commit typed over. `dispatchQueue` orders commands, not Update's reads. Recorded in `plan/journal/per-request-state-on-a-shared-object.md`, 2026-11-19, owned by `plan/release/fixes/spec-web-cli-config-one-off-defects.md`. The PTY tests wait for each answer before typing on, so they do not trip it.
+- `plugin.ConfigAuthStrings()` lists the nine constants a second time in the same file, because Go cannot enumerate constants. A constant added without its slice entry would be unknown to the profile entry check only: a false warning at load, never a wrong authorization verdict.
+- The permission strings are a contract with operators' profiles and with TACACS+ servers, which match on them. Renaming one breaks every profile and every server rule that names it.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -419,6 +473,7 @@ session against a built SSH server).
 
 ## Known Limitations
 - Completion still offers a verb the profile denies; it is refused on Enter, as in the web terminal.
+- The built-in `read-only` and `admin` profiles are never installed outside tests, so an operator declares them in the configuration. That is owned by `plan/release/fixes/spec-wire-or-delete-unreached-code.md` (journal `unwired-feature` 2026-09-05).
 
 ## Checklist
 
@@ -436,7 +491,7 @@ session against a built SSH server).
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread

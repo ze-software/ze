@@ -1,0 +1,124 @@
+# Test: the SSH session editor judges each config-mode change against the
+#       logged-in user's authorization profile, on a running daemon
+#
+# Question: does a user whose profile denies the edit section get refused
+# `set` and `commit` in the daemon's real SSH editor, while browsing still
+# answers, and does an `admin` user's change still commit? A unit test over the
+# editor model cannot decide it: the refusal exists only when the SSH session
+# factory installs the authorizer bound to the authenticated user's profiles
+# (cmd/ze/hub/session_factory.go, SetConfigAuthorizer), so only a session
+# opened through the daemon's SSH server reaches it.
+#
+# Flow:
+# 1. The daemon starts with SSH and `system authorization`: user `viewer` holds
+#    profile `read-only` (edit section default deny), user `admin` holds
+#    profile `admin` (both sections default allow). Both passwords are
+#    `testpass`, the fixture's.
+# 2. Session as `viewer`: `set bgp router-id 9.9.9.9` is refused naming
+#    `config set`; `show bgp` still prints the candidate's router-id; `commit
+#    now` is refused naming `config commit`; `ze cli -c "show bgp"` still
+#    reports the original router-id and never 9.9.9.9.
+# 3. Session as `admin`: `set bgp router-id 5.6.7.8` and `commit now` succeed,
+#    and `ze cli -c "show bgp"` reports 5.6.7.8.
+# 4. The saved configuration holds the admin's router-id and not the viewer's.
+#
+# The changed leaf is `bgp router-id`, not `system host`: no show command
+# reports the host (session-editor-commit-confirmed-system-host.ci, READBACK),
+# and `show bgp` lets each session read the applied state over SSH exec.
+# The profiles are declared here: the built-in profiles in
+# internal/component/authz/authz.go are not loaded into the live store.
+#
+# WAITS: the editor redraws only the cells that change, and both refusals open
+# with "command restricted by access control: config ", so `show bgp` runs
+# between them to give the second refusal a fresh line.
+#
+# VALIDATES: spec-ssh-editor-authorization AC-1 (a read-only user's `set` is
+#            refused with the access-control wording naming `config set`, and
+#            `show` still answers), AC-2 (its `commit` is refused naming
+#            `config commit` and the running configuration is unchanged) and
+#            AC-6 (an admin user's `set` and `commit` succeed), end to end
+#            through the daemon's real SSH editor.
+# PREVENTS: the fail-open where a user whose profile denies the edit section
+#           could change and commit the configuration through the SSH session
+#           editor, because the editor never consulted the profile.
+option=storage:value=disk
+option=timeout:value=60s
+
+tmpfs=session-editor-authorization.conf:terminator=EOF_CONF
+system {
+    authorization {
+        profile read-only {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action deny
+            }
+        }
+        profile admin {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action allow
+            }
+        }
+    }
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile admin
+        }
+        user viewer {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile read-only
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-authorization-viewer.script:terminator=EOF_VIEWER
+send set bgp router-id 9.9.9.9
+wait command restricted by access control: config set
+send show bgp
+wait router-id 1.2.3.4
+send commit now
+wait command restricted by access control: config commit
+cli show bgp
+has 1.2.3.4
+lacks 9.9.9.9
+EOF_VIEWER
+
+tmpfs=session-editor-authorization-admin.script:terminator=EOF_ADMIN
+send set bgp router-id 5.6.7.8
+send commit now
+wait Session committed: 1 change(s) applied
+cli show bgp
+has 5.6.7.8
+EOF_ADMIN
+
+cmd=foreground:seq=1:exec=ze start session-editor-authorization.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-authorization.conf session-editor-authorization-viewer.script user viewer:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 session-editor-authorization.conf session-editor-authorization-admin.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-authorization.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-authorization.conf:not-contains=9.9.9.9

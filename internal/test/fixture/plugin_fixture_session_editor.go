@@ -305,8 +305,17 @@ func sessionEditorClientEnv(ctx context.Context, port, user string) ([]string, e
 // A failure carries the editor transcript, so the .ci log shows the screen the
 // step was looking at.
 func sessionEditorRun(ctx context.Context, env []string, config string, steps []sessionEditorStep) error {
+	return sessionEditorRunIn(ctx, env, "", config, steps)
+}
+
+// sessionEditorRunIn is sessionEditorRun typed in dir, "" for the fixture's
+// own directory. `ze config edit <name>` finds its store in the folder of the
+// path it is given (resolve.StoreDir), so a bare stored name reaches the store
+// of the directory it is typed in.
+func sessionEditorRunIn(ctx context.Context, env []string, dir, config string, steps []sessionEditorStep) error {
 	cmd := exec.CommandContext(ctx, "ze", "config", "edit", config) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
+	cmd.Dir = dir
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 160})
 	if err != nil {
 		return err

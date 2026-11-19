@@ -7,7 +7,9 @@ package main
 import (
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -151,5 +153,45 @@ func TestConnectTimeoutFlag(t *testing.T) {
 	}
 	if _, missing := zeParseGlobalFlags([]string{"--connect-timeout"}); missing == 0 {
 		t.Error("the flag with no value was accepted")
+	}
+}
+
+// TestManagedClientBuiltFromThePointedVersion proves that the daemon's builder
+// reads the configuration the device runs, the version the active pointer
+// names, and not the plain mirror: the pointed version names hub client
+// edge-01, and the mirror, rewritten raw after it, names no hub client.
+//
+// VALIDATES: the hub client is built from the version that `request fleet
+// enable` checked and that the fleet status reports.
+// PREVENTS: an enable that passes its check and then builds no client, or a
+// client built for another hub than the one the device runs.
+func TestManagedClientBuiltFromThePointedVersion(t *testing.T) {
+	store, err := storage.Create(t.TempDir())
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
+	const configName = "ze.conf"
+	pointed := []byte(managedClientConfigText)
+	if writeErr := store.WriteFile(configName, pointed, 0); writeErr != nil {
+		t.Fatalf("write config: %v", writeErr)
+	}
+	if _, _, ensureErr := storage.EnsureActiveVersion(store, configName, pointed, time.Now().Add(-time.Minute)); ensureErr != nil {
+		t.Fatalf("EnsureActiveVersion: %v", ensureErr)
+	}
+	if writeErr := store.WriteFile(configName, []byte(standaloneConfigText), 0); writeErr != nil {
+		t.Fatalf("rewrite the mirror: %v", writeErr)
+	}
+	if active, readErr := storage.ReadActiveConfig(store, configName); readErr != nil || string(active) != string(pointed) {
+		t.Fatalf("the raw write moved the active pointer: %q, %v", active, readErr)
+	}
+
+	client, err := extractManagedClientConfig(store, configName)
+
+	if err != nil {
+		t.Fatalf("the builder built no hub client from a pointed version that names one: %v", err)
+	}
+	if client.Name != "edge-01" {
+		t.Errorf("hub client %q, want edge-01 from the pointed version", client.Name)
 	}
 }

@@ -346,6 +346,7 @@ verbs and their envelopes are unchanged.
 | `TestFreezeRefusesOperatorStaging` | `internal/component/config/storage/freeze_test.go` | Staging the device's own configuration is refused while managed, and no version is written | |
 | `TestFreezeAdmitsMachineEntry` | `internal/component/config/storage/freeze_test.go` | The machine entry stages while managed | |
 | `TestFreezeAdmitsOtherConfig` | `internal/component/config/storage/freeze_test.go` | Another configuration name is admitted while managed (R-7) | |
+| `TestManagedHubImportsDeclaredClientConfig` | `cmd/ze/hub/managed_hub_freeze_test.go` | A managed hub bound to its own stored configuration imports a declared client's configuration through `update data config`, records the version and notifies the client, while its own configuration is refused by the freeze (AC-19) | |
 | `TestFreezeAdmitsFileSource` | `internal/component/config/storage/freeze_test.go` | A file-sourced handle is admitted | |
 | `TestFreezeScopeStoppedTool` | `internal/component/config/storage/freeze_test.go` | An unbound handle scopes by the instance name (A-4) | |
 | `TestFreezeRefusesOnUnreadableFlag` | `internal/component/config/storage/freeze_test.go` | A flag that cannot be read refuses, naming the key (R-8) | |
