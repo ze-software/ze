@@ -243,7 +243,7 @@ require (
 	github.com/nishanths/exhaustive v0.17.1 // indirect
 	github.com/nishanths/predeclared v0.3.1 // indirect
 	github.com/nunnatsa/ginkgolinter v0.24.0 // indirect
-	github.com/opencontainers/selinux v1.13.1 // indirect
+	github.com/opencontainers/selinux v1.15.1 // indirect
 	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/pires/go-proxyproto v0.16.0 // indirect
