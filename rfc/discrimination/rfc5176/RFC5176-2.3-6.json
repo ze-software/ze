@@ -81,7 +81,7 @@
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed",
     "unit-sha": "19ee5a879def1a91",
-    "claim-sha": "027876badb2fcdbf",
+    "claim-sha": "cb8069e21f845265",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
     "producer-sha": "0c10cd18a01493f0",

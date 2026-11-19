@@ -862,7 +862,7 @@ func TestIPv6FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
 
 	// RFC 8956 Section 2: the pair carried in the Multiprotocol capability MUST be
 	// (AFI=2, SAFI=133) for IPv6 Flow Specification rules.
-	// RFC requirement: RFC8956-2-1 positive -- ipv6/flow negotiates the (AFI 2, SAFI 133) Multiprotocol capability (§2)
+	// RFC requirement: RFC8956-2-1 positive -- the flowspec plugin registers ipv6/flow, the family resolves to (AFI 2, SAFI 133), and the Multiprotocol capability built from it is Code 1 with AFI 2 and SAFI 133; OPEN itself is not run (§2)
 	mp := &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}
 	assert.Equal(t, capability.CodeMultiprotocol, mp.Code(), "must be a Multiprotocol capability (Code 1)")
 	assert.Equal(t, capability.AFI(2), mp.AFI, "IPv6 FlowSpec MP capability AFI must be 2")

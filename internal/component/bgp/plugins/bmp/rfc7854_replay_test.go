@@ -64,7 +64,7 @@ func primeReplayCollector(t *testing.T, bp *BMPPlugin) (*senderSession, *recordi
 	return ss, conn
 }
 
-// RFC requirement: RFC7854-3.3-1 positive -- after reconnect, Peer Up precedes the current per-peer snapshot and IPv4 and empty IPv6 each receive EOR after its routes.
+// RFC requirement: RFC7854-3.3-1 positive -- a collector attached after the peer's routes arrived receives Peer Up, then the one route surviving two advertisements and a withdrawal, then an IPv4 EOR and an empty IPv6 EOR.
 // The fixture receives two advertisements and a withdrawal while disconnected;
 // the collector must learn only the surviving route before completion.
 func TestRFC7854AdjReplayEndsEachFamily(t *testing.T) {

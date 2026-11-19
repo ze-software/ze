@@ -161,20 +161,43 @@ func TestRFC2866LengthPaddingBoundaryIsTheLengthField(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-3-5 positive -- a datagram shorter than its Length
-// field claims is silently discarded at the entry point: the client's read loop
-// drops it, so the exchange never completes and the record is retransmitted
-// rather than acknowledged on a truncated reply.
+// RFC requirement: RFC2866-3-5 positive -- an Accounting-Response shorter than
+// its Length field claims is silently discarded: it never completes the
+// exchange and the client retransmits the record, so the server receives two
+// requests.
 func TestRFC2866ShortPacketSilentlyDiscarded(t *testing.T) {
 	secret := []byte("acct-secret")
 	overstate := func(resp []byte) []byte {
 		binary.BigEndian.PutUint16(resp[2:4], uint16(len(resp)+8))
 		return resp
 	}
-	addr, _ := startScriptedAcctServer(t, secret, overstate)
+	addr, ids := startScriptedAcctServer(t, secret, overstate)
 
-	if acctExchange(t, addr, secret) {
+	// Two attempts rather than acctExchange's one, so a retransmission is
+	// observable: a client that ended the exchange on the short reply instead
+	// of discarding it would send the record once.
+	client, err := NewClient(ClientConfig{
+		Servers: []Server{{Address: addr, SharedKey: secret}},
+		Timeout: 200 * time.Millisecond,
+		Retries: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSilent(client)
+
+	pkt := &Packet{
+		Code: CodeAccountingReq,
+		Attrs: []Attr{
+			{Type: AttrAcctStatusType, Value: AttrUint32(AcctStatusStart)},
+			{Type: AttrAcctSessionID, Value: AttrString("1-2-3")},
+		},
+	}
+	if _, sendErr := client.SendToServers(context.Background(), pkt); sendErr == nil {
 		t.Fatal("a packet shorter than its Length field MUST be silently discarded")
+	}
+	if got := len(ids()); got != 2 {
+		t.Fatalf("requests the server received: got %d, want 2 (the record and its retransmission)", got)
 	}
 }
 

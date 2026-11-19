@@ -221,14 +221,18 @@ func TestRekeyFloorIsNotNarrowed(t *testing.T) {
 	policy := []tsPair{{I: sel(t, "10.0.0.0/8"), R: sel(t, "10.0.0.0/8")}}
 
 	// RFC requirement: RFC7296-2.9.2-1 positive -- "Thus, the new SA MUST NOT have narrower
-	// selectors than the original" (RFC 7296 S2.9.2, rfc/full/rfc7296.txt:2539-2540). With a
-	// floor set, the answer covers the in-use scope.
-	got, ok := narrowSelectors(proposedI, proposedR, policy, inUse)
+	// selectors than the original" (RFC 7296 S2.9.2, rfc/full/rfc7296.txt:2539-2540). The
+	// peer proposes the wider /8 pair, and policy has since narrowed the TSr side to a /24
+	// inside the /16 in use. Without the floor the answer's TSr would be that /24, a new SA
+	// narrower than the original; with it, the answer covers the in-use scope on both sides.
+	rNarrowedPolicy := []tsPair{{I: sel(t, "10.0.0.0/8"), R: sel(t, "10.2.1.0/24")}}
+	got, ok := narrowSelectors(proposedI, proposedR, rNarrowedPolicy, inUse)
 	if !ok {
 		t.Fatal("rekey narrowing refused a proposal that covers the scope in use")
 	}
-	if !containsNet(got[0].I.Net, inUse[0].I.Net) {
-		t.Errorf("rekey answer TSi %v does not cover the in-use scope %v", got[0].I.Net, inUse[0].I.Net)
+	if !containsNet(got[0].I.Net, inUse[0].I.Net) || !containsNet(got[0].R.Net, inUse[0].R.Net) {
+		t.Errorf("rekey answer %v <-> %v does not cover the in-use scope %v <-> %v; the new SA is narrower than the original",
+			got[0].I.Net, got[0].R.Net, inUse[0].I.Net, inUse[0].R.Net)
 	}
 
 	// RFC requirement: RFC7296-2.9.2-1 negative -- the discriminator. A rekey proposing

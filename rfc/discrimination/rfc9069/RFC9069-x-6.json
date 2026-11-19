@@ -14,7 +14,7 @@
     "rid": "RFC9069-x-6",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader",
-    "unit-sha": "3c9c1d07581b6047",
+    "unit-sha": "ad02af05cb529fd0",
     "claim-sha": "bd292ffef4386ef3",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",

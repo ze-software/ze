@@ -1,6 +1,38 @@
 [
   {
     "rid": "RFC7296-3.3.6-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResIKESANeverSelectsDHGroupNone",
+    "unit-sha": "3f4fe646e8040080",
+    "claim-sha": "6ad3d2022eab263a",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptDHGroup",
+    "producer-sha": "06a7760effff5673",
+    "break": "line 346: \"forIKESA \u0026\u0026 remote.ID == dhGroupNone\" -\u003e \"false\"",
+    "paired": [
+      {
+        "producer": "internal/component/ike/crypto/proposal.go::ikeProposalComplete",
+        "producer-sha": "e3e9e2fd8c069126",
+        "break": "line 379: \"p.DHGroup.ID == dhGroupNone\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/ike/crypto/proposal.go::acceptDHGroup",
+        "break": "line 346: \"forIKESA \u0026\u0026 remote.ID == dhGroupNone\" -\u003e \"false\"",
+        "seconds": 11,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.527s"
+      },
+      {
+        "producer": "internal/component/ike/crypto/proposal.go::ikeProposalComplete",
+        "break": "line 379: \"p.DHGroup.ID == dhGroupNone\" -\u003e \"false\"",
+        "seconds": 8,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.417s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC7296-3.3.6-8",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResSelectedDHGroupNoneOmitsKEFromTheResponse",
     "unit-sha": "f2ffa675c3de3fd6",

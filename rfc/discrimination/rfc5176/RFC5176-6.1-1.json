@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded",
     "unit-sha": "9e53758fd1417705",
-    "claim-sha": "3fea1b1c4b3d6ee6",
+    "claim-sha": "ab1fa130c59f045f",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::isAllowedSource",
     "producer-sha": "a5b8b7057562626a",

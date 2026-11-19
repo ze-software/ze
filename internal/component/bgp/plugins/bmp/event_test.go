@@ -397,17 +397,16 @@ func TestParseIPIntoIPv4(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7854-x-5 negative -- native IPv6 retains its full address
-// rather than receiving the twelve-octet zero padding used for IPv4.
+// RFC requirement: RFC7854-x-5 negative -- native IPv6 2001:db8::1 fills all sixteen
+// octets with its full address, each octet compared, rather than receiving the
+// twelve-octet zero padding used for IPv4.
 func TestParseIPIntoIPv6(t *testing.T) {
 	var addr [16]byte
 	parseIPInto("2001:db8::1", &addr)
 
-	if addr[0] != 0x20 || addr[1] != 0x01 {
-		t.Errorf("wrong IPv6 prefix: %x", addr[0:2])
-	}
-	if addr[15] != 1 {
-		t.Errorf("wrong IPv6 last byte: %d", addr[15])
+	want := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}
+	if addr != want {
+		t.Errorf("IPv6 address field = % x, want % x", addr[:], want[:])
 	}
 }
 

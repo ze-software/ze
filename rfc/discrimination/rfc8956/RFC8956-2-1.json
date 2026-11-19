@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv6FlowSpecNegotiatesMultiprotocolCapability",
     "unit-sha": "761ad1442668b265",
-    "claim-sha": "04f511ca45d7ff92",
+    "claim-sha": "0615f5a704668c5d",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/nlri/flowspec/plugin.go::flowSpecFamilies",
     "producer-sha": "47cfa461a50c5c7f",

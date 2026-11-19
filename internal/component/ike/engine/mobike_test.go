@@ -709,11 +709,21 @@ func TestMobikeAuthNegotiation(t *testing.T) {
 
 // TestMobikeAuthWithoutNATTSocketKeepsBaseIKE contrasts the no-NAT MOBIKE float
 // with an ordinary PSK exchange whose transport cannot negotiate the extension.
-// RFC requirement: RFC4555-x-2 negative -- without a NAT-T socket, the generated
-// IKE_AUTH contains no MOBIKE_SUPPORTED and the base handshake still authenticates.
-// MUTATION: offer MOBIKE when mobikeAvailable has no usable NAT-T socket.
+// RFC requirement: RFC4555-x-2 negative -- without a NAT-T socket, so without NAT
+// Traversal support, neither SA moves its local port to 4500 and neither generated
+// IKE_AUTH contains MOBIKE_SUPPORTED, while the base handshake still authenticates.
+// MUTATION: offer MOBIKE, or float to port 4500, when mobikeAvailable has no usable
+// NAT-T socket.
 func TestMobikeAuthWithoutNATTSocketKeepsBaseIKE(t *testing.T) {
 	ini, resp, _ := establishPSK(t)
+	for _, side := range []struct {
+		role string
+		sa   *SA
+	}{{"initiator", ini}, {"responder", resp}} {
+		if side.sa.localPort == transport.NATTPort {
+			t.Errorf("%s floated to port %d without NAT Traversal support", side.role, transport.NATTPort)
+		}
+	}
 	for _, message := range []struct {
 		receiver *SA
 		raw      []byte

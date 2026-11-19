@@ -359,10 +359,14 @@ func TestResInitiatorRejectsKEGroupOutsideTheAcceptedOffer(t *testing.T) {
 // property that makes this true: acceptDHGroup rejects NONE outright for an IKE SA,
 // and a proposal offering only NONE is incomplete for the same reason.
 // PREVENTS: reading conformance out of the absence of a code path. The obligation is
-// met because a real guard refuses NONE, not because nobody wrote the branch; delete
-// that guard and this test fails while the KE-omission branch is still missing.
-// RFC requirement: RFC7296-3.3.6-8 negative -- acceptDHGroup (crypto/proposal.go)
-// refuses group NONE for an IKE SA, so a responder never selects it.
+// met because a real guard refuses NONE, not because nobody wrote the branch. Two guards
+// refuse it, the completeness check (ikeProposalComplete) and acceptDHGroup, so the test
+// asks for the group-NONE refusal itself: delete both and the offer is refused for another
+// reason, which no longer satisfies it. The control shows the same proposal in group 14 is
+// accepted, so the refusal is the group and not a broken fixture.
+// RFC requirement: RFC7296-3.3.6-8 negative -- NegotiateIKE refuses an IKE proposal
+// offering only Diffie-Hellman group NONE with crypto.ErrDHGroupNone, and accepts the
+// same proposal in group 14, so a responder never selects NONE for an IKE SA.
 func TestResIKESANeverSelectsDHGroupNone(t *testing.T) {
 	local := ipsec.IKEGroup{
 		Name: "test-ike",
@@ -379,8 +383,15 @@ func TestResIKESANeverSelectsDHGroupNone(t *testing.T) {
 			{Type: wire.TransformTypeDH, ID: wire.DHGroupNone},
 		},
 	}}
-	if _, err := crypto.NegotiateIKE(wireProposalsToIKE(offer), buildIKEProposals(local)); err == nil {
-		t.Fatal("an IKE proposal offering only Diffie-Hellman group NONE was accepted; RFC 7296 Section 3.3.6's omit-KE case would then be reachable and is unimplemented")
+	if _, err := crypto.NegotiateIKE(wireProposalsToIKE(offer), buildIKEProposals(local)); !errors.Is(err, crypto.ErrDHGroupNone) {
+		t.Fatalf("an IKE proposal offering only Diffie-Hellman group NONE drew %v, want the group-NONE refusal (crypto.ErrDHGroupNone); "+
+			"RFC 7296 Section 3.3.6's omit-KE case would then be reachable for an IKE SA and is unimplemented", err)
+	}
+
+	// Control: the same proposal in group 14, the group local policy names, is accepted.
+	offer[0].Transforms[3].ID = 14
+	if _, err := crypto.NegotiateIKE(wireProposalsToIKE(offer), buildIKEProposals(local)); err != nil {
+		t.Fatalf("the same IKE proposal in group 14 was refused (%v); the fixture is broken, so the NONE refusal above proves nothing", err)
 	}
 }
 

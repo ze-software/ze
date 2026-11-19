@@ -444,8 +444,9 @@ func TestRFC5176UnsupportedAttributeNAKed(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5176-2.3-6 positive -- a CoA-Request whose authorization change
-// cannot be carried out is answered with a CoA-NAK, and no change is made.
+// RFC requirement: RFC5176-2.3-6 positive -- a CoA-Request whose rate change has no
+// route to the shaper (the listener holds no event bus) is answered with a CoA-NAK
+// carrying Error-Cause 506.
 // RFC requirement: RFC5176-2.3-6 negative -- the same request against a working route
 // is answered with a CoA-ACK and the change is made, so the NAK is specific to the
 // failure rather than the shape of the request.
@@ -647,11 +648,13 @@ func TestRFC5176MessageAuthenticatorZeroesBothFields(t *testing.T) {
 	sendRawCoAPacketExpectNoResponse(t, addr, wrong)
 }
 
-// RFC requirement: RFC5176-3.5-5 positive -- every NAK this listener emits carries an
-// Error-Cause in the 400-599 range, which RFC 5176 Section 3.5 reserves for the fatal
-// errors a NAK reports.
-// RFC requirement: RFC5176-3.5-5 negative -- no CoA-ACK or Disconnect-ACK carries an
-// Error-Cause at all, so no 400-499 or 500-599 value is ever sent within an ACK.
+// RFC requirement: RFC5176-3.5-5 positive -- the NAKs of five refusal paths (CoA for an
+// unknown session, CoA with no authorization change, CoA with an unsupported
+// Service-Type, Disconnect with an unsupported attribute, CoA with no Event-Timestamp)
+// each carry an Error-Cause in the 400-599 range, so none carries a 200-299 value.
+// RFC requirement: RFC5176-3.5-5 negative -- a successful CoA-Request's CoA-ACK and a
+// successful Disconnect-Request's Disconnect-ACK carry no Error-Cause at all, so neither
+// carries a 400-499 or 500-599 value.
 //
 // The table also refuses 201, 202 and 502 in any response. Those are the
 // RFC5176-3.5-6, 3.5-7 and 3.5-8 obligations, proven per row in
@@ -664,12 +667,14 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 	cases := []struct {
 		name  string
 		code  uint8
+		want  uint8
 		attrs []radius.Attr
 		stamp time.Time
 	}{
 		{
 			name: "coa unknown session",
 			code: radius.CodeCoARequest,
+			want: radius.CodeCoANAK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("99-99-1")},
 				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
@@ -679,6 +684,7 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 		{
 			name: "coa with no authorization change",
 			code: radius.CodeCoARequest,
+			want: radius.CodeCoANAK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 			},
@@ -687,6 +693,7 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 		{
 			name: "coa with an unsupported service-type",
 			code: radius.CodeCoARequest,
+			want: radius.CodeCoANAK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
@@ -697,6 +704,7 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 		{
 			name: "disconnect with an unsupported attribute",
 			code: radius.CodeDisconnectRequest,
+			want: radius.CodeDisconnectNAK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
@@ -706,14 +714,26 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 		{
 			name: "coa with no event-timestamp",
 			code: radius.CodeCoARequest,
+			want: radius.CodeCoANAK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
 			},
 		},
 		{
+			name: "coa that succeeds",
+			code: radius.CodeCoARequest,
+			want: radius.CodeCoAACK,
+			attrs: []radius.Attr{
+				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
+				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
+			},
+			stamp: time.Now(),
+		},
+		{
 			name: "disconnect that succeeds",
 			code: radius.CodeDisconnectRequest,
+			want: radius.CodeDisconnectACK,
 			attrs: []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 			},
@@ -722,10 +742,14 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 	}
 
 	sawNAK := false
-	sawACK := false
+	sawCoAACK := false
+	sawDisconnectACK := false
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := sendRawCoAPacket(t, addr, buildCoAPacket(t, tc.code, secret, tc.attrs, tc.stamp))
+			if resp.Code != tc.want {
+				t.Fatalf("response code: got %d, want %d", resp.Code, tc.want)
+			}
 			cause, present := errorCause(t, resp)
 
 			switch resp.Code {
@@ -738,7 +762,11 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 					t.Errorf("Error-Cause in a NAK: got %d, want 400-599", cause)
 				}
 			case radius.CodeCoAACK, radius.CodeDisconnectACK:
-				sawACK = true
+				if resp.Code == radius.CodeCoAACK {
+					sawCoAACK = true
+				} else {
+					sawDisconnectACK = true
+				}
 				if present {
 					t.Errorf("an ACK carries Error-Cause %d, want none", cause)
 				}
@@ -753,8 +781,9 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 			}
 		})
 	}
-	if !sawNAK || !sawACK {
-		t.Fatalf("the table must cover both replies: NAK seen %t, ACK seen %t", sawNAK, sawACK)
+	if !sawNAK || !sawCoAACK || !sawDisconnectACK {
+		t.Fatalf("the table must cover every reply: NAK seen %t, CoA-ACK seen %t, Disconnect-ACK seen %t",
+			sawNAK, sawCoAACK, sawDisconnectACK)
 	}
 }
 
@@ -805,9 +834,9 @@ func TestRFC5176IdentificationAttributesIdentifyOnly(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5176-6.1-1 positive -- a request from a source the listener does
-// not trust is silently discarded, and a listener trusting nobody discards every
-// request, so a failure to resolve a client address never opens the port.
+// RFC requirement: RFC5176-6.1-1 positive -- a Disconnect-Request from a loopback
+// source is silently discarded, and no session torn down, both by a listener that
+// trusts only 192.0.2.1 and by a listener whose allow list is empty.
 // RFC requirement: RFC5176-6.1-1 negative -- the same request from a trusted source is
 // answered, so the discard is specific to the source address.
 func TestRFC5176UntrustedSourceDiscarded(t *testing.T) {

@@ -233,9 +233,8 @@ func TestRFC2866AcctSessionIDPresentOnEveryRequest(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-5.5-3 negative -- the id a session accounts under is
-// the one genSessionID answered, and it is never empty, so no record can reach a
-// server with an Acct-Session-Id a billing system cannot join on.
+// RFC requirement: RFC2866-5.5-3 negative -- genSessionID answers a non-empty
+// Acct-Session-Id on each of 64 calls for the same tunnel and session.
 func TestRFC2866AcctSessionIDNeverEmpty(t *testing.T) {
 	acct := newRADIUSAcct()
 	for range 64 {

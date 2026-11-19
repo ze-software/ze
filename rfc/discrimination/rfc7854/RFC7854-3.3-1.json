@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily",
     "unit-sha": "d54d8528b833eff8",
-    "claim-sha": "9dba0b84522c1eda",
+    "claim-sha": "b2774b5392e67783",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/bmp/bmp_replay.go::replayPeerLocked",
     "producer-sha": "caaf533514be17a4",

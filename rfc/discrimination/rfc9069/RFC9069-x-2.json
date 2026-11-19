@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance",
     "unit-sha": "3c2f3296c7994a20",
-    "claim-sha": "112eaaf67366474d",
+    "claim-sha": "385ede2c41525fda",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::ensureLocRIBPeerUp",
     "producer-sha": "d556037e1e0efef2",

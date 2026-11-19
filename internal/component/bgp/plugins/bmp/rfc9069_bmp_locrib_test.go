@@ -72,18 +72,18 @@ const (
 
 func TestLocRIBPeerHeader(t *testing.T) {
 	// VALIDATES: RFC 9069 Section 5.1 PeerType=3 header: Peer Address zero, Peer
-	// AS the router's own ASN, BGP ID the router-id, and Flags=0 (F=0
-	// in-Loc-RIB; the reserved bits MUST be transmitted as 0).
+	// AS the router's own ASN, BGP ID the router-id, and Flags=0 (F=0, the
+	// Loc-RIB is not filtered; the reserved bits MUST be transmitted as 0).
 	ph := locRIBPeerHeader(localIdentity{asn: 4200000001, routerID: 0x0a141e01}, time.Time{})
 
 	if ph.PeerType != PeerTypeLocRIB {
 		t.Errorf("PeerType = %d, want %d (Loc-RIB)", ph.PeerType, PeerTypeLocRIB)
 	}
 	// RFC requirement: RFC9069-x-1 positive -- the Loc-RIB PeerType=3 per-peer header is
-	// built with Flags 0, so the V/L/A/O flags are never set (only F, whose 0 value means
-	// "route is in the Loc-RIB").
+	// built with Flags 0, so its seven reserved bits are transmitted as 0 (and F, the
+	// filtered flag, is clear).
 	if ph.Flags != 0 {
-		t.Errorf("Flags = %#x, want 0 (RFC 9069: V/L/A/O MUST be 0)", ph.Flags)
+		t.Errorf("Flags = %#x, want 0 (RFC 9069 Section 4.2: reserved bits MUST be 0)", ph.Flags)
 	}
 	// RFC requirement: RFC9069-x-6 positive -- "Peer Autonomous System (AS): Set to the
 	// primary router BGP autonomous system number (ASN)." The value is a 4-octet ASN,
@@ -537,8 +537,9 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 // one-Peer-Up guard makes this fail on peerUps=2.
 // RFC requirement: RFC9069-x-2 positive -- Loc-RIB monitoring is per RIB instance, not per
 // BGP peer: two best-change batches standing in for best paths selected from two different
-// peers emit exactly ONE Loc-RIB Peer Up (the one-shot BMPPlugin.locRIBUp guard), never one
-// Peer Up per peer.
+// peers emit exactly ONE Loc-RIB Peer Up on the collector session, never one Peer Up
+// per peer. (The one-shot that limits it is senderSession.locRIBUpSent, which
+// ensureLocRIBPeerUp takes.)
 func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 	// VALIDATES: RFC 9069 -- exactly one Loc-RIB Peer Up per RIB instance, independent of
 	// how many BGP peers contribute best paths. Reads the WHOLE stream both batches

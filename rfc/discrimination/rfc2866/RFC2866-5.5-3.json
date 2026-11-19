@@ -4,11 +4,11 @@
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctSessionIDNeverEmpty",
     "unit-sha": "2b7a8590d6d01a68",
-    "claim-sha": "ac22607e7daac095",
+    "claim-sha": "3ec858e8474097e9",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::genSessionID",
     "producer-sha": "9fce7ebc5283d8f6",
-    "break": "line 269: \".String()\" -\u003e \".String()[:0]\""
+    "break": "line 417: \".String()\" -\u003e \".String()[:0]\""
   },
   {
     "rid": "RFC2866-5.5-3",
