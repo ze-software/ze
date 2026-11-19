@@ -14,12 +14,12 @@ import (
 )
 
 const acctHealthCheckName = "l2tp-radius-accounting"
-const acctHealthFix = "show diagnostic " + diagnostic.CodeDoctorRADIUSAccountingUnacknowledged
+const acctHealthFix = "show diagnostic " + codeRADIUSAccountingUnacknowledged
 
 func acctHealthDeclaration() rpc.DoctorCheckDecl {
 	return rpc.DoctorCheckDecl{
 		Name: acctHealthCheckName, Phase: rpc.DoctorPhaseRuntime, Order: 712,
-		Codes: []string{diagnostic.CodeDoctorRADIUSAccountingUnacknowledged},
+		Codes: []string{codeRADIUSAccountingUnacknowledged},
 	}
 }
 
@@ -39,17 +39,17 @@ func acctHealthSubject(sess *acctSession) string {
 func recordAccountingOutcome(sess *acctSession, purpose string, err error) {
 	subject := acctHealthSubject(sess)
 	if err == nil {
-		report.ClearWarning(Name, diagnostic.CodeDoctorRADIUSAccountingUnacknowledged, subject)
+		report.ClearWarning(Name, codeRADIUSAccountingUnacknowledged, subject)
 		return
 	}
-	report.RaiseWarningFix(Name, diagnostic.CodeDoctorRADIUSAccountingUnacknowledged, subject,
+	report.RaiseWarningFix(Name, codeRADIUSAccountingUnacknowledged, subject,
 		"No RADIUS accounting server acknowledged this session's "+purpose+
 			" record; the billing system may lack it. Restore the accounting server's reachability",
 		acctHealthFix, map[string]any{"error": err.Error()})
 }
 
 func checkAccountingHealth() []rpc.DoctorCheckDiagnostic {
-	return retainedFindings(diagnostic.CodeDoctorRADIUSAccountingUnacknowledged)
+	return retainedFindings(codeRADIUSAccountingUnacknowledged)
 }
 
 // retainedFindings answers this provider's retained warnings under one doctor

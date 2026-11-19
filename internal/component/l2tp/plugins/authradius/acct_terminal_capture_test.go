@@ -13,7 +13,6 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/crashlog"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -163,8 +162,8 @@ func TestUnacknowledgedAccountingRecordIsADoctorFinding(t *testing.T) {
 		}
 		if len(findings) == 1 {
 			finding := findings[0]
-			if finding.Code != diagnostic.CodeDoctorRADIUSAccountingUnacknowledged {
-				t.Fatalf("finding code = %q, want %q", finding.Code, diagnostic.CodeDoctorRADIUSAccountingUnacknowledged)
+			if finding.Code != codeRADIUSAccountingUnacknowledged {
+				t.Fatalf("finding code = %q, want %q", finding.Code, codeRADIUSAccountingUnacknowledged)
 			}
 			if !strings.Contains(finding.Message, acctID) || finding.Fix == "" {
 				t.Fatalf("finding %+v does not name %q with a fix", finding, acctID)

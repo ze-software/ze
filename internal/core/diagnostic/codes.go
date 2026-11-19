@@ -67,7 +67,6 @@ const (
 	CodeDoctorDNSSourceSelfUnserved                = "doctor-dns-source-self-unserved"
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorRADIUSCoAApply                       = "doctor-radius-coa-apply"
-	CodeDoctorRADIUSAccountingUnacknowledged       = "doctor-radius-accounting-unacknowledged"
 	CodeDoctorRADIUSFramedRouteSkipped             = "doctor-radius-framed-route-skipped"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorLocalAdminCredentials                = "doctor-local-admin-credentials"
@@ -1704,12 +1703,6 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "Subscriber authorization backend did not confirm a change",
 		Description: "A RADIUS CoA owner failed to apply or restore a subscriber's shaping or VLAN maps. The runtime finding retains the backend cause until a successful retry for that session, session teardown, or provider shutdown. Inspect shaping and interface state, repair the backend, then retry the authenticated authorization request.",
 		Examples:    []string{exampleShowDoctor, "ze show l2tp shaper"},
-	},
-	{
-		Code:        CodeDoctorRADIUSAccountingUnacknowledged,
-		Title:       "RADIUS accounting record not acknowledged",
-		Description: "No configured RADIUS accounting server acknowledged a subscriber session's Accounting-Start, Interim-Update or Accounting-Stop within the 10 second record bound, retransmissions included, so the operator's billing system may lack that record. The finding names the session and its Acct-Session-Id. A later acknowledged record of the same session clears it; an unacknowledged Stop stays until provider shutdown. Restore the accounting server's reachability and shared key.",
-		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-radius-accounting-unacknowledged"},
 	},
 	{
 		Code:        CodeDoctorRADIUSFramedRouteSkipped,

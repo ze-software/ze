@@ -26,7 +26,6 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -291,7 +290,7 @@ func (e *acctEndpoint) retire() {
 func (e *acctEndpoint) close() {
 	if err := e.client.Close(); err != nil {
 		logger().Warn("l2tp-auth-radius: closing a retired accounting client failed",
-			"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+			"code", codeRADIUSAccountingUnacknowledged,
 			"server", e.serverAddr, "error", err)
 	}
 }
@@ -773,7 +772,7 @@ func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, p
 	if err != nil {
 		// RFC 2866: accounting failures MUST NOT tear down sessions.
 		logger().Warn("l2tp-auth-radius: accounting "+purpose+" not acknowledged",
-			"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+			"code", codeRADIUSAccountingUnacknowledged,
 			"tunnel", sess.tunnelID, "session", sess.sessionID,
 			"acct-session-id", sess.acctSessID, "error", err)
 	}
@@ -872,7 +871,7 @@ func (r *acctRetirement) stopDetached() {
 		return
 	}
 	logger().Warn("l2tp-auth-radius: accounting retirement reached its bound; abandoning the unacknowledged Stops",
-		"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+		"code", codeRADIUSAccountingUnacknowledged,
 		"sessions", len(late), "bound", acctRecordBound)
 	for _, sess := range late {
 		sess.endpoint.close()
