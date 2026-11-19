@@ -135,10 +135,12 @@ func (a SPAction) isTemplateFree() bool {
 //
 // The gap between them is deliberate room. Nothing occupies it today.
 const (
-	// PriorityIKEBypass ranks the IKE control-plane bypass ahead of every negotiated
-	// Child SA policy. IKE is what BUILDS the Child SA, so a Child SA policy that
-	// captured IKE would prevent its own renegotiation, its own rekey and its own
-	// teardown.
+	// PriorityIKEBypass is the floor of the operator's orders and of a peer's
+	// policy-priority: the config refuses a rank at or below it. It once ranked a
+	// node-wide SPD bypass on UDP 500 and 4500 ahead of every Child SA policy. That
+	// bypass now lives on Ze's own IKE sockets (transport.bypassIKESocket), which the
+	// kernel consults before any SPD entry whatever its rank, so no SPD entry Ze
+	// installs carries this rank and the band below it protects nothing.
 	PriorityIKEBypass = 100
 	// PriorityChildSA ranks a negotiated Child SA policy. It is deliberately worse
 	// than PriorityIKEBypass and deliberately non-zero.
@@ -695,6 +697,14 @@ type PolicyInfo struct {
 	// dataplane holds it on this entry (SPParams.ICMPErrorReturn): on Linux the
 	// XFRM_POLICY_ICMP flag read back from the dump, never taken from config.
 	ICMPErrorReturn bool
+
+	// ICMPErrorYield says this DISCARD entry lets the RFC 4301 Section 6.2 inbound
+	// payload check admit an ICMP error whose reversed payload header matches the SA it
+	// arrived on: on Linux the XFRM_POLICY_ICMP flag read back from a BLOCK policy,
+	// which Ze sets on the catch-all's inbound entry alone. An operator's discard entry
+	// carries no such flag, so Ze's kernel drops an ICMP error it covers whatever the
+	// payload says.
+	ICMPErrorYield bool
 
 	// Owner names the peer that installed this policy, and OwnerKnown says
 	// whether ze installed it at all.

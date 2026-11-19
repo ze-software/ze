@@ -101,7 +101,7 @@ vpn {
 		}
 		site-to-site {
 			peer icmp-v4 {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.
@@ -127,7 +127,7 @@ vpn {
 				}
 			}
 			peer icmp-v6 {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.

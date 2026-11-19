@@ -1201,10 +1201,10 @@ refuses the second peer's Child SA rather than let arrival order pick the tunnel
 (RFC 3948 Section 5.1, see the inner-address paragraphs above).
 
 The default is 2000, which every peer took before the leaf existed. The range starts at
-101 because 100 holds the IKE control-plane bypass. A peer entry at or above
-that rank matches the IKE datagrams first, which hands the exchange that builds
-and rekeys the SA to the SA itself, and the tunnel could then never
-renegotiate. Ze refuses such a value at commit.
+101: Ze refuses a value at or below 100 at commit. That band once held the IKE
+control-plane bypass; the bypass now sits on Ze's own IKE sockets, ahead of every
+SPD entry whatever its rank, so no peer entry can capture the exchange that builds
+and rekeys its SA.
 
 <!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
@@ -1312,7 +1312,7 @@ override `ze.test.ike.dataplane`, and there commit refuses a peer whose
 processing on Linux), naming `icmp-error-check false` as the fix.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseSiteToSitePeer -->
-<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, bypassEntryFix, warnICMPOverlapAtStart -->
+<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, bypassEntryFix, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPairPolicy -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
@@ -1471,11 +1471,43 @@ for it.
 keeps local and remote as written, and the inbound entry swaps them, because the
 local side of a flow is the destination of an inbound packet.
 
-The default order of 1000 sits between the IKE control-plane bypass at 100 and a
+The default order of 1000 sits between the lowest order Ze accepts, 101, and a
 peer's default rank of 2000, so an entry written with no order outranks the
 tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
 win instead. An order at or below 100 is refused at commit, for the reason
 `policy-priority` states above.
+
+The order must be total wherever it decides something (RFC 4301 Section 4.4.1:
+the management interface "MUST support (total) ordering of these entries").
+Two entries that overlap in selector and direction must carry different
+orders, and so must an entry and a site-to-site peer whose traffic selectors
+overlap it: commit refuses the pair, naming both, the shared order and the
+`set vpn ipsec policy <name> order <n>` that separates them. Two overlapping
+entries both left at the default 1000 are such a pair. Entries that do not
+overlap may share an order, because no packet matches both. Two entries that
+name the same selector in the same direction are refused whatever their
+orders, because the kernel holds one policy per selector and the second would
+replace the first. A peer bound with `vti bind` is not compared: its policies
+live in the XFRM interface's own SPD. The entries reach the kernel lowest order
+first, then by name.
+
+An entry the kernel refuses to install fails the commit: the error names the
+entry, the kernel's answer and `commit` as the retry, and the entries in force
+before stay as they were. An edit installs the new form of an entry before it
+removes the old one, and replaces it in place when the selector did not change,
+so the traffic a discard entry names stays dropped while the edit lands. The
+configuration the daemon starts with is never refused: an entry the kernel
+refuses at start is left out, logged at Error, and reported by `ze doctor`
+(`ipsec-spd-install`, code `doctor-ipsec-spd-install-refused`) with
+`ze signal restart` as the retry; any commit that changes `vpn ipsec` retries it
+too. When the kernel also refuses a step that puts things back (the old form of
+an entry after a refused commit, or a half written before the refusal), or a
+commit cannot remove the old form of an entry it changed or removed, the kernel
+is left holding something the running configuration does not: `ze doctor`
+reports it under the same check, code `doctor-ipsec-spd-undo-incomplete`, with
+the direction, the prefixes, the priority and the kernel's answer, until a
+commit rewrites that entry or `ze signal restart` rebuilds the SPD. A tie the start finds is installed as it stands, logged at Error, and
+reported by `ze doctor` under `config-plugin-verify`.
 
 These rules are refused at commit rather than approximated at install time,
 because a widened selector fails in both directions: a widened bypass passes
@@ -1540,18 +1572,20 @@ for example `remote prefix 10.1.0.0/16` and `icmp-type 3` to refuse Destination
 Unreachable from the hosts behind Ze. Those hosts send in the clear, so the
 entry decides every such message.
 
-An ICMP message that arrives on a Child SA is decided by that SA's peer. When
-the peer's `icmp-error-check` is true (the default) and an `in` discard entry
-refuses the message, Linux reads the header the message carries after its ICMP
-header, reverses its addresses and ports, and delivers the message when that
-header matches the SA it arrived on. The type plays no part: the kernel does not
-check that the message is an error, so a message of any type whose following
-bytes read as such a header would be admitted, whatever the discard entry
-says. With `icmp-error-check false` on that peer, the entry decides. `icmp_rcv`
-(`net/ipv4/icmp.c`) and `icmpv6_rcv` (`net/ipv6/icmp.c`) make this check when
-the last state that decrypted the message carries `XFRM_STATE_ICMP`, the flag
-`icmp-error-check true` sets; `LL-XFRM-ICMP-TRANSIT` in
-[Linux limitations](../architecture/linux-limitations.md) records it.
+An `in` discard entry also decides ICMP that arrives on a Child SA. When the
+peer's `icmp-error-check` is true (the default) and the message's own headers
+do not match the SA, Ze's kernel checks the header an ICMP error carries after
+its ICMP header, with addresses and ports reversed, and delivers the error when
+that header matches the SA it arrived on. That check runs only for an ICMP
+error type, so an echo request or any other non-error message from outside the
+SA's selectors is dropped whatever bytes follow its ICMP header. And it never
+passes a discard entry: an error that an `in` or `both` discard entry covers,
+protocol 0 included, is dropped even when its payload matches the SA. Only the
+`unmatched discard` catch-all lets a consistent error through, because Section
+6.2 matches that error to the SA. Stock Linux does neither (`LL-XFRM-ICMP-TRANSIT`
+in [Linux limitations](../architecture/linux-limitations.md)); Ze refuses to
+install a Child SA on a kernel that does not report the behaviour, and the
+refusal names the command that builds Ze's kernel.
 
 For an ICMP error forwarded to a protected host, Linux can search the reversed
 quoted header before applying the final forwarding disposition. Ze uses the
@@ -1570,33 +1604,35 @@ permission, an unreadable default, a conflicting policy manager, or a restoratio
 that has not completed. Its finding names the next command. A shutdown failure
 also remains in the warning log when the daemon connection has already closed.
 
-So commit refuses a discard entry that is `in` or `both`, has protocol 0 or
-the ICMP protocol of its family, any `icmp-type`, and a family the selectors of
-a peer with `icmp-error-check true` can carry. Its prefixes and its order do
-not matter, because the kernel's second check reads neither the message's own
-source nor the address it arrived at. A peer with `vti bind` is exempt: ICMP
-that arrives on its xfrm interface is checked at the interface's `if_id`,
-where no `vpn ipsec policy` entry applies. The refusal names the peer and the
-entry; set `icmp-error-check false` on the peer, or delete the entry. The
-`unmatched discard` catch-all is not refused: delivering an error whose
-payload matches the SA is the Section 6.2 processing itself.
+So commit accepts a discard entry beside a peer with `icmp-error-check true`,
+in the default direction and protocol too, and the entry drops what it names.
+A peer with `vti bind` checks ICMP that arrives on its xfrm interface at the
+interface's `if_id`, where no `vpn ipsec policy` entry applies and the
+interface's own catch-all decides.
 
 These entries install inbound and outbound policies only. ICMP that Ze forwards
 between two other hosts is decided by the Child SA forward policies and the
 catch-all entry below; an operator entry does not reach it yet.
 
 The VPP dataplane compares ports only for TCP, UDP and SCTP, so an ICMP type
-entry there would match every ICMP message. Ze refuses such an entry on VPP
-with a message naming the reason, rather than installing it wider than written.
+entry there would match every ICMP message. The VPP backend holds a refusal of
+such an entry, but no operator entry reaches it today: see the VPP paragraph
+below.
 
 A tunnel can negotiate an ICMP selector too. IKE carries the type in the high
 eight bits of the port and the code in the low eight; Ze programs the type and
 code from the sending side's value in each direction.
 
 On Linux a discard entry is an XFRM policy with action `block` and a bypass is
-`allow` with no template. On VPP they are `IPSEC_API_SPD_ACTION_DISCARD` and
-`IPSEC_API_SPD_ACTION_BYPASS`. `show vpn ipsec dataplane` reports the
-disposition of every installed policy, including one another daemon installed.
+`allow` with no template. `show vpn ipsec dataplane` reports the disposition of
+every installed policy, including one another daemon installed.
+
+The VPP dataplane installs no `vpn ipsec policy` entry, discard or bypass. VPP
+has no node-wide policy database, an entry names no interface, and the VPP
+backend refuses a policy that names none. Ze reads that refusal as a platform
+with no IPsec dataplane, so the commit succeeds and the entry is never in force.
+The VPP backend is reached only through a private test override (see the end of
+this page).
 
 Ze installs these entries when the configuration is applied and removes them
 when the entry leaves the configuration or the engine stops. They need no peer,
@@ -1715,12 +1751,21 @@ ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not 
 A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
 IPsec boundary.
 
-The IKE control-plane bypass at order 100 is installed either way, so the
-tunnels can still be negotiated. Ze's entries appear together on the first
-apply, the catch-all first and the IKE bypass right after it, before any IKE
-socket opens. The catch-all is re-asserted on every apply. When the engine
-stops, every tunnel is torn down first, then the IKE bypass and your `policy`
-entries are removed, and the catch-all goes last, so no Ze entry is ever in
+Ze's own IKE traffic crosses either way, so the tunnels can still be
+negotiated and rekeyed. The exemption is not an SPD entry: each IKE socket Ze
+opens on UDP 500 and 4500 carries a bypass policy of its own, in both
+directions, which the kernel consults before any SPD entry. It covers only
+datagrams that start or end on those sockets, so a host behind Ze that sends
+from port 500 or 4500 is still protected by the tunnel, and the bypass goes
+with its socket. `show vpn ipsec dataplane policy` lists each one with SPD
+`socket` and role `ike-bypass`. When the kernel refuses that bypass (Ze runs
+without `CAP_NET_ADMIN`, or the kernel lacks `CONFIG_XFRM`), Ze keeps the socket
+and `ze doctor` reports it under `ipsec-ike-socket-bypass`, code
+`doctor-ipsec-ike-socket-bypass`: run ze with `CAP_NET_ADMIN` on a kernel with
+`CONFIG_XFRM`, then `ze signal restart`. Ze's SPD entries appear on the first apply,
+the catch-all first. The catch-all is re-asserted on every apply. When the
+engine stops, every tunnel is torn down first, then your `policy` entries are
+removed, and the catch-all goes last, so no Ze entry is ever in
 force without it. If any of those entries cannot be removed, the catch-all
 stays installed beneath it, and the daemon logs a warning naming each entry
 left as the command that removes it in the dataplane's own tool. On the Linux
@@ -1846,7 +1891,10 @@ interface instead.
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
-<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, reconcileSPDPolicies, installSPDPoliciesAtStart, spdInstallOrder -->
+<!-- source: internal/component/ike/engine/spd_order.go -- spdOrderRefusals, verifySPDOrder, warnSPDOrderAtStart -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- answerSPDInstall, recordSPDReconcile -->
+<!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- answerIKESocketBypass -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 
@@ -2886,7 +2934,10 @@ replay window shows on the `in` row only: the outbound state carries none.
 Each policy row carries `icmp-error-return` (`true` or `false`): whether the kernel may send
 an outbound ICMP error that no SA and no entry carries through the SA this entry resolves to,
 the RFC 4301 Section 6.2 mapping. On Linux it is the policy's `XFRM_POLICY_ICMP` flag, which Ze
-sets on the outbound policy of a peer with `icmp-error-check true`.
+sets on the outbound policy of a peer with `icmp-error-check true`. It also carries
+`icmp-error-yield`: `true` on the catch-all's inbound discard alone, whose `XFRM_POLICY_ICMP` flag
+lets Ze's kernel deliver an ICMP error whose reversed payload matches the SA it arrived on. An
+operator discard entry shows `false`, and drops the ICMP it covers.
 
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->

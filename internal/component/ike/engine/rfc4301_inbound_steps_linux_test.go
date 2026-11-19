@@ -101,7 +101,9 @@ func inStepSPDI(t *testing.T, unmatched dataplane.SPAction) {
 			RemotePrefix: peer, RemotePort: anyPort,
 		},
 	}
-	installSPDPolicies(dp, nil, entries, log)
+	if err := installSPDPolicies(dp, nil, entries, log); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dp, entries, log) })
 	if err := installUnmatched(dp, unmatched, log); err != nil {
 		t.Fatalf("install the catch-all: %v", err)

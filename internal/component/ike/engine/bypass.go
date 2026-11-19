@@ -12,31 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
-// protoUDP is the upper-layer selector for the IKE bypass policies. IKE runs over
-// UDP (RFC 7296 Section 2.23), so the exemption never widens past UDP.
-const protoUDP = 17
-
-// ikeBypassFamilies are the address families the bypass is installed for.
-//
-// Both, unconditionally. The bypass is installed before any peer is configured, so
-// the family of the traffic selectors that will eventually be negotiated is not yet
-// known, and guessing it wrong is the failure this exists to prevent. Installing a
-// family that never carries a tunnel costs two unused policies and exempts nothing
-// that was not already ze's own IKE socket traffic.
-var ikeBypassFamilies = []net.IP{net.IPv4zero, net.IPv6zero}
-
-// anyNetFor returns the wildcard prefix of the same address family as sample.
-//
-// A bypass has to be family-correct rather than family-agnostic: an XFRM selector
-// carries a family (vendor netlink xfrm_policy_linux.go, selFromPolicy derives it
-// from the destination prefix), so one wildcard cannot cover both.
-func anyNetFor(sample net.IP) *net.IPNet {
-	if sample.To4() != nil {
-		return &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
-	}
-	return &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
-}
-
 // ikeBypassPolicies builds the Security Policies that keep ze's OWN IKE traffic out
 // of IPsec, in one address family.
 //
@@ -130,7 +105,7 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil {
 		return
 	}
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies := ikeBypassPolicies(family)
 		for i := range policies {
 			p := &policies[i]
@@ -171,7 +146,7 @@ func removeIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil {
 		return
 	}
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies := ikeBypassPolicies(family)
 		for i := range policies {
 			p := &policies[i]

@@ -91,8 +91,9 @@ func (b *xfrmBackend) OverrideGuardState() (OverrideGuardState, error) {
 // On Linux an application overrides the SPD by setting a per-socket policy, which
 // xfrm_lookup_with_ifid and __xfrm_policy_check consult before any SPD entry. The
 // program refuses that setsockopt (do_sock_setsockopt runs it before the protocol
-// handler) to every process in Ze's network namespace except this one, whose
-// dataplane sets the ESP form reader's policy. The exemption names this process
+// handler) to every process in Ze's network namespace except this one, which
+// sets the ESP form reader's policy and the bypass on each of its IKE sockets
+// (transport.bypassIKESocket). The exemption names this process
 // by its tgid in its own PID namespace, read through that namespace's device and
 // inode: in a container the tgid the initial namespace sees is another number.
 func (g *overrideGuard) attach() error {
@@ -324,7 +325,8 @@ func overrideGuardInstructions(cookie uint64, pidns pidNamespace, tgid uint32, c
 		asm.JNE.Reg(asm.R0, asm.R1, "allow"),
 
 		// The process that loaded the guard is Ze's IPsec dataplane: its ESP form
-		// reader's socket policy is the implementation's own receive path. The tgid
+		// reader's socket policy is the implementation's own receive path, and its IKE
+		// sockets' bypass is the explicit BYPASS RFC 4301 Section 5.2 asks for. The tgid
 		// is read in Ze's PID namespace (struct bpf_pidns_info {u32 pid; u32 tgid;}
 		// at fp-16), because bpf_get_current_pid_tgid answers it in the initial
 		// namespace, which a container's os.Getpid never equals. A caller in any

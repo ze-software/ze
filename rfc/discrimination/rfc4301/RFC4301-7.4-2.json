@@ -7,14 +7,14 @@
     "claim-sha": "dd0a36c3799455cb",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "a8bb0cc5733c0723",
-    "break": "line 656: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
+    "producer-sha": "02594c6a007f8840",
+    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
   },
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestIKEBypassIsPortScopedSoSection74Binds",
-    "unit-sha": "ba3f32331dbd341a",
+    "unit-sha": "739b94c36fc2b394",
     "claim-sha": "fd24264833885479",
     "route": "revert",
     "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
@@ -25,7 +25,7 @@
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
-    "unit-sha": "55c0ec90c5053e2e",
+    "unit-sha": "b8baa9ea3ca3dc02",
     "claim-sha": "1ec0d3daa6eb0788",
     "route": "revert",
     "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",

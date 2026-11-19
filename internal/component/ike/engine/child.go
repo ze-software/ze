@@ -742,9 +742,10 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 
 	// The policies below can capture ze's own IKE traffic whenever the negotiated
 	// selector covers the two addresses IKE runs between, which the ordinary
-	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is
-	// installed once, on the first configuration apply, and it outlives every Child SA: see
-	// installIKEBypass in bypass.go for why it is not installed here.
+	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is the
+	// per-socket bypass each IKE socket carries from the moment it opens
+	// (transport.bypassIKESocket), which the kernel consults before any SPD entry, so
+	// nothing is installed for it here.
 	//
 	// RFC 4301 Section 4.4.2: every negotiated pair protects with this SA.
 	// Linux checks decrypted transit traffic against FWD, not IN. Install both
@@ -1027,9 +1028,8 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 	// entries to express a desired access control policy."
 	//
 	// An unset rank resolves to the default the same way the mode above does, and it
-	// MUST NOT be passed through. Rank 0 outranks the IKE control-plane bypass, so the
-	// entry would capture the exchange that builds and rekeys the SA it protects
-	// (dataplane.PriorityIKEBypass).
+	// MUST NOT be passed through. Rank 0 is below the floor the config enforces
+	// (dataplane.PriorityIKEBypass), so it is a rank no committed peer holds.
 	priority := int(child.PolicyPriority)
 	if priority == 0 {
 		priority = dataplane.PriorityChildSA
@@ -1090,7 +1090,7 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 		// Stated rather than left to the zero value. SPActionProtect IS zero, chosen so a
 		// caller who forgets the field protects traffic instead of passing it in the
 		// clear (dataplane.go). Naming it here says the choice was made, and it keeps the
-		// contrast with the IKE bypass (bypass.go) legible.
+		// contrast with the template-free BYPASS and DISCARD entries legible.
 		Action:     dataplane.SPActionProtect,
 		Owner:      child.Owner,
 		Role:       dataplane.PolicyRoleChildSA,

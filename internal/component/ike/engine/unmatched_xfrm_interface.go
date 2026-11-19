@@ -99,8 +99,8 @@ var xfrmExemptionDirections = [...]dataplane.SADir{dataplane.SADirOut, dataplane
 // entry is installed only while its address is guarded, so a packet from the address
 // leaves only through the interface, where its own SPD decides it.
 func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
-	out := make([]dataplane.SPParams, 0, len(ikeBypassFamilies)*len(xfrmExemptionDirections)+len(facts.addresses))
-	for _, family := range ikeBypassFamilies {
+	out := make([]dataplane.SPParams, 0, len(spdFamilies)*len(xfrmExemptionDirections)+len(facts.addresses))
+	for _, family := range spdFamilies {
 		anyNet := anyNetFor(family)
 		for _, dir := range xfrmExemptionDirections {
 			out = append(out, dataplane.SPParams{
@@ -151,8 +151,8 @@ func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
 // Ranked at dataplane.PriorityUnmatched, it sits below every Child SA policy of the
 // interface (dataplane.PriorityChildSA), which the kernel searches first.
 func interfaceSPDCatchAll(ifID uint32) []dataplane.SPParams {
-	out := make([]dataplane.SPParams, 0, len(ikeBypassFamilies)*len(unmatchedDirections))
-	for _, family := range ikeBypassFamilies {
+	out := make([]dataplane.SPParams, 0, len(spdFamilies)*len(unmatchedDirections))
+	for _, family := range spdFamilies {
 		out = append(out, spdCatchAllEntries(family, dataplane.SPActionDiscard, ifID)...)
 	}
 	return out

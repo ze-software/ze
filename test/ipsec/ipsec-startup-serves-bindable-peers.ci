@@ -99,7 +99,7 @@ vpn {
 		site-to-site {
 			# Carries its own local-address, so the interface cannot affect it.
 			peer peer-bound {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.
@@ -116,7 +116,7 @@ vpn {
 			}
 			# Names no local-address, so it depends on the interface for one.
 			peer peer-unbound {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.

@@ -7,8 +7,8 @@
     "claim-sha": "c7d00a1c805caca7",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/policy_role.go::socketPolicyRole",
-    "producer-sha": "1b7f82d09b8f4f6a",
-    "break": "line 72: \"priority == PriorityESPFormSocket\" -\u003e \"true || priority == PriorityESPFormSocket\""
+    "producer-sha": "50ef3cc513537a59",
+    "break": "line 89: \"return PolicyRoleSocketOverride\" -\u003e \"return PolicyRoleESPFormSocket\""
   },
   {
     "rid": "RFC4301-4.4.1-8",

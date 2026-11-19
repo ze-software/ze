@@ -604,8 +604,8 @@ func vppProto(proto uint8) (ipsec_types.IpsecProto, error) {
 // congestion indication set inside the tunnel being discarded at its far end.
 //
 // The XFRM backend needs no equivalent assignment: Linux does this by default and the
-// state ze builds asks it to disable nothing (TestEcnInstalledStateDisablesNothing,
-// rfc7296_ecn_linux_test.go). VPP is the opposite way round. Zero is
+// state ze installs carries no XFRM_STATE_NOECN (TestEcnKernelStoresTunnelSAWithoutNoECN,
+// rfc7296_ecn_kernel_state_linux_test.go). VPP is the opposite way round. Zero is
 // TUNNEL_API_ENCAP_DECAP_FLAG_NONE, so a tunnel that says nothing copies nothing.
 const ecnFullFunctionality = tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_ECN |
 	tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_DECAP_COPY_ECN

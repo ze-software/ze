@@ -269,9 +269,12 @@ func TestICMPErrorPayloadHeaderCheckedOnLocalDelivery(t *testing.T) {
 	}
 
 	_, anyNet, _ := net.ParseCIDR("0.0.0.0/0")
+	// Ze's node-wide catch-all, as engine/unmatched.go builds it: the role marks it
+	// XFRM_POLICY_ICMP, as K1 requires of the catch-all roles' inbound discards, so a
+	// consistent error is delivered past it while an operator discard stays honored.
 	catchAll, err := xfrmPolicyFromParams(SPParams{
 		Src: anyNet, Dst: anyNet, Dir: SADirIn, Action: SPActionDiscard,
-		Priority: PriorityUnmatched,
+		Priority: PriorityUnmatched, Role: PolicyRoleCatchAll,
 	})
 	if err != nil {
 		t.Fatalf("project the inbound discard catch-all: %v", err)

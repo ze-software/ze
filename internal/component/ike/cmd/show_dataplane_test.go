@@ -527,6 +527,32 @@ func TestShowDataplanePolicyRendersICMPErrorReturn(t *testing.T) {
 	require.Equal(t, false, byDir["in"], "the inbound entry does not")
 }
 
+// TestShowDataplanePolicyRendersICMPErrorYield pins the icmp-error-yield key: whether a
+// discard entry lets the RFC 4301 Section 6.2 inbound payload check pass it, as the
+// backend read it back (PolicyInfo.ICMPErrorYield), apart from icmp-error-return.
+// Method: the catch-all's discard with the flag and an operator discard without it
+// through the handler, so a constant rendering, or one that copies icmp-error-return,
+// is red.
+func TestShowDataplanePolicyRendersICMPErrorYield(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{Dir: dataplane.SADirIn, Action: dataplane.SPActionDiscard, Priority: dataplane.PriorityUnmatched, ICMPErrorYield: true},
+		{Dir: dataplane.SADirIn, Action: dataplane.SPActionDiscard, Priority: 1000},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "policies")
+	require.Len(t, rows, 2)
+	byPriority := map[any]map[string]any{rows[0]["priority"]: rows[0], rows[1]["priority"]: rows[1]}
+	catchAll, operator := byPriority[int(dataplane.PriorityUnmatched)], byPriority[1000]
+	require.NotNil(t, catchAll, "no row at the catch-all's priority: %v", rows)
+	require.NotNil(t, operator, "no row at the operator entry's priority: %v", rows)
+	require.Equal(t, true, catchAll["icmp-error-yield"], "the catch-all's inbound discard yields to the payload check")
+	require.Equal(t, false, operator["icmp-error-yield"], "an operator discard does not")
+	require.Equal(t, false, catchAll["icmp-error-return"], "a discard entry holds no return mapping")
+	require.Equal(t, false, operator["icmp-error-return"], "a discard entry holds no return mapping")
+}
+
 func TestShowDataplanePolicyBypassRendersAsBypass(t *testing.T) {
 	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{{
 		Dir:    dataplane.SADirOut,

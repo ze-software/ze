@@ -626,11 +626,14 @@ and netfilter, and selects both family defrag implementations as built-ins.
 The compiled runtime floor does not independently require this guard symbol.
 Before every scoped SA installation, the dataplane reads the live namespace's
 capability receipt and requires the exact ABI, 64-selector limit and feature
-bits 0 through 3. A kernel with only part of that support cannot install a
+bits 0 through 3 and bit 5, the ICMP reverse check that runs for error types
+only and stops at an inbound discard entry the message matches as received
+(`XFRM_ZE_CAP_ICMP_REVERSE`). A kernel with only part of that support cannot install a
 scoped SA, even when its configuration passed the build's checks.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_XFRM_FRAGMENT_GUARD -->
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_XFRM_FRAGMENT_GUARD -->
 <!-- source: gokrazy/kernel/patches/series -- state-scope, fragment-context and fragment-guard patches -->
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- XFRM_ZE_CAP_ICMP_REVERSE -->
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- XFRM_FRAGMENT_GUARD -->
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 <!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->

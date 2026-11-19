@@ -38,7 +38,7 @@ func (d *doctorStateScopeDP) CheckSAStateScope() error {
 func doctorStateScopeFailure(cause error) *opererr.Error {
 	return opererr.Wrap(errors.Join(dataplane.ErrSAOptionRefused, cause),
 		"Ze cannot verify kernel support for the IPsec SA's complete traffic selector scope",
-		"the SA needs verified state, ICMP quote and fragment checks before any state can be installed; rebuild and boot Ze's native runtime kernel",
+		"the SA needs verified state, ICMP quote, ICMP reverse and fragment checks before any state can be installed; rebuild and boot Ze's native runtime kernel",
 		"  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch "+runtime.GOARCH)
 }
 

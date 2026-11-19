@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/probe"
 )
 
@@ -21,6 +22,15 @@ const (
 	IKEPort    = 500
 	MaxMsgSize = 3000 // RFC 7296 Section 2.1: handle up to 3000 bytes
 )
+
+// IKESocketPolicyPriority is the priority Ze writes into the per-socket bypass of each
+// IKE socket (bypassIKESocket). The kernel copies a socket policy's priority and never
+// matches on it (xfrm_compile_policy, copy_from_user_policy; xfrm_sk_policy_lookup
+// reads no priority), so the value is a mark: the policy listing names the row
+// ike-bypass by it (dataplane.socketPolicyRole), and doctor does not report it as an
+// application override. It sits three below the largest u32, a value no SPD entry Ze
+// installs uses and distinct from the ESP form reader's mark two below it.
+const IKESocketPolicyPriority = 1<<32 - 1 - 3
 
 var (
 	ErrClosed      = errors.New("transport: closed")
@@ -110,6 +120,12 @@ type UDPTransport struct {
 	// where neither socket carries a well-known port.
 	natT bool
 
+	// bypassErr is why the kernel refused this socket its per-socket IPsec bypass
+	// (bypassIKESocket), nil when the socket carries it or the platform needs none.
+	// Written by exemptFromIPsec, which newTransport calls before it returns the
+	// transport and nothing calls after, so every reader sees it without mu.
+	bypassErr error
+
 	// mu serializes every write on the socket and guards closed. Send,
 	// SendFrom and SendDF MUST hold it for the whole write: SendDF changes a
 	// socket-wide option for the duration of its write, and a write that
@@ -162,7 +178,37 @@ func newTransport(localAddr string, natT bool, logger *slog.Logger) (*UDPTranspo
 		conn.Close() //nolint:errcheck // the socket is discarded with the error
 		return nil, err
 	}
+	// RFC 4301 Section 5.2
+	t.exemptFromIPsec(localAddr, bypassIKESocket)
 	return t, nil
+}
+
+// exemptFromIPsec sets the socket's per-socket IPsec bypass through bypass and records
+// the outcome for BypassError. newTransport calls it before the socket is returned, so
+// no datagram crosses the socket unexempted; a test passes a refusing bypass.
+//
+// A refusal is not fatal, as strongSwan's socket-default plugin logs and keeps a socket
+// whose bypass failed: the socket still carries IKE wherever no policy captures it, and
+// a node with no CAP_NET_ADMIN or no XFRM installs no policy at all. It is logged at
+// Warn and kept, so the engine's ipsec-ike-socket-bypass doctor check reports it.
+func (t *UDPTransport) exemptFromIPsec(localAddr string, bypass func(*net.UDPConn) error) {
+	t.bypassErr = bypass(t.conn)
+	if t.bypassErr == nil {
+		return
+	}
+	t.logger.Warn("ike: could not exempt the IKE socket from IPsec; under `vpn ipsec unmatched discard`, "+
+		"or a traffic selector covering the peer's IKE address, the SPD captures ze's own IKE and the "+
+		"tunnel cannot be rekeyed or torn down. Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, "+
+		"then restart it: ze signal restart",
+		"code", diagnostic.CodeDoctorIPsecIKESocketBypass, "address", localAddr, "error", t.bypassErr)
+}
+
+// BypassError answers why the kernel refused this socket its per-socket IPsec bypass
+// (RFC 4301 Section 5.2), nil when the socket carries it or the platform has no kernel
+// SPD that could capture it (bypass_other.go). Safe for concurrent use: the outcome is
+// fixed before the transport is returned.
+func (t *UDPTransport) BypassError() error {
+	return t.bypassErr
 }
 
 // installDestinationCapture enables per-datagram destination metadata. On a

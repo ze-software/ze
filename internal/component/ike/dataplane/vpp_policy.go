@@ -288,7 +288,7 @@ func (b *vppBackend) deleteSPD() error {
 // built from them would either miss or remove a different policy.
 //
 // Every caller in the tree already uses RemovePolicyParams, which carries the whole
-// selector (engine/child.go, engine/bypass.go, plugins/ospf/ipsec_install.go).
+// selector (engine/child.go, engine/spd_policy.go, plugins/ospf/ipsec_install.go).
 func (b *vppBackend) RemovePolicy(_, _ *net.IPNet, _ SADir) error {
 	return fmt.Errorf(
 		"%w: vpp: a policy cannot be removed by address and direction alone, because VPP matches the whole SPD entry; use RemovePolicyParams",

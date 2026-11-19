@@ -594,7 +594,8 @@ address is still held by an interface it keeps it, and otherwise it asks the
 routing table for the source toward the peer (`routeSourceTo`). On Linux that is
 an `RTM_GETROUTE` request, as strongSwan's kernel-netlink `get_source_addr` does,
 and never a connected socket: a UDP connect is an output route lookup the kernel
-runs through the SPD, its ephemeral port matches no IKE bypass, and under the
+runs through the SPD, an ephemeral socket carries none of the per-socket bypass
+Ze's IKE sockets do, and under the
 catch-all DISCARD (`vpn ipsec unmatched`, discard by default) it fails with EPERM,
 so a moved initiator would never send `UPDATE_SA_ADDRESSES`
 (`TestMOBIKERouteSourceUnderTheCatchAllDiscard`).

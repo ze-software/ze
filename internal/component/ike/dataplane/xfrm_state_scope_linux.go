@@ -28,8 +28,11 @@ func (*xfrmBackend) CheckSAStateScope() error {
 }
 
 // checkXFRMStateScopeCapabilities reads the live namespace before InstallSA can
-// publish any state. Every explicit scope needs all four features, independently
-// of whether this particular SA permits noninitial fragments.
+// publish any state. Every explicit scope needs all five features, independently
+// of whether this particular SA permits noninitial fragments or carries the ICMP
+// error check: the commit no longer refuses an inbound discard entry beside a peer
+// whose check is on (engine/icmp_overlap.go), because the reverse check bit 5 names
+// honors that entry, so a kernel without bit 5 installs no Child SA at all.
 func checkXFRMStateScopeCapabilities() error {
 	caps, err := xfrmScopeCapsRead()
 	if err != nil {
@@ -45,7 +48,7 @@ func checkXFRMStateScopeCapabilities() error {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors))
 	}
 	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
-		xfrmZECapFragmentContext | xfrmZECapFragmentGuard
+		xfrmZECapFragmentContext | xfrmZECapFragmentGuard | xfrmZECapICMPReverse
 	const known = required | xfrmZECapICMPFinal
 	if caps.Features & ^known != 0 {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope capabilities contain unknown features %#x", caps.Features & ^known))
@@ -63,7 +66,7 @@ func xfrmStateScopeRefusal(cause error) error {
 	fix := "  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch " + runtime.GOARCH
 	return opererr.Wrap(errors.Join(ErrSAOptionRefused, cause),
 		"Ze cannot verify kernel support for the IPsec SA's complete traffic selector scope",
-		"the SA needs verified state, ICMP quote and fragment checks before any state can be installed; rebuild and boot Ze's native runtime kernel",
+		"the SA needs verified state, ICMP quote, ICMP reverse and fragment checks before any state can be installed; rebuild and boot Ze's native runtime kernel",
 		fix)
 }
 

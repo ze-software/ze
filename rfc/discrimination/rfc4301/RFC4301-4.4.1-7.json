@@ -2,6 +2,28 @@
   {
     "rid": "RFC4301-4.4.1-7",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_spd_install_failure_test.go::TestRFC4301FailedOperatorEntryInstallRefusesTheApply",
+    "unit-sha": "e342f9124b9322ce",
+    "claim-sha": "c30eb169106e203d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::installSPDPolicies",
+    "producer-sha": "e2fa3e48c0e69a4d",
+    "break": "line 222: \"return spdInstallRefusal(name, next[name], \u0026entries[i], err, spdInstallFixCommit)\" -\u003e \"_ = spdInstallRefusal(name, next[name], \u0026entries[i], err, spdInstallFixCommit)\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/spd_edit_integration_linux_test.go::TestRFC4301DiscardHoldsAcrossAnEditedEntry",
+    "unit-sha": "28fe37ed272daf0e",
+    "claim-sha": "26726a2de19ab9c0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::installSPDPolicies",
+    "producer-sha": "e2fa3e48c0e69a4d",
+    "break": "line 201: \"if dp == nil {\" -\u003e \"if removeReplacedSPDPolicies(dp, previous, next, log); dp == nil {\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-7",
+    "polarity": "negative",
     "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDInterfaceRefusesWhatItCannotProgram",
     "unit-sha": "5a8efc2ab0455043",
     "claim-sha": "e981c0ae72f5e983",

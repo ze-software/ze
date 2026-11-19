@@ -1,16 +1,26 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SA/SP installation
 // Related: bypass.go -- the IKE control-plane bypass these entries must never outrank
 // Related: child.go -- childPolicies, the producer of every NEGOTIATED SPD entry
+// Related: spd_order.go -- verifySPDOrder, the commit refusal of an order a tie decides
+// Related: doctor_spd_install.go -- the ipsec-spd-install check of an entry the start could not install
 // RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 7.4)
 
 package engine
 
 import (
+	"cmp"
+	"context"
 	"log/slog"
+	"maps"
 	"net"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // spdPolicyParams turns one operator-authored SPD entry into the policies it installs.
@@ -151,56 +161,309 @@ func spdPortMatch(p ipsec.PortSelector) dataplane.PortMatch {
 	return dataplane.ExactPortMatch(p.Port)
 }
 
-// installSPDPolicies reconciles the operator's SPD entries against what is installed.
+// Fix lines of an operator entry the dataplane refused (spdInstallRefusal).
+const (
+	// spdInstallFixCommit retries a refused reload: the running entries were kept, so
+	// committing again after the cause is gone installs the edit.
+	spdInstallFixCommit = "commit"
+	// spdInstallFixRestart retries an entry the start could not install. A reload
+	// reaches the engine only when `vpn` changed, so an untouched configuration is
+	// installed again by a restart, or by any commit that changes `vpn ipsec`. It is
+	// also the fix of a divergence (spdDivergence): only a restart rebuilds a selector
+	// no later commit rewrites.
+	spdInstallFixRestart = "ze signal restart"
+)
+
+// spdDivergenceKind names how a reconcile left one selector of the dataplane holding a
+// form the running configuration does not mean. Zero names no way, so a record that
+// carries it was never filled in.
+type spdDivergenceKind uint8
+
+const (
+	spdDivergenceUnspecified spdDivergenceKind = iota
+	// spdDivergenceNotRestored: the undo of a refused install could not put back the
+	// running form of an entry the install had replaced in place, so the selector holds
+	// the refused form, or nothing.
+	spdDivergenceNotRestored
+	// spdDivergenceNotTakenBack: the undo of a refused install could not remove a policy
+	// the install wrote at a selector the running configuration does not hold.
+	spdDivergenceNotTakenBack
+	// spdDivergencePreviousKept: an accepted reload could not remove the previous form of
+	// an entry it changed or removed, so that form still acts on its traffic.
+	spdDivergencePreviousKept
+)
+
+// spdDivergence is one selector at which a reconcile left the dataplane disagreeing with
+// the running configuration, as a value the ipsec-spd-install doctor check keeps: how it
+// diverged, the selector (its direction included), the priority of the policy the step
+// was writing or removing, and the dataplane's answer.
+type spdDivergence struct {
+	kind     spdDivergenceKind
+	selector spdSelector
+	priority int
+	cause    string
+}
+
+// newSPDDivergence records the failed step on sp.
+func newSPDDivergence(kind spdDivergenceKind, sp *dataplane.SPParams, err error) spdDivergence {
+	return spdDivergence{kind: kind, selector: selectorOf(sp), priority: sp.Priority, cause: err.Error()}
+}
+
+// message says what the dataplane holds at the selector, and why that is wrong.
+func (d spdDivergence) message() string {
+	policy := "the operator SPD policy " + d.selector.source + " -> " + d.selector.target + " (" +
+		dirLabel(d.selector.dir) + ", priority " + strconv.Itoa(d.priority) + ")"
+	var what string
+	switch d.kind {
+	case spdDivergenceNotRestored:
+		what = "The dataplane lacks " + policy + ", which the running configuration holds: a commit " +
+			"replaced it, the dataplane refused that commit, and putting it back failed"
+	case spdDivergenceNotTakenBack:
+		what = "The dataplane holds " + policy + ", which the running configuration does not: an " +
+			"install the dataplane then refused wrote it, and taking it back failed"
+	case spdDivergencePreviousKept:
+		what = "The dataplane still holds " + policy + ", the previous form of an entry the running " +
+			"configuration changed or removed, and it still acts on its traffic: removing it failed"
+	case spdDivergenceUnspecified:
+		panic("BUG: an SPD divergence with no kind")
+	default:
+		panic("BUG: unknown SPD divergence kind")
+	}
+	return what + ". The dataplane answered: " + d.cause + "."
+}
+
+// spdReconcile is what one reconcile of the operator's entries left in the dataplane,
+// selector by selector, as values: each selector it left holding what the running
+// configuration means (settled), and each it left holding something else (diverged).
+// A selector can appear in both, settled by a write and diverged by the undo of that
+// write after it, so a reader applies settled first (recordSPDReconcile).
+type spdReconcile struct {
+	settled  []spdSelector
+	diverged []spdDivergence
+}
+
+// add appends what another step of the same reconcile left, after what r holds.
+func (r *spdReconcile) add(step spdReconcile) {
+	r.settled = append(r.settled, step.settled...)
+	r.diverged = append(r.diverged, step.diverged...)
+}
+
+// reconcileSPDPolicies reconciles the operator's SPD entries against what is installed,
+// for a configuration that can still be refused: a reload, or a first apply that
+// arrived as one. It is all or nothing, and it answers, beside the refusal, what it left
+// in the dataplane selector by selector (spdReconcile), for the ipsec-spd-install
+// doctor check.
 //
-// It takes the PREVIOUS set as well as the next one, and removes what left the
-// configuration before installing what joined it. The order is the guard: an entry
-// whose selector is edited in place describes the SAME kernel policy under both
-// versions, because the kernel identifies a policy by its selector alone, so
-// installing first and removing after would install the new form and then delete it.
+// RFC 4301 Section 4.4.1: "The management interface for the SPD MUST allow creation of
+// entries consistent with the selectors defined in Section 4.4.1.1, and MUST support
+// (total) ordering of these entries, as seen via this interface." An entry the
+// configuration holds and the dataplane does not was never created, so an install the
+// dataplane refuses fails the apply with an operator error naming the entry, the cause
+// and the retry, after this call has put back every entry it changed: the running
+// configuration stays in force, entry for entry, and the commit is refused.
 //
-// A removal that finds nothing is expected, and so is a platform with no XFRM: the
-// control plane must run where no dataplane can be programmed, which is how
-// installIKEBypass tolerates the same case.
+// The new form of an edited entry is installed BEFORE its old form is removed, so the
+// traffic it names never meets the next entry down while the edit lands; for a DISCARD
+// entry that window would let the traffic cross the boundary. Where the two forms
+// share a selector the install replaces the old form in place, because the database
+// holds one entry per selector (spdSelector, spd_left.go; the XFRM backend upserts,
+// xfrmBackend.InstallPolicy), and the old form is then not removed at all: a removal
+// by that selector would delete the form just installed.
 //
-// An install failure is logged and never fatal. It is deliberately loud for a DISCARD
-// entry, because that failure fails OPEN: the traffic the operator asked to stop at
-// the boundary keeps crossing it, and nothing else in the system reports that.
-func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.SPDPolicy, log *slog.Logger) {
+// The entries reach the dataplane in their order, lowest first, and in name order
+// within one order (spdInstallOrder), never in map order.
+//
+// A platform with no XFRM at all is no refusal: the control plane must run where no
+// dataplane exists to hold any entry, which is how installIKEBypass tolerates the same
+// case. A removal that finds nothing is silent.
+func reconcileSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.SPDPolicy, log *slog.Logger) (spdReconcile, error) {
+	var outcome spdReconcile
 	if dp == nil {
-		return
+		return outcome, nil
 	}
 
+	var written []dataplane.SPParams
+	for _, name := range spdInstallOrder(next) {
+		if held, ok := previous[name]; ok && spdPolicySame(held, next[name]) {
+			continue
+		}
+		entries := spdPolicyParams(next[name])
+		for i := range entries {
+			err := dp.InstallPolicy(entries[i])
+			if err == nil {
+				written = append(written, entries[i])
+				continue
+			}
+			if isXFRMUnsupported(err) {
+				log.Debug("ike: spd policies unavailable on this platform", "error", err)
+				return spdReconcile{}, nil
+			}
+			// The undo decides every written selector, so the writes settle nothing.
+			return undoSPDInstall(dp, previous, written, log), spdInstallRefusal(name, next[name], &entries[i], err, spdInstallFixCommit)
+		}
+	}
+
+	for i := range written {
+		outcome.settled = append(outcome.settled, selectorOf(&written[i]))
+	}
+	outcome.add(removeReplacedSPDPolicies(dp, previous, next, log))
+	return outcome, nil
+}
+
+// installSPDPoliciesAtStart installs the operator's SPD entries the daemon starts with,
+// which nothing can refuse: a start must never refuse the IPsec block (owner decision
+// 2026-11-19, "Install, log, doctor"). Every entry the dataplane holds is installed;
+// one it refuses is logged at Error with its fix, left out of the installed set, and
+// answered in refused, which the ipsec-spd-install doctor check reports.
+//
+// Each entry goes in whole or not at all: the halves of a refused entry that did go in
+// are removed again, so installed is exactly what the dataplane holds, the next reload
+// installs the refused entry afresh (it is absent from the previous set), and the exit
+// removes no half it does not know of. A half whose removal fails is answered in
+// outcome as diverged, beside the selectors the start settled.
+func installSPDPoliciesAtStart(dp dataplane.Dataplane, next map[string]ipsec.SPDPolicy, log *slog.Logger) (installed map[string]ipsec.SPDPolicy, refused map[string]*opererr.Error, outcome spdReconcile) {
+	if dp == nil {
+		return next, nil, outcome
+	}
+	installed = make(map[string]ipsec.SPDPolicy, len(next))
+	for _, name := range spdInstallOrder(next) {
+		entries := spdPolicyParams(next[name])
+		var written []dataplane.SPParams
+		var refusal *opererr.Error
+		for i := range entries {
+			err := dp.InstallPolicy(entries[i])
+			if err == nil {
+				written = append(written, entries[i])
+				continue
+			}
+			if isXFRMUnsupported(err) {
+				log.Debug("ike: spd policies unavailable on this platform", "error", err)
+				return next, nil, spdReconcile{}
+			}
+			refusal = spdInstallRefusal(name, next[name], &entries[i], err, spdInstallFixRestart)
+			break
+		}
+		if refusal == nil {
+			installed[name] = next[name]
+			for i := range written {
+				outcome.settled = append(outcome.settled, selectorOf(&written[i]))
+			}
+			continue
+		}
+		outcome.add(undoSPDInstall(dp, nil, written, log))
+		log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
+			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDInstallRefused))...)
+		if refused == nil {
+			refused = make(map[string]*opererr.Error)
+		}
+		refused[name] = refusal
+	}
+	return installed, refused, outcome
+}
+
+// spdInstallRefusal is the operator error for one entry the dataplane refused: the
+// entry, the half of it that failed, the dataplane's own answer as the cause, and the
+// command that retries.
+func spdInstallRefusal(name string, p ipsec.SPDPolicy, sp *dataplane.SPParams, err error, fix string) *opererr.Error {
+	action := spdActionName(p.Action)
+	return opererr.Wrap(err,
+		"Ze could not install operator SPD policy "+name+" ("+action+", direction "+dirLabel(sp.Dir)+")",
+		"The dataplane refused the entry, so the traffic `vpn ipsec policy "+name+"` names would meet the next "+
+			"entry of the SPD instead of this "+action+" one; the entries in force before stay as they were. "+
+			"Remove the cause the dataplane names, then retry",
+		fix)
+}
+
+// undoSPDInstall takes back what one refused install call wrote, newest first. A
+// written entry that replaced a previous form in place (the same selector) gets that
+// form back; one that took a selector no previous entry held is removed. A step of the
+// undo that fails is logged at Error and answered as diverged, because the dataplane
+// then disagrees with the running configuration at that selector; a removal that failed
+// is also kept in the SPD ledger (removeZePolicy), so the exit keeps the catch-all
+// beneath it. Every step that succeeds answers its selector as settled.
+func undoSPDInstall(dp dataplane.Dataplane, previous map[string]ipsec.SPDPolicy, written []dataplane.SPParams, log *slog.Logger) spdReconcile {
+	var outcome spdReconcile
+	held := make(map[spdSelector]dataplane.SPParams)
 	for name := range previous {
-		if _, kept := next[name]; kept && spdPolicySame(previous[name], next[name]) {
+		policies := spdPolicyParams(previous[name])
+		for i := range policies {
+			held[selectorOf(&policies[i])] = policies[i]
+		}
+	}
+	for i := range slices.Backward(written) {
+		sp := &written[i]
+		if old, ok := held[selectorOf(sp)]; ok {
+			if err := dp.InstallPolicy(old); err != nil {
+				log.Error("ike: could not restore an operator SPD entry after a refused install",
+					"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+					"dir", dirLabel(old.Dir), "src", old.Src, "dst", old.Dst, "priority", old.Priority, "error", err)
+				outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergenceNotRestored, &old, err))
+				continue
+			}
+			outcome.settled = append(outcome.settled, selectorOf(sp))
+			continue
+		}
+		if err := removeZePolicy(dp, *sp); !policyGone(err) {
+			log.Error("ike: could not remove an operator SPD entry after a refused install",
+				"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+				"dir", dirLabel(sp.Dir), "src", sp.Src, "dst", sp.Dst, "priority", sp.Priority, "error", err)
+			outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergenceNotTakenBack, sp, err))
+			continue
+		}
+		outcome.settled = append(outcome.settled, selectorOf(sp))
+	}
+	return outcome
+}
+
+// removeReplacedSPDPolicies removes the previous form of every entry that left the
+// configuration or changed, once the next forms are in. A form whose selector a next
+// entry holds was replaced in place by that entry's install and is left alone.
+// A removal that finds nothing is silent and settles its selector; one that fails
+// leaves the old form acting on its traffic, so it is logged at Warn, answered as
+// diverged and kept in the SPD ledger (removeZePolicy).
+func removeReplacedSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.SPDPolicy, log *slog.Logger) spdReconcile {
+	var outcome spdReconcile
+	kept := make(map[spdSelector]bool)
+	for name := range next {
+		policies := spdPolicyParams(next[name])
+		for i := range policies {
+			kept[selectorOf(&policies[i])] = true
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(previous)) {
+		if current, ok := next[name]; ok && spdPolicySame(previous[name], current) {
 			continue
 		}
 		entries := spdPolicyParams(previous[name])
 		for i := range entries {
 			sp := &entries[i]
-			if err := removeZePolicy(dp, *sp); err != nil {
-				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
+			if kept[selectorOf(sp)] {
+				continue
 			}
+			if err := removeZePolicy(dp, *sp); !policyGone(err) {
+				log.Warn("ike: could not remove the previous form of an operator SPD entry; it still acts on its traffic",
+					"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+					"policy", name, "dir", dirLabel(sp.Dir), "error", err)
+				outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergencePreviousKept, sp, err))
+				continue
+			}
+			outcome.settled = append(outcome.settled, selectorOf(sp))
 		}
 	}
+	return outcome
+}
 
-	for name := range next {
-		if _, held := previous[name]; held && spdPolicySame(previous[name], next[name]) {
-			continue
+// spdInstallOrder answers the entry names in the order the dataplane receives them:
+// the operator's order, lowest first, then the name. Two entries that share an order
+// do not overlap (verifySPDOrder refuses the pair at commit), so the name decides
+// nothing a packet can observe; it makes the sequence the same on every apply.
+func spdInstallOrder(entries map[string]ipsec.SPDPolicy) []string {
+	return slices.SortedFunc(maps.Keys(entries), func(a, b string) int {
+		if c := cmp.Compare(entries[a].Order, entries[b].Order); c != 0 {
+			return c
 		}
-		entries := spdPolicyParams(next[name])
-		for i := range entries {
-			sp := &entries[i]
-			if err := dp.InstallPolicy(*sp); err != nil {
-				if isXFRMUnsupported(err) {
-					log.Debug("ike: spd policies unavailable on this platform", "error", err)
-					return
-				}
-				log.Warn("ike: could not install operator SPD policy; the traffic it names crosses the IPsec boundary unchanged",
-					"policy", name, "action", spdActionName(next[name].Action), "dir", sp.Dir, "error", err)
-			}
-		}
-	}
+		return strings.Compare(a, b)
+	})
 }
 
 // removeSPDPolicies releases every operator SPD entry, for engine shutdown.

@@ -49,13 +49,16 @@ func diagnosticCodes(diags []rpc.DoctorCheckDiagnostic) string {
 // SPD can be in.
 //
 // VALIDATES: AC-21 and AC-17: under deny a detached guard is an error and a socket
-// policy not attributable to Ze a warning; Ze's own ESP form policy is not reported;
+// policy not attributable to Ze a warning; Ze's own ESP form policy and the bypass on
+// each IKE socket (both directions) are not reported;
 // under allow nothing about socket policies is reported.
 // PREVENTS: a guard detached behind the administrator's back going unreported, and a
 // warning the administrator already accepted by choosing allow.
 func TestDoctorApplicationOverride(t *testing.T) {
 	_, any4, _ := net.ParseCIDR("0.0.0.0/0")
 	zeOwn := dataplane.PolicyInfo{PerSocket: true, Dir: dataplane.SADirIn, Src: any4, Dst: any4, Role: dataplane.PolicyRoleESPFormSocket}
+	zeIKEIn := dataplane.PolicyInfo{PerSocket: true, Dir: dataplane.SADirIn, Src: any4, Dst: any4, Role: dataplane.PolicyRoleIKEBypass}
+	zeIKEOut := dataplane.PolicyInfo{PerSocket: true, Dir: dataplane.SADirOut, Src: any4, Dst: any4, Role: dataplane.PolicyRoleIKEBypass}
 	foreign := dataplane.PolicyInfo{PerSocket: true, Dir: dataplane.SADirOut, Src: any4, Dst: any4, Role: dataplane.PolicyRoleSocketOverride}
 	spdEntry := dataplane.PolicyInfo{Dir: dataplane.SADirOut, Src: any4, Dst: any4}
 	attached := dataplane.OverrideGuardState{Status: dataplane.OverrideGuardAttached}
@@ -71,6 +74,10 @@ func TestDoctorApplicationOverride(t *testing.T) {
 	}{
 		{"deny, attached, Ze's own only", ipsec.ApplicationOverrideDeny,
 			&socketPolicyDP{policies: []dataplane.PolicyInfo{zeOwn, spdEntry}, state: attached}, ""},
+		{"deny, attached, Ze's own IKE socket bypass", ipsec.ApplicationOverrideDeny,
+			&socketPolicyDP{policies: []dataplane.PolicyInfo{zeOwn, zeIKEIn, zeIKEOut, spdEntry}, state: attached}, ""},
+		{"deny, attached, a foreign socket policy beside Ze's IKE bypass", ipsec.ApplicationOverrideDeny,
+			&socketPolicyDP{policies: []dataplane.PolicyInfo{zeIKEIn, foreign, zeIKEOut}, state: attached}, warn},
 		{"deny, attached, a foreign socket policy", ipsec.ApplicationOverrideDeny,
 			&socketPolicyDP{policies: []dataplane.PolicyInfo{zeOwn, foreign, spdEntry}, state: attached}, warn},
 		{"deny, detached", ipsec.ApplicationOverrideDeny,

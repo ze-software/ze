@@ -129,8 +129,8 @@ module ze-ipsec-conf {
                              policy for every flow that must still cross in the clear, or set
                              bypass to pass all of it. A commit that would turn the discard
                              on while this leaf is unset is refused until the leaf is
-                             written. The IKE control plane keeps its own bypass at order 100
-                             either way.
+                             written. Ze's own IKE sockets carry their own bypass, which the
+                             kernel consults before any SPD entry, so IKE crosses either way.
 
                              bypass carries ICMP errors in clear, and Linux would still send
                              one about a tunnelled packet into the Child SA of a site-to-site
@@ -205,8 +205,14 @@ module ze-ipsec-conf {
                     }
                     description "The name identifies the entry in the configuration and in the output of
                         `show vpn ipsec dataplane`. It does not reach the kernel, which identifies a
-                        policy by its selector alone, so two entries whose selector, direction and
-                        order all agree describe one kernel policy and commit refuses the pair.";
+                        policy by its selector alone, so two entries whose selector and direction
+                        agree would describe one kernel policy, and commit refuses the pair whatever
+                        their orders. Two entries that merely overlap in selector and direction, or an
+                        entry and a site-to-site peer that do, must carry different orders: commit
+                        refuses the pair, naming both, the shared order and the
+                        `set vpn ipsec policy <name> order <n>` command that separates them (RFC 4301
+                        Section 4.4.1, total ordering). Entries that do not overlap may share an order,
+                        because no packet matches both.";
                     ze:help "Entry name, unique across the Security Policy Database.";
                 }
 
@@ -250,14 +256,16 @@ module ze-ipsec-conf {
                                  RFC 4301 Section 4.4.1: the management interface 'MUST support
                                  (total) ordering of these entries, as seen via this interface'.
 
-                                 The default of 1000 sits between the IKE control-plane bypass at 100
+                                 The default of 1000 sits between the lowest order accepted, 101,
                                  and a peer's default rank of 2000, so an entry written with no order
                                  outranks the tunnels and carves its hole out of them. Raise it above
-                                 2000 to let a tunnel win instead.
+                                 2000 to let a tunnel win instead. Two entries that overlap must not
+                                 share an order, so two overlapping entries both left at the default
+                                 are refused at commit until one is given an order of its own.
 
-                                 The range starts above 100 for the reason policy-priority states: an
-                                 entry at or above the IKE bypass captures the IKE exchange that
-                                 builds and rekeys every tunnel on the node.";
+                                 The range starts above 100, as policy-priority's does. The IKE
+                                 exchange is exempt on Ze's own IKE sockets, ahead of every entry
+                                 whatever its order, so no order captures it.";
                     ze:help
                         "Rank of this entry, lowest searched first.";
                 }
@@ -343,8 +351,9 @@ module ze-ipsec-conf {
                                  policies carry the xfrm interface's if_id, which neither kernel
                                  path compares with this entry.
 
-                                 The VPP dataplane compares no ICMP type or code, so it refuses an
-                                 entry that names one rather than matching every ICMP message.
+                                 The VPP dataplane installs no operator SPD entry: an entry names
+                                 no interface, and VPP has no node-wide policy database. It also
+                                 compares no ICMP type or code.
 
                                  Linux classifies every IP fragment as type 0 code 0, and it
                                  classifies forwarded traffic before reassembling it, so commit
@@ -1176,11 +1185,11 @@ module ze-ipsec-conf {
                                      forbids. The default 2000 is the rank every peer took before
                                      this leaf existed.
 
-                                     The range starts above 100, which is where the IKE control-plane
-                                     bypass sits. A peer entry at or above that rank captures the IKE
-                                     exchange that builds and rekeys the very SA it protects, and the
-                                     tunnel could then never renegotiate. It ends at 2147483647, the
-                                     largest rank Ze can carry to a dataplane.";
+                                     The range starts above 100, a band the IKE control-plane bypass
+                                     once held. The bypass now sits on Ze's own IKE sockets, ahead of
+                                     every entry whatever its rank, so no rank captures the exchange
+                                     that builds and rekeys the SA. It ends at 2147483647, the largest
+                                     rank Ze can carry to a dataplane.";
                         ze:help
                             "Rank of this peer's Security Policy Database entries, lowest searched first.";
                     }

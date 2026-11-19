@@ -141,6 +141,8 @@ plugin's process:
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
 | `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
 | `ipsec-state-scope` | `ike` | a missing, partial or unreadable complete state-scope receipt with configured IPsec peers, before a Child SA attempt; the finding retains the shared installation validator's cause and native kernel-build repair commands | `doctor-ipsec-state-scope` |
+| `ipsec-spd-install` | `ike` | an operator SPD entry the dataplane refused at start; a selector where a failed undo or removal left the dataplane disagreeing with the running configuration, with its direction, selector, priority and the dataplane's answer | `doctor-ipsec-spd-install-refused`, `doctor-ipsec-spd-undo-incomplete` |
+| `ipsec-ike-socket-bypass` | `ike` | an IKE socket the engine holds whose per-socket IPsec bypass the kernel refused, with the socket and the kernel's answer | `doctor-ipsec-ike-socket-bypass` |
 
 What each finding means, and the stale-label sweep behind the
 `doctor-fib-vpp-mpls-stale-label` code, are in
@@ -152,6 +154,8 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_state_scope.go -- stateScopeCheckDecl, answerStateScope -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl -->
+<!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- ikeSocketBypassCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
 
 The `container` plugin, in a build with `ze_container`, declares five runtime
@@ -711,7 +715,19 @@ records (`recordChildRefused`), which exists only in the engine's process.
 `ipsec-spd-install` is a third: it reports each operator `vpn ipsec policy`
 entry the dataplane refused when the daemon started, which the start records
 (`installSPDPoliciesAtStart`) instead of refusing the IPsec block. A reload
-never leaves one behind, because a refused entry refuses the commit.
+never leaves one behind, because a refused entry refuses the commit. The same
+check reports, under `doctor-ipsec-spd-undo-incomplete`, each selector at which
+a failed reconcile step left the dataplane disagreeing with the running
+configuration: the undo of a refused install that could not restore or remove a
+policy, or an accepted reload that could not remove an entry's previous form.
+Each reconcile answers what it left selector by selector (`spdReconcile`), and
+`recordSPDReconcile` folds it into the engine's record: a selector a later
+reconcile settles is cleared, and one no later reconcile touches stays reported
+until `ze signal restart` rebuilds the SPD. `ipsec-ike-socket-bypass` is a
+fourth: it reports each IKE socket the engine holds whose per-socket IPsec
+bypass the kernel refused, which the transport records when it opens the socket
+(`exemptFromIPsec`, read through `BypassError`), with
+`doctor-ipsec-ike-socket-bypass` and the capability-and-restart fix.
 None of these checks probes the host: the TUN device outcome is recorded by the apply
 (`recordESPFormTUN`), because opening `/dev/net/tun` may create the node.
 A bind probe MUST NOT judge a port
@@ -724,8 +740,13 @@ as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.m
 <!-- source: internal/component/doctor/answer.go -- Answer -->
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks, answerDoctorCheck, answerESPFormFastPath -->
 <!-- source: internal/component/ike/engine/doctor_child_install.go -- childInstallCheckDecl, recordChildRefused -->
-<!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl, answerSPDInstall -->
-<!-- source: internal/component/ike/engine/spd_policy.go -- installSPDPoliciesAtStart -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl, answerSPDInstall, recordSPDReconcile -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- installSPDPoliciesAtStart, reconcileSPDPolicies, spdReconcile, undoSPDInstall, removeReplacedSPDPolicies -->
+<!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- ikeSocketBypassCheckDecl, answerIKESocketBypass, checkIKESocketBypass -->
+<!-- source: internal/component/ike/transport/udp.go -- exemptFromIPsec, BypassError -->
+<!-- test: internal/component/ike/engine/doctor_spd_diverged_test.go TestSPDPreviousFormNotRemovedIsReportedByDoctor -->
+<!-- test: internal/component/ike/engine/doctor_spd_diverged_test.go TestSPDUndoNotTakenBackIsReportedByDoctor -->
+<!-- test: internal/component/ike/engine/doctor_ike_socket_bypass_test.go TestIKESocketBypassRefusalIsReportedByDoctor -->
 <!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN -->
 <!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
 <!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->

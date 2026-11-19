@@ -267,6 +267,9 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 	// RFC 4301 Section 6.2: whether an outbound ICMP error may be mapped back onto
 	// the SA this entry resolves to, as the dataplane holds it on the entry.
 	row["icmp-error-return"] = p.ICMPErrorReturn
+	// RFC 4301 Section 6.2: whether this discard entry lets the inbound payload check
+	// admit an ICMP error whose reversed payload matches its SA (the catch-all only).
+	row["icmp-error-yield"] = p.ICMPErrorYield
 	return row
 }
 

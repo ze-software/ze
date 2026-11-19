@@ -90,7 +90,9 @@ func TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate(t *testing.T) 
 			RemotePrefix: mustCIDRNet(t, "10.1.0.0/16"), RemotePort: ipsec.AnyPort(),
 		},
 	}
-	installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger())
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
 	fragmentWantOperatorPolicies(t, entries)
 	clear := func(packet []byte) { fragmentSend(t, plain, packet) }

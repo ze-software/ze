@@ -2,6 +2,8 @@
 // Related: register.go -- runEngine declares these checks at Stage 1 and answers them through OnDoctorCheck
 // Related: doctor_esp_form_fast_path.go -- the ipsec-esp-form-fast-path check
 // Related: doctor_child_install.go -- the ipsec-child-install check
+// Related: doctor_spd_install.go -- the ipsec-spd-install check
+// Related: doctor_ike_socket_bypass.go -- the ipsec-ike-socket-bypass check
 
 package engine
 
@@ -39,6 +41,12 @@ var engineDoctorChecks = []engineDoctorCheck{{
 }, {
 	decl:   redistributionSourceCheckDecl,
 	answer: answerRedistributionSource,
+}, {
+	decl:   spdInstallCheckDecl,
+	answer: answerSPDInstall,
+}, {
+	decl:   ikeSocketBypassCheckDecl,
+	answer: answerIKESocketBypass,
 }}
 
 // engineDoctorCheckDecls answers the declarations the engine sends at Stage 1.

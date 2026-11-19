@@ -252,6 +252,12 @@ const (
 	xfrmZECapFragmentContext
 	xfrmZECapFragmentGuard
 	xfrmZECapICMPFinal
+	// xfrmZECapICMPReverse is K1's inbound ICMP reverse check (XFRM_ZE_CAP_ICMP_REVERSE,
+	// bit 5): icmp_rcv and icmpv6_rcv run it for ICMP error types alone, and it stops at
+	// an inbound BLOCK policy the message matches as received unless that policy carries
+	// XFRM_POLICY_ICMP, which only the catch-all's inbound entry does
+	// (xfrmPolicyFromParams).
+	xfrmZECapICMPReverse
 )
 
 // Has reports whether f carries every bit of required. No bits is never carried.
@@ -316,7 +322,7 @@ func parseXFRMZECapabilities(payload []byte) (*xfrmZECapabilities, error) {
 			return nil, fmt.Errorf("XFRM selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors)
 		}
 		const known = xfrmZECapStateScope | xfrmZECapICMPQuote | xfrmZECapFragmentContext |
-			xfrmZECapFragmentGuard | xfrmZECapICMPFinal
+			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse
 		if caps.Features & ^known != 0 {
 			return nil, errors.New("XFRM capability receipt contains unknown feature bits")
 		}

@@ -41,7 +41,7 @@ func TestRFC4301KernelAdvertisesCompleteStateScope(t *testing.T) {
 		t.Fatalf("kernel scope selector limit = %d, want %d", caps.MaxSelectors, saStateScopeMaxSelectors)
 	}
 	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
-		xfrmZECapFragmentContext | xfrmZECapFragmentGuard
+		xfrmZECapFragmentContext | xfrmZECapFragmentGuard | xfrmZECapICMPReverse
 	if !caps.Features.Has(required) {
 		t.Fatalf("Ze kernel scope features = %#x, want all enforcement bits %#x; missing %#x; a partial receipt cannot authorize scoped SAs",
 			caps.Features, required, required & ^caps.Features)

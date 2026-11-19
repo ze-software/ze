@@ -244,8 +244,8 @@ func validateIdentityLeaves(name string, local, remote identityLeaf, remoteIDTyp
 //
 // RFC 4301 Section 4.4.1 requires the ordering: "Thus, a user or administrator MUST be
 // able to order the entries to express a desired access control policy." It orders the
-// entries of ONE database, and the IKE bypass is an entry of that database too
-// (engine/bypass.go, dataplane.PriorityIKEBypass).
+// entries of ONE database. Its floor is dataplane.PriorityIKEBypass, a rank the IKE
+// bypass once held; that bypass now sits on Ze's IKE sockets (transport.bypassIKESocket).
 //
 // A Child SA entry at or above the bypass matches the IKE datagrams first, so the
 // exchange that builds, rekeys and tears down that very SA is handed to the SA itself.

@@ -124,8 +124,23 @@ type ikeEngineState struct {
 	// rather than re-derived from the live configuration because the removal half needs
 	// the PREVIOUS selectors: the kernel identifies a policy by its selector alone, so
 	// an entry whose prefix was edited can only be removed under the prefix it was
-	// installed with (installSPDPolicies, spd_policy.go).
+	// installed with (reconcileSPDPolicies, spd_policy.go). An entry the start could not
+	// install is absent from it, so the next reload installs that entry afresh.
 	installedSPD map[string]ipsec.SPDPolicy
+
+	// spdRefused is each operator SPD entry of the running configuration that the
+	// dataplane refused at the start, by entry name, with the refusal; nil when there is
+	// none (installSPDPoliciesAtStart). A refused reload never adds one, because it is
+	// refused whole, and an accepted reload clears it. The ipsec-spd-install doctor
+	// check reads it under applyMu (doctor_spd_install.go).
+	spdRefused map[string]*opererr.Error
+
+	// spdDiverged is each selector at which the dataplane disagrees with the running
+	// configuration's operator entries because a reconcile step failed (spdDivergence,
+	// spd_policy.go), keyed by selector; nil when there is none. recordSPDReconcile
+	// folds each reconcile in, and the ipsec-spd-install doctor check reads it under
+	// applyMu (doctor_spd_install.go).
+	spdDiverged map[spdSelector]spdDivergence
 
 	// xfrmEntries is the SPD entries of the bound XFRM interfaces as currently
 	// installed, keyed by selector (unmatched_xfrm_interface.go): each interface SPD's
@@ -287,10 +302,13 @@ type reEstablishCtx struct {
 // delivery paths reach it: OnConfigure carries the configuration the daemon starts with,
 // and OnConfigApply carries every reload after that.
 //
-// It returns an error for ONE condition, and only on the reload phase: a configuration
-// whose peers depend on `interface` for their local address, when that interface cannot
-// supply one. See applyPhase and unbindablePeers for why the two deliveries answer that
-// condition differently.
+// On the reload phase it refuses a configuration whose peers depend on `interface` for
+// their local address when that interface cannot supply one, and one with an operator
+// SPD entry the dataplane refused to install (reconcileSPDPolicies). The start applies
+// both and says so: see applyPhase and unbindablePeers for why the two deliveries
+// answer the first differently, and installSPDPoliciesAtStart for the second. Both
+// phases refuse an SPD catch-all, an XFRM interface's final entry or an application
+// override guard that could not be put in place.
 //
 // The order of the steps below is load-bearing, and each one states why it sits where it
 // does.
@@ -351,11 +369,11 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// entry that discards traffic must be in force before the tunnels that traffic
 	// could otherwise take are built. They also outrank a peer's entries by default, so
 	// installing them second would leave a window in which the lower-ranked entry is
-	// the only match (installSPDPolicies, spd_policy.go).
+	// the only match (reconcileSPDPolicies, spd_policy.go).
 	//
 	// The catch-all goes in first, ahead of the operator's entries and the cookie
-	// threshold, and it is the one step of an apply that
-	// can refuse the configuration after the interface check above. A catch-all that
+	// threshold, and on the first apply it is the first step that can refuse the
+	// configuration after the interface check above. A catch-all that
 	// could not be installed, DISCARD or BYPASS, leaves an inbound packet meeting no
 	// SPD-I entry at all, so the apply fails and the configuration is not reported
 	// applied (installUnmatched, unmatched.go). Running it before the operator's entries
@@ -404,6 +422,14 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// that cannot attach under deny fails the apply and installs nothing further. On a
 	// reload it moves FIRST, ahead of every SPD change, so a refused guard leaves the
 	// running SPD and its disposition as they were.
+	//
+	// On a reload the operator's entries are reconciled here too, after the guard and the
+	// interface entries and BEFORE the catch-all is re-asserted, because a refused entry
+	// refuses the reload (reconcileSPDPolicies, which puts back every entry it changed): the
+	// running catch-all disposition and the running cookie threshold then stay as they
+	// were. Their place against the catch-all decides nothing a packet meets, since every
+	// operator entry outranks it. On the first apply they follow the catch-all and the
+	// IKE bypass, below.
 	interfaceEntries := s.planXFRMInterfaceEntries(cfg)
 	if s.spdApplied {
 		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
@@ -412,6 +438,14 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		if err := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries); err != nil {
 			return err
 		}
+		// RFC 4301 Section 4.4.1
+		outcome, err := reconcileSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
+		s.recordSPDReconcile(outcome)
+		if err != nil {
+			return err
+		}
+		s.installedSPD = cfg.Policies
+		s.spdRefused = nil
 	}
 	firstApply := !s.spdApplied
 	s.spdApplied = true
@@ -441,9 +475,27 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		// cannot run here.
 		warnImplicitDiscardAtStart(cfg, s.log)
 		warnICMPOverlapAtStart(cfg, s.log)
+		warnSPDOrderAtStart(cfg, s.log)
 	}
-	installSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
-	s.installedSPD = cfg.Policies
+	// RFC 4301 Section 4.4.1. The start installs every entry the dataplane holds and
+	// reports the rest (owner decision 2026-11-19, "Install, log, doctor"); a first apply
+	// that arrived as a reload can still be refused, so it is all or nothing, as every
+	// later reload above is.
+	switch {
+	case !firstApply:
+		// Reconciled above, before the catch-all was re-asserted.
+	case phase == applyStartup:
+		var outcome spdReconcile
+		s.installedSPD, s.spdRefused, outcome = installSPDPoliciesAtStart(dataplane.Get(), cfg.Policies, s.log)
+		s.recordSPDReconcile(outcome)
+	default:
+		outcome, err := reconcileSPDPolicies(dataplane.Get(), nil, cfg.Policies, s.log)
+		s.recordSPDReconcile(outcome)
+		if err != nil {
+			return err
+		}
+		s.installedSPD = cfg.Policies
+	}
 
 	// RFC 7296 Section 2.6. Published before any peer is reconciled, so an initiation
 	// that arrives during the reconcile is judged against the configuration being

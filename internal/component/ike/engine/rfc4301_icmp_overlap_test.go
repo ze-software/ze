@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the ICMP processing icmp-error-check turns on
-// Related: icmp_overlap.go -- refuseICMPErrorBypass and refuseICMPCheckDiscard, the refusals under test
+// Related: icmp_overlap.go -- refuseICMPErrorBypass, the refusal under test, and the discard entries it accepts
 // RFC: rfc/short/rfc4301.md -- Section 6.2, ICMP error processing
 
 package engine
@@ -313,14 +313,14 @@ func TestICMPOverlapProtocolFamily(t *testing.T) {
 	}
 }
 
-// VALIDATES: an inbound discard entry that matches ICMP is refused at verify beside a
-// peer with icmp-error-check true, whatever its prefixes and its ICMP type: discard in
-// protocol 1, discard both protocol 0, and discard in icmp-type 8 (echo request). The
-// fix names the leaf and deleting the entry, and no change of its direction.
-// PREVENTS: an operator discard entry that Linux icmp_rcv overrides for ICMP arriving on
-// the peer's Child SA, an echo request included, and a fix that turns the entry into
-// one with another meaning.
-func TestICMPOverlapDiscardRefused(t *testing.T) {
+// VALIDATES: an inbound discard entry that matches ICMP is accepted at verify beside a
+// policy-based peer with icmp-error-check true, whatever its prefixes and its ICMP type:
+// discard in protocol 1, discard both protocol 0 (the default entry), and discard in
+// icmp-type 8 (echo request); and a started configuration holding one logs nothing.
+// PREVENTS: a commit refusal for an entry Ze's kernel honors (K1 drops ICMP that
+// matches an operator discard as received before the reverse check reads its payload),
+// which made the default discard entry uncommittable beside a default peer (D-6).
+func TestICMPOverlapDiscardBesideCheckedPeerAccepted(t *testing.T) {
 	discard, in, both := dataplane.SPActionDiscard, ipsec.SPDDirIn, ipsec.SPDDirBoth
 	cases := []struct {
 		name   string
@@ -333,23 +333,24 @@ func TestICMPOverlapDiscardRefused(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := icmpOverlapConfig(icmpOverlapPeer(t, false, false), dataplane.SPActionDiscard, tc.policy)
-			err := verifyICMPOverlap(cfg)
-			requireICMPOverlapRefusal(t, err,
-				`ipsec peer "site"`, "`vpn ipsec policy drop`",
-				"set vpn ipsec site-to-site peer site icmp-error-check false",
-				"delete vpn ipsec policy drop")
-			requireICMPOverlapFixOmits(t, err, "direction")
+			if err := verifyICMPOverlap(cfg); err != nil {
+				t.Errorf("a discard entry beside a peer with icmp-error-check true was refused: %v", err)
+			}
+			var logged bytes.Buffer
+			warnICMPOverlapAtStart(cfg, slog.New(slog.NewTextHandler(&logged, nil)))
+			if logged.Len() != 0 {
+				t.Errorf("a configuration holding only a discard entry logged at start:\n%s", logged.String())
+			}
 		})
 	}
 }
 
-// VALIDATES: a discard entry the kernel's inbound ICMP re-check cannot override passes
-// verify: an out-only entry, a UDP entry, a peer with icmp-error-check false, an entry of
-// a family the peer's selectors do not carry, `unmatched discard` with no entry, and an
-// entry beside a `vti bind` peer.
-// PREVENTS: the refusal reaching the catch-all, whose override for a consistent error
-// is the Section 6.2 processing itself, an entry that matches no ICMP, or a route-based
-// peer, whose inbound ICMP is policy-checked at its interface's if_id.
+// VALIDATES: a discard entry passes verify in each shape refusal A never judges: an
+// out-only entry, a UDP entry, a peer with icmp-error-check false, an entry of a family
+// the peer's selectors do not carry, `unmatched discard` with no entry, and an entry
+// beside a `vti bind` peer.
+// PREVENTS: refusal A, which judges bypass entries only, reaching a discard entry or the
+// discard catch-all.
 func TestICMPOverlapDiscardAccepted(t *testing.T) {
 	discard, out, in := dataplane.SPActionDiscard, ipsec.SPDDirOut, ipsec.SPDDirIn
 	cases := []struct {
@@ -379,9 +380,10 @@ func TestICMPOverlapDiscardAccepted(t *testing.T) {
 	}
 }
 
-// VALIDATES: a started configuration holding both conflicts logs each at Error level
-// with its fix and the code `ze doctor` reports it under (config-plugin-verify), and one
-// holding none logs nothing.
+// VALIDATES: a started configuration holding refusal A's conflict logs it once at Error
+// level with its fix and the code `ze doctor` reports it under (config-plugin-verify),
+// a discard entry beside the same peer adds no line, and a configuration holding no
+// conflict logs nothing.
 // PREVENTS: a box that boots a conflicting file, which no commit refused, running with
 // it in silence.
 func TestICMPOverlapSaidAtStart(t *testing.T) {
@@ -391,14 +393,17 @@ func TestICMPOverlapSaidAtStart(t *testing.T) {
 		icmpOverlapPolicy(t, "drop", dataplane.SPActionDiscard, ipsec.SPDDirIn, 1, -1, "0.0.0.0/0", "0.0.0.0/0"))
 	warnICMPOverlapAtStart(cfg, log)
 	text := logged.String()
-	if got := strings.Count(text, "level=ERROR"); got != 2 {
-		t.Fatalf("the start logged %d Error lines, want 2 (the bypass catch-all and the discard entry):\n%s", got, text)
+	if got := strings.Count(text, "level=ERROR"); got != 1 {
+		t.Fatalf("the start logged %d Error lines, want 1 (the bypass catch-all):\n%s", got, text)
 	}
-	for _, want := range []string{"`vpn ipsec unmatched bypass`", "`vpn ipsec policy drop`",
+	for _, want := range []string{"`vpn ipsec unmatched bypass`",
 		"code=config-plugin-verify", "set vpn ipsec site-to-site peer site icmp-error-check false"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the start log does not carry %q:\n%s", want, text)
 		}
+	}
+	if strings.Contains(text, "`vpn ipsec policy drop`") {
+		t.Errorf("the start log names the discard entry, which Ze's kernel honors:\n%s", text)
 	}
 
 	logged.Reset()

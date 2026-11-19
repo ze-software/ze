@@ -188,12 +188,30 @@ cannot match an exact zero port. Packet offload of a scoped state is refused;
 crypto-only offload retains software checks.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_state_scope_match, xfrm_state_clone_and_setup, xfrm_state_update, xfrm_icmp_flow_decode, xfrm_dev_state_add -->
 
+The reverse-quote fallback runs only for an ICMP error. `icmp_rcv` re-checks a
+message the inbound check refused only when its type is an error
+(`icmp_is_err`: destination unreachable, source quench, redirect, time
+exceeded, parameter problem), and `icmpv6_rcv` only below 128, so a non-error
+message from outside the SA's selectors stays refused, counted once as the
+state mismatch, whatever its bytes after the ICMP header say. The reverse check
+then looks the message up as received (`xfrm_policy_lookup` on its own
+headers): an inbound BLOCK policy it meets drops it (`XfrmInPolBlock`), unless
+that policy carries `XFRM_POLICY_ICMP`. Ze sets that flag on the catch-all's
+inbound discard alone, node-wide and per XFRM interface
+(`catchAllYieldsToICMPErrorCheck`), so an operator `in` discard entry, any
+protocol, drops the ICMP it names, while a consistent error still passes the
+catch-all under `unmatched discard`. The readback reports the flag as
+`ICMPErrorYield` on a discard and as `ICMPErrorReturn` on a protect policy.
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- icmp_rcv, icmpv6_rcv, __xfrm_policy_check -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- catchAllYieldsToICMPErrorCheck, policyInfoFromKernel -->
+
 `GETDEFAULT` appends read-only `XFRMA_ZE_CAPS` (43): four native-endian `u32`
 values, `features`, `max_selectors`, `guard_refs` and `abi`. The ABI word must
 equal `0x5a450001`; an absent or different receipt proves no support. Feature
 bits are 0 for state scope, 1 for quote availability, 2 for fragment context,
-3 for fragment gathering and 4 for strict ICMP final-policy mapping. K1
-advertises only bits 0 and 1; K2 adds bit 2 when both IP families are compiled.
+3 for fragment gathering, 4 for strict ICMP final-policy mapping and 5 for the
+error-only, discard-honouring ICMP reverse check. K1 advertises bits 0, 1 and
+5; K2 adds bit 2 when both IP families are compiled.
 K3 adds bit 3 only when `CONFIG_XFRM_FRAGMENT_GUARD` is built and its namespace
 hooks initialized successfully.
 Guard references belong to scoped states and
@@ -956,42 +974,43 @@ untransformed: under `unmatched bypass` the catch-all does; under
 `unmatched discard` it blocks the error first. The VPP backend reads no ICMP payload on either path and refuses
 both requests (`vppUnsupportedSA`, `vppICMPErrorReturnError`).
 
-Both flags override an operator SPD entry, so config verify refuses the pair
-rather than install an entry the kernel does not honour (`verifyICMPOverlap`,
-`icmp_overlap.go`, the last step of `validateIPsecSections`, the offline
-verifier that `ze config validate`, every commit door and `OnConfigVerify` run).
-`icmp_route_lookup` maps an error whose normal lookup answered the plain route,
-and a template-free allow policy (a BYPASS entry) answers that route as no
-policy does, so `refuseICMPErrorBypass` refuses a peer with the check on beside
-`unmatched bypass`, or beside a bypass entry that is out or both, protocol 0 or
-the family's ICMP protocol, ICMP type any or an error type the kernel sends
-(`icmpErrorTypesV4`, `icmpErrorTypesV6`, which name their kernel callers),
-and whose remote prefix overlaps the peer's remote selectors. `icmp_rcv`
-delivers what an inbound discard entry refused whenever the reversed embedded
-header matches the SA, whatever the type, so `refuseICMPCheckDiscard` refuses
-an in or both discard entry matching ICMP in a family the peer's selectors
-carry. Both are conservative: neither narrows on the entry's local prefix or
-order, because the Ze address of the ICMP message is unknown at commit. An
-entry below the peer's protect policy is overridden for every triggering
-packet whose Ze address is outside the local selectors; a protocol-0 bypass
-above it may not be overridden for every triggering packet, but it is for
-some.
+The outbound flag overrides an operator SPD entry, so config verify refuses the
+pair rather than install an entry the kernel does not honour
+(`verifyICMPOverlap`, `icmp_overlap.go`, the last step of
+`validateIPsecSections`, the offline verifier that `ze config validate`, every
+commit door and `OnConfigVerify` run). `icmp_route_lookup` maps an error whose
+normal lookup answered the plain route, and a template-free allow policy (a
+BYPASS entry) answers that route as no policy does, so `refuseICMPErrorBypass`
+refuses a peer with the check on beside `unmatched bypass`, or beside a bypass
+entry that is out or both, protocol 0 or the family's ICMP protocol, ICMP type
+any or an error type the kernel sends (`icmpErrorTypesV4`, `icmpErrorTypesV6`,
+which name their kernel callers), and whose remote prefix overlaps the peer's
+remote selectors. It is conservative: it does not narrow on the entry's local
+prefix or order, because the Ze address of the ICMP message is unknown at
+commit. An entry below the peer's protect policy is overridden for every
+triggering packet whose Ze address is outside the local selectors; a
+protocol-0 bypass above it may not be overridden for every triggering packet,
+but it is for some.
 
-**Owner decision, 2026-11-19: the kernel honours an operator discard.** K1 (the
-state-scope patch) is extended so the reverse ICMP-error check never overrides
-an operator DISCARD entry, and the commit refusal `refuseICMPCheckDiscard` is
-removed. A discard entry beside a peer with the default `icmp-error-check` is
-then accepted and drops what it names, ICMP included. `refuseICMPErrorBypass`
-is not part of this decision and stays. Until that change lands, the paragraph
-above describes the tree.
+**Owner decision, 2026-11-19: the kernel honours an operator discard.** The
+inbound flag no longer overrides one. K1 runs the reverse check for ICMP error
+types alone and stops it at an inbound BLOCK policy the message matches as
+received, unless the policy carries `XFRM_POLICY_ICMP`, which only the
+catch-all's inbound discard does (the state-scope section above). So no commit
+refuses an `in` or `both` discard entry beside a peer with the default
+`icmp-error-check`: the entry drops the traffic it names, ICMP included, and
+nothing tells the operator to turn the Section 6.2 check off to get a working
+discard. Ze requires that kernel behaviour through capability bit 5
+(`checkXFRMStateScopeCapabilities`).
 
-A `vti bind` peer is skipped by both. Its policies carry the xfrm interface's
-if_id, and an operator entry if_id 0. The reverse lookup of
+A `vti bind` peer is skipped by refusal A. Its policies carry the xfrm
+interface's if_id, and an operator entry if_id 0. The reverse lookup of
 `icmp_route_lookup` and `icmpv6_route_lookup` is `xfrm_lookup`, which is
 `xfrm_lookup_with_ifid` with if_id 0, and `xfrm_policy_match` refuses a policy
-whose if_id differs, so that peer's out policy is never the mapping target;
+whose if_id differs, so that peer's out policy is never the mapping target.
 ICMP decrypted on the interface is policy-checked at its if_id
-(`xfrmi_decode_session`), where no operator entry is consulted.
+(`xfrmi_decode_session`), where no operator entry is consulted, and where the
+interface catch-all's inbound discard carries `XFRM_POLICY_ICMP` too.
 
 The start is never verified, so `warnICMPOverlapAtStart` logs the same refusal
 at Error level under `config-plugin-verify`, the code under which the
@@ -1006,7 +1025,7 @@ problem at Error, and `ze doctor` reports the conflict and the command that
 fixes it. The door's trap records why: an earlier start-time refusal left a box
 with no tunnels at all.
 
-<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, verifyICMPOverlap, warnICMPOverlapAtStart -->
+<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, verifyICMPOverlap, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
 <!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
@@ -1132,7 +1151,7 @@ traffic in the clear.
 | Disposition | Producer | Linux XFRM | VPP |
 |---|---|---|---|
 | PROTECT | `childPolicies`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
-| BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched bypass`, and `xfrmInterfaceExemptions` under `vpn ipsec unmatched discard` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
+| BYPASS | the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched bypass`, and `xfrmInterfaceExemptions` under `vpn ipsec unmatched discard` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
 | DISCARD | the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched discard`, and `interfaceSPDCatchAll` for every bound XFRM interface under either value | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
 
 The template-free XFRM action mapper is called only after `isTemplateFree`
@@ -1142,6 +1161,16 @@ operation error because it belongs to the template path.
 The VPP mapper receives actions from the same local policy builders or checked
 operator policy parsing. It also asserts `BUG` for an unnamed internal action
 rather than choosing a VPP disposition.
+
+The VPP column is the mapping the VPP backend would send, and no operator entry
+reaches it. An operator `vpn ipsec policy` entry names no interface
+(`SPParams.IfIndex` 0), `vppPolicyInterface` refuses it with
+`dataplane.ErrNotSupported`, and `reconcileSPDPolicies` reads that answer through
+`isXFRMUnsupported` as a platform with no dataplane, so the commit succeeds and
+the entry is never installed. That is an open defect, not a design.
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- reconcileSPDPolicies -->
+<!-- source: internal/component/ike/engine/child.go -- isXFRMUnsupported -->
 
 MOBIKE migration policies come from the same complete Child SA policy set.
 Inbound and forward templates move from remote to local; outbound templates move
@@ -1250,16 +1279,14 @@ skipped with a warning, and the same configuration is refused at verify
 (`refuseTunnelAddressAsIKEEndpoint`).
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
-installs the catch-all first and, on the first apply only, the IKE bypass
-(`installIKEBypass`) right after it, before any IKE socket opens; engine start
-installs nothing. Every exit of `runEngine` stops every peer, removing its Child
-SA (`stopAllPeers`), then `releaseSPD` removes the IKE bypass, the operator's
-entries, and the catch-all LAST. So no Ze entry is in force without the final
+installs the catch-all first; engine start installs nothing. Every exit of
+`runEngine` stops every peer, removing its Child SA (`stopAllPeers`), then
+`releaseSPD` removes the operator's entries, and the catch-all LAST. So no Ze entry is in force without the final
 entry beneath it, and outside that window Ze holds no SPD entry and no SA: it is
 not acting as an IPsec implementation then (owner decision 2026-10-20). A
 removal that fails (anything but ENOENT, another peer's ownership refusal, or
 `dataplane.ErrNotSupported`, the backend's answer for an entry it cannot hold, such
-as the IKE bypass on VPP) leaves its entry in the SPD ledger (`removeZePolicy`,
+as a node-wide entry on VPP) leaves its entry in the SPD ledger (`removeZePolicy`,
 `spd_left.go`), which every Child SA policy, Child SA install rollback, bypass and
 operator removal reports to; `releaseSPD` then keeps
 the catch-all beneath the entries left and logs them at Warn, each written as
@@ -1278,14 +1305,13 @@ an SDK startup failure before it removes nothing, so a pre-existing policy it
 never managed survives.
 
 **Owner decision, 2026-11-19: the IKE bypass is per socket.** Ze's IKE bypass
-becomes per-socket XFRM policies on Ze's own IKE sockets, as strongSwan does,
-and the node-wide any-address UDP port 500 and 4500 bypass (`ikeBypassPolicies`,
-`installIKEBypass`) is removed. The node-wide out entry can also match a packet
-forwarded from a protected host with source port 500 or 4500, and send it in
-clear where the tunnel should carry it. A per-socket policy matches
-only traffic of the socket it is set on, so it exempts Ze's own IKE and nothing
-it forwards. Until that change lands, the BYPASS row of the table above and the
-lifetime paragraph describe the tree.
+is a pair of per-socket XFRM policies on each of Ze's own IKE sockets, as
+strongSwan's is, and the node-wide any-address UDP port 500 and 4500 bypass is
+gone. The node-wide out entry also matched a packet forwarded from a protected
+host with source port 500 or 4500, and sent it in clear where the tunnel should
+carry it. A per-socket policy matches only traffic of the socket it is set on,
+so it exempts Ze's own IKE and nothing it forwards ("The IKE bypass is on Ze's
+own IKE sockets", below).
 
 BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
 neither names a mode, a tunnel endpoint pair or a reqid, and both are built
@@ -1299,6 +1325,34 @@ opposites, so a default is a coin toss between passing and dropping the
 operator's traffic, and a backend that cannot express a disposition refuses the
 install rather than substituting another.
 
+The operator's entries are reconciled by `reconcileSPDPolicies` on a reload and
+by `installSPDPoliciesAtStart` on the daemon's first apply. The reload is all
+or nothing: the entries reach the backend in their order, lowest first, then by
+name (`spdInstallOrder`); the new form of an edited entry goes in before its old
+form comes out, and a form whose selector did not change is replaced in place by
+the upsert (the database holds one entry per selector, `spdSelector`), so a
+discard entry holds through the edit. An install the backend refuses takes back
+everything that call wrote, restoring a replaced form in place and removing a
+new one, and returns an operator error naming the entry, the backend's answer and
+`commit`, which fails the apply before the catch-all is re-asserted, so the
+running SPD and disposition stay as they were (RFC 4301 Section 4.4.1, "MUST
+allow creation of entries"). The start is never refused (owner decision
+2026-11-19): it installs each entry whole or not at all, logs a refused one at
+Error and records it for the `ipsec-spd-install` doctor check, and the next
+accepted reload installs it, because it is absent from `installedSPD`. A step
+that fails on the way (the undo cannot restore or remove a policy, or an
+accepted reload cannot remove an entry's previous form) is logged and answered
+as a divergence of its selector (`spdReconcile`); `recordSPDReconcile` keeps it
+until a later reconcile settles that selector, and `ipsec-spd-install` reports
+it under `doctor-ipsec-spd-undo-incomplete` with its direction, selector,
+priority, the backend's answer and `ze signal restart`. A
+platform with no XFRM (`isXFRMUnsupported`) refuses nothing, since no dataplane
+exists to hold an entry. `verifySPDOrder` (`spd_order.go`) refuses at commit two
+operator entries, or an entry and a policy-based peer at its `policy-priority`,
+that overlap (`dataplane.PolicySelectorsOverlap` over the installed projections)
+at one order, and two entries that install one selector; the start logs the same
+pairs at Error (`warnSPDOrderAtStart`).
+
 The readback reads DISCARD from the kernel action rather than from an empty
 template list. The kernel accepts a template beside a `block` policy and ignores
 it, so a discard another daemon installed with one would otherwise be reported
@@ -1308,7 +1362,9 @@ it is being dropped.
 <!-- source: internal/component/ike/dataplane/dataplane.go -- SPAction, isTemplateFree -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction, xfrmPolicyFromParams, policyInfoFromKernel -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
-<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, reconcileSPDPolicies, installSPDPoliciesAtStart, undoSPDInstall, spdInstallOrder -->
+<!-- source: internal/component/ike/engine/spd_order.go -- spdOrderRefusals, verifySPDOrder, warnSPDOrderAtStart -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- answerSPDInstall, recordSPDReconcile -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
 <!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries -->
@@ -2081,7 +2137,7 @@ handler, and any attached program that answers 0 turns the call into `EPERM`.
 
 `vpn ipsec application-override` (`deny` by default) selects it.
 `applyApplicationOverride` (`engine/application_override.go`) attaches the guard
-after the if_id 0 catch-all is first installed and before the IKE bypass, moves
+after the if_id 0 catch-all is first installed, moves
 it on a reload, and `releaseApplicationOverride` detaches it after the catch-all
 leaves. A guard that cannot attach under `deny` fails the apply. The seam is
 `dataplane.OverrideGuard` (`override_guard.go`); the XFRM backend implements it
@@ -2466,7 +2522,50 @@ node's address space (Section 2.23.1) and refuses more than one pair
 <!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload, handleCreateChildSAOwned -->
 <!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest, serviceChildCreate, finishChildCreate, childCreateSchedule -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
-<!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
+### The IKE bypass is on Ze's own IKE sockets
+
+RFC 4301 Section 5.2: "(This implies that IKE traffic MUST have an explicit BYPASS
+entry in the SPD.)" Ze's entry is per socket, as strongSwan's is
+(`add_socket_bypass` in `kernel_netlink_ipsec.c`, which charon's socket-default
+plugin calls on every IKE socket). `newTransport` calls `bypassIKESocket` on every
+IKE socket before it returns it, the UDP 500 socket and the NAT-T socket alike, the
+shared wildcard NAT-T socket MOBIKE uses included: an `IP_XFRM_POLICY` allow policy
+with no template and a zero selector, once per direction. MOBIKE opens no socket of
+its own; it finds a moved source with `RTM_GETROUTE` (`routeSourceTo`).
+
+The kernel consults a socket's own policy before any SPD entry and never reaches
+the SPD when it matches: `xfrm_lookup_with_ifid` takes `sk->sk_policy[XFRM_POLICY_OUT]`
+for an outbound datagram, and `__xfrm_policy_check` calls `xfrm_policy_lookup` only
+when `xfrm_sk_policy_lookup` found nothing. UDP runs the inbound check with the
+socket known (`udp_queue_rcv_one_skb`, before the ESP-in-UDP handler), so an IKE
+datagram on port 4500 passes and encapsulated ESP is still decapsulated and checked
+against the SPD as before. The exemption therefore covers exactly the datagrams that
+start or end on Ze's IKE sockets, whatever the peer's address or port after a NAT
+rebinding or a MOBIKE move, under `unmatched bypass` and `unmatched discard` alike,
+and whatever rank an operator entry or a Child SA policy takes.
+
+It replaced a node-wide SPD bypass on UDP source port 500 and 4500 (out) and
+destination port 500 and 4500 (in) at priority 100. That entry also matched a
+protected host's forwarded datagram from those ports, which then left in clear where
+the tunnel should have carried it (`TestRFC4301TransitFromIKEPortIsNotBypassed`).
+
+The policy lives and dies with its socket: nothing installs or removes it at apply
+or exit, and `ip xfrm policy flush` does not touch it. Its priority carries
+`transport.IKESocketPolicyPriority` as a mark the kernel never matches, so the
+listing names the row `ike-bypass` with SPD `socket`, and the application override
+doctor check does not report it. The guard admits the `setsockopt` because Ze's own
+process makes it. A failed `setsockopt` (no `CAP_NET_ADMIN`, no `CONFIG_XFRM`) is
+logged at Warn and the socket is kept, as strongSwan does; the transport keeps the
+refusal (`exemptFromIPsec`, `BypassError`), and the engine's `ipsec-ike-socket-bypass`
+doctor check reports each socket it holds that carries one, under
+`doctor-ipsec-ike-socket-bypass`. On VPP the kernel socket
+policy decides nothing: VPP's SPD lives in VPP and never held an IKE bypass, because
+the backend refuses every node-wide entry (`vppPolicyInterface`).
+
+<!-- source: internal/component/ike/transport/bypass_linux.go -- bypassIKESocket, ikeSocketPolicy -->
+<!-- source: internal/component/ike/transport/udp.go -- newTransport, IKESocketPolicyPriority, exemptFromIPsec, BypassError -->
+<!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- answerIKESocketBypass -->
+<!-- source: internal/component/ike/dataplane/policy_role.go -- socketPolicyRole -->
 
 ## INFORMATIONAL requests, the window and retransmission
 

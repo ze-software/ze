@@ -112,7 +112,15 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 	var out []rpc.DoctorCheckDiagnostic
 	for i := range policies {
 		p := &policies[i]
-		if !p.PerSocket || p.Role == dataplane.PolicyRoleESPFormSocket {
+		if !p.PerSocket {
+			continue
+		}
+		// Ze's own: the ESP form reader's policy and the bypass on each IKE socket
+		// (transport.bypassIKESocket). They are counted in total above all the same.
+		if p.Role == dataplane.PolicyRoleESPFormSocket {
+			continue
+		}
+		if p.Role == dataplane.PolicyRoleIKEBypass {
 			continue
 		}
 		var tb textbuf.Buffer

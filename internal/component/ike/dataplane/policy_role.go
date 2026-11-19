@@ -7,6 +7,7 @@ package dataplane
 import (
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -32,7 +33,10 @@ const (
 	// routed into a bound XFRM interface on to that interface's SPD: the SPD
 	// selection function (engine/unmatched_xfrm_interface.go).
 	PolicyRoleInterfaceExemption
-	// PolicyRoleIKEBypass is the IKE control-plane bypass (engine/bypass.go).
+	// PolicyRoleIKEBypass is the IKE control-plane bypass: the per-socket policy each
+	// of Ze's IKE sockets carries (transport/bypass_linux.go, bypassIKESocket), told
+	// apart by transport.IKESocketPolicyPriority. A backend test may still install an
+	// SPD entry under this role to exercise a template-free install.
 	PolicyRoleIKEBypass
 	// PolicyRoleChildSA is a negotiated Child SA's policy.
 	PolicyRoleChildSA
@@ -71,11 +75,16 @@ var policyRoleNames = [...]string{
 }
 
 // socketPolicyRole names a per-socket policy from its priority, the mark Ze writes
-// into its own (PriorityESPFormSocket). A process that copies the mark is listed as
-// Ze's; doctor still counts every socket policy, so the copy is not hidden there.
+// into each of its own: PriorityESPFormSocket on the ESP form reader, and
+// transport.IKESocketPolicyPriority on every IKE socket. A process that copies a mark
+// is listed as Ze's; doctor still counts every socket policy, so the copy is not
+// hidden there.
 func socketPolicyRole(priority int) PolicyRole { //nolint:unused // called only by the Linux backend (xfrm_linux.go policyInfoFromKernel); a non-Linux lint pass sees no caller
-	if priority == PriorityESPFormSocket {
+	switch priority {
+	case PriorityESPFormSocket:
 		return PolicyRoleESPFormSocket
+	case transport.IKESocketPolicyPriority:
+		return PolicyRoleIKEBypass
 	}
 	return PolicyRoleSocketOverride
 }

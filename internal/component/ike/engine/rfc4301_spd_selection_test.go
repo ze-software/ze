@@ -119,8 +119,8 @@ func liveEntries(dp *catchAllDP) []dataplane.SPParams {
 // nodeCatchAll answers the node-wide SPD's DISCARD catch-all, the final entry
 // `unmatched discard` installs at if_id 0 (unmatched.go).
 func nodeCatchAll() []dataplane.SPParams {
-	out := make([]dataplane.SPParams, 0, len(ikeBypassFamilies)*len(unmatchedDirections))
-	for _, family := range ikeBypassFamilies {
+	out := make([]dataplane.SPParams, 0, len(spdFamilies)*len(unmatchedDirections))
+	for _, family := range spdFamilies {
 		out = append(out, spdCatchAllEntries(family, dataplane.SPActionDiscard, 0)...)
 	}
 	return out

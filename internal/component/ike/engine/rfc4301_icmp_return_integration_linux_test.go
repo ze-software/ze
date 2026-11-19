@@ -288,7 +288,9 @@ func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 		RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
 		ICMP: ipsec.ICMPSelector{HasType: true, Type: 3},
 	}}
-	installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger())
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
 	for index, quotedDestination := range []string{fragmentHostAddress, icmpForwardUnmatched} {
 		tag := uint16(0x7a10 + index*2)

@@ -134,7 +134,9 @@ func mhBoundaryLANEgress(t *testing.T) {
 	}
 	entries := map[string]ipsec.SPDPolicy{entry.Name: entry}
 	log := slogutil.DiscardLogger()
-	installSPDPolicies(dataplane.Get(), nil, entries, log)
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, log) })
 	actual, err := dataplane.Get().ListPolicies()
 	if err != nil {

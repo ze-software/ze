@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
-// Related: bypass.go -- the IKE control-plane bypass, the FIRST entry of the database
+// Related: ../transport/bypass_linux.go -- the IKE bypass, on Ze's own IKE sockets ahead of every SPD entry
 // Related: spd_policy.go -- the operator's entries, searched between the two
 // RFC: rfc/short/rfc4301.md -- Section 5, the disposition of an unmatched packet
 
@@ -17,6 +17,30 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
+// protoUDP is the IANA protocol number of UDP, the upper-layer selector of a UDP entry.
+const protoUDP = 17
+
+// spdFamilies are the address families Ze's SPD-wide entries are installed for: the
+// catch-all and an XFRM interface's exemptions and final entries.
+//
+// Both, unconditionally. They are installed before any peer is configured, so the
+// family of the traffic selectors that will eventually be negotiated is not yet
+// known, and a family left out would leave that family's traffic with no final
+// disposition.
+var spdFamilies = []net.IP{net.IPv4zero, net.IPv6zero}
+
+// anyNetFor returns the wildcard prefix of the same address family as sample.
+//
+// A bypass has to be family-correct rather than family-agnostic: an XFRM selector
+// carries a family (vendor netlink xfrm_policy_linux.go, selFromPolicy derives it
+// from the destination prefix), so one wildcard cannot cover both.
+func anyNetFor(sample net.IP) *net.IPNet {
+	if sample.To4() != nil {
+		return &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
+	}
+	return &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+}
+
 // unmatchedDirections are the three lookups whose final disposition is required.
 //
 // A security gateway forwards as well as terminates, and the kernel checks a
@@ -24,8 +48,8 @@ import (
 // catch-all in and out alone would leave transit traffic with no disposition. A
 // ForwardDefaultInstaller supplies FWD through its namespace default instead of
 // an explicit entry, preserving the ICMP payload lookup before the final verdict.
-// The IKE bypass omits fwd for the opposite reason (ikeBypassPolicies): IKE is never
-// forwarded.
+// The IKE bypass is no entry here at all: it sits on Ze's own IKE sockets
+// (transport.bypassIKESocket), which a forwarded packet never reaches.
 var unmatchedDirections = [...]dataplane.SADir{
 	dataplane.SADirIn, dataplane.SADirOut, dataplane.SADirFwd,
 }
@@ -134,7 +158,7 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 			}
 		}()
 	}
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies, err := unmatchedPolicies(family, action)
 		if err != nil {
 			return fmt.Errorf("ike: build the SPD catch-all entry: %w", err)
@@ -340,7 +364,7 @@ func countBypassEntries(cfg *ipsec.IPsecConfig) int {
 }
 
 // removeUnmatched releases the catch-all for every address family, on every exit
-// of the engine, for the reason removeIKEBypass gives: a DISCARD that outlives the
+// of the engine, because the entries are node-wide: a DISCARD that outlives the
 // process keeps dropping traffic for a daemon that is no longer running.
 //
 // The disposition does not matter to a removal, because the kernel identifies a
@@ -354,7 +378,7 @@ func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger, raisers ...espFor
 	defaults, usesDefault := forwardDefaultInstaller(dp)
 	removed := true
 	var refusal *opererr.Error
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies, err := unmatchedPolicies(family, dataplane.SPActionBypass)
 		if err != nil {
 			log.Error("ike: could not build the SPD catch-all entry for removal", "error", err)

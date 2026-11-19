@@ -140,7 +140,7 @@ func lifecycleConfig(t *testing.T) *ipsec.IPsecConfig {
 func catchAllKeys(t *testing.T) map[spKey]bool {
 	t.Helper()
 	keys := map[spKey]bool{}
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies, err := unmatchedPolicies(family, dataplane.SPActionDiscard)
 		if err != nil {
 			t.Fatal(err)
@@ -246,7 +246,7 @@ func TestReleaseSPDKeepsTheCatchAllWhenARemovalFails(t *testing.T) {
 			return childPolicies(child, dataplane.SADirOut)[0]
 		}},
 		{"ike bypass entry", func(_ *ipsec.IPsecConfig, _ *ChildSA) dataplane.SPParams {
-			return ikeBypassPolicies(ikeBypassFamilies[0])[0]
+			return ikeBypassPolicies(spdFamilies[0])[0]
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

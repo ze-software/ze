@@ -80,7 +80,7 @@ vpn {
 			# preference order. Section 3.13 reads TSi and TSr as every
 			# combination of their entries, so the list names each combination.
 			peer peer-narrow {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.
@@ -121,7 +121,7 @@ vpn {
 			# and transport-required makes a declined request delete the SA
 			# (Section 1.3.1) rather than silently run in tunnel mode.
 			peer peer-transport {
-				# Beside `unmatched bypass` or an ICMP SPD entry, the default
+				# Beside `unmatched bypass` or an ICMP bypass SPD entry, the default
 				# icmp-error-check true is refused by `ze config validate` and a commit,
 				# and only logged at a start (verifyICMPOverlap); false keeps
 				# this test's subject.

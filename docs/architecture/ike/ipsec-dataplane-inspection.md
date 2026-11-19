@@ -191,8 +191,12 @@ dataplane holds it on the entry: on Linux the `XFRM_POLICY_ICMP` flag read
 back from the dump, never taken from config. Ze sets it on the outbound
 protect entry of a peer whose `icmp-error-check` is true, so only those rows
 read `true`. The VPP backend refuses the mapping at install, so its rows read
-`false`.
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
+`false`. The same flag on a BLOCK policy is read as `icmp-error-yield`, never
+as `icmp-error-return`: Ze sets it on the catch-all's inbound discard alone,
+where Ze's kernel lets the inbound payload check deliver an ICMP error whose
+reversed payload matches its SA (`catchAllYieldsToICMPErrorCheck`). An
+operator discard row reads `false`, and every VPP row does.
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel, policyInfoFromKernel, catchAllYieldsToICMPErrorCheck -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
 
 ## Decision: a policy says whether ze owns it
@@ -229,7 +233,7 @@ beside the selector:
 | Key | Value |
 |-----|-------|
 | `spd` | `node` for if_id 0; the bound XFRM interface's name for an if_id Ze bound an interface to; `if-id <n>` for an if_id no bound interface has; `socket` for a per-socket policy, which overrides every SPD for its one socket |
-| `role` | The job Ze installed the entry for: `catch-all` (the node-wide final entry `unmatched` configures), `interface-catch-all` (an interface SPD's final DISCARD entry), `interface-exemption` (the if_id 0 BYPASS that hands traffic routed into a bound interface on to its SPD), `ike-bypass`, `child-sa`, `operator` (a `vpn ipsec policy` entry), `ospf` (an OSPFv3 RFC 4552 manual-SA policy), `esp-form-socket` (the ESP form reader's own socket policy), `socket-override` (any other process's socket policy), or `unknown` for an entry Ze did not install |
+| `role` | The job Ze installed the entry for: `catch-all` (the node-wide final entry `unmatched` configures), `interface-catch-all` (an interface SPD's final DISCARD entry), `interface-exemption` (the if_id 0 BYPASS that hands traffic routed into a bound interface on to its SPD), `ike-bypass` (the per-socket bypass each of Ze's IKE sockets carries, SPD `socket`), `child-sa`, `operator` (a `vpn ipsec policy` entry), `ospf` (an OSPFv3 RFC 4552 manual-SA policy), `esp-form-socket` (the ESP form reader's own socket policy), `socket-override` (any other process's socket policy), or `unknown` for an entry Ze did not install |
 | `if-index` | The selector's interface index; 0 matches every interface |
 
 The role is recorded where the entry is built, never inferred from its

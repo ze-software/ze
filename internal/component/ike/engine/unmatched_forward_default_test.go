@@ -119,7 +119,7 @@ func TestUnmatchedForwardDefaultStrategyQueryPreservesUnsupportedWrappers(t *tes
 	if err := installUnmatched(dp, dataplane.SPActionDiscard, log); err != nil {
 		t.Fatal(err)
 	}
-	if len(dp.policies) != len(ikeBypassFamilies)*len(unmatchedDirections) {
+	if len(dp.policies) != len(spdFamilies)*len(unmatchedDirections) {
 		t.Fatalf("unsupported wrapper lost existing final directions: %d policies", len(dp.policies))
 	}
 	removeUnmatched(dp, log)
@@ -140,7 +140,7 @@ func TestInterfaceForwardDefaultOmitsOnlyItsFinalForwardEntry(t *testing.T) {
 	if err := state.installXFRMInterfaceEntries(dp, plan); err != nil {
 		t.Fatal(err)
 	}
-	if len(dp.policies) != len(ikeBypassFamilies)*2 {
+	if len(dp.policies) != len(spdFamilies)*2 {
 		t.Fatalf("interface final policies=%d, want IN and OUT for each family", len(dp.policies))
 	}
 	for _, policy := range dp.policies {

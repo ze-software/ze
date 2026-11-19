@@ -241,7 +241,9 @@ func runICMPForwarding(t *testing.T, ifID uint32, check bool) {
 		Direction: ipsec.SPDDirOut, LocalPrefix: mustCIDRNet(t, "0.0.0.0/0"), LocalPort: ipsec.AnyPort(),
 		RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
 	}}
-	installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger())
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
 	if ifID != 0 {
 		link := &netlink.Xfrmi{Name: icmpForwardXFRMLink, Ifid: ifID}

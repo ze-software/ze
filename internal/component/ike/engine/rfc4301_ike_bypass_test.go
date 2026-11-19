@@ -20,7 +20,7 @@ var ikePorts = [...]uint16{500, 4500}
 // discarded as unprotected traffic, which stops every rekey and Delete.
 // RFC requirement: RFC4301-5.2-4 positive -- an explicit inbound and outbound BYPASS entry exists for UDP 500 and UDP 4500.
 func TestRFC4301IKETrafficHasAnExplicitBypassEntry(t *testing.T) {
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		got := ikeBypassPolicies(family)
 		for _, port := range ikePorts {
 			var in, out bool
@@ -53,7 +53,7 @@ func TestRFC4301IKETrafficHasAnExplicitBypassEntry(t *testing.T) {
 // any-port bypass exempting traffic the operator asked ze to protect.
 // RFC requirement: RFC4301-5.2-4 negative -- no IKE entry is PROTECT or DISCARD, carries a template, or leaves ze's own port unconstrained.
 func TestRFC4301IKEBypassIsNeverAProtectOrAWildcard(t *testing.T) {
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		for i, p := range ikeBypassPolicies(family) {
 			if p.Action == dataplane.SPActionProtect || p.Action == dataplane.SPActionDiscard {
 				t.Errorf("family %v policy[%d]: action %d is not BYPASS", family, i, p.Action)

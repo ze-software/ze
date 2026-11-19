@@ -169,7 +169,9 @@ func TestRFC4301CleartextFragmentsRespectOperatorDisposition(t *testing.T) {
 		},
 	}
 	// RFC 4301 Sections 4.4.1 and 7.4: use the same reconcile path as config apply.
-	installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger())
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("install the operator SPD entries: %v", err)
+	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
 	fragmentWantOperatorPolicies(t, entries)
 	authenticated := newEspPolSender(t, lab, child)

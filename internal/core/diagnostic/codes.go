@@ -98,6 +98,9 @@ const (
 	CodeDoctorIPsecForwardDefault                  = "doctor-ipsec-forward-default"
 	CodeDoctorIPsecStateScope                      = "doctor-ipsec-state-scope"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
+	CodeDoctorIPsecSPDInstallRefused               = "doctor-ipsec-spd-install-refused"
+	CodeDoctorIPsecSPDUndoIncomplete               = "doctor-ipsec-spd-undo-incomplete"
+	CodeDoctorIPsecIKESocketBypass                 = "doctor-ipsec-ike-socket-bypass"
 	CodeDoctorIPsecRedistributionSource            = "doctor-ipsec-redistribution-source"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
@@ -1399,7 +1402,7 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        CodeDoctorIPsecStateScope,
 		Title:       "IPsec complete state-scope support cannot be verified",
-		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote and fragment checks. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
+		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote, ICMP reverse and fragment checks. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-state-scope"},
 	},
 	{
@@ -1421,6 +1424,44 @@ var builtinCodes = append([]CodeMeta{
 			"after the cause is removed installs the Child SA with no restart. The doctor finding names " +
 			"the peer, the error, the next attempt and the command that fixes the cause.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-child-install-refused"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDInstallRefused,
+		Title: "An operator SPD entry is not installed: the dataplane refused it at start",
+		Description: "The configuration the daemon started with holds a `vpn ipsec policy` entry the " +
+			"dataplane refused to install. A start never refuses the IPsec block, so Ze installed every " +
+			"other entry, left this one out whole and logged the refusal at Error. The traffic the entry " +
+			"names meets the next entry of the SPD instead (RFC 4301 Section 4.4.1). A commit that " +
+			"changes `vpn ipsec` installs the entry again, and so does a restart; a commit whose entry the " +
+			"dataplane refuses is refused itself and keeps the running entries. The doctor finding names " +
+			"the entry, the dataplane's answer and the command that retries.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-install-refused"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDUndoIncomplete,
+		Title: "The IPsec SPD does not match the running configuration",
+		Description: "The dataplane holds a `vpn ipsec policy` entry in a form the running configuration " +
+			"does not. Either the dataplane refused an entry, Ze took back what that commit or start had " +
+			"written, and one step of that undo failed, so the dataplane lacks the running form of an " +
+			"entry or still holds one that was never accepted; or an accepted commit changed or removed " +
+			"an entry and the dataplane refused to remove its previous form, which still acts on its " +
+			"traffic. Traffic that entry names meets the wrong disposition until the SPD is rebuilt. " +
+			"The doctor finding names the direction, the selector, the priority and the dataplane's " +
+			"answer. Restart the daemon so it installs the running configuration whole: ze signal restart.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-undo-incomplete"},
+	},
+	{
+		Code:  CodeDoctorIPsecIKESocketBypass,
+		Title: "An IKE socket is not exempt from IPsec",
+		Description: "Ze sets a per-socket IPsec bypass on each IKE socket it opens (RFC 4301 Section 5.2), " +
+			"so the SPD never captures its own IKE traffic. The kernel refused it on this socket, " +
+			"usually because Ze runs without CAP_NET_ADMIN or the kernel lacks CONFIG_XFRM. Ze kept " +
+			"the socket: IKE still flows wherever no policy captures it, but under `vpn ipsec " +
+			"unmatched discard`, or a traffic selector covering the peer's IKE address, the SPD " +
+			"captures Ze's own IKE and the tunnel cannot be negotiated, rekeyed or torn down. The " +
+			"doctor finding names the socket and the kernel's answer. Run ze with CAP_NET_ADMIN on a " +
+			"kernel with CONFIG_XFRM, then restart it: ze signal restart.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-ike-socket-bypass"},
 	},
 	{
 		Code:  CodeDoctorDaemonCapabilityMissing,

@@ -451,8 +451,8 @@ func (pm *ProcessManager) stop(order func([]plugin.PluginConfig) [][]string, ter
 	//
 	// Closing the connection unblocks a plugin's read loop at once, but the read loop
 	// is not the whole engine: an engine releases what it installed AFTER its loop
-	// ends, and that release can be netlink round-trips. The IKE engine's is eight
-	// XFRM policy deletes plus a backend close (engine/runEngine, bypass.go), and
+	// ends, and that release can be netlink round-trips. The IKE engine's is its
+	// catch-all and operator XFRM policy deletes plus a backend close (engine/runEngine), and
 	// those policies are node-wide, so losing the release leaves them installed for a
 	// daemon that no longer exists.
 	//

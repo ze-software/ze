@@ -11,12 +11,15 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
 // TestPolicyInfoMapsSocketDirections proves the journal row in
 // plan/journal/kernel-value-outside-the-decoded-set.md fixed (AC-20): the dump's
 // socket directions 3 to 5 read in, out and fwd with SPD "socket", a socket policy
-// carrying Ze's mark reads esp-form-socket and any other socket-override, and a
+// carrying the ESP form reader's mark reads esp-form-socket, one carrying the IKE
+// socket mark reads ike-bypass in both directions, and any other socket-override, and a
 // direction outside the six reads unknown rather than a direction it does not carry.
 //
 // VALIDATES: policyDirFromKernel, socketPolicyRole and SPDName.
@@ -31,6 +34,8 @@ func TestPolicyInfoMapsSocketDirections(t *testing.T) {
 		role     PolicyRole
 	}{
 		{netlink.XFRM_SOCKET_IN, PriorityESPFormSocket, SADirIn, spdNameSocket, PolicyRoleESPFormSocket},
+		{netlink.XFRM_SOCKET_IN, transport.IKESocketPolicyPriority, SADirIn, spdNameSocket, PolicyRoleIKEBypass},
+		{netlink.XFRM_SOCKET_OUT, transport.IKESocketPolicyPriority, SADirOut, spdNameSocket, PolicyRoleIKEBypass},
 		{netlink.XFRM_SOCKET_OUT, 0, SADirOut, spdNameSocket, PolicyRoleSocketOverride},
 		{netlink.XFRM_SOCKET_FWD, 7, SADirFwd, spdNameSocket, PolicyRoleSocketOverride},
 		{netlink.XFRM_DIR_OUT, 0, SADirOut, spdNameNode, PolicyRoleUnspecified},

@@ -23,31 +23,39 @@ import (
 
 // A peer whose icmp-error-check is true (the default) has every Child SA installed with
 // XFRM_POLICY_ICMP on its out policy (child.go, ICMPErrorReturn) and XFRM_STATE_ICMP on
-// its inbound state (ICMPErrorCheck). Each flag turns on a kernel path that overrides an
-// operator SPD entry, and neither path can be told to respect one, so a configuration
-// that puts such an entry beside such a peer is refused at verify (`ze config validate`
-// and every commit, through validateIPsecSections in config.go) rather than installed
-// with a disposition the kernel does not honor (docs/architecture/linux-limitations.md,
+// its inbound state (ICMPErrorCheck).
+//
+// The outbound flag turns on a kernel path that overrides an operator bypass entry, and
+// that path cannot be told to respect one, so a configuration that puts such an entry
+// beside such a peer is refused at verify (`ze config validate` and every commit,
+// through validateIPsecSections in config.go) rather than installed with a disposition
+// the kernel does not honor (docs/architecture/linux-limitations.md,
 // LL-XFRM-ICMP-TRANSIT).
 //
-// Both refusals are conservative. Neither narrows on the operator entry's LOCAL prefix
-// or on its order, because the ICMP message's Ze-side address is chosen by the kernel
-// when the message is sent or arrives, so no commit can know it. An entry ranked below
-// the peer's PROTECT policy is overridden for every triggering packet whose Ze address
-// falls outside the peer's local selectors. A protocol-0 bypass entry ranked above it
-// may not be overridden for every triggering packet, since the entry already matches
-// some of the packets the error is about, but it is overridden for some, so it is
-// refused too.
+// The inbound flag overrides nothing on Ze's kernel. K1
+// (gokrazy/kernel/patches/0003-xfrm-state-scope.patch) runs the reverse check of
+// icmp_rcv and icmpv6_rcv for ICMP error types alone and stops it at an inbound BLOCK
+// policy the message matches as received, unless that policy carries XFRM_POLICY_ICMP,
+// which only the catch-all's inbound discard does (dataplane
+// catchAllYieldsToICMPErrorCheck). So an operator discard entry beside such a peer is
+// accepted and drops what it names (owner decision 2026-11-19, "Kernel honors
+// discard"), and the dataplane installs no scoped Child SA on a kernel that does not
+// advertise that check (checkXFRMStateScopeCapabilities, capability bit 5).
 //
-// A route-based peer (`vti bind`) is exempt from both. Its Child SAs' policies carry the
-// xfrm interface's if_id, and an operator entry carries if_id 0. Outbound, the reverse
-// lookup of icmp_route_lookup is xfrm_lookup (net/ipv4/icmp.c; net/ipv6/icmp.c in
+// The refusal is conservative. It does not narrow on the operator entry's LOCAL prefix
+// or on its order, because the ICMP message's Ze-side address is chosen by the kernel
+// when the message is sent, so no commit can know it. An entry ranked below the peer's
+// PROTECT policy is overridden for every triggering packet whose Ze address falls
+// outside the peer's local selectors. A protocol-0 bypass entry ranked above it may not
+// be overridden for every triggering packet, since the entry already matches some of
+// the packets the error is about, but it is overridden for some, so it is refused too.
+//
+// A route-based peer (`vti bind`) is exempt. Its Child SAs' policies carry the xfrm
+// interface's if_id, and an operator entry carries if_id 0. The reverse lookup of
+// icmp_route_lookup is xfrm_lookup (net/ipv4/icmp.c; net/ipv6/icmp.c in
 // icmpv6_route_lookup), which is xfrm_lookup_with_ifid with if_id 0
 // (net/xfrm/xfrm_policy.c), and xfrm_policy_match answers no match for a policy whose
 // if_id differs, so such a peer's out policy is never the error's mapping target.
-// Inbound, ICMP decrypted on an xfrm interface is policy-checked at that interface's
-// if_id (xfrmi_decode_session, net/xfrm/xfrm_interface_core.c), where no operator entry
-// is consulted. Neither kernel path can then override an operator entry for that peer.
 
 // icmpErrorTypesV4 and icmpErrorTypesV6 are the ICMP error types the kernel sends
 // through icmp_route_lookup (net/ipv4/icmp.c, from __icmp_send) and icmpv6_route_lookup
@@ -200,64 +208,6 @@ func bypassCarriesICMPError(policy *ipsec.SPDPolicy) bool {
 	return slices.Contains(icmpErrorTypesV4, policy.ICMP.Type)
 }
 
-// refuseICMPCheckDiscard is refusal B: an inbound discard entry that matches ICMP,
-// beside a peer whose Child SAs deliver the ICMP it refuses.
-//
-// Linux icmp_rcv (net/ipv4/icmp.c) and icmpv6_rcv (net/ipv6/icmp.c): when the inbound
-// policy check refuses an ICMP message that arrived on a Child SA whose last secpath
-// state carries XFRM_STATE_ICMP, the kernel checks again on the header the message
-// carries after its ICMP header, with addresses and ports reversed, and delivers the
-// message when that header matches the SA. That is whatever operator discard entry
-// refused it and whatever the ICMP type, error or not. The message's own source and its
-// local destination do not enter the second check, so no prefix of the discard entry
-// keeps it out of the override, and neither does its order.
-//
-// No requirement id names this. Sections 6.1.1 and 6.1.2 ask for an administrator's
-// control over the ICMP a node accepts, and on a Child SA of such a peer the discard
-// entry would be that control in name only. The `unmatched discard` catch-all is not
-// refused: overriding it for an error whose payload matches the SA is exactly the
-// Section 6.2 processing.
-//
-// An entry is refused when it is discard, in or both, protocol 0 or the ICMP protocol of
-// its family, any ICMP type, in a family the peer's selectors can carry. A peer with
-// `vti bind` is skipped (the exemption above). The first conflict is answered in sorted
-// name order, nil when there is none.
-//
-// The fix offers no change of the entry's direction: an out entry would be another
-// entry, discarding what this router sends, and validateICMPFragments refuses some of
-// them.
-func refuseICMPCheckDiscard(cfg *ipsec.IPsecConfig) *opererr.Error {
-	policyNames := slices.Sorted(maps.Keys(cfg.Policies))
-	for _, peerName := range slices.Sorted(maps.Keys(cfg.Peers)) {
-		peer := cfg.Peers[peerName]
-		if peer.SkipICMPErrorCheck {
-			continue
-		}
-		if peer.VTIBind != "" {
-			continue
-		}
-		families := peerSelectorFamilies(peer.TrafficSelectors)
-		for _, policyName := range policyNames {
-			policy := cfg.Policies[policyName]
-			if policy.Action != dataplane.SPActionDiscard {
-				continue
-			}
-			if policy.Direction != ipsec.SPDDirIn && policy.Direction != ipsec.SPDDirBoth {
-				continue
-			}
-			if !spansMeet(icmpSpans(&policy), families) {
-				continue
-			}
-			return opererr.New(
-				"ipsec peer "+strconv.Quote(peerName)+" has icmp-error-check true and `vpn ipsec policy "+policyName+"` discards inbound ICMP",
-				"Linux delivers ICMP that arrives on the peer's Child SA and that the discard entry refuses, whenever the packet the ICMP message carries matches the SA, "+
-					"so the entry does not stop that ICMP",
-				"set vpn ipsec site-to-site peer "+peerName+" icmp-error-check false, or delete vpn ipsec policy "+policyName)
-		}
-	}
-	return nil
-}
-
 // icmpSpans answers the address sets an operator entry covers on its REMOTE side, kept
 // to the families in which its protocol matches ICMP: protocol 0 matches every
 // protocol, 1 is ICMP in IPv4 and 58 is ICMPv6. Any other protocol matches no ICMP and
@@ -291,29 +241,6 @@ func peerRemoteSpans(selectors []ipsec.TrafficSelectorPolicy) []netip.Prefix {
 		spans = append(spans, sideSpans(selectors[i].RemotePrefix, selectors[i].LocalPrefix)...)
 	}
 	return spans
-}
-
-// peerSelectorFamilies answers the wildcard of each family a peer's selectors can
-// carry: both for an EMPTY list, which accepts any selector.
-func peerSelectorFamilies(selectors []ipsec.TrafficSelectorPolicy) []netip.Prefix {
-	var v4, v6 bool
-	if len(selectors) == 0 {
-		v4, v6 = true, true
-	}
-	for i := range selectors {
-		for _, span := range sideSpans(selectors[i].RemotePrefix, selectors[i].LocalPrefix) {
-			v4 = v4 || span.Addr().Is4()
-			v6 = v6 || span.Addr().Is6()
-		}
-	}
-	families := make([]netip.Prefix, 0, 2)
-	if v4 {
-		families = append(families, anyIPv4)
-	}
-	if v6 {
-		families = append(families, anyIPv6)
-	}
-	return families
 }
 
 // sideSpans answers the address set one selector side covers. A written prefix covers
@@ -373,31 +300,21 @@ func spansMeet(a, b []netip.Prefix) bool {
 	return false
 }
 
-// icmpOverlapRefusals answers both refusals' first conflicts, A first, nil for each
-// refusal that finds none. The config verify and the start log read the same two
-// predicates through it.
-func icmpOverlapRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
-	var refusals []*opererr.Error
-	if refusal := refuseICMPErrorBypass(cfg); refusal != nil {
-		refusals = append(refusals, refusal)
-	}
-	if refusal := refuseICMPCheckDiscard(cfg); refusal != nil {
-		refusals = append(refusals, refusal)
-	}
-	return refusals
-}
-
-// verifyICMPOverlap is the verify half: it answers the first refusal, A before B. It is a
+// verifyICMPOverlap is the verify half: it answers refusal A's first conflict. It is a
 // step of validateIPsecSections (config.go), the offline verifier, so `ze config
 // validate`, every commit door and the ike plugin's OnConfigVerify refuse a conflict
 // with the entries it names and their fix. The answer is an *opererr.Error, which
 // errors.As still finds under the wrap each caller adds.
+//
+// The nil check is a guard, not a style choice: refuseICMPErrorBypass answers a nil
+// *opererr.Error for no conflict, and returned as an error that would be a non-nil
+// interface holding a nil pointer, which every caller reads as a refusal.
 func verifyICMPOverlap(cfg *ipsec.IPsecConfig) error {
-	refusals := icmpOverlapRefusals(cfg)
-	if len(refusals) == 0 {
+	refusal := refuseICMPErrorBypass(cfg)
+	if refusal == nil {
 		return nil
 	}
-	return refusals[0]
+	return refusal
 }
 
 // warnICMPOverlapAtStart is the start-time half of verifyICMPOverlap. The configuration
@@ -412,8 +329,10 @@ func verifyICMPOverlap(cfg *ipsec.IPsecConfig) error {
 // verifyICMPOverlap. A doctor check of the ike plugin's own would report one conflict
 // twice.
 func warnICMPOverlapAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
-	for _, refusal := range icmpOverlapRefusals(cfg) {
-		log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
-			refusal.LogAttrs(slog.String("code", diagnostic.CodeConfigPluginVerify))...)
+	refusal := refuseICMPErrorBypass(cfg)
+	if refusal == nil {
+		return
 	}
+	log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
+		refusal.LogAttrs(slog.String("code", diagnostic.CodeConfigPluginVerify))...)
 }

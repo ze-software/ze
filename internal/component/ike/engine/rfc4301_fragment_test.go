@@ -78,7 +78,7 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 	var all []dataplane.SPParams
 
 	// Producer one: ze's own IKE control-plane exemption, on UDP 500 and 4500.
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		all = append(all, ikeBypassPolicies(family)...)
 	}
 
@@ -134,7 +134,7 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 // RFC requirement: RFC4301-7.4-2 negative -- the IKE bypass is not any-port, so it is
 // inside the population this requirement binds.
 func TestIKEBypassIsPortScopedSoSection74Binds(t *testing.T) {
-	for _, family := range ikeBypassFamilies {
+	for _, family := range spdFamilies {
 		policies := ikeBypassPolicies(family)
 		if len(policies) != 4 {
 			t.Fatalf("family %v: %d bypass policies, want 4 (two ports, two directions)", family, len(policies))

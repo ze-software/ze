@@ -7,8 +7,8 @@
     "claim-sha": "c4084705f35a6858",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "a8bb0cc5733c0723",
-    "break": "line 702: \"Dir:     netlink.Dir(p.Dir - 1),\" -\u003e \"Dir:     netlink.XFRM_DIR_IN,\""
+    "producer-sha": "02594c6a007f8840",
+    "break": "line 796: \"Dir:     netlink.Dir(p.Dir - 1),\" -\u003e \"Dir:     netlink.XFRM_DIR_IN,\""
   },
   {
     "rid": "RFC4301-5.1-4",
@@ -29,7 +29,7 @@
     "claim-sha": "5eeec35069044a93",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "a8bb0cc5733c0723",
+    "producer-sha": "02594c6a007f8840",
     "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "86c4d08eae5a976a",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "a8bb0cc5733c0723",
+    "producer-sha": "02594c6a007f8840",
     "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

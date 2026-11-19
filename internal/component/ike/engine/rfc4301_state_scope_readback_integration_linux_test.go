@@ -31,8 +31,9 @@ const (
 	rfcScopeSelectorMaximum = 64
 	rfcScopeFeatureExact    = 1 << 0
 	rfcScopeFeatureQuote    = 1 << 1
-	// Context, guard and final-ICMP bits may appear once their patches are present.
-	rfcScopeKnownFeatures = (1 << 5) - 1
+	// Context, guard, final-ICMP and ICMP-reverse bits (2 to 5) may appear once
+	// their patches are present.
+	rfcScopeKnownFeatures = (1 << 6) - 1
 )
 
 // rfcScopeAttributeValue deliberately reads raw netlink replies, so this proof
