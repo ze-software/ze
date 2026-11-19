@@ -35,6 +35,30 @@ import (
 // errors (unknown family, invalid address) which should fail startup.
 var ErrIncompleteConfig = errors.New("incomplete config")
 
+// IncompletePeerError is the ErrIncompleteConfig a peer's parse answers, with
+// the missing setting kept apart from the peer name, so a caller that lists
+// skipped peers (`ze config validate -v`) can say why without parsing text.
+// errors.Is(err, ErrIncompleteConfig) holds for it.
+type IncompletePeerError struct {
+	Peer   string // the peer's list key
+	Reason string // what the resolved config lacks, in config-path words
+}
+
+// Error keeps the text the fmt.Errorf form printed before the type existed.
+func (e *IncompletePeerError) Error() string {
+	return "peer " + e.Peer + ": " + e.Reason + ": " + ErrIncompleteConfig.Error()
+}
+
+// Unwrap makes the error match ErrIncompleteConfig.
+func (e *IncompletePeerError) Unwrap() error { return ErrIncompleteConfig }
+
+// SkippedPeer is a configured peer PeersAndSkippedFromTree did not build
+// because its resolved config is incomplete.
+type SkippedPeer struct {
+	Name   string // the peer's list key
+	Reason string // IncompletePeerError.Reason, or the error text for another incomplete answer
+}
+
 // Config tree string constants (shared with reactor.go to satisfy goconst).
 // enumeration: gated by TestAddPathModeKeywordsMatchTheYANGModel
 const (
@@ -70,7 +94,7 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 	if peerAS == 0 {
-		return nil, fmt.Errorf("peer %s: missing required session > asn > remote: %w", name, ErrIncompleteConfig)
+		return nil, &IncompletePeerError{Peer: name, Reason: "missing required session > asn > remote"}
 	}
 
 	// Remote IP from connection > remote > ip (required), read by the one
@@ -78,10 +102,10 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	// reads too.
 	remoteIPStr, hasRemoteIP := config.BGPRemoteIP(tree)
 	if !hasRemoteIP {
-		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip: %w", name, ErrIncompleteConfig)
+		return nil, &IncompletePeerError{Peer: name, Reason: "missing required connection > remote > ip"}
 	}
 	if remoteIPStr == "dynamic" {
-		return nil, fmt.Errorf("peer %s: ip dynamic is only valid at group level, not on individual peers: %w", name, ErrIncompleteConfig)
+		return nil, &IncompletePeerError{Peer: name, Reason: "ip dynamic is only valid at group level, not on individual peers"}
 	}
 	ip, err := netip.ParseAddr(remoteIPStr)
 	if err != nil {
@@ -174,7 +198,7 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		}
 	}
 	if peerLocalAS == 0 {
-		return nil, fmt.Errorf("peer %s: missing required local as (neither global nor peer-level): %w", name, ErrIncompleteConfig)
+		return nil, &IncompletePeerError{Peer: name, Reason: "missing required local as (neither global nor peer-level)"}
 	}
 
 	// Router ID from session > router-id (peer-level overrides global).
@@ -698,6 +722,15 @@ func GlobalsFromTree(bgpTree map[string]any) (Globals, error) {
 // them or provide its own. If neither global nor peer-level local as is set,
 // parsePeerFromTree returns an error for that peer.
 func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
+	peers, _, err := PeersAndSkippedFromTree(bgpTree)
+	return peers, err
+}
+
+// PeersAndSkippedFromTree is PeersFromTree that also answers the peers it
+// skipped as incomplete, each with its reason, in name order. It is the one
+// peer parser: PeersFromTree is this walk with the skipped list dropped, so a
+// caller that reports skipped peers sees exactly the set the daemon skips.
+func PeersAndSkippedFromTree(bgpTree map[string]any) ([]*PeerSettings, []SkippedPeer, error) {
 	// Ensure plugin-registered event and send types are available for validation.
 	// Idempotent -- safe to call multiple times. Needed here because config parsing
 	// happens before NewServer, and dynamic types must be valid.
@@ -707,7 +740,7 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	// Extract global defaults (both optional -- peers can provide their own).
 	globals, err := GlobalsFromTree(bgpTree)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	localAS, routerID := globals.LocalAS, globals.RouterID
 
@@ -722,11 +755,11 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	// as a valid answer).
 	peerSection, ok := bgpTree[configListNamePeer]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 	peerMap, ok := peerSection.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid peer section type: %T", peerSection)
+		return nil, nil, fmt.Errorf("invalid peer section type: %T", peerSection)
 	}
 
 	peerNames := make([]string, 0, len(peerMap))
@@ -736,19 +769,21 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	slices.Sort(peerNames)
 
 	var peers []*PeerSettings
+	var skipped []SkippedPeer
 	for _, peerName := range peerNames {
 		val := peerMap[peerName]
 		peerTree, ok := val.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("peer %s: invalid config (expected map)", peerName)
+			return nil, nil, fmt.Errorf("peer %s: invalid config (expected map)", peerName)
 		}
 		ps, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 		if err != nil {
 			if errors.Is(err, ErrIncompleteConfig) {
 				reactorLogger().Warn("skipping incomplete peer", "peer", peerName, "error", err)
+				skipped = append(skipped, SkippedPeer{Name: peerName, Reason: incompleteReason(err)})
 				continue
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		// The peer name is the list key itself.
@@ -762,7 +797,16 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		peers = append(peers, ps)
 	}
 
-	return peers, nil
+	return peers, skipped, nil
+}
+
+// incompleteReason answers the missing setting of an incomplete peer's error.
+func incompleteReason(err error) string {
+	var incomplete *IncompletePeerError
+	if errors.As(err, &incomplete) {
+		return incomplete.Reason
+	}
+	return err.Error()
 }
 
 // applyNegotiationConfig parses the two `session` blocks that decide what this

@@ -47,6 +47,36 @@ type BGPPolicyAbsence struct {
 // would build.
 type BGPPolicyValidator func(tree *config.Tree) ([]BGPPolicyAbsence, error)
 
+// BGPPeerSummary is one peer as the daemon builds it from the config: group
+// inheritance and schema defaults applied by the engine's own peer parser.
+type BGPPeerSummary struct {
+	Name    string // the peer's list key
+	Group   string // the group it inherits from; empty for a standalone peer
+	Address string // connection > remote > ip
+	PeerAS  uint32 // session > asn > remote, after inheritance; never 0 for a built peer
+	LocalAS uint32 // the effective local AS, after inheritance; never 0 for a built peer
+	Connect bool   // connection > remote > connect, after defaults
+	Accept  bool   // connection > local > accept, after defaults
+}
+
+// BGPIncompletePeer is a configured peer the daemon skips, with the parser's
+// reason: the setting its resolved config lacks.
+type BGPIncompletePeer struct {
+	Name   string // the peer's list key
+	Reason string // e.g. "missing required session > asn > remote"
+}
+
+// BGPPeerSummaries answers which peers the daemon would start from a config,
+// and which it would skip as incomplete.
+type BGPPeerSummaries struct {
+	Peers      []BGPPeerSummary    // built peers, in name order
+	Incomplete []BGPIncompletePeer // peers the daemon skips, in name order
+}
+
+// BGPPeerSummarizer builds the peers of a tree with the engine's own parser
+// and summarizes them. It does not modify the tree.
+type BGPPeerSummarizer func(tree *config.Tree) (BGPPeerSummaries, error)
+
 // GRMarkerWriter persists the RFC 4724 graceful-restart marker so the engine
 // sets the Restarting bit on its next OPEN. Called on operator-initiated
 // restart/reboot, with the capabilities every loaded plugin injected.
@@ -56,6 +86,7 @@ var (
 	bgpTreeResolver    BGPTreeResolver
 	bgpPeerValidator   BGPPeerValidator
 	bgpPolicyValidator BGPPolicyValidator
+	bgpPeerSummarizer  BGPPeerSummarizer
 	grMarkerWriter     GRMarkerWriter
 )
 
@@ -71,6 +102,10 @@ func SetBGPPeerValidator(fn BGPPeerValidator) { bgpPeerValidator = fn }
 // reports RFC 8212 policy absences. Called from the gated BGP config package's
 // init().
 func SetBGPPolicyValidator(fn BGPPolicyValidator) { bgpPolicyValidator = fn }
+
+// SetBGPPeerSummarizer registers the engine's peer summarizer. Called from the
+// gated BGP config package's init().
+func SetBGPPeerSummarizer(fn BGPPeerSummarizer) { bgpPeerSummarizer = fn }
 
 // SetGRMarkerWriter registers the engine's graceful-restart marker writer.
 // Called from the gated BGP config package's init().
@@ -129,6 +164,20 @@ func ValidateBGPPeersWithPolicy(tree *config.Tree) ([]BGPPolicyAbsence, error) {
 		return nil, ValidateBGPPeers(tree)
 	}
 	return bgpPolicyValidator(tree)
+}
+
+// SummarizeBGPPeers answers the peers the daemon would build from tree, through
+// the registered engine. With no engine it answers no peers for a tree without
+// a bgp{} block, and fails closed on one that has it, as ResolveBGPTree does:
+// an empty answer there would print a summary of peers nobody checked.
+func SummarizeBGPPeers(tree *config.Tree) (BGPPeerSummaries, error) {
+	if bgpPeerSummarizer == nil {
+		if tree != nil && tree.GetContainer("bgp") != nil {
+			return BGPPeerSummaries{}, errNoBGPEngine
+		}
+		return BGPPeerSummaries{}, nil
+	}
+	return bgpPeerSummarizer(tree)
 }
 
 // WriteGRMarker persists the graceful-restart marker through the registered

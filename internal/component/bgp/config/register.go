@@ -86,6 +86,7 @@ func init() {
 	infra.SetBGPTreeResolver(ResolveBGPTree)
 	infra.SetBGPPeerValidator(validatePeersFromTree)
 	infra.SetBGPPolicyValidator(policyAbsencesFromTree)
+	infra.SetBGPPeerSummarizer(peerSummariesFromTree)
 	infra.SetGRMarkerWriter(writeGRMarker)
 
 	// A peer that asks for BFD strict mode in a configuration with no BFD
@@ -165,6 +166,40 @@ func policyAbsencesFromTree(tree *zeconfig.Tree) ([]infra.BGPPolicyAbsence, erro
 		absences = appendPolicyAbsences(absences, "group "+group.GroupName, group.Settings)
 	}
 	return absences, nil
+}
+
+// peerSummariesFromTree adapts the daemon's peer build to the
+// infra.BGPPeerSummarizer seam. It reads the peers peerSettingsFromTree builds,
+// the parser boot uses, so a group's remote AS and the schema defaults reach
+// the summary exactly as they reach the session; a second reader of the
+// resolved leaves would print what it guessed. A peer that parser skips as
+// incomplete is answered in Incomplete with the parser's own reason, never
+// given zero fields. It works on a clone, because the build prunes inactive
+// nodes in place.
+func peerSummariesFromTree(tree *zeconfig.Tree) (infra.BGPPeerSummaries, error) {
+	var summaries infra.BGPPeerSummaries
+	if tree == nil || tree.GetContainer("bgp") == nil {
+		return summaries, nil
+	}
+	parsed, err := peerSettingsFromTree(tree.Clone())
+	if err != nil {
+		return summaries, err
+	}
+	for _, ps := range parsed.peers {
+		summaries.Peers = append(summaries.Peers, infra.BGPPeerSummary{
+			Name:    ps.Name,
+			Group:   ps.GroupName,
+			Address: ps.Address.String(),
+			PeerAS:  ps.PeerAS,
+			LocalAS: ps.LocalAS,
+			Connect: ps.Connection.Connect,
+			Accept:  ps.Connection.Accept,
+		})
+	}
+	for _, skipped := range parsed.skipped {
+		summaries.Incomplete = append(summaries.Incomplete, infra.BGPIncompletePeer{Name: skipped.Name, Reason: skipped.Reason})
+	}
+	return summaries, nil
 }
 
 // appendPolicyAbsences appends the policy absences of one resolved session template.

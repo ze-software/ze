@@ -7,7 +7,7 @@
     "claim-sha": "db4330a4b63b9cbd",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
-    "producer-sha": "129e42902bda8104",
+    "producer-sha": "c636ff5424758858",
     "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "4218739f7108c49b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
-    "producer-sha": "129e42902bda8104",
+    "producer-sha": "c636ff5424758858",
     "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

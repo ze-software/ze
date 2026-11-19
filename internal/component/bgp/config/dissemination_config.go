@@ -22,6 +22,7 @@ func init() {
 // peerSettingsFromTree constructs it; nil and the zero value are invalid.
 type parsedPeerSettings struct {
 	peers    []*reactor.PeerSettings
+	skipped  []reactor.SkippedPeer // configured peers the parser skipped as incomplete
 	groups   []*reactor.DynamicGroupConfig
 	resolved map[string]any
 	schema   *config.Schema
@@ -50,7 +51,7 @@ func peerSettingsFromTree(tree *config.Tree) (*parsedPeerSettings, error) {
 		return nil, err
 	}
 	applyPeerSchemaDefaults(bgpTree)
-	peers, err := reactor.PeersFromTree(bgpTree)
+	peers, skipped, err := reactor.PeersAndSkippedFromTree(bgpTree)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func peerSettingsFromTree(tree *config.Tree) (*parsedPeerSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &parsedPeerSettings{peers: peers, groups: groups, resolved: bgpTree, schema: schema}, nil
+	return &parsedPeerSettings{peers: peers, skipped: skipped, groups: groups, resolved: bgpTree, schema: schema}, nil
 }
 
 // disseminationPeersFromTree owns its rebuilt parsed tree and returns only

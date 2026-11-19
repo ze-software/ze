@@ -229,12 +229,25 @@ type validationSummary struct {
 	Peers       int           `json:"peers"`
 	Plugins     int           `json:"plugins"`
 	PeerDetails []peerSummary `json:"peer-details,omitempty"`
+	// IncompletePeers names the configured peers the daemon skips, each with
+	// the parser's reason. They carry no peerSummary, whose zero AS and
+	// address would read as configured values.
+	IncompletePeers []incompletePeer `json:"incomplete-peers,omitempty"`
 }
 
-// peerSummary shows peer details.
+// incompletePeer is one peer the daemon skips (infra.BGPIncompletePeer).
+type incompletePeer struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
+// peerSummary is one peer as the daemon builds it (infra.BGPPeerSummary).
 type peerSummary struct {
+	Name    string `json:"name"`
+	Group   string `json:"group,omitempty"`
 	Address string `json:"address"`
 	PeerAS  uint32 `json:"peer-as"`
+	LocalAS uint32 `json:"local-as"`
 	Connect bool   `json:"connect"`
 	Accept  bool   `json:"accept"`
 }
@@ -599,7 +612,6 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 			return result
 		}
 
-		result.Config = buildValidationSummary(bgpTree, tree)
 		addSemanticWarnings(result, bgpTree)
 
 		if authzErr := infra.ValidateAuthzConfig(tree); authzErr != nil {
@@ -620,6 +632,16 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 		for _, a := range absences {
 			addRFC8212Warning(result, a)
 		}
+
+		// The summary is built after the peer walk accepted the config, from
+		// the peers that walk's parser builds, so it shows what the daemon runs.
+		peers, summaryErr := infra.SummarizeBGPPeers(tree)
+		if summaryErr != nil {
+			result.addErrorWithRepair("config-bgp-peer", summaryErr.Error(),
+				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct peer settings or cross-reference"}, diagnostic.SafetyRequiresHumanReview)
+			return result
+		}
+		result.Config = buildValidationSummary(bgpTree, peers, tree)
 	}
 
 	// Generic ze:required enforcement for non-BGP sections.
@@ -660,59 +682,36 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 	return result
 }
 
-// buildValidationSummary extracts a validationSummary from the resolved BGP tree.
-func buildValidationSummary(bgpTree map[string]any, tree *config.Tree) *validationSummary {
+// buildValidationSummary extracts a validationSummary from the resolved BGP tree
+// and the peers the daemon builds from it (infra.SummarizeBGPPeers). The peer
+// lines come from the engine's own parser, never from the resolved leaves: a
+// reader here that guessed the paths printed an empty address and AS0 for
+// every peer.
+func buildValidationSummary(bgpTree map[string]any, peers infra.BGPPeerSummaries, tree *config.Tree) *validationSummary {
 	summary := &validationSummary{}
 
 	if rid, ok := bgpTree["router-id"]; ok {
 		summary.RouterID = fmt.Sprint(rid)
 	}
-	if localMap, ok := bgpTree["local"].(map[string]any); ok {
-		summary.LocalAS = treeUint32(localMap["as"])
-	}
+	summary.LocalAS = asnFromSession(bgpTree, "local")
 	if listen, ok := bgpTree["listen"]; ok {
 		summary.Listen = fmt.Sprint(listen)
 	}
 
-	if peers, ok := bgpTree["peer"].(map[string]any); ok {
-		summary.Peers = len(peers)
-		for name, v := range peers {
-			peer, ok := v.(map[string]any)
-			if !ok {
-				continue
-			}
-			connect := true
-			if remoteMap, ok := peer["remote"].(map[string]any); ok {
-				if v, ok := remoteMap["connect"]; ok {
-					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
-						connect = b
-					}
-				}
-			}
-			accept := true
-			if localMap, ok := peer["local"].(map[string]any); ok {
-				if v, ok := localMap["accept"]; ok {
-					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
-						accept = b
-					}
-				}
-			}
-			var peerAS uint32
-			var addr string
-			if remoteMap, ok := peer["remote"].(map[string]any); ok {
-				peerAS = treeUint32(remoteMap["as"])
-				if ip, ok := remoteMap["ip"]; ok {
-					addr = fmt.Sprint(ip)
-				}
-			}
-			_ = name // peer name is the map key
-			summary.PeerDetails = append(summary.PeerDetails, peerSummary{
-				Address: addr,
-				PeerAS:  peerAS,
-				Connect: connect,
-				Accept:  accept,
-			})
-		}
+	summary.Peers = len(peers.Peers) + len(peers.Incomplete)
+	for _, p := range peers.Peers {
+		summary.PeerDetails = append(summary.PeerDetails, peerSummary{
+			Name:    p.Name,
+			Group:   p.Group,
+			Address: p.Address,
+			PeerAS:  p.PeerAS,
+			LocalAS: p.LocalAS,
+			Connect: p.Connect,
+			Accept:  p.Accept,
+		})
+	}
+	for _, p := range peers.Incomplete {
+		summary.IncompletePeers = append(summary.IncompletePeers, incompletePeer{Name: p.Name, Reason: p.Reason})
 	}
 
 	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
@@ -899,22 +898,14 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 			fmt.Fprintf(os.Stdout, "  peers: %d\n", result.Config.Peers)     //nolint:errcheck // output
 			fmt.Fprintf(os.Stdout, "  plugins: %d\n", result.Config.Plugins) //nolint:errcheck // output
 
-			if len(result.Config.PeerDetails) > 0 {
+			if len(result.Config.PeerDetails)+len(result.Config.IncompletePeers) > 0 {
 				fmt.Fprintln(os.Stdout)           //nolint:errcheck // output
 				fmt.Fprintln(os.Stdout, "Peers:") //nolint:errcheck // output
 				for _, n := range result.Config.PeerDetails {
-					var flags []string
-					if !n.Connect {
-						flags = append(flags, "connect disabled")
-					}
-					if !n.Accept {
-						flags = append(flags, "accept disabled")
-					}
-					if len(flags) == 0 {
-						fmt.Fprintf(os.Stdout, "  - %s AS%d\n", n.Address, n.PeerAS) //nolint:errcheck // output
-					} else {
-						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, textbuf.Join(flags, ", ")) //nolint:errcheck // output
-					}
+					fmt.Fprintln(os.Stdout, peerSummaryLine(n)) //nolint:errcheck // output
+				}
+				for _, p := range result.Config.IncompletePeers {
+					fmt.Fprintf(os.Stdout, "  - %s: incomplete, the daemon does not start it: %s\n", p.Name, p.Reason) //nolint:errcheck // output
 				}
 			}
 		}
@@ -943,6 +934,27 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 		}
 	}
 	return 1
+}
+
+// peerSummaryLine renders one built peer: its name, address and remote AS,
+// then its group and any disabled connection direction.
+func peerSummaryLine(n peerSummary) string {
+	var tb textbuf.Buffer
+	tb.Str("  - ").Str(n.Name).Byte(' ').Str(n.Address).Str(" AS").Uint32(n.PeerAS)
+	if n.Group != "" {
+		tb.Str(" group ").Str(n.Group)
+	}
+	var flags []string
+	if !n.Connect {
+		flags = append(flags, "connect disabled")
+	}
+	if !n.Accept {
+		flags = append(flags, "accept disabled")
+	}
+	if len(flags) > 0 {
+		tb.Str(" (").Str(textbuf.Join(flags, ", ")).Byte(')')
+	}
+	return tb.String()
 }
 
 func diagsBySeverity(diags []diagnostic.Diagnostic, sev diagnostic.Severity) []diagnostic.Diagnostic {
