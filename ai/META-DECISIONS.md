@@ -719,6 +719,15 @@ reporting, comparing or recording a performance or allocation figure.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
+- A kernel bump does not re-run the test suite. The kernel keeps its
+  interface to programs stable, and a regression in it is fixed upstream, so
+  a feature proven on one kernel is not re-proven on the next. The pinned test
+  kernel is still kept current. A bump owes only what that promise does not
+  cover: the kernel build, the required-config and kernel capability checks
+  (configuration options and Ze's own patches are not part of the promise),
+  the re-read of the Linux limitations register, and the tests whose proof is
+  behaviour the kernel produces or performs on Ze's behalf, because upstream
+  may change that behaviour as a bug fix and only a test notices it for Ze.
 - Third-party software in the interop and integration labs runs its latest
   stable upstream release; BIRD runs the BIRD 3 line. Software with no stable
   release (tac_plus-ng, freeRtr) is built from source, first updated to
