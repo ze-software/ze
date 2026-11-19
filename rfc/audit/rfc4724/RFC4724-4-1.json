@@ -11,7 +11,7 @@
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "5d178ca68e91ae0e",
     "internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go::TestPredecessorSyncWritesNothingOnSuccessor": "27af858663b26f70",
     "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "41a16348663403ff",
-    "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "a19bf492823e14b9"
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "7aa0ef34755a56dc"
   },
   "units": {
     "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",

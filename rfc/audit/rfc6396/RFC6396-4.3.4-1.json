@@ -2,8 +2,8 @@
   "note": "Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.",
   "requirement_sha": "2a52cfc3407ee35b",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "0ecb81c80cd0b439",
-    "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "0ecb81c80cd0b439",
+    "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "b8642d0b95d87b59",
+    "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "b8642d0b95d87b59",
     "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "1d96492063880896",
     "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "1d96492063880896",
     "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "1aea1dbe6eeaa629"

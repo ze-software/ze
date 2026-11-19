@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "4070fa8f7934cc62",
     "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "4070fa8f7934cc62",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "abbe4d642c22df9a",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "abbe4d642c22df9a"
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "4a52fe47930aab88",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "4a52fe47930aab88"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "3bba169e97c915a2",

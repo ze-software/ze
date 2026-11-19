@@ -2,7 +2,7 @@
   "note": "TestRFC2516BuildersWriteTheSendersMAC asserts PADI, PADR, PADO, PADS, the refusing PADS and PADT write the sender MAC they are given in SOURCE_ADDR; every production call site passes the device's own MAC (s.hwAddr in server.go, hwaddr/srcMAC in pppoeclient/dialer.go), read, not asserted. Receive side refuses broadcast and multicast sources. Record red on NewBuilder",
   "requirement_sha": "0be11648ea41bb75",
   "tests": {
-    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC": "b0dfb1dee08fd6a9",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBroadcastSource": "b7c2fae4a50abe95",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseMulticastSource": "b7c2fae4a50abe95",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParsePADI": "b7c2fae4a50abe95"

@@ -2,8 +2,8 @@
   "note": "Rejudge 2026-11-08: new client positive TestRFC5072ClientAdoptsNakSuggestion: a Nak suggesting 02:00:00:00:00:00:00:77 (different from any Nak the client sent, the condition of the sentence) makes the next Configure-Request carry exactly that identifier under a new Identifier. Server side unchanged: TestIPv6CPResendsCRWithNakSuggestedID requires the suggested value; negative TestIPv6CPNakInvalidSuggestionNotAdopted refuses an all-zero suggestion.",
   "requirement_sha": "041756c7bba9b99f",
   "tests": {
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "348b8aac320c29c9",
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "348b8aac320c29c9",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "aa9b68b6d4bdb846",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "aa9b68b6d4bdb846",
     "internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion": "864c17f424d2eb07"
   },
   "units": {

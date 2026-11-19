@@ -2,8 +2,8 @@
   "note": "Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.",
   "requirement_sha": "19ed833661f206b5",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge": "44063141c2a3debd",
-    "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept": "44063141c2a3debd"
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge": "8e6201cad59422c7",
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept": "8e6201cad59422c7"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge": "faec9a11b6bf40ef",

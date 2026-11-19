@@ -13,7 +13,7 @@
     "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18",
-    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "0c3cbf92de701bdc"
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "ec6c4a5b7f596af0"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "db08bdef870f900b",

@@ -2,7 +2,7 @@
   "note": "PADO echo byte-compared by TestBuildPADO; PADS echo now byte-compared both in TestBuildPADS and through handlePADR for two hosts with distinct Host-Uniq values (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); TestBuildNoHostUniqEcho proves no Host-Uniq is invented. Observed-red records on BuildPADS for both new/changed units",
   "requirement_sha": "23d95c434ecde228",
   "tests": {
-    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "b0dfb1dee08fd6a9",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildNoHostUniqEcho": "b7c2fae4a50abe95",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADO": "b7c2fae4a50abe95",
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95"

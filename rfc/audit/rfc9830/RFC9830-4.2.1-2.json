@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e and 9242dcd57b). RFC 9830 Section 4.2.1: \"The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint).\" TestRFC9830NLRILengthReceiveVerdicts changed only in what its unwalkable and Section 5.2 cases expect on the wire (3/9 with the MP attribute, via srMPAttrError and srRequireReset with an exact want), not in the two tags of this row: the positive still requires 12 octets under AFI 1 and 24 under AFI 2, with and without ADD-PATH, accepted through processMessage with no RFC 7606 action and dispatched byte-identical; the negative still requires 13 and 24 octets under AFI 1 and 12 and 25 under AFI 2 (too long, or too short to hold an IPv6 Endpoint), alone or beside a well-formed NLRI, to be treated as withdrawn with the session Established, nothing written, and the received body never dispatched. Producer: the registered srpolicy nlrisyntax Judge reached from rfc7606.go validateMPNLRISyntax. Ran green. Verdict stands.",
   "requirement_sha": "6c8518fcdfb5abb9",
   "tests": {
-    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "0c3cbf92de701bdc",
-    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "0c3cbf92de701bdc"
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "ec6c4a5b7f596af0",
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "ec6c4a5b7f596af0"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "8a8a6991a47c3e25",

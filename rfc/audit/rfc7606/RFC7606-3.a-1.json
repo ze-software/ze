@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-23 (independent auditor, after 9242dcd57b). RFC 7606 Section 3 (a) New Text: \"An error detected while processing the UPDATE message for which a session reset is specified MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error. The error subcode elaborates on the specific nature of the error.\" test/plugin/rfc7606-reset.ci changed only its expectation: the iBGP peer sends ORIGIN, empty AS_PATH and an MP_REACH_NLRI of length 2, and ze must answer with the exact frame FFx16 001A 03 03 09 800E020001: type NOTIFICATION, Error Code 3 UPDATE Message Error, subcode 9 Optional Attribute Error, Data the whole MP_REACH_NLRI attribute. The Error Code is still pinned byte-exact, and the subcode now elaborates the nature of the error as RFC 4760 Section 7 asks (\"UPDATE Message Error\"/\"Optional Attribute Error\"), with Data per RFC 4271 Section 6.3; the exact Data also isolates the trigger to the MP_REACH length rule, since no other attribute in the UPDATE could produce it. Producer: rfc7606.go validateMPAttrLength -> MPAttributeErrorNotification, sent by session_validation.go applyRFC7606 -> rfc7606ResetNotification. The positives TestSessionRFC7606ValidUpdateSendsNoNotification and TestEnforceRFC7606_ShortBody are unchanged. A discrimination record for the .ci (validateMPAttrLength disabled) carries the 3/9 expectation. Verdict stands.",
   "requirement_sha": "73033f2bf79d0b63",
   "tests": {
-    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateSendsNoNotification": "9f97a0d56d362dc6",
-    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "d838494437546b83",
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateSendsNoNotification": "9a31a9e10b57fd13",
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "691edbcfc38472b4",
     "test/plugin/rfc7606-reset.ci": "b0e1897488f23526"
   },
   "units": {

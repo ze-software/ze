@@ -9,8 +9,8 @@
   "note": "Section 4.6 requires the Restart timer to be configurable. TestConfiguredLCPRestartTimer observes SCR's exact 500 ms and 3 s periods, rejects early expiry and checks timer cancellation on Opened. A fixed period fails the configured interval. Both server transport configuration paths supply the validated session setting read by armRestartTimer. Client LCP and IPv6CP have separate schema-backed interval snapshots and one-shot request timers; the server tags here claim the shared server timer's exact expiry and cancellation, rather than proof of every client lifecycle.",
   "requirement_sha": "bc51a670e569d716",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer": "c7a72d6b7a2dd898",
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer#2": "c7a72d6b7a2dd898"
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer": "5133b1b1fbe707ca",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer#2": "5133b1b1fbe707ca"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer": "80ad0eb4194cb168",

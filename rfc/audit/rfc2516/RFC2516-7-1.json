@@ -2,8 +2,8 @@
   "note": "Ze's share of Section 6 is binding the session socket: TestRFC2516AdmittedPADSCarriesTheNewSessionsID asserts the socket is bound once to the SID the PADS assigned (createTransport seam, production path unchanged), and TestRFC2516PADRReplayKeepsTheSessionID shows a retransmitted PADR keeps the SID, binds no second socket, adds no session. The kernel pppox socket keeps the SID fixed after connect. The PADT-MAC unit no longer carries the tag. Records red on createTransport and matchLiveCookie",
   "requirement_sha": "72f908f477306f85",
   "tests": {
-    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "3ea2cf3cd3f3abda"
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "b0dfb1dee08fd6a9",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "b0dfb1dee08fd6a9"
   },
   "units": {
     "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",

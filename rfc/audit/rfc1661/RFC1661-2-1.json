@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "480d72ff3c4dac57",
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "a1d8f8274d199376"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "3ac1fd8ae501d890"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "d4a168f08f11f2e5",

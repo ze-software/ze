@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "480d72ff3c4dac57",
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "a1d8f8274d199376"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "3ac1fd8ae501d890"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "81370385d7aa001b",

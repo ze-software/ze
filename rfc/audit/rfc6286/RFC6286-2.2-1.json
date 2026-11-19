@@ -2,8 +2,8 @@
   "note": "Section 2.2's zero-identifier condition is isolated by TestOpenValidateBGPIdentifier: zero from internal and external peers requires OPEN Message Error / Bad BGP Identifier with empty data, while valid boundary identifiers 1 and 0xffffffff are accepted. The current recorded clause breaks disable only zero rejection or reject every nonzero identifier and demonstrate the corresponding exact assertions. TestHandleOpenRejectsBadBGPIdentifier repeats refusal through handleOpen and asserts the error, exact transmitted NOTIFICATION and lack of OpenConfirm; its valid cases retain nil error and OpenConfirm and now close/drain the recorded connection to assert no NOTIFICATION. TestProcessOpenRejectsBadBGPIdentifier verifies exact zero refusal through the collision-winner rail. The two OPEN rails call validateOpenIdentifier and cannot bypass this condition.",
   "requirement_sha": "096d9b6b65628ff0",
   "tests": {
-    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
-    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "181c534be26e0523",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "181c534be26e0523",
     "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "407c5a8dbcd7ea26",
     "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "407c5a8dbcd7ea26"
   },

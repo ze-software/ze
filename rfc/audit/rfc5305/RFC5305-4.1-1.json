@@ -4,7 +4,7 @@
   "tests": {
     "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
     "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
-    "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
+    "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "9433960702979d43",
     "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
     "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
   },

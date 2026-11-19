@@ -9,8 +9,8 @@
   "note": "The tagged positive TestRFC1661TerminateAckSentAndLinkHeld drives LCP Opened and requires a Terminate-Ack with the request Identifier 0x77; its tagged negative receives a Terminate-Ack in Opened and refuses a Terminate-Ack response. checkPPPCodeReject assertion 6 drives IPCP Opened and requires the exact fifth injected frame IPCP 05 5a 00 04 and a matching Ze Terminate-Ack, after assertion 5 excluded prior Code 1-6 traffic. RFC 1332 Section 2 inherits this LCP exchange. These are useful and isolating proofs, and the main native guest baseline passed the current checker. They do not prove the whole Section 5.5 obligation: LCPDoTransition has separate sta edges for Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent outside these tagged tests. Closed has the untagged TestLCPPeerTerminateRestartTimer proof and IPCP Req-Sent has TestIPCPUsedCodesAreNotCodeRejected, but they do not cover the listed edges. This pre-existing gap remains owned by spec-ppp-l2tp-aaa-one-off-defects in plan/journal/requirement-proven-in-one-state-of-many.md. Weak corrects the earlier whole-row enforced verdict without reducing any test. AC-3 preserves the armed trigger and all later controls through explicit phase metadata; the added Echo precedes the original IPCP termination probe. Main native paired renewal now passed the clean current checker and observed the STA action break in performNCPAction fail the cited assertion 6 for the missing IPCP Terminate-Ack; native rfc record wrote its renewal.",
   "requirement_sha": "71d5c82cfcaeb473",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "be08cb3cc076168c",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "be08cb3cc076168c",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3ac1fd8ae501d890",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
   },
   "units": {

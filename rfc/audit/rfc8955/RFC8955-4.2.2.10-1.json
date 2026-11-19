@@ -3,7 +3,7 @@
   "requirement_sha": "0f57ab4586d8f6b2",
   "tests": {
     "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
+    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "a39e9db621a755c6"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",

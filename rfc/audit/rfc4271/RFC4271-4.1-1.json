@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "b57c65aae7255a53",
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "b57c65aae7255a53",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "abbe4d642c22df9a",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "abbe4d642c22df9a"
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "4a52fe47930aab88",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "4a52fe47930aab88"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "adb2ca346668fad8",

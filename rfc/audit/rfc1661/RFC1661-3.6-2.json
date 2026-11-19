@@ -4,7 +4,7 @@
   "requirement_sha": "618e28be52287bb1",
   "tests": {
     "internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go::TestDialRenegotiatesLCPInNetworkPhase": "7b7f78ab6b771ebb",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "a1d8f8274d199376"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "3ac1fd8ae501d890"
   },
   "units": {
     "internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go::TestDialRenegotiatesLCPInNetworkPhase": "029da2b26d3d58a7",

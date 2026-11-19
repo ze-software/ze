@@ -7,8 +7,8 @@
     "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "fcbd869c57b5684a",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
-    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "a19bf492823e14b9",
-    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "a19bf492823e14b9",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "7aa0ef34755a56dc",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "7aa0ef34755a56dc",
     "test/plugin/wellknown-no-export-egress.ci": "b631ea63b22476ad",
     "test/plugin/wellknown-no-export-egress.ci#2": "b631ea63b22476ad",
     "test/plugin/wellknown-no-export-withdraw-egress.ci": "6c731442feef6d2d"

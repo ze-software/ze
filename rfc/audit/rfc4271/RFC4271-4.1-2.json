@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "b57c65aae7255a53",
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "b57c65aae7255a53",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "abbe4d642c22df9a",
-    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "abbe4d642c22df9a"
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "4a52fe47930aab88",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "4a52fe47930aab88"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "3eb327ba16f7e2b1",

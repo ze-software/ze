@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "c6ef70edfa51afe7",
     "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "c6ef70edfa51afe7",
-    "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "aeb6993b67f2a376"
+    "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "65b78caa8bc5491e"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",

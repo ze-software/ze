@@ -6,8 +6,8 @@
   "note": "Section 4.4 requires an appropriate timeout when zrc zeroes the counter. The existing peer-termination test preserves the default-period grace and Closed contrast. TestConfiguredLCPZeroRestartPeriod adds a configured 500 ms grace: Opened plus Terminate-Request zeroes a live counter, expires at that period into Stopped and sends only the Terminate-Ack. Closed acknowledges the same input without arming a timer. Distinct assertions reject both a missing grace and unconditional arming.",
   "requirement_sha": "c2f1eadb4e4f0e72",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod": "c7a72d6b7a2dd898",
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2": "c7a72d6b7a2dd898",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod": "5133b1b1fbe707ca",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2": "5133b1b1fbe707ca",
     "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "ece651a9cb319747",
     "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "ece651a9cb319747"
   },

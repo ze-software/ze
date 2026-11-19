@@ -3,7 +3,7 @@
   "requirement_sha": "bb2659c612dc6645",
   "tests": {
     "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "8cb84a3ecc21b2cc",
-    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "c387bdc6c423bd19",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "31075046745d98d8",
     "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "a659594f16fb390a"
   },
   "units": {
