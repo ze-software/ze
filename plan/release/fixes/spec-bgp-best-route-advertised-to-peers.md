@@ -107,6 +107,7 @@ Those commits do not close the spec or claim release readiness.
 | Scoped origin admission, election and settlement | Test companions committed in `6297ed3ef0` | All 18 roots passed with race detection. They cover preference, retained alternatives, exact removal, original receipts, cancellation and uncertain completion across the native and framed SDK transports. Existing redistribution rejection and rule-narrowing roots separately passed; the origin tests alone do not prove a complete system-route and learned-route TCP lifecycle |
 | Explicit export rejection of a scoped origin, AC-15 | Fixed and verified on the original recipient sessions | The initial socket test showed a stale local route and zero withdrawals after rejection. The repaired path withdraws only the affected recipient's output. Rollback and later acceptance reoffer the retained selected origin. The direct one-shot route stays out until the API sends it again. The other recipient keeps its learned route |
 | Role and policy diagnostics, AC-21 and AC-22 | Both diagnostic cases passed on a fresh daemon | The reflector handles owner-terminal startup removal in `c3adea4edb`. Exact send-grant projection keeps receive-only peers as sources without scheduling route-server replay to them. Both placements reach the useful ordinary and reflected routes, the local API survivor, and the external absence checks |
+| Existing route-server fast-path permission control | The updated case passed 80 stress invocations and a fresh post-promotion run | Both destinations prove they are established before the source sends. The granted recipient receives the original expected UPDATE. The engine records the exact cached handback refusal for the denied recipient |
 | Policy removal rollback, AC-23 | Socket regression committed in `2f127b0278` | The learned route returned after the failed apply. The API route remained installed without a duplicate announcement. Disabling the journal undo failed at the restored learned-route check |
 | Attachment grants, AC-25 | Validate and candidate commit tests in `483ca1bc0a`. Three daemon startup refusals in `6f1b436d3e`. Completed-grant refresh case promoted | Each startup case passed 80 stress invocations and a fresh post-promotion run. The completed graph passed 80 stress invocations and a fresh post-promotion run. In both RIB placements, a late peer received the elected route, sent a real ROUTE-REFRESH, and received the same route on its original socket without a new source UPDATE |
 | Default AIGP without ordinary transit, AC-26 | The two-peer config passed validation and both editor commit paths. Its partial-RIB comparison was refused | `bgp-best-route-api-only.ci` observed both received routes in Adj-RIB-In and useful API announcements on both original sockets, with no learned route passed between them. The draft passed 80 stress invocations, and the promoted test passed on a fresh daemon |
@@ -1246,8 +1247,10 @@ design check before extending this public operation.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| UPDATE from iBGP peer A, `bgp-rib` attached to A and B, eBGP peer B with an export policy | → | Explicit RIB grants → retained global selection → proposed selected operation → shared egress/final writer | `test/plugin/bgp-best-route-transit-default.ci` (planned name) |
-| UPDATE from eBGP peer A, iBGP peer C with no export policy, then the policy configured | → | Absent-policy end disposition → selected output withheld, then delivered; absent-policy report → validate and doctor | `test/plugin/bgp-best-route-needs-export-policy.ci` (planned name) |
+| UPDATE from iBGP peer A, `bgp-rib` attached to A and B, eBGP peer B with an export policy | → | Explicit RIB grants → retained global selection → selected operation → shared egress and final writer | `test/plugin/bgp-best-route-transit-default.ci` |
+| UPDATE from eBGP peer A, iBGP peer C with no export policy, then an export-policy change | → | Absent-policy disposition → selected output withheld or delivered. Validation, session warnings and doctor report the missing policy | `test/plugin/bgp-best-route-needs-export-policy.ci`, `test/plugin/bgp-policy-diagnostics-internal.ci`, `test/plugin/bgp-policy-diagnostics-forked.ci` |
+| An authorized recipient establishes after a route is selected and sends ROUTE-REFRESH | → | Exact destination replay → refresh receive grant → current selection → original recipient wire | `test/plugin/bgp-best-route-refresh-selected.ci` |
+| An API process sends to two iBGP peers with accepting export policies and default AIGP | → | Explicit API send grant → direct origination → both original recipient sockets | `test/plugin/bgp-best-route-api-only.ci` |
 
 ### Phase 1 implementation audit, 2026-11-16
 
@@ -1394,7 +1397,7 @@ resource-bound criteria below form one unapproved design for whole review.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator configures a node between an iBGP and an eBGP peer and adds no plugin | wire → `bgp-rib` election → advertiser → forward rules → wire | `test/plugin/bgp-best-route-transit-default.ci` (planned name) |
+| 1 | Operator attaches one `bgp-rib` process to an iBGP source and an eBGP destination, and configures the destination export policy | Wire → `bgp-rib` election → selected output → forward rules → wire | `test/plugin/bgp-best-route-transit-default.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -1470,8 +1473,11 @@ negative observation follows useful output and joins the work it observes.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-best-route-transit-default` (planned) | `test/plugin/` | a node between two peers passes the elected route on with no route-server plugin | |
-| `bgp-best-route-needs-export-policy` (planned) | `test/plugin/` | an internal peer with no export policy receives no learned route and still receives an API announcement; `ze config validate` and `ze doctor` name the peer and the fix; configuring the policy delivers the route; a reflector client with no export policy still receives its reflected route and raises no report (AC-20 to AC-22) | |
+| `bgp-best-route-transit-default` | `test/plugin/` | A node between two peers advertises the route elected by its explicitly attached RIB | Fresh scoped suite passed |
+| `bgp-best-route-needs-export-policy` | `test/plugin/` | An internal peer without an export policy receives its API announcement. An export-policy change enables or retires learned output | Fresh scoped suite passed |
+| `bgp-policy-diagnostics-internal` and `bgp-policy-diagnostics-forked` | `test/plugin/` | Validation, live warnings, and doctor name the affected peers. The reflector client receives its allowed routes and the eBGP peer without policy receives none | Both fresh daemon cases passed |
+| `bgp-best-route-refresh-selected` | `test/plugin/` | A late recipient receives the selected route and observes the same route after its own ROUTE-REFRESH | Both placements passed. Disabling the replay request fails at the expected socket assertion |
+| `bgp-best-route-api-only` | `test/plugin/` | Default AIGP and an export policy allow two API-only peers to start and receive local announcements | Fresh post-promotion suite passed |
 
 ### Interop Tests (Scope: protocol)
 Owed against both FRR and BIRD. Before a check expects either to accept or

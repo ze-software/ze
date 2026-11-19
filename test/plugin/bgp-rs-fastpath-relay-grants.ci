@@ -21,13 +21,15 @@
 #   D 127.0.0.3 AS65003  full grant; must receive Y, never X
 #   E 127.0.0.4 AS65004  no send [ update ]; must receive neither
 #
-# ORDER: G holds Y until e.up exists. e.up is E's established-file: ze's first
-# UPDATE to E proves E Established, so Y reaches the fast path while E is a
-# live destination and the fast path, not a peer-up replay, decides E.
+# ORDER: D writes d.up on its first daemon UPDATE. E waits for d.up before
+# marking its own first daemon UPDATE as e.up. G holds Y until e.up exists.
+# This puts both original destinations in Established before the live fast
+# path decides Y. E's wait keeps any earlier UPDATE for its wire checks.
 #
 # END: one await fence, two needles, then=stop.
-#   `forward-cached failed`: bgp-rs's cached forward of Y refused E, the
-#     destination the fast path handed back. Y's fast-path decision is made.
+#   `captured cached forward failed` with ids=1: bgp-rs's one-message cached
+#     forward of Y refused its original destination E, the destination the
+#     fast path handed back. Y's fast-path decision is made.
 #   `peer=127.0.0.1 event=attribute-discard`: ze parsed X. X and Y both carry
 #     LOCAL_PREF, which RFC 7606 Section 7.5 makes ze discard from an external
 #     neighbor and log per UPDATE, so the line is ze's receipt of X; the fast
@@ -62,6 +64,7 @@ EOF_G
 stdin=dest-d:terminator=EOF_D
 option=tcp_connections:value=1
 option=linger:value=true
+option=established-file:path=d.up
 # Y relayed: AS_PATH [65000, 65002], NEXT_HOP 1.1.1.1 unchanged. A withdrawal
 # carries no path attribute, so only an announcement of Y satisfies this.
 expect=bgp:conn=1:seq=1:contains=40020A02020000FDE80000FDEA40030401010101
@@ -70,6 +73,7 @@ EOF_D
 
 stdin=dest-e:terminator=EOF_E
 option=tcp_connections:value=1
+option=await-file:path=d.up
 option=established-file:path=e.up
 option=linger:value=true
 # ze's End-of-RIB from initial sync: the delivery this block's rejections run beside.
@@ -165,6 +169,7 @@ bgp {
 			}
 		}
 		session {
+			next-hop unchanged
 			asn {
 				local 65000
 				remote 65003
@@ -225,14 +230,13 @@ cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=src-g
 cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=dest-d
 cmd=background:seq=4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=dest-e
 cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=30s
-await=stderr:contains=forward-cached failed:timeout=20s:then=stop
+await=stderr:contains=captured cached forward failed" subsystem=bgp.rs ids=1:timeout=20s:then=stop
 await=stderr:contains=peer=127.0.0.1 event=attribute-discard
 expect=exit:code=0
 # bgp-rs's cached forward of Y refused E, and only E: the reactor names the
-# refused peer, and bgp-rs reports the one refused destination of that forward.
-# E's other refusal, bgp-rs's End-of-RIB after E's replay, is an
-# `update-route failed` line, so this pair is Y's.
-expect=stderr:pattern=forward-cached failed.*send refused: no peer this selector names attaches this process.*1 destinations, process rs, send type update
+# refused peer, and bgp-rs reports one captured message refused by its original
+# destination. Together these identify Y's cached handback and E's missing send.
+expect=stderr:pattern=captured cached forward failed.*subsystem=bgp[.]rs ids=1 error=.*process rs may not send update messages to original destination.*send refused: no peer this selector names attaches this process.*original destination, process rs, send type update
 expect=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.4
 reject=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.[123][^0-9]
 # The once-per-snapshot grant warnings name N's missing receive and E's missing send.
