@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/spec/roadmap"
@@ -36,6 +37,10 @@ func init() {
 	// Every answer this command can give carries one row set, so the row
 	// operators act on it.
 	leroot.RegisterShape(area, command.ShapeMap)
+
+	// `./le commit create` refuses a commit that stales an RFC proof record
+	// without carrying its re-taken record (discriminate_commit.go).
+	changecheck.Register(changecheck.Check{Name: area + " check", Judge: judgeStaleRecords})
 
 	// The census counts these gates as ported from here, in the same init()
 	// that registers the command. A claim whose command never registered is

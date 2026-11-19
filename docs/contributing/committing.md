@@ -436,19 +436,24 @@ no check: a check package calls `changecheck.Register` from its own `init()`
 with its command name and a `Judge` over a `changecheck.Change`, and the
 composition root links it. `Change.After` reads the carried selection, so a
 `hunks` commit is judged on the blob it carries, and `Change.Before` reads the
-tree the commit starts from. A check judges only what the commit adds and
+tree the commit starts from. `Change.BeforeUnder` reads every file that tree
+holds under one directory in a single git batch, for a check that must find
+which files of a corpus concern the commit, where `Before` would cost a git
+call per file. A check judges only what the commit adds and
 never an instance its parent already held: a refusal names the check
 (`./le arch operator-error check refused what this commit adds`) and carries
 the check's own text, and a check that cannot judge answers exit 3, never a
-pass. Three checks register today:
+pass. Four checks register today:
 
 | Check | What it refuses in what the commit adds | Page |
 |-------|------------------------------------------|------|
 | `arch operator-error` | a plain `errors.New` or `fmt.Errorf` returned from a registered command handler, RPC handler or config verifier, and a `plugin.StatusError` answer whose `Error` text the handler wrote rather than built with `plugin.OperatorErrorResponse` | `docs/architecture/cli/error-surface.md`, "The operator error" |
 | `arch doctor-coverage` | a `Warn` or `Error` log line or report-bus raise under `internal/component`, `internal/plugins` or `cmd/ze` that names no doctor code a registered doctor check declares, and a `diagnostic.Diagnostic` finding in shipped Go with no `Fix` | `docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code" |
 | `arch error-inventory` | a `plain` or `plain-names-command` message handed to a surface writer neither check above judges (a local `ze` stderr write or refusal, an MCP error result, a REST error body, a web `http.Error`, a gNMI or gRPC status error, an `./le` refusal or finding); a writer call on a line one of them names is theirs | `docs/contributing/error-inventory.md`, "The check and the commit gate" |
+| `rfc` | an RFC proof record under `rfc/discrimination/` that verifies against the parent and no longer verifies against what the commit leaves, because the commit changed its tagged unit, its claim or a producer it broke, or deleted it while its tag stays; the refusal names each record, why, and the `./le rfc record` line that re-takes it | `docs/contributing/rfc-conformance-gates.md`, "The commit carries the record it stales" |
 
 <!-- source: internal/le/arch/operatorerror/report.go -- judgeChange -->
+<!-- source: internal/le/rfc/discriminate_commit.go -- judgeStaleRecords -->
 <!-- source: internal/le/arch/doctorcoverage/report.go -- judgeChange -->
 <!-- source: internal/le/arch/errorinventory/report.go -- judgeChange -->
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->

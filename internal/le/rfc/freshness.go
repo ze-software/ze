@@ -84,6 +84,17 @@ type sourceReader struct {
 	// sealed says the cache IS the revision: a path it does not carry is absent,
 	// and no filesystem read can add one.
 	sealed bool
+	// fetch, when set, reads a path the cache does not hold from a revision
+	// rather than from the tree, nil for a path that revision does not hold.
+	// The commit gate reads each side of a commit through it (newSideReader).
+	fetch func(rel string) *string
+}
+
+// newSideReader answers a reader over one revision that fetch reads a path of
+// on first use, so a caller that cannot list the revision up front still reads
+// each file at most once and resolves keys exactly as a tree reader does.
+func newSideReader(fetch func(rel string) *string) *sourceReader {
+	return &sourceReader{cache: map[string]*string{}, fetch: fetch}
 }
 
 func newSourceReader(tree string) *sourceReader {
@@ -112,6 +123,11 @@ func (r *sourceReader) read(rel string) *string {
 	}
 	if r.sealed {
 		return nil
+	}
+	if r.fetch != nil {
+		fetched := r.fetch(rel)
+		r.cache[rel] = fetched
+		return fetched
 	}
 	raw, err := os.ReadFile(treePath(r.tree, rel)) // #nosec G304 -- a path the verdict names, validated by fingerprintKey
 	if err != nil {

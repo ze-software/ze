@@ -35,6 +35,13 @@ type Change struct {
 	// Before reads the commit's parent: HEAD, or the tree an earlier block of
 	// the same commit script leaves.
 	Before Side
+	// BeforeUnder reads every regular file the parent holds under one
+	// root-relative directory, in one batch, keyed by root-relative path. A
+	// check that must find which of a corpus's files concern the commit (the
+	// RFC proof records) reads it here, because Before costs a git call per
+	// path. A directory the parent does not hold answers an empty map; a
+	// non-nil error is a read that failed.
+	BeforeUnder func(dir string) (map[string]string, error)
 	// After reads what the commit carries: the staged selection, honoring a
 	// `hunks` selection, never the whole working-tree file.
 	After Side

@@ -5,11 +5,14 @@
 package commit
 
 import (
+	"context"
 	"errors"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	"github.com/ze-software/ze/internal/le/commit/hunks"
+	"github.com/ze-software/ze/internal/le/repo/objects"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
@@ -37,7 +40,10 @@ func runChangeChecks(root string, paths, removed []string, selection hunks.Selec
 		Paths:   paths,
 		Removed: removed,
 		Before:  sideReader(sides.Before),
-		After:   sideReader(sides.After),
+		BeforeUnder: func(dir string) (map[string]string, error) {
+			return committedUnder(root, head, dir)
+		},
+		After: sideReader(sides.After),
 	}
 	refusals, err := changecheck.Run(change, checks)
 	if err != nil {
@@ -54,6 +60,46 @@ func runChangeChecks(root string, paths, removed []string, selection hunks.Selec
 		tb.Str("./le ").Str(refusal.Check).Str(" refused what this commit adds:\n").Str(refusal.Text)
 	}
 	return errors.New(tb.String())
+}
+
+// committedUnder answers every regular file revision holds under dir, read in
+// one listing and one blob batch rather than a git call per path. An empty
+// revision is a parent with no commit yet, which holds nothing, as
+// committedText answers for one path.
+func committedUnder(root, revision, dir string) (map[string]string, error) {
+	held := map[string]string{}
+	if revision == "" {
+		return held, nil
+	}
+	ctx := context.Background()
+	tree, err := objects.ResolveTree(ctx, root, revision)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := objects.List(ctx, root, tree)
+	if err != nil {
+		return nil, err
+	}
+	prefix := strings.TrimSuffix(dir, "/") + "/"
+	var paths, ids []string
+	for _, entry := range entries {
+		if !entry.Regular() {
+			continue
+		}
+		if !strings.HasPrefix(entry.Path, prefix) {
+			continue
+		}
+		paths = append(paths, entry.Path)
+		ids = append(ids, entry.ID)
+	}
+	blobs, err := objects.Read(ctx, root, ids)
+	if err != nil {
+		return nil, err
+	}
+	for position, path := range paths {
+		held[path] = string(blobs[position])
+	}
+	return held, nil
 }
 
 // sideReader adapts one commit side to the seam's Side, turning a read

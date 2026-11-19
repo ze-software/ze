@@ -8,6 +8,7 @@ package commit
 
 import (
 	"errors"
+	"maps"
 	"strings"
 	"testing"
 
@@ -66,6 +67,38 @@ func TestChangeChecksAdmitACleanCommit(t *testing.T) {
 
 	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{fixtureCheck()}); err != nil {
 		t.Fatalf("a commit adding nothing a check refuses was refused: %v", err)
+	}
+}
+
+// TestChangeChecksReadTheParentUnderADirectory holds that BeforeUnder answers
+// every file the parent commit holds under the directory, and nothing outside
+// it, and never the working tree: a file another session edited or added
+// there is not the parent's.
+func TestChangeChecksReadTheParentUnderADirectory(t *testing.T) {
+	root := dependencyBaseline(t, map[string]string{
+		"rfc/discrimination/rfc9999/RFC9999-2-1.json": "[]\n",
+		"rfc/discrimination/rfc9999/RFC9999-2-2.json": "[{}]\n",
+		"rfc/discriminationx/stray.json":              "outside\n",
+		"internal/x/x.go":                             "package x\n",
+	})
+	writeCommitFixture(t, root, "rfc/discrimination/rfc9999/RFC9999-2-1.json", "[\"edited\"]\n")
+	writeCommitFixture(t, root, "rfc/discrimination/rfc9999/RFC9999-3-1.json", "[]\n")
+
+	var held map[string]string
+	probe := changecheck.Check{Name: "probe check", Judge: func(change changecheck.Change) (string, error) {
+		found, err := change.BeforeUnder("rfc/discrimination")
+		held = found
+		return "", err
+	}}
+	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{probe}); err != nil {
+		t.Fatalf("the probe check could not read the parent: %v", err)
+	}
+	want := map[string]string{
+		"rfc/discrimination/rfc9999/RFC9999-2-1.json": "[]\n",
+		"rfc/discrimination/rfc9999/RFC9999-2-2.json": "[{}]\n",
+	}
+	if !maps.Equal(held, want) {
+		t.Fatalf("BeforeUnder answered %v, want the parent's two files %v", held, want)
 	}
 }
 
