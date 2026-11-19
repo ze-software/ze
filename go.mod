@@ -60,7 +60,7 @@ require (
 	github.com/yuin/goldmark v1.8.7
 	go.fd.io/govpp v0.13.0
 	golang.org/x/crypto v0.58.0
-	golang.org/x/mod v0.42.0
+	golang.org/x/mod v0.43.0
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
