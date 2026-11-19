@@ -315,12 +315,13 @@ module ze-container-conf {
                 leaf path {
                     type string {
                         length "1..255";
-                        pattern '/[^?# ]*';
+                        pattern '/([^/?# \\][^?# \\]*)?';
                     }
                     default "/";
                     description "The path the mirror serves the registry protocol under. It
-                                 starts with a slash and is placed before the /v2/ path of
-                                 every request to the mirror.";
+                                 starts with one slash, never two, holds no backslash, and
+                                 is placed before the /v2/ path of every request to the
+                                 mirror.";
                     ze:help "Path prefix of the mirror, starting with a slash.";
                 }
             }

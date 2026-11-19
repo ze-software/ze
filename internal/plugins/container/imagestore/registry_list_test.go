@@ -131,6 +131,8 @@ func TestRegistryListRefusals(t *testing.T) {
 		{"a mirror port of 65536", `{"docker.io":{"mirror":{"address":"127.0.0.1","port":"65536"}}}`, "the mirror's port is above 65535", fixMirror},
 		{"a mirror port that is a word", `{"docker.io":{"mirror":{"address":"127.0.0.1","port":"http"}}}`, "the mirror's port is not a whole number", fixMirror},
 		{"a mirror path with no slash", `{"docker.io":{"mirror":{"address":"127.0.0.1","path":"cache"}}}`, "the mirror's path does not start with a slash", fixPath},
+		{"a mirror path with two slashes", `{"docker.io":{"mirror":{"address":"127.0.0.1","path":"//evil.example"}}}`, "the mirror's path starts with two slashes", fixPath},
+		{"a mirror path with a backslash", `{"docker.io":{"mirror":{"address":"127.0.0.1","path":"/\\evil.example"}}}`, "the mirror's path holds a backslash", fixPath},
 		{"a mirror path with a query", `{"docker.io":{"mirror":{"address":"127.0.0.1","path":"/cache?x=1"}}}`, "the mirror's path holds a query, a fragment or a space", fixPath},
 		{"an empty mirror path", `{"docker.io":{"mirror":{"address":"127.0.0.1","path":""}}}`, "the mirror's path is not 1 to 255 characters of text", fixPath},
 		{"a username with no password", `{"docker.io":{"authentication":{"username":"operator"}}}`, "the authentication needs a password", fixAuth},

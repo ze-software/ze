@@ -81,12 +81,15 @@ func TestMirrorPathPrefixesEveryMirrorRequest(t *testing.T) {
 }
 
 // TestMirrorPathRule covers what New refuses of a mirror path: one that does
-// not start with a slash, one that holds a query or a fragment, and one set
-// with no mirror. A path of one slash is the mirror's root.
+// not start with a slash, one that starts with two slashes, one that holds a
+// backslash, one that holds a query or a fragment, and one set with no
+// mirror. A path of one slash is the mirror's root.
 func TestMirrorPathRule(t *testing.T) {
 	const mirror = "mirror.example:5000"
 	refused := map[string]Config{
 		"no leading slash": {Mirror: mirror, MirrorPath: "cache"},
+		"two slashes":      {Mirror: mirror, MirrorPath: "//evil.example/cache"},
+		"a backslash":      {Mirror: mirror, MirrorPath: `/\evil.example/cache`},
 		"a query":          {Mirror: mirror, MirrorPath: "/cache?x=1"},
 		"a fragment":       {Mirror: mirror, MirrorPath: "/cache#top"},
 		"no mirror":        {MirrorPath: "/cache"},

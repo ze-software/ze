@@ -331,7 +331,7 @@ func parseMirror(name string, raw any) (mirror, path string, err error) {
 
 // parseMirrorPath reads the path leaf of a mirror node that holds one.
 func parseMirrorPath(name string, fields map[string]any) (string, error) {
-	const why = "the path is placed before the /v2/ path of every request to the mirror, so it starts with a slash and holds no query, fragment or space"
+	const why = "the path is placed before the /v2/ path of every request to the mirror, so it starts with one slash, never two, and holds no backslash, query, fragment or space: a URL reader takes a path that starts with two slashes, or with a slash and a backslash, as naming another host"
 	fix := setRegistryStatement(name, nodeMirror+" "+leafPath+" /PATH")
 	path, err := boundedText(fields, leafPath, registryTextLengthMax)
 	if err != nil {
@@ -339,6 +339,12 @@ func parseMirrorPath(name string, fields map[string]any) (string, error) {
 	}
 	if !strings.HasPrefix(path, "/") {
 		return "", opererr.New(registryProblem(name, "the mirror's path does not start with a slash"), why, fix)
+	}
+	if strings.HasPrefix(path, "//") {
+		return "", opererr.New(registryProblem(name, "the mirror's path starts with two slashes"), why, fix)
+	}
+	if strings.Contains(path, `\`) {
+		return "", opererr.New(registryProblem(name, "the mirror's path holds a backslash"), why, fix)
 	}
 	if strings.ContainsAny(path, "?# ") {
 		return "", opererr.New(registryProblem(name, "the mirror's path holds a query, a fragment or a space"), why, fix)

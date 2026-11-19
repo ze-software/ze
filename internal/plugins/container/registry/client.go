@@ -258,13 +258,22 @@ func New(config Config) (*Client, error) {
 // mirrorPrefix answers what a mirror's path puts before the /v2/ path of a
 // request: the path without its trailing slash, so the root is no prefix. A
 // path that does not start with a slash, or that holds a query, a fragment
-// or a space, is refused: it would change which resource is asked.
+// or a space, is refused: it would change which resource is asked. A path
+// that starts with two slashes, or holds a backslash, is refused too: a URL
+// reader takes "//host" or "/\host" as naming another host, so neither is
+// ever a mirror's path.
 func mirrorPrefix(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
 	if !strings.HasPrefix(path, "/") {
 		return "", fmt.Errorf("registry client: mirror path %q does not start with a slash", shown(path))
+	}
+	if strings.HasPrefix(path, "//") {
+		return "", fmt.Errorf("registry client: mirror path %q starts with two slashes", shown(path))
+	}
+	if strings.Contains(path, `\`) {
+		return "", fmt.Errorf("registry client: mirror path %q holds a backslash", shown(path))
 	}
 	if strings.ContainsAny(path, "?# ") {
 		return "", fmt.Errorf("registry client: mirror path %q holds a query, a fragment or a space", shown(path))
