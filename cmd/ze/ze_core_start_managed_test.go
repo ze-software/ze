@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 	"time"
@@ -182,7 +183,7 @@ func TestManagedClientBuiltFromThePointedVersion(t *testing.T) {
 	if writeErr := store.WriteFile(configName, []byte(standaloneConfigText), 0); writeErr != nil {
 		t.Fatalf("rewrite the mirror: %v", writeErr)
 	}
-	if active, readErr := storage.ReadActiveConfig(store, configName); readErr != nil || string(active) != string(pointed) {
+	if active, readErr := storage.ReadActiveConfig(store, configName); readErr != nil || !bytes.Equal(active, pointed) {
 		t.Fatalf("the raw write moved the active pointer: %q, %v", active, readErr)
 	}
 
