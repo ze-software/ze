@@ -252,9 +252,8 @@ func TestRIBOriginNeverIssuedChurnHasNoHistory(t *testing.T) {
 	d.mu.Unlock()
 }
 
-// TestRIBOriginConfigCallbacksReelectAndRollback crosses the real startup and
-// ConfigTx callbacks on both transports. Existing registry ConfigReads declares
-// rib, so the ordinary server delivers the same whole config to forked owners.
+// TestRIBOriginConfigCallbacksReelectAndRollback drives the two-root config
+// transaction over both transports. The AC17 tests cover partial root deliveries.
 func TestRIBOriginConfigCallbacksReelectAndRollback(t *testing.T) {
 	for _, native := range []bool{false, true} {
 		t.Run(fmt.Sprintf("native=%t", native), func(t *testing.T) {

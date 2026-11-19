@@ -1,0 +1,117 @@
+# Question: does configured static redistribution compete with learned BGP by
+# the configured distance and per-route override, then expose the retained
+# learned path when the actual import rule is removed?
+# A unit cannot prove static apply, real redistribution admission, parsed reload
+# and ordinary selected output on the same recipient socket are connected.
+# VALIDATES: spec-bgp-best-route-advertised-to-peers AC-17.
+# Learned P and K are useful first. Static P overrides distance200 with10 and
+# replaces learned P at eBGP20; static K has no override and cannot replace K.
+# U is a selected system route with tag7 but only tag42 is admitted to BGP.
+# Rule removal keeps those system contributions and restores learned P without
+# another source UPDATE. API fences detect U leakage or loss/churn of K.
+# Both placements use one private network namespace. The internal placement
+# completes and exits before the forked placement reuses its route table.
+# The source explicitly grants the orchestrator state only. Removing the
+# import rule then leaves both peers' process grants unchanged.
+option=needs-linux:caps=net-admin
+# The real static plugin selects a data-plane backend. Keep its kernel work
+# inside this test's private namespace with a connected next-hop subnet.
+option=netns-link:name=zeac17:address=192.0.2.254/24
+option=env:var=ze_test_bgp_port:value=
+option=timeout:value=200s
+
+stdin=config-internal:terminator=CONFIG_INTERNAL
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal transit-rib { use bgp-rib; }
+ internal rib { use rib; }
+ internal static { use static; }
+ internal redistribute-orchestrator { use redistribute-orchestrator; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-redistribution-selected internal 127.0.0.1:$PORT ze-bgp.conf";
+  encoder json;
+ }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { static 200; ebgp 20; } }
+static { }
+policy { match ac17-admit { tag [ 42 ]; } }
+redistribute { destination bgp { import static { filters [ ac17-admit ]; final accept; } } }
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process transit-rib { receive [ update-received state ]; }
+  attach process redistribute-orchestrator { receive [ state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process transit-rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process redistribute-orchestrator { send [ update ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_INTERNAL
+
+cmd=background:seq=1:exec=ze -:stdin=config-internal:name=internal:ready=Ze stopped.
+expect=stderr:contains=OK: selected-route internal wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
+cmd=stop:seq=2:name=internal:signal=term
+
+stdin=config-forked:terminator=CONFIG_FORKED
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external transit-rib { run "ze plugin bgp-rib"; encoder json; }
+ internal rib { use rib; }
+ internal static { use static; }
+ internal redistribute-orchestrator { use redistribute-orchestrator; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-redistribution-selected forked 127.0.0.1:$PORT2 ze-config-forked.conf";
+  encoder json;
+ }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { static 200; ebgp 20; } }
+static { }
+policy { match ac17-admit { tag [ 42 ]; } }
+redistribute { destination bgp { import static { filters [ ac17-admit ]; final accept; } } }
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT2; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process transit-rib { receive [ update-received state ]; }
+  attach process redistribute-orchestrator { receive [ state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT2; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process transit-rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process redistribute-orchestrator { send [ update ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_FORKED
+
+cmd=foreground:seq=3:exec=ze -:stdin=config-forked:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: selected-route forked wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

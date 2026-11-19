@@ -105,6 +105,7 @@ Those commits do not close the spec or claim release readiness.
 | Auxiliary source output leases and captured SENT provenance | Test companions committed in `e28d1fb0c2`, `8f19a1e20b` and `5d8b28ffc7` | All ten selected RIB roots and the standalone reactor and server roots passed with race detection. Four producing-code walks exposed unknown-completion acceptance, retained completed-batch references and lost original SENT session provenance |
 | GR fixture migration and semantic RFC record renewal | Committed in `1524eb4085`; all 65 selected roots across the eight-carrier group passed with race detection | All six planned semantic records are observed: RFC4724-4.2-11 positive/negative for EOR purge and family scoping, RFC4724-4.2-7 positive/negative for expiry and timely reconnect, and RFC4724-4.2-8 positive/negative for absent and preserved forwarding state. The separate untagged writer-lock producer cut also reached its own assertion failure. This finite run is not full-package qualification or RFC conformance |
 | Scoped origin admission, election and settlement | Test companions committed in `6297ed3ef0` | All 18 roots passed with race detection. They cover preference, retained alternatives, exact removal, original receipts, cancellation and uncertain completion across the native and framed SDK transports. Existing redistribution rejection and rule-narrowing roots separately passed; the origin tests alone do not prove a complete system-route and learned-route TCP lifecycle |
+| Configured redistribution, AC-17 | Forked RIB config fix and transaction tests committed in `076b002dae`. The test passed 80 Linux draft stress executions and a fresh post-promotion Linux run | The per-route override beat learned BGP and the configured default lost. Removing the rule restored the learned path without another source UPDATE. The unadmitted system route stayed off the wire and both original sessions survived |
 | Explicit export rejection of a scoped origin, AC-15 | Fixed and verified on the original recipient sessions | The initial socket test showed a stale local route and zero withdrawals after rejection. The repaired path withdraws only the affected recipient's output. Rollback and later acceptance reoffer the retained selected origin. The direct one-shot route stays out until the API sends it again. The other recipient keeps its learned route |
 | Scoped origin replacement during reconnect, AC-18 | The final-writer overlap regression passed with race detection | The test holds the old replay inside its writer, admits a replacement on a new established session, then releases the old work. The new session keeps the replacement bytes and the other recipient keeps its route. The old receipt is released |
 | Role and policy diagnostics, AC-21 and AC-22 | Both diagnostic cases passed on a fresh daemon | The reflector handles owner-terminal startup removal in `c3adea4edb`. Exact send-grant projection keeps receive-only peers as sources without scheduling route-server replay to them. Both placements reach the useful ordinary and reflected routes, the local API survivor, and the external absence checks |
@@ -204,10 +205,10 @@ preserved and sends real End-of-RIB, requiring passive removal while the
 successor is still open. Each internal/forked purge and expiry variant passed
 80 stress invocations. The internal and forked purge publication proofs each
 passed their healthy scenario and failed the same socket assertion under the
-producing-code cut. The internal expiry proof had no baseline because Fleet
-UI compilation failed; the forked expiry proof was not attempted under that
-unchanged blocker. This build failure provides no behavioral proof, and both
-expiry publication proofs remain owed.
+producing-code cut. The first internal expiry attempt stopped at a Fleet UI
+compile error. After that cleared, both expiry placements passed on the
+healthy daemon and failed at the retained-winner socket check with selected
+publication disabled.
 
 ### Observed evidence
 
@@ -1476,6 +1477,7 @@ negative observation follows useful output and joins the work it observes.
 |------|----------|-------------------|--------|
 | `bgp-best-route-transit-default` | `test/plugin/` | A node between two peers advertises the route elected by its explicitly attached RIB | Fresh scoped suite passed |
 | `bgp-best-route-needs-export-policy` | `test/plugin/` | An internal peer without an export policy receives its API announcement. An export-policy change enables or retires learned output | Fresh scoped suite passed |
+| `bgp-best-route-redistribution-selected` | `test/plugin/` | Configured static preferences compete with learned BGP. Rule removal restores the learned route and keeps both sessions and the unrelated route | Both Linux placements passed 80 stress executions and a fresh post-promotion run |
 | `bgp-policy-diagnostics-internal` and `bgp-policy-diagnostics-forked` | `test/plugin/` | Validation, live warnings, and doctor name the affected peers. The reflector client receives its allowed routes and the eBGP peer without policy receives none | Both fresh daemon cases passed |
 | `bgp-best-route-refresh-selected` | `test/plugin/` | A late recipient receives the selected route and observes the same route after its own ROUTE-REFRESH | Both placements passed. Disabling the replay request fails at the expected socket assertion |
 | `bgp-best-route-api-only` | `test/plugin/` | Default AIGP and an export policy allow two API-only peers to start and receive local announcements | Fresh post-promotion suite passed. Blocking direct origination fails at the first authenticated API announcement after both peers establish |
