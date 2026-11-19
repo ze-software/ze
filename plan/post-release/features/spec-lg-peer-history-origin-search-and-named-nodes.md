@@ -104,6 +104,7 @@ small problem.
 | The trace bounds the walks it lists | The review of phase 7 | The node cap does not bound the walks: a lookup by address answers every covering prefix, each walked from every router, so a graph under the cap could list thousands of lines | AC-46 |
 | A recording names a commit that holds its code | The review of the replay | The recorder wrote a recording from a tree with uncommitted changes, and the site published it under the commit it named | AC-47 |
 | The replay's frame document runs nothing when opened directly | The review of the replay | The frame document read the recording wherever it was opened, outside the sandbox its page gives it | AC-48 |
+| The replay's Restart opens the entry page again, and presses of Next step queue | The built lab page, looked at in a browser on 2026-11-19 | Restart reset the step counter and asked the framed looking glass to reload itself, which did not happen after a step that had navigated inside the frame, so step 1 could not finish. Next step did nothing while a step was loading, and said nothing. The host page now loads every frame document by replacing the iframe (`loadFrame`, `restartTour` in `website/assets/js/lg-replay.js`), and a press made early plays once the step before it ends (`advance`). Committed as 26bf52678b | AC-53 |
 
 ### Added 2026-11-18: a replay of the looking glass for the website
 
@@ -339,28 +340,30 @@ questions have an answer: any other request shows a notice that names it.
 | Simulated routers and neighbours open BGP sessions, then `GET /lg/graph` in the trace mode | → | the generated announcements, the RIB, and the trace graph builder | `test/plugin/lg-simulated-network.ci` |
 | A simulated border router that does not rewrite the next hop, then `GET /lg/graph` in the trace mode | → | the walk's exit at an address of no router (A-10) | `test/plugin/lg-simulated-unchanged-next-hop.ci` |
 
-Every test of this table passes against a real daemon as a draft under
-`test/draft/plugin/` (main thread, 2026-11-18). None is promoted to
-`test/plugin/` yet: the stress runs come first.
+Every test of this table is promoted to `test/plugin/` and registered in
+`internal/test/fixture/plugin_fixture_09.go`. Each passed its stress runs on
+the branch before promotion (the "Status as of 2026-11-19" paragraph), and
+the run in the main checkout after the landing is in the closure's owed
+commands.
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A peer's session is closed by the remote side, then the peers page is read | Its row shows the state, the time of the change, a drop count of one, and its detail shows the last error | A peer that never dropped shows a count of zero, because zero is its true count |
+| AC-1 | A peer's session is closed by the remote side, then the peers page is read | Its row on the peers page shows the state, the time of the peer's last state change as the engine reports it, and a drop count of one. The peer's own page, `/lg/peer/<address>`, shows the last error in its header | A peer that never dropped shows a count of zero, because zero is its true count. The time is the session's last state transition, which follows the drop by the time the session takes to leave Established, because that is the time the engine keeps |
 | AC-2 | The same session comes back and drops again while the page stays open | The next message on the live event stream carries that peer's row with a drop count of two | Rows of other peers keep their own counts, because the stream sends every row as it is |
 | AC-3 | The engine's summary carries no history keys for a row | The row renders with its other columns filled and the history cells empty | An empty cell is permitted and a zero is not, because the page never invents a count |
 | AC-4 | AS path `65001$` | The result lists routes whose path ends with 65001 | A route crossing 65001 and originated elsewhere stays out, because the pattern is anchored at the end |
 | AC-5 | AS path `^65010 65001$` | The result lists routes whose path is exactly those two AS numbers | A longer path containing the pair stays out |
 | AC-6 | A path with the last AS prepended three times, searched with `65001$` | The route is listed | None: prepending does not change the origin |
-| AC-7 | A route is learned, and thirty seconds later the page and the API are read | Both show an age of about thirty seconds | A difference of a few seconds is permitted, because the clock has one-second resolution |
+| AC-7 | A route is learned, and some seconds later the API, then the page, then the API again are read | The API answers the route's age in whole seconds, growing between its two reads, and the page shows an age whose seconds lie between those two answers. The functional test waits until the API's age reaches four seconds | A difference of a second is permitted between two reads, because the clock has one-second resolution |
 | AC-8 | The same route is announced again with equal attributes | Its age keeps growing | An announcement that changes an attribute resets it, because the route changed |
-| AC-9 | The route record size benchmark, before and after | Both sizes are stated in the spec's closure, and the growth is zero or eight bytes | Growth of eight bytes is permitted only with the owner's decision recorded here, because it is paid per stored route |
+| AC-9 | The route record size benchmark, before and after | Both sizes are stated in this spec (assumption A-2 and Design Insights): 64 bytes before and 64 bytes after, so the growth is zero | Growth of eight bytes is permitted only with the owner's decision recorded here, because it is paid per stored route |
 | AC-10 | A config names `198.51.100.0/24` as an exchange LAN, and a route has a next hop inside it | The route table shows the name beside the next hop, and the next-hop graph labels the node with it | A next hop in no named range shows its address alone |
 | AC-11 | Two named ranges contain the next hop | The more specific one names it | None |
-| AC-12 | Two entries name the same prefix | The commit is refused, naming both entries and the line to remove | Distinct prefixes commit, including nested ones |
+| AC-12 | Two entries name the same prefix in different written forms, `198.51.100.1/24` beside `198.51.100.0/24` | The commit is refused, naming both entries and the line that deletes the second | Distinct prefixes commit, including nested ones. The same key written twice never reaches this check: the config parser refuses it first as a duplicate list key, as it does for every list |
 | AC-13 | The named list changes and the daemon reloads | A page read after the reload shows the new name on the same next hop, served by the same listener | A page read before the reload completes shows the old name, because the list is replaced whole |
-| AC-14 | A peer with a description and a group | The peers page shows the description, and the group in the peer's detail | A peer with no description shows an empty cell, because nothing is derived |
+| AC-14 | A peer with a description and a group | The peers page shows the description in its own cell, with the group as that cell's title, and the peer's own page shows the group in its header | A peer with no description shows an empty cell, because nothing is derived |
 | AC-15 | The looking glass is started from environment variables with `enabled` unset in the config | The named ranges in the config are read and used | None |
 | AC-16 | A topology of five routers in one AS and at least six external neighbours is given to the generator twice with the same seed | Both runs produce the same routers, neighbours, prefixes and per-speaker announcements | A different seed produces a different network, because the seed is the only source of variation |
 | AC-17 | A border router learns a prefix from an external neighbour | The route it announces to the collector and to the other routers carries its own loopback as next hop and the neighbour's AS path unchanged | The route the external neighbour announces on its own eBGP session keeps the neighbour's address as next hop, because the rewrite is the border router's |
@@ -375,8 +378,8 @@ Every test of this table passes against a real daemon as a draft under
 | AC-26 | A router's next hop is its own address | The walk leaves the AS at that router as the exit and continues with the AS path | None: this is the next-hop-self case, and it is drawn as an exit |
 | AC-27 | A router's next hop is the address of no router of the AS, and the neighbour at that address holds no session with Ze | The walk leaves the AS at that router toward that address, and continues with the AS path, whose first AS names the neighbour | Where the neighbour holds a session with Ze, the page may also show that session, and nothing else changes |
 | AC-28 | A router's next hop names a router of the AS that sent Ze no route for the prefix | The walk ends at the named router and states that Ze holds no route from it for the prefix | None |
-| AC-29 | The trace graph page and its help | Both carry a note that the trace follows each router's BGP next hop, and that the IGP's hops between two consecutive next hops lie outside what it draws | None: the note is what tells a reader the chain is BGP's view |
-| AC-30 | The exit route for a prefix has an empty AS path | The trace ends at the exit router and states that the prefix originates inside the AS at that router | None |
+| AC-29 | The trace graph's drawing and the help page | Both carry a note, written once in the code (`traceNote`, `graph_trace.go`) and rendered as the last line of the drawing, under its nodes and under the line of each walk, and in the help, that the trace follows each router's BGP next hop, and that the IGP's hops between two consecutive next hops lie outside what it draws | None: the note is what tells a reader the chain is BGP's view |
+| AC-30 | The exit route for a prefix has an empty AS path, whether the exit router names its own address or an external address as next hop | The trace ends at the exit router and states that the prefix originates inside the AS at that router | A path the engine cut short is read the same way, because the row then carries no path either (Known Limitations) |
 | AC-31 | A peer's `description` leaf is set, on the peer or on its group, then changed and the daemon reloads | The label reaches the peer record and the `description` key of `show bgp`, and the reload delivers the changed label to the running peer with the session kept | The peer object of a BGP event carries no description, because no event format has a member for it |
 | AC-32 | `./le site lg-replay record` runs on a checkout with a built `ze` | It starts the simulated network of AC-19 against that `ze`, runs the fixture's checks, asks every question of the tour over HTTP, and writes `website/data/lg-replay.json` with the seed, the commit, the commit date, the tour, every answer, the looking glass's assets and a sample of the event stream | None: no answer in the file is written by hand |
 | AC-33 | The replay page is open and each step of the tour is played | Every request the looking glass's pages and scripts make for a tour step is answered from the recording, and the page shows the recorded answer | None |
@@ -399,6 +402,7 @@ Every test of this table passes against a real daemon as a draft under
 | AC-50 | A neighbor connects after the listeners open and before the peers start, and the rebuild before the start replaces its peer with a new one | The connection moves to the replacement peer, which runs the session on it (`TestHeldInboundMovesToTheReplacedPeer`) | A connection that arrives between the removal and the addition of the same peer finds no peer and is closed by the existing miss path (R-17) |
 | AC-51 | The same held connection, and the rebuild removes its peer for good | Ze sends a NOTIFICATION, Cease with subcode Connection Rejected (RFC 4486), then closes the connection (`TestHeldInboundIsRejectedWhenThePeerIsRemoved`) | None |
 | AC-52 | The same held connection, and the reactor stops before its peers start | The neighbour's read on that connection ends with end of file, within the test's bound: Ze closed the TCP connection, and the neighbour received no NOTIFICATION bytes before the close (`TestHeldInboundIsClosedWhenTheReactorStopsBeforeItsPeers`) | The close is silent because the same path serves a stop for restart, which owes silence |
+| AC-53 | In the replay, Restart is pressed after a step that opened another page in the frame, then Next step is pressed five times without waiting | Restart shows the recording's entry page in a newly loaded frame document and plays step 1. The five presses play the tour to its last step, the status line says which step is loading and how many presses wait behind it, and no step is reported unfinished (`TestLGReplayAnswersTheTourFromTheRecording`) | A step whose control is gone because the visitor clicked elsewhere in the frame goes back once to the entry page and plays the earlier steps again. A step still unreachable after that says so and stops the tour |
 
 ## End-to-End User Stories
 
@@ -454,7 +458,7 @@ The evidence each goal of the Task section owes. The closure records each named 
 | `TestBorderRouterRewritesNextHop` | `internal/chaos/scenario/topology_test.go` | Next hop is the border router's loopback on what it announces inward and to the collector, and the AS path is unchanged | passing |
 | `TestReflectorRewritesReflectedNextHop` | `internal/chaos/scenario/topology_test.go` | The reflector's client receives the reflector as next hop and passes it to the collector unchanged, and the reflector passes the collector the border router's next hop | passing |
 | `TestRouterAnnouncesItsBestExit` | `internal/chaos/scenario/topology_test.go` | Each router's announced path for a prefix with two exits | passing |
-| `TestExternalNeighbourKeepsItsNextHop` | `internal/chaos/scenario/topology_test.go` | The eBGP speaker's own announcement | passing |
+| `TestExternalNeighborKeepsItsNextHop` | `internal/chaos/scenario/topology_test.go` | The eBGP speaker's own announcement | passing |
 | `TestTopologyHasMultiHopTrace` | `internal/chaos/scenario/topology_test.go` | Over several seeds, every generated topology holds a router whose trace crosses an intermediate router, and the generator refuses one that does not (AC-24) | passing |
 | `TestTraceOfHandCheckedPrefix` | `internal/chaos/scenario/topology_test.go` | The model's trace for one prefix, asserted literally, including one chain of three routers | passing |
 | `TestTraceEndsWhereThePrefixOriginates`, `TestTraceLeavesTowardExternalAddress`, `TestNewTopologyRefusesInvalidSpec`, `TestTopologyRefusesUnknownQuestion` | `internal/chaos/scenario/topology_test.go` | The model's answer for a prefix originated inside (AC-30) and for an unchanged next hop (A-10), and its refusal of a spec or a question it cannot answer | passing |
@@ -503,6 +507,7 @@ The evidence each goal of the Task section owes. The closure records each named 
 | `TestTourStepsAreDistinctQuestions` | `internal/le/site/lgreplay/record_test.go` | No two steps of the tour ask the same question | passing |
 | `TestLGReplayRefusesARecordingOfADirtyTree`, `TestLGReplayProvenanceSaysTheNetworksAreNotReal` | `internal/le/site/lgreplay_test.go` | The site refuses to publish a recording made from an uncommitted tree (AC-47), and the page's provenance says the networks are simulated | passing |
 | `TestLGReplayFrameOpenedDirectlyRunsNothingRecorded`, `TestLGReplayKeepsABoundedListOfFrameErrors` | `internal/le/site/browsertest/lgreplay_test.go` | In a browser: the frame document opened directly runs nothing recorded (AC-48), and the page keeps the first 20 frame errors and counts the rest | passing |
+| `TestLGReplayAnswersTheTourFromTheRecording`, the part 26bf52678b added | `internal/le/site/browsertest/lgreplay_test.go` | In a browser: Restart pressed mid-tour loads the entry page in a new frame document and plays step 1, and five presses of Next step made without waiting play the tour to its last step with no step reported unfinished (AC-53) | passing in the main checkout, 2026-11-19 |
 | `TestHeldInboundMovesToTheReplacedPeer`, `TestHeldInboundIsRejectedWhenThePeerIsRemoved`, `TestHeldInboundIsClosedWhenTheReactorStopsBeforeItsPeers` | `internal/component/bgp/reactor/peer_inbound_held_test.go` | A connection held before the peers start follows its replaced peer, is refused with Cease Connection Rejected when the peer is removed, and is closed silently when the reactor stops first (AC-50, AC-51, AC-52). The tests give the peer its connection with `setInboundConnection` and do not start the peer, so the hand-over is proven up to `takeInboundConnection` | passing |
 | `TestLGSimulatedKeepSurvivesTheWorkDirectory`, `TestLGSimulatedKeepSaysWhenItCannotWrite`, `TestLGSimulatedTailIsBounded` | `internal/test/fixture/lg_simulated_failure_test.go` | A failed run of the simulated network keeps its evidence outside the directory the runner removes, says when it cannot, and bounds the tail it prints | passing |
 
@@ -554,10 +559,11 @@ AC-38 from `main`; and the open product window of R-17.
 | `lg-covering-lookup` | `test/plugin/lg-covering-lookup.ci` (existing, unchanged) | Its shared row reader now reads nine cells, the Age column last | passing; the reader's change awaits the judge |
 | `lg-simulated-network` | `test/plugin/lg-simulated-network.ci` | Five simulated routers and their external neighbours hold sessions with Ze. For each prefix of the model, the peers page, the search and the trace graph answer what the model computed: the exits announcing it, each router's chain of BGP next hops to its exit, with at least one chain crossing the route reflector that rewrites the next hop (AC-24), and the AS chain outside | passing as a draft, with five OK lines: 11 speakers with the model's route counts; 9 prefixes searched; the AS path graphs; the next-hop graphs; the trace graph, 45 traces, 18 across three routers or more, 4 prefixes with one exit, 5 ending at an origin inside the AS |
 
-"Passing as a draft" means the test passed against a real daemon from
-`test/draft/plugin/` in the main thread's run of 2026-11-18. The Location
-column is where each lands on promotion. Still owed for every draft: the stress
-runs, then the promotion, then `docs/functional-tests.md`.
+The Status column is the state on 2026-11-18, when each test was a draft. As
+landed, every test of this table is at its Location, after the stress runs the
+"Status as of 2026-11-19" paragraph gives, and the changed expectations were
+ruled on by the independent judge with no refusal.
+`docs/functional-tests.md` lists no single test, so it owed no row.
 
 ## Files to Modify
 - `internal/component/lg/handler_ui.go` - history, age and group in the view rows
@@ -618,7 +624,7 @@ runs, then the promotion, then `docs/functional-tests.md`.
 - Test files the review round added, each new: `internal/component/bgp/reactor/peer_inbound_held_test.go`, `internal/component/bgp/plugins/rib/rib_pipeline_best_age_test.go`, `internal/chaos/scenario/topology_trace_end_test.go`, `internal/le/site/lgreplay/actions_test.go`, `internal/test/fixture/lg_simulated_failure_test.go`
 - `test/plugin/lg-simulated-network.ci`
 - `test/plugin/lg-simulated-unchanged-next-hop.ci`
-- Until promotion every `.ci` file of this list is a draft under `test/draft/plugin/`, with the draft replacement of `lg-aspath-search.ci`, and `test/draft/web/lg-stream-error.wb`
+- As landed, every `.ci` file of this list is under `test/plugin/`, `lg-aspath-search.ci` is replaced in place, and the stream error script is `test/web/lg-stream-error.wb`. No draft of this spec remains under `test/draft/`
 - `test/plugin/lg-peer-history.ci`
 - `test/plugin/lg-origin-search.ci`
 - `test/plugin/lg-route-age.ci`
@@ -826,6 +832,8 @@ breaks. The rest of the closure template is appended at closure, not here.
 | assumption | The spec said the page follows the engine's AS path grammar "through the shared test table the fix spec adds" | No shared table exists. The engine's table is in `rib_pipeline_test.go` and the page's in `validate_test.go`, and the engine reads commas where the page writes spaces | The audit read both test files. Phase 3a confirmed it | The page's table restates the engine's accepted and refused forms, and the looking glass test fake validates and matches `$` as the engine does (`ribfake_test.go`). The two tables are still kept in step by hand |
 | approach | The trace's first design called a peer a router of the AS when its `remote-as` equalled the summary's global `local-as` | That member is the global local AS, and it is zero when the operator states the local AS per peer, as the generated collector config does. No peer matched, so the trace was empty | Only when the trace met real sessions: the first run of `lg-simulated-network` answered "No route found from a router of the AS" on eleven established sessions. The unit fixture had written `"local-as":65000`, the shape of one kind of config. Phase 7a's notes had flagged a per-peer override and missed the zero | `traceRoutersFrom` reads each row's `peer-type`. The fixture now writes `"local-as":0`, `TestTraceRoutersAreTheInternalPeers` pins the rule, and an empty trace says why (AC-40) |
 | assumption | The generated collector config was written with no import policy, on the assumption that a collector stores what its peers send | Ze applies RFC 8212 to an eBGP peer with no import policy and stores nothing from it. All eleven sessions established and every external neighbour showed zero routes received | The first run of `lg-simulated-network`: `Received "0"` for 203.0.113.1, with the RFC 8212 warning for each eBGP peer | `writeFullPeerBlock` writes an accepting import policy on each eBGP peer when `ConfigParams.Collector` is set, and `TestConfigGenCollectorForTopology` fails without it. The seed-generated config is unchanged |
+| approach | The recording for the website was made on the branch, at `af2c9677aa`, and committed there; the branch then landed on `main` by rebase | A rebase writes new commits, so the commit the recording names is not on `main`, and the replay page would print a commit the published repository does not hold. `readLGReplay` checks only that the tree was clean | The closure review ran `git merge-base --is-ancestor af2c9677aa HEAD`, which fails | Journal row in `tree-state-claim-published-unverified.md`, owned by spec-publish-the-regenerated-command-catalog: record again on `main` before publishing, and have the site build refuse a commit it does not hold |
+| approach | Spec rows written while the tests were drafts ("passing as a draft", "await the judge", "none is promoted yet") and one test name were left as they were when the tests were promoted, judged and renamed | The functional tests are under `test/plugin/`, the judge ruled, and the lint commit renamed `TestExternalNeighbourKeepsItsNextHop` | The closure read the rows against HEAD | The two status paragraphs and the test name are corrected, and Deviations says how to read the remaining rows |
 
 ## Checklist
 
@@ -868,3 +876,246 @@ breaks. The rest of the closure template is appended at closure, not here.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+Closure sections, appended on 2026-11-19 by the closing agent, which did not
+write this work. It ran no test: every "green" below is the main thread's run
+in the main checkout after the landing, and every run still owed says so.
+
+## Implementation Summary
+
+### What Was Implemented
+- The work landed on `main` on 2026-11-19 as thirteen commits, `5a9bfa57ff` to `526504cc5b`: 208 files, 21737 lines added, 865 removed.
+- Need 1: `extractPeers` and `peerInfoFrom` (`internal/component/lg/handler_ui.go`) read `state-changed`, `connections-dropped` and `last-error`; `peers.templ` shows Last Change and Drops, `peer_routes.templ` adds the last error.
+- Need 2: `parsePathPattern` (`internal/component/bgp/plugins/rib/rib_pipeline.go`) is the one reader behind `matchASPath` and `validatePathPattern` and reads `$`; `parseASPathPattern` (`internal/component/lg/aspath_pattern.go`) writes it for the page.
+- Need 3: `RouteEntry.ChangedAt` (`storage/routeentry.go`), `RouteTime` (`storage/routetime.go`), `routeClock` and `writeRouteAge` (`rib_route_age.go`); `routeAgeFrom` (`handler_ui.go`) and `transformRoutes` (`handler_api.go`) show it, with `age_available`.
+- Need 4: `ExtractLGNextHopRanges` (`internal/component/config/lg_next_hop_ranges.go`), `newNextHopRanges`, `nameOf` and `UpdateNextHopRanges` (`internal/component/lg/nexthop_ranges.go`), the seam `nextHopRangesUpdatable` (`cmd/ze/hub/listener_migrate.go`); the peer `description` through `parsePeerSettings`, `hotSwappableSettings` and `reactorAPIAdapter.Peers`.
+- Needs 5 and 6: the topology model (`internal/chaos/scenario/topology.go`), the route sets of the simulator, `buildTraceGraph` and `traceWalkFrom` (`internal/component/lg/graph_trace.go`), `handleTraceGraph` (`handler_graph.go`).
+- Need 7: the recorder (`internal/le/site/lgreplay/`), the producer and block (`internal/le/site/lgreplay.go`), the player (`website/assets/js/lg-replay.js`), the recording (`website/data/lg-replay.json`).
+
+### Bugs Found/Fixed
+- The twelve rows of "small fixes found on the way" in the Task section, each with its criterion (AC-31, AC-39 to AC-52) and its test in the TDD plan.
+
+### Documentation Updates
+- The pages the Documentation Verified table lists, edited in the implementation commits.
+- `./le doc check all`, run by the closing agent on 2026-11-19: exit 1, with no problem in a page or a source file of this spec. Its reds: four local handlers with no YANG command (`request fleet disable`, `request fleet enable`, `show data encode`, `show fleet status`), the `ze-l2tp-cmd.yang` unknown group, `show data encode` with no description, and the anchor in `docs/guide/graceful-restart.md` to `rib_source_lifecycle_commands.go`. All are other sessions' work.
+
+### Deviations from Plan
+- The hand-written graph lab stays (Key Design Decisions). The named-range extraction is in the config package, not in `buildLGService` (Mistake Log). The API carries `age_available` after all (Design Insights).
+- AC-1, AC-7, AC-9, AC-12, AC-14, AC-29 and AC-30 were reworded to the built behavior on the owner's order of 2026-11-19 ("the criteria to change to match the code"). The closing agent checked each against the producer (AC Verified) and tightened AC-29: the note is the last line of the drawing, under the walks' lines.
+- TDD plan rows that read "await the judge" and Functional Tests rows that read "passing as a draft" give the state of 2026-11-18. As landed, the tests are promoted and the judge ruled three times with no refusal.
+- `docs/architecture/config/syntax.md`, named in Documentation checklist row 2, was not edited and owed no edit: the list adds no syntax, and the page names no looking glass leaf.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Need 1, session history | Done | `internal/component/lg/handler_ui.go`, `extractPeers`, `connectionsDroppedFrom` | A missing count is an empty cell (`connectionsDropped.Text`, `view.go`) |
+| Need 2, origin and exact search | Done | `rib_pipeline.go`, `parsePathPattern`, `pathPattern.matches` | |
+| Need 3, route age | Done | `rib_route_age.go`, `writeRouteAge`; `storage/familyrib.go`, `InsertAt`, `InsertEntry` | Received rows only (Known Limitations) |
+| Need 4, names | Done | `nexthop_ranges.go`, `nameOf`; `summary.go` row keys `description` and `group` | |
+| Need 5, simulated network | Done | `internal/chaos/scenario/topology.go`; `internal/test/fixture/lg_simulated_network.go`, `RunLGSimulatedNetwork` | Not read line by line at closure (Review Gate) |
+| Need 6, trace | Done | `graph_trace.go`, `traceWalkFrom`, `buildTraceGraph` | |
+| Need 7, replay | Changed | `internal/le/site/lgreplay/`, `website/data/lg-replay.json` | Built and recorded. Not published, and the recording names a commit that is not on `main` (Work Not Done) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 to AC-3 | Done | `TestExtractPeersReadsHistory`, `TestPeerStreamCarriesHistory`, `TestPeerInfoFromReadsHistory`, `lg-peer-history` | |
+| AC-4 to AC-6, AC-39 | Done | `TestMatchASPathEndAnchor`, `TestValidatePathPatternEndAnchor`, `TestParsePipelineValidatesASPathAlias`, `lg-origin-search` | |
+| AC-7 to AC-9, AC-41, AC-49 | Done | `TestRouteAgeKeptOnEqualAnnounce`, `TestRouteEntrySize`, `TestTransformRoutesAgeAvailability`, `TestBestWalkRowCarriesNoAge`, `lg-route-age` | |
+| AC-10 to AC-15, AC-44, AC-45 | Done | The `nexthop_ranges_test.go`, `lg_next_hop_ranges_test.go` and `listener_migrate_ranges_test.go` tests, `lg-named-next-hop` | No test drives a whole reload whose promotion fails (TDD plan) |
+| AC-16 to AC-24 | Done | The `topology_test.go` tests, `lg-simulated-network` | |
+| AC-25 to AC-30, AC-40, AC-42, AC-43, AC-46 | Done | The `graph_trace_test.go` and `graph_trace_mode_test.go` tests, `lg-simulated-unchanged-next-hop` | |
+| AC-31 | Done | `TestParsePeerFromTreeDescriptionReachesPeerSettings`, `TestReloadDescriptionReachesRunningPeerWithoutRestart`, `TestSummaryCarriesDescriptionAndGroup` | |
+| AC-32 to AC-37, AC-47, AC-48 | Done | The `lgreplay` package tests and the three browser tests of `internal/le/site/browsertest/lgreplay_test.go` | Run on the branch. The main checkout ran `./internal/le/site/lgreplay/` only |
+| AC-38 | Done | `TestLGReplayBlockWithoutARecording` | The criterion is the build with no recording. The first full site build with the replay block is Work Not Done |
+| AC-50 to AC-52 | Done | `TestHeldInboundMovesToTheReplacedPeer`, `TestHeldInboundIsRejectedWhenThePeerIsRemoved`, `TestHeldInboundIsClosedWhenTheReactorStopsBeforeItsPeers` | The gap AC-50 permits is Work Not Done |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 144 test names of this spec | Done | Each is a `func Test...` at HEAD, checked by name against `git grep` over the seven package trees | One row named `TestExternalNeighbourKeepsItsNextHop`; the lint commit renamed it `TestExternalNeighborKeepsItsNextHop`, and the row is corrected |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The 35 files of Files to Create and the functional tests | Done | Files Exist, below |
+| `internal/le/interoplab/bgp/lg_lab.go`, `test/plugin/lg-graph-lab.ci` | Changed | Not modified: the lab stays (Key Design Decisions) |
+
+### Audit Summary
+- **Total items:** 7 needs, 52 criteria, 144 tests, 35 created files
+- **Done:** all but the one below
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** need 7 is built and not published, with its remainder owned by another spec (Work Not Done); the lab was kept (Deviations)
+
+## Goal Validation (BLOCKING)
+
+The table of the same name above gives the evidence each goal owes. Its state
+at closure:
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Needs 1 to 4 | functional | `lg-peer-history`, `lg-origin-search`, `lg-route-age`, `lg-named-next-hop`: 80 stressed runs each with no failure on the branch. The run in the main checkout is owed |
+| Needs 5 and 6 | functional, with explicit text output | `lg-simulated-network` (80 runs) and `lg-simulated-unchanged-next-hop` (160 runs) on the branch; `TestTraceOfHandCheckedPrefix` green in the main checkout (`./internal/chaos/scenario/`). The functional run in the main checkout is owed |
+| Need 7 | recorded run, browser test | `website/data/lg-replay.json`, byte-identical on a second run at `af2c9677aa`; the three browser tests passed on the branch. Not published (Work Not Done) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A connection that arrives between the removal and the adding of its peer, during the rebuild before the peers start, is closed (R-17, the survivor AC-50 permits) | Closing the gap needs the reactor to keep arrivals for a peer under restart, a design of its own. Journal row: `plan/journal/component-rebuilt-during-reload.md`, 2026-11-19 | `plan/release/fixes/spec-bgp-add-peer-listener-defects.md` |
+| A rolled-back reload keeps the new web and looking glass certificate (R-18) | Not this spec's change. Read at closure, not run: `updateWebCertificate` and `updateLGCertificate` answer no restore call, and `UpdateTLSCertificate` has no other caller. Journal row: `plan/journal/rollback-forgets-partial-apply.md`, 2026-11-19 | `plan/release/fixes/spec-single-owner-reload-reconcile.md` |
+| The replay is not published: the recording names `af2c9677aa`, a branch commit the rebase left off `main`, and the first site build and site check with the replay block never ran (R-16) | The recorder refuses a tree with uncommitted changes, which the shared checkout always holds, and publishing `gh-pages` is the owner's order. Two facts of 2026-11-19, for whoever records again: `af2c9677aa` is the hash before the rebase of the commit that is `6ca253ddbc` on `main`, and a clean worktree of a commit on `main` did not build that day (`internal/component/l2tp/plugins/pppoe-kernel/register.go`: `undefined: kernel.Open`, another session's commit), so the recording could not be made again. The main thread did build the replay page from this checkout into the `gh-pages` checkout (`./le site build producer lg-replay producer authored`, exit 0) and stepped the tour in a headless Chrome on the built page; `./le site check` has not run. Journal row: `plan/journal/tree-state-claim-published-unverified.md`, 2026-11-19 | `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md` |
+
+## Review Gate
+
+**Not clean yet: round 1 is incomplete, and no artifact is recorded.** The
+change set holds 151 reviewable files. Two closing agents read the parts below
+from source, and each ran out of context budget before the rest. What is left
+is the assertions of the test files, listed at the end of "Round 1, second
+closing agent", so the gate goes to a third agent in a fresh context
+(`ai/rules/planning.md`: a package too big is re-cut, never trimmed).
+
+| Field | Value |
+|-------|-------|
+| Artifact | none recorded |
+| `./le spec review check` | not run |
+| Rounds | round 1 open |
+| Reviewer lenses used | logic and wiring, security and edge cases, style (the six questions), on the files read |
+
+Round 1 scope: the whole diff `1a6b966648..526504cc5b`.
+
+Read from source, with no BLOCKER and no ISSUE found:
+- Reactor: `peer_inbound_held.go` whole; the diff of `peer.go`, `peer_connection.go`, `reactor.go`, `reactor_api.go`, `peer_settings.go`, `peer_settings_apply.go`, `config.go`; `plugin/types_bgp.go`.
+- RIB: `storage/routetime.go` and `rib_route_age.go` whole; the diff of `rib_pipeline.go`, `rib_pipeline_best.go`, `rib.go`, `rib_structured.go`, `rib_inject.go`, `rib_commands.go`, `storage/familyrib.go`, `storage/peerrib.go`, `storage/routeentry.go`.
+- Looking glass: `nexthop_ranges.go` whole; `graph_trace.go` to the head of `renderTraceGraphText`; the diff of `handler_api.go`, `handler_ui.go`, `view.go`, `server.go`, `register.go`, `aspath_pattern.go`, `render.go`, the schema.
+- Config and hub: `lg_next_hop_ranges.go` whole; the diff of every non-test file under `cmd/ze/hub/`.
+- Tooling: `internal/chaos/peer/simulator_connect.go` whole; `refuseUncommitted` in `lgreplay/actions.go`.
+
+Pre-checks, both run: `./le repo check` (87 issues, none in a file of this
+spec) and `./le test weakened check base origin/main` (204 findings; the one
+in a file of this spec, `TestChildCommandsDoNotInheritTheSummaryOrder` in
+`cmd/peer/summary_test.go`, is another session's uncommitted edit: this
+spec's commit only adds `TestSummaryCarriesDescriptionAndGroup` there).
+
+Style pass on the files read. The two `panic` calls of `traceWalkFrom` and
+the one of `traceWalk.statement` cannot be reached by a peer: a walk moves
+only to a router of the AS it has not crossed, so it ends within the number
+of routers, and every stored `traceRouterRoute` names its rows. Loops are
+bounded (`connectAttemptsMax`, `LGNextHopRangesMax`, `traceWalksListedMax`,
+the router count).
+
+NOTEs, which do not block:
+1. `reconcilePeersJournaled`: when an apply fails after the remove loop took a held connection, the deferred `rejectHeldInbound` refuses it with Cease, Connection Rejected, though the undo may add the peer back. The neighbor retries.
+2. `website/data/lg-replay.json` names a commit that is not on `main`. No criterion fails (AC-47 asks that the named commit hold the code that answered, and `af2c9677aa` does), nothing is published, and the fix needs a clean checkout: recorded and owned (Work Not Done).
+3. Documentation checklist row 9 says no RFC behavior changed. `rejectHeldInbound` is a new caller of the existing RFC 4486 Section 4 refusal (`rejectPendingConnection`), with its quote; the diff adds no `RFC requirement:` tag, so `./le rfc check` has no new unit to judge.
+
+### Round 1, second closing agent (2026-11-19)
+
+A second closing agent continued round 1 in a fresh context, over the
+committed content at `26bf52678b`, which adds the commit "site: the replay's
+Restart reloads the frame, and presses queue" to the change set. It found no
+BLOCKER and no ISSUE in what it read, and it also stopped at its context
+budget, with the test files below unread. No artifact is recorded.
+
+Read whole, from source:
+- Looking glass: the rest of `graph_trace.go` (`undrawn`, `buildTraceGraph`, `draw`, `traceASChain`, `traceNames`, `renderTraceGraphText`, `traceWriteWalk`), `layout_trace.go`, the diff of `handler_graph.go`, `layout_nexthop.go` and every `.templ` source.
+- Replay: `website/assets/js/lg-replay.js` at `26bf52678b`, `internal/le/site/lgreplay.go`, the diff of `authored.go`, `lgreplay/recording.go`, `lgreplay/tour.go`.
+- Functional tests: the six new `test/plugin/lg-*.ci` files, the diff of `lg-aspath-search.ci` and of `test/web/lg-stream-error.wb`.
+- Tests: `reactor/peer_inbound_held_test.go`, the `26bf52678b` diff of `browsertest/lgreplay_test.go`, the diff of `lg/validate_test.go`, `TestNextHopRangeValidatorIsRegistered`.
+
+Reduced reading, the code with its comments left out (every statement, loop,
+bound and error path, no doc comment): `internal/chaos/scenario/topology.go`,
+`topology_generate.go`; the diff of `generator.go`, `config.go`, `profile.go`,
+`internal/chaos/peer/sender.go`, `simulator.go`, `simulator_actions_v2.go`;
+the fixtures `lg_peer_history.go`, `lg_route_age.go`, `lg_named_next_hop.go`,
+`lg_origin_search.go`, `lg_simulated_network.go`, `lg_simulated_trace.go`,
+`lg_simulated_graphs.go`, `lg_simulated_next_hop_unchanged.go` and the diff of
+`fixture.go` and `plugin_fixture_09.go`. Reduced further, to the function
+list, the bounds and the error returns: `lgreplay/record.go`.
+
+What the reading settled:
+- The layout cannot index an empty column list: `handleTraceGraph` returns on `traceGraph.undrawn` when the graph holds no walk, so `computeTraceLayout` always sees one router column.
+- The refusals of `ExtractLGNextHopRanges` are reached from the config walk, not only from the helper: `validateNextHopRanges` is registered by the `init` of `lg/register.go` (`zeconfig.RegisterTreeValidator`), and `TestNextHopRangeValidatorIsRegistered` drives `zeconfig.ValidateCustomSections`.
+- The recording cannot end the script element that holds it: `Recording.Encode` uses the JSON encoder's default escaping of `<`, `>` and `&`, and `lgReplayFrameDocument` refuses a player that holds `</script`.
+- The host page of the replay writes what the frame sends only as text and attributes (`mountPlayer`), drops a message that is not from the current frame, and bounds the errors it keeps (`keepError`).
+- The seven `TestHubCleanup*` reds of `cmd/ze/hub` are not this spec's: its whole change to the boot path of `runYANGConfig` is one call of `zeconfig.ExtractLGNextHopRanges` on the loaded tree and one new field of the service dependencies, and that reader answers `nil, nil` before any refusal when the tree holds no `environment` container, which is the case of a config holding only `api-server`.
+- A mechanical scan of the 41 reviewable test files found no test this spec added without an assertion, and one skip, the 32-bit guard of `TestRouteEntrySize`.
+
+NOTEs of this agent, which do not block:
+4. `lgReplayAnswerText` (`internal/le/site/lgreplay.go`) slices from the `>` that follows `<body` to the last `</body>`. A recorded answer whose `<body` has no `>` before `</body>` would panic the site build. The looking glass's templates cannot write one.
+5. `renderTraceGraphText` writes a name after `name=` as it is, as the next-hop graph already does. A name holding a line break would add a line to the text form. The drawing escapes it (`writeRouterGraphNode`).
+6. `Sender.BuildRoute` in route-set mode answers no bytes when `BuildAnnouncement` fails. `routeSetProblem` refuses such a set before the session starts, so the path is not reached.
+
+Still not read, which the next agent's round 1 covers before it records.
+Only the assertions of these test files are owed, and nothing else:
+`cmd/ze/hub/listener_migrate_ranges_test.go`;
+`internal/chaos/peer/sender_routeset_test.go`, `simulator_connect_test.go`;
+`internal/chaos/scenario/generator_topology_test.go`, `topology_test.go`,
+`topology_trace_end_test.go`; the diff of `cmd/peer/summary_test.go`;
+`rib/rib_pipeline_age_test.go`, `rib_pipeline_best_age_test.go`, the diff of
+`rib_pipeline_test.go`, `storage/routeentry_age_test.go`; the diff of
+`reactor/config_test.go` and `peer_settings_swap_test.go`;
+`config/lg_next_hop_ranges_test.go`; in `internal/component/lg/`:
+`graph_trace_test.go`, `graph_trace_mode_test.go`, `graph_golden_test.go`,
+`graph_nexthop_test.go`, `handler_ui_test.go`, `handler_api_test.go`,
+`nexthop_ranges_test.go`, `route_age_test.go`, `golden_test.go`,
+`port_check_test.go`, `ribfake_test.go`, `view_test.go` and the golden
+captures; `internal/le/site/lgreplay_test.go`, `lgreplay/actions_test.go`,
+`checkout_test.go`, `record_test.go`, `recording_test.go`, the rest of
+`browsertest/lgreplay_test.go`; the four `lg_simulated_*_test.go` fixtures'
+tests. One non-test file is also owed: `lgreplay/actions.go` beyond
+`refuseUncommitted`, and the bodies of `lgreplay/record.go`.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | None so far: round 1 found no BLOCKER and no ISSUE in the files read | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| The 35 paths of Files to Create, the eight functional tests under `test/plugin/` and `test/web/lg-stream-error.wb` | Yes | `git cat-file -e HEAD:<path>` answered for each, 2026-11-19. `git ls-tree -r HEAD test/draft` holds no `lg-` file |
+| `website/changes/fragments/lg-peer-history-origin-search-and-named-nodes.md` | Yes | Committed with the implementation; commit B owes no `no-news` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-14 | The row shows the last change, the drops and the description with the group as its title; the peer page shows the group and the last error | `peers.templ` lines 63, 64, 71 to 75; `peer_routes.templ` lines 33 to 46 |
+| AC-7 | The functional test waits for an age of four seconds | `lgRouteAgeSettled = 4`, `internal/test/fixture/lg_route_age.go` |
+| AC-9 | 64 bytes, `ChangedAt` at offset 4, `MsgID` at 8 | The three assertions of `TestRouteEntrySize`, `storage/routeentry_age_test.go`; green in the main checkout's run of the RIB packages |
+| AC-12 | The refusal names both entries and the line to delete | `ExtractLGNextHopRanges`, the `writtenKeys` branch |
+| AC-29 | One note, in the drawing and in the help | `traceNote` (`graph_trace.go`), written by `layout_trace.go` at `lineY(len(layout.Ends))` and by `help.templ` |
+| AC-30 | An empty AS path ends origin-inside for either exit | `traceWalk.leave`, called for both exits in `traceWalkFrom` |
+| AC-44 | A mapped range is refused with the IPv4 range | `ExtractLGNextHopRanges`, the `Is4In6` branch, and `lgMappedRangeAsIPv4` |
+| Every other criterion | Its named test exists at HEAD | The name check of the Implementation Audit. Unit runs green in the main checkout on 2026-11-19 for `./internal/component/lg/`, the five RIB packages, `./internal/component/bgp/plugins/cmd/peer/`, the two chaos packages, `./internal/component/config/`, `./internal/le/site/lgreplay/`, and the looking glass and next-hop-range tests of `./cmd/ze/hub/` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| The six rows of the Wiring Test table | `test/plugin/lg-peer-history.ci`, `lg-origin-search.ci`, `lg-route-age.ci`, `lg-named-next-hop.ci`, `lg-simulated-network.ci`, `lg-simulated-unchanged-next-hop.ci` | Each file is at HEAD and its fixture is registered in `plugin_fixture_09.go`. The `.ci` bodies were not read at closure (Review Gate), and the run in the main checkout is owed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3, A-6, A-9, A-11 | confirmed | The owner's order of 2026-11-18 |
+| A-2 | confirmed | `TestRouteEntrySize`: 64 bytes before and after |
+| A-4 | confirmed, in its worse form | `parsePeerSettings` read no `description`; fixed as AC-31 |
+| A-5 | confirmed | `nameOf` scans at most `LGNextHopRangesMax` entries. `TestExtractLGNextHopRangesCountBoundary` and `TestNewNextHopRangesBounds` are in the green runs of the config and looking glass packages |
+| A-7 | confirmed | The fix spec closed on 2026-11-18 |
+| A-8 | broken | Mistake Log row 1; the route set was added |
+| A-10 | confirmed | `lg-simulated-unchanged-next-hop`, `TestTraceWalkLeavesAtExternalNextHop` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Rows 1, 2, 3, 4, 6, 12, 17 (Yes) | `git diff --stat 1a6b966648..526504cc5b` shows `features/looking-glass.md`, `docs/guide/configuration.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/birdwatcher-compat.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/web-interface.md` edited | Edited in the implementation commits. The claims were not re-read against source at closure, beyond the anchor at `docs/guide/configuration.md` line 4025 |
+| Row 11 (comparison) | `docs/comparison.md` line 564 holds one looking glass row of Yes and No cells | No edit owed: the row's answer did not change |
+| Rows 5, 7, 8, 9, 10, 13, 14, 15 (No) | The diff adds no registration, no BGP bytes, no metric and no `RFC requirement:` tag (`git diff` of the range, zero added tag lines) | Yes |
+| Row 16 (anchors) | `./le doc check all`: no stale anchor on a file of this spec | Yes |

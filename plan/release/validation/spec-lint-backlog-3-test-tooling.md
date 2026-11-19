@@ -8,9 +8,9 @@
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: closure resumed in session `49765d8f`; batches 1, 2 and 3, change 4 and batch 5 committed (`d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459`, `066a8e1097`, `0e84b30083`); next the spec's own scoped lint on a still tree (see "Remaining closure work") |
+| Phase | 5/5: bounded CI repair continues, including native replacements for four interpreted helpers in three plugin functional tests; closure and further Review Gate rounds remain unauthorized |
 | Handoff | - |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -167,6 +167,24 @@ scoped evidence is available.
 
 ## Task
 
+The bounded CI repair also replaces the four interpreted helpers in
+`ddos-flowspec-orphan-doctor`, `ddos-flowspec-removed-section-orphan-cleared`
+and `doctor-plugin-fatal-stop` with registered Go fixtures. The existing
+configs, diagnostic assertions, live-store removal and BGP negative assertions
+remain. The fatal driver owns and reaps the real daemon and proves its exact
+exit status 1 before returning success. Changes to existing proof require the
+independent test judge; drafts remain outside the live suite until validated.
+
+The same batch clears the fixture package's scoped lint findings, including
+the native drivers' repeated command words, existing repeated fixture values,
+the DNS-only doctor configuration misidentified as a credential, the
+fixture-generated certificate read, the copied doctor diagnostics and the
+invariant daemon PID path parameter. Constant substitutions preserve their
+exact values and meanings; unrelated foreign fixture hunks remain separate.
+Acceptance requires the fixture lint scope to pass in its selected flavors,
+with unchanged assertions and independently judged helper changes. This
+bounded repair does not authorize another Review Gate round or spec closure.
+
 Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
 
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
@@ -279,6 +297,9 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 | Weakening judge | `./le test weakened approve`, `ze-test-judge` | Approves a test change that could prove less | Applies only to an assertion change, not to a mechanical lint fix |
 | Selected test comparison and approval consumption | `internal/le/test/weakened/testweakened.go`, `Check`, `comparePath`, `claimFinding`; `scope.go`, `unitsByName` | Compares selected blobs with HEAD and records live approvals only for structural findings | Extends for the blocking semantic approval omission: compare existing unit text and carry a live weakening approval for a changed selected unit even without a structural finding. Reuse rename pairing, selection, approval loading and script pruning. |
 | Lint contract journal rows | `plan/journal/lint-contract-not-applied.md`, rows owned by `plan/post-release/engineering/spec-tooling-one-off-defects.md` | Record tooling lint findings | Applies: a finding here that a row names is marked `fixed:` in the same commit |
+| Retained source snapshot | `internal/le/repo/inventory/source.go`, `ReadCommitted`, `Snapshot.selectPackage`, `sourcePackage.indexDeclarations` | Resolves HEAD once, selects Linux source, and retains declarations without compiling a checkout | Extends: the same snapshot owns lexical declaration identities and their file and package provenance |
+| Bounded declaration and type readers | `internal/le/repo/inventory/expressions.go`, `expression.target`; `methods.go`, `expression.valueType`; `mutations.go`, `expression.reference` | Follow retained declarations and reject unsupported or mutable ownership | Extends: replace parser object dependencies with snapshot identities while retaining these readers and their bounds |
+| Registration reference check | `internal/le/plugin/registrationsites/registrationsites.go`, `sourceTree.registrySite`, `sourceTree.references` | Reads snapshot syntax to reject registration outside initialization and references used as values | Extends: exact declaration queries replace parser object access without losing unresolved-qualifier refusals |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -324,6 +345,7 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 | AC-1 | The scoped lint over `internal/test`, `internal/le`, `internal/chaos`, `tools/freertr-entrypoint` | Zero findings |
 | AC-2 | The package tests of each changed package, with their tags | Pass |
 | AC-3 | Any `//nolint` added | Names its linter and its reason |
+| AC-4 | The three plugin tests' four interpreted helpers | Registered native fixtures perform the same ordered reload, reported fix, live-store removal and exact fatal-child exit checks, with negative unit controls and unchanged downstream functional assertions |
 
 ## 🧪 TDD Test Plan
 
@@ -1210,3 +1232,131 @@ That process used
 bound the parallel weakening tests' temporary roots without changing their
 assertions or process environment mid-test. This phase does not claim the
 spec's final closure Review Gate or its closing commits.
+
+## Current CI repair batch: lexical declaration identities
+
+This batch covers seven committed `ast.Object` deprecations in the inventory
+reader. It belongs to item b of "Remaining closure work" and AC-1.
+The test-first phase observed the expected missing-index compile failure in
+run `6ce27d11`. The production migration is authored and frozen for main-thread
+formatting and the owed test runs; no passing result is claimed. The mechanical inventory changes in
+`03bc61a0f1` are the baseline. The main thread reports complete inventory and
+objects package passes in `job-unit-pkg-32811776.log`.
+
+The owning contract is "Committed plugin source population" in
+`docs/architecture/plugin/feature-gates.md`. Keep retained source, declaration
+identity, explicit uncertainty, mutation refusals, and the existing execution
+limits. Do not use host imports, a compiler, or a second value interpreter.
+No suppression, type alias, or parser-object compatibility copy clears this
+batch. Its scope includes every consumer of these parser identities.
+
+### Declaration index and scope rules
+
+Parse selected files with `parser.SkipObjectResolution`. Construct one
+snapshot-owned lexical index before returning `ReadCommitted`. Its storage is
+bounded by the retained syntax: one entry per identifier, declaration, or
+lexical scope. Construction changes no retained AST node.
+
+| Property | Required behavior |
+|----------|-------------------|
+| Identity | Each declaration has a stable identity, its defining node and identifier, file, package, kind, and scope. Multiple names in one ValueSpec have different identities. |
+| Package declarations | Predeclare package constants, variables, types, and functions across all selected files. Duplicate declarations are explicitly ambiguous. Never select an arbitrary duplicate. Method names are not package bindings. |
+| File imports | Retain the exact ImportSpec and the existing selected-package alias resolution. Imports belong to their file and local shadows remain distinct. Unsupported dot-import ownership stays unresolved. |
+| Local constants and variables | Resolve each local declaration's type and right-hand expressions before adding its new names. This differs from package predeclaration. A local type enters scope before its underlying type. |
+| Short declarations | Reuse identities already declared in the same block. Create new identities for new names and for names shadowed in an inner block. A reused name is a write. |
+| Function signatures | Resolve signature types before receiver, parameter, and result value names enter the function body. Those body bindings share the function body scope. |
+| Type parameters | Declare the complete type-parameter list before resolving constraints. Honor generic receiver type parameters and their signature/body scope. Keep existing refusals for unsupported generic execution. |
+| Control statements | Retain the Go scopes of initializers, conditions, branches, loops, switch cases, and select clauses. Captured closure uses retain the declaration visible at their source position. |
+| Range | Resolve the collection before declaring iteration names. A defining range uses the real RangeStmt and its variable position. An assigning range writes the existing declarations. Do not recreate the parser's synthetic assignment. |
+| Type switches | Resolve case types outside the guard-variable scope. Each case gets a distinct guard identity, even though the AST shares one guard declaration. |
+| Non-lexical names | Selector members, struct field names, and labels are not lexical value uses. Map keys remain expressions. If a composite key's role cannot be proved, retain uncertainty and refuse dependent identity claims. |
+| Universe | Distinguish a proven predeclared binding from unresolved syntax. Reuse `go/types.Universe` for the vocabulary only. Inferred default types have explicit universe provenance and cannot borrow a source shadow. |
+| Ownership | Reject identifiers and files from another snapshot. Unknown or fabricated identifiers never fall back to a package declaration or the universe. |
+
+Use the existing retained declaration/type readers when a key's composite form
+needs classification. Do not add a parallel type checker. An unresolved use
+must not disappear from a closure-use or mutation proof merely because exact
+declaration resolution failed.
+
+`go/types.Config.Check` is not the replacement. Its `Info` can be incomplete
+after type errors, and `IgnoreFuncBodies` omits the local identities required
+here. Loading package types would also replace the documented bounded reader
+with a different analysis. The installed Go parser documentation recommends
+`SkipObjectResolution`, but its deprecated resolver's synthetic range and
+shared type-switch objects are not the new index's contract.
+
+### Consumer contracts and file scope
+
+All 12 production files below change in one migration. Do not publish a
+partially migrated parser mode.
+
+| File | Contract to preserve |
+|------|----------------------|
+| `internal/le/repo/inventory/source.go` | Retained HEAD and file selection remain unchanged. Build the index after the selected package population and imports are available. |
+| `internal/le/repo/inventory/expressions.go` | Targets and named functions resolve exact declarations, including cross-file declarations. Unknown locals cannot become same-named globals. |
+| `internal/le/repo/inventory/callablealiases.go` | Keep alias bounds, shadow checks, registration-alias refusals, and exact import ownership. |
+| `internal/le/repo/inventory/callsites.go` | A closure's declaration and every use share its identity. Copies, reused short declarations, reassignment, and escaping addresses retain the opaque result. |
+| `internal/le/repo/inventory/mutations.go` | References, alias chains, constants, and package/local distinctions retain exact ownership. Unknown ownership never proves immutability. |
+| `internal/le/repo/inventory/mutationindex.go` | Defining writes, later writes, local rebinding, range writes, and mutation query keys use the same stable identities. |
+| `internal/le/repo/inventory/familyexpressions.go` | The finite family projection requires exact matching bindings at all five comparisons. Two unresolved names do not match. |
+| `internal/le/repo/inventory/registrations.go` | Writes to the selected declaration's metadata still refuse. A different declaration with the same spelling cannot borrow its identity. |
+| `internal/le/repo/inventory/constanttypes.go` | Constant kind, declaration position, repeated constant expressions, and the defining file's imports remain unchanged. |
+| `internal/le/repo/inventory/methods.go` | Preserve static type and method refusals, defining files, parameter and result types, and real range-variable typing. Synthetic default types carry explicit universe provenance. |
+| `internal/le/repo/inventory/methodpromotion.go` | A receiver reaches only the exact retained type declaration. Local types cannot borrow package methods. |
+| `internal/le/plugin/registrationsites/registrationsites.go` | Preserve direct calls, initialization chains, aliases, local shadows, and references used as values. An unresolved registry qualifier remains a refusal. |
+
+Add `internal/le/repo/inventory/lexical.go` for declaration identity and
+ownership queries, and `lexical_scope.go` for scope construction. Keep these
+private except the narrow snapshot query the registration reference check
+needs. That query distinguishes an exact declaration, a different declaration,
+and unresolved ownership. Keep `Snapshot.ImportedDirectory`'s existing API.
+
+Change only `mutationQueryGlobal` in
+`internal/le/repo/inventory/committed_mutation_query_test.go` to use the actual
+retained declaring identifier. It currently fabricates an identifier and fills
+its parser object. An independent test judge must approve that helper change.
+Preserve every existing test input and assertion. Update obsolete parser-object
+mutation instructions in `committed_mutation_rebind_test.go` without changing
+its proofs.
+
+Add new tests in `internal/le/repo/inventory/lexical_test.go` and
+`committed_lexical_test.go`. Add registration-check regressions beside its
+existing tests. Update "Committed plugin source population" in
+`docs/architecture/plugin/feature-gates.md` with the index ownership,
+predeclared/unresolved distinction, and unchanged retained-source boundaries.
+No command, SDK, wire, or configuration contract changes.
+
+### Test-first matrix and acceptance
+
+| New test group | Required cases |
+|----------------|----------------|
+| `TestLexicalBindings` | Cross-file package names, per-file import aliases, duplicate package names, multiple names per declaration, same-block reuse, inner shadows, closures, and all control-statement scopes. |
+| `TestLexicalDeclarationOrder` | Local RHS-before-binding, recursive local types, signature type names before value parameters/results/receivers, type-parameter constraints, and generic receivers. |
+| `TestLexicalRangeAndTypeSwitch` | Real defining range versus assigning range, outer collection binding, separate range/body blocks, distinct guard identities per case, and outer case-type bindings. |
+| `TestLexicalNonValueNames` | Selector members, labels, struct keys, map key expressions, elided composite forms, and unresolved composite keys that cannot make an identity proof pass. |
+| `TestLexicalOwnership` | Foreign snapshot identifiers, foreign or spoofed files, unknown identifiers, and unsupported synthesized identifiers. |
+| `TestLexicalUniverseTypes` | Source shadows of builtins and basic types, and inferred default literal/range/iterator types that retain the real universe type. |
+| `TestCommittedLexicalBindingsPreserveInventory` | Exercise `ReadCommitted`, real metadata/callable/mutation consumers, cross-file imports and globals, and retained identity after a later commit. |
+| Registration reference regressions | Preserve refusal for uncertain registry aliases and function values. Exclude proven local shadows without losing direct or cross-file initialization chains. |
+
+Acceptance requires the new matrix, unchanged inventory proofs, registration
+reference checks, and the inventory lint scope to pass. The seven deprecations
+and all direct parser object/scope reads in these consumers must be gone.
+Existing mutation, metadata, callable, method, range, and constant assertions
+remain intact. Review this batch independently before implementation and again
+after the source migration. Earlier review authorizations remain unchanged.
+This batch does not claim the spec's final closure or its owner-entered record.
+
+### Owed commands for the main thread
+
+| Order | Command | Evidence |
+|-------|---------|----------|
+| 1 | `./le --name ci-fixes test unit pkg path ./internal/le/repo/inventory/ run '^TestLexical'` | Observe the new index matrix red before its implementation, then green. |
+| 2 | `./le --name ci-fixes test unit pkg path ./internal/le/repo/inventory/ run '^(TestCommittedLexicalBindingsPreserveInventory|TestCommittedMutationQueries.*|TestCommittedPluginsRefuseMutatedDeclarationInputs|TestCommitted.*Callable.*|TestCommitted.*Method.*|TestRangeVariableTypes|TestConstantTypes)$'` | Preserve the real retained-source, mutation, callable, method, range, and constant consumers. |
+| 3 | `./le --name ci-fixes test unit pkg path ./internal/le/plugin/registrationsites/` | Preserve registration ownership and initialization-only guards. |
+| 4 | `./le --name ci-fixes test unit pkg path ./internal/le/repo/inventory/ path ./internal/le/plugin/coupling/ path ./internal/le/plugin/gatedtable/` | Run affected complete packages once the targeted cases pass. |
+| 5 | `./le --name ci-fixes go lint run scope ./internal/le/repo/inventory` | Verify the seven deprecations are removed without suppressions. |
+| 6 | `./le --name ci-fixes doc check all` | Required after the owning architecture page changes. |
+
+The main thread schedules execution and formatting. No new test, build, lint,
+formatter, generator, or documentation check ran during this planning pass.

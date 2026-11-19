@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -269,6 +269,7 @@ write outside the apply function does not compile
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | rollback-forgets-partial-apply | 2026-10-11 | `restoreReload` -> `loadPeersFullOrTree` ignores `undo.before` |
+| rollback-forgets-partial-apply | 2026-11-19 | `updateWebCertificate` and `updateLGCertificate` answer no restore call, so a rolled-back reload keeps the new certificate (read, not run) |
 | policy-change-never-re-evaluates-what-it-admitted | 2026-10-08 | redistribute `SetGlobal` stores, never re-judges held routes |
 | reconciler-repairs-against-a-stale-snapshot | 2026-08-23 | `resyncCarrierState` judges carrier from a 1 Hz sample |
 | reconciler-repairs-against-a-stale-snapshot | 2026-10-17 | `reconcileOnRegistryChange` ignores `applyIsOwed` |

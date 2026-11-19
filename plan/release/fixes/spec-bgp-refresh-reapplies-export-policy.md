@@ -5,12 +5,12 @@
 | Status | ready |
 | Scope | protocol |
 | Priority | P1 |
-| Release reason | A route refresh sends the peer an AS_PATH that the export policy never produced, and the stale rail's policy reconciliation has five gaps |
+| Release reason | A route refresh reapplies export policy to its prior output; pre-policy input and reconciliation gaps remain |
 | RFC gaps | rfc2918 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-06 |
+| Updated | 2026-11-15 |
 
 Scope is protocol: the wire change is the attributes of a re-advertised route, and
 a withdrawal where a denied route used to stay. No config or CLI surface changes.
@@ -45,6 +45,79 @@ This spec owns five more defects of the same reconciliation:
 Goal: one chain run over pre-policy attributes on every re-advertisement, the peer
 left holding what the current policy produces, and a reload that neither stalls nor
 reports a change that did not happen.
+
+## Current investigation (2026-11-15)
+
+This section updates the historical producer inventory below. It is a source
+investigation, not a fresh test pass or implementation sign-off. The reported CI
+failure is `TestOrdinaryRefreshDoesNotDoublePrepend` at
+`reactor/refresh_prepend_double_test.go:89`: the first AS_PATH is
+`02030000fde80000fde80000fde9`, and refresh produces
+`02040000fde80000fde80000fde80000fde9`.
+
+**Diagnosis.** The symptom is one additional configured prepend on refresh.
+`Session.writeUpdateGated` runs the ordinary export gate over the input body;
+`Session.writeUpdateBody` reports only the final body through its sent callback.
+`Reactor.onMessageReceived` copies that body and derives `RawMessage.AttrsWire`
+from it. Both `RIBManager.handleSent` and `handleSentStructured` intern only those
+post-policy attributes into `ribOutEntry.AttrHandle`. `reconstructRoute` reads
+that handle; `handleRefresh` calls `collectRibOutRoutes`, then `sendRoutes`, and
+`announceTarget.sendBatchUpdate` selects `Session.writeUpdate`, feeding the
+first policy output through the policy again. `buildBatchASPathAttr` already
+avoids adding the protocol prepend when the local AS leads; the extra ASN is
+the configured export member's second run. Both sent consumers discard replay
+feedback, so successive refreshes repeat this one-extra-prepend result rather
+than growing the stored path indefinitely.
+
+The owning layer is the sent-event and RIB refresh-input boundary. **[workaround]**
+Skip the chain for a receipt that appears current, or remove one leading ASN.
+That bypasses current or stateful policy, or destroys legitimate AS_PATH edits.
+**[source]** Preserve the chain's input alongside the sent attributes, and select
+that input explicitly for refresh and whole-chain stale evaluation. Keep the
+ordinary export gate. The source fix crosses the engine/plugin event boundary,
+both event encodings, refcounted storage and replay dispatch; it is not a
+one-file writer exemption. The current isolated red test supplies post-policy
+bytes directly to the gate and bypasses the owning boundary. Its replacement
+still requires the independent judge described in the TDD plan; do not change
+its expectation or make it green by bypassing policy.
+
+Current status of the six original defects:
+
+| Defect | Current source evidence | Remaining work |
+|--------|-------------------------|----------------|
+| D-1: refresh compounds policy | `writeUpdateGated`, `writeUpdateBody`, `onMessageReceived`, both sent consumers and `reconstructRoute` retain/replay only the final attributes | Open: carry pre-policy input and its rail/encoding provenance, then evaluate current policy once |
+| D-2: denied held route remains | `decideStaleReadvertise` now returns `staleWithdraw` for a whole-chain rejection; opted-member rejection remains `staleSuppress` deliberately. The ordinary gate's rejection still returns suppression | Stale whole-chain branch is implemented, not freshly executed here; AC-7 ordinary-refresh withdrawal remains owed |
+| D-3: external definition invisible | `Policy.SameDecisions` and `policychain.member.sameDecisions` compare compiled instance definitions, but the latter explicitly cannot observe a change inside an external plugin. The registered filter-insertion-change callback reports declaration placement, not arbitrary filter-definition changes | Open for external plugin-owned definition changes; do not mistake insertion rebuilds for the missing signal |
+| D-4: no-op rebuild appears changed | `applyHotSwappableSettings` uses `Policy.SameDecisions`, whose library comparison ignores evaluator funcs and mutable refusal counters. `peerSettingsEqual` still compares whole policies through `reflect.DeepEqual` | Partial: the watermark producer was repaired; the outer settings comparison and its misleading no-func comment remain to assess/fix |
+| D-5: late old decision looks current | `Session.noteExportWrite` compares the decision generation with the current generation and raises the watermark past a late old receipt | The stale-assurance hole is mitigated, but this does not rerun the decision under the current chain before that write; AC-11's stronger wire behavior remains unproven/unimplemented |
+| D-6: barrier/MaxUint64 reload stall | `noteExportPolicyChangeLocked` increments the generation and raises an atomic message-id watermark; `raiseExportPolicyFrom` is a CAS loop. The old `joinExportWriters` and `MaxUint64` path are absent | Historical mechanism removed; do not rebuild its deferred-join design. Establish focused evidence for the current mechanism before closing AC-12/13 |
+
+**Preserve the sent view.** `reconstructRoute` is shared by the sent pipeline
+(`rib_pipeline.go`), grouped replay (`rib_replay.go`), abort restoration
+(`source_policy.go::restoreSentLocked`) and lifecycle withdrawals
+(`rib_sent_lifecycle.go::sentRemoval`). A blanket change making it prefer
+pre-policy attributes would change those callers' meaning. Keep its sent view
+and add an explicit refresh/whole-chain-input selection at the relevant
+consumers. Group keys must distinguish that input, its producing rail and its
+ASN encoding context. The ordinary announce rail's chain input already contains
+its builder's protocol edits; a forward rail's chain input precedes the
+local-AS prepend. Retaining bytes alone cannot preserve both orders. Neither
+show nor withdrawals nor an opted-only stale pass may silently switch to the
+pre-policy view.
+
+**Peer implementation evidence, read locally.** FRR `cd39d029` handles refresh
+in `bgpd/bgp_packet.c::bgp_route_refresh_receive`, calling `bgp_announce_route`.
+`bgpd/bgp_updgrp_adv.c::subgroup_announce_table` walks the instance RIB and
+passes selected paths to `subgroup_process_announce_selected`.
+`bgpd/bgp_route.c::subgroup_announce_check` reads `pi->attr`, copies it into the
+outbound attribute work area and applies `ROUTE_MAP_OUT` to that work area.
+BIRD `02d082a7` calls `channel_request_feeding` from
+`proto/bgp/packets.c::bgp_rx_route_refresh`; `nest/rt-table.c::rt_feed_channel`
+walks `c->table->fib`, then `do_feed_channel` reaches `rt_notify_basic`, whose
+`export_filter` evaluates the current `c->out_filter` over the table route.
+Both sources re-evaluate policy from routing input, not a prior output packet.
+Local source roots are `/Users/thomas/Code/github.com/FRRouting/frr` and
+`/Users/thomas/Code/gitlab.nic.cz/labs/bird`; neither was modified or copied.
 
 ## Required Reading
 
@@ -130,7 +203,7 @@ reports a change that did not happen.
 ### Transformation Path
 1. First write: the writer holds the body before the chain. When a member changes it, the sent event carries both forms.
 2. `handleSent` interns both, and `ribOutEntry` holds both handles.
-3. Refresh: `collectRibOutRoutes` reconstructs the route from the pre-policy handle, or the sent handle when none exists.
+3. Refresh: select the pre-policy input explicitly, or the sent attributes when both forms are identical. Preserve `reconstructRoute` as the sent view for show, lifecycle and abort callers. Carry the original producing rail and ASN encoding context with the refresh input.
 4. `sendBatchUpdate` builds, and the ordinary gate runs the chain once. A forward-rail route keeps chain then local-AS prepend.
 5. A whole-chain stale run takes the same pre-policy bytes. A denial of a route with a live receipt withdraws it.
 6. The stale writer re-reads the watermark under `writeMu`. If it moved after the decision, the unit returns to the decision and runs again.
@@ -150,16 +223,18 @@ reports a change that did not happen.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| Sent event, new optional member | writer | `internal/component/bgp/server` event build, from the reactor's write | writes the sent bytes today | New: present only when a member changed the attributes |
-| Sent event, new optional member | reader | `rib.go` `handleSent`, `rib_structured.go` | interns `raw-attributes` | New: reads it when present |
+| Sent event, new optional member | writer | `internal/component/bgp/server/events.go`: `onMessageSent`, `getStructuredEvent`; `internal/component/bgp/format/text_update.go`: `AppendSentMessage` | Existing event paths publish the sent bytes; the optional pre-policy member is proposed, not implemented | New: present only when a member changed the attributes |
+| Sent event, new optional member | reader | `internal/component/bgp/plugins/rib/rib.go`: `handleSent`; `rib_structured.go`: `handleSentStructured`, `storeSentEntries` (same RIB directory) | Existing consumers intern sent attributes; selecting the proposed member remains owed | New: reads it when present |
+| Sent event, `raw-attributes` | writer | `internal/component/bgp/format/text_update.go` `AppendSentMessage` | Overrides direction to Sent and formats the actual message's raw fields | Preserve the existing sent-attribute meaning |
 | Sent event, `raw-attributes` | reader | `rib.go` `handleSent`; third-party plugins | unchanged meaning, the bytes as sent | Preserve |
 | Filter definition event | writer | Each in-tree filter plugin after `OnConfigApply`; any third-party filter | new | New: named at implementation in the plugin's namespace, declared through `events.Register` |
 | Filter definition event | reader | Reactor | new | New |
-| BGP UPDATE to a peer | writer | Writer rails | AS_PATH and attributes differ on a refresh | Change: what the chain produces once |
+| BGP UPDATE to a peer | writer | `internal/component/bgp/reactor/session_write.go`: `writeUpdateGated`, `writeUpdateBody`; `reactor_api_batch.go`: `sendBatchUpdate`, `sendStaleReadvertiseUnit` (same reactor directory) | Existing gated and batch/stale paths write the AS_PATH and other attributes on refresh | Change: what the chain produces once |
+| BGP UPDATE to a peer | reader | External BGP peer UPDATE receiver, including the FRR interop peer in this spec | Receives announcements and withdrawals on the existing BGP session | Preserve framing and negotiation; observe the refreshed policy result |
 
 ### Integration Points
 - `writeUpdateGated` and `forwardUpdateCore` - record the input of the chain for the sent event.
-- `reconstructRoute` - prefers the pre-policy handle.
+- Refresh and whole-chain stale consumers - select pre-policy input explicitly; `reconstructRoute` and other sent-view consumers keep the advertised form.
 - `applyHotSwappableSettings` - the definition comparison and the deferred raise.
 
 ### Architectural Verification
@@ -218,7 +293,7 @@ reports a change that did not happen.
 | AC-6 | A whole-chain stale run denies a route with a live receipt | The peer receives a withdrawal for that NLRI | With a new session, no receipt, nothing sent: the peer holds nothing. An opted-member `llgr-egress` suppress keeps its meaning |
 | AC-7 | A refresh denies a route the peer holds, without RFC 7313 | The peer receives a withdrawal | With RFC 7313, the EoRR removes the route, and the withdrawal is still correct |
 | AC-8 | An external filter plugin changes its own definition | Stale routes toward peers whose chain names it re-judge on their next run | None |
-| AC-9 | A reload rebuilds a chain with an in-process member and changes nothing | The watermark does not move and no route re-judges | None |
+| AC-9 | A reload rebuilds a chain with an in-process member and changes nothing, followed by useful route output | The peer receives useful output under the retained chain; the reload leaves the watermark unchanged and current routes keep their prior judgments | Existing advertisements remain valid because policy did not change |
 | AC-10 | A reload adds, removes, reorders or re-parameterizes a member, or changes the final | The watermark moves | None |
 | AC-11 | A stale unit decided under the old chain reaches `writeMu` after the reload | It is decided again under the new chain, and what is written matches it | None |
 | AC-12 | A reload changes policy during an initial-sync hold | The reload returns without waiting for the hold, and the raise takes effect when the sync ends | The hold keeps its own short bound for its own writers |
@@ -276,7 +351,7 @@ whether the replacement proves at least as much.
 | `bgp-route-refresh-prepend-frr` | `test/interop/scenarios/` | FRR | FRR's soft inbound reset ends with the single-prepend path in its table. Read the deciding function in FRR's `bgpd` for `clear bgp ... soft in` before asserting | |
 
 ## Files to Modify
-- `internal/component/bgp/plugins/rib/ribout_entry.go` - the pre-policy handle, its release, `reconstructRoute`
+- `internal/component/bgp/plugins/rib/ribout_entry.go` - the pre-policy handle, its release and explicit refresh-input selection; preserve `reconstructRoute` as the sent view
 - `internal/component/bgp/plugins/rib/rib.go` - `handleSent`
 - `internal/component/bgp/plugins/rib/rib_structured.go` - `storeSentEntries`, the structured path
 - `internal/component/bgp/reactor/session_write.go` - record the chain's input for the sent event

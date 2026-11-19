@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Shipped defect: `ze config validate` and a commit accept PPPoE under `interface backend vpp`, then every subscriber session fails at IPCP Opened. Moved here from `spec-pppoe-vpp-dataplane` Phase 1 by owner decision OD-5 (2026-10-28) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/1 |
-| Handoff | - |
-| Updated | 2026-10-28 |
+| Phase | 1/1 |
+| Handoff | `tmp/session/2026-11-15-134815/state/session-state-pppoe-refuse-vpp-backend-caa03485-2cbe-4a47-96e9-b290a7c0a4d1.md` |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -35,7 +35,7 @@ replaces it with the LCP-pair check).
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` "ze:backend" - `ze:backend "<names>"` on a YANG node declares which backends implement it; the walker refuses at commit and `ze config validate`
   → Constraint: the gate is per component: `iface` calls it for root `interface` with its own `backend` leaf (`validateBackendGate`, `internal/component/iface/register.go`); `vrrp` is caught only because it augments `interface`. `pppoe` is its own root, so an annotation alone is walked by nobody
-- [ ] `docs/features.md` "Commit-Time Backend Capability Check" - the operator-facing statement of the gate; gains `pppoe`
+- [ ] `features/commit-time-backend-capability-check.md` - the operator-facing statement of the gate; generates the `docs/features.md` row, which gains `pppoe`
 - [ ] `docs/guide/pppoe.md` - gains the refusal and the reason
 - [ ] `plan/post-release/features/spec-pppoe-vpp-dataplane.md` - OD-3 decided: PPPoE's data plane follows `interface backend`, no new leaf
   → Decision: the refusal keys on `interface backend`, not on any PPPoE leaf
@@ -56,46 +56,55 @@ replaces it with the LCP-pair check).
 **Behavior to change:**
 - `interface backend vpp` together with a `pppoe` block that names an access interface is refused by `ze config validate`, at commit and at reload verify, naming the `pppoe` path, the active backend, the backend that supports it, and the fix.
 
+## Existing Mechanisms
+
+| Mechanism | Location | Current role | Use in this spec |
+|-----------|----------|--------------|------------------|
+| Original-tree validator registry | `internal/component/config/tree_validators.go`, `RegisterTreeValidator` and `validateOriginalTree` | Runs component-owned validators on the original full tree before defaults; PPPoE already registers its authentication policy here | Extend with a PPPoE backend validator, without a dummy plugin engine |
+| Schema backend capability declaration and walker | `internal/component/config/backend_gate.go`, `ValidateBackendFeaturesJSON`; `ze:backend` extension | Rejects unsupported nodes using the owning schema's declarations | Declare netlink support on the PPPoE access-interface list and walk it using the interface backend |
+| Interface backend schema default | `internal/component/iface/yang/ze-iface-conf.yang` | Declares the default interface backend | Read the default from the schema when the original tree omits it |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `ze config validate`, an editor commit, or a reload: `VerifyPluginConfigMapTransition` over the candidate tree.
+- `ze config validate`, an editor commit, or a reload: original-tree validation before the candidate is published.
 
 ### Transformation Path
-1. A verifier that receives both the `interface` and the `pppoe` sections reads the active interface backend (default `netlink`).
-2. When it is not one PPPoE supports and `pppoe` names an access interface, it refuses.
+1. PPPoE's registered original-tree validator reads the active interface backend, using its schema default when the leaf is absent.
+2. The generic backend walker reads the support declaration on the PPPoE access-interface list and refuses an unsupported named interface.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config candidate -> verifier | `InProcessConfigVerifier` sections | `test/parse/pppoe-vpp-backend-refused.ci` |
+| Config candidate -> verifier | Registered original-tree validation | `test/parse/pppoe-vpp-backend-refused.ci` |
 
 ### Integration Points
-- The `ze:backend` walker (`config.ValidateBackendFeaturesJSON`), if the design question below picks it.
+- The `ze:backend` walker (`config.ValidateBackendFeaturesJSON`) reads the access-interface declaration.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| Registration over hardcoding | to settle in design | the refusal must not be a `pppoe` case added to `iface`'s verifier; the supported-backend set comes from a declaration PPPoE owns |
+| Registration over hardcoding | Yes (design) | PPPoE registers its own original-tree validator; the supported-backend set comes from the PPPoE schema declaration |
 | No layering | Yes | the refusal is deleted, not bypassed, when the VPP session data plane registers |
 
-## Open design question (research, then `ready`)
+## Resolved design question
 
-| # | Question | Candidates | Evidence to gather |
-|---|----------|-----------|--------------------|
-| Q-1 | Where does the refusal live? Note: `pppoe.Subsystem.Reload` now applies every `pppoe` edit live and can refuse a reload by returning an error, which `runReloadContext` (`cmd/ze/hub/main_reload.go`) rolls back; that is apply-time, not verify, so it does not answer this question for `ze config validate` or boot. The subsystem is now registered whatever the boot config says (`cmd/ze/hub/register_l2tp.go`) | (a) annotate the `pppoe` container `ze:backend "netlink"` and give PPPoE a config verifier registration whose `ConfigRoots` are `pppoe` and `interface`, which walks the gate with `interface backend` as the active backend; (b) a PPPoE session-data-plane registry (the one `spec-pppoe-vpp-dataplane` D-1 introduces, kernel entry only) that the verifier asks whether the active backend has a session data plane | whether a registry `Registration` can carry only a verifier with no `RunEngine` (`internal/component/plugin/registry/registry.go`); (b) is what the VPP spec's AC-1 and Phase 2 already assume, so it would land the registry early with one entry |
+| # | Decision | Alternatives and evidence |
+|---|----------|---------------------------|
+| Q-1 | Use option A with the existing original-tree validator registry and put the backend declaration on the access-interface list | `registry.Register` refuses nil `RunEngine` and `CLIHandler`, so a verifier-only plugin would require dummy handlers. `config.RegisterTreeValidator` already gives PPPoE the full original tree and is used by its authentication validator. A container-wide unconditional annotation would incorrectly refuse a block with no access interface (AC-3). The real runtime session registry remains in the parent VPP spec; this refusal is replaced when that seam exists. Parent implementation approved this refinement on 2026-11-15. |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | `interface backend` absent means `netlink` | `iface` YANG default | the refusal fires on a default config | parse test on a tree with no backend leaf | unvalidated |
+| A-1 | `interface backend` absent means `netlink` | `iface` YANG default | the refusal fires on a default config | `TestPPPoEVerifyAcceptsDefaultBackend` passed in the main-thread focused unit run, 2026-11-15 | confirmed |
 
 ### Risks
 | ID | Risk | Detection | Mitigation |
 |----|------|-----------|------------|
 | R-1 | The refusal fires for a `pppoe` block with no access interface, which runs nothing | parse test | refuse only when an access interface is named, matching `registerBNGSubsystems`'s own condition |
+| R-2 | The reload fixture is treated as portable because it configures no access interface, but its explicit interface root starts the Linux interface monitor | Native Darwin startup failure before the observer, observed 2026-11-15 | Classify the reload draft with `needs-linux` after independent test judgment and run it through the existing one-test QEMU route; keep its configuration and assertions |
 
 ## Blast Radius
 | Question | Answer |
@@ -126,8 +135,10 @@ replaces it with the LCP-pair check).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPPPoEVerifyRefusesVPPBackend` | `internal/component/l2tp/pppoe/` (file decided by Q-1) | AC-1, AC-3 | |
-| `TestPPPoEVerifyAcceptsDefaultBackend` | same | AC-2, A-1 | |
+| `TestPPPoEVerifyRefusesVPPBackend` | `internal/component/l2tp/pppoe/backend_gate_test.go` | AC-1 through the registered shared validator, including the repair as the last line | Main-thread registration-overlay runtime red (`20fe0032`), live-registration green (`739d3fec`), 2026-11-15; full log paths in session state |
+| `TestPPPoEVerifyAcceptsDefaultBackend` | same | AC-2, A-1 | Main-thread focused run passed, 2026-11-15 |
+| `TestPPPoEVerifyAllowsNoAccessInterface` | same | AC-3 | Main-thread focused run passed, 2026-11-15 |
+| `TestPPPoEVerifyReadsTheBackendPath` | same | Parsed backend selection cannot be confused by a comment or another leaf | Main-thread corrected-fixture rerun passed; independent judge APPROVE for this correction only, 2026-11-15 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -137,9 +148,53 @@ replaces it with the LCP-pair check).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `pppoe-vpp-backend-refused` | `test/parse/` | AC-1 | |
-| `pppoe-netlink-backend-accepted` | `test/parse/` | AC-2 | |
-| `pppoe-vpp-backend-reload-refused` | `test/reload/` | AC-4 | |
+| `pppoe-vpp-backend-refused` | `test/parse/` | AC-1 | Draft, 80 stress and promoted live suite passes; registration-omission counterfactual failed as expected, 2026-11-15 |
+| `pppoe-netlink-backend-accepted` | `test/parse/` | AC-2 | Draft, 80 stress and promoted live suite passes, 2026-11-15 |
+| `pppoe-vpp-no-access-accepted` | `test/parse/` | AC-3 through the offline command | Draft, 80 stress and promoted live suite passes, 2026-11-15 |
+| `pppoe-vpp-backend-reload-refused` | `test/reload/` | AC-4 | Draft passed all assertions on Ze's Linux kernel after independently approved Linux/quote fixture corrections; 80-iteration stress and promotion owed |
+
+The three parse tests were promoted after their named draft runs, 80 stress
+passes each and the cost report; none was listed as a cost-review candidate.
+They prove the compiled command links the gate, which helper unit tests cannot
+establish. The reload test remains under `test/draft/reload/`. Its observer
+also drives an authenticated editor commit, checks the same refusal, compares
+the parsed running configuration after each refusal, and proves a subsequent
+valid reload applies. The main thread observed a runtime red for the public
+unit refusal by using a single-file Go overlay that removes only the new
+validator registration. The live registration then passed the same test.
+The same one-file compiler overlay also made the actual refusal functional
+test fail: expected exit 1, got 0 and `configuration valid`. This proves both
+tests discriminate the registration. All three passed in the promoted live
+parse suite; that Darwin run completed 474 tests with five unrelated failures
+routed to the existing CI-fix session. The Linux reload test also passed the
+commit, completed-reload, retained-running-tree and subsequent-valid-reload
+assertions. Reload stress and promotion remain owed. No live source mutation
+was applied.
+
+The native Mac reload run did not reach those assertions: the explicit
+`interface` root auto-loads the interface plugin and VRRP. The interface
+plugin's startup calls `StartMonitor`, which the non-Linux backend refuses.
+The independently approved fixture correction adds `option=needs-linux`,
+preserving every configuration and assertion. The later actual QEMU run passed
+all assertions after correcting a separately judged plain-text quote needle.
+No capability marker is justified by this fixture's empty interface/group
+sets: Linux monitor subscriptions use unforced receive buffers, and the
+existing address-subscription test proves the dump works without net-admin.
+The empty IPv6 reverse-path cleanup explicitly tolerates permission refusal.
+The existing `test qemu ci test <path>` route resolves Ze's runtime kernel
+and runs the draft through its real suite. The failed Mac attempt is not AC-4
+evidence; the passing Linux run is recorded in the owning state.
+
+The initial parsed-path fixture failure occurred before validation because it
+used `//` comments. The corrected `#` fixture passed, and an independent judge
+approved only that fixture correction after the edit. The eventual commit
+body must include this exact judgment:
+
+> Test-judge: internal/component/l2tp/pppoe/backend_gate_test.go: APPROVE TestPPPoEVerifyReadsTheBackendPath fixture correction: replace invalid // with the documented # comment syntax; all backend inputs and validation assertions remain unchanged.
+
+No ordinary weakening record was created: this whole test file is new and
+absent from HEAD. The spec remains in progress; scoped regression/lint,
+functional/stress, promotion and configuration-corpus validation remain owed.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -147,24 +202,27 @@ replaces it with the LCP-pair check).
 | N-A | - | - | config-only refusal, no protocol behavior changes | - |
 
 ## Files to Modify
-- `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - per Q-1
-- `internal/component/l2tp/pppoe/` - the verifier registration, per Q-1
-- `docs/guide/pppoe.md`, `docs/features.md` - the refusal
+- `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - access-interface backend support declaration
+- `internal/component/l2tp/pppoe/register.go` - register the original-tree backend validator
+- `docs/guide/pppoe.md`, `features/commit-time-backend-capability-check.md` - the refusal; the latter generates `docs/features.md`
 
 ## Files to Create
 - `test/parse/pppoe-vpp-backend-refused.ci`, `test/parse/pppoe-netlink-backend-accepted.ci`, `test/reload/pppoe-vpp-backend-reload-refused.ci`
+- `test/parse/pppoe-vpp-no-access-accepted.ci`
+- `internal/component/l2tp/pppoe/backend_gate.go`, `internal/component/l2tp/pppoe/backend_gate_test.go`
+- `internal/test/fixture/register_pppoe_backend_refusal.go` - dedicated editor/reload observer
 
 ### Integration Checklist
 | Item | Needed | Notes |
 |------|--------|-------|
-| YANG schema | per Q-1 | `ze:backend` annotation under (a) |
+| YANG schema | Yes | `ze:backend` on the access-interface list, walked by the registered original-tree validator |
 | CLI grammar | No | |
 | Doctor check | No | |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Trigger | Needed | Where |
 |---|---------|--------|-------|
-| 1 | Config refused | Yes | `docs/guide/pppoe.md`, `docs/features.md` backend gate row |
+| 1 | Config refused | Yes | `docs/guide/pppoe.md`, `features/commit-time-backend-capability-check.md` (generates the `docs/features.md` backend gate row) |
 
 ## Implementation Steps
 1. **Phase 1:** settle Q-1 against the registry source, then the verifier, tests AC-1 to AC-4, docs, journal row marked `fixed:`.
@@ -178,7 +236,7 @@ replaces it with the LCP-pair check).
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Refusal | `pppoe-vpp-backend-refused.ci` red against today's binary, green after |
+| Refusal | Public unit registration-overlay runtime red and live-registration green observed; named offline and daemon functional proofs remain owed |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -230,7 +288,7 @@ replaces it with the LCP-pair check).
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches, and `./le verify changed` over the closing commits (`/ze-close` step 6f). The full verification is Thomas's release check: no agent runs it, and one that is owed is handed to him as its exact command. A red there gets a fix commit
+- [ ] The targeted package and named functional tests for this change pass; GitHub CI verifies the pushed commit. No agent runs a `./le verify` command
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

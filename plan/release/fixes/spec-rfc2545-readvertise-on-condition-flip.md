@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Priority | P1 |
 | Release reason | Honor the explicit owner requirement to reconcile next hops after interface condition changes. |
 | Scope | protocol |
 | Depends | plan/release/fixes/spec-bgp-link-local-only-next-hop.md (its AC-17 designs the per-peer re-advertise this spec reuses) |
-| Phase | - |
+| Phase | research |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -53,7 +53,8 @@ as a design to restore:
 | `plan/records/rfc2545-readvertise-attempt/rfc2545_third_party_readvertise_test.go.txt` | The new unit test file: a peer on 2001:db8:1::/64 with one static route via the third router, fake address and neighbor tables, asserting the re-sent UPDATE carries the moved Link-Local |
 
 The two `.go` files carry a `.txt` suffix so the module does not compile them.
-Rename them back when you restore them.
+They are historical inputs. The current proposal does not authorize restoring
+them unchanged.
 
 | ID | Class | Finding | What the next attempt owes |
 |----|-------|---------|----------------------------|
@@ -64,12 +65,79 @@ Rename them back when you restore them.
 
 ## Task
 
+### Current research outcome and unapproved proposal (2026-11-16)
+
+The investigation isolates a missing retained-route replay trigger. Current
+facts reach a fresh send and an explicitly requested replay, but a watch
+change schedules no replay. This update records research and a design
+proposal only. Research/design approval, implementation and native proof
+remain open. No existing owner criterion or prior review obligation is reduced.
+
+| Evidence | Observed result | Boundary still owed |
+|----------|-----------------|---------------------|
+| `job-rfc-boundaries-final-race-cfc4586c.log`, in the campaign scratch directory below | Known-neighbor controls pass on both rails. Eight late-discovery cases, two known-identity replacements and two subnet-loss cases fail at the missing second advertisement. Two callback-concurrency cases fail because no replay reaches the destination worker. No data-race report appears | A repaired trigger and a current race run. The concurrency cases did not reach their later store-removal or final-wire assertions |
+| `job-rfc2545-neighbor-lifecycle-79449ba8.log` | Snapshot prerequisite, explicit refreshed replay and queued-withdrawal controls pass | Actual callback integration. A test that requests replay itself does not prove the watch scheduled it |
+| `job-rfc2545-neighbor-flip-array-fixed-ed3f0b43.log` and recording `EAJH6KKM6JYHKLODFPJUXQSQFF.jsonl` | FRR assertions 1–8 pass. Assertion 9 fails after one subject send and 31 global-only observations. Fresh paired control and unchanged Established sessions pass | A successful retained-subject transition and assertion 12's installation through the actual Link-Local |
+| `job-rfc2545-final-helpers-race-cover-2dbad3af.log` | Seven checker-helper roots pass under the race detector | Live protocol repair. These helper results supply no FRR acceptance or RFC credit |
+
+The fourteen trigger reds are existing tests, not fourteen new tests to write.
+The smallest safe repair must share an ordered refeed primitive with policy
+restoration. Calling `reconcileExportFinal` from the watch is insufficient:
+its store drain currently precedes its replay hold, it captures no per-source
+receive cuts, and its configured-route phase uses `sendingConfigStatic`.
+Restoring the removed attempt would preserve those recorded blockers.
+
+| Alternative | Existing mechanisms reused | Trade-off and proposed disposition |
+|-------------|----------------------------|-----------------------------------|
+| One reactor-owned pending-peer worker | Watch snapshots, policy replay holds/flush, source cuts, registered receive-store pages and normal route writers | Recommended for review. Pending state is bounded by peers and one worker is joined at shutdown. Scheduling must prevent a slow peer or repeated flaps from causing unbounded delay |
+| One coalescing worker per affected peer | The same hold/cut/page/writer path | Independent peers can progress, but every peer adds a worker/timer lifecycle. Use only if a bounded shared worker cannot meet the required behavior |
+
+The proposed pass raises the destination's existing replay hold before any
+source cut or retained-page read. It then captures each relevant source's
+`receiveCut`, waits for publication to that cut, and calls the receive store's
+`DrainEventsApplied`. The previously specified two-second budget covers both
+waits, with no peer, table or writer lock held. A failed or ended source
+publication is skipped explicitly, rather than replayed or awaited forever.
+The actual replay owner relays the relevant family through `RelayStoredRoute`
+and ordinary final admission. The pass flushes before releasing the hold, so
+a later real withdrawal or replacement remains the last word on the socket.
+
+API-originated, configured and default routes require their own ordinary
+writer path within that shared pass. Retain `self` versus explicit next-hop
+intent, rather than replaying only the last emitted address. Config-static
+attribution must belong to a send, or every writer that reads the peer-wide
+marker must be serialized. The earlier attribution-race requirement remains.
+No new intent field or transport contract is selected by this proposal.
+
+The worker must coalesce address/neighbor bursts without blocking either
+watch worker. A capacity-one wake alone does not bound flaps during an active
+pass. The coalescing interval and active-pass fairness rule still need design
+approval. Bind work to the captured live session, cancel the worker/pass with
+the reactor context, join it through the reactor wait group and discard
+retired-session work. Do not add a parallel route inventory or per-UPDATE
+kernel reads.
+
+| Open design decision | Evidence or decision required before implementation |
+|----------------------|----------------------------------------------------|
+| Effective-change predicate | Detect condition gain/loss and known identity replacement without replaying for unrelated neighbors, table order or diagnostic-only changes |
+| Family selector | `RelayReplay` and `replayRoutesCommand` accept destination, cursor and optional message-ID cut today. Their current final argument is not a family. Design an additive selector and old-caller/forked-store compatibility |
+| API origin intent | Trace the complete origin, sent-store, grouping and replay consumers before selecting a `self`/explicit marker. `outboundResend` currently uses recorded output |
+| Config/default attribution | Choose send-scoped attribution or complete serialization and retain the initial-sync/plugin-send overlap race proof |
+| Coalescing and scheduling | Select the per-peer interval and behavior for changes during a pass, with burst, slow-peer and shutdown controls |
+| Runtime failure reporting | Select an applicable existing doctor code or register a runtime check for absent store, timeout and failed refeed. No code/name is invented here |
+
+Design admission remains **not approved**. The strongest concern is a patch
+that makes the simple second-send assertions pass but replays stale state
+after a live withdrawal or loses API/config origin semantics. Complete those
+decisions and the source/metadata consumer census before implementation.
+The main thread owns the research/design gates and every runtime command.
+
 ### Test investigation (2026-11-15)
 
 The RFC test campaign adds
 `internal/component/bgp/reactor/rfc2545_neighbor_late_discovery_test.go` and
 `internal/component/bgp/reactor/rfc2545_neighbor_transition_test.go`
-without advancing this skeleton's approval gates. The full RFC 2545 text was
+without advancing the then-skeleton's approval gates. The full RFC 2545 text was
 read for this investigation. Section 3 decides the next-hop field at each
 advertisement; the trigger remains the owner decision recorded above. A
 passing late-discovery test alone cannot prove every condition of Section 3
@@ -371,11 +439,13 @@ arrives.
 
 `(*Reactor).refreshPeerLinkScopes`
 (`internal/component/bgp/reactor/reactor_iface.go`) is the producer. On an
-address event it snapshots the peer list, reads `network.ConnectedPrefixes()`,
-and for each peer whose stored `llScope.connected` differs from that table calls
-`peer.refreshForwardFactsIfLiveFrom(connected)`. It re-settles the snapshot and
+address or neighbor event it snapshots the peer list, reads `readAddressTable`,
+derives masked connected prefixes and reads one neighbor view. For each changed
+live scope it calls `peer.refreshForwardFactsIfLiveFrom(connected, neighbors)`.
+It re-settles the snapshot and
 deliberately re-advertises nothing. The false-to-true direction was first
-recorded as harmless; since 2026-10-12 it re-advertises too (AC-2), to agree
+recorded as harmless. Since 2026-10-12 the owner requires re-advertisement
+in that direction too (AC-2), to agree
 with `spec-bgp-link-local-only-next-hop` AC-17.
 
 This is Thomas's ruling on B-16, given on 2026-08-08 after the closing review of
@@ -457,32 +527,51 @@ in place on that path.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/bgp/` - the Adj-RIB-Out and the update-send path
-  → Decision: <to be filled>
-  → Constraint: <to be filled>
+- [ ] `docs/architecture/bgp/interface-event-reactions.md` - actual address/neighbor callbacks
+  → Constraint: retain one immutable snapshot per table refresh and existing listener behavior; schedule replay outside the watch workers.
+- [ ] `docs/architecture/update-building.md` - next-hop normalization and final ownership
+  → Constraint: relay retained input through ordinary writers and source/session admission; do not replay only the last emitted `self` address.
+- [ ] `docs/architecture/bgp/structural-forwarding.md` - both retained-route rails
+  → Constraint: retain general and native RS paths and cached input. Its earlier claim that Ze never learns another router's Link-Local is stale; correct it with implementation.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc2545.md` - Section 3's shared-subnet condition and where it puts usability
   → Constraint: Section 3 binds the act of advertising, not re-advertising
 - [ ] `rfc/short/rfc4271.md` - Section 9.2 Update-Send, the reading the ruling takes
-  → Constraint: <to be filled>
+  → Constraint: preserve useful routes and exact later withdrawals without a session reset; owner AC-1/AC-2 require in-place re-advertisement.
 
 **Key insights:** (minimal context to resume after compaction)
-- <to be filled>
+- The facts and final writer already produce a fresh paired next hop. The missing producer is callback scheduling of retained replay.
+- A safe refeed raises the destination hold before source receive cuts, publication waits and the applied-event barrier.
+- Family scope and API/config/default origin semantics are prerequisites, not optional test reductions.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/bgp/reactor/reactor_iface.go` - `(*Reactor).refreshPeerLinkScopes` reads `network.ConnectedPrefixes()`, skips a peer whose stored `llScope.connected` equals it, and otherwise calls `peer.refreshForwardFactsIfLiveFrom`; it re-advertises nothing. Its callers are the address watch (`addressSync.apply`, `reactor_address_watch.go`) and the neighbor watch (`reactor_iface.go`); `handleAddrAddedPayload` and the bus subscription were removed in 5682b2c17c
+- [ ] `internal/component/bgp/reactor/reactor_iface.go` - `refreshPeerLinkScopes` reads the existing `readAddressTable` seam, derives connected prefixes, reads one neighbor view and refreshes changed live scopes. It schedules no replay. Both actual watch callbacks reach it.
+- [ ] `internal/component/bgp/reactor/policy_reload.go` - `reconcileExportFinal` contains reusable restoration and relay machinery, but its store drain precedes its hold and captures no per-source cuts.
+- [ ] `internal/component/bgp/reactor/receive_publication.go` - `receiveCut`, `state` and `wait` describe a source session's publication, including ended/failed state.
+- [ ] `internal/core/bgp/ribevents/replay.go` and `internal/component/bgp/plugins/adj_rib_in/replay_page.go` - `RelayReplay`/`replayRoutesCommand` accept destination, cursor and optional message-ID cut; no family selector exists.
+- [ ] `internal/component/bgp/plugins/rib/rib_commands.go` and `rib_replay.go` - `outboundResend` replays recorded output with BoRR/EoRR. It is not the owner-required local-origin-only refeed without markers.
 - [ ] `rfc/full/rfc2545.txt` - Section 3, the shared-subnet condition itself
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- one refresh per interface burst, never one per address event. The
-  equal-table guard that gave it is replaced by
-  `spec-bgp-link-local-only-next-hop` AC-17: the guard compares masked
-  prefixes, which cannot see a link-local move, so the refresh now compares
-  each peer's inputs unmasked, and the burst collapses on the worker's
-  capacity-one channel (amended 2026-10-12 to agree with that spec)
+- Preserve the owner requirement for one re-advertisement for a burst with one
+  resulting effective answer (`spec-bgp-link-local-only-next-hop` AC-17).
+  Current code skips equal masked connected prefixes and equal neighbor views;
+  it has no re-advertisement worker. The earlier capacity-one-wake proposal
+  does not alone bound changes during a pass. Its interval and active-pass
+  behavior remain explicit design choices above.
+- Preserve both forwarding rails, immutable retained source bytes, received
+  Path Identifiers, source policy epochs, useful output and exact withdrawal
+  ownership. Do not change admission or next-hop wire-form rules to clear a
+  missing-trigger red.
+
+At this source checkpoint, watch/publication/replay files inspected were clean
+against HEAD. `reactor.go` carried foreign protocol-capture changes to
+`sessionCaptures` and cleanup prose. Recheck ownership before editing and
+coordinate that file's worker hunks. Auto's next-hop admission/encoding files
+are outside this repair. A clean diff is not a permanent file-ownership claim.
 
 **Behavior to change:** (only what the user asked for)
 - a true-to-false flip re-advertises the prefixes the condition governs
@@ -494,60 +583,91 @@ in place on that path.
   This replaces the earlier "harmless, nothing sent" reading so the two specs
   agree (`spec-bgp-link-local-only-next-hop` AC-17, amended 2026-10-12)
 
+## Existing Mechanisms
+
+| Mechanism | Producer | Proposed use |
+|-----------|----------|--------------|
+| Shared table refresh | `reactor_iface.go::refreshPeerLinkScopes` | Extend with effective-answer comparison and nonblocking scheduling after facts publication |
+| Live replay hold and flush | `policy_reload.go::beginPolicyReplay`, `flushPolicyReplay`, `endPolicyReplay` | Extract/reuse; hold before cuts/drains and flush before release |
+| Source publication barrier | `receive_publication.go::Peer.receiveCut`, `receivePublicationCut.state`, `receivePublicationCut.wait` | Capture and drain each relevant source, skipping ended/failed publications explicitly |
+| Applied-event barrier | `internal/component/plugin/process/delivery.go::Process.DrainEventsApplied` | Await after source publication, under the shared budget and without peer/table/writer locks |
+| Bounded owner-relayed pages | `internal/core/bgp/ribevents/replay.go::RelayReplay`, `adj_rib_in/replay_page.go::buildReplayPage` | Extend family scope while preserving cursor/page bounds and actual caller grants |
+| Normal retained-route writer | `reactor_api_relay.go::RelayStoredRoute` | Reuse policy, next-hop normalization, provenance and final admission |
+| Local sent-route replay | `rib/rib_commands.go::outboundResend`, `rib/rib_replay.go::collectGroupedRibOutRoutesFiltered` | Extend a separate local-origin-only refeed; preserve original `self` versus explicit intent and omit refresh markers |
+| Configured/default writers | `peer_static_wire.go::deliverStaticRouteDelta` and restoration calls in `policy_reload.go` | Reuse ordinary writers; make config-static attribution send-scoped or serialize every reader |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - an interface address added or removed event, delivered to the reactor
-- <to be filled>
+- Both address and neighbor watches call `refreshPeerLinkScopes`; the new worker is a proposed extension, not an existing trigger.
 
 ### Transformation Path
-1. <to be filled>
+1. Refresh immutable facts from the actual watched tables, once for all peers.
+2. Compare old/new effective answers and queue only affected live peers. A table reorder, unrelated neighbor or diagnostic-state change alone is not a next-hop change.
+3. A bounded worker captures the destination session and raises the existing replay hold before any source cut or retained-page read.
+4. Capture relevant sources' receive cuts, await publication, then await the store's applied-event barrier. Both waits share the recorded two-second budget. Skip ended/failed publications and propagate other failures.
+5. Relay the relevant family in ascending replay sequence under the actual owner's grant through `RelayStoredRoute`. Recompute the next hop from current facts. Add no synthetic EOR.
+6. Refeed API-originated, configured and default routes through ordinary writers with original next-hop intent and correct send attribution.
+7. Flush replay, release the hold and resume live forwards. A later actual withdrawal/replacement must remain the final socket state.
+8. Cancel worker/pass contexts on reactor stop, join through its wait group and discard work for retired sessions.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| iface component ↔ BGP reactor | interface address event payload | No |
+| iface component ↔ BGP reactor | registered address/neighbor readers and watchers, through actual table callbacks | Existing callbacks and refreshed facts observed; replay not implemented |
 | reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: the forward rail over adj-rib-in's stored routes (`RelayStoredRoute`), under its one per-peer re-send hold, its cut from the sources' `receiveCut`, and its publication and applied-event waits (round-10 B1, round-11 B1), RIB `outboundResend` for `LocalOrigin` entries that are not `ConfigStatic` with `self` replayed as `self` (round-10 I2), and the config-route re-send under `staticMu`; each re-runs the egress next-hop decision | No |
 
 ### Integration Points
 - `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`), also the settings-apply path
-- the update-send path that would carry the re-advertisement
+- the existing replay hold, publication and applied-event barriers, registered pages and ordinary relay/origin writers in Existing Mechanisms
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding | No | |
+| No bypassed layers (data flows through the intended path) | Unapproved | Proposal uses normal relay and origin writers; implementation proof owed |
+| No unintended coupling (components stay isolated) | Unapproved | Resolve actual registered command owners and grants; no RIB implementation import |
+| No duplicated functionality (extends existing, does not recreate) | Unapproved | Extract policy replay mechanisms rather than a second route inventory |
+| Zero-copy preserved where applicable (refs, not copies) | Unapproved | Preserve cached source bytes; measure approved implementation's allocations |
+| Registration over hardcoding | Unapproved | Family selector and runtime diagnostics require their normal declarations |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | <to be filled> | <to be filled> | <to be filled> | <to be filled> | unvalidated |
+| A-1 | Existing replay hold/flush machinery can be extracted without changing restoration | `policy_reload.go` has the required hold/flush/end producers | Policy reload or live forwarding regresses | Existing policy-final restoration tests and hold-before-cut ordering probe | Unvalidated for extraction |
+| A-2 | Original API next-hop intent can be retained with current ownership | Sent-route grouping records local origin but replays output addresses | `self` becomes a stale explicit address | Complete origin/sent/group/replay census and preserve both useful self/explicit controls | Open design choice |
+| A-3 | One bounded worker can serve affected peers | Event-driven shared-worker proposal above | A slow peer delays unrelated peers | Controlled burst, slow-peer and shutdown tests | Open scheduling choice |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | a refeed fires an update storm on an interface burst | update counts jump on a flap | the link-scope worker's capacity-one channel collapses a burst to one pass, and only a peer whose answer changed is re-advertised (`spec-bgp-link-local-only-next-hop` AC-17). Within a pass nothing is suppressed as unchanged: a forwarded write never is and every `outboundResend` command carries `meta["replay"]`, so a pass for a changed peer re-sends every stored route of the family (round-10 I1; Known Limitations) |
-| R-2 | a per-peer refeed disturbs update-group sharing | <to be filled> | <to be filled> |
+| R-1 | A refeed fires an update storm on a burst or active-pass flap | Repeated passes for one final answer | Effective-answer comparison plus an approved coalescing/active-pass bound. A capacity-one wake alone does not settle this risk |
+| R-2 | A per-peer refeed changes sharing or replays an unaffected family | Wrong-peer/family output or unnecessary materialization | Preserve ordinary per-destination writers and prove scoped-family/unaffected-peer controls |
+| R-3 | Replay overtakes a live withdrawal/replacement | Final socket contains a resurrected route | Hold before source cuts, publication/applied drains and retained reads; flush before release and complete the existing callback concurrency probe |
+| R-4 | Config-static attribution contaminates another writer | Plugin/forwarded route is marked config-static | Send-scoped attribution or complete serialization; retain the earlier initial-sync/plugin-send race proof |
+| R-5 | Ended source or retired destination leaves work pending | Unreachable cut or an old session reaches a writer | Source publication-state handling, captured destination identity and cancellation/join on shutdown |
+| R-6 | New selector/intent metadata breaks existing or forked callers | Parser failure, wrong field, silent empty replay | Additive command design and full Go/SDK/JSON/forked consumer census before approval |
+| R-7 | Missing store or failed pass is presented as success | Retained subject stays stale after completion is reported | Select applicable runtime diagnostics and prove actual failure handling; no invented diagnostic code |
+| R-8 | Absence tests pass after useful output is dropped | Known/fresh controls stop appearing | Preserve real socket, selecting/store retention, useful routes and unchanged sessions in existing probes |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | routes are re-announced to peers that did not need them, or the next hop stays wrong |
-| How is it reverted? | <to be filled> |
+| How is it reverted? | No code exists to undo from this proposal. Implementation must permit disabling its scheduler while preserving the existing watched-facts and ordinary-writer behavior; source reversals follow the repository's owner-controlled Git rules |
 | Who else touches this path? | `spec-bgp-link-local-only-next-hop`, `spec-connected-static-reach-the-locrib` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| an address event that makes the shared-subnet condition false | → | <to be filled> | <to be filled> |
+| Actual address watch removes the shared-subnet condition | → | `refreshPeerLinkScopes` → proposed worker → normal relay | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` |
+| Actual neighbor watch discovers/replaces an identity | → | Refreshed facts → proposed worker → retained replay | `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute`, `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` |
+| Source withdraws while callback replay is queued | → | Actual watch → destination hold/worker → source/store removal → socket | `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` |
+| Real kernel changes ambiguous neighbor to unique | → | Daemon watch → local API-originated subject → FRR | `bgp-rfc2545-neighbor-condition-flip-frr` |
 
 ## Acceptance Criteria
 
@@ -562,19 +682,26 @@ in place on that path.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | removes the shared subnet from the link and the peer keeps forwarding | <to be filled> | <to be filled> |
+| 1 | Removes the shared subnet while the route and session remain useful | Actual watch recomputes facts, then proposed ordered refeed emits the global-only form | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly`; currently red |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| <to be filled> | `internal/component/bgp/reactor/` | <to be filled> | |
+| `TestRFC2545NeighborWatchUsesAddressSnapshot` | `rfc2545_neighbor_late_discovery_test.go` | Existing deterministic snapshot prerequisite | Observed pass; preserve |
+| `TestRFC2545NeighborKnownAtReceiptReachesSocket` | Same file | Known-neighbor useful output on both rails | Observed pass; preserve |
+| `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute` | Same file | Eight actual watch transitions without new ingress or a test-requested relay | Eight observed trigger reds |
+| `TestRFC2545RefreshedFactsReachStoredReplaySocket`, `TestRFC2545QueuedNeighborReplayEndsWithdrawn` | Same file | Existing explicit writer and queued-withdrawal controls | Observed pass; not callback proof |
+| `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` | `rfc2545_neighbor_transition_test.go` | Useful retained route acquires the moved identity on both rails | Two observed trigger reds |
+| `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` | Same file | Useful global-only route after actual subnet loss | Two observed trigger reds |
+| `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` | Same file | Actual callback replay, then real store removal and exactly one final withdrawal | Two reds before replay dispatch; later assertions unreached |
+| Approved design's missing invariants only | Existing test area | Burst/active-pass bound, shutdown, family-selector compatibility, original self/explicit intent and config attribution overlap | Design/seams still open; do not duplicate the fourteen cases |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| <to be filled> | `test/` | <to be filled> | |
+| Earlier B2 `.ci` obligation | Existing functional harness | Determine the distinct daemon carrier needed alongside the real-kernel FRR scenario | Remains owed unless the owner explicitly changes the earlier contract; no silent removal or duplicate scenario authoring |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -582,28 +709,72 @@ in place on that path.
 | `bgp-rfc2545-neighbor-condition-flip-frr` | `test/interop/scenarios/` | FRR 10.7.1 | The daemon's actual neighbor watch must update the once-announced API-originated subject after its neighbor becomes unique | Observed assertion 9 failure with passing kernel, sent-retention, fresh-pair and same-session controls; successful installation at assertion 12 remains unreached |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/reactor_iface.go` - <to be filled>
-- the Adj-RIB-Out refeed path - <to be filled>
+- `internal/component/bgp/reactor/reactor_iface.go` - effective-answer change detection and nonblocking scheduling after publication.
+- `internal/component/bgp/reactor/reactor.go` - worker start/stop/state. Its current foreign protocol-capture hunks require owner coordination and scoped landing.
+- `internal/component/bgp/reactor/policy_reload.go` - shared hold/cut/drain/flush extraction, preserving policy restoration.
+- `internal/core/bgp/ribevents/replay.go` and `internal/component/bgp/plugins/adj_rib_in/replay_page.go` - proposed additive family-scoped page contract and compatibility.
+- `internal/component/bgp/plugins/rib/rib_commands.go`, `rib_replay.go` and sent producers in `rib.go` - local-origin-only refeed and original intent; complete consumer census before selecting fields.
+- `internal/component/bgp/reactor/peer_static_wire.go` and configured/default callers - normal writers and send attribution, with the exact caller census still a design prerequisite.
+- The existing two neighbor test files and checker/scenario above - preserve current probes and add only approved missing invariant coverage.
+- `docs/architecture/bgp/interface-event-reactions.md`, `docs/architecture/update-building.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/api/commands.md` - update the trigger, refeed and command contracts with their implementation.
+- `rfc/short/rfc2545.md` - retain partial scope until native transition, ordering and peer-installation proof. No support increase from this investigation.
 
 ## Files to Create
-- <to be filled>
+- Proposed `internal/component/bgp/reactor/reactor_readvertise.go` - bounded coalescing worker and shared ordered refeed. This is not permission to restore the removed attempt.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| BGP family surface (new SAFI / capability / attribute) | | N-A, no new family |
-| Prometheus counters/metrics | | a refeed counter, if one is added |
+| YANG schema | Yes, conditional | A new replay-family selector must update its registered command declaration; exact schema/argument form is an open design choice |
+| YANG validation constraints | Yes, conditional | Validate the selector against registered families and preserve old cursor/cut calls |
+| Custom config validators | N-A | No new config leaf is proposed |
+| CLI commands/flags | Yes, conditional | Additive replay-selector contract; no new public verb is selected |
+| CLI grammar | Yes | Resolve keyword/value grammar and old-call compatibility before implementation |
+| Editor autocomplete | N-A | No new config editor value is proposed |
+| Functional API proof | Yes | Existing real-kernel daemon/FRR carrier plus explicit disposition of the earlier B2 `.ci` obligation |
+| Pipe completeness | N-A | No new output renderer is proposed |
+| Env registration | N-A | No environment variable is proposed |
+| Doctor check for runtime dependencies | No new dependency | Reuse registered watchers, store and existing transports |
+| Doctor code per failure class | Yes, unresolved | Absent store, timeout and failed refeed need an applicable existing code or registered runtime check; select names and phase before approval |
+| Prometheus counters/metrics | No new metric proposed | Observe scheduling invariants directly in tests; a metric cannot replace the burst or shutdown proof |
+| BGP family surface | N-A | No new family, capability, attribute or NLRI format |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfc2545.md`, `docs/features/rfc-status.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/bgp/` |
+| 1 | Feature scope/evidence changed? | Yes | Find the existing BGP feature row and current level before implementation; no evidence increase from this research |
+| 2 | Config syntax changed? | No | No new config option proposed |
+| 3 | CLI command changed? | Yes, conditional | `docs/guide/command-reference.md` if the replay selector changes |
+| 4 | API/RPC changed? | Yes | `docs/architecture/api/commands.md` for selector, ordering and refusal contracts |
+| 5 | Plugin behavior changed? | Yes, conditional | `docs/guide/plugins.md` if replay caller/declaration semantics change |
+| 6 | User guide required? | Yes | Existing next-hop guidance must explain unsolicited refresh and runtime failure diagnostics |
+| 7 | Wire format changed? | No new format | Existing native forms remain; update timing/refresh behavior in `docs/architecture/update-building.md` |
+| 8 | SDK/protocol changed? | Yes, conditional | Complete original-intent producer/consumer census and update `docs/architecture/api/process-protocol.md` if fields change |
+| 9 | RFC behavior newly proven? | Yes, after proof | `rfc/short/rfc2545.md`; generated status comes only through native tools and passing evidence |
+| 10 | Test infrastructure changed? | No | Reuse current functional/interop harnesses |
+| 11 | Daemon comparison changed? | No new claim | Preserve dated, qualified BIRD/FRR source reading above |
+| 12 | Architecture changed? | Yes | Interface-event, update-building and structural-forwarding pages named above |
+| 13 | Route metadata changed? | Yes, conditional | Document any approved original-intent/attribution keys and all consumers before implementation |
+| 14 | Metrics changed? | No | No new metric proposed |
+| 15 | Registration/inventory changed? | Yes, conditional | Replay command declaration and published inventory if its selector changes |
+| 16 | Existing source anchors affected? | Yes | Main owes the native scoped citation inventory before implementation; named `// Design:` pages travel with the code |
+| 17 | Existing examples affected? | Yes | Check replay examples against the approved parser and retain old syntax unless compatibility is explicitly changed |
+
+The discovery surface is the existing BGP next-hop/interface-event material
+in `ai/INDEX.md`, the registered watcher and replay command. Extend those
+surfaces with implementation. Do not create a second route-source inventory.
+The changed-wire census is incomplete until the proposed selector and API
+intent/attribution fields have traced Go, SDK, JSON and forked consumers.
+This prevents design approval; no source-read checklist claims completeness.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- <to be filled>
-2. **Phase: <to be filled>**
+1. **Research/design gate, still open:** finish selector, intent/consumer census, attribution, diagnostics and coalescing choices. Preserve existing owner decisions and dependency ownership.
+2. **Shared primitive:** extract and prove hold-before-source-cut/publication/applied-drain/relay/flush ordering through normal writers before wiring the watch.
+3. **Wiring:** add the bounded cancellable worker and effective-answer scheduling. Reuse all fourteen trigger cases and known/explicit controls.
+4. **Origin coverage:** complete API/config/default refeed, original intent and send attribution. Prove approved burst, shutdown, compatibility and overlap invariants.
+5. **Main-thread protocol proof:** rerun the named daemon/FRR carrier and require assertion 9 and assertion 12. Obtain independent producing-code discrimination and current RFC audit bindings.
+6. **Independent review/closure:** review all implementation and docs. Keep this spec open until AC-1 through AC-4 and earlier B1/B2/ISSUE 3/ISSUE 5 obligations are satisfied.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -620,7 +791,10 @@ obligation, so the comment must say which document each line answers to.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| <to be filled> | <to be filled> |
+| Watch-triggered retained-route refeed | Existing fourteen transition/concurrency cases become green with useful-route and same-session controls preserved |
+| Ordered/shared replay and origin semantics | Main-thread scoped race tests, actual callback final-withdrawal proof and approved missing-invariant probes |
+| Foreign receiver outcome | Existing daemon/FRR carrier reaches successful subject transition and installed Link-Local path |
+| Current RFC/docs evidence | Native discrimination and audit binding where actual tagged claims change; no support credit before that |
 
 ### Failure Routing
 | Failure | Route To |
@@ -628,6 +802,10 @@ obligation, so the comment must say which document each line answers to.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior |
 
 ## Known Limitations
+
+These are prior design limitations, not observations of a completed repair.
+The family selector, original-intent, diagnostics and scheduling choices above
+are still unresolved. This record is not ready for implementation.
 - A pass is not incremental on the wire, as in
   `spec-bgp-link-local-only-next-hop` Known Limitations: it re-sends every
   stored route of the family from every source and every locally
@@ -644,7 +822,15 @@ obligation, so the comment must say which document each line answers to.
 - Where `bgp-adj-rib-in` is not loaded, or the destination's `send update`
   attachment does not name it, forwarded routes are not re-sent
   (`filterPermittedPeers`; that spec's R-8, round-10 N1).
-- <to be filled>
+- The current family-selector and original-intent consumer census must be completed before choosing command or metadata fields.
+
+## Review Gate
+
+Research/source inspection is not design approval or implementation review.
+Independent implementation review runs remain empty until that phase.
+
+| Run | Scope | Reviewer | Result | Fixes / rerun |
+|-----|-------|----------|--------|---------------|
 
 ## Checklist
 
@@ -655,5 +841,9 @@ obligation, so the comment must say which document each line answers to.
 - [ ] Interop tests for protocol features (or N-A with a reason)
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
-- [ ] `./le verify worktree` passes
+- [ ] Research/design decisions approved in the main thread.
+- [ ] Existing AC-1 through AC-4 and retained earlier review obligations demonstrated.
+- [ ] Current scoped tests pass in the main checkout, including race/order controls.
+- [ ] Native daemon/FRR subject transition and actual peer installation pass.
+- [ ] Producing-code discrimination, RFC audit bindings and documentation are current.
+- [ ] Independent implementation review is clean; native closure then removes this spec.

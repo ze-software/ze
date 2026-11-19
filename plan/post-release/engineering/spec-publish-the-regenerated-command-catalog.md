@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -53,6 +53,27 @@ generators is the smaller half.
 On 2026-11-16 Thomas accepted responsibility for the reviewed contribution-page publication and live confirmation left by `spec-github-development-integration`: "It's okay, I will do it. You can take my word for it and close." This supersedes the earlier conditional closure hold. It is an OWNER HANDOFF, not an observed Pages deployment or a command to an agent to push.
 
 This spec now owns that remaining publication alongside the existing catalog work. Preserve the exact reviewed artifact and source identities. Use the source/final-byte receipt and deployment-confirmation contract in `docs/contributing/gh-pages.md`, section "Record and confirm reviewed publication bytes". If the artifact changed, obtain review of its current bytes before recording and publication. The earlier canonical render and site check covered 1118 routes; those historical results do not identify a later deployment. Record actual artifact commit, newest Pages status and changed live-route/asset checks when the owner performs publication. Keep the GitHub front-door/README proposal outside this inherited scope.
+
+### Looking glass replay, inherited on 2026-11-19
+
+spec-lg-peer-history-origin-search-and-named-nodes closed with its replay of
+the looking glass built and recorded, and not published. This spec owns what
+is left before `labs/looking-glass-graph/` shows it:
+
+| Item | Producer | State on 2026-11-19 |
+|------|----------|---------------------|
+| The recording names a commit of `main` | `website/data/lg-replay.json`, written by `./le site lg-replay record`; `refuseUncommitted` (`internal/le/site/lgreplay/actions.go`) | It names `af2c9677aa`, the branch commit it was made at. The branch landed by rebase, so that commit is not an ancestor of `main`. The recorder refuses a tree with any uncommitted change, so it needs a moment when the shared checkout holds none |
+| The site build refuses a recording whose commit it does not hold | `readLGReplay` (`internal/le/site/lgreplay.go`) | It refuses a recording of a dirty tree only |
+| The first site build and site check with the replay block | `./le site build`, `./le site check` | Never run: the build refused on the branch for the dependency data, a cause outside the replay |
+
+Publishing `gh-pages` stays the owner's order. The journal row is listed under
+Owned journal rows.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `tree-state-claim-published-unverified` | 2026-11-19 | `website/data/lg-replay.json` names a commit that is not on `main` |
 
 ## Required Reading
 

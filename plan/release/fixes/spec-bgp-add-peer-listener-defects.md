@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -21,7 +21,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Three defects on one path, met on 2026-11-12 while
 `spec-single-owner-lifecycle-2-bgp-session` was implemented. That spec fixes a
 configured passive peer added during the standalone start, and deliberately
-leaves these three out. Each has a journal row (Owned journal rows). Nothing
+leaves these three out. A fourth, on the same add path, was met on 2026-11-19
+and is the last row of the table. Each has a journal row (Owned journal rows). Nothing
 here is designed yet: this skeleton states each defect, its producer, and why
 it is a release fix.
 
@@ -30,6 +31,7 @@ it is a release fix.
 | A dynamic group installed during the standalone start gets no listener | `installDynamicGroupsLocked` (`internal/component/bgp/reactor/reactor_dynamic.go`) | A passive dynamic group installed after the start's listener pass and before `running` is set has no socket, and nothing else opens one for a group, so no member can connect | A passive listener the config declares is missing |
 | A refused add leaves state behind | `addPeerLocked` (`internal/component/bgp/reactor/reactor_peers.go`) | When the listener cannot start, the add is refused, but the peer's pool demand, its per-peer pool, its metrics and its stale-prefix alarm stay for a peer that does not exist | A refused change must leave the running state as it was |
 | The listen error names no fix | `startListenerForAddressPort` (`internal/component/bgp/reactor/reactor.go`) | The error is `listen on <addr>: <err>`, a plain wrapped error with no fix command and no doctor code, returned through `AddPeer` to the reload, the API operation and the config loader | Every message an operator sees names the fix (`ai/rules/user-facing-errors.md`) |
+| A connection that arrives while its peer is being replaced before the peers start is closed (added 2026-11-19, from the closure of spec-lg-peer-history-origin-search-and-named-nodes) | `reconcilePeersJournaled` (`internal/component/bgp/reactor/reactor_api.go`), which removes a restarted peer and then adds it again | A neighbor that connects in the gap between the two, about two milliseconds, finds no peer, reads end of file where it expected an OPEN, and waits for its ConnectRetry timer. A connection that arrived before the removal already follows its peer (`handHeldInbound`, `peer_inbound_held.go`) | A configured peer refuses its neighbor at start for a reason the configuration does not hold |
 
 ## Required Reading
 
@@ -165,6 +167,7 @@ Draft rows. The design pass confirms or rewrites each one.
 | `plan/journal/unwired-feature.md` | 2026-11-12 | `installDynamicGroupsLocked` opens no listener during the standalone start |
 | `plan/journal/rollback-forgets-partial-apply.md` | 2026-11-12 | `addPeerLocked` rollback deletes only the peer entry |
 | `plan/journal/error-names-no-fix-command.md` | 2026-11-12 | `startListenerForAddressPort` listen error with no fix and no doctor code |
+| `plan/journal/component-rebuilt-during-reload.md` | 2026-11-19 | `reconcilePeersJournaled` leaves a gap between removing and adding a restarted peer before the peers start |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

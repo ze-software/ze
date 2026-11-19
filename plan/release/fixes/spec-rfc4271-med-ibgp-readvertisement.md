@@ -6,39 +6,67 @@ before implementation.
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | The owned normal selected-route egress prerequisite and MED provenance proof remain release correctness work. |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/5 |
+| Phase | Ordinary selected MED witness: test-first baseline pending |
 | Handoff | verify |
-| Updated | 2026-08-17 |
+| Updated | 2026-11-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Record and resolve one RFC 4271 Section 9.1.2.2 finding for the common IBGP egress boundary. Ze's public MED removal syntax runs before route selection. A lower-level raw egress replacement can remove MED on the common IBGP egress rail. If a selected route used MED before that replacement, this reopens the route-loop sequence that Section 9.1.2.2 describes.
+Record and resolve one RFC 4271 Section 9.1.2.2 finding for the common IBGP
+egress boundary. Ze's public MED removal syntax runs before route selection.
+A lower-level raw egress replacement can omit MED after selection. The RFC's
+route-loop warning concerns including an EBGP-learned route's MED in a
+comparison with an IBGP-learned route, then removing MED and advertising the
+route into IBGP. Comparison only among EBGP-learned candidates does not by
+itself establish that prohibited sequence. Ze's current common guard preserves
+MED presence rather than implementing the RFC's alternative restricted
+comparison algorithm.
 
 This work is separate from the website deployment failure. The linked deployment failed on stale RFC 7606 audit and generated-ledger data. MED behavior did not cause that deployment failure.
 
-Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer producer was found. The implemented guard covers the common egress boundary used by route-server and route-reflector forwarding. The unit tests drive `forwardUpdateCore` with a selected source payload. The functional and interop tests drive the same boundary through the route-server rail, so they are proof for that rail, not proof for normal BGP selected-route readvertisement.
+The earlier missing-producer finding is superseded by the current ordinary
+selected dispatcher. The scoped work resumed on 18 November adds an untagged
+test from actual received candidates and RIB election through raw egress
+replacement to an internal recipient's wire. The common guard already exists;
+this phase changes no production code, public syntax, existing test or RFC tag.
+Main must observe its baseline before any defect or passing-proof claim.
+Existing route-server functional and interop evidence retains its original
+scope and does not become ordinary-path evidence by relabeling it.
 
 ### Owned prerequisite: normal selected-route egress
 
-This spec owns the missing normal BGP selected-route-to-peer work package.
-There is no external spec dependency to schedule: `Depends` is `-`, while
-`Status` remains `blocked` on this internal prerequisite. The package must
-connect the selected post-ingress route and its MED provenance to a normal
-peer egress producer, through the existing post-policy guard, and prove the
-route-selection-to-wire path. Route-server replay, route-reflector forwarding
-and a unit test handed a selected payload do not discharge it.
+The producer is now implemented under
+`plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`; do not build
+another advertiser here. checkRouteBestChange captures the retained winner,
+commitAdvertise publishes it, and the authenticated destination worker sends
+SelectRoutes through the existing egress pipeline. This spec owns the MED
+selection-to-wire witness and any MED correctness defect its baseline reveals.
+Route-server replay, route-reflector forwarding and a test handed a selected
+payload remain insufficient for that witness. AC-1 through AC-9 and the RFC gap
+remain in force pending actual bounded proof and independent judgment.
 
-Design and implementation of that producer must precede the normal-path
-functional and interop proof. AC-1 through AC-9 and the RFC gap remain in
-force. This ownership correction authorises no product implementation during
-the planning reconciliation.
+The new test must make the same-neighbor MED winner observable while both
+candidates remain stored, demonstrate a raw replacement that really omits MED,
+and preserve a distinct useful route plus a destination-specific MED Set.
+It uses only a new owned reactor test carrier and existing fixture entry points;
+shared helper changes require a separately reviewed concrete proposal.
+
+The next proposed witness, pending independent design review and a source
+window, uses an iBGP A and eBGP B with the same AS_PATH neighbor 65010. Before
+connecting recipients, A30/B20 selects B, A-only MED10 selects A despite the
+later eBGP preference, then restored A30/B20 selects B again. Both retained
+metrics and real winners are checked. The useful no-MED control must come
+from eBGP B: an A-origin control would correctly be withheld by ordinary iBGP
+split horizon. This tests Ze's current comparison/preservation path; it does
+not prohibit the RFC's alternative EBGP-only comparison with removal before
+comparison against iBGP routes. The existing all-EBGP root remains unchanged.
 
 ## Required Reading
 
@@ -103,6 +131,21 @@ the planning reconciliation.
 - Keep in-process accumulator MED suppression out of this implementation unless a current producer is proved reachable.
 - Replace the unapproved not-applicable disposition only after discriminating positive and negative proof exists.
 
+## Existing Mechanisms
+
+| Mechanism | Current producer | Use in this scoped phase |
+|-----------|------------------|--------------------------|
+| Ordinary retained winner | `rib_bestchange.go`, checkRouteBestChange; `rib_advertise_capture.go`, prepareAdvertise and commitAdvertise | Actual received candidates determine the retained MED and next hop; no hand-fed selected result. |
+| Authenticated destination worker | `rib_ordinary_destination.go`, updateSelectedDestination; `rib_selected_dispatch.go`, run; `rib.go`, runRIBPlugin | Existing explicitly attached ordinary RIB owns dissemination without RS/RR. |
+| Selected final output | `reactor_api_selected.go`, selectRoute and stageSelected; `forward_aigp.go`, forwardUpdateSelected; `reactor_api_forward.go`, forwardUpdateSection | Reconstruct retained bytes, apply the real raw egress answer, then call the shared MED guard. |
+| MED preservation and Set precedence | `forward_med.go`, applyFactsMED and modsSetMED | Existing enforcement under test; no production edit before baseline. |
+| Real peer fixture and declared policy seam | `rfc7947_rs_announcement_election_test.go`, lowLiveStart and lowLiveOptions.api; `filter_answer_transport_test.go`, answerTransport and answerPolicy | Configure the existing policy seam before reactor start, with truthful raw/MED declarations; add no new fixture grant or shared helper edit. |
+
+The source paths in this table abbreviate the existing BGP reactor and RIB
+plugin directories. The old Current Behavior list above is historical research;
+its internal-MED no-op and missing-producer descriptions are superseded by this
+current source census. No runtime result is inferred from the census.
+
 ## Data Flow
 
 ### Entry Point
@@ -157,6 +200,8 @@ the planning reconciliation.
 | A-2 | A current in-process egress filter can append final MED suppression | Registered egress filters do not record `AttrMED` suppression today | Accumulator suppression has no current producer to enforce | Add coverage only after a focused wiring test names the producer | broken for current source |
 | A-3 | A destination-specific MED Set is permitted and must survive | Existing Section 5.1.4 provenance design and `modsSetMED` behavior | Restoring the selected value could override valid policy | `TestIBGPEgressMEDSetWins` | confirmed |
 | A-4 | A current runnable normal BGP producer forwards a RIB-selected route through raw egress policy to a peer | `bgp-rib` records selected Loc-RIB state but does not itself send that selected route to peers; route-server and route-reflector plugins forward cached UPDATEs | RFC disposition cannot become proven for normal BGP selected-route readvertisement | MEDRIBProofScout and NormalBGPForwardScout source traces; scenario 62 remains route-server proof only | broken for current source |
+| A-5 | The old A-4 absence premise still describes the current tree | Current commitAdvertise calls selectedDispatch.publish; runRIBPlugin supplies p.SelectRoutes, and the reactor stages the shared forward pipeline | A duplicate advertiser could be built or ordinary proof unnecessarily blocked | Current producer census above and main's new root baseline | Broken old premise; producer confirmed by source, runtime witness pending |
+| A-6 | Existing lowLiveOptions.api can configure the declared raw/MED answer before any reactor goroutine starts | lowLiveStart invokes the callback before StartWithContext | A late seam write could race production or require shared helper edits | Read the call order; main runs the new root with the race detector | Source-supported; runtime validation pending |
 
 ### Risks
 
@@ -169,6 +214,8 @@ the planning reconciliation.
 | R-5 | A unit-only proof misses a bypass on a forwarding rail | No raw-path functional or interop observation | Drive `forwardUpdateCore`, then add discriminating wire-visible proof |
 | R-6 | The RFC disposition is changed before proof discriminates | RFC gate is green after deleting the enforcement | Mutation-check the tagged test before removing the annotation |
 | R-7 | Work overlaps the separate MED syntax session | Diff includes parser, formatter, modify policy syntax, help, or syntax docs | Treat every syntax-related file as excluded from this spec |
+| R-8 | A raw answer and a Set are combined into an invalid fixture reply | The policy chain rejects the fixture before the MED guard | Use separately configured internal recipients: one raw-only reply and one MED Set-only reply; both use truthful existing declarations |
+| R-9 | The witness is handed selected bytes instead of proving election | Wire MED looks correct with an inert RIB | Both same-neighbor source paths enter over sockets and remain stored; the lower MED must overcome the losing route's lower BGP Identifier, and a later MED-only change switches the real winner |
 
 ## Blast Radius
 
@@ -199,6 +246,7 @@ the planning reconciliation.
 | AC-7 | RFC4271-9.1.2.2-2 remains disclosed as a gap until normal BGP selected-route readvertisement has a runnable producer and discriminating proof | The route-server proof does not change the RFC disposition. A future positive tagged test for the normal producer fails when the guard is removed. The negative tagged tests fail under an overbroad guard, such as MED synthesis or Set override. |
 | AC-8 | The existing raw-base dedup fixture runs with the guard | It still proves unequal bases do not share materialization without using MED as the base marker |
 | AC-9 | The change is reviewed | The diff contains no MED syntax, parser, formatter, help, or public policy documentation change |
+| AC-10 | Real ordinary received same-neighbor candidates, a raw MED-removing export answer and an internal recipient | The actual retained lower-MED winner reaches the wire with its selected MED restored and the raw answer's unrelated marker present; both candidates were stored and no RS/RR role supplies output. A distinct useful control and a separately configured valid MED Set survive. The new root remains untagged until observed baseline, semantic breaks and independent judgment. |
 
 ## End-to-End User Stories
 
@@ -218,6 +266,7 @@ the planning reconciliation.
 | `TestRFC4271IBGPReadvertisementDoesNotSynthesizeMED` | `internal/component/bgp/reactor/forward_med_test.go` | AC-2 | written and passing |
 | `TestIBGPEgressMEDSetWins` | `internal/component/bgp/reactor/forward_med_test.go` | AC-3 | written and passing |
 | `TestDifferentBaseSameEditSetNeverShares` | `internal/component/bgp/reactor/forward_dedup_test.go` | AC-8 after fixture-only marker change | updated and passing |
+| `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` | `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` | AC-10: real same-neighbor election, raw removal, useful no-MED control and destination-specific Set | Written untagged; main baseline and independent review pending; no production edit or observed result |
 
 ### Boundary Tests
 
@@ -252,6 +301,7 @@ the planning reconciliation.
 
 ## Files to Create
 
+- `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` - owned untagged ordinary producer-to-wire witness; no shared helper edits.
 - `test/plugin/med-ibgp-post-selection-removal.ci` - functional raw producer-to-wire proof through the existing route-server rail.
 - `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` - discriminating foreign-peer proof through the same route-server rail.
 
@@ -375,7 +425,7 @@ the planning reconciliation.
 ## Known Limitations
 
 - The raw post-selection producer is identified for the implemented common egress paths: functional test `med-ibgp-post-selection-removal` and interop scenario 62 both drive a raw export filter through the route-server rail after route selection.
-- No current normal BGP RIB-selected route-to-peer egress producer was found. `bgp-rib` records selected Loc-RIB state, but route-server and route-reflector plugins are the current peer egress producers.
+- The current ordinary producer is checkRouteBestChange to commitAdvertise and selectedDispatch.run, then SelectRoutes through the shared egress and final writer. The new ordinary test's baseline remains pending; its two EBGP candidates demonstrate Ze's preservation mechanism but do not establish the mixed IBGP/EBGP comparison condition. Mixed-candidate proof, semantic discrimination and foreign-peer scope remain separately owed.
 - This spec does not change best-path MED comparison.
 - This spec does not change any MED configuration syntax.
 - This spec does not address the website deployment failure.

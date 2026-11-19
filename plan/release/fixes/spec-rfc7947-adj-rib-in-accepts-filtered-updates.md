@@ -264,6 +264,136 @@ The existing SHOULD levels and gap annotations for `RFC7947-x-4` and
 `RFC7947-x-5` are unchanged by this test batch. No extraction sign-off or
 discrimination record is created for these defect probes.
 
+## Selected-path replay ordering investigation: 2026-11-16
+
+This is an unapproved design proposal, not an implemented repair or a test
+result. It addresses only delayed selected-path responses. The decision to
+disable route-server raw-import rewrites that introduce new native keys is
+unchanged; the received store must still retain the complete original input and its
+independent policy disposition. Invalidation cannot be attached only to the
+accepted post-import publication or the denial return branch.
+
+| Existing producer | Ordering consequence |
+|-------------------|----------------------|
+| `ribevents.RelayReplayPath`, `adj_rib_in.replayPathCommand` | Reads one explicitly named source path, then separately relays its answer. This is not a global best-path certificate. Missing paths answer a withdrawal with no received generation |
+| `forwardValidationWire`, `AdjRIBInManager.routeEligible`, `adjOutWrite.allow` | An old received MsgID can become an ineligible withdrawal; ordinary forwarded withdrawal ownership deliberately ignores that MsgID. A stale announcement must be discarded, not converted into authority to remove the newer same-source path |
+| `receivePublicationCut.wait`, `drainReceiveStore` | Publication completion must precede the store's applied-event drain. The latter alone covers only events already queued and neither operation fences a delayed response's later enqueue |
+| `recoveryAdmission.admit`, `adjOutOwed.noteAnnouncer` | Cold recovery has record/epoch/withdrawal-mover protection. Announcement movement deliberately allows the current decision then re-owes the key. That convergence contract is not a strict stale-response rejection guard |
+| `routeServer.replayValidation`, `routeReflector.runValidation` | RS currently performs the query synchronously on its live source worker; RR already has a separate joined validation worker. A slow query must not become a waiting item in the destination forward worker |
+| `fwdPool.dispatchOverflow`, native RS pending gates | A fully prepared group can enter the existing destination FIFO without waiting for its writer. Native forwarding checks overflow/channel debt and cannot overtake that admitted group |
+
+### Proposed smallest complete receipt
+
+Use one short-lived ticket per active source-path/destination query, linked to
+the existing source publication lifetime and destination Adj-RIB-Out lifetime.
+The ticket holds canonical native identity, ADD-PATH presence/value, captured
+source and destination Session identities, source generation/policy epoch,
+the captured destination owner/revision or explicit absence, and completion
+state. It retains no route population or attribute history. Sparse indices
+contain only active tickets and disappear when their requests settle. Reuse
+`fwdPathKeyFor` and registered framing/key functions. The typed-NLRI held map
+covers only body-judged families, prefix sets exist only for configured
+installed-count families, and the AIGP maps cover only AIGP paths: none is a
+general received-version inventory to extend for this purpose.
+Admit at most one active cold query per authenticated calling process, matching
+the single cold worker each current replay owner needs; a concurrent extra
+request receives an explicit busy refusal. Thus arbitrary requested keys cannot
+allocate an unbounded ticket set while responses are delayed.
+
+1. Register before the drain/query. Original received UPDATEs must advance
+   the source publication frontier before testing for an active ticket set,
+   then invalidate matching tickets before import, projection, selection or
+   either forwarding rail. Include withdrawals whose key currently has no
+   owner. Registration publishes the optional ticket set before sampling its
+   drain cut: an UPDATE that missed that set is already in the cut; a later
+   one sees and invalidates it. This handshake requires explicit race tests.
+   EOR/stale-generation retirement invalidates affected-family tickets; source
+   session and policy changes retain their existing identity fences.
+2. Wait for the captured publication cut, then use `drainReceiveStore` and
+   query the captured live store owner. Do not hold publication, source
+   dispatch, destination write/table or forward-worker locks during either
+   drain, RPC, eligibility lookup or export-filter execution. Preserve the
+   store process/connection identity across the drain and response.
+3. Prepare through ordinary eligibility, reflection/export and ownership
+   machinery. A source-pinned answer cannot replace a foreign or explicit
+   local owner merely because its source ticket is current: preserve that
+   owner or submit the candidate to the existing RIB election. A withdrawal
+   can act only on the captured matching source owner. Neither a zero MsgID
+   nor an absent entry supplies broader authority.
+4. Immediately before FIFO admission, compare the live source ticket under
+   its short publication lock and enqueue the fully owned prepared group
+   through `dispatchOverflow` before releasing that lock. No waiting
+   placeholder is queued. If newer original input won the lock, refuse the
+   old answer; otherwise subsequent input follows the admitted group through
+   the existing channel/overflow gates. Keep normal forwarding's lock order
+   (`aigp.dispatch` before `validationForwardMu`); never acquire these locks
+   while holding the ticket lock.
+5. Keep the destination ticket through final write admission and completion.
+   Under the existing `writeMu` then `adjOut.mu` order, reject it if any
+   intervening same-key decision changed its captured ownership/absence.
+   Invalidate on another source, local takeover, recovery/selection output
+   and validation withdrawal, including unheld withdrawals and owed merges,
+   rather than only committed advertisements. This sticky invalidation
+   prevents announce/withdraw/absence ABA. Unrelated keys do not invalidate
+   the ticket. The ordinary final eligibility/election rules still apply;
+   the original lookup does not lease a future RPKI or best-path verdict.
+6. Completion callbacks only publish a bounded result; they must not remove
+   ticket indices inline because stopped-pool admission can invoke them
+   synchronously under the source ticket lock. The cold owner unregisters
+   the exact ticket after locks are released, on every success, supersession,
+   cancellation and failure path. A later ticket for the same key must never
+   be removed by an earlier request's cleanup.
+
+### Cold owner, cancellation and truthful completion
+
+RS needs a separate lifecycle-owned, coalescing validation worker using the
+existing RR validation-queue pattern. Its source worker flushes prior live
+work, hands off the key without waiting and continues its live FIFO. RR reuses
+its existing worker. Both callbacks continue to enqueue and return; neither
+queries/drains the receive store on its SDK callback loop. The SDK serializes
+ordinary callbacks, so waiting there for its own applied-event barrier would
+deadlock. The source-policy callback's separate joined worker is the existing
+example of a truthful deferred response, not an extra route executor to reuse.
+
+The engine query operation must have one registered typed/JSON contract and
+return only after its own query and guarded admission/completion outcome, not
+immediately after handing work to a queue. Distinguish applied, superseded,
+refused and canceled outcomes. A superseded snapshot is not a forwarded route
+or completed peer-up page; the cold owner coalesces a fresh request or returns
+that explicit incomplete outcome. Settling validation/source-policy work must
+join this cold queue as well as the ordinary source FIFO. A hot key is retried
+after other pending keys, rather than monopolizing the worker.
+
+Tickets have the caller deadline and both captured session lifetimes. Peer
+retirement first seals admission and cancels linked tickets; the lifecycle
+joins their cold work only after releasing peer/session/write locks and waking
+the existing queue-disposal path. Cancel and join the plugin cold worker before
+releasing its plugin connection. No caller waits from the SDK callback loop,
+the destination forward worker or a recovery admission. A canceled queued
+item retains its canceled ticket until disposal, so it cannot write after its
+caller has reported failure. This lifecycle wiring is part of the proposal,
+not something the present `drainReceiveStore` helper already supplies.
+`fwdItem.done` alone is a release signal, not proof that output succeeded: the
+ticket needs the final writer's guarded decision and flush result before its
+completion can report applied. A verified unchanged current route may settle
+without another advertisement; a failed or superseded write may not.
+
+### Required deterministic probes before approval
+
+| Boundary | Required observations |
+|----------|-----------------------|
+| Delayed old announcement or missing-path answer | Hold the old response; complete newer same-source replacement or withdrawal; release it and require no overwrite, deletion or resurrection |
+| Foreign and local takeover | While the response is held, install another source's winner or explicit local route; old replay must spare its bytes and ownership |
+| No new source UPDATE | Apply validation withdrawal or another selected winner, join its actual destination decision, then release the old answer; the old source receipt must not restore it |
+| Absence ABA | Begin absent, announce and withdraw while the query is held, finish absent, then release old announcement; it must stay absent, including an unheld withdrawal |
+| Native/FIFO order and independence | Pause query without a forward-worker placeholder; unrelated destination traffic and cold recovery must complete. Exercise both registration/frontier race orders and a native live update racing guarded enqueue |
+| Lifecycle/completeness | Cancel before enqueue and after queue admission; retire/rebuild each endpoint and replace the store connection; join owners and require explicit incomplete outcomes, no late write and no retained ticket |
+| Both transports | Drive the same callback, drain, delayed answer and completion assertions through DirectBridge and forked RPC; retain useful current replay and unrelated-key controls |
+
+No producer, test, public API, RFC summary or conformance record was changed
+for this investigation. The spec remains in design and this proposal requires
+independent design review and actual TDD before implementation.
+
 ## Risks & Assumptions
 
 ### Assumptions

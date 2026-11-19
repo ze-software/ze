@@ -10,7 +10,7 @@ of the looking glass.
 |------|-------|
 | Machine | Thomas's Mac |
 | Branch | `lg-collector`, no upstream, twelve commits on top of `66654425e2` |
-| Spec | `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md`, status `verification` |
+| Spec | spec-lg-peer-history-origin-search-and-named-nodes, in `plan/post-release/features/` when this was written with status `verification`, closed on 2026-11-19 |
 | Why a branch | The session ran isolated from the shared checkout, so it developed and tested in a worktree. That departs from the rule that code is tested in the main checkout, and the spec says so (R-16) |
 | To land | `git rebase lg-collector` in the main checkout, by Thomas |
 

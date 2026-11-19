@@ -14,7 +14,7 @@ the context threshold before the last commits landed.
 | Based on | `c49fd96ac6`. `main` has since moved to `89d8dd6a9c` or later (laptop commits plus the amended feature spec) |
 | Spec | spec-lg-search-matches-what-the-pages-promise, closed on 2026-11-18 by its closure commits |
 | Owner order | Thomas ordered the implementation done in a worktree, so edits and test runs happen there |
-| Companion spec | `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md` on `main`, status `design`, with three choices waiting for Thomas |
+| Companion spec | spec-lg-peer-history-origin-search-and-named-nodes, in `plan/post-release/features/` on `main` when this was written, status `design`, with three choices waiting for Thomas; closed on 2026-11-19 |
 
 The Bash hook refuses, from a session entered into the worktree, any command
 that names git together with another checkout. Leave the worktree session

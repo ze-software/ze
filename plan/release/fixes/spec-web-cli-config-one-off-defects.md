@@ -1329,6 +1329,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `parser-refuses-a-form-its-producer-emits` | 2026-11-13 | web `/config/edit/` emitter and view routing |
 | `parser-refuses-a-form-its-producer-emits` | 2026-10-27 | TestDiscardDeletesNewlyAddedValue unknown `bgp listen` |
 | `package-red-not-reproduced` | 2026-10-27 | cli multi-key rename and batched load session records |
+| `per-request-state-on-a-shared-object` | 2026-11-19 | SSH editor: Update reads the editor while a dispatched commit mutates it |
 | `schema-constraint-not-enforced` | 2026-10-30 | leaf-list `range` ignored by `ParseTreeWithYANG` |
 | `per-request-state-on-a-shared-object` | 2026-10-30 | web completer shared across users, tree set per request |
 | `per-request-state-on-a-shared-object` | 2026-10-30 | `EditorManager.Tree` read after the session lock is released |
