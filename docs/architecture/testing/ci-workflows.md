@@ -287,7 +287,10 @@ Each nightly therefore also declares `workflow_dispatch`, which is the re-arm.
 
 `internal/le/workflowcheck/workflowcheck_test.go` pins the shape of these files.
 It asserts that `verify.yml` stays a push and pull_request gate whose only
-direct native action is `verify list`, that every verify shard lifts the
+direct native action is `verify list`, that a shard splits each listed stage
+name on spaces and slashes into exactly the command words and arguments the
+stage declares (a multi-word command such as `go lint` handed over as one word
+is an unknown command to le), that every verify shard lifts the
 user-namespace restriction and loads the L2TP modules before its first stage,
 that a shard keeps le's build caches as described above, that every workflow
 file parses as YAML,

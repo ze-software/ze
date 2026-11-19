@@ -353,8 +353,11 @@ jobs:
           test -s "$SHARD_LIST" || exit 1
 
           # Keep running after a red action so the shard reports every failure.
+          # A stage name is its command words, then its arguments after a
+          # slash ("go lint/run", "verify deps/unit-cached"), and le takes
+          # every word as its own argument, so the line splits on both.
           status=0
-          while IFS=/ read -r -a action; do
+          while IFS=' /' read -r -a action; do
             printf '==> ./le'
             printf ' %q' "${action[@]}"
             printf '\n'

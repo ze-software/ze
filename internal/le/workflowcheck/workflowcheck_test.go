@@ -512,10 +512,36 @@ func TestEachShardRunsOnePieceOfTheStaticcheckMatrix(t *testing.T) {
 	}
 }
 
+// shardLoopSeparators reads the IFS the shard loop splits each stage line with.
+var shardLoopSeparators = regexp.MustCompile(`while IFS='([^']*)' read -r -a action`)
+
+// TestVerifyShardSplitsEachStageIntoItsCommandWords proves the shard loop hands
+// le the argv each stage declares. Method: read the separators the loop's IFS
+// names, split every full-population stage name with them as bash does, and
+// compare with the stage's command words followed by its arguments. PREVENTS:
+// a multi-word command ("go lint") reaching le as one word, which le refuses
+// as an unknown command, so the shard runs nothing and every stage is red.
+func TestVerifyShardSplitsEachStageIntoItsCommandWords(t *testing.T) {
+	match := shardLoopSeparators.FindStringSubmatch(workflowSource(t, "verify.yml"))
+	if match == nil {
+		t.Fatal("verify.yml no longer reads each stage with `while IFS='<separators>' read -r -a action`")
+	}
+	separators := match[1]
+	for _, stage := range verifyengine.StagesForMode(verifyengine.Mode) {
+		got := strings.FieldsFunc(stage.Identity.Name, func(r rune) bool {
+			return strings.ContainsRune(separators, r)
+		})
+		want := append(strings.Fields(stage.Identity.Command), stage.Identity.Args...)
+		if !slices.Equal(got, want) {
+			t.Errorf("stage %q splits into %q with IFS %q, want %q",
+				stage.Identity.Name, got, separators, want)
+		}
+	}
+}
+
 func TestVerifyShardRunsNativeActionsAndContinuesAfterFailures(t *testing.T) {
 	source := workflowSource(t, "verify.yml")
 	for _, required := range []string{
-		`while IFS=/ read -r -a action`,
 		`./le "${action[@]}" || status=$?`,
 		`exit "$status"`,
 		`ZE_VERIFY_MODE: "1"`,
