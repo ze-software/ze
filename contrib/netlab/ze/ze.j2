@@ -80,15 +80,6 @@ plugin {
 	internal bgp-rib {
 		use bgp-rib;
 	}
-{#  bgp-rib stores routes and elects the best one, and re-advertises nothing.
-    bgp-rs is what sends a route learned from one peer to the others, so a node
-    between two sessions needs it for the far side to learn anything. #}
-	internal bgp-rs {
-		use bgp-rs;
-	}
-{#  bgp-rs replays to a peer that comes up later what the others announced
-    earlier, and it reads that from bgp-adj-rib-in. netlab starts the nodes
-    together, so one session is always later than another. #}
 	internal bgp-adj-rib-in {
 		use bgp-adj-rib-in;
 	}
@@ -257,33 +248,24 @@ bgp {
 {% endif %}
 			}
 		}
-{% if n.type == 'ebgp' %}
-{#      RFC 8212 Section 3: an EBGP direction with no explicit policy passes no
-        route, and a netlab lab validates with a ping across these sessions.
-        netlab states no policy of its own, so both directions accept. #}
+{#      Ze requires export policy for learned routes on every session. RFC 8212
+        also requires import policy on eBGP. The lab permits routes in both
+        directions so the loopbacks can reach each other. #}
 		filter {
+{% if n.type == 'ebgp' %}
 			import {
 				final accept;
 			}
+{% endif %}
 			export {
 				final accept;
 			}
 		}
-{% endif %}
-{#      A peer that attaches no process is fed nothing and may announce nothing.
-        bgp-rib stores this peer's UPDATEs and elects the best route.
-        bgp-rs forwards what one peer sent to the other peers: without it a
-        node passes on only its own prefixes, and a lab with a node between
-        two sessions cannot ping across it. redistribute-orchestrator carries
-        the connected, OSPF and IS-IS prefixes the block below imports. Without
-        these blocks the session comes up, the ping validation fails, and
-        nothing says why. #}
+{#      This peer is both a source of learned routes and a destination for
+        eligible selected routes. Give the same bgp-rib process both sets of
+        grants so it can learn routes and advertise them across the lab. #}
 		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-rs {
-			receive [ update-received state open-received refresh ]
+			receive [ update-received state refresh update-sent ]
 			send [ update ]
 		}
 		attach process bgp-adj-rib-in {
