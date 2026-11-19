@@ -89,7 +89,7 @@ func failureHeroView(request *PageRequest, err error) StateHeroView {
 		// it, which the operator copies to the device.
 		view.Kind = HeroRelayRefused
 		view.Line = refusal.Fix()
-		view.LineName = "the configuration line"
+		view.LineName = heroLineConfiguration
 	case FailureUnsupported:
 		view.Kind = HeroNotSupported
 		view.Action = deviceAction(request, tabDeviceSystem, "Show the device's version", iconDevice)
@@ -161,6 +161,17 @@ const (
 // parseTaskTab answers only a named tab, so only a defect reaches it.
 const bugTaskTab = "BUG: fleetui: the task panel was asked for a tab it does not have"
 
+// heroLineConfiguration names the line a relay refused state shows: the
+// configuration line that grants the relay.
+const heroLineConfiguration = "the configuration line"
+
+// The tabs of a task panel, as its address names them, that share their text
+// with a task state.
+const (
+	taskTabKeyRunning   = "running"
+	taskTabKeySucceeded = "succeeded"
+)
+
 // The tabs of a device a state links to.
 const (
 	tabDeviceTasks  = "tasks"
@@ -172,7 +183,7 @@ const (
 const taskPanelRowsMax = 20
 
 var (
-	taskTabKeys   = []string{enumKeyUnspecified, "running", "succeeded", "failed", "all"}
+	taskTabKeys   = []string{enumKeyUnspecified, taskTabKeyRunning, taskTabKeySucceeded, "failed", "all"}
 	taskTabLabels = []string{enumWordUnspecified, enumWordRunning, enumWordSucceeded, enumWordFailed, "All"}
 	taskTabEmpty  = []GoodNewsView{
 		{},

@@ -29,6 +29,8 @@ const (
 	galleryEdit        = "Edit"
 	galleryLabelSite   = "site"
 	galleryLabelRole   = "role"
+	gallerySiteLondon  = "lon"
+	galleryRoleEdge    = "edge"
 	galleryMemory      = "Memory"
 	galleryTotal       = "Total"
 	galleryFieldAction = "action"
@@ -83,7 +85,7 @@ func galleryFiltered(field, value string) string {
 // galleryLondonEdge is the filter of the gallery's saved filter: the devices
 // of site lon with role edge.
 func galleryLondonEdge() string {
-	return SetFilterTerm(SetFilterTerm("", galleryLabelSite, "lon"), galleryLabelRole, "edge")
+	return SetFilterTerm(SetFilterTerm("", galleryLabelSite, gallerySiteLondon), galleryLabelRole, galleryRoleEdge)
 }
 
 // GalleryMarksView holds the icons, the state marks and the small parts.
@@ -189,8 +191,8 @@ func NewGalleryView() GalleryView {
 
 func galleryTags() []TagView {
 	return []TagView{
-		{Key: galleryLabelSite, Value: "lon"},
-		{Key: galleryLabelRole, Value: "edge"},
+		{Key: galleryLabelSite, Value: gallerySiteLondon},
+		{Key: galleryLabelRole, Value: galleryRoleEdge},
 		{Key: "customer", Value: "acme"},
 		{Key: "model", Value: "zx-4"},
 		{Key: "rack", Value: "r12"},
@@ -226,8 +228,8 @@ func galleryMarks() *GalleryMarksView {
 			{Icon: iconDevice, Status: DisplayStatus(DisplayStateOffline), Marked: true},
 		},
 		Tags: []TagView{
-			{Key: galleryLabelSite, Value: "lon"},
-			{Key: galleryLabelRole, Value: "edge", Remove: &ActionView{
+			{Key: galleryLabelSite, Value: gallerySiteLondon},
+			{Key: galleryLabelRole, Value: galleryRoleEdge, Remove: &ActionView{
 				Label: "Remove role=edge", Icon: glyphClose, Form: galleryForm, Name: "remove-label", Value: "role=edge",
 			}},
 		},
@@ -275,7 +277,7 @@ func galleryControls() *GalleryControlsView {
 			disabled,
 			destructive,
 		},
-		Primary: ActionView{Label: "Search", Icon: "search", Href: galleryDevicesHref},
+		Primary: ActionView{Label: "Search", Icon: glyphSearch, Href: galleryDevicesHref},
 		Icon:    ActionView{Label: "Open the console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 		Menu: MenuView{
 			Label: "Actions",
@@ -380,7 +382,7 @@ func galleryQuickInfo() QuickInfoView {
 			{Label: wordConfigTitle, Status: ConfigStatus(ConfigStateInSync)},
 			{Label: devicesWordGroup, Text: "lon / edge", Icon: iconGroup, Href: Address{
 				Kind: ObjectGroup, Tab: TabDashboard,
-				Group: []GroupLevel{{Key: galleryLabelSite, Value: "lon"}, {Key: galleryLabelRole, Value: "edge"}},
+				Group: []GroupLevel{{Key: galleryLabelSite, Value: gallerySiteLondon}, {Key: galleryLabelRole, Value: galleryRoleEdge}},
 			}.String()},
 			{Label: galleryAddressName, Text: galleryAddress, Mono: true, Copy: true},
 			{Label: devicesWordUptime, Text: "41 days"},
@@ -503,7 +505,7 @@ func galleryQuery(id, text, matches, refusal string) *QueryRowView {
 		Matches:     matches, Refusal: refusal,
 		Hidden: []HiddenFieldView{{Name: "sort", Value: "name"}},
 		Menus: []MenuView{{
-			Label: galleryState, Icon: "filter",
+			Label: galleryState, Icon: glyphFilter,
 			Items: []ActionView{
 				{Label: enumWordDown, Href: galleryFiltered(fieldState, DisplayStateDown.Key())},
 				{Label: enumWordDegraded, Href: galleryFiltered(fieldState, DisplayStateDegraded.Key())},
@@ -513,12 +515,12 @@ func galleryQuery(id, text, matches, refusal string) *QueryRowView {
 			Label: wordFilters,
 			Items: []ActionView{{Label: "London edge", Href: galleryDevicesView(ViewParams{Filter: galleryLondonEdge()})}},
 		},
-		Save: &ActionView{Label: "Save", Icon: "save", Form: galleryForm, Name: galleryFieldAction, Value: "save-filter"},
+		Save: &ActionView{Label: "Save", Icon: glyphSave, Form: galleryForm, Name: galleryFieldAction, Value: "save-filter"},
 	}
 }
 
 func galleryPager(total, number int) *PagerView {
-	london := SetFilterTerm("", galleryLabelSite, "lon")
+	london := SetFilterTerm("", galleryLabelSite, gallerySiteLondon)
 	first := galleryDevicesView(ViewParams{Filter: london})
 	last := galleryDevicesView(ViewParams{Filter: london, Page: 3})
 
@@ -653,13 +655,13 @@ func galleryStates() *GalleryStatesView {
 			{
 				Kind: HeroNotSupported, Sentence: "This device runs a version that does not answer this view",
 				Detail: "edge-lon-04 runs 1.3.9.",
-				Action: &ActionView{Label: "Show the device's version", Icon: "info", Href: galleryDeviceTab(galleryDevice, tabDeviceSystem)},
+				Action: &ActionView{Label: "Show the device's version", Icon: glyphInfo, Href: galleryDeviceTab(galleryDevice, tabDeviceSystem)},
 			},
 			{
 				Kind:     HeroRelayRefused,
 				Sentence: "relay refused: no profile is granted to hub hub-lon-01 on this device",
 				Detail:   "Add this line to the device's configuration to grant the relay:",
-				Line:     "fleet { relay { profile read-only; } }", LineName: "the configuration line",
+				Line:     "fleet { relay { profile read-only; } }", LineName: heroLineConfiguration,
 			},
 			{
 				Kind: HeroUnauthorized, Sentence: "Your profile does not allow this view",

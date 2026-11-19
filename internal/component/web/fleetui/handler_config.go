@@ -275,10 +275,13 @@ func configStateRows(request *PageRequest, device *DeviceView) []ValueView {
 	return rows
 }
 
+// configVersionNone is the word the state line writes for no version.
+const configVersionNone = "none"
+
 // versionText answers a version as the state line writes it.
 func versionText(version string) string {
 	if version == "" {
-		return "none"
+		return configVersionNone
 	}
 
 	return version

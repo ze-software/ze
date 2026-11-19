@@ -35,8 +35,13 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// objectKeyDevice is the key of the device object in an address.
-const objectKeyDevice = "device"
+// The keys of the objects in an address that more than one place names.
+const (
+	objectKeyEstate = "estate"
+	objectKeyGroup  = "group"
+	objectKeyDevice = "device"
+	objectKeyTasks  = "tasks"
+)
 
 // The fixed parts of the fleet addresses under fleetPath.
 const (
@@ -87,7 +92,7 @@ const (
 	ObjectAdmin
 )
 
-var objectKindSegments = []string{enumKeyUnspecified, "estate", "group", objectKeyDevice, "tasks", "admin"}
+var objectKindSegments = []string{enumKeyUnspecified, objectKeyEstate, objectKeyGroup, objectKeyDevice, objectKeyTasks, "admin"}
 
 // String answers the kind's first path segment.
 func (kind ObjectKind) String() string {

@@ -311,7 +311,7 @@ func devicesQueryRow(request *PageRequest, scope []DeviceView, base ViewParams, 
 		},
 		Saved: &saved,
 		Save: &ActionView{
-			Label: "Save", Icon: "save", Form: devicesFormID, Name: devicesFieldAction, Value: devicesActionFilterSave,
+			Label: "Save", Icon: glyphSave, Form: devicesFormID, Name: devicesFieldAction, Value: devicesActionFilterSave,
 		},
 	}
 }
@@ -329,7 +329,7 @@ func devicesStateMenu(request *PageRequest, base ViewParams) MenuView {
 		Label: "Any state", Href: devicesFilterLink(request, base, RemoveFilterTerm(base.Filter, fieldState)),
 	})
 
-	return MenuView{Label: devicesWordState, Icon: "filter", Items: items}
+	return MenuView{Label: devicesWordState, Icon: glyphFilter, Items: items}
 }
 
 // devicesLabelMenu is the assisted Label menu: one item per label value in
@@ -409,7 +409,7 @@ func devicesSavedMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 		items = append(items, ActionView{Label: filter.Name, Href: devicesFilterLink(request, base, filter.Filter)})
 	}
 
-	return MenuView{Label: wordFilters, Icon: "save", Items: items}
+	return MenuView{Label: wordFilters, Icon: glyphSave, Items: items}
 }
 
 // devicesBulk fills the selection of the table: the form the checkboxes

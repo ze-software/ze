@@ -632,7 +632,7 @@ func activityQuery(request *PageRequest, id, placeholder, matches, refusal strin
 // page's address with the term written into its filter (SetFilterTerm).
 // words holds the word shown for each value, in the same order.
 func activityFilterMenu(request *PageRequest, label, field string, values, words []string) MenuView {
-	menu := MenuView{Label: label, Icon: "filter", Items: make([]ActionView, 0, len(values))}
+	menu := MenuView{Label: label, Icon: glyphFilter, Items: make([]ActionView, 0, len(values))}
 
 	for index, value := range values {
 		target := request.Address

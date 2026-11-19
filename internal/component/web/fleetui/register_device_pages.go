@@ -211,7 +211,7 @@ func carriedFields(address Address, drop ...string) []HiddenFieldView {
 // filterMenu answers an assisted filter menu: one item per value, each
 // opening the table with the term written into its filter.
 func filterMenu(address Address, label, field string, values []string) MenuView {
-	menu := MenuView{Label: label, Icon: "filter", Items: make([]ActionView, 0, len(values))}
+	menu := MenuView{Label: label, Icon: glyphFilter, Items: make([]ActionView, 0, len(values))}
 	for _, value := range values {
 		target := address
 		target.View.Filter = SetFilterTerm(address.View.Filter, field, value)

@@ -19,8 +19,8 @@ func IconNames() []string {
 		"close", "check", "alert", "info", "error", "edit", "trash", "filter", "first", "prev",
 		"next", "last", "sort-asc", "sort-desc", "terminal", "config", "chart", "retry", "save",
 		ColumnKindText.Icon(), ColumnKindState.Icon(), ColumnKindAddress.Icon(), ColumnKindNumber.Icon(), ColumnKindTime.Icon(), ColumnKindTag.Icon(),
-		"mark-ok", "mark-warning", "mark-error", "mark-offline", "mark-unknown", "mark-info",
-		"mark-progress",
+		glyphMarkOK, glyphMarkWarning, glyphMarkError, glyphMarkOffline, glyphMarkUnknown, glyphMarkInfo,
+		glyphMarkProgress,
 	}
 }
 
@@ -130,25 +130,25 @@ templ Icon(name string) {
 				<path d="M8 4.5V8l2.5 1.5"></path>
 			case ColumnKindTag.Icon():
 				<path d="M2 2h5.5L14 8.5 8.5 14 2 7.5zM5 5h.01"></path>
-			case "mark-ok":
+			case glyphMarkOK:
 				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
 				<path class="fleet-icon-cut" d="m4.8 8.3 2.2 2.2 4.2-4.6"></path>
-			case "mark-warning":
+			case glyphMarkWarning:
 				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
 				<path class="fleet-icon-cut" d="M8 4.2v4.3M8 11.3h.01"></path>
-			case "mark-error":
+			case glyphMarkError:
 				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
 				<path class="fleet-icon-cut" d="m5.4 5.4 5.2 5.2M10.6 5.4l-5.2 5.2"></path>
-			case "mark-offline":
+			case glyphMarkOffline:
 				<circle cx="8" cy="8" r="6.2"></circle>
 				<path d="M5 8h6"></path>
-			case "mark-unknown":
+			case glyphMarkUnknown:
 				<circle cx="8" cy="8" r="6.2"></circle>
 				<path d="M6.3 6.3a1.8 1.8 0 1 1 2.5 1.7c-.5.3-.8.6-.8 1.2M8 11.3h.01"></path>
-			case "mark-info":
+			case glyphMarkInfo:
 				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
 				<path class="fleet-icon-cut" d="M8 7.3v4M8 4.7h.01"></path>
-			case "mark-progress":
+			case glyphMarkProgress:
 				<circle class="fleet-icon-faint" cx="8" cy="8" r="6.2"></circle>
 				<path d="M8 1.8A6.2 6.2 0 0 1 14.2 8"></path>
 			default:

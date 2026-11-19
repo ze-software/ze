@@ -67,8 +67,11 @@ const (
 	FailureUnauthorized
 )
 
+// failureWordOffline is the word of the offline failure.
+const failureWordOffline = "offline"
+
 var failureWords = []string{
-	enumKeyUnspecified, "request failed", "not found", "offline", "relay refused",
+	enumKeyUnspecified, "request failed", "not found", failureWordOffline, "relay refused",
 	"not supported", "no answer in time", "unauthorized",
 }
 

@@ -140,11 +140,14 @@ func clockRows(ctx context.Context, request *PageRequest, name string) []ValueVi
 	}
 }
 
+// systemOffsetNone is the word written for a clock that agrees with the hub's.
+const systemOffsetNone = "none"
+
 // offsetText writes how far the device's clock is from the hub's.
 func offsetText(offset time.Duration) string {
 	offset = offset.Round(time.Millisecond)
 	if offset == 0 {
-		return "none"
+		return systemOffsetNone
 	}
 	if offset > 0 {
 		return offset.String() + " ahead of the hub"

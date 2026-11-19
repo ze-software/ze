@@ -75,9 +75,12 @@ const (
 	SortMarkDescending
 )
 
+// ariaSortNone is the aria-sort value of a column the table is not sorted by.
+const ariaSortNone = "none"
+
 var (
-	sortMarkWords = []string{"none", "ascending", "descending"}
-	sortMarkIcons = []string{"", "sort-asc", "sort-desc"}
+	sortMarkWords = []string{ariaSortNone, "ascending", "descending"}
+	sortMarkIcons = []string{"", glyphSortAsc, glyphSortDesc}
 )
 
 // Aria answers the mark as the aria-sort value of its header cell.
@@ -326,10 +329,10 @@ func pagerSteps(v PagerView) []pagerStepView {
 	previous, next := PagerHasPrevious(v.Page), PagerHasNext(v.Page)
 
 	return []pagerStepView{
-		{Href: v.FirstHref, Icon: "first", Name: "First page", Enabled: previous},
-		{Href: v.PrevHref, Icon: "prev", Name: "Previous page", Enabled: previous},
-		{Href: v.NextHref, Icon: "next", Name: "Next page", Enabled: next},
-		{Href: v.LastHref, Icon: "last", Name: "Last page", Enabled: next},
+		{Href: v.FirstHref, Icon: glyphFirst, Name: "First page", Enabled: previous},
+		{Href: v.PrevHref, Icon: glyphPrev, Name: "Previous page", Enabled: previous},
+		{Href: v.NextHref, Icon: glyphNext, Name: "Next page", Enabled: next},
+		{Href: v.LastHref, Icon: glyphLast, Name: "Last page", Enabled: next},
 	}
 }
 

@@ -50,11 +50,18 @@ const (
 	fieldSource = "source"
 )
 
+// The levels, in the words devices use for them, that share their text with
+// other vocabularies.
+const (
+	logLevelWarning = "warning"
+	logLevelError   = "error"
+)
+
 // The levels, in the words devices use for them, that the Warnings and the
 // Errors sub-tabs keep.
 var (
-	warningLevels = []string{"warn", "warning"}
-	errorLevels   = []string{"error", "err", "crit", "critical", logSeverityAlert, "emerg", "fatal"}
+	warningLevels = []string{"warn", logLevelWarning}
+	errorLevels   = []string{logLevelError, "err", "crit", "critical", logSeverityAlert, "emerg", "fatal"}
 )
 
 // logFilters is the filter grammar of the log table. registerLogTable fills

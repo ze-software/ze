@@ -76,10 +76,10 @@ var regionNames = []struct {
 	region regionSet
 	name   string
 }{
-	{regionTree, "tree"},
-	{regionContent, "content"},
-	{regionTasks, "tasks"},
-	{regionHeader, "header"},
+	{regionTree, fragmentTree},
+	{regionContent, fragmentContent},
+	{regionTasks, fragmentTasks},
+	{regionHeader, fragmentHeader},
 }
 
 // frame answers the server-sent event that names the regions of the set. The

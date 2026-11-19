@@ -296,7 +296,7 @@ func interfaceRow(address Address, row *Interface) RowView {
 		Name:    row.Name,
 		EyeHref: openRowAddress(address, row.Name),
 		Opened:  address.View.Row == row.Name,
-		Menu:    &MenuView{Label: "Tools for " + row.Name, Icon: "dots", Items: interfaceTools(row.Name)},
+		Menu:    &MenuView{Label: "Tools for " + row.Name, Icon: glyphDots, Items: interfaceTools(row.Name)},
 		Cells: []CellView{
 			MonoCell(row.Name),
 			TextCell(row.Kind),

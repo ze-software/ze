@@ -29,8 +29,8 @@ func IconNames() []string {
 		"close", "check", "alert", "info", "error", "edit", "trash", "filter", "first", "prev",
 		"next", "last", "sort-asc", "sort-desc", "terminal", "config", "chart", "retry", "save",
 		ColumnKindText.Icon(), ColumnKindState.Icon(), ColumnKindAddress.Icon(), ColumnKindNumber.Icon(), ColumnKindTime.Icon(), ColumnKindTag.Icon(),
-		"mark-ok", "mark-warning", "mark-error", "mark-offline", "mark-unknown", "mark-info",
-		"mark-progress",
+		glyphMarkOK, glyphMarkWarning, glyphMarkError, glyphMarkOffline, glyphMarkUnknown, glyphMarkInfo,
+		glyphMarkProgress,
 	}
 }
 
@@ -309,37 +309,37 @@ func Icon(name string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-ok":
+		case glyphMarkOK:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"currentColor\" stroke=\"none\"></circle> <path class=\"fleet-icon-cut\" d=\"m4.8 8.3 2.2 2.2 4.2-4.6\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-warning":
+		case glyphMarkWarning:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"currentColor\" stroke=\"none\"></circle> <path class=\"fleet-icon-cut\" d=\"M8 4.2v4.3M8 11.3h.01\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-error":
+		case glyphMarkError:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"currentColor\" stroke=\"none\"></circle> <path class=\"fleet-icon-cut\" d=\"m5.4 5.4 5.2 5.2M10.6 5.4l-5.2 5.2\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-offline":
+		case glyphMarkOffline:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<circle cx=\"8\" cy=\"8\" r=\"6.2\"></circle> <path d=\"M5 8h6\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-unknown":
+		case glyphMarkUnknown:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<circle cx=\"8\" cy=\"8\" r=\"6.2\"></circle> <path d=\"M6.3 6.3a1.8 1.8 0 1 1 2.5 1.7c-.5.3-.8.6-.8 1.2M8 11.3h.01\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-info":
+		case glyphMarkInfo:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"currentColor\" stroke=\"none\"></circle> <path class=\"fleet-icon-cut\" d=\"M8 7.3v4M8 4.7h.01\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "mark-progress":
+		case glyphMarkProgress:
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<circle class=\"fleet-icon-faint\" cx=\"8\" cy=\"8\" r=\"6.2\"></circle> <path d=\"M8 1.8A6.2 6.2 0 0 1 14.2 8\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

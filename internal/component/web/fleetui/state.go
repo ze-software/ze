@@ -23,6 +23,10 @@ const (
 	enumWordPending     = "Pending"
 	enumKeyPending      = "pending"
 	enumKeyFailed       = "failed"
+	enumKeyRunning      = "running"
+	enumKeySucceeded    = "succeeded"
+	enumKeyOffline      = "offline"
+	enumKeyWarning      = "warning"
 	enumWordFailed      = "Failed"
 	enumWordDown        = "Down"
 	enumWordDegraded    = "Degraded"
@@ -82,7 +86,7 @@ const (
 
 var (
 	displayStateWords = []string{enumWordUnspecified, "Offline", "Diverged", enumWordDown, enumWordDegraded, "Healthy", "Unknown"}
-	displayStateKeys  = []string{enumKeyUnspecified, "offline", "diverged", "down", "degraded", "healthy", "unknown"}
+	displayStateKeys  = []string{enumKeyUnspecified, enumKeyOffline, "diverged", "down", "degraded", "healthy", "unknown"}
 	// displayStateSeverities ranks the states for sorting, the worst highest:
 	// down, offline, diverged, degraded, unknown, healthy. It follows the
 	// alarm severities: a component down and a device offline are critical,
@@ -307,8 +311,8 @@ var (
 		enumWordSucceeded, enumWordFailed, "Canceled", "Partly failed",
 	}
 	auditResultKeys = []string{
-		enumKeyUnspecified, "recorded", "started", enumKeyPending, "running", "paused",
-		"succeeded", enumKeyFailed, "canceled", "partly-failed",
+		enumKeyUnspecified, "recorded", "started", enumKeyPending, enumKeyRunning, "paused",
+		enumKeySucceeded, enumKeyFailed, "canceled", "partly-failed",
 	}
 )
 
@@ -355,7 +359,7 @@ const (
 
 var (
 	alarmSeverityWords = []string{enumWordUnspecified, "Critical", "Warning", "Informational"}
-	alarmSeverityKeys  = []string{enumKeyUnspecified, "critical", "warning", "informational"}
+	alarmSeverityKeys  = []string{enumKeyUnspecified, "critical", enumKeyWarning, "informational"}
 )
 
 // String answers the word a page writes beside the severity's icon.
@@ -401,7 +405,7 @@ const (
 
 var (
 	taskStateWords = []string{enumWordUnspecified, enumWordPending, enumWordRunning, enumWordSucceeded, enumWordFailed, "Canceled", "Partly failed"}
-	taskStateKeys  = []string{enumKeyUnspecified, enumKeyPending, "running", "succeeded", enumKeyFailed, "canceled", "partly-failed"}
+	taskStateKeys  = []string{enumKeyUnspecified, enumKeyPending, enumKeyRunning, enumKeySucceeded, enumKeyFailed, "canceled", "partly-failed"}
 	// taskStateActive marks the states of a task that is not over: pending
 	// and running.
 	taskStateActive = []bool{false, true, true, false, false, false, false}

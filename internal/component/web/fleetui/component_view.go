@@ -40,11 +40,18 @@ const (
 	ToneProgress
 )
 
+// The tone names the stylesheet's classes share with other vocabularies of
+// the same text.
+const (
+	toneKeyWarning = "warning"
+	toneKeyError   = "error"
+)
+
 var (
-	toneKeys  = []string{"unspecified", "neutral", "muted", "accent", "success", "warning", "error", "progress"}
+	toneKeys  = []string{enumKeyUnspecified, "neutral", "muted", "accent", "success", toneKeyWarning, toneKeyError, "progress"}
 	toneMarks = []string{
-		"mark-unknown", "mark-unknown", "mark-offline", "mark-info",
-		"mark-ok", "mark-warning", "mark-error", "mark-progress",
+		glyphMarkUnknown, glyphMarkUnknown, glyphMarkOffline, glyphMarkInfo,
+		glyphMarkOK, glyphMarkWarning, glyphMarkError, glyphMarkProgress,
 	}
 )
 
@@ -214,12 +221,30 @@ type MenuView struct {
 // The icon names the Go files of the components use more than once. Every
 // name Icon draws is listed by IconNames.
 const (
-	glyphPlus     = "plus"
-	glyphEdit     = "edit"
-	glyphTrash    = "trash"
-	glyphTerminal = "terminal"
-	glyphRetry    = "retry"
-	glyphClose    = "close"
+	glyphPlus         = "plus"
+	glyphEdit         = "edit"
+	glyphTrash        = "trash"
+	glyphTerminal     = "terminal"
+	glyphRetry        = "retry"
+	glyphClose        = "close"
+	glyphSearch       = "search"
+	glyphFilter       = "filter"
+	glyphSave         = "save"
+	glyphInfo         = "info"
+	glyphDots         = "dots"
+	glyphFirst        = "first"
+	glyphPrev         = "prev"
+	glyphNext         = "next"
+	glyphLast         = "last"
+	glyphSortAsc      = "sort-asc"
+	glyphSortDesc     = "sort-desc"
+	glyphMarkInfo     = "mark-info"
+	glyphMarkError    = "mark-error"
+	glyphMarkOK       = "mark-ok"
+	glyphMarkOffline  = "mark-offline"
+	glyphMarkWarning  = "mark-warning"
+	glyphMarkUnknown  = "mark-unknown"
+	glyphMarkProgress = "mark-progress"
 )
 
 // widthPercentMax is the widest a bar is drawn: the whole of its track.

@@ -73,7 +73,7 @@ func estatePrimary(request *PageRequest) (ActionView, bool) {
 	}
 	target := Address{Kind: ObjectAdmin, Tab: tabAdminDevices, View: ViewParams{TreeView: request.Address.View.TreeView}}
 
-	return ActionView{Label: wordAddDevice, Icon: "plus", Href: target.String()}, true
+	return ActionView{Label: wordAddDevice, Icon: glyphPlus, Href: target.String()}, true
 }
 
 // estateDevicesHref answers the estate's devices table narrowed by filter.
