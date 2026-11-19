@@ -373,6 +373,13 @@ target namespace's CAP_NET_ADMIN permission, and transfers its held native
 reference into the file before the usual queued-packet handoff. Unregister or
 reconnect cannot rebind that file to a replacement channel.
 
+The query can return `EBUSY` before filling its reply if the channel semaphore
+is busy. Capture can return `EBUSY` before changing the file binding if the PPP
+mutex is busy or the destination already has a binding. The kernel uses
+trylocks under the transport socket lock to avoid waiting across the PPP to
+RTNL lock order. Ze retries only on the retained original socket and its still
+private, freshly opened destination file, which no other caller can bind.
+
 The same peer layout supplies the original creator-unit file to
 `PPPIOCCONNECTOWNER`/`PPPIOCDISCONNECTOWNER`, and the retained original
 peer-channel file to `PPPIOCBRIDGEOWNER`/`PPPIOCUNBRIDGEOWNER`.

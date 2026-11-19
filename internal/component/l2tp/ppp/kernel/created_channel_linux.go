@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -20,6 +21,8 @@ const (
 	pppiocAttChanOwner        = 0x4010742d
 	pppTransportOwnerABI      = 1
 	pppTransportOwnerFeatures = uint32(1<<8 | 1<<6 | 1<<7)
+	channelCaptureRetryLimit  = 4
+	channelCaptureRetryDelay  = 20 * time.Millisecond
 )
 
 // These native-endian UAPI records have only 32-bit fields: sizes20/16, align4.
@@ -44,7 +47,8 @@ type pppTransportCapture struct {
 // while the original kernel po->chan is captured into a fresh unbound file.
 // The input is never closed, duplicated or reconstructed from its descriptor.
 // Every nonnil result owns its partial file and MUST be closed even on error.
-// No legacy ioctl, numeric lookup, recheck or unsupported-kernel fallback runs.
+// Only a pre-bind EBUSY can retry on the retained files. No legacy ioctl,
+// numeric lookup, identity recheck or unsupported-kernel fallback runs.
 func CreatePPPChannel(pppox *os.File) (channel *CreatedChannel, err error) {
 	if pppox == nil {
 		return nil, errors.New("ppp: missing original PPPoX socket file")
@@ -64,7 +68,9 @@ func CreatePPPChannel(pppox *os.File) (channel *CreatedChannel, err error) {
 			}
 		}
 	}()
+	sourceLeased := false
 	leaseErr := source.Control(func(sourceFD uintptr) {
+		sourceLeased = true
 		// Open before SIOCGSKNS so descriptor0 can be the actual fresh file.
 		file, openErr := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
 		if openErr != nil {
@@ -83,19 +89,57 @@ func CreatePPPChannel(pppox *os.File) (channel *CreatedChannel, err error) {
 			return
 		}
 		targetErr = target.Control(func(targetFD uintptr) {
-			operationErr = captureOriginalPPPChannel(int(sourceFD), int(targetFD), queryPPPTransportOwner, capturePPPTransportOwner)
+			operationErr = captureFreshPPPChannel(int(sourceFD), int(targetFD), queryPPPTransportOwner, capturePPPTransportOwner, time.Sleep)
 		})
 		operationErr = errors.Join(operationErr, targetErr)
 	})
-	if err = errors.Join(operationErr, leaseErr); err != nil {
+	if leaseErr != nil && !sourceLeased {
+		// On Linux a nonnil os.File Control returns before its callback only
+		// when its descriptor is closing. RawControl skips os.File's usual
+		// conversion to os.ErrClosed, so expose both causes here.
+		return nil, fmt.Errorf("ppp: original PPPoX socket lease: %w (%w)", os.ErrClosed, leaseErr)
+	}
+	if err := errors.Join(operationErr, leaseErr); err != nil {
 		return channel, err
 	}
 	// Both leases have ended. There is no backend/network wait inside capture.
-	if err = channel.poll(channel.file); err != nil {
+	if err := channel.poll(channel.file); err != nil {
 		return channel, err
 	}
 	channel.ready = true
 	return channel, nil
+}
+
+// captureFreshPPPChannel requires leases on the original socket and on a fresh,
+// private destination file that has never been bound or exposed to another caller.
+// The kernel returns query EBUSY before writing the reply. Attach EBUSY means
+// lock contention here because nobody else can bind the fresh destination.
+// Both ioctl calls release the socket lock before returning the refusal.
+func captureFreshPPPChannel(socketFD, fileFD int,
+	query func(int, *pppTransportOwner) error,
+	capture func(int, *pppTransportCapture) error,
+	pause func(time.Duration),
+) error {
+	remaining := channelCaptureRetryLimit
+	retryBusy := func(ioctl func() error) error {
+		for {
+			err := ioctl()
+			errno, raw := err.(unix.Errno) //nolint:errorlint // Only a raw errno proves a pre-bind refusal.
+			if !raw || errno != unix.EBUSY || remaining == 0 {
+				return err
+			}
+			remaining--
+			// sleep(no-signal): the kernel's trylocks expose no wait event.
+			pause(channelCaptureRetryDelay)
+		}
+	}
+	return captureOriginalPPPChannel(socketFD, fileFD,
+		func(fd int, request *pppTransportOwner) error {
+			return retryBusy(func() error { return query(fd, request) })
+		},
+		func(fd int, request *pppTransportCapture) error {
+			return retryBusy(func() error { return capture(fd, request) })
+		})
 }
 
 // The namespace returned by SIOCGSKNS belongs to the original socket even when
@@ -110,7 +154,8 @@ func originalPPPChannelNamespace(socketFD int) (*capturedSessionNamespace, error
 }
 
 // This private wire seam creates no owner or admission grant. Its injected
-// operations let pure tests inspect exact ABI/refusal/error handling only.
+// operations let pure tests inspect exact ABI/refusal/error handling only. It
+// cannot establish exclusive target ownership, so it invokes each operation once.
 func captureOriginalPPPChannel(socketFD, fileFD int,
 	query func(int, *pppTransportOwner) error,
 	capture func(int, *pppTransportCapture) error,

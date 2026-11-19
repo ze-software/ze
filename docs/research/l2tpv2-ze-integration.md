@@ -1306,13 +1306,21 @@ resources independently, so a fresh sibling is closed even if the other owner
 was copied or already consumed. Descriptor labels supply no resource custody.
 The interruptible streams keep those same original files. Original-file death
 refuses admission, and every partial wrapper or panic retains cleanup custody.
+If acquiring the original socket lease finds a closed file, the producer
+returns `os.ErrClosed` with the underlying error before opening a destination.
+The channel producer can pause up to four times for 20 ms when the original
+transport query or capture returns `EBUSY` from the kernel's trylock. Capture
+can retry on the same unbound destination because that fresh file is private
+until the ioctl succeeds. Each pause holds both file leases after the kernel
+has released the socket lock. A successful query is retained across capture
+retries. Other errors and exhausted contention refuse the original setup.
 Counter reads release the operation gate and discard a reply after Close or an
 identity, native birth or original lease change. Counters retain their original
 reader across rename; interface mutations require the separate original-file
 writer and never reconstruct authority from the former interface name.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit.go -- UnitCreator.Create, CreatedUnit.Counters, CreatedUnit.Close -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator, createOriginalPPPUnit, pollOriginalPPPUnit -->
-<!-- source: internal/component/l2tp/ppp/kernel/created_channel_linux.go -- CreatePPPChannel, originalPPPChannelNamespace, captureOriginalPPPChannel -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_channel_linux.go -- CreatePPPChannel, originalPPPChannelNamespace, captureFreshPPPChannel, captureOriginalPPPChannel -->
 <!-- source: internal/component/l2tp/ppp/kernel/session_unit_owned.go -- CreatedUnit.SessionConfig, claimedCreatedUnit.describe -->
 <!-- source: internal/component/l2tp/ppp/kernel/session_namespace.go -- capturedSessionNamespace.sameSessionNamespace -->
 <!-- source: internal/component/l2tp/ppp/kernel/relay_owned_unit_linux.go -- newInterruptibleSessionFile -->
