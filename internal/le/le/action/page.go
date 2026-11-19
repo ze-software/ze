@@ -13,6 +13,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -303,9 +304,12 @@ func (l List) UsagePage(program, verb string) (helpfmt.Page, bool) {
 var errNoSuchKeyword = errors.New("no such keyword")
 
 // KeywordPage answers one keyword's page: its kind and what the kind means, its
-// values, whether it is required and whether it repeats, and its help. A verb
-// the listing does not hold, or a keyword the action does not declare, is
-// refused with an error naming what the action does take.
+// values, whether it is required and whether it repeats, and its help. A
+// positional parameter has no keyword a reader can type, so a word that is one
+// of its declared values answers that parameter's page, headed by the value's
+// own help line. A verb the listing does not hold, or a word that is neither a
+// keyword nor a positional value, is refused with an error naming what the
+// action does take.
 func (l List) KeywordPage(program, verb, keyword string) (helpfmt.Page, error) {
 	row, held := l.row(verb)
 	if !held {
@@ -314,12 +318,13 @@ func (l List) KeywordPage(program, verb, keyword string) (helpfmt.Page, error) {
 	}
 	command := l.commandOf(program, row)
 	for _, parameter := range row.Parameters {
-		if parameter.Keyword != keyword {
+		help, matched := pageHelp(parameter, keyword)
+		if !matched {
 			continue
 		}
 		return helpfmt.Page{
 			Command:     command + " " + keyword,
-			ShortHelp:   parameter.Help,
+			ShortHelp:   help,
 			Description: keywordDescription(parameter),
 			Usage:       []string{slotForm(parameter)},
 		}, nil
@@ -335,6 +340,19 @@ func (l List) KeywordPage(program, verb, keyword string) (helpfmt.Page, error) {
 	}
 	tb.Join(names, ", ")
 	return helpfmt.Page{}, errors.New(tb.String())
+}
+
+// pageHelp answers whether word names parameter on a help line, and the line
+// its page is headed by: the keyword's help for its keyword, the value's own
+// help for a declared value of a positional parameter.
+func pageHelp(parameter Parameter, word string) (string, bool) {
+	if !parameter.positional() {
+		return parameter.Help, parameter.Keyword == word
+	}
+	if !slices.Contains(parameter.Values, word) {
+		return "", false
+	}
+	return parameter.ValueHelp[word], true
 }
 
 // keywordSection answers one line per keyword: the spelling a reader types,

@@ -365,8 +365,10 @@ grammar as a usage line. `le <command> <action> --help` and
 `le help <command> <action>` print that action's page: its whole purpose, its
 usage line, and one line per keyword with its kind, whether it is required or
 repeats, and its help. `le help <command> <action> <keyword>` prints one
-keyword's page; a keyword the action does not take is refused naming the ones
-it does, with exit 2. A line the table refuses prints that one action's usage
+keyword's page. A positional argument has no keyword to type, so one of its
+declared values (`le help repo check tree`) prints that argument's page under
+the value's own help line. A word that is neither is refused naming what the
+action takes, with exit 2. A line the table refuses prints that one action's usage
 and keyword lines on stderr, under the program name the reader ran (`le` or
 `ze le`), and nothing about the area's other actions.
 <!-- source: internal/le/le/action/page.go -- ActionPage, UsagePage, KeywordPage -->

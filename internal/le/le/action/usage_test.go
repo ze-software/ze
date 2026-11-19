@@ -172,6 +172,36 @@ func TestKeywordPageCarriesTheDeclaration(t *testing.T) {
 	}
 }
 
+// VALIDATES: a value of a positional enum is answered with that parameter's
+// page, headed by the value and its own help line, while a word that is
+// neither a keyword nor one of its values is still refused naming the slot.
+// PREVENTS: `le help repo check tree` refusing "no such keyword tree; it
+// takes: <tree|generated>", a refusal that names the word it refused.
+func TestKeywordPageAnswersAPositionalValue(t *testing.T) {
+	list := New("repo", Action{
+		Verb: "check", Summary: "check the tree", Why: "check the tree.",
+		Parameters: []Parameter{{
+			Kind: KindEnum, Value: "scope", Values: []string{"tree", "generated"},
+			ValueHelp:   map[string]string{"tree": "the tracked tree", "generated": "the generated files"},
+			Requirement: Required, Help: "what to check",
+		}},
+		AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
+	}).Actions()
+	page, err := list.KeywordPage("le", "check", "tree")
+	if err != nil {
+		t.Fatalf("tree: %v", err)
+	}
+	text := renderAt(page, 100)
+	for _, want := range []string{"le repo check tree - the tracked tree", "kind: enum", "generated: the generated files", "required: yes"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the value page lacks %q:\n%s", want, text)
+		}
+	}
+	if _, err := list.KeywordPage("le", "check", "nosuch"); err == nil || !strings.Contains(err.Error(), "<tree|generated>") {
+		t.Errorf("an unknown word was answered %v, want a refusal naming <tree|generated>", err)
+	}
+}
+
 // VALIDATES: a keyword that declares no Values but answers its candidates from
 // a Source lists them on its page, each with its summary, read when the page is
 // asked for; a keyword with neither lists no values.
