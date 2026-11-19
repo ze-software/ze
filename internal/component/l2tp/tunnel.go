@@ -134,9 +134,40 @@ type L2TPTunnel struct {
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	sessions map[uint16]*L2TPSession
 
-	// maxSessions is the per-tunnel session limit (0 = unbounded).
-	// Copied from config at tunnel creation time.
+	// maxSessions is the per-tunnel session limit (0 = bounded only by the
+	// 16-bit session ID space). Copied from config at tunnel creation time.
+	// Live sessions and retainedCleanups share it (sessionSlotsFull).
 	maxSessions uint16
+
+	// retainedCleanups counts the sessions this tunnel removed whose PPP or
+	// native cleanup is not confirmed yet. Each keeps the admission slot it
+	// held while live, as ppp.SessionControl.CloseCanceledOwner requires:
+	// "The caller MUST retain its existing admission slot until CleanupStatus
+	// reports Released && Err==nil". removeSession adds one at removal, so the
+	// slot never frees between removal and retention, and the reactor's
+	// pruneRetiredSessionsLocked takes it back when it drops the session from
+	// retiredSessions. Bound: live plus retained never exceeds the limit the
+	// admission checks, so the tunnel's retained roots stay within it.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	retainedCleanups int
+
+	// releaseConfirmedCleanups is the reactor's pruneRetiredSessionsLocked,
+	// bound by bindTunnelAdmissionLocked. An admission at the limit calls it
+	// before refusing, so a slot whose cleanup was confirmed frees at once
+	// without a walk of the retained roots on every admission. Nil on a
+	// tunnel no reactor bound (unit tests): the held slots then stay held,
+	// which refuses rather than admits.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	releaseConfirmedCleanups func()
+
+	// discarded is set once discardTunnelLocked removed the tunnel from the
+	// reactor's maps. A discarded tunnel whose retainedCleanups is nonzero
+	// still holds one max-tunnels slot (l2tpReactor.retainingTunnels).
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	discarded bool
 
 	// pendingKernelTeardowns collects sessions that were removed from the
 	// tunnel and had kernel resources. The reactor drains this after

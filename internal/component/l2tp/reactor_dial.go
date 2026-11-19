@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"time"
 )
@@ -242,10 +243,8 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 			return
 		}
 	}
-	if r.params.MaxTunnels != 0 && uint16(len(r.tunnelsByLocalID)) >= r.params.MaxTunnels {
+	if r.tunnelSlotsFullLocked("dial rejected", slog.String("remote", req.target.Remote.String())) {
 		r.tunnelsMu.Unlock()
-		r.logger.Warn("l2tp: dial rejected; max-tunnels limit reached",
-			"remote", req.target.Remote.String(), "limit", r.params.MaxTunnels)
 		req.result <- dialResult{err: ErrMaxTunnels}
 		return
 	}
@@ -266,7 +265,7 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 
 	t := newTunnel(localTID, 0, req.target.Remote,
 		r.reliableConfig(), r.logger, now)
-	t.maxSessions = r.params.MaxSessions
+	r.bindTunnelAdmissionLocked(t)
 	t.initiatorSecret = req.target.SharedSecret
 	if req.call != nil {
 		t.pendingCalls = []*pendingCall{req.call}

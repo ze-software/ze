@@ -8,7 +8,7 @@
 // hang-up follows.
 // Related: tunnel_fixture_l2tp_ppp.go -- tunnelL2TPOpenProxySession and
 // tunnelAccountingPeer, the LAC half of the session this peer ends.
-// Related: test/draft/l2tp/slow-accounting-control.ci -- the only caller.
+// Related: test/l2tp/slow-accounting-control.ci -- the only caller.
 
 package fixture
 
@@ -491,7 +491,7 @@ func slowAccountingAwaitGone(ctx context.Context) error {
 }
 
 // tunnelL2TPSlowAccountingControl is the LAC side of
-// test/draft/l2tp/slow-accounting-control.ci. Goal: a RADIUS server that
+// test/l2tp/slow-accounting-control.ci. Goal: a RADIUS server that
 // does not answer one session's Accounting-Stop holds no other tunnel. Method:
 // bring one PPP session up to its address, its Accounting-Start and its rows
 // in the CLI; open a second, healthy tunnel; hang the session up with the

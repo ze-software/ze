@@ -218,6 +218,24 @@ kernel backend stays owned until those retained consumers release it.
 <!-- source: internal/component/l2tp/session_capture.go -- Teardown -->
 <!-- source: internal/component/l2tp/session_retirement.go -- cleanupCapturedOriginal, retainStoppedReactorsLocked, cleanupRetiredReactorsLocked -->
 
+A retained row keeps the admission slot it held while live, as the PPP cleanup
+contract requires: the caller retains its slot until the cleanup is confirmed
+as released with no error. Removal takes the slot on the tunnel's
+`retainedCleanups` count, and the prune that drops a confirmed row gives it
+back. Every admission (an ICRQ, an OCRQ, a local call) counts live sessions
+plus that count against max-sessions, which reads as the 16-bit session ID
+space when it is 0. At the limit it prunes first, so a slot whose cleanup was
+just confirmed frees at once, and the admission walks no retained row
+otherwise. A refusal for held slots answers CDN Result Code 4, like any
+max-sessions refusal, and logs and raises a `doctor-ppp-cleanup` warning that
+names the held slots and `show warnings`, where the cleanup failures holding
+them are listed. A tunnel that is itself discarded keeps one max-tunnels slot
+while its rows remain, so an SCCRQ or a dial is refused the same way. The
+retained rows of a reactor therefore never exceed max-tunnels times
+max-sessions, however fast a LAC churns sessions or tunnels.
+<!-- source: internal/component/l2tp/session.go -- sessionSlotsFull, removeSession -->
+<!-- source: internal/component/l2tp/session_retirement.go -- retainRemovedSessions, pruneRetiredSessionsLocked, markTunnelDiscardedLocked, tunnelSlotsFullLocked -->
+
 Before channel/unit descriptors leave the kernel worker, the original row
 retains its PPP construction receipt. Removal during construction therefore
 remains pending even though no PPP attempt exists yet. A constructor refusal

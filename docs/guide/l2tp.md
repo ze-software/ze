@@ -59,6 +59,18 @@ enabled. Set `enabled false` to disable explicitly. Listener endpoints
 use the standard `zt:listener` grouping (`ip`, `port`) with port
 conflict detection via `ze:listener`.
 
+A session that ended keeps its place under `max-sessions` until Ze has
+confirmed that its PPP and kernel resources are released, and a tunnel that
+closed with such sessions keeps its place under `max-tunnels`. A failed
+cleanup therefore cannot pile up resources without limit: once those places
+fill a tunnel, a new call on it is refused with a CDN, Result Code 4, as at
+the session limit, and a new tunnel is refused as at the tunnel limit. The log
+line and `ze doctor` (`doctor-ppp-cleanup`) say how many places unconfirmed
+cleanup holds, and `show warnings` lists the cleanup failures to repair. A
+limit of 0 then reads as the 16-bit ID space.
+<!-- source: internal/component/l2tp/session.go -- sessionSlotsFull -->
+<!-- source: internal/component/l2tp/session_retirement.go -- tunnelSlotsFullLocked, reportCleanupHeldSessionSlots -->
+
 `shared-secret` is also the secret a LAC hides AVPs under (RFC 2661 Section
 4.3). Ze reveals a hidden AVP, a hidden Calling Number or proxy
 authentication field for instance, with the tunnel's secret and the Random

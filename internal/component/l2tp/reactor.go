@@ -110,8 +110,15 @@ type l2tpReactor struct {
 	tunnelsByPeer    map[peerKey]*L2TPTunnel
 	nextLocalTID     uint16
 	// Removed admissions retain their original native and PPP receipts;
-	// reusable wire labels never replace a pending cleanup owner.
+	// reusable wire labels never replace a pending cleanup owner. Each entry
+	// holds an admission slot of the tunnel it was removed from until its
+	// cleanup is confirmed (L2TPTunnel.retainedCleanups), which bounds the
+	// map (retainRemovedSessions).
 	retiredSessions map[*L2TPSession]*L2TPTunnel
+	// retainingTunnels counts the discarded tunnels whose retainedCleanups
+	// is nonzero. Each still holds a max-tunnels slot (tunnelSlotsFullLocked),
+	// so tunnel churn cannot add roots past max-tunnels times max-sessions.
+	retainingTunnels int
 
 	// stopCCNLastSent bounds every StopCCN the reactor sends outside a
 	// tunnel (answerRefusedSCCRQ). One slot per hash of the source
@@ -1029,11 +1036,10 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 			return nil, teardowns, downs
 		}
 	}
-	// Max-tunnels enforcement. MaxTunnels == 0 means unbounded by this
-	// knob; the map can still grow to 65535 (the uint16 TID ceiling).
-	if r.params.MaxTunnels != 0 && uint16(len(r.tunnelsByLocalID)) >= r.params.MaxTunnels {
-		r.logger.Warn("l2tp: max-tunnels limit reached; SCCRQ rejected",
-			"from", from.String(), "limit", r.params.MaxTunnels)
+	// Max-tunnels enforcement. MaxTunnels == 0 means bounded only by the
+	// uint16 TID ceiling. Discarded tunnels whose session cleanup is
+	// unconfirmed still hold their slot (tunnelSlotsFullLocked).
+	if r.tunnelSlotsFullLocked("SCCRQ rejected", slog.String("from", from.String())) {
 		// Phase 3 drops; phase 4 will emit StopCCN Result Code 2.
 		return nil, teardowns, downs
 	}
@@ -1044,7 +1050,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 		return nil, teardowns, downs
 	}
 	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, r.reliableConfig(), r.logger, r.params.Clock())
-	t.maxSessions = r.params.MaxSessions
+	r.bindTunnelAdmissionLocked(t)
 	r.tunnelsByLocalID[localTID] = t
 	r.tunnelsByPeer[t.peerIndexKey] = t
 	r.logger.Info("l2tp: new tunnel created from SCCRQ",
@@ -1132,6 +1138,7 @@ func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) ([]kerne
 		delete(r.tunnelsByPeer, t.peerIndexKey)
 	}
 	t.state = L2TPTunnelClosed
+	r.markTunnelDiscardedLocked(t)
 	r.logger.Info("l2tp: tunnel discarded",
 		"local-tid", t.localTID, "peer", t.peerAddr.String(), "reason", reason)
 	return teardowns, downs

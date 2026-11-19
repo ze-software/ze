@@ -6,7 +6,7 @@
 // and connectProxyCall, the LAC calls this peer places.
 // Related: tunnel_fixture_l2tp_session_clear.go -- startSessionClearLink,
 // sessionClearCLI, readAccountingRecords and jsonObjectsWith, which this peer reuses.
-// Related: test/draft/l2tp/session-selector-scope.ci -- the only caller.
+// Related: test/l2tp/session-selector-scope.ci -- the only caller.
 
 package fixture
 
@@ -51,7 +51,7 @@ const selectorWaitShare = 8
 const selectorControlWait = 10 * time.Second
 
 // tunnelL2TPSessionSelectorScope is the LAC peer of
-// test/draft/l2tp/session-selector-scope.ci. Goal: through the operator's
+// test/l2tp/session-selector-scope.ci. Goal: through the operator's
 // `clear l2tp session id` over SSH, a unique bare session ID clears exactly
 // its session; a bare ID two live sessions share is refused as ambiguous with
 // no effect, naming the qualified clear of each; the qualified form clears

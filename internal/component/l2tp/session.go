@@ -8,6 +8,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"log/slog"
+	"math"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -506,6 +508,9 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	if sess.relay != nil {
 		sess.relay.end("L2TP session to " + sess.relay.target() + " ended")
 	}
+	// The removed admission keeps its slot until the reactor confirms its
+	// cleanup (retainedCleanups); deliverSessionDowns retains the root.
+	t.retainedCleanups++
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
 		session:        sess,
 		tunnel:         t,
@@ -561,6 +566,50 @@ func (t *L2TPTunnel) drainPendingTeardowns() ([]kernelTeardownEvent, []sessionDo
 // sessionCount returns the number of active sessions on this tunnel.
 func (t *L2TPTunnel) sessionCount() int {
 	return len(t.sessions)
+}
+
+// sessionSlotLimit is the admission limit live and retained sessions share:
+// max-sessions, or the 16-bit session ID space when max-sessions is 0.
+func (t *L2TPTunnel) sessionSlotLimit() int {
+	if t.maxSessions == 0 {
+		return math.MaxUint16
+	}
+	return int(t.maxSessions)
+}
+
+// sessionSlotsHeld counts the admission slots in use: live sessions plus the
+// removed ones whose cleanup is unconfirmed (retainedCleanups).
+func (t *L2TPTunnel) sessionSlotsHeld() int {
+	return t.sessionCount() + t.retainedCleanups
+}
+
+// sessionSlotsFull reports whether the tunnel admits no new session, and logs
+// the refusal it causes, naming it with refusal ("ICRQ rejected"). Before it
+// refuses for slots that removed sessions hold, it asks the reactor to release
+// the ones whose cleanup is now confirmed, so a confirmed slot frees at once.
+// When removed sessions still hold slots at the limit, the refusal is the
+// operator error of reportCleanupHeldSessionSlots, raised as a
+// doctor-ppp-cleanup warning; otherwise it is reportSessionLimit's
+// doctor-l2tp-admission-limit event. Caller MUST hold tunnelsMu.
+func (t *L2TPTunnel) sessionSlotsFull(refusal string, logger *slog.Logger) bool {
+	limit := t.sessionSlotLimit()
+	if t.sessionSlotsHeld() < limit {
+		return false
+	}
+	if t.retainedCleanups != 0 {
+		if t.releaseConfirmedCleanups != nil {
+			t.releaseConfirmedCleanups()
+		}
+	}
+	if t.sessionSlotsHeld() < limit {
+		return false
+	}
+	if t.retainedCleanups != 0 {
+		reportCleanupHeldSessionSlots(logger, refusal, t.localTID, limit, t.sessionCount(), t.retainedCleanups)
+		return true
+	}
+	reportSessionLimit(logger, refusal, t.localTID, limit, t.sessionCount())
+	return true
 }
 
 // lookupSession finds a session by our local session ID (the ID in the

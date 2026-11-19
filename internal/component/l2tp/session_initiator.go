@@ -190,9 +190,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		logger.Debug("l2tp: call origination on non-established tunnel; refused", "state", t.state.String())
 		return nil, false
 	}
-	if t.maxSessions > 0 && uint16(t.sessionCount()) >= t.maxSessions {
-		logger.Warn("l2tp: call origination refused; max sessions reached",
-			"max", t.maxSessions, "current", t.sessionCount())
+	if t.sessionSlotsFull("call origination refused", logger) {
 		return nil, false
 	}
 	localSID := t.allocateSessionID()

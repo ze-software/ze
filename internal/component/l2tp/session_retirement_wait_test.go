@@ -241,7 +241,8 @@ func newOriginalRetirementWait(t *testing.T, driver *ppp.Driver, failure error) 
 		t.Fatal("actual admission did not retain original attempt")
 	}
 	session := &L2TPSession{localSID: 91, pppAttempt: attempt}
-	tunnel := &L2TPTunnel{localTID: 7, sessions: map[uint16]*L2TPSession{91: session}}
+	// The retained root holds the admission slot removeSession takes for it.
+	tunnel := &L2TPTunnel{localTID: 7, sessions: map[uint16]*L2TPSession{91: session}, retainedCleanups: 1}
 	reactor := &l2tpReactor{tunnelsByLocalID: map[uint16]*L2TPTunnel{7: tunnel},
 		retiredSessions: map[*L2TPSession]*L2TPTunnel{session: tunnel}}
 	return &originalRetirementWait{reactor: reactor, tunnel: tunnel, session: session,

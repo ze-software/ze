@@ -1,6 +1,6 @@
 // Design: docs/functional-tests.md -- fixture decisions have unit controls.
 // Related: tunnel_fixture_l2tp_slow_accounting.go -- the decisions under test;
-// the daemon path is test/draft/l2tp/slow-accounting-control.ci.
+// the daemon path is test/l2tp/slow-accounting-control.ci.
 package fixture
 
 import (

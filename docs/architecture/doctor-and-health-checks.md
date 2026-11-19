@@ -1065,6 +1065,17 @@ rate-limited, so the event is raised at most once a minute per peer through
 <!-- source: internal/component/l2tp/register_hidden_diagnostic.go -- reportHiddenLeft -->
 <!-- test: internal/component/l2tp/register_hidden_diagnostic_test.go TestHiddenLeftCarriesCodeAndRaisesEventForPeer -->
 
+An L2TP call refused at `max-sessions`, or a tunnel refused at `max-tunnels`,
+raises `doctor-l2tp-admission-limit` from `l2tp`, at most once a minute per
+tunnel for sessions and once a minute for tunnels, through
+`report.RaiseErrorFixOnce`, with `set l2tp max-sessions <count>` or
+`set l2tp max-tunnels <count>` as the fix. The warning line carries the code.
+A refusal whose slots are held by removed sessions with unconfirmed cleanup is
+not this event: it raises a `doctor-ppp-cleanup` warning, which `show warnings`
+lists beside the cleanup failures that hold the slots.
+<!-- source: internal/component/l2tp/register_admission_diagnostic.go -- reportSessionLimit, reportTunnelLimit -->
+<!-- source: internal/component/l2tp/session_retirement.go -- reportCleanupHeldSessionSlots, reportCleanupHeldTunnelSlots -->
+
 A Framed-Route or Framed-IPv6-Route text in an Access-Accept that Ze cannot
 parse is skipped, and the rest of the authorization applies. The skip raises
 `doctor-radius-framed-route-skipped` from `l2tp-auth-radius`, the subject the

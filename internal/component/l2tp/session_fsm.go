@@ -143,10 +143,9 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 		return nil
 	}
 
-	// AC-5: max sessions check.
-	if t.maxSessions > 0 && uint16(t.sessionCount()) >= t.maxSessions {
-		logger.Warn("l2tp: ICRQ rejected; max sessions reached",
-			"max", t.maxSessions, "current", t.sessionCount())
+	// AC-5: max sessions check. A removed session whose cleanup is
+	// unconfirmed still holds its slot (sessionSlotsFull).
+	if t.sessionSlotsFull("ICRQ rejected", logger) {
 		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
 	}
 
@@ -280,9 +279,7 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 		return nil
 	}
 
-	if t.maxSessions > 0 && uint16(t.sessionCount()) >= t.maxSessions {
-		logger.Warn("l2tp: OCRQ rejected; max sessions reached",
-			"max", t.maxSessions, "current", t.sessionCount())
+	if t.sessionSlotsFull("OCRQ rejected", logger) {
 		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
 	}
 
