@@ -1565,7 +1565,7 @@ the design gate, including unchanged callers and non-Go clients.
 | 6 | Has a user guide page? | Yes | `docs/guide/route-reflection.md` documents the ordinary role. `docs/guide/bgp-policy.md` describes the missing export policy default. `docs/guide/netlab.md` describes its migrated topology |
 | 7 | Wire format changed? | Yes | `docs/architecture/api/process-protocol.md` documents the plugin wire contracts for selected output, source receipts and the Stage 1 fence. Ordinary UPDATEs use the existing BGP encoding |
 | 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md` covers the typed/framed selected operation. `docs/architecture/api/ipc_protocol.md` explains acknowledged cancellation |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `710dee74b9` records the RFC4271-9.2-7 ordinary discrimination. `rfc/short/rfc8212.md` tracks the external default preserved by this change. Final scoped RFC freshness remains pending |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `710dee74b9` records the RFC4271-9.2-7 ordinary discrimination. `rfc/short/rfc8212.md` tracks the external default preserved by this change. The final scan found zero issues on the selected evidence paths and checklist IDs |
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md` names the two native test topologies and their observable checks. The tests use the existing interop runner |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` describes what the FRR and BIRD ordinary-transit checks assert. Passing interop is separate native evidence |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/rib-transition.md` documents ordinary selected output and the owner decisions on grants, policy and preference. `docs/architecture/plugin/plugin-system.md` describes registered roles and destination ownership |
@@ -1730,7 +1730,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 - `16295fe31a` records the user path and evidence in both BGP feature pages, anchored to `dissemination_validate.go`, `rib_ordinary_destination.go`, `rib_selected_refresh.go` and `internal/component/bgp/filterapi/export_kind.go`. The feature level remains experimental.
 - `067a0c5b30`, `020e93cc22` and `519b3d188f` carry the operator, process protocol and writer documentation. Source anchors include `PolicyAbsences`, `Server.selectRoutes`, `ResolveDisseminationOwner` and the captured forwarding queue. The documentation verification table identifies the corresponding pages.
-- The retained native `doc check links` found three unrelated links and zero selected links. `doc check all` could not complete its command catalog when it hit the host Go-cache permission failure. Its other reported items were CoS/Fleet declarations and the generated documentation index. `spec citation` exited zero. The final scoped freshness and review results remain pending.
+- The retained native `doc check links` found three unrelated links and zero selected links. The first `doc check all` run could not complete the command catalog because of a host Go-cache permission failure. After rebuilding the generated indexes, the retake still reported the unrelated live Fleet command mismatch listed below. `spec citation` exited zero.
 
 ### Deviations from Plan
 
@@ -1838,15 +1838,15 @@ Native receipts named below are in the owning session's `scratch/` directory.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| None transferred in the selected implementation scope | Final verification and artifact checks below remain part of this spec | This spec |
+| None in the selected implementation scope | The acceptance evidence, independent review and adjacent observations are recorded below | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Pending exact prospective-tree `le spec review record` |
-| `./le spec review check` | Pending |
-| Rounds | Pending completed independent review |
+| Artifact | `tmp/review/bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md`, SHA-256 `9ca344e696618d8f25ddec827d14b0c74c015ba04b5fa000729a066c32a70cb4`. Native record returned `verdict=clean` for 899 code files pinned to `47b2a9c2d543178d96c8ae482fefb7d7f5a9cc95` |
+| `./le spec review check` | `OK (882 code files, clean, hashes match)`. The independent check read matching checkout files. The artifact also pins the committed blobs for 17 of those historical paths with parallel checkout edits. The closure commit checks the full prospective set |
+| Rounds | 3. Initial source review, review of the repair, and final reread with native evidence |
 | Reviewer lenses used | Exact source and test evidence, route-leak boundaries, source and destination lifetimes, allocation and writer order, protocol and documentation |
 
 ### Configured route refresh
@@ -1877,6 +1877,21 @@ replay (`job-advertiser-configured-refresh-engine-guard-d5d1f341.log:72,76,78`).
 | 3 | ISSUE | Owner-excluded replay without a family skipped destinations with only configured output | `internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go::selected` | Include families with configured SENT entries for the captured owner and session |
 | 4 | ISSUE | A learned SENT entry can inherit the peer's configured marker while writes interleave | `internal/component/bgp/reactor/reactor_notify.go::notifyOneMessage` | Require the writer's authenticated local origin in each configured refresh lookup |
 
+### Final independent reread
+
+**0 BLOCKER, 0 ISSUE** in the selected scope. The final reread followed
+configured refresh from the SENT event through RIB ownership and the
+original-session writer fence. It checked peer and plugin authorization,
+causal test oracles, write ordering and cancellation, work and allocation
+bounds, boundary error handling, and the final source and documentation
+changes. The daemon baseline, repaired run and producer cut distinguish
+the missing refresh from a failure to announce the original route.
+
+### Adjacent observations
+
+- Shared SENT reconstruction can omit the second IPv6 MP_REACH next hop. `internal/component/bgp/plugins/rib/ribout_entry.go::extractNextHopFromMPReach` projects the first address and `internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate` replaces the original field with a field built from one address.
+- The shared refresh writer can apply export policy again to a previously transformed route. The existing investigation owns the behavior. [Refresh export policy](spec-bgp-refresh-reapplies-export-policy.md)
+
 ### Security Review
 
 | Boundary | Source and evidence |
@@ -1887,6 +1902,15 @@ replay (`job-advertiser-configured-refresh-engine-guard-d5d1f341.log:72,76,78`).
 | Operator configuration and process resources | The existing config tree, registered commands, authenticated plugin transport and peer socket carry the new work. The network packet and plugin DTO validations use existing binary codecs and bounded fields. The daemon's own reconciliation status is reported by its runtime doctor check |
 
 ## Pre-Commit Verification
+
+### Verification runs
+
+| Check | Result |
+|-------|--------|
+| Scoped refresh race and daemon | The RIB log `job-unit-pkg-f230526a.log` records 21 passing roots. The focused reactor log `job-advertiser-configured-refresh-engine-guard-d5d1f341.log` records 11. The original configured-route socket test passed in `job-advertiser-configured-refresh-final-wire-6acef1f4.log` |
+| Package lint | The completed retake `job-advertiser-configured-refresh-lint-retake-335fe2c3.log` reported 49 unique diagnostics across the RIB package. None falls on a line added by `9de4517fce` |
+| Documentation | Generated source indexes rebuilt. The aggregate documentation check reports a live `request fleet divergence revert` mismatch with the shipping wiki catalog. The independent link check found no selected path finding |
+| RFC freshness | `47b2a9c2d5` renews the RFC 4271 withdrawal audit and two RFC 9494 ingress records. This closure includes the independent RFC7947-x-1 reseal. The final scan `job-advertiser-frozen-rfc-freshness-96ec0a39.log` found zero issues across the 63 attributed audit and discrimination paths and the explicit checklist IDs. The repository-wide command returned 1 with 889 findings outside those checks |
 
 ### Files Exist (ls)
 
@@ -1961,7 +1985,7 @@ replay (`job-advertiser-configured-refresh-engine-guard-d5d1f341.log:72,76,78`).
 | Engine API, SDK and protocol | `docs/architecture/api/{architecture,process-protocol,ipc_protocol,update-syntax}.md` and `docs/plugin-development/protocol.md` describe the selected receipt, admitted origin, framed/typed declarations and acknowledged cancellation. Anchors `Server.selectRoutes`, `SelectRoutes`, `SelectedCallContext` and `opCancelRequest` | Yes |
 | Plugin, role ownership and migration | `docs/guide/{plugins,netlab}.md` and `docs/architecture/plugin/plugin-system.md` match `ResolveDisseminationOwner`, `ValidateDisseminationBindings`, the runtime fence and the exact Netlab render | Yes |
 | RIB and final writer | `docs/architecture/{rib-transition,update-building,forward-congestion-pool}.md` and `docs/architecture/plugin/rib-storage-design.md`, anchored to `commitAdvertise`, final selected writes and captured replay carriers. Last captured replay and negotiated-marker docs in `519b3d188f` | Yes |
-| RFC evidence | `rfc/short/rfc4271.md` 9.2-2/3 partial and 9.2-7 ordinary positive, existing RFC8212 default guard, plus affected protocol proof records in their owning RFCs | Current scoped native freshness pending |
+| RFC evidence | `rfc/short/rfc4271.md` 9.2-2/3 partial and 9.2-7 ordinary positive, existing RFC8212 default guard, plus affected protocol proof records in their owning RFCs | Verified for the selected scope in `job-advertiser-frozen-rfc-freshness-96ec0a39.log` |
 | Comparison and interoperability | `docs/comparison.md`, `docs/architecture/testing/interop.md` and both scenario directories match native recipient conditions | Yes |
 | Monitoring and doctor | `docs/guide/monitoring.md` and `docs/architecture/doctor-and-health-checks.md` refer to metrics from `rib_selected_metrics.go::recordSelectedBatch` and diagnostics from `PolicyAbsences` and `advertiseDoctorDeclaration` | Yes |
 | Free-form route metadata and BGP UPDATE encoding | `pkg/plugin/rpc/selected.go` uses explicit protocol fields. `internal/component/bgp/reactor/selected_flush.go` uses the existing UPDATE writer and `internal/component/bgp/reactor/selected_origin.go` uses the shared batch builder | Existing wire and metadata formats |

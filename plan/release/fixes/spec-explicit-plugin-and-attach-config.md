@@ -23,7 +23,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Three owner decisions, 2026-11-16, made while reviewing
-`plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`:
+`spec-bgp-best-route-advertised-to-peers`:
 
 | # | Decision | Recorded in |
 |---|----------|-------------|
@@ -352,7 +352,7 @@ that means something else takes a name of its own (`ai/META-DECISIONS.md`,
 |----------|--------|
 | What breaks if this is wrong? | Configs that load today are refused, or a needed grant is still missed in silence |
 | How is it reverted? | Restore the derivation and the auto-load; converted configs still load, since an explicit block always won |
-| Who else touches this path? | `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`, which uses this spec's refusal for transit |
+| Who else touches this path? | The [ordinary selected-route path](../../../docs/architecture/rib-transition.md#ordinary-selected-route-advertisement) uses this refusal for transit |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

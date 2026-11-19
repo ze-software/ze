@@ -42,10 +42,10 @@ scope and does not become ordinary-path evidence by relabeling it.
 
 ### Owned prerequisite: normal selected-route egress
 
-The producer is now implemented under
-`plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`; do not build
-another advertiser here. checkRouteBestChange captures the retained winner,
-commitAdvertise publishes it, and the authenticated destination worker sends
+The [ordinary selected-route producer](../../../docs/architecture/plugin/rib-storage-design.md#retained-selection-for-ordinary-advertisement)
+is implemented. Keep using that advertiser here. `checkRouteBestChange`
+captures the retained winner, `commitAdvertise` publishes it, and the
+authenticated destination worker sends
 SelectRoutes through the existing egress pipeline. This spec owns the MED
 selection-to-wire witness and any MED correctness defect its baseline reveals.
 Route-server replay, route-reflector forwarding and a test handed a selected

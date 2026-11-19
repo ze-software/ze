@@ -548,7 +548,7 @@ All criteria below are proposed and require owner adoption before implementation
 |----------|--------|
 | What breaks if wrong? | Opted-in peers may converge slowly, send stale/early output, stall control traffic, exhaust buffers or reconnect during retirement. Zero-path regressions would affect every peer and must block implementation acceptance. |
 | How is the feature disabled? | Set the interval to zero through ordinary config apply/rollback; wake pending work against current ownership. No destructive git recovery is proposed. |
-| Who else owns these paths? | Ordinary advertiser work in `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`, refresh policy work and ongoing shared Session writer changes. Coordinate source-write windows and preserve their current ownership contracts. |
+| Who else owns these paths? | The [ordinary selected-route writer](../../docs/architecture/update-building.md#selected-route-transactions), refresh policy work and ongoing shared Session writer changes. Coordinate source-write windows and preserve their current ownership contracts. |
 
 ## 🧪 TDD Test Plan
 

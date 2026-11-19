@@ -152,9 +152,9 @@ a workaround this spec's implementation should make unnecessary, and the
 implementation must not break it: under the behaviour table below, `self`
 toward eBGP and `auto` toward eBGP send the same address, so the render stays
 correct with or without the explicit leaf. The same day Thomas also ruled that
-Ze passes elected best routes between peers by default,
-`plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`, which depends
-on this spec for its eBGP next hop.
+Ze passes elected best routes between peers by default. The
+[ordinary selected-route path](../../../docs/architecture/rib-transition.md#ordinary-selected-route-advertisement)
+relies on the eBGP next-hop behavior specified here.
 
 ### Owner-approved behaviour table
 
