@@ -47,11 +47,18 @@ var errInnerChain = fmt.Errorf("%w does not parse", errInnerParse)
 // Encrypted payload at all.
 var errNoSKPayload = errors.New("ike: no Encrypted payload")
 
-// protectedPayload returns the Encrypted payload of msg: the FIRST one. RFC 7296 Section
-// 3.14: "The Encrypted payload, if present in a message, MUST be the last payload in the
-// message." wire.Message.ReadFrom does not enforce that, and walks on past an Encrypted
-// payload whose Length leaves octets after it, so a chain can hold two. Every opener
-// takes the same one.
+// errSKNotLast is the reason the drop line names for a message whose Encrypted payload
+// is followed by another outer payload.
+var errSKNotLast = errors.New("ike: Encrypted payload is not the last payload")
+
+// errNestedSK is the cause errInnerChain wraps for a decrypted chain that holds an
+// Encrypted payload.
+var errNestedSK = errors.New("ike: Encrypted payload inside an Encrypted payload")
+
+// protectedPayload returns the Encrypted payload of msg: the FIRST one.
+// wire.Message.ReadFrom walks on past an Encrypted payload whose Length leaves octets
+// after it, so a chain can hold more payloads after it; openProtected refuses that shape
+// before it decrypts anything.
 func protectedPayload(msg *wire.Message) *wire.PayloadSK {
 	for i := range msg.Payloads {
 		if sk, ok := msg.Payloads[i].Payload.(*wire.PayloadSK); ok {
@@ -103,6 +110,14 @@ func openProtected(sa *SA, msg *wire.Message, raw []byte, reason string, log *sl
 		dropUnauthenticated(sa, msg, reason, errNoSKPayload, log)
 		return nil, true, nil
 	}
+	// RFC 7296 Section 3.14: "The Encrypted payload, if present in a message, MUST be the
+	// last payload in the message."
+	// A payload after it lies outside the associated data RFC 5282 Section 5.1 defines, so
+	// nothing proves who wrote it, and the message is dropped before anything decrypts.
+	if msg.Payloads[len(msg.Payloads)-1].Payload != wire.Payload(sk) {
+		dropUnauthenticated(sa, msg, reason, errSKNotLast, log)
+		return nil, true, nil
+	}
 	plain, err := decryptSKPayload(sa, raw, sk)
 	if err != nil {
 		if errors.Is(err, errInnerParse) {
@@ -114,6 +129,15 @@ func openProtected(sa *SA, msg *wire.Message, raw []byte, reason string, log *sl
 	inner, err = wire.ParsePayloadChain(plain, sk.InnerNextPayload)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", errInnerChain, err)
+	}
+	// RFC 7296 Section 3.1: "An Encrypted payload MUST be the last payload in a packet and
+	// an Encrypted payload MUST NOT contain another Encrypted payload."
+	// The chain authenticated, so the peer wrote it: it is refused as a chain that does not
+	// parse, and the caller keeps the reaction it owes the peer.
+	for i := range inner {
+		if _, nested := inner[i].Payload.(*wire.PayloadSK); nested {
+			return nil, false, fmt.Errorf("%w: %w", errInnerChain, errNestedSK)
+		}
 	}
 	return inner, false, nil
 }

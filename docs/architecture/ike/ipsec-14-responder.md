@@ -405,10 +405,12 @@ complaining about unknown SPIs)." The initiator had the same defect:
 4739 second exchange) and `handleEAPResponse` (each EAP round) ended the handshake
 on a response that did not decrypt, so `runInitiator` returned `errSADead` into a
 reconnect backoff. All five handlers now open the message through `openProtected`
-(`protected_input.go`). It takes the first Encrypted payload (RFC 7296 Section 3.14
-makes it the last payload, and `wire.Message.ReadFrom` does not enforce that). A
-message that has no Encrypted payload, or fails its integrity check or AEAD tag, is
-dropped there: counted under
+(`protected_input.go`). It takes the first Encrypted payload, and refuses a message
+in which any outer payload follows it: RFC 7296 Section 3.14 makes it the last
+payload, `wire.Message.ReadFrom` walks on past it, and a payload after it lies outside
+the associated data RFC 5282 Section 5.1 authenticates. A message that has no
+Encrypted payload, has one that is not last, or fails its integrity check or AEAD tag,
+is dropped there: counted under
 `ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}` in
 either role, logged at debug as `ike: unauthenticated message dropped, SA kept`,
 nothing sent, and the SA untouched, so the peer's next genuine message finds the
@@ -417,7 +419,9 @@ exchange where it was. On the initiator that includes the retransmit schedule:
 with `errTimeout` after the usual count when only forgeries arrive.
 
 A failure after the integrity check passed is the peer's own message and keeps the
-reaction each handler had: an inner payload chain that does not parse, and, for a
+reaction each handler had: an inner payload chain that does not parse, including one
+that holds an Encrypted payload (RFC 7296 Section 3.1: "an Encrypted payload MUST NOT
+contain another Encrypted payload"), and, for a
 CBC cipher, a Padding, Pad Length or block alignment that is wrong, since the
 checksum covers them (RFC 7296 Section 3.14). `decryptSKPayload` marks the second
 kind with `errInnerParse`, and `openProtected` marks the first with `errInnerChain`,

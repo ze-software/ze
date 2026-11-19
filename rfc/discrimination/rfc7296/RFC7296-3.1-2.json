@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuiltInnerChainHoldsNoSK",
+    "unit-sha": "160ed453c304420e",
+    "claim-sha": "7d614ca6920aae2c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildEncryptedMessageEx",
+    "producer-sha": "a8f79798b6df3df3",
+    "break": "line 277: \"innerPayloads[i+1].Payload.Type()\" -\u003e \"wire.PayloadTypeSK\""
+  },
+  {
+    "rid": "RFC7296-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKNestedInTheInnerChainIsRefused",
+    "unit-sha": "2bbfc3a2ac63d7ff",
+    "claim-sha": "2c34ff435ad7f21e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "766ce920ad573b2f",
+    "break": "line 138: \"; nested {\" -\u003e \"; false \u0026\u0026 nested {\""
+  }
+]

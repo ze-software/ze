@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuiltIsLastOuterPayload",
+    "unit-sha": "ee6390b4be3a0eb3",
+    "claim-sha": "64dc0df145d66234",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::writeAuthHeaderWithMsgID",
+    "producer-sha": "001114a9a5340ebc",
+    "break": "line 748: \"uint16(totalLen - wire.HeaderLen)\" -\u003e \"uint16(totalLen - wire.HeaderLen - 1)\""
+  },
+  {
+    "rid": "RFC7296-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKFollowedByAnotherPayloadIsDropped",
+    "unit-sha": "30692f3d00070f30",
+    "claim-sha": "586005b893d1baa0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "766ce920ad573b2f",
+    "break": "line 117: \"msg.Payloads[len(msg.Payloads)-1].Payload != wire.Payload(sk)\" -\u003e \"false \u0026\u0026 msg.Payloads[len(msg.Payloads)-1].Payload != wire.Payload(sk)\""
+  }
+]
