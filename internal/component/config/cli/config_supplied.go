@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -140,7 +141,11 @@ func suppliedDiff(_ command.ValidatedArgs, data []byte, _ string) command.LocalA
 		}
 		return suppliedRefusal(path, "after configuration could not be parsed or resolved", err)
 	}
-	return diffAnswer(diffSources(schema, first, second))
+	diff, err := infra.DiffConfigs(schema, first, second)
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+	return diffAnswer(diff)
 }
 
 // suppliedPair consumes exactly one bounded JSON object. Token decoding keeps

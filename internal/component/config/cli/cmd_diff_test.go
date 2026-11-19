@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -377,13 +378,20 @@ func TestConfigDiffRevisionNotFound(t *testing.T) {
 // given; the chain's list of terms is `ordered-by user`. The mixed BGP/firewall
 // fixture proves order comparison does not replace the resolved BGP comparison.
 func firewallTerms(first, second string) string {
-	term := func(name string) string {
-		return "\t\t\tterm " + name + " {\n\t\t\t\tthen {\n\t\t\t\t\taccept\n\t\t\t\t}\n\t\t\t}\n"
+	return bgpPeers("alpha", "bravo") + firewallTable(first, second)
+}
+
+// firewallTable is a firewall whose one chain holds the named accept terms in
+// the order given, and the same table and chain settings for any terms, so two
+// of them differ only in the terms.
+func firewallTable(terms ...string) string {
+	var body strings.Builder
+	for _, name := range terms {
+		body.WriteString("\t\t\tterm " + name + " {\n\t\t\t\tthen {\n\t\t\t\t\taccept\n\t\t\t\t}\n\t\t\t}\n")
 	}
-	return bgpPeers("alpha", "bravo") + "firewall {\n\ttable wan {\n\t\tfamily inet\n\t\tchain input {\n" +
+	return "firewall {\n\ttable wan {\n\t\tfamily inet\n\t\tchain input {\n" +
 		"\t\t\ttype filter\n\t\t\thook input\n\t\t\tpriority 0\n\t\t\tpolicy accept\n" +
-		term(first) + term(second) +
-		"\t\t}\n\t}\n}\n"
+		body.String() + "\t\t}\n\t}\n}\n"
 }
 
 // bgpPeers is a BGP config whose two peers are written in the order given;
@@ -449,22 +457,28 @@ func TestConfigDiffRevisionMode(t *testing.T) {
 }
 
 // TestConfigDiffOrderMetadata exercises text and JSON through the command
-// entry points, including firewall-only inputs and membership changes.
+// entry points, including firewall-only inputs and membership changes. A term
+// inserted or deleted changes the order entry and answers the term's own leaf
+// as added or removed, the table and chain settings being the same on both
+// sides.
 func TestConfigDiffOrderMetadata(t *testing.T) {
 	const path = "firewall/table/wan/chain/input/@term"
-	before := strings.TrimPrefix(firewallTerms("b", "a"), bgpPeers("alpha", "bravo"))
-	after := strings.TrimPrefix(firewallTerms("a", "b"), bgpPeers("alpha", "bravo"))
+	const leafB = "firewall/table/wan/chain/input/term/b/then/accept"
+	before, after, onlyA := firewallTable("b", "a"), firewallTable("a", "b"), firewallTable("a")
 	for _, tc := range []struct {
 		name, before, after, text string
 		old, new                  []string
+		added, removed            map[string]any
 	}{
-		{"reorder", before, after, "~ " + path + ": [b a] -> [a b]", []string{"b", "a"}, []string{"a", "b"}},
-		{"insert", "firewall { table wan { chain input { term a { then { accept; } } } } }", after,
-			"~ " + path + ": [a] -> [a b]", []string{"a"}, []string{"a", "b"}},
-		{"delete", after, "firewall { table wan { chain input { term a { then { accept; } } } } }",
-			"~ " + path + ": [a b] -> [a]", []string{"a", "b"}, []string{"a"}},
-		{"identical", before, before, "No differences", nil, nil},
-		{"plain reorder", bgpPeers("bravo", "alpha"), bgpPeers("alpha", "bravo"), "No differences", nil, nil},
+		{"reorder", before, after, "~ " + path + ": [b a] -> [a b]", []string{"b", "a"}, []string{"a", "b"}, nil, nil},
+		{"insert", onlyA, after,
+			"+ " + leafB + ": true\n~ " + path + ": [a] -> [a b]", []string{"a"}, []string{"a", "b"},
+			map[string]any{leafB: "true"}, nil},
+		{"delete", after, onlyA,
+			"- " + leafB + ": true\n~ " + path + ": [a b] -> [a]", []string{"a", "b"}, []string{"a"},
+			nil, map[string]any{leafB: "true"}},
+		{"identical", before, before, "No differences", nil, nil, nil, nil},
+		{"plain reorder", bgpPeers("bravo", "alpha"), bgpPeers("alpha", "bravo"), "No differences", nil, nil, nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			file1, file2 := writeTestConfig(t, tc.before), writeTestConfig(t, tc.after)
@@ -482,8 +496,8 @@ func TestConfigDiffOrderMetadata(t *testing.T) {
 				} `json:"changed"`
 			}
 			require.NoError(t, json.Unmarshal([]byte(encoded), &decoded))
-			assert.Empty(t, decoded.Added)
-			assert.Empty(t, decoded.Removed)
+			assertDiffEntries(t, tc.added, decoded.Added)
+			assertDiffEntries(t, tc.removed, decoded.Removed)
 			if tc.old == nil {
 				assert.Empty(t, decoded.Changed)
 			} else {
@@ -493,6 +507,17 @@ func TestConfigDiffOrderMetadata(t *testing.T) {
 			}
 		})
 	}
+}
+
+// assertDiffEntries compares the added or removed entries of a decoded diff
+// answer with want, where a nil want is no entry.
+func assertDiffEntries(t *testing.T, want, got map[string]any) {
+	t.Helper()
+	if want == nil {
+		assert.Empty(t, got)
+		return
+	}
+	assert.Equal(t, want, got)
 }
 
 // TestConfigDiffOrderSources proves stored current files and rollback bytes
@@ -516,11 +541,15 @@ func TestConfigDiffOrderSources(t *testing.T) {
 }
 
 // TestConfigDiffWholeOrderedList distinguishes whole-list membership from a
-// changed existing sequence through both public command output shapes.
+// changed existing sequence through both public command output shapes: a
+// whole list added or removed is an added or removed order entry beside the
+// leaves of its terms, never a changed one. The chain's settings are the same
+// on both sides, so the terms are the only difference.
 func TestConfigDiffWholeOrderedList(t *testing.T) {
 	const path = "firewall/table/wan/chain/input/@term"
-	with := strings.TrimPrefix(firewallTerms("b", "a"), bgpPeers("alpha", "bravo"))
-	without := "firewall { table wan { chain input {} } }"
+	const leaves = "firewall/table/wan/chain/input/term/"
+	with, without := firewallTable("b", "a"), firewallTable()
+	entries := map[string]any{path: []any{"b", "a"}, leaves + "a/then/accept": "true", leaves + "b/then/accept": "true"}
 	for _, addition := range []bool{true, false} {
 		before, after, marker := without, with, "+"
 		if !addition {
@@ -529,21 +558,23 @@ func TestConfigDiffWholeOrderedList(t *testing.T) {
 		file1, file2 := writeTestConfig(t, before), writeTestConfig(t, after)
 		code, text := captureDiffStdout(t, func() int { return cmdDiff([]string{file1, file2}) })
 		require.Equal(t, exitOK, code)
-		assert.Equal(t, marker+" "+path+": [b a]\n", text)
+		assert.Equal(t, marker+" "+path+": [b a]\n"+
+			marker+" "+leaves+"a/then/accept: true\n"+
+			marker+" "+leaves+"b/then/accept: true\n", text)
 		encoded, code := marshalDiffAnswer(t, file1, file2)
 		require.Equal(t, exitOK, code)
 		var decoded struct {
-			Added   map[string][]string `json:"added"`
-			Removed map[string][]string `json:"removed"`
-			Changed map[string]any      `json:"changed"`
+			Added   map[string]any `json:"added"`
+			Removed map[string]any `json:"removed"`
+			Changed map[string]any `json:"changed"`
 		}
 		require.NoError(t, json.Unmarshal([]byte(encoded), &decoded))
 		assert.Empty(t, decoded.Changed)
 		if addition {
-			assert.Equal(t, map[string][]string{path: {"b", "a"}}, decoded.Added)
+			assert.Equal(t, entries, decoded.Added)
 			assert.Empty(t, decoded.Removed)
 		} else {
-			assert.Equal(t, map[string][]string{path: {"b", "a"}}, decoded.Removed)
+			assert.Equal(t, entries, decoded.Removed)
 			assert.Empty(t, decoded.Added)
 		}
 	}
@@ -571,8 +602,12 @@ func TestConfigDiffSchemaOrder(t *testing.T) {
 			return root
 		}
 		before, after := makeTree("zulu", "alpha"), makeTree("alpha", "zulu")
-		diff := config.DiffMaps(nil, nil)
-		diffListOrders(before, after, schema, diff)
+		beforeSide, err := infra.NewDiffSide(before)
+		require.NoError(t, err)
+		afterSide, err := infra.NewDiffSide(after)
+		require.NoError(t, err)
+		diff, err := infra.DiffConfigs(schema, beforeSide, afterSide)
+		require.NoError(t, err)
 		require.Len(t, diff.Changed, 1)
 		pair := diff.Changed["scope/parent/one/@rule"]
 		if secret {

@@ -535,17 +535,29 @@ The visual diff uses the same entry writers as the hierarchical printer,
 including grouped positional rows and inline leaf-list entries.
 <!-- source: internal/component/config/serialize.go -- ListUsesMultiBlock, WriteListEntry, WritePositionalListEntry, WriteFlexListEntry, WriteInlineListEntry -->
 
-`ze config diff` keeps its resolved BGP value comparison and also compares
-schema-declared user-ordered lists from the parsed configuration. It reports
-their entry-key sequence under the existing `@<list-name>` metadata convention,
-at the full configuration path (for example,
-`firewall/table/wan/chain/input/@term`). Both text and JSON carry the old and
-new sequences. A list's first appearance or disappearance is an addition or
-removal; a membership or order change in an existing list is a changed sequence.
-Firewall-only inputs need no BGP block. This order comparison does not add
-general value comparison for other non-BGP configuration.
+`ze config diff` compares every root of the two configurations. The `bgp`
+block is compared resolved, after group and bgp-level values are inherited
+into each peer, at the paths the resolved block gives (`router-id`,
+`peer/<name>/session/asn/remote`), so a value a peer inherits shows on that
+peer. Every other root is compared as written, under its root name (for
+example, `plugin/hub/client/edge-01/host`), one entry per leaf: an added or
+removed list entry or container lists each leaf it holds. An added or removed
+`bgp` peer is still one entry holding the peer. A root whose name is also a setting
+of the resolved `bgp` block would give two values one path, so the comparison
+refuses it with an operator error rather than show one of them.
 
-<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders -->
+The comparison also compares schema-declared user-ordered lists from the
+parsed configuration. It reports their entry-key sequence under the existing
+`@<list-name>` metadata convention, at the full configuration path (for
+example, `firewall/table/wan/chain/input/@term`). Both text and JSON carry the
+old and new sequences. A list's first appearance or disappearance is an
+addition or removal; a membership or order change in an existing list is a
+changed sequence. The order of a plain list is not a change. Inputs need no BGP
+block. Every value under a secret leaf is masked after the comparison, so a
+rotated secret is reported as changed with neither value shown.
+
+<!-- source: internal/component/config/infra/diff.go -- NewDiffSide, DiffConfigs, diffListOrders, maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, parseAndResolve -->
 
 <!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
 <!-- source: internal/core/configvalue/configvalue.go -- Bool, Int, LeafList, ListEntries -->

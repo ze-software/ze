@@ -486,13 +486,16 @@ framing. Read-only accounts can use these controls when their command policy
 allows the inspection. Results and refusals appear below the form; the selected
 file and pasted text remain available for correction.
 
-Comparison reports resolved BGP settings and schema-declared ordered-list
-ordering, matching the local file comparison. Other non-BGP value changes,
-including `system host`, are not reported.
+Comparison reports every change in the two configurations, matching the
+local file comparison: BGP settings as resolved values, every other setting as
+written, including `system host`, and schema-declared ordered-list ordering.
+Secrets are masked.
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
 
 <!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
 <!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs, diffListOrders -->
 
 In **Edit**, open **Import into candidate** to select a local file or paste
 configuration. Choose **Configuration root** for a complete configuration or

@@ -18,12 +18,11 @@
 # file's own values in the output can only come from the ze that ran the
 # plugin.
 #
-# Every file holds a bgp block: `ze config dump` and `ze config diff` resolve
-# it and refuse a config with none. The comparison is of that block, since
-# `ze config diff` compares the resolved bgp block and the order of ordered
-# lists: the two files differ in a peer's remote AS and in one added peer, and
-# both hold the plugin's section, so the comparison is printed only by a ze
-# whose schema parses that section in both.
+# Every file holds a bgp block: `ze config dump` resolves it and refuses a
+# config with none. `ze config diff` compares every root, the bgp block
+# resolved: the two files differ in a peer's remote AS, in one added peer and in
+# the plugin section's interval, and both hold the plugin's section, so the
+# comparison is printed only by a ze whose schema parses that section in both.
 #
 # The last step is a refusal: a file with the plugin's section and no bgp
 # block. The running ze parses the section and refuses the dump for the
@@ -234,6 +233,7 @@ reject=stderr:contains=none answered
 cmd=foreground:seq=6:exec=ze config diff first.conf second.conf:exit=0
 expect=stdout:contains=remote
 expect=stdout:contains=10.0.0.2
+expect=stdout:contains=~ acme-monitor/interval: 7 -> 9
 reject=stdout:contains=No differences
 reject=stderr:contains=unknown top-level keyword
 reject=stderr:contains=none answered

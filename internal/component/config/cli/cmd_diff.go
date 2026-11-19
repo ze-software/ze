@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
-	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -39,6 +38,8 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		p := helpfmt.Page{
 			Command:   "ze config diff",
 			ShortHelp: "Compare two configuration files and show differences",
+			Description: "Compares every part of the config. The bgp block is compared resolved, after " +
+				"template expansion, so a value a peer inherits shows on that peer.",
 			Usage: []string{
 				"ze config diff <file1> <file2>",
 				"ze config diff <N> <file>",
@@ -57,7 +58,6 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		}
 		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nWhen first argument is a number, compares current config against rollback revision N.\n")
-		fmt.Fprintf(os.Stderr, "Operates on resolved config (after template expansion).\n")
 		fmt.Fprintf(os.Stderr, "Use - for stdin (only one file can be stdin).\n")
 	}
 
@@ -215,16 +215,12 @@ func compareDiffInputs(inputs diffInputs, diag *textbuf.Buffer) (*config.ConfigD
 		return nil, exitError
 	}
 
-	return diffSources(schema, tree1, tree2), exitOK
-}
-
-// diffSources compares parsed and resolved sources from either input route.
-// Secret masking and schema-declared list ordering have one producer.
-func diffSources(schema *config.Schema, tree1, tree2 *diffSource) *config.ConfigDiff {
-	diff := config.DiffMaps(tree1.resolved, tree2.resolved)
-	diffListOrders(tree1.parsed, tree2.parsed, schema, diff)
-	maskDiffSecrets(diff, config.SecretKeys(schema))
-	return diff
+	diff, err := infra.DiffConfigs(schema, tree1, tree2)
+	if err != nil {
+		diag.Str("error: ").Err(err).Byte('\n')
+		return nil, exitError
+	}
+	return diff, exitOK
 }
 
 // resolveRollbackVersion resolves a revision number to its history entry key
@@ -244,13 +240,6 @@ func resolveRollbackVersion(store storage.Storage, configPath string, n int) (st
 	return backups[n-1].Path, data, nil
 }
 
-// diffSource keeps parsed order beside resolved BGP values: lowering to a map
-// alone cannot answer whether a schema-declared ordered list moved.
-type diffSource struct {
-	parsed   *config.Tree
-	resolved map[string]any
-}
-
 // readDiffSource reads one input exactly once, before selecting the schema.
 // A nil store means an explicit path. Stdin remains a stream even when the
 // other source comes from storage.
@@ -268,147 +257,23 @@ func readDiffSource(store storage.Storage, path string) ([]byte, error) {
 	return storage.ReadActiveConfig(store, name)
 }
 
-// parseAndResolve retains the parsed tree for schema-driven order comparison.
-func parseAndResolve(schema *config.Schema, data []byte) (*diffSource, error) {
+// parseAndResolve parses one side of a comparison and resolves its bgp block
+// for infra.DiffConfigs, which compares the whole tree.
+func parseAndResolve(schema *config.Schema, data []byte) (*infra.DiffSide, error) {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
-
-	source := &diffSource{parsed: tree}
-	// Resolving an absent BGP block asks the engine to validate configuration
-	// that is not there. Non-BGP inputs still participate in list-order diff.
-	if tree.GetContainer("bgp") != nil {
-		source.resolved, err = infra.ResolveBGPTree(tree)
-		if err != nil {
-			return nil, fmt.Errorf("resolve: %w", err)
-		}
+	side, err := infra.NewDiffSide(tree)
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %w", err)
 	}
-	return source, nil
-}
-
-// diffListOrders adds only schema-declared ordered-list sequences, leaving the
-// existing resolved BGP value paths and non-BGP value-comparison scope intact.
-func diffListOrders(before, after *config.Tree, schema *config.Schema, diff *config.ConfigDiff) {
-	oldOrders, newOrders := make(map[string][]string), make(map[string][]string)
-	secretPaths := make(map[string]bool)
-	collectDiffListOrders(before, schema, "", oldOrders, secretPaths)
-	collectDiffListOrders(after, schema, "", newOrders, secretPaths)
-	for path, old := range oldOrders {
-		if _, present := newOrders[path]; !present {
-			diff.Removed[path] = maskDiffOrder(old, secretPaths[path])
-		}
-	}
-	for path, keys := range newOrders {
-		old, present := oldOrders[path]
-		if !present {
-			diff.Added[path] = maskDiffOrder(keys, secretPaths[path])
-			continue
-		}
-		// Compare real keys first; masking before comparison would hide a move.
-		if !slices.Equal(old, keys) {
-			diff.Changed[path] = config.DiffPair{
-				Old: maskDiffOrder(old, secretPaths[path]),
-				New: maskDiffOrder(keys, secretPaths[path]),
-			}
-		}
-	}
-}
-
-// collectDiffListOrders walks the finite parsed tree, including containers and
-// entries of plain lists: an ordered list can be nested inside either.
-func collectDiffListOrders(tree *config.Tree, schema config.ChildProvider, prefix string, orders map[string][]string, secrets map[string]bool) {
-	for _, name := range schema.Children() {
-		node := schema.Get(name)
-		path := config.AppendPath(prefix, name)
-		entries := tree.GetList(name)
-		if list, ok := node.(*config.ListNode); ok && list.UserOrdered && len(entries) > 0 {
-			recorded := tree.GetListOrdered(name)
-			keys := make([]string, 0, len(recorded))
-			for _, entry := range recorded {
-				keys = append(keys, entry.Key)
-			}
-			orderPath := config.AppendPath(prefix, configorder.OrderKey(name))
-			orders[orderPath] = config.ListEntryKeys(entries, keys)
-			if list.KeyLeaf != nil && (list.KeyLeaf.Sensitive || list.KeyLeaf.Bcrypt) {
-				secrets[orderPath] = true
-			}
-		}
-		children, ok := node.(config.ChildProvider)
-		if !ok {
-			continue
-		}
-		if sub := tree.GetContainer(name); sub != nil {
-			collectDiffListOrders(sub, children, path, orders, secrets)
-		}
-		for key, entry := range entries {
-			collectDiffListOrders(entry, children, config.AppendPath(path, key), orders, secrets)
-		}
-	}
-}
-
-func maskDiffOrder(keys []string, secret bool) []string {
-	if !secret {
-		return keys
-	}
-	for i := range keys {
-		keys[i] = config.SecretDataPlaceholder
-	}
-	return keys
-}
-
-// maskDiffSecrets replaces every secret value the diff carries with the display
-// placeholder, in the text shape and in the JSON shape alike.
-//
-// The diff runs on the REAL values first, so a rotated credential still reports
-// as changed. Masking the two trees before the diff would give both sides the
-// same placeholder, and the command would answer that nothing moved. The
-// operator learns which leaf changed, and neither value. That is the answer
-// Editor.Diff (internal/component/cli/editor.go) and the web commit review
-// (changedSecretLines, internal/component/web/cli_terminal.go) already write.
-//
-// The parser decodes a $9$ value into the tree, so this command printed in
-// cleartext what the file holds encoded.
-func maskDiffSecrets(diff *config.ConfigDiff, secretKeys map[string]bool) {
-	if diff == nil || len(secretKeys) == 0 {
-		return
-	}
-	for key, value := range diff.Added {
-		diff.Added[key] = maskDiffValue(key, value, secretKeys)
-	}
-	for key, value := range diff.Removed {
-		diff.Removed[key] = maskDiffValue(key, value, secretKeys)
-	}
-	for key, pair := range diff.Changed {
-		diff.Changed[key] = config.DiffPair{
-			Old: maskDiffValue(key, pair.Old, secretKeys),
-			New: maskDiffValue(key, pair.New, secretKeys),
-		}
-	}
-}
-
-// maskDiffValue masks one diff entry. A whole subtree is walked, because an
-// added peer carries its own md5 password. A scalar is masked when the last
-// segment of its path names a secret leaf.
-//
-// The name is what identifies the leaf here. ResolveBGPTree flattens group and
-// peer inheritance, so a path in the resolved map addresses no schema node.
-// `ze config dump` reads a name for the same reason.
-func maskDiffValue(path string, value any, secretKeys map[string]bool) any {
-	if subtree, ok := value.(map[string]any); ok {
-		maskMapValues(subtree, secretKeys, config.DisplayStrip)
-		return subtree
-	}
-	segments := config.SplitPath(path)
-	if secretKeys[segments[len(segments)-1]] {
-		return config.SecretDataPlaceholder
-	}
-	return value
+	return side, nil
 }
 
 func outputDiffText(diff *config.ConfigDiff) int {
-	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
+	if infra.DiffChangeCount(diff) == 0 {
 		fmt.Println("No differences")
 		return exitOK
 	}

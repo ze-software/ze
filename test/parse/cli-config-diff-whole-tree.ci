@@ -1,0 +1,55 @@
+# Test: ze config diff reports a change outside bgp, with its secret masked
+# VALIDATES: spec-fleet-7 AC-22 -- two configs that differ only in a hub
+# client's host and secret answer both changes, exit 0, the secret shown as the
+# placeholder on both sides and neither value printed.
+# PREVENTS: the BGP-only comparison, which answered "No differences" for this
+# pair (verified by a run on 2026-11-19).
+#
+# The one question: does the operator's command, `ze config diff a b`, compare
+# every root of the files it was given? A unit test of infra.DiffConfigs proves
+# the producer; only this run proves the command reaches it from the files and
+# prints its text shape.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=before.conf:terminator=EOF_BEFORE
+plugin {
+	hub {
+		client edge-01 {
+			host 10.0.0.1
+			port 1790
+			secret whole-tree-secret-old-0123456789abcd
+		}
+	}
+}
+EOF_BEFORE
+
+tmpfs=after.conf:terminator=EOF_AFTER
+plugin {
+	hub {
+		client edge-01 {
+			host 10.0.0.2
+			port 1790
+			secret whole-tree-secret-new-0123456789abcd
+		}
+	}
+}
+EOF_AFTER
+
+cmd=foreground:seq=1:exec=ze config diff before.conf after.conf
+expect=exit:code=0
+expect=stdout:contains=~ plugin/hub/client/edge-01/host: 10.0.0.1 -> 10.0.0.2
+expect=stdout:contains=~ plugin/hub/client/edge-01/secret: /* SECRET-DATA */ -> /* SECRET-DATA */
+reject=stdout:contains=No differences
+reject=stdout:contains=whole-tree-secret-old
+reject=stdout:contains=whole-tree-secret-new
+reject=stderr:pattern=whole-tree-secret-old
+reject=stderr:pattern=whole-tree-secret-new

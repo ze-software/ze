@@ -528,7 +528,7 @@ the config file and run `ze secret decode '$9$...'`, or `ze secret decode -`
 to keep the value out of the shell history. A `ze:bcrypt` leaf holds a one-way
 hash, which no command can decode.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+<!-- source: internal/component/config/infra/diff.go -- maskDiffSecrets -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 
 ### Commands run one at a time, in order

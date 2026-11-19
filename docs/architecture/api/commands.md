@@ -1461,11 +1461,12 @@ accounting, and refusals do not echo the private operand.
 <!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion, suppliedSecret -->
 <!-- source: internal/plugins/config-cli/yang/ze-config-utilities-cmd.yang -- show config supplied completion, show secret -->
 
-Comparison has the same scope as the existing local file command: resolved BGP
-values and schema-declared ordered-list ordering. Other non-BGP value changes,
-such as a changed `system host`, are not included. Supplying complete files
-does not expand that comparison scope.
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+Comparison has the same scope as the local file command: every root of the
+two configurations, the `bgp` block as resolved values and every other root as
+written, such as a changed `system host`, plus schema-declared ordered-list
+ordering, with every secret masked.
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs, diffListOrders -->
 
 File and supplied inputs share their parsing, resolution, validation,
 formatting, inactive pruning, comparison and secret-display producers. Dump
@@ -1557,7 +1558,8 @@ remains incomplete.
 <!-- source: internal/component/config/cli/config_data.go -- validationBytesAnswer, diffAnswer -->
 <!-- source: internal/component/config/cli/cmd_fmt.go -- fmtBytesAnswer -->
 <!-- source: internal/component/config/cli/cmd_graph.go -- graphBytesAnswer -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
 
 An input control discovers these capabilities through
 `registry.Meta.SuppliedInput`, joined to the command's YANG arguments. The

@@ -182,18 +182,22 @@ fix: | text | match peer/upstream
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 
-`ze config diff` compares resolved BGP values after template expansion and
-reports entry-order changes for every YANG `ordered-by user` list, including
-nested lists outside BGP. Plain-list reorder alone reports `No differences`.
-Firewall-only comparisons need no BGP block. Ordered sequences use the existing
+`ze config diff` compares every root of the two configurations: the `bgp`
+block as resolved values after template expansion, every other root as
+written (for example, `~ plugin/hub/client/edge-01/host: 10.0.0.1 -> 10.0.0.2`).
+It also reports entry-order changes for every YANG `ordered-by user` list,
+including nested lists outside BGP. Plain-list reorder alone reports
+`No differences`. Comparisons need no BGP block.
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs --> Ordered sequences use the existing
 `@<list-name>` metadata key at their full config path: text shows, for example,
 `~ firewall/table/wan/chain/input/@term: [b a] -> [a b]`; JSON puts that path
 under `changed` with `old` and `new` arrays. Inserting or deleting entries changes
 the sequence too; adding or removing the whole list uses `added` or `removed`.
-This does not add general non-BGP value comparison. Files, stored sources and
+Files, stored sources and
 rollback revisions use the same comparison, and changed secret values remain
 masked in both output shapes.
-<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders, maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs -->
+<!-- source: internal/component/config/infra/diff.go -- diffListOrders, maskDiffSecrets -->
 
 Interactive `ze config edit` and `ze cli` run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored
