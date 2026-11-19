@@ -124,7 +124,7 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
  	__XFRMA_MAX
  
  #define XFRMA_OUTPUT_MARK XFRMA_SET_MARK	/* Compatibility */
-@@ -342,6 +344,30 @@
+@@ -342,6 +344,35 @@
  struct xfrm_mark {
  	__u32           v; /* value */
  	__u32           m; /* mask */
@@ -145,6 +145,11 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
 +#define XFRM_ZE_CAP_FRAGMENT_CONTEXT	(1U << 2)
 +#define XFRM_ZE_CAP_FRAGMENT_GUARD		(1U << 3)
 +#define XFRM_ZE_CAP_ICMP_FINAL		(1U << 4)
++/* icmp_rcv and icmpv6_rcv run the reverse (payload) check for error types only,
++ * and that check stops at an inbound BLOCK policy the message matches as
++ * received, unless the policy carries XFRM_POLICY_ICMP (a final catch-all).
++ */
++#define XFRM_ZE_CAP_ICMP_REVERSE		(1U << 5)
 +#define XFRM_ZE_CAP_ABI			0x5a450001U
 +
 +struct xfrm_user_ze_caps {
@@ -175,16 +180,26 @@ diff --git a/net/ipv4/icmp.c b/net/ipv4/icmp.c
  
  		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
  				 XFRM_STATE_ICMP)) {
-@@ -1464,19 +1463,11 @@
+@@ -1464,19 +1463,21 @@
  			goto drop;
  		}
- 
+
 -		if (!pskb_may_pull(skb, sizeof(*icmph) + sizeof(struct iphdr)))
 -			goto drop;
 -
 -		nh = skb_network_offset(skb);
 -		skb_set_network_header(skb, sizeof(*icmph));
 -
++		/* RFC 4301 Section 6:
++		 * "This section applies exclusively to error messages."
++		 * A non-error message the inbound check refused stays refused.
++		 */
++		if (!pskb_may_pull(skb, sizeof(*icmph)) ||
++		    !icmp_is_err(icmp_hdr(skb)->type)) {
++			reason = SKB_DROP_REASON_XFRM_POLICY;
++			goto drop;
++		}
++
  		if (!xfrm4_policy_check_reverse(NULL, XFRM_POLICY_IN,
  						skb)) {
  			reason = SKB_DROP_REASON_XFRM_POLICY;
@@ -215,16 +230,26 @@ diff --git a/net/ipv6/icmp.c b/net/ipv6/icmp.c
  
  		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
  				 XFRM_STATE_ICMP)) {
-@@ -1117,19 +1116,11 @@
+@@ -1117,19 +1116,21 @@
  			goto drop_no_count;
  		}
- 
+
 -		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(struct ipv6hdr)))
 -			goto drop_no_count;
 -
 -		nh = skb_network_offset(skb);
 -		skb_set_network_header(skb, sizeof(*hdr));
 -
++		/* RFC 4301 Section 6:
++		 * "This section applies exclusively to error messages."
++		 * An informational type (128 and above) stays refused.
++		 */
++		if (!pskb_may_pull(skb, sizeof(*hdr)) ||
++		    (icmp6_hdr(skb)->icmp6_type & ICMPV6_INFOMSG_MASK)) {
++			reason = SKB_DROP_REASON_XFRM_POLICY;
++			goto drop_no_count;
++		}
++
  		if (!xfrm6_policy_check_reverse(NULL, XFRM_POLICY_IN,
  						skb)) {
  			reason = SKB_DROP_REASON_XFRM_POLICY;
@@ -681,10 +706,10 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  	int xerr_idx = -1;
  	const struct xfrm_if_cb *ifcb;
  	struct sec_path *sp;
-@@ -3709,26 +3990,53 @@
+@@ -3709,26 +3990,78 @@
  	reverse = dir & ~XFRM_POLICY_MASK;
  	dir &= XFRM_POLICY_MASK;
- 
+
 -	if (__xfrm_decode_session(net, skb, &fl, family, reverse) < 0) {
 +	if (__xfrm_decode_session(net, skb, &fl, family, 0) < 0) {
  		XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
@@ -698,9 +723,34 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
 +	nf_nat_decode_session(skb, &original, family);
 +	if (reverse) {
 +		struct flowi quoted = {};
++		struct xfrm_policy *received;
++		bool discard;
 +
 +		if (xfrm_icmp_flow_decode(skb, family, &fl, &quoted)) {
 +			XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
++			return 0;
++		}
++		/* RFC 4301 Section 6.1.2:
++		 * "Thus, implementers MUST provide controls to allow local
++		 * administrators to constrain the processing of ICMP error
++		 * messages received on the protected side of the boundary, and
++		 * directed to the IPsec implementation."
++		 * The payload decides only past the entry the message meets as
++		 * received: a BLOCK policy matching its own headers stops it,
++		 * unless that policy carries XFRM_POLICY_ICMP, which marks a final
++		 * catch-all that Section 6.2 processing may pass.
++		 */
++		received = xfrm_policy_lookup(net, &original, family, dir, if_id);
++		if (IS_ERR(received)) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMINPOLERROR);
++			return 0;
++		}
++		discard = received && received->action == XFRM_POLICY_BLOCK &&
++			  !(received->flags & XFRM_POLICY_ICMP);
++		if (received)
++			xfrm_pol_put(received);
++		if (discard) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMINPOLBLOCK);
 +			return 0;
 +		}
 +		fl = quoted;
@@ -742,7 +792,7 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  					ret = 0;
  				if (ret) {
  					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
-@@ -4322,6 +4630,7 @@
+@@ -4322,6 +4655,7 @@
  	int rv;
  
  	/* Initialize the per-net locks here */
@@ -1087,7 +1137,7 @@ diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
  	struct xfrm_userpolicy_default *r_up;
 -	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default));
 +	struct xfrm_user_ze_caps caps = {
-+		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE,
++		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE | XFRM_ZE_CAP_ICMP_REVERSE,
 +		.max_selectors = XFRM_STATE_SCOPE_MAX,
 +		.guard_refs = atomic_read(&net->xfrm.fragment_guard_refs),
 +		.abi = XFRM_ZE_CAP_ABI,
