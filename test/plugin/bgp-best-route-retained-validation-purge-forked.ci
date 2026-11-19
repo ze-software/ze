@@ -1,0 +1,62 @@
+# Question: does real GR-retained ordinary selection follow real RTR changes
+# onto a newly established BGP socket, then join purge without resurrection?
+# A unit cannot decide actual OPEN negotiation, physical DOWN, plugin placement,
+# received provenance, the RTR cache, deciding RIB and final socket together.
+# The observer checks original owner/connection/receipt/message/bytes, exact wire
+# announcement/withdrawal, completed cache serials, a live independent source,
+# same-address fresh replacement, and same-socket API fences. No sleep decides it.
+option=timeout:value=150s
+
+tmpfs=retained-vrps.txt:terminator=VRPS
+1
+10.254.0.0/24,24,65001
+10.252.0.0/24,24,65001
+VRPS
+
+stdin=ze-conf:terminator=CONFIG
+plugin {
+ external adj-rib-in { run "ze plugin bgp-adj-rib-in"; }
+ external rib { run "ze plugin bgp-rib"; }
+ external gr { run "ze plugin bgp-gr"; }
+ external rpki { run "ze plugin bgp-rpki"; }
+ external bgp-retained-test { run "le test fixture plugin/bgp-best-route-retained-validation forked 127.0.0.1:$PORT purge"; encoder json; }
+}
+bgp {
+ router-id 1.1.1.1;
+ rpki { cache-server 127.0.0.1 { trusted-network true; port $PORT2; } action { invalid reject; not-found reject; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart { restart-time 120; } } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final accept; } }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process rpki { receive [ update-received state ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state refresh ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process rib { receive [ update-received update-sent state refresh ]; send [ update ]; }
+  attach process bgp-retained-test { send [ update ]; }
+ }
+ peer control {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final accept; } }
+  attach process rpki { receive [ update-received state ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state refresh ]; }
+ }
+}
+CONFIG
+
+cmd=background:seq=1:exec=le mock rtr --port $PORT2 --sync-release retained-sync.release --vrp-file retained-vrps.txt --refresh 1 --retry 1:ready=le mock rtr: listening on
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=140s
+expect=exit:code=0
+expect=stderr:contains=OK: retained ordinary forked purge actual RTR and final socket lifecycle
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

@@ -56,12 +56,12 @@ func bgpRetainedDriver(ctx context.Context, args []string) error {
 // No recorder callback or injected learned candidate stands in for that path.
 func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retirement string) error {
 	// The expiry variant waits for the real advertised protocol timer. The
-	// purge variant keeps a long window so its explicit command owns removal.
+	// purge variant keeps a long window so the successor's EOR owns removal.
 	restart := uint16(120)
 	if retirement == "expiry" {
 		restart = 45
 	}
-	source, err := bgpRetainedConnect(ctx, address, restart)
+	source, err := bgpRetainedConnect(ctx, address, restart, false)
 	if err != nil {
 		return err
 	}
@@ -213,8 +213,8 @@ func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retir
 	}
 
 	if retirement == "purge" {
-		if _, err := done03(ctx, plugin, "request bgp rib purge-stale "+addrLoopbackSecond); err != nil {
-			return fmt.Errorf("joined retained purge: %w", err)
+		if err := bgpRetainedPurge(ctx, plugin, address, original); err != nil {
+			return err
 		}
 	}
 	// The expiry variant waits on authoritative absence, never on an elapsed
@@ -264,7 +264,7 @@ func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retir
 
 	// Reusing the address MUST create a fresh physical source, whose route is
 	// useful after the old lease has been sealed. It must not borrow old facts.
-	replacement, err := bgpRetainedConnect(ctx, address, 120)
+	replacement, err := bgpRetainedConnect(ctx, address, 120, false)
 	if err != nil {
 		return err
 	}
@@ -312,6 +312,44 @@ func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retir
 	return bgpRetainedFence(ctx, plugin, target, 3)
 }
 
+// bgpRetainedPurge exercises RFC 4724 Section 4.2 through the successor's
+// real OPEN and EOR. No replacement route refreshes the original retained path.
+// This helper MUST close its empty successor before the later useful reconnect;
+// its caller MUST retain the original snapshot for the post-retirement checks.
+func bgpRetainedPurge(ctx context.Context, plugin *sdk.Plugin, address string, original bgpRetainedRoute) error {
+	restarted, err := bgpRetainedConnect(ctx, address, 120, true)
+	if err != nil {
+		return err
+	}
+	defer restarted.Close() //nolint:errcheck // Every exit releases the test-owned socket.
+	if err := bgpRetainedEOR(restarted); err != nil {
+		return fmt.Errorf("restarted source initial EOR: %w", err)
+	}
+	if err := bgpRetainedSame(ctx, plugin, original, 1, false); err != nil {
+		return fmt.Errorf("F-bit preservation before successor EOR: %w", err)
+	}
+	// Empty reachable and withdrawn NLRI with no attributes is the IPv4
+	// End-of-RIB marker (RFC 4724 Section 2), not a route withdrawal.
+	if err := bgpBestRouteSend(restarted, nil, false, true); err != nil {
+		return fmt.Errorf("restarted source EOR: %w", err)
+	}
+	// Prove EOR retired the original passive record while this successor
+	// is still established. Its later DOWN cannot stand in for that cleanup.
+	if err := bgpRetainedGone(ctx, plugin); err != nil {
+		return fmt.Errorf("successor EOR purge: %w", err)
+	}
+	if err := restarted.Close(); err != nil {
+		return err
+	}
+	// The source is configured passive. Active means its preceding Session
+	// completed its DOWN and joins before this next accept cycle started.
+	if err := p12WaitPeerField(ctx, plugin, p12Peer{name: "source", addr: original.Peer}, "state",
+		func(value any) bool { return value == "active" }, "empty GR successor to finish its DOWN"); err != nil {
+		return err
+	}
+	return quiesce(ctx, plugin)
+}
+
 // bgpRetainedGRState reads the status key from the recorded source owner,
 // never from its display address. The status row proves the GR timer; the
 // following received-route comparison separately checks physical provenance.
@@ -332,6 +370,11 @@ func bgpRetainedGRState(ctx context.Context, plugin *sdk.Plugin, original bgpRet
 				return false
 			}
 			if candidate["peer-address"] != original.Peer {
+				return false
+			}
+			// Retention first publishes an unmarked cycle. Wait for the
+			// stale-marking transition before checking its exact timer.
+			if candidate["stale-at"] == nil || candidate["stale-at"] == "0001-01-01T00:00:00Z" {
 				return false
 			}
 			row = candidate
@@ -575,7 +618,7 @@ func bgpRetainedWinner(conn net.Conn, nlri, path []byte) error {
 // bgpRetainedConnect adds only the source's real code-64 capability to the
 // existing zero-hold-time handshake. Caller MUST close the returned socket;
 // this helper MUST close it on every failed handshake.
-func bgpRetainedConnect(ctx context.Context, address string, restart uint16) (net.Conn, error) {
+func bgpRetainedConnect(ctx context.Context, address string, restart uint16, restarting bool) (net.Conn, error) {
 	dialer := net.Dialer{Timeout: time.Second, LocalAddr: net.TCPAddrFromAddrPort(netip.AddrPortFrom(netip.MustParseAddr(addrLoopbackSecond), 0))}
 	var conn net.Conn
 	var dialErr error
@@ -591,9 +634,15 @@ func bgpRetainedConnect(ctx context.Context, address string, restart uint16) (ne
 	if err := conn.SetDeadline(time.Now().Add(15 * time.Second)); err != nil {
 		return nil, err
 	}
-	// RFC 4724 Section 3: restart-time then AFI/SAFI/F tuple. R=0
-	// describes the original live source; F=1 names preserved IPv4 state.
-	optional := []byte{2, 8, 64, 6, byte(restart >> 8), byte(restart), 0, 1, 1, 0x80}
+	// RFC 4724 Sections 3 and 4.1: a cold OPEN has R=0/F=0. The
+	// restarting source sets R=1/F=1 for its preserved IPv4 forwarding state.
+	restartFlags := byte(restart >> 8)
+	forwardFlags := byte(0)
+	if restarting {
+		restartFlags |= 0x80
+		forwardFlags = 0x80
+	}
+	optional := []byte{2, 8, 64, 6, restartFlags, byte(restart), 0, 1, 1, forwardFlags}
 	open := &message.Open{Version: 4, MyAS: 65001, HoldTime: 0, BGPIdentifier: binary.BigEndian.Uint32([]byte{127, 0, 0, 2}), OptionalParams: optional}
 	if _, err := conn.Write(message.PackTo(open, nil)); err != nil {
 		return nil, err

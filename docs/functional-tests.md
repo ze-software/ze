@@ -5168,18 +5168,22 @@ le test scale l2tp --help
 
 The `bgp-best-route-retained-validation-*` scenarios use real source and
 recipient TCP sockets, a GR-capable source OPEN and the mock RTR cache. They
-run purge and protocol-timer expiry variants with internal and forked plugin
-placements. The recipient connects after the original physical source goes
-down. An initial NotFound rejection keeps its route absent; synchronization
+run End-of-RIB purge and protocol-timer expiry variants with internal and
+forked plugin placements. The recipient connects after the original physical
+source goes down. An initial NotFound rejection keeps its route absent; synchronization
 and later ROA changes must announce, withdraw and restore that same original
 received route through the ordinary deciding RIB.
 
 The observer reads GR timer status by the recorded source owner and checks
 its displayed address. It compares the stored source owner, physical
 connection, Session receipt, message ID and received bytes through every
-retained validation phase. Retirement must remove the received route and withdraw its actual
-wire output. Later cache callbacks withdraw and restore a separate live
-source, proving they ran after retirement; an API fence on the original
+retained validation phase. The purge variant reconnects with Restart State
+and Forwarding State set. The original route must remain unchanged until the
+successor sends End-of-RIB without re-announcing that route. The observer
+requires received-route absence before closing the empty successor, then joins
+its DOWN before the later useful reconnect. Retirement must remove the received
+route and withdraw its actual wire output. Later cache callbacks withdraw and
+restore a separate live source, proving they ran after retirement; an API fence on the original
 recipient socket detects any obsolete resurrection. A new connection at the
 old source address then supplies useful fresh output with a different
 connection, receipt and UPDATE ID. The expiry scenario waits for authoritative
