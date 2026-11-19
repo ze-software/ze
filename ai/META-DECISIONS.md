@@ -724,6 +724,13 @@ reporting, comparing or recording a performance or allocation figure.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
+- A kernel is never rebuilt when a build of the same inputs exists, and never
+  built twice for one set of inputs. A test, a record run or a lab never builds
+  a kernel or an image: it boots the cached one, and on a cold cache it refuses
+  and names the one command that builds it, which runs on its own, outside any
+  test deadline. A finished build reaches the cache the moment it completes, so
+  no timeout, kill or later failure discards it, and two runs that need the
+  same build share one.
 - A kernel bump does not re-run the test suite. The kernel keeps its
   interface to programs stable, and a regression in it is fixed upstream, so
   a feature proven on one kernel is not re-proven on the next. The pinned test
