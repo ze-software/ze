@@ -1,0 +1,38 @@
+# Question: does actual daemon startup refuse a state-only ordinary source
+# beside a complete destination, naming the source, process and missing grants?
+# A validator unit cannot prove the shipped daemon invokes the grant gate.
+# VALIDATES: spec-bgp-best-route-advertised-to-peers AC-25 startup refusal.
+# The completed-graph positive is bgp-best-route-transit-default.ci, which
+# observes useful selected output and withdrawal on real peer sockets.
+# Each invalid graph has its own test: daemon exit assertions are file-level.
+
+option=timeout:value=25s
+option=env:var=ze.log.bgp.plugin:value=info
+
+stdin=source-state-only:terminator=CONFIG
+plugin {
+ internal ac25-table { use bgp-rib; }
+}
+bgp {
+ router-id 192.0.2.254;
+ session { asn { local 65000; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { remote 65001; } }
+  filter { import { final accept; } export { final reject; } }
+  attach process ac25-table { receive [ state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { remote 65002; } }
+  filter { import { final reject; } export { final accept; } }
+  attach process ac25-table { receive [ state refresh update-sent ]; send [ update ]; }
+ }
+}
+CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=source-state-only:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=peer "source" process "ac25-table" has incomplete source grants; complete with `attach process ac25-table { receive [ update-received state ]; }`
+reject=stderr:contains=bgp peers started
+reject=stderr:contains=panic
