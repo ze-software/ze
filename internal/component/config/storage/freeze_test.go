@@ -412,7 +412,7 @@ func TestFreezeReadsTheNameFirst(t *testing.T) {
 
 				held, err := store.AcquireLock(tt.staged)
 				require.NoError(t, err)
-				var guard WriteGuard = held
+				guard := held
 				for _, key := range tt.unreadable {
 					guard = unreadableKeyGuard{WriteGuard: guard, key: key, failure: failure}
 				}

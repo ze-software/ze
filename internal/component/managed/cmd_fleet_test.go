@@ -222,10 +222,10 @@ func TestFleetStatusDaemonRouteReportsClientState(t *testing.T) {
 	var state ClientState
 	installFleetTarget(t, &FleetTarget{
 		StartClient: func(func() error) (bool, error) { return false, nil },
-		StopClient:  stopsWith(ClientState{}),
+		StopClient:  stopsWith(),
 		ClientState: func() ClientState { return state },
 	})
-	daemonAsksNobody := func() (fleetStatus, error) {
+	daemonAsksNobody := func() (fleetStatus, error) { //nolint:unparam // it MUST have the daemonAsk shape, and it never answers a status
 		t.Error("the daemon route asked a daemon")
 		return fleetStatus{}, errNoDaemon
 	}
@@ -382,13 +382,13 @@ func neverStarts(t *testing.T) func(func() error) (bool, error) {
 
 // stopsWith is a StopClient as the owner keeps its contract: it runs the flag
 // write first, answers its error and stops nothing when it fails, and
-// otherwise answers before as the state of the client it stopped.
-func stopsWith(before ClientState) func(func() error) (ClientState, error) {
+// otherwise answers a client that was not running.
+func stopsWith() func(func() error) (ClientState, error) {
 	return func(storeFlag func() error) (ClientState, error) {
 		if err := storeFlag(); err != nil {
 			return ClientState{}, err
 		}
-		return before, nil
+		return ClientState{}, nil
 	}
 }
 
@@ -473,7 +473,7 @@ func TestFleetDisableNeedsNoHub(t *testing.T) {
 		"a daemon that started managed and runs no client": {
 			&FleetTarget{
 				StartClient: neverStarts(t),
-				StopClient:  stopsWith(ClientState{}),
+				StopClient:  stopsWith(),
 				ClientState: func() ClientState { return ClientState{} },
 			}, clientStopped,
 		},
@@ -508,7 +508,7 @@ func TestFleetEnableRefusesWithoutHubBlock(t *testing.T) {
 		map[string]string{fleetStatusConfigName: fleetConfigNoHub})
 	target := &FleetTarget{
 		StartClient: neverStarts(t),
-		StopClient:  stopsWith(ClientState{}),
+		StopClient:  stopsWith(),
 		ClientState: func() ClientState { return ClientState{} },
 	}
 
@@ -573,7 +573,7 @@ func TestFleetEnableStartsClient(t *testing.T) {
 					managedAtStart = flag
 					return want.started, nil
 				},
-				StopClient:  stopsWith(ClientState{}),
+				StopClient:  stopsWith(),
 				ClientState: func() ClientState { return ClientState{Running: true} },
 			}
 
@@ -598,7 +598,7 @@ func TestFleetEnableStartsClient(t *testing.T) {
 // PREVENTS: a leave or rejoin that needs a running daemon, on a device whose
 // daemon is the thing the operator stopped.
 func TestFleetLocalRouteStoresFlagWithoutDaemon(t *testing.T) {
-	noDaemonAsked := func(string, string) ([]byte, error) {
+	noDaemonAsked := func(string, string) ([]byte, error) { //nolint:unparam // it MUST have the daemon route's shape, and it never answers
 		t.Error("the local route asked a daemon though the store was free")
 		return nil, errNoDaemon
 	}

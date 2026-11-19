@@ -195,12 +195,13 @@ func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, base
 	if len(rows) != 1 {
 		return fmt.Errorf("%s: want one %s row, got %d: %s", state, fleetDoctorDivergedCode, len(rows), doctorConfigClaimsJSON(report))
 	}
+	const fieldFix = "fix"
 	wants := []struct{ field, text string }{
 		{"severity", severityWarning},
-		{"message", fleetDoctorDivergedMessage},
-		{"message", baseline},
-		{"fix", fleetDoctorFixKeep},
-		{"fix", fleetDoctorFixDiscard},
+		{fieldMessage, fleetDoctorDivergedMessage},
+		{fieldMessage, baseline},
+		{fieldFix, fleetDoctorFixKeep},
+		{fieldFix, fleetDoctorFixDiscard},
 	}
 	for _, want := range wants {
 		got, fieldErr := doctorConfigClaimsField(rows[0], want.field)

@@ -13,6 +13,10 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+// commandModeOffline is the registry mode of the fleet commands: each one
+// answers in the caller's own process when no daemon does.
+const commandModeOffline = "offline"
+
 func init() {
 	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -25,7 +29,7 @@ func init() {
 	// the store on every surface. Its node is in yang/ze-managed-cmd.yang.
 	command.MustRegisterLocalData("show fleet status", answerFleetStatus, registry.Meta{
 		ShortHelp: "Whether this device follows a hub, and how its configuration compares with the hub's last one.",
-		Mode:      "offline",
+		Mode:      commandModeOffline,
 	}, command.RenderLocalAnswer)
 	// The answer is ONE document, so the row operators are refused over it by name.
 	command.RegisterShape([]string{"show fleet status"}, command.ShapeDoc)
@@ -48,10 +52,10 @@ func init() {
 	)
 	command.MustRegisterLocalMeta("request fleet disable", requestFleetDisableLocal, registry.Meta{
 		ShortHelp: "Leave the fleet: end the hub connection and stop following the hub.",
-		Mode:      "offline",
+		Mode:      commandModeOffline,
 	})
 	command.MustRegisterLocalMeta("request fleet enable", requestFleetEnableLocal, registry.Meta{
 		ShortHelp: "Rejoin the fleet: follow the hub again.",
-		Mode:      "offline",
+		Mode:      commandModeOffline,
 	})
 }
