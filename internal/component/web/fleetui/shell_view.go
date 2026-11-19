@@ -75,7 +75,12 @@ type HeaderView struct {
 	EstateName string
 	// Sample reports that the registered source answers an invented estate,
 	// which the header says with a tag beside the estate's name.
-	Sample   bool
+	Sample bool
+	// Script holds the controls of a scripted source, drawn beside the
+	// sample tag. It is nil over a source that is not a Stepper, whose step
+	// and hold routes are not mounted, so the header draws no control that
+	// would post to nothing.
+	Script   *HeaderScriptView
 	Username string
 	// SearchURL is the fragment the search field asks as the operator
 	// types, without its item parameter.
@@ -308,6 +313,14 @@ type SampleSource interface {
 	SampleData()
 }
 
+// HeaderScriptView is the prototype control group of the header: Step and
+// Hold, posting to the prototype-only routes, so the estate can be changed one
+// event at a time from any page while it is reviewed.
+type HeaderScriptView struct {
+	StepAction string
+	HoldAction string
+}
+
 // headerView fills the header region.
 func headerView(request *PageRequest) HeaderView {
 	_, sample := request.Source.(SampleSource)
@@ -315,10 +328,22 @@ func headerView(request *PageRequest) HeaderView {
 	return HeaderView{
 		EstateName: request.Snapshot.Estate.Name,
 		Sample:     sample,
+		Script:     headerScriptView(request.Source),
 		Username:   request.Username,
 		SearchURL:  FragmentLink(fragmentSearch, estateAddress(request), ""),
 		Tasks:      headerTasksView(request),
 	}
+}
+
+// headerScriptView answers the script controls of the header, or nil over a
+// source that is not a Stepper: the step and hold routes mount only over one
+// (stepperRegistered, NewRoutes), as the states page's controls do.
+func headerScriptView(source Source) *HeaderScriptView {
+	if _, steps := source.(Stepper); !steps {
+		return nil
+	}
+
+	return &HeaderScriptView{StepAction: stepPath, HoldAction: holdPath}
 }
 
 // headerTasksView counts the tasks that are not over, which is the figure the

@@ -275,6 +275,18 @@ html {
   border-radius: var(--space-3);
 }
 
+/* The Step and Hold controls of a scripted source, beside the sample tag.
+   Each form holds its one button, so it takes no box of its own. */
+.fleet-header-script {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fleet-header-script-form {
+  display: contents;
+}
+
 .fleet-search {
   position: relative;
   flex: 1 1 auto;

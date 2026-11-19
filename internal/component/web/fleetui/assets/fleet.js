@@ -610,9 +610,16 @@
     if (banner) banner.hidden = true;
   }
 
+  // STREAM_OPEN is the attribute the root carries while the page's stream is
+  // open. The hub subscribes before it answers, so from then on every event
+  // reaches this page: a browser test waits for it before it steps the
+  // estate, rather than for a length of time.
+  var STREAM_OPEN = 'data-fleet-stream';
+
   function closeStream() {
     window.clearTimeout(streamTimer);
     streamTimer = null;
+    document.documentElement.removeAttribute(STREAM_OPEN);
     if (stream) {
       stream.close();
       stream = null;
@@ -646,6 +653,7 @@
 
     stream.onopen = function () {
       streamAttempts = 0;
+      document.documentElement.setAttribute(STREAM_OPEN, 'open');
       if (!streamLost) return;
       // The stream is back. What changed meanwhile is not known, so every
       // region is fetched again, once.

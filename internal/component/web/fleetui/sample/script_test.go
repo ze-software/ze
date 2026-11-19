@@ -275,3 +275,41 @@ func TestSampleScriptOfflineAlarmFollowsTheDevice(t *testing.T) {
 
 	assert.Equal(t, 2, changes, "one round takes the device offline and brings it back")
 }
+
+// TestSampleScriptHeldBeforeItsFirstSubscription holds a new source before
+// anything subscribes, as the register package does when the review build is
+// started held, then subscribes, which starts the timer, and fires the
+// timer's tick by hand rather than waiting for it.
+//
+// VALIDATES: a source held before its first subscription applies no step on
+// a tick, and the first Step is the first step of the script, published as
+// the first event the subscription carries.
+// PREVENTS: a held review build whose timer still moves the estate, so the
+// step a browser test sees depends on how loaded the machine is.
+func TestSampleScriptHeldBeforeItsFirstSubscription(t *testing.T) {
+	source := newEstate(fixedClock)
+	source.Hold()
+
+	subscription, err := source.Subscribe(t.Context())
+	require.NoError(t, err)
+	t.Cleanup(source.Close)
+
+	source.tick()
+
+	select {
+	case event := <-subscription.Events():
+		require.Fail(t, "a tick of a held script published an event", "%s", event.Kind)
+	default:
+	}
+
+	source.mu.Lock()
+	next := source.script.next
+	source.mu.Unlock()
+	require.Zero(t, next, "a tick of a held script applies no step")
+
+	event, err := source.Step()
+	require.NoError(t, err)
+	assert.Equal(t, fleetui.EventDeviceChanged, event.Kind, "the first step takes a device offline")
+	assert.Equal(t, scriptDevice, event.Device)
+	assert.Equal(t, event, received(t, subscription), "the first event published is the stepped one")
+}

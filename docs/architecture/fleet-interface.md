@@ -112,10 +112,12 @@ build's source, and the hub's sample-tagged import names that sub-package.
 | History | Generated per request from a fixed seed, so every start draws the same charts. It goes back `historyRetention` (one week), and one series holds at most `historyPointsMax` points, at an interval of 30 seconds, 5 minutes or 30 minutes chosen by the period asked |
 | Timed script | The first subscription starts a script that applies one step every five seconds (`scriptPeriod`): a device goes offline and comes back, with its offline alarm; a memory alarm opens and clears; a task records its results, ends, and a new one starts. Each step publishes the event of what it changed |
 | Stepped script | `Stepper` (`Step`, `Hold`) takes the script from the timer for good: a step is applied only when asked, which the prototype-only routes and a browser test do |
+| Held start | `ze.web.fleet.sample.held=true` makes the registration hold the script before the source is registered, so before any page subscribes: the estate changes only when Step is pressed, and the first Step is the script's first step. The key is registered by `sample/register`, so only a build with the `ze_fleet_ui_sample` tag knows it. It is env-only, by the debug-instrumentation exception of `ai/rules/config.md`: a review build has no operator, and a YANG leaf would put the switch in every build's schema. A value that is no boolean leaves the script timed and is reported by `ze doctor` (`doctor-env-invalid-value`) |
 
 The only state that changes is the script's, and every list it grows is cut
 to a bound, so the source stays the same size however long the build runs.
 <!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper, Source, New -->
+<!-- source: internal/component/web/fleetui/sample/register/register.go -- scriptHeldKey, newSource, holdWhenAsked -->
 <!-- source: internal/component/web/fleetui/sample/history.go -- historyRetention, historyPointsMax -->
 <!-- source: internal/component/web/fleetui/sample/script.go -- scriptPeriod, scriptSteps -->
 <!-- source: internal/component/web/fleetui/sample/activity.go -- alarmRows, alarmsAt -->
@@ -363,9 +365,13 @@ with that region (`data-fleet-region`, `data-fleet-name`).
 | Ending | The stream ends when the browser leaves, when a write does not complete in ten seconds, and when the feed ends the subscription. In the last case it first names every region, so the page fetches them again and subscribes anew |
 | Goroutines | None. The stream runs on the goroutine of its request |
 | Loss | The script shows a banner with the time the updates stopped, tries again after one second and then twice as long each time, up to thirty seconds and eight attempts, and fetches every region once when the stream is back |
-| Stepping | `POST /fleet/prototype/step` advances a scripted source by one event and answers the kind of the event and the device it is about. `POST /fleet/prototype/hold` stops the source from advancing its script on its own and changes nothing else. Both are mounted only when the registered source implements `Stepper`, which only the sample source does, so a browser test decides when the estate changes |
+| Open | While the page's stream is open the root element carries `data-fleet-stream="open"`; closing the stream removes it. The hub subscribes the stream before it answers, so from then on every event reaches the page, and a browser test waits for the attribute, never for a time, before it steps the estate |
+| Stepping | `POST /fleet/prototype/step` advances a scripted source by one event and answers the kind of the event and the device it is about. `POST /fleet/prototype/hold` stops the source from advancing its script on its own and changes nothing else; there is no route that resumes it, because `Hold` is for good. Both are mounted only when the registered source implements `Stepper`, which only the sample source does, so a browser test decides when the estate changes. Asked by htmx they answer a line for the control's target and an informational toast out of band |
+| Header controls | Over a `Stepper`, the header carries Step and Hold beside the "Sample data" tag (`headerScript`, ids `fleet-proto-step` and `fleet-proto-hold`), so the owner can move the estate one event at a time from any page while reviewing it. Each is a button of its own form, posting to its route with `hx-swap="none"`: the page swaps nothing, the toast lands out of band, and the event reaches every region through the page's stream. Over any other source the header draws no control, because the routes are not mounted |
 <!-- source: internal/component/web/fleetui/handler_events.go -- eventStream.ServeHTTP, eventStream.run, eventScope.stale, eventScope.settle, Stepper, newStepHandler, newHoldHandler -->
-<!-- source: internal/component/web/fleetui/assets/fleet.js -- openStream, streamFailed, refreshRegion -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- openStream, closeStream, streamFailed, refreshRegion, STREAM_OPEN -->
+<!-- source: internal/component/web/fleetui/shell_view.go -- HeaderScriptView, headerScriptView -->
+<!-- source: internal/component/web/fleetui/shell.templ -- headerScript -->
 
 ### Scripts and styles of the shell
 

@@ -10,8 +10,9 @@ package fleetui
 const contentTarget = "#fleet-content"
 
 // NavLinkView is a link to a fleet address. Name is its accessible name when
-// its content is an icon alone.
+// its content is an icon alone. ID is the link's id; empty draws none.
 type NavLinkView struct {
+	ID      string
 	Href    string
 	Class   string
 	Name    string
@@ -23,6 +24,9 @@ type NavLinkView struct {
 // region and pushes it, so every view keeps an address that reproduces it.
 templ NavLink(v NavLinkView) {
 	<a
+		if v.ID != "" {
+			id={ v.ID }
+		}
 		class={ v.Class }
 		href={ templ.URL(v.Href) }
 		hx-get={ v.Href }
@@ -99,11 +103,14 @@ templ actionContent(v ActionView, look string) {
 // data-confirm attributes the script reads before it submits.
 templ actionControl(v ActionView, look string) {
 	if v.Href != "" && !v.Disabled {
-		@NavLink(NavLinkView{Href: v.Href, Class: look}) {
+		@NavLink(NavLinkView{ID: v.ID, Href: v.Href, Class: look}) {
 			@actionContent(v, look)
 		}
 	} else {
 		<button
+			if v.ID != "" {
+				id={ v.ID }
+			}
 			type={ actionButtonType(v) }
 			class={ look, templ.KV("fleet-action--destructive", actionDestructive(v)) }
 			disabled?={ v.Disabled || v.Bulk }

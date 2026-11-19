@@ -1,0 +1,60 @@
+# Test: a stepped event changes the tree, the table and the task count without a reload
+# VALIDATES: spec-fleet-ui-1 user story 4 -- while an operator watches the
+#            devices table, an event of the hub reaches the open page: the
+#            tree row and the table row of the device it changed, and the
+#            header's count of running tasks, change with no navigation
+# PREVENTS: a page that shows the estate as it was when it was opened, a live
+#           stream whose events never refresh a region, and a stepped event
+#           that never reaches the page
+#
+# Goal: prove the live stream refreshes the regions an event makes stale, in
+# a browser, on the page the operator is reading.
+# Method: the review build starts with its sample script held
+# (ze.web.fleet.sample.held), so the estate changes only when the header's
+# Step is pressed and the step this test sees is the one it pressed. The
+# script's first step takes cpe-lon-03 offline and opens its offline alarm;
+# its ninth ends the scripted task T-2051 (sample/script.go scriptSteps), so
+# the running count goes from 2 (T-2051 and the table's running task) to 1.
+# The devices table is filtered to state:offline, so the device joins it; the
+# tree is filtered to the device, so its row is drawn with its state word.
+# Nothing reloads the page between the step and the expectations: each
+# positive expectation polls the region until the stream's refresh lands.
+# The step waits for the page's stream to be open (the root's
+# data-fleet-stream, set when the hub has subscribed it), never for a time.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=env:var=ze.web.fleet.sample.held:value=true
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/?q=state%3Aoffline
+expect=html:id=fleet-content:contains=value="state:offline"
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+expect=html:id=fleet-header-tasks:contains=Tasks, 2 running
+expect=element:id=fleet-proto-step
+
+action=fill:id=fleet-tree-filter:value=cpe-lon-03
+action=wait-html:contains=cpe-lon-03
+expect=html:id=fleet-tree:contains=cpe-lon-03
+expect=html:id=fleet-tree:not-contains=Offline
+
+# Step 1: cpe-lon-03 goes offline.
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+action=click:id=fleet-proto-step
+expect=html:id=fleet-content:contains=cpe-lon-03
+expect=html:id=fleet-tree:contains=Offline
+expect=url:contains=q=state%3Aoffline
+expect=html:id=fleet-header-tasks:contains=Tasks, 2 running
+
+# Steps 2 to 8: the alarm opens, two results, the device returns, the alarm
+# clears, two more results. Step 9 ends T-2051.
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+action=click:id=fleet-proto-step
+expect=html:id=fleet-header-tasks:contains=Tasks, 1 running
+expect=url:contains=q=state%3Aoffline

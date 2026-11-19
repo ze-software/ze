@@ -185,6 +185,9 @@ type ConfirmView struct {
 // none it is a button that submits the form named by Form, carrying Name and
 // Value. A disabled action keeps its place and says why in Reason.
 type ActionView struct {
+	// ID is the id of the drawn link or button, for a control a script or a
+	// test names. Empty draws none.
+	ID       string
 	Label    string
 	Icon     string
 	Href     string

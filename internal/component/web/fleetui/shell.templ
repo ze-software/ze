@@ -92,8 +92,9 @@ templ pageUpdate(view ShellView, content templ.Component, side templ.Component) 
 }
 
 // shellHeader renders the header region: the sidebar toggle, the product
-// name linking to the estate, the hub name, the search field, the Tasks
-// button and the account menu.
+// name linking to the estate, the hub name, the sample tag and the script
+// controls of a scripted source, the search field, the Tasks button and the
+// account menu.
 templ shellHeader(view HeaderView) {
 	<header class="fleet-header">
 		<button type="button" class="fleet-header-button" data-fleet-action="sidebar-toggle" aria-controls={ idSidebar } aria-expanded="true" aria-label="Toggle the sidebar" title="Toggle the sidebar">
@@ -103,6 +104,9 @@ templ shellHeader(view HeaderView) {
 		<span class="fleet-hub-name">{ view.EstateName }</span>
 		if view.Sample {
 			<span class="fleet-sample-tag" title="This estate is invented: no real device is shown or changed">Sample data</span>
+		}
+		if view.Script != nil {
+			@headerScript(*view.Script)
 		}
 		<div class="fleet-search" role="search">
 			<input type="search" class="fleet-search-field" id="fleet-search" name="search" placeholder="Search devices and pages" aria-label="Search devices and pages" aria-controls="fleet-search-results" aria-expanded="false" autocomplete="off" role="combobox" data-fleet-fragment={ view.SearchURL }/>
@@ -155,6 +159,30 @@ templ headerTasks(view HeaderTasksView) {
 			<span class="fleet-tasks-failed"></span>
 		}
 	</button>
+}
+
+// The ids of the header's script controls and of the forms they submit. A
+// browser test steps the estate by them.
+const (
+	idProtoStep     = "fleet-proto-step"
+	idProtoHold     = "fleet-proto-hold"
+	idProtoStepForm = "fleet-proto-step-form"
+	idProtoHoldForm = "fleet-proto-hold-form"
+)
+
+// headerScript renders the script controls of the header: Step and Hold,
+// each submitting its own form to its prototype-only route through htmx. The
+// answer swaps nothing in the page: its toast lands out of band, and the
+// event the step published reaches every region through the page's stream.
+templ headerScript(view HeaderScriptView) {
+	<div class="fleet-header-script" role="group" aria-label="Sample script">
+		<form class="fleet-header-script-form" id={ idProtoStepForm } method="post" action={ templ.URL(view.StepAction) } hx-post={ view.StepAction } hx-target="this" hx-swap="none">
+			@ActionButton(ActionView{ID: idProtoStep, Label: "Step", Icon: "next", Form: idProtoStepForm})
+		</form>
+		<form class="fleet-header-script-form" id={ idProtoHoldForm } method="post" action={ templ.URL(view.HoldAction) } hx-post={ view.HoldAction } hx-target="this" hx-swap="none">
+			@ActionButton(ActionView{ID: idProtoHold, Label: "Hold", Icon: "pin", Form: idProtoHoldForm})
+		</form>
+	</div>
 }
 
 // shellSidebar renders the sidebar region: its two tabs with the pin control

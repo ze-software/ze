@@ -140,6 +140,47 @@ func TestHeaderTagsSampleSource(t *testing.T) {
 	assert.NotContains(t, answer.Body.String(), `class="fleet-sample-tag"`)
 }
 
+// steppingTestSource is the test source with a script that can be stepped.
+type steppingTestSource struct {
+	*testSource
+}
+
+func (steppingTestSource) Step() (Event, error) {
+	return Event{Kind: EventDeviceChanged, Device: edgeLon01}, nil
+}
+
+func (steppingTestSource) Hold() {}
+
+// TestHeaderDrawsScriptControlsOnlyForAStepper renders the estate page over
+// a source that can be stepped and over one that cannot.
+//
+// VALIDATES: the header carries Step and Hold, each a submit button of its
+// own form posting to its prototype-only route with nothing swapped, when
+// the source implements Stepper, and no script control otherwise.
+// PREVENTS: a real hub's header drawing controls that post to routes it
+// never mounts, and a review build with no way to step the estate from the
+// page being judged.
+func TestHeaderDrawsScriptControlsOnlyForAStepper(t *testing.T) {
+	stepping := &fleetHandler{source: steppingTestSource{testSource: newTestSource()}, pages: &pageRegistry{}}
+	answer := getFleet(t, stepping, pathEstate)
+	require.Equal(t, http.StatusOK, answer.Code)
+	header := regexp.MustCompile(`(?s)<header class="fleet-header">.*?</header>`).FindString(answer.Body.String())
+	require.NotEmpty(t, header, "the page draws its header")
+
+	assert.Contains(t, header, `id="fleet-proto-step-form" method="post" action="/fleet/prototype/step" hx-post="/fleet/prototype/step" hx-target="this" hx-swap="none"`)
+	assert.Contains(t, header, `id="fleet-proto-hold-form" method="post" action="/fleet/prototype/hold" hx-post="/fleet/prototype/hold" hx-target="this" hx-swap="none"`)
+	assert.Regexp(t, `<button id="fleet-proto-step" type="submit"[^>]* form="fleet-proto-step-form"`, header)
+	assert.Regexp(t, `<button id="fleet-proto-hold" type="submit"[^>]* form="fleet-proto-hold-form"`, header)
+
+	realHandler, _ := testHandler()
+	answer = getFleet(t, realHandler, pathEstate)
+	require.Equal(t, http.StatusOK, answer.Code)
+	body := answer.Body.String()
+	assert.NotContains(t, body, "fleet-proto-step")
+	assert.NotContains(t, body, "fleet-proto-hold")
+	assert.NotContains(t, body, "fleet-header-script")
+}
+
 // TestReduceWeekOfEvenSamplesHasNoGap reduces a week of samples taken every
 // thirty minutes, as the history answers a week, with no outage.
 //

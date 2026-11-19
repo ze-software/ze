@@ -123,6 +123,9 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 			{Name: "shellHeader", Variants: []golden.Variant{
 				{Data: shellHeader(estate.Header)},
 			}},
+			{Name: "headerScript", Variants: []golden.Variant{
+				{Data: headerScript(HeaderScriptView{StepAction: stepPath, HoldAction: holdPath})},
+			}},
 			{Name: "headerTasks", Variants: []golden.Variant{
 				{Name: "quiet", Data: headerTasks(HeaderTasksView{Label: "Tasks, 0 running"})},
 				{Name: "running", Data: headerTasks(estate.Header.Tasks)},
