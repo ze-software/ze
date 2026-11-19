@@ -41,7 +41,9 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+	github.com/opencontainers/cgroups v0.1.0
 	github.com/opencontainers/runc v1.5.3
+	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/packetcap/go-pcap v0.0.0-20260731105150-c86974bbfbcd
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/prometheus/client_golang v1.25.0
@@ -241,8 +243,6 @@ require (
 	github.com/nishanths/exhaustive v0.17.1 // indirect
 	github.com/nishanths/predeclared v0.3.1 // indirect
 	github.com/nunnatsa/ginkgolinter v0.24.0 // indirect
-	github.com/opencontainers/cgroups v0.1.0 // indirect
-	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/opencontainers/selinux v1.13.1 // indirect
 	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
