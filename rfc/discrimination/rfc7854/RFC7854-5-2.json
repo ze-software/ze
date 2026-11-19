@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay",
+    "unit-sha": "62ceea9f39528607",
+    "claim-sha": "ed07767e7200c5c5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
+    "producer-sha": "2e46db0fae9bc08e",
+    "break": "line 796: \"if !msg.Timestamp.IsZero() {\" -\u003e \"if !msg.Timestamp.IsZero() \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC7854-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero",
+    "unit-sha": "c8023694e07b4f48",
+    "claim-sha": "7bd874d3b5674678",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
+    "producer-sha": "2e46db0fae9bc08e",
+    "break": "line 796: \"if !msg.Timestamp.IsZero() {\" -\u003e \"if true {\""
+  }
+]

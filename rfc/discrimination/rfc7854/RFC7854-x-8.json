@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-x-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector",
+    "unit-sha": "7d9b58cb97a0b474",
+    "claim-sha": "7ead2250a814c2a6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::recordPeerUp",
+    "producer-sha": "341046a1fcdbcd73",
+    "break": "line 327: \"if sentOpen == nil || recvOpen == nil {\" -\u003e \"if sentOpen != nil \u0026\u0026 recvOpen == nil {\""
+  },
+  {
+    "rid": "RFC7854-x-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp",
+    "unit-sha": "ce2d403d626600c4",
+    "claim-sha": "8d76903bff2854a6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writePeerUpLocked",
+    "producer-sha": "ad07ac77807a7773",
+    "break": "line 663: \"ReceivedOpenMsg: recvOpen,\" -\u003e \"ReceivedOpenMsg: sentOpen,\""
+  }
+]

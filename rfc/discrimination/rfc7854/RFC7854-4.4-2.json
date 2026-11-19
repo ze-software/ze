@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescribesRunningSystem",
+    "unit-sha": "88388a36fdd96a2c",
+    "claim-sha": "2fc16a1d9aca2357",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/system_identity.go::readSystemIdentity",
+    "producer-sha": "072c38a13dbf56ff",
+    "break": "line 104: \"Str(unix.ByteSliceToString(kernel.Release[:])).Byte(' ').\" -\u003e \"Byte(' ').\""
+  },
+  {
+    "rid": "RFC7854-4.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescriptionChangesWithBuild",
+    "unit-sha": "176c14f2f6160e47",
+    "claim-sha": "2c35ed1111cbd078",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/system_identity.go::readSystemIdentity",
+    "producer-sha": "072c38a13dbf56ff",
+    "break": "line 102: \"description.Str(version.Short())\" -\u003e \"description.Str(version.Short()[:0] + \\\"ze\\\")\""
+  }
+]

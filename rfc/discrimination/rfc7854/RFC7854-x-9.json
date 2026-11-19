@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderRouteMonitoring",
+    "unit-sha": "32ed5f60a6ec9b03",
+    "claim-sha": "63d0ff392368c204",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writeRouteMonitoringLocked",
+    "producer-sha": "176b749e48158d57",
+    "break": "line 738: \"buf[off+message.MarkerLen+2] = byte(msgType)\" -\u003e \"buf[off+message.MarkerLen+2] = byte(msgtype.TypeKEEPALIVE)\""
+  }
+]

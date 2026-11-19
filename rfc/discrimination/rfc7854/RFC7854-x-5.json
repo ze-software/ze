@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4",
+    "unit-sha": "a5169056342e78a9",
+    "claim-sha": "232c954a73b55540",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::parseIPInto",
+    "producer-sha": "ae5ae2f036b0ae45",
+    "break": "line 830: \"clear(out[:12])\" -\u003e \"clear(out[:10]); out[10], out[11] = 0xff, 0xff\""
+  },
+  {
+    "rid": "RFC7854-x-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6",
+    "unit-sha": "888c653329dc43cc",
+    "claim-sha": "2c575ca09745b67e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::parseIPInto",
+    "producer-sha": "ae5ae2f036b0ae45",
+    "break": "line 835: \"*out = parsed.As16()\" -\u003e \"*out = parsed.As16(); clear(out[:12])\""
+  }
+]

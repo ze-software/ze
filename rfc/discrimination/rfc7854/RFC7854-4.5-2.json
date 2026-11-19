@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination",
+    "unit-sha": "3a0773800074001b",
+    "claim-sha": "02c918c4123cb934",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::handleSession",
+    "producer-sha": "e008b2244c939371",
+    "break": "line 793: \"if _, ok := msg.(*Termination); ok {\" -\u003e \"if _, ok := msg.(*Termination); ok || bp.state.routers[remote].SysName != \\\"\\\" {\""
+  },
+  {
+    "rid": "RFC7854-4.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go::TestBMPReceiverClosesAfterTermination",
+    "unit-sha": "c688bb602dd2d82c",
+    "claim-sha": "8b680f20c5c58022",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::handleSession",
+    "producer-sha": "e008b2244c939371",
+    "break": "line 804: \"if terminated {\" -\u003e \"if terminated \u0026\u0026 false {\""
+  }
+]

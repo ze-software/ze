@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7854-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsKeepDuplicates",
+    "unit-sha": "d92e2d5e654db54c",
+    "claim-sha": "74a5a90818efb8d6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::processInitiation",
+    "producer-sha": "ed72ccc540405d63",
+    "break": "line 871: \"messages = append(messages, string(tlv.Value))\" -\u003e \"dup := false; for _, seen := range messages { dup = dup || seen == string(tlv.Value) }; if !dup { messages = append(messages, string(tlv.Value)) }\""
+  },
+  {
+    "rid": "RFC7854-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsReportedInOrder",
+    "unit-sha": "79feee37c7a9d390",
+    "claim-sha": "672a817912df6a4a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::processInitiation",
+    "producer-sha": "ed72ccc540405d63",
+    "break": "line 871: \"messages = append(messages, string(tlv.Value))\" -\u003e \"messages = append([]string{string(tlv.Value)}, messages...)\""
+  },
+  {
+    "rid": "RFC7854-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsKeepDuplicates",
+    "unit-sha": "be2f56449231e25c",
+    "claim-sha": "af142bd547147598",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::processPeerUp",
+    "producer-sha": "735722d69dcaa293",
+    "break": "line 977: \"messages = append(messages, string(tlv.Value))\" -\u003e \"dup := false; for _, seen := range messages { dup = dup || seen == string(tlv.Value) }; if !dup { messages = append(messages, string(tlv.Value)) }\""
+  },
+  {
+    "rid": "RFC7854-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsReportedInOrder",
+    "unit-sha": "05a38656d36b9557",
+    "claim-sha": "7d4f6d9d94174709",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::processPeerUp",
+    "producer-sha": "735722d69dcaa293",
+    "break": "line 977: \"messages = append(messages, string(tlv.Value))\" -\u003e \"messages = append([]string{string(tlv.Value)}, messages...)\""
+  }
+]

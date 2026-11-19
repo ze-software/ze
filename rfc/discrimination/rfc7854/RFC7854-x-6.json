@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderConnects",
+    "unit-sha": "270b523945cc9ab7",
+    "claim-sha": "9ba066c9ebe8743e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
+    "producer-sha": "1e6505b36bf10daa",
+    "break": "line 246: \"if err := ss.sendInitiation(conn); err != nil {\" -\u003e \"if err := ss.writeRaw(conn, []byte{Version, 0, 0, 0, CommonHeaderSize, MsgRouteMonitoring}); err != nil || ss.sendInitiation(conn) != nil {\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPReceiverUnidirectional",
+    "unit-sha": "050c51801150c012",
+    "claim-sha": "a2afb37e1438c299",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::handleSession",
+    "producer-sha": "e008b2244c939371",
+    "break": "line 796: \"bp.processMessage(remote, msg)\" -\u003e \"bp.processMessage(remote, msg); _, _ = conn.Write(msgBuf)\""
+  }
+]

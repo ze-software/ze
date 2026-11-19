@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationSystemNameChanges",
+    "unit-sha": "ae8f0a6268b0aac7",
+    "claim-sha": "d643404c1e99e90c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp.go::registerCallbacks",
+    "producer-sha": "64fd5299c170ed40",
+    "break": "line 641: \"bp.setSystemName(currentSystem)\" -\u003e \"_ = currentSystem\""
+  },
+  {
+    "rid": "RFC7854-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationUsesConfiguredSystemName",
+    "unit-sha": "9b91560096950704",
+    "claim-sha": "586eeb60e64c2423",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/system_identity.go::readSystemIdentity",
+    "producer-sha": "072c38a13dbf56ff",
+    "break": "line 81: \"id.name = *host\" -\u003e \"id.name = \\\"ze\\\"\""
+  }
+]

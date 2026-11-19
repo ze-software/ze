@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderInitiation",
+    "unit-sha": "180374b60eb70040",
+    "claim-sha": "5776e683fcf11619",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::sendInitiation",
+    "producer-sha": "db462600e7edfc39",
+    "break": "line 388: \"makeStringTLV(InitTLVSysName, id.name),\" -\u003e \"makeStringTLV(InitTLVString, id.name),\""
+  }
+]

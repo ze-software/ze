@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted",
+    "unit-sha": "bb5cce746e4c224f",
+    "claim-sha": "882b29650f38e998",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeRouteMirroring",
+    "producer-sha": "12df0cdfaa04eef8",
+    "break": "line 386: \"if !bgpMessage {\" -\u003e \"if !bgpMessage || erroredPDU {\""
+  },
+  {
+    "rid": "RFC7854-4.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithoutPDUEndsSession",
+    "unit-sha": "2cef9d8a0721c0ae",
+    "claim-sha": "7f15468654004fbb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeRouteMirroring",
+    "producer-sha": "12df0cdfaa04eef8",
+    "break": "line 386: \"if !bgpMessage {\" -\u003e \"if !bgpMessage \u0026\u0026 !erroredPDU {\""
+  }
+]

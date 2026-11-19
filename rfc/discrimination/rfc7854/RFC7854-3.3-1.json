@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily",
+    "unit-sha": "d54d8528b833eff8",
+    "claim-sha": "9dba0b84522c1eda",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_replay.go::replayPeerLocked",
+    "producer-sha": "caaf533514be17a4",
+    "break": "line 308: \"for _, fam := range families {\" -\u003e \"for _, fam := range families[:0] {\""
+  },
+  {
+    "rid": "RFC7854-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion",
+    "unit-sha": "32cdd41ddb0cb9fd",
+    "claim-sha": "d936d93a8d20b295",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_replay.go::replayPeerLocked",
+    "producer-sha": "caaf533514be17a4",
+    "break": "line 265: \"if st.replayErr != nil {\" -\u003e \"if st.replayErr != nil \u0026\u0026 false {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason",
+    "unit-sha": "75834a72aa4cea27",
+    "claim-sha": "8ad81462c58c85c8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writeTerminationLocked",
+    "producer-sha": "1c09a16edf286183",
+    "break": "line 455: \"{Type: TermTLVReason, Length: 2, Value: reason[:]},\" -\u003e \"{Type: TermTLVString, Length: 2, Value: reason[:]},\""
+  },
+  {
+    "rid": "RFC7854-4.5-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854TerminationRequiresTwoByteReason",
+    "unit-sha": "322560d00c9b121c",
+    "claim-sha": "e777549cc3153249",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeTermination",
+    "producer-sha": "d6e0c4eb3a5efd93",
+    "break": "line 186: \"if !reason {\" -\u003e \"if !reason \u0026\u0026 false {\""
+  }
+]
