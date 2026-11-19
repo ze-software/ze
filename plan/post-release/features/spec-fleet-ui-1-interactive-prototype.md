@@ -469,6 +469,28 @@ verb, no command and no stored format.
 - The duration fields of the filter (`uptime`, `last-seen`) take a number and a unit, as in `last-seen:>1d`. `fleet-ui-2` lists the fields and gives no form for a duration.
 - An address with no `view` parameter asks for the tree view `site-role`, and a `view` that names no view is refused with the list of views. No tree is regrouped by a default in silence.
 
+### Phase 2 findings (foundation: the sample source)
+
+- The sample estate table states one critical alarm, and `fleet-ui-5` makes "device offline" critical while three devices are offline. The sample hub therefore opens the offline alarm after seven days (its `Settings`), so none is open: the device away for six days is on the Needs attention card and has no alarm. The one critical alarm is the component down. The owner confirms this reading or changes the table.
+- "12 finished" is read as eleven succeeded and one partly failed, beside the one failed and the two running: fifteen tasks. The sample hub keeps thirteen ended tasks, so an ended scripted task pushes out the oldest of the table.
+- Two devices grant no relay profile, not one: two of the three informational alarms are "relay not granted", and a device with that alarm has to refuse its views. One of them is the device in the Unknown state, which never fetched a configuration.
+- A series is answered at 30 seconds, 5 minutes or 30 minutes according to the period asked for, at most 360 points. `Series.Interval` carries which. This is input to `fleet-8`: a history that thins its older samples fits the interface as it is.
+- The scripted events run on a timer that the first subscription starts, one step every five seconds, and `sample.Stepper` (`Step`, `Hold`) takes the script away from the timer for good. A browser test calls `Hold` through the prototype-only route before it opens a page. This replaces the "test option" of risk R-5: there is no option, and the route decides.
+- What the data source interface cannot say for this data, each an input to the child that owns it: an audit entry names its target as text and holds no device list, so the audit section of a device's Tasks tab can only match that text (`fleet-3`); a rollout holds no task identifier and a task no rollout name, so a rollout page cannot link to the tasks of its batches (`fleet-5`); `DeviceSeries` takes no interface, so the traffic chart of an interface row's side panel has no question to ask (`fleet-ui-4`, `fleet-8`); the side panel of a BGP peer (capabilities, counters, state history) has no question either (`fleet-ui-4`); `Source` has no close, so the timer of a registered source lives as long as the process.
+
+### Phase 3 findings (the shell)
+
+- The shell knows no page. A page family registers each page under a kind of object and a tab, and a tab with no registered page shows a "not built yet" state, which the umbrella's states table does not list. It is a state of the prototype's construction and disappears when the last page is registered.
+- A link inside the shell is followed by htmx into the content region, and the page handler answers such a request with the content and, out of band, the regions that follow the page. The umbrella says only that fragments exist; this is how one address serves both a first load and a navigation.
+- The event stream names its page in a `scope` parameter, and scopes the content region only. The tree, the task panel and the header show the whole estate on every page, so a change of any device names the tree for every stream. No event carries a device name or any data, so a stream cannot show an operator a device outside their view (umbrella R-5).
+- A task event names its task and no device, so it makes every region of every page stale. Scoping it would need the task's devices at event time.
+- The tree filter is not part of an address. The umbrella's URL scheme gives it no parameter, and `q` is the filter of the page's table.
+- The umbrella's header row lists "sign out" in the account menu. The web server has no sign-out route, in any mode, so the menu holds the theme switch and the link to the other web modes only. A sign-out route belongs to the web package's session handling and is not built here.
+- The prototype-only routes are two, `POST /fleet/prototype/step` and `POST /fleet/prototype/hold`, one per method of the sample source's stepped mode. Both are mounted only over a source that has that mode.
+- The fleet asset guard resolves `/assets/` against the directory the web package embeds, through a new `markupcheck.AssertAssetsResolveIn` that takes several served trees. The existing single-tree assertion and its messages are unchanged. The change to a shared guard is the main thread's to send to `ze-test-judge`.
+- `sample/handler_test.go`, written for the phase 1 shell, expects every device name in the estate page. The devices of the estate page now sit below the second level of the tree and load on expansion, so that expectation no longer holds and the sample test owes a change by the agent that owns the sample package.
+- Assumption A-2 is written both ways: the script sets `--fleet-sidebar-width` through the object model, reads it back, and falls back to three widths chosen by a class when the property did not take. Which path a browser takes under the content security policy is still to be observed.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

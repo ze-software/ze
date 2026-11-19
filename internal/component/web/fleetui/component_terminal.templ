@@ -1,0 +1,192 @@
+// Design: docs/architecture/fleet-interface.md -- the console terminal and the read-only diff
+// Related: assets/fleet-terminal.js -- sends a command and appends the answer
+// Related: source_views.go -- ConsoleAnswer, what a console command answers
+
+package fleetui
+
+import "strconv"
+
+// TerminalView is the console of one device. The header names the device,
+// the hub user and the profile the device grants to relayed commands. URL is
+// the address a command is posted to, as the form field "command"; its answer
+// is one TerminalEntry fragment. Refusal, when set, is the device's own
+// refusal: the console shows it and takes no command. ConfigHref is the
+// device's Config tab, where its configuration is written.
+type TerminalView struct {
+	Device     string
+	User       string
+	Profile    string
+	URL        string
+	Refusal    string
+	ConfigHref string
+}
+
+// Terminal draws the console: its header, the scrollback region and one
+// input line. The script keeps a history of commands, reached with the up
+// and down arrows, and appends each answer to the scrollback.
+templ Terminal(v TerminalView) {
+	<section class="fleet-terminal" aria-label={ "Console of " + v.Device } data-terminal-url={ v.URL }>
+		<header class="fleet-terminal-head">
+			@Icon("terminal")
+			<span class="fleet-terminal-device fleet-mono">{ v.Device }</span>
+			<span class="fleet-terminal-who">
+				<span class="fleet-kv-label">User</span>
+				<span class="fleet-mono">{ v.User }</span>
+			</span>
+			<span class="fleet-terminal-who">
+				<span class="fleet-kv-label">Profile</span>
+				<span class="fleet-mono">{ v.Profile }</span>
+			</span>
+		</header>
+		<p class="fleet-terminal-note">
+			Commands run on the device through the hub. Configuration mode is not offered here: the hub writes this device's configuration.
+			if v.ConfigHref != "" {
+				{ " " }
+				@NavLink(NavLinkView{Href: v.ConfigHref, Class: "fleet-link"}) {
+					Open the Config tab
+				}
+			}
+		</p>
+		<div class="fleet-terminal-scrollback fleet-mono" data-terminal-scrollback="true" role="log" aria-label="Command output" tabindex="0">
+			if v.Refusal != "" {
+				@TerminalEntry(TerminalEntryView{Output: v.Refusal, Refused: true})
+			}
+		</div>
+		<form class="fleet-terminal-input" data-terminal-form="true" method="post" action={ templ.URL(v.URL) }>
+			<label class="fleet-terminal-prompt fleet-mono" for={ "fleet-terminal-command-" + v.Device }>{ v.Device + ">" }</label>
+			<input class="fleet-terminal-field fleet-mono" id={ "fleet-terminal-command-" + v.Device } type="text" name="command" autocomplete="off" autocapitalize="off" spellcheck="false" data-terminal-command="true" disabled?={ v.Refusal != "" }/>
+			<button type="submit" class="fleet-button" disabled?={ v.Refusal != "" }>Run</button>
+		</form>
+	</section>
+}
+
+// TerminalEntryView is one command and its answer in the scrollback. Refused
+// marks an answer that is the device's refusal: the script then stops taking
+// commands, because every next one would be refused the same way.
+type TerminalEntryView struct {
+	Command string
+	Output  string
+	Refused bool
+}
+
+// TerminalEntry draws one command and its answer. A page handler answers a
+// posted command with this fragment.
+templ TerminalEntry(v TerminalEntryView) {
+	<div class={ "fleet-terminal-entry", templ.KV("fleet-terminal-entry--refused", v.Refused) } data-terminal-refused={ boolText(v.Refused) }>
+		if v.Command != "" {
+			<p class="fleet-terminal-command">{ v.Command }</p>
+		}
+		<pre class="fleet-terminal-output">{ v.Output }</pre>
+	</div>
+}
+
+// DiffKind says how one line of a diff differs. The zero value is not a
+// kind.
+type DiffKind uint8
+
+// The kinds of diff line.
+const (
+	// DiffUnspecified is the invalid zero value.
+	DiffUnspecified DiffKind = iota
+	// DiffSame is a line both sides hold.
+	DiffSame
+	// DiffAdded is a line only the right side holds.
+	DiffAdded
+	// DiffRemoved is a line only the left side holds.
+	DiffRemoved
+	// DiffChanged is a line the two sides hold differently.
+	DiffChanged
+)
+
+var (
+	diffKeys  = []string{"unspecified", "same", "added", "removed", "changed"}
+	diffMarks = []string{"?", " ", "+", "-", "~"}
+	diffWords = []string{"not known", "unchanged", "added", "removed", "changed"}
+)
+
+// Key answers the kind's name in a class.
+func (kind DiffKind) Key() string {
+	if int(kind) < len(diffKeys) {
+		return diffKeys[kind]
+	}
+
+	return diffKeys[DiffUnspecified]
+}
+
+// Mark answers the character written before a line of the kind, so the kind
+// is never carried by colour alone.
+func (kind DiffKind) Mark() string {
+	if int(kind) < len(diffMarks) {
+		return diffMarks[kind]
+	}
+
+	return diffMarks[DiffUnspecified]
+}
+
+// Word answers the kind in a word, for assistive technology.
+func (kind DiffKind) Word() string {
+	if int(kind) < len(diffWords) {
+		return diffWords[kind]
+	}
+
+	return diffWords[DiffUnspecified]
+}
+
+// DiffRowView is one line of a two-column diff. A line number of zero means
+// the side holds no line there.
+type DiffRowView struct {
+	Left        string
+	Right       string
+	LeftNumber  int
+	RightNumber int
+	Kind        DiffKind
+}
+
+// DiffView is a read-only two-column diff: the hub's configuration on the
+// left and the device's on the right.
+type DiffView struct {
+	LeftTitle  string
+	RightTitle string
+	Rows       []DiffRowView
+}
+
+// diffNumber writes a line number, or nothing for a side with no line.
+func diffNumber(number int) string {
+	if number <= 0 {
+		return ""
+	}
+
+	return strconv.Itoa(number)
+}
+
+// Diff draws a read-only two-column diff. Each line carries its mark and its
+// kind in a word, and the kind's colours are the diff variables.
+templ Diff(v DiffView) {
+	<div class="fleet-diff-scroll">
+		<table class="fleet-diff" aria-label={ "Difference between " + v.LeftTitle + " and " + v.RightTitle }>
+			<thead>
+				<tr>
+					<th scope="col" colspan="2" class="fleet-diff-title">{ v.LeftTitle }</th>
+					<th scope="col" class="fleet-diff-mark-head">
+						<span class="fleet-visually-hidden">Change</span>
+					</th>
+					<th scope="col" colspan="2" class="fleet-diff-title">{ v.RightTitle }</th>
+				</tr>
+			</thead>
+			<tbody class="fleet-mono">
+				for _, row := range v.Rows {
+					<tr class={ "fleet-diff-row", "fleet-diff-row--" + row.Kind.Key() }>
+						<td class="fleet-diff-number">{ diffNumber(row.LeftNumber) }</td>
+						<td class="fleet-diff-text fleet-diff-text--left">{ row.Left }</td>
+						<td class="fleet-diff-mark">
+							<span aria-hidden="true">{ row.Kind.Mark() }</span>
+							<span class="fleet-visually-hidden">{ row.Kind.Word() }</span>
+						</td>
+						<td class="fleet-diff-number">{ diffNumber(row.RightNumber) }</td>
+						<td class="fleet-diff-text fleet-diff-text--right">{ row.Right }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}

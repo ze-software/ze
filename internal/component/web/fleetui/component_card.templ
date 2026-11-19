@@ -1,0 +1,217 @@
+// Design: docs/architecture/fleet-interface.md -- fleet card grid, card, figures and line chart card
+// Related: component_donut.templ -- the status donut card
+// Related: component_usage.templ -- the usage and stacked bars
+// Related: assets/fleet-chart.js -- draws the line chart of a chart card
+
+package fleetui
+
+import "strconv"
+
+// The widths of the two card grids, in columns.
+const (
+	cardGridEstate = 12
+	cardGridDevice = 8
+)
+
+// CardGridView is a card grid: 12 columns on an estate or a group dashboard,
+// 8 on a device dashboard.
+type CardGridView struct {
+	Columns int
+}
+
+// cardGridClass answers the class of a grid. A width other than the device's
+// is the estate's 12 columns.
+func cardGridClass(columns int) string {
+	if columns == cardGridDevice {
+		return "fleet-card-grid--8"
+	}
+
+	return "fleet-card-grid--12"
+}
+
+// CardGrid lays its cards out in columns with one even gap. Space under the
+// last row stays empty: cards are not stretched to fill it.
+templ CardGrid(v CardGridView) {
+	<div class={ "fleet-card-grid", cardGridClass(v.Columns) }>
+		{ children... }
+	</div>
+}
+
+// CardView is the frame of a card. TitleHref links the title to the table the
+// card counts. Counted shows Count as a badge after the title, for a card that
+// lists things needing attention. At the top right sits Link ("See all",
+// "Top 5") or Figure, a short figure in FigureTone. Span is the card's width
+// in grid columns. Foot holds the caption and figure pairs under the body.
+type CardView struct {
+	Title      string
+	TitleHref  string
+	Figure     string
+	Link       *LinkView
+	Foot       []FigureView
+	Count      int
+	Span       int
+	Counted    bool
+	FigureTone Tone
+}
+
+// cardSpanClass answers the class that gives a card its width, inside 1 to 12.
+func cardSpanClass(span int) string {
+	return "fleet-span-" + strconv.Itoa(min(max(span, 1), cardGridEstate))
+}
+
+// Card draws a titled box and puts its children in the body.
+templ Card(v CardView) {
+	<section class={ "fleet-card", cardSpanClass(v.Span) } aria-label={ v.Title }>
+		<header class="fleet-card-head">
+			<h2 class="fleet-card-title">
+				if v.TitleHref != "" {
+					@NavLink(NavLinkView{Href: v.TitleHref, Class: "fleet-card-title-link"}) {
+						{ v.Title }
+					}
+				} else {
+					{ v.Title }
+				}
+			</h2>
+			if v.Counted {
+				<span class="fleet-count-badge">{ countText(v.Count) }</span>
+			}
+			if v.Link != nil {
+				@NavLink(NavLinkView{Href: v.Link.Href, Class: "fleet-card-link"}) {
+					{ v.Link.Label }
+				}
+			}
+			if v.Figure != "" {
+				<span class={ "fleet-card-figure", templ.KV(v.FigureTone.Class(), v.FigureTone != ToneUnspecified) }>{ v.Figure }</span>
+			}
+		</header>
+		<div class="fleet-card-body">
+			{ children... }
+		</div>
+		if len(v.Foot) > 0 {
+			<footer class="fleet-card-foot">
+				@FigureList(FigureListView{Figures: v.Foot})
+			</footer>
+		}
+	</section>
+}
+
+// FigureView is one large figure under its caption. Unit is written as a
+// small suffix on the baseline. Href links the figure to the rows it counts.
+type FigureView struct {
+	Caption string
+	Value   string
+	Unit    string
+	Href    string
+	Tone    Tone
+}
+
+// Figure draws one pair of an uppercase caption and a large figure.
+templ Figure(v FigureView) {
+	<div class="fleet-figure">
+		<dt class="fleet-figure-caption">{ v.Caption }</dt>
+		<dd class={ "fleet-figure-value", templ.KV(v.Tone.Class(), v.Tone != ToneUnspecified) }>
+			if v.Href != "" {
+				@NavLink(NavLinkView{Href: v.Href, Class: "fleet-figure-link"}) {
+					{ v.Value }
+				}
+			} else {
+				{ v.Value }
+			}
+			if v.Unit != "" {
+				<span class="fleet-figure-unit">{ v.Unit }</span>
+			}
+		</dd>
+	</div>
+}
+
+// FigureListView is a list of figures. Columns lays them out two abreast, as on
+// the figures card.
+type FigureListView struct {
+	Figures []FigureView
+	Columns bool
+}
+
+// FigureList draws caption and figure pairs in a row, or two abreast.
+templ FigureList(v FigureListView) {
+	<dl class={ "fleet-figures", templ.KV("fleet-figures--columns", v.Columns) }>
+		for _, figure := range v.Figures {
+			@Figure(figure)
+		}
+	</dl>
+}
+
+// FiguresCardView is a card of figures in two columns.
+type FiguresCardView struct {
+	Card    CardView
+	Figures []FigureView
+}
+
+// FiguresCard draws a card holding pairs of a caption and a large figure.
+templ FiguresCard(v FiguresCardView) {
+	@Card(v.Card) {
+		@FigureList(FigureListView{Figures: v.Figures, Columns: true})
+	}
+}
+
+// chartSeriesMax is the most series one chart draws.
+const chartSeriesMax = 4
+
+// ChartSeriesView is one series of a line chart. Name must equal the series
+// name in the chart's JSON. Color is the chart colour, 1 to 6: the first
+// series of a plot is 1 and a second is 3, so two lines differ by more than
+// a legend. Maximum also draws the maximum of each period, as a thin line.
+type ChartSeriesView struct {
+	Name    string
+	Color   int
+	Maximum bool
+}
+
+// ChartCardView is a line chart card. Period is its subtitle ("Last week").
+// URL answers the chart's JSON, whose shape assets/fleet-chart.js states. At
+// most chartSeriesMax series are drawn.
+type ChartCardView struct {
+	Card   CardView
+	Period string
+	URL    string
+	Unit   string
+	Series []ChartSeriesView
+}
+
+// chartColorClass answers the class of a chart colour. A number outside 1 to
+// 6 is the last colour, the secondary text colour.
+func chartColorClass(color int) string {
+	if color < 1 || color > 6 {
+		color = 6
+	}
+
+	return "fleet-chart-color--" + strconv.Itoa(color)
+}
+
+// chartSeriesShown answers the series a chart draws: the first chartSeriesMax.
+func chartSeriesShown(series []ChartSeriesView) []ChartSeriesView {
+	return series[:min(len(series), chartSeriesMax)]
+}
+
+// ChartCard draws the frame of a line chart: the title, the period, the plot
+// region and the legend centred under it. The chart script fetches the JSON
+// the plot names and draws it; until then, and without the script, the plot
+// region says so.
+templ ChartCard(v ChartCardView) {
+	@Card(v.Card) {
+		<p class="fleet-chart-period">{ v.Period }</p>
+		<div class="fleet-chart" data-chart-url={ v.URL } data-chart-unit={ v.Unit } data-chart-title={ v.Card.Title }>
+			<div class="fleet-chart-plot" data-chart-plot="true"></div>
+			<p class="fleet-chart-note" data-chart-note="true" role="status">Loading the samples</p>
+			<p class="fleet-chart-cursor" data-chart-cursor="true" aria-hidden="true"></p>
+			<ul class="fleet-chart-legend">
+				for _, series := range chartSeriesShown(v.Series) {
+					<li class="fleet-chart-legend-item" data-chart-series={ series.Name } data-chart-color={ strconv.Itoa(series.Color) } data-chart-maximum={ strconv.FormatBool(series.Maximum) }>
+						<span class={ "fleet-chart-swatch", "fleet-fill", chartColorClass(series.Color) }></span>
+						<span class="fleet-chart-series-name">{ series.Name }</span>
+						<span class="fleet-chart-latest" data-chart-latest="true"></span>
+					</li>
+				}
+			</ul>
+		</div>
+	}
+}

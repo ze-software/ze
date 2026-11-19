@@ -1,0 +1,204 @@
+// Design: docs/architecture/fleet-interface.md -- the side panel content, the key and value list and the quick info card
+// Related: component_action.templ -- the copy control, the tag and the actions
+// Related: component_card.templ -- the card the quick info sits in
+
+package fleetui
+
+// ValueView is one labeled value. Exactly one form is drawn, the first that
+// is set, in this order: a usage bar, tags, a state, an object (Icon and
+// Href), a link (Href), a text. A text that is absent is a dash. Mono draws
+// an identifier, an address, a version or a hash in the monospace font, and
+// Copy adds a copy control at the row's right edge.
+type ValueView struct {
+	Label  string
+	Text   string
+	Href   string
+	Icon   string
+	Tags   []TagView
+	Usage  *UsageBarView
+	Status Status
+	Mono   bool
+	Copy   bool
+}
+
+// valueContent draws the value of a row, without its label.
+templ valueContent(v ValueView) {
+	if v.Usage != nil {
+		@UsageMini(*v.Usage)
+	} else if len(v.Tags) > 0 {
+		<span class="fleet-cell-tags">
+			for _, tag := range v.Tags {
+				@Tag(tag)
+			}
+		</span>
+	} else if v.Status.Tone != ToneUnspecified {
+		@StatusWord(v.Status)
+	} else if v.Text == "" {
+		<span class="fleet-absent" title="No value">-</span>
+	} else if v.Href != "" {
+		<span class="fleet-cell-object">
+			if v.Icon != "" {
+				@Icon(v.Icon)
+			}
+			@NavLink(NavLinkView{Href: v.Href, Class: "fleet-link"}) {
+				{ v.Text }
+			}
+		</span>
+	} else {
+		<span class={ templ.KV("fleet-mono", v.Mono) }>{ v.Text }</span>
+	}
+}
+
+// KeyValueListView is a list of labeled values.
+type KeyValueListView struct {
+	Rows []ValueView
+}
+
+// KeyValueList draws rows of a label in the secondary colour and its value,
+// each identifier with its copy control.
+templ KeyValueList(v KeyValueListView) {
+	<dl class="fleet-kv">
+		for _, row := range v.Rows {
+			<div class="fleet-kv-row">
+				<dt class="fleet-kv-label">{ row.Label }</dt>
+				<dd class="fleet-kv-value">
+					@valueContent(row)
+					if row.Copy && row.Text != "" {
+						@CopyButton(CopyView{Text: row.Text, Name: row.Label})
+					}
+				</dd>
+			</div>
+		}
+	</dl>
+}
+
+// PanelCardView is one small card of the side panel: a title, its rows, and
+// an optional link to the longer list the card summarises.
+type PanelCardView struct {
+	Title string
+	Rows  []ValueView
+	Link  *LinkView
+}
+
+// PanelView is the content of the side panel for one row. Empty is the panel
+// with no row chosen. CloseHref is the page's address without its row.
+// Actions are the row's own actions, drawn as an icon and a word at the top
+// right, and Menu the rest of them.
+type PanelView struct {
+	Title     string
+	CloseHref string
+	Icon      ObjectIconView
+	Actions   []ActionView
+	Cards     []PanelCardView
+	Menu      *MenuView
+	Pinned    bool
+	Empty     bool
+}
+
+// panelPinLabel answers the name of the pin control.
+func panelPinLabel(pinned bool) string {
+	if pinned {
+		return "Unpin the side panel"
+	}
+
+	return "Pin the side panel"
+}
+
+// panelPinIcon answers the icon of the pin control.
+func panelPinIcon(pinned bool) string {
+	if pinned {
+		return "unpin"
+	}
+
+	return "pin"
+}
+
+// PanelContent draws the content of the side panel: a header with the row's
+// name, its own actions, the pin control and the close link, then a stack of
+// small cards. With no row chosen it shows one centred sentence over a
+// picture. The shell script owns the pin: the control only names it.
+templ PanelContent(v PanelView) {
+	<div class="fleet-panel">
+		<header class="fleet-panel-head">
+			if !v.Empty {
+				@ObjectIcon(v.Icon)
+				<h2 class="fleet-panel-title">{ v.Title }</h2>
+			}
+			<div class="fleet-panel-controls">
+				<button type="button" class="fleet-icon-button" data-fleet-panel-pin="true" aria-pressed={ boolText(v.Pinned) } aria-label={ panelPinLabel(v.Pinned) } title={ panelPinLabel(v.Pinned) }>
+					@Icon(panelPinIcon(v.Pinned))
+				</button>
+				if !v.Empty {
+					@NavLink(NavLinkView{Href: v.CloseHref, Class: "fleet-icon-button", Name: "Close the details"}) {
+						@Icon("close")
+					}
+				}
+			</div>
+		</header>
+		if v.Empty {
+			<div class="fleet-panel-empty">
+				<p class="fleet-panel-empty-sentence">Click the eye to see details</p>
+				@Illustration(illustrationDetails)
+			</div>
+		} else {
+			<div class="fleet-panel-actions">
+				for _, action := range v.Actions {
+					@ActionLink(action)
+				}
+				if v.Menu != nil {
+					@DotsMenu(*v.Menu)
+				}
+			</div>
+			for _, card := range v.Cards {
+				<section class="fleet-panel-card" aria-label={ card.Title }>
+					<header class="fleet-panel-card-head">
+						<h3 class="fleet-panel-card-title">{ card.Title }</h3>
+						if card.Link != nil {
+							@NavLink(NavLinkView{Href: card.Link.Href, Class: "fleet-card-link"}) {
+								{ card.Link.Label }
+							}
+						}
+					</header>
+					@KeyValueList(KeyValueListView{Rows: card.Rows})
+				</section>
+			}
+		}
+	</div>
+}
+
+// boolText answers a boolean as an attribute writes it.
+func boolText(value bool) string {
+	if value {
+		return "true"
+	}
+
+	return "false"
+}
+
+// QuickInfoView is the quick info card of an object: label and value pairs
+// in four columns.
+type QuickInfoView struct {
+	Card  CardView
+	Items []ValueView
+}
+
+// QuickInfo draws label and value pairs in four columns. A state carries its
+// mark, another object its icon and a link, labels are small filled chips,
+// and each identifier has a copy control.
+templ QuickInfo(v QuickInfoView) {
+	@Card(v.Card) {
+		<dl class="fleet-quick-info">
+			for _, item := range v.Items {
+				<div class="fleet-quick-info-item">
+					<dt class="fleet-kv-label">{ item.Label }</dt>
+					<dd class="fleet-kv-value">
+						@valueContent(item)
+						if item.Copy && item.Text != "" {
+							@CopyButton(CopyView{Text: item.Text, Name: item.Label})
+						}
+					</dd>
+				</div>
+			}
+		</dl>
+	}
+}

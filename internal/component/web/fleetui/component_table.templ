@@ -1,0 +1,343 @@
+// Design: docs/architecture/fleet-interface.md -- the fleet table section: query row, actions, selection, table, pager
+// Related: component_table.go -- the view data of every part drawn here
+// Related: assets/fleet-components.js -- row selection, the bulk count and the page size select
+
+package fleetui
+
+import "strconv"
+
+// hiddenFields draws the view parameters a form carries along unchanged.
+templ hiddenFields(fields []HiddenFieldView) {
+	for _, field := range fields {
+		<input type="hidden" name={ field.Name } value={ field.Value }/>
+	}
+}
+
+// QueryRow draws the query row: the caption, the filter field bound to q,
+// the filled Search button, the assisted filter menus, the saved filters and
+// the count of matches. It is a form that asks the page's own address, so a
+// filter is always in the address and reproduces the view.
+templ QueryRow(v QueryRowView) {
+	<form class="fleet-query" role="search" method="get" action={ templ.URL(v.Action) } hx-get={ v.Action } hx-target={ contentTarget } hx-swap="innerHTML" hx-push-url="true">
+		@hiddenFields(v.Hidden)
+		<label class="fleet-query-caption" for={ v.ID }>Filter</label>
+		<input
+			class="fleet-query-field"
+			type="search"
+			name="q"
+			id={ v.ID }
+			value={ v.Text }
+			placeholder={ v.Placeholder }
+			maxlength={ strconv.Itoa(FilterLengthMax) }
+			autocomplete="off"
+			spellcheck="false"
+			if v.Refusal != "" {
+				aria-invalid="true"
+				aria-describedby={ v.ID + "-refusal" }
+			}
+		/>
+		<button type="submit" class="fleet-button fleet-button--primary">
+			@Icon("search")
+			<span class="fleet-action-label">Search</span>
+		</button>
+		for _, menu := range v.Menus {
+			@Menu(menu)
+		}
+		if v.Saved != nil {
+			@Menu(*v.Saved)
+		}
+		if v.Save != nil {
+			@ActionButton(*v.Save)
+		}
+		<span class="fleet-query-count">{ v.Matches }</span>
+		if v.Refusal != "" {
+			<p class="fleet-query-refusal" role="alert" id={ v.ID + "-refusal" }>{ v.Refusal }</p>
+		}
+	</form>
+}
+
+// TableActions draws the table actions row: the caption, then each action as
+// an icon and a word, dimmed while no row is selected. It is the form the row
+// checkboxes belong to, so an action posts the selection.
+templ TableActions(v BulkView) {
+	<form class="fleet-table-actions" id={ v.Form } method="post" action={ templ.URL(v.Action) } data-fleet-bulk-form="true">
+		<input type="hidden" name="q" value={ v.Filter }/>
+		<input type="hidden" name="all" value="" data-fleet-select-matches-field="true"/>
+		<span class="fleet-table-actions-caption">Table actions</span>
+		for _, action := range v.Actions {
+			@ActionLink(action)
+		}
+		if v.More != nil {
+			@Menu(*v.More)
+		}
+	</form>
+}
+
+// SelectionRow draws the selection row: the count of selected rows, then the
+// links that select the page, extend the selection to every row matching the
+// filter, and clear it. The script keeps the count.
+templ SelectionRow(v BulkView) {
+	<div class="fleet-selection" data-fleet-selection={ v.Form }>
+		<span class="fleet-selection-count">
+			<span data-fleet-selected-count="true" data-fleet-total={ countText(v.Total) }>0</span>
+			{ " " + SelectionText(v.Total, v.Noun) }
+		</span>
+		<button type="button" class="fleet-text-button" data-fleet-select="page">Select all</button>
+		<button type="button" class="fleet-text-button" data-fleet-select="matches">{ "Select every match (" + countText(v.Total) + ")" }</button>
+		<button type="button" class="fleet-text-button" data-fleet-select="none">Unselect all</button>
+	</div>
+}
+
+// pagerStep draws one page control: a link, or a dimmed mark when no such
+// page exists.
+templ pagerStep(v pagerStepView) {
+	if v.Enabled {
+		@NavLink(NavLinkView{Href: v.Href, Class: "fleet-icon-button", Name: v.Name}) {
+			@Icon(v.Icon)
+		}
+	} else {
+		<span class="fleet-icon-button fleet-icon-button--disabled" aria-disabled="true">
+			@Icon(v.Icon)
+			<span class="fleet-visually-hidden">{ v.Name + ", not available" }</span>
+		</span>
+	}
+}
+
+// Pager draws the pagination row, right aligned: the range of rows shown,
+// the first, previous, next and last controls, then the page size select.
+// The select is a form that asks the page's address with size; the script
+// submits it on change, and its button does without the script.
+templ Pager(v PagerView) {
+	<nav class="fleet-pager" aria-label="Pages">
+		<span class="fleet-pager-range">{ PagerRange(v.Page, v.Noun) }</span>
+		for _, step := range pagerSteps(v) {
+			@pagerStep(step)
+		}
+		<form class="fleet-pager-size" method="get" action={ templ.URL(v.Action) } hx-get={ v.Action } hx-target={ contentTarget } hx-swap="innerHTML" hx-push-url="true">
+			@hiddenFields(v.Hidden)
+			<label class="fleet-pager-size-label">
+				Show by
+				<select class="fleet-select" name="size" data-fleet-submit="true">
+					for _, size := range PageSizes() {
+						<option value={ strconv.Itoa(size) } selected?={ size == v.Page.Size }>{ strconv.Itoa(size) }</option>
+					}
+				</select>
+			</label>
+			<button type="submit" class="fleet-text-button" data-fleet-submit-fallback="true">Apply</button>
+		</form>
+	</nav>
+}
+
+// headerCell draws one header cell: the icon naming the kind of value, then
+// the label. A sortable header is a link carrying the sort, with the mark of
+// the current direction.
+templ headerCell(v ColumnHeaderView) {
+	<th scope="col" class={ "fleet-table-head", templ.KV("fleet-table-head--numeric", v.Numeric) } aria-sort={ v.Sort.Aria() }>
+		if v.SortHref != "" {
+			@NavLink(NavLinkView{Href: v.SortHref, Class: "fleet-table-sort"}) {
+				if v.Kind != "" {
+					@Icon(v.Kind)
+				}
+				<span>{ v.Label }</span>
+				if v.Sort.Icon() != "" {
+					@Icon(v.Sort.Icon())
+				}
+			}
+		} else {
+			<span class="fleet-table-label">
+				if v.Kind != "" {
+					@Icon(v.Kind)
+				}
+				<span>{ v.Label }</span>
+			</span>
+		}
+	</th>
+}
+
+// cellText draws a text, or a dash for an absent one.
+templ cellText(text string, class string) {
+	if text != "" {
+		<span class={ class }>{ text }</span>
+	} else {
+		<span class="fleet-absent" title="No value">-</span>
+	}
+}
+
+// Cell draws the content of one cell, by its kind.
+templ Cell(v CellView) {
+	switch v.Kind {
+		case CellText:
+			@cellText(v.Text, "fleet-cell-text")
+		case CellMono:
+			@cellText(v.Text, "fleet-mono")
+		case CellNumber:
+			@cellText(v.Text, "fleet-mono fleet-cell-number")
+		case CellObject:
+			<span class="fleet-cell-object">
+				@ObjectIcon(v.Icon)
+				@NavLink(NavLinkView{Href: v.Href, Class: "fleet-object-link"}) {
+					{ v.Text }
+				}
+			</span>
+		case CellStatus:
+			@StatusWord(v.Status)
+		case CellTags:
+			<span class="fleet-cell-tags">
+				for _, tag := range v.Tags {
+					@Tag(tag)
+				}
+				if v.More > 0 {
+					<span class="fleet-chip fleet-chip--more" title={ countText(v.More) + " more labels" }>{ "+" + countText(v.More) }</span>
+				}
+				if len(v.Tags) == 0 {
+					<span class="fleet-absent" title="No label">-</span>
+				}
+			</span>
+		case CellUsage:
+			@UsageMini(v.Usage)
+		case CellTime:
+			if v.Text != "" {
+				<span class="fleet-cell-time" title={ v.Title }>{ v.Text }</span>
+			} else {
+				<span class="fleet-absent" title="No value">-</span>
+			}
+		case CellLink:
+			@NavLink(NavLinkView{Href: v.Href, Class: "fleet-link"}) {
+				{ v.Text }
+			}
+		default:
+			<span class="fleet-absent" title="No value">-</span>
+	}
+}
+
+// cellClass answers the class of the table cell around a cell's content.
+func cellClass(v CellView) string {
+	if v.Kind == CellNumber || v.Kind == CellUsage {
+		return "fleet-table-cell fleet-table-cell--numeric"
+	}
+
+	return "fleet-table-cell"
+}
+
+// tableRow draws one row: its checkbox, its cells, the first as the row's
+// header, then the fixed last column of the eye and the three-dot menu.
+templ tableRow(table TableView, row RowView) {
+	<tr class={ "fleet-table-row", templ.KV("fleet-table-row--opened", row.Opened) }>
+		if table.Form != "" {
+			<td class="fleet-table-check">
+				<input type="checkbox" name="row" value={ row.ID } form={ table.Form } aria-label={ "Select " + row.Name } data-fleet-select-row="true"/>
+			</td>
+		}
+		for index, cell := range row.Cells {
+			if index == 0 {
+				<th scope="row" class={ cellClass(cell) }>
+					@Cell(cell)
+				</th>
+			} else {
+				<td class={ cellClass(cell) }>
+					@Cell(cell)
+				</td>
+			}
+		}
+		if table.Controls {
+			<td class="fleet-table-controls">
+				if row.EyeHref != "" {
+					@NavLink(NavLinkView{Href: row.EyeHref, Class: "fleet-icon-button", Name: "Show the details of " + row.Name, Current: row.Opened}) {
+						@Icon("eye")
+					}
+				}
+				if row.Menu != nil {
+					@DotsMenu(*row.Menu)
+				}
+			</td>
+		}
+	</tr>
+}
+
+// Table draws a real table: header cells with their scope, one row per
+// object, and under the headers the empty state when it has no row, so the
+// columns stay visible.
+templ Table(v TableView) {
+	<div class="fleet-table-scroll">
+		<table class="fleet-table" aria-label={ v.Name } data-fleet-table={ v.Form }>
+			<thead>
+				<tr>
+					if v.Form != "" {
+						<th scope="col" class="fleet-table-check">
+							<input type="checkbox" aria-label="Select every row of this page" data-fleet-select-page="true"/>
+						</th>
+					}
+					for _, header := range v.Headers {
+						@headerCell(header)
+					}
+					if v.Controls {
+						<th scope="col" class="fleet-table-controls">
+							<span class="fleet-visually-hidden">Row actions</span>
+						</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range v.Rows {
+					@tableRow(v, row)
+				}
+				if len(v.Rows) == 0 && v.Empty != nil {
+					<tr class="fleet-table-empty">
+						<td colspan={ tableColumns(v) }>
+							@StateHero(*v.Empty)
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+// sectionCreate draws the creating action of a section: a text link with a
+// plus sign, or a button with a menu when there are several.
+templ sectionCreate(v TableSectionView) {
+	if v.Create != nil {
+		@ActionLink(*v.Create)
+	}
+	if v.CreateMenu != nil {
+		@Menu(*v.CreateMenu)
+	}
+}
+
+// TableSection draws one section of a tab's content: its title over a full
+// width rule with the creating action at the right, then the query row, the
+// table actions row, the selection row and the pager above the table, and
+// both again below it.
+templ TableSection(v TableSectionView) {
+	<section class="fleet-section" aria-label={ v.Title }>
+		<header class="fleet-section-head">
+			<h2 class="fleet-section-title">{ v.Title }</h2>
+			<div class="fleet-section-create">
+				@sectionCreate(v)
+			</div>
+		</header>
+		if v.Query != nil {
+			@QueryRow(*v.Query)
+		}
+		if v.Bulk != nil {
+			@TableActions(*v.Bulk)
+		}
+		<div class="fleet-table-bar">
+			if v.Bulk != nil {
+				@SelectionRow(*v.Bulk)
+			}
+			if v.Pager != nil {
+				@Pager(*v.Pager)
+			}
+		</div>
+		@Table(v.Table)
+		<div class="fleet-table-bar">
+			if v.Bulk != nil {
+				@SelectionRow(*v.Bulk)
+			}
+			if v.Pager != nil {
+				@Pager(*v.Pager)
+			}
+		</div>
+	</section>
+}

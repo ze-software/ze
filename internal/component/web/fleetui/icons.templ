@@ -1,0 +1,280 @@
+// Design: docs/architecture/fleet-interface.md -- the fleet icon set, state marks and illustrations
+// Related: component_view.go -- Tone and Status, which choose a mark
+
+package fleetui
+
+// The icons are line drawings on a 16-unit grid, drawn here and nowhere else:
+// the package ships no icon file. Each takes the text colour of its place
+// through currentColor. An icon is decoration, hidden from assistive
+// technology, so every place that uses one writes a word or an accessible
+// name beside it.
+
+// IconNames answers every name Icon draws. TestIconNamesAreAllDrawn renders
+// each one, and TestTemplatesNameKnownIcons refuses a template that names
+// another.
+func IconNames() []string {
+	return []string{
+		"menu", "pin", "unpin", "search", "chevron-right", "chevron-down", "estate", "group",
+		"device", "tasks", "user", "sun", "moon", "eye", "dots", "plus", "copy", "external",
+		"close", "check", "alert", "info", "error", "edit", "trash", "filter", "first", "prev",
+		"next", "last", "sort-asc", "sort-desc", "terminal", "config", "chart", "retry", "save",
+		"kind-text", "kind-state", "kind-address", "kind-number", "kind-time", "kind-tag",
+		"mark-ok", "mark-warning", "mark-error", "mark-offline", "mark-unknown", "mark-info",
+		"mark-progress",
+	}
+}
+
+// Icon draws the named icon. A name outside IconNames draws a neutral
+// placeholder carrying the class fleet-icon--unknown, which the tests refuse.
+templ Icon(name string) {
+	<svg class={ "fleet-icon", "fleet-icon--" + name } viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		switch name {
+			case "menu":
+				<path d="M2 4h12M2 8h12M2 12h12"></path>
+			case "pin":
+				<path d="M6 2h4l-.5 4.5L12 9H4l2.5-2.5zM8 9v5"></path>
+			case "unpin":
+				<path d="M6 2h4l-.5 4.5L12 9H4l2.5-2.5zM8 9v5M2 2l12 12"></path>
+			case "search":
+				<circle cx="7" cy="7" r="4.5"></circle>
+				<path d="M10.5 10.5 14 14"></path>
+			case "chevron-right":
+				<path d="m6 3 5 5-5 5"></path>
+			case "chevron-down":
+				<path d="m3 6 5 5 5-5"></path>
+			case "estate":
+				<path d="M2 14V6l6-4 6 4v8zM6 14v-4h4v4"></path>
+			case "group":
+				<path d="M2 4h4l1.5 2H14v7H2z"></path>
+			case "device":
+				<rect x="2" y="5" width="12" height="6" rx="1"></rect>
+				<path d="M4.5 8h.01M7 8h.01M10 8h2"></path>
+			case "tasks":
+				<path d="M6 4h8M6 8h8M6 12h8M2 4l1 1 1.5-2M2 8l1 1 1.5-2M2 12l1 1 1.5-2"></path>
+			case "user":
+				<circle cx="8" cy="5.5" r="3"></circle>
+				<path d="M2.5 14c.5-3 2.5-4.5 5.5-4.5s5 1.5 5.5 4.5"></path>
+			case "sun":
+				<circle cx="8" cy="8" r="3"></circle>
+				<path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5 13 13M3 13l1.5-1.5M11.5 4.5 13 3"></path>
+			case "moon":
+				<path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z"></path>
+			case "eye":
+				<path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
+				<circle cx="8" cy="8" r="2"></circle>
+			case "dots":
+				<path d="M8 3h.01M8 8h.01M8 13h.01" stroke-width="2.5"></path>
+			case "plus":
+				<path d="M8 3v10M3 8h10"></path>
+			case "copy":
+				<rect x="5" y="5" width="9" height="9" rx="1"></rect>
+				<path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2"></path>
+			case "external":
+				<path d="M9 2h5v5M14 2 7.5 8.5M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"></path>
+			case "close":
+				<path d="m3 3 10 10M13 3 3 13"></path>
+			case "check":
+				<path d="m2.5 8.5 3.5 3.5 7.5-8"></path>
+			case "alert":
+				<path d="M8 2 1.5 13.5h13zM8 6.5v3.5M8 12h.01"></path>
+			case "info":
+				<circle cx="8" cy="8" r="6.5"></circle>
+				<path d="M8 7.5V11M8 5h.01"></path>
+			case "error":
+				<circle cx="8" cy="8" r="6.5"></circle>
+				<path d="m5.5 5.5 5 5M10.5 5.5l-5 5"></path>
+			case "edit":
+				<path d="M2 14h3l8.5-8.5-3-3L2 11zM9 4l3 3"></path>
+			case "trash":
+				<path d="M2.5 4h11M6 4V2.5h4V4M4 4l.5 9.5h7L12 4M6.5 7v4M9.5 7v4"></path>
+			case "filter":
+				<path d="M2 3h12L9.5 8.5V13l-3-1.5v-3z"></path>
+			case "first":
+				<path d="m8 3-5 5 5 5M13 3 8 8l5 5"></path>
+			case "prev":
+				<path d="m10 3-5 5 5 5"></path>
+			case "next":
+				<path d="m6 3 5 5-5 5"></path>
+			case "last":
+				<path d="m8 3 5 5-5 5M3 3l5 5-5 5"></path>
+			case "sort-asc":
+				<path d="M8 13V3M4 7l4-4 4 4"></path>
+			case "sort-desc":
+				<path d="M8 3v10M4 9l4 4 4-4"></path>
+			case "terminal":
+				<rect x="1.5" y="2.5" width="13" height="11" rx="1"></rect>
+				<path d="m4 6 2.5 2L4 10M8 10.5h4"></path>
+			case "config":
+				<path d="M2 4h6M11 4h3M2 8h2M7 8h7M2 12h7M12 12h2"></path>
+				<circle cx="9.5" cy="4" r="1.5"></circle>
+				<circle cx="5.5" cy="8" r="1.5"></circle>
+				<circle cx="10.5" cy="12" r="1.5"></circle>
+			case "chart":
+				<path d="M2 2v12h12M4.5 10.5l3-4 2.5 2 3.5-5"></path>
+			case "retry":
+				<path d="M13.5 8A5.5 5.5 0 1 1 11 3.4M13.5 2v3.5H10"></path>
+			case "save":
+				<path d="M3 2h8l3 3v9H2V2zM5 2v4h5V2M5 14v-4h6v4"></path>
+			case "kind-text":
+				<path d="M3 4h10M8 4v9M6 13h4"></path>
+			case "kind-state":
+				<circle cx="8" cy="8" r="5.5"></circle>
+				<path d="m5.5 8 2 2 3-3.5"></path>
+			case "kind-address":
+				<circle cx="8" cy="8" r="6"></circle>
+				<path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"></path>
+			case "kind-number":
+				<path d="M6 2 5 14M11 2l-1 12M2.5 5.5h11M2 10.5h11"></path>
+			case "kind-time":
+				<circle cx="8" cy="8" r="6"></circle>
+				<path d="M8 4.5V8l2.5 1.5"></path>
+			case "kind-tag":
+				<path d="M2 2h5.5L14 8.5 8.5 14 2 7.5zM5 5h.01"></path>
+			case "mark-ok":
+				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
+				<path class="fleet-icon-cut" d="m4.8 8.3 2.2 2.2 4.2-4.6"></path>
+			case "mark-warning":
+				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
+				<path class="fleet-icon-cut" d="M8 4.2v4.3M8 11.3h.01"></path>
+			case "mark-error":
+				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
+				<path class="fleet-icon-cut" d="m5.4 5.4 5.2 5.2M10.6 5.4l-5.2 5.2"></path>
+			case "mark-offline":
+				<circle cx="8" cy="8" r="6.2"></circle>
+				<path d="M5 8h6"></path>
+			case "mark-unknown":
+				<circle cx="8" cy="8" r="6.2"></circle>
+				<path d="M6.3 6.3a1.8 1.8 0 1 1 2.5 1.7c-.5.3-.8.6-.8 1.2M8 11.3h.01"></path>
+			case "mark-info":
+				<circle cx="8" cy="8" r="7" fill="currentColor" stroke="none"></circle>
+				<path class="fleet-icon-cut" d="M8 7.3v4M8 4.7h.01"></path>
+			case "mark-progress":
+				<circle class="fleet-icon-faint" cx="8" cy="8" r="6.2"></circle>
+				<path d="M8 1.8A6.2 6.2 0 0 1 14.2 8"></path>
+			default:
+				<rect class="fleet-icon--unknown" x="2.5" y="2.5" width="11" height="11" rx="2"></rect>
+		}
+	</svg>
+}
+
+// StatusMark draws the round mark of a status in its tone. The mark is never
+// the only carrier of the state: StatusWord writes the word beside it.
+templ StatusMark(status Status) {
+	<span class={ "fleet-state-mark", status.Tone.Class() }>
+		@Icon(status.Tone.Mark())
+	</span>
+}
+
+// StatusWord draws a status as its mark followed by its word.
+templ StatusWord(status Status) {
+	<span class="fleet-state">
+		@StatusMark(status)
+		<span class="fleet-state-word">{ status.Word }</span>
+	</span>
+}
+
+// StateMark draws the round mark of a device's display state.
+templ StateMark(state DisplayState) {
+	@StatusMark(DisplayStatus(state))
+}
+
+// StateWord draws a device's display state as its mark and its word.
+templ StateWord(state DisplayState) {
+	@StatusWord(DisplayStatus(state))
+}
+
+// ObjectIconView is the icon of an estate, a group or a device, with the mark
+// of its state. Marked is false for an object that has no state to show.
+type ObjectIconView struct {
+	Icon   string
+	Status Status
+	Marked bool
+}
+
+// ObjectIcon draws an object's icon with the mark of its state overlapping
+// the lower right corner. The state's word is written for assistive
+// technology, because the mark is small and the icon is decoration.
+templ ObjectIcon(v ObjectIconView) {
+	<span class="fleet-object-icon">
+		@Icon(v.Icon)
+		if v.Marked {
+			<span class={ "fleet-object-icon-mark", v.Status.Tone.Class() }>
+				@Icon(v.Status.Tone.Mark())
+			</span>
+			<span class="fleet-visually-hidden">{ v.Status.Word }</span>
+		}
+	</span>
+}
+
+// The illustrations a state hero and an empty panel are drawn over.
+const (
+	illustrationEmpty    = "empty"
+	illustrationGood     = "good"
+	illustrationOffline  = "offline"
+	illustrationLocked   = "locked"
+	illustrationFailed   = "failed"
+	illustrationDetails  = "details"
+	illustrationVersion  = "version"
+	illustrationSetup    = "setup"
+	illustrationNoSample = "no-sample"
+)
+
+// IllustrationNames answers every name Illustration draws.
+func IllustrationNames() []string {
+	return []string{
+		illustrationEmpty, illustrationGood, illustrationOffline, illustrationLocked,
+		illustrationFailed, illustrationDetails, illustrationVersion, illustrationSetup,
+		illustrationNoSample,
+	}
+}
+
+// Illustration draws a simple line picture, 96 units wide and 64 high, for a
+// state that has no data to show. A name outside IllustrationNames draws the
+// placeholder the tests refuse.
+templ Illustration(name string) {
+	<svg class={ "fleet-illustration", "fleet-illustration--" + name } viewBox="0 0 96 64" width="96" height="64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		switch name {
+			case illustrationEmpty:
+				<rect x="14" y="12" width="68" height="40" rx="4"></rect>
+				<path d="M14 24h68M24 34h22M24 42h14"></path>
+				<circle class="fleet-illustration-accent" cx="66" cy="38" r="7"></circle>
+				<path class="fleet-illustration-accent" d="m71 43 6 6"></path>
+			case illustrationGood:
+				<rect x="18" y="14" width="60" height="36" rx="4"></rect>
+				<path d="M28 26h18M28 34h12"></path>
+				<circle class="fleet-illustration-accent" cx="64" cy="36" r="10"></circle>
+				<path class="fleet-illustration-accent" d="m59 36 4 4 7-8"></path>
+			case illustrationOffline:
+				<rect x="16" y="22" width="64" height="20" rx="3"></rect>
+				<path d="M24 32h.01M32 32h.01M48 32h24"></path>
+				<path class="fleet-illustration-accent" d="M40 8 56 56M30 52h-8M74 52h-8"></path>
+			case illustrationLocked:
+				<rect x="30" y="28" width="36" height="26" rx="4"></rect>
+				<path d="M38 28v-8a10 10 0 0 1 20 0v8"></path>
+				<path class="fleet-illustration-accent" d="M48 38v8"></path>
+			case illustrationFailed:
+				<rect x="14" y="12" width="68" height="40" rx="4"></rect>
+				<path d="M14 24h68"></path>
+				<path class="fleet-illustration-accent" d="m40 32 16 14M56 32 40 46"></path>
+			case illustrationDetails:
+				<rect x="10" y="10" width="50" height="44" rx="4"></rect>
+				<path d="M18 22h34M18 32h34M18 42h20"></path>
+				<path class="fleet-illustration-accent" d="M62 32s6-9 13-9 13 9 13 9-6 9-13 9-13-9-13-9z"></path>
+				<circle class="fleet-illustration-accent" cx="75" cy="32" r="3"></circle>
+			case illustrationVersion:
+				<rect x="16" y="22" width="64" height="20" rx="3"></rect>
+				<path d="M24 32h.01M32 32h.01"></path>
+				<path class="fleet-illustration-accent" d="M60 28v8M56 32l4 4 4-4M72 52H24"></path>
+			case illustrationSetup:
+				<rect x="16" y="18" width="46" height="18" rx="3"></rect>
+				<rect x="16" y="40" width="46" height="12" rx="3"></rect>
+				<path d="M24 27h.01M24 46h.01"></path>
+				<path class="fleet-illustration-accent" d="M76 20v16M68 28h16"></path>
+			case illustrationNoSample:
+				<path d="M14 10v44h70"></path>
+				<path class="fleet-illustration-accent" d="M24 44h8M40 44h8M56 44h8M72 44h8" stroke-dasharray="2 4"></path>
+			default:
+				<rect class="fleet-icon--unknown" x="8" y="8" width="80" height="48" rx="4"></rect>
+		}
+	</svg>
+}

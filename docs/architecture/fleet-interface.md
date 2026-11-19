@@ -29,22 +29,26 @@ imports it.
 | `tree.go` | The estate tree: tree views, grouping, lookup of a node by its address |
 | `table.go` | Sorting, paging, and the one query function of the devices table |
 | `summary.go` | The counts, rankings and lines a dashboard shows, and the reduction of a series to the width of a chart |
-| `register.go` | The route registrations and the function that enables them |
+| `register.go` | The route registrations and the functions that enable them |
 | `register_tabs.go`, `register_devices.go` | The tabs, and the filter fields, sort columns and tree levels of the devices table |
-| `handler_shell.go` | The estate page handler, its view type, and the assets handler |
-| `shell.templ` | The shell: header, sidebar, main pane and side panel region |
-| `assets/` | `fleet-shell.css` and `fleet.js`, embedded in the package |
-| `guard_test.go` | The markup guards, run over this package |
+| `pages.go` | The page registry and the fragment registry, and `PageRequest`, which every builder is handed |
+| `handler_shell.go` | The page handler: an address resolved to a registered page inside the shell, and the assets handler |
+| `handler_fragment.go` | The fragment handler, and the fragments of the shell's own regions |
+| `handler_tree.go`, `handler_search.go` | The estate tree of the sidebar with its two fragments, and the header search |
+| `handler_events.go` | The live event stream of one page, and the prototype-only step route |
+| `shell_view.go`, `shell_states.go` | The view data of the shell, the states it shows in place of a page, and the task panel it fills |
+| `shell.templ`, `tree.templ`, `search.templ` | The shell (header, sidebar, main pane, side panel region), the tree, the search results |
+| `assets/fleet-shell.css`, `fleet-theme.js`, `fleet.js` | The styles and the behavior of the shell |
+| `icons.templ` | The icon set, the state marks and the illustrations |
+| `component_*.templ`, `component_*.go` | The components and their view data, one family per file: actions, cards, donut, usage, table, side panel, pane states, toasts, tasks, terminal and diff, gallery |
+| `assets/fleet-components.css`, `fleet-components.js`, `fleet-chart.js`, `fleet-terminal.js` | The styles and the behavior of the components |
+| `guard_test.go`, `style_test.go`, `golden_test.go` | The markup guards, the style rule and the golden capture, run over this package |
 
 The package embeds its own assets, so a build without the package carries none
-of them. The stylesheet declares the theme variables under the names and with
-the values the web stylesheet uses, in a dark default and a light theme, and
-adds the spacing, sidebar and chart variables. The script applies the theme
-stored in the browser setting `ze-theme`, which the other web modes write, so
-the choice carries across modes.
-<!-- source: internal/component/web/fleetui/handler_shell.go -- assetsFS, ShellView, newShellHandler, newAssetHandler -->
-<!-- source: internal/component/web/fleetui/assets/fleet-shell.css -- the :root and [data-theme="light"] blocks -->
-<!-- source: internal/component/web/fleetui/assets/fleet.js -- the ze-theme read -->
+of them. The shell also links the vendored htmx and uPlot the web package
+serves at `/assets/`.
+<!-- source: internal/component/web/fleetui/handler_shell.go -- assetsFS, fleetHandler, newAssetHandler -->
+<!-- source: internal/component/web/fleetui/shell.templ -- Shell, the head block -->
 
 ## The data source seam
 
@@ -143,7 +147,7 @@ state in that section and keeps its others.
 | Part | Rule |
 |------|------|
 | Address | `ParseAddress` reads a page address into an `Address` (kind of object, group path, device, tab, view) and `Address.String` renders it. `/fleet/` is the estate dashboard. A group segment is `key=value`, each escaped once, and a segment with no `=` is the node of the devices that lack the key. An address that names no page wraps `ErrAddressUnknown` |
-| Fragment | `/fleet/fragment/<name>/<page path>`, read by `ParseFragment`. It carries the page it belongs to with its view, and `item` for a fragment a page holds several of |
+| Fragment | `/fleet/fragment/<name>/<page path>`, read by `ParseFragment`. It carries the page it belongs to with its view, and `item` for a fragment a page holds several of or that takes one argument. "Fragments" lists the ones the shell registers |
 | Tabs | A registered set per kind of object (`MustRegisterTab`, `Tabs`). The parser accepts only a registered tab, so a page family adds a tab from its own register file |
 | View parameters | `q`, `sort`, `page`, `size`, `id`, `range`, `view`. A page size other than 25, 50 or 100 is 50; a page below one is one; a chart range other than `hour`, `day` or `week` is `day`; an absent tree view is `site-role`. A default is left out of a rendered address |
 | Filter | `FilterSchema` holds the grammar of one table: bare word, `field:value`, `field:a,b`, `field:!value`, `field:>n`, `field:<n`, `label:key=value`, a label key in use as a field, `has:<flag>`, terms ANDed. Fields and flags are registered. A filter is at most 512 characters and 32 terms. A refusal wraps `ErrFilterRefused`, names the term and lists the fields. `SetFilterTerm` writes the choice of an assisted menu into the filter text |
@@ -159,6 +163,183 @@ on the page, because the repository uses US spelling.
 <!-- source: internal/component/web/fleetui/tree.go -- BuildTree, ResolveTreeView, MustRegisterTreeLevel -->
 <!-- source: internal/component/web/fleetui/register_devices.go -- registerDeviceFields, registerDeviceColumns, registerDeviceLevels -->
 
+## Components
+
+Every page is assembled from one set of components. Each is a templ component
+taking one named view struct, which a page handler fills from the data
+layer's answers: words, numbers, addresses and small enums. No component reads
+a source, and no Go file builds markup.
+
+| Family | Components | View data |
+|--------|------------|-----------|
+| Marks | `Icon`, `StatusMark`, `StatusWord`, `StateMark`, `StateWord`, `ObjectIcon`, `Illustration` | `Status`, `Tone`, `ObjectIconView` |
+| Actions | `NavLink`, `ActionLink`, `ActionButton`, `PrimaryButton`, `IconButton`, `Menu`, `DotsMenu`, `Tag`, `CopyButton` | `ActionView`, `MenuView`, `ConfirmView`, `TagView`, `CopyView` |
+| Cards | `CardGrid`, `Card`, `Figure`, `FigureList`, `FiguresCard`, `ChartCard`, `QuickInfo`, `Callout` | `CardView`, `FigureView`, `ChartCardView`, `QuickInfoView`, `CalloutView` |
+| Counts | `Donut`, `DonutCard`, `StackedBar`, `UsageBar`, `UsageMini`, `UsageGroup` | `DonutView`, `DonutSegmentView`, `UsageBarView`, `UsageGroupView` |
+| Tables | `TableSection`, `QueryRow`, `TableActions`, `SelectionRow`, `Table`, `Cell`, `Pager` | `TableSectionView`, `QueryRowView`, `BulkView`, `TableView`, `RowView`, `CellView`, `PagerView` |
+| Side panel | `PanelContent`, `KeyValueList` | `PanelView`, `PanelCardView`, `ValueView` |
+| Pane states | `StateHero`, `Skeleton`, `StaleBanner`, `GoodNews` | `StateHeroView`, `HeroKind`, `SkeletonView` |
+| Overlays | `ToastArea`, `Toast`, `ToastOOB`, `ConfirmPreview`, `TaskPanel`, `TaskList`, `TaskRow`, `AlarmList` | `ToastView`, `TaskPanelView`, `TaskRowView`, `AlarmListView` |
+| Console and diff | `Terminal`, `TerminalEntry`, `Diff` | `TerminalView`, `TerminalEntryView`, `DiffView` |
+| Gallery | `ComponentGallery` | `GalleryView`, from `NewGalleryView` |
+
+| Rule | How a component keeps it |
+|------|--------------------------|
+| A state is never colour alone | A `Status` is a `Tone` and a word. The tone chooses one round mark, drawn beside the word. `DisplayStatus`, `HealthStatus`, `ConfigStatus`, `AlarmStatus` and `TaskStatus` answer the status of each state |
+| No style attribute | A donut is SVG whose arcs `DonutArcs` computes as dash lengths. A bar's width is one of the classes `fleet-w-0` to `fleet-w-100`, which `StackedShares` and `Percent` feed |
+| An unknown value is not zero | A usage bar whose figure was not reported shows a dash and no fill. An absent text is a dash |
+| Every view has an address | A link is a `NavLink`: a real link whose address htmx loads into `#fleet-content` and pushes. A sort, a page, a filter and an opened row are addresses the page handler renders with `ViewParams.Query` |
+| Behavior is attached by data attributes | `fleet-components.js` delegates from the document: row selection with shift ranges, the bulk count, menus, copy controls, the page size select, toasts and the confirm dialog |
+| A destructive action is confirmed | A control carrying a `ConfirmView` opens the one confirm dialog that `ToastArea` draws. A destructive action is confirmed by typing the target's name or the count |
+| A toast arrives with an answer | A handler adds `ToastOOB` to an htmx answer. Informational and success toasts leave after six seconds; warnings and errors stay. Four show, the rest are counted |
+| A chart reads its colours when drawn | `fleet-chart.js` fetches the JSON its card names, whose shape the head of that file states, and draws it with uPlot. A null value is a gap. The shell redraws every chart by dispatching the document event `fleet:theme` |
+| The console appends fragments | `fleet-terminal.js` posts a command and appends the `TerminalEntry` fragment the handler answers. A refusal closes the input |
+
+The gallery draws every component in every state from fixed data. It is the
+states page of the prototype, and `TestComponentGalleryDrawsEveryComponent`
+looks in it for the root class of each component.
+<!-- source: internal/component/web/fleetui/component_view.go -- Tone, Status, DisplayStatus, ActionView, Percent, RelativeTime -->
+<!-- source: internal/component/web/fleetui/icons.templ -- Icon, IconNames, StatusWord, ObjectIcon -->
+<!-- source: internal/component/web/fleetui/component_action.templ -- NavLink, actionControl, Menu -->
+<!-- source: internal/component/web/fleetui/component_donut.go -- DonutArcs, StackedShares, UsageTone -->
+<!-- source: internal/component/web/fleetui/component_table.go -- TableSectionView, CellView, PagerRange -->
+<!-- source: internal/component/web/fleetui/component_toast.templ -- ToastArea, ToastOOB, confirmDialog -->
+<!-- source: internal/component/web/fleetui/component_gallery.go -- NewGalleryView -->
+<!-- source: internal/component/web/fleetui/assets/fleet-components.js -- refresh, openConfirm, arrangeToasts -->
+<!-- source: internal/component/web/fleetui/assets/fleet-chart.js -- the JSON shape, draw -->
+<!-- source: internal/component/web/fleetui/assets/fleet-terminal.js -- run, appendAnswer -->
+<!-- source: internal/component/web/fleetui/component_gallery_test.go -- TestComponentGalleryDrawsEveryComponent -->
+
+## The shell and its pages
+
+Every fleet page is the same shell around one page. The shell knows no page:
+a page family registers each of its pages, and the shell resolves an address
+to the registered one.
+
+| Part | Contract |
+|------|----------|
+| `MustRegisterPage(Page)` | Called from `init()` in the register file of the family that owns the page. A `Page` names its kind of object and its tab, and holds `Content`, the builder of the tab's content. `SidePanel` builds the details of the row the address names in `id`, and is called only while it names one. `Primary` and `Actions` answer the object header's primary action and the entries of its Actions menu, which the object's tree row shows too. `Static` marks a page whose content holds state the browser owns, such as a terminal: a live event then leaves it alone |
+| `PageBuilder` | `func(ctx, *PageRequest) (templ.Component, error)`. It answers a component, or the data layer's operator error |
+| `PageRequest` | The address with its view parameters, the `Source`, the account name, and the `Snapshot`: the estate, the hub's clock, one `DeviceView` per device, the open alarms, the tasks and the declared tree views, read once for the request. `NewPageRequest` builds one |
+| A tab with no registered page | Renders the "not built yet" state. The shell is complete on its own |
+| A builder that fails | The content region shows the state `FailureOf` names, in the operator error's own words: its problem is the sentence, its reason the second sentence, its fix the line the operator can copy. Not found answers 404, unauthorized 403, a failure with no state of its own 500; a state that is an operating condition of a device (offline, relay refused, not supported, no answer in time) answers 200, because the page rendered |
+| An address that names nothing | An unknown device, a group no device is in, and an address that names no page each answer 404 with the not-found state inside the shell, so the tree and the header stay. A tree view the hub does not have answers 400 with the list of views, and the tree is drawn under the default view |
+
+The shell reads its view data from named structs (`ShellView`, `HeaderView`,
+`SidebarView`, `TreePaneView`, `TreeRowView`, `MainView`, `ObjectHeaderView`,
+`SidePanelView`). A view holds words, addresses, counts and small enums only:
+the typed-data guard refuses a field whose type another package declares, so a
+time is turned into its words before it reaches a view.
+
+A link inside the shell is a real link that htmx follows: it asks for the
+page's address, swaps the answer into the content region and pushes the
+address. The page handler answers such a request (`HX-Request`, with the
+request type `partial`) with the content region, then the regions that follow
+the page (the object header with the breadcrumb and the tab row, the tree, the
+tree view selector, the administration list, the side panel) as out-of-band
+swaps. Any other request, the one that restores a page from history included,
+gets the whole shell. Either way the address reproduces the view.
+<!-- source: internal/component/web/fleetui/pages.go -- MustRegisterPage, Page, PageRequest, NewPageRequest, ReadSnapshot -->
+<!-- source: internal/component/web/fleetui/handler_shell.go -- fleetHandler.ServeHTTP, resolvePage, describeObject, failureStatus, asksPart -->
+<!-- source: internal/component/web/fleetui/shell_states.go -- failureHeroView, notBuiltHeroView -->
+<!-- source: internal/component/web/fleetui/shell.templ -- Shell, pageUpdate -->
+
+### The tree
+
+The sidebar's tree is built for every page from the request's snapshot, with
+`BuildTree`, under the tree view of the address.
+
+| Rule | Detail |
+|------|--------|
+| Rows | The estate, then one row per group node, then the devices. A group row shows connected over total, in the warning colour when a device below is not healthy; a device row shows its state mark and its open alarms; a spinner replaces the mark while a task targets the row |
+| Loading | Rows down to the second level are always drawn. The children of a deeper row are left out and load from the `tree-branch` fragment when the row is first expanded, with skeleton rows meanwhile |
+| Selection | The server draws the rows on the way to the selected row expanded, and marks it. The script scrolls it into view |
+| Expansion | The rows the operator opened or closed are kept in the browser session, per tree view, and applied again after every load. A row that leads to the selected row stays open |
+| Filter | The filter box asks the `tree` fragment for the tree narrowed by its text, a quarter of a second after the last key. A filter draws everything it keeps, expanded. The `/` key focuses the box |
+| Keyboard | Up and down move, right expands, left collapses, enter opens |
+| Tree view | The selector's entries are the address in hand under each view. The choice is in the address and remembered per browser: an address that names no view opens under the view chosen last |
+<!-- source: internal/component/web/fleetui/handler_tree.go -- treeBuild, treeRowsView, treeFragment, treeBranchFragment -->
+<!-- source: internal/component/web/fleetui/tree.templ -- treePane, treeRows, treeRow -->
+
+### Fragments
+
+A fragment is the inside of one region, fetched on its own:
+`/fleet/fragment/<name>/<page path>`, with the page's view parameters and, for
+a fragment that takes one argument, `item`. `MustRegisterFragment(name,
+build)` registers one from a register file; the shell registers its own the
+same way. A fragment that fails answers the matching state under status 200,
+so the region shows it. An `item` longer than a filter may be is refused.
+
+| Fragment | Answers | `item` |
+|----------|---------|--------|
+| `tree` | The tree | The filter text |
+| `tree-branch` | The rows under one tree row | The row's key |
+| `object` | The object header, the breadcrumb and the tab row | - |
+| `content` | The tab's content | - |
+| `panel` | The side panel's content | - |
+| `tasks` | The task panel, whole | The tab to show it on; empty for the closed panel |
+| `header` | The Tasks button with its count and its failed dot | - |
+| `search` | The devices, then the pages, matching typed text, at most ten | The text |
+<!-- source: internal/component/web/fleetui/handler_fragment.go -- registerShellFragments, fleetHandler.serveFragment -->
+<!-- source: internal/component/web/fleetui/pages.go -- MustRegisterFragment, FragmentLink -->
+<!-- source: internal/component/web/fleetui/handler_search.go -- searchView -->
+
+### The live event stream
+
+`GET /fleet/events?scope=<page path>` is a server-sent stream for one open
+page. It carries no data of the estate. Each event is named `stale` and lists
+the regions of the page that are stale, among `tree`, `content`, `tasks` and
+`header`, and the script fetches again the fragment of every element marked
+with that region (`data-fleet-region`, `data-fleet-name`).
+
+| Rule | Detail |
+|------|--------|
+| Scope | The content region is stale for a change of a device the page shows: every device for the estate, the task list and the administration; the devices of the node for a group, read again when a device outside it changes, because it may have joined; the device itself for a device. The tree, the task panel and the header show the whole estate on every page, so a device change always names the tree, and a task event names every region |
+| Coalescing | Events are collected and written once a second, so a burst is one event per stale region per second |
+| Bounds | One subscription per stream, whose buffer the feed bounds (`EventBufferSize`). The feed serves `EventSubscriptionsMax` streams; one more answers 503 with the feed's operator error, and the page works without live updates |
+| Ending | The stream ends when the browser leaves, when a write does not complete in ten seconds, and when the feed ends the subscription. In the last case it first names every region, so the page fetches them again and subscribes anew |
+| Goroutines | None. The stream runs on the goroutine of its request |
+| Loss | The script shows a banner with the time the updates stopped, tries again after one second and then twice as long each time, up to thirty seconds and eight attempts, and fetches every region once when the stream is back |
+| Stepping | `POST /fleet/prototype/step` advances a scripted source by one event and answers the kind of the event and the device it is about. `POST /fleet/prototype/hold` stops the source from advancing its script on its own and changes nothing else. Both are mounted only when the registered source implements `Stepper`, which only the sample source does, so a browser test decides when the estate changes |
+<!-- source: internal/component/web/fleetui/handler_events.go -- eventStream.ServeHTTP, eventStream.run, eventScope.stale, eventScope.settle, Stepper, newStepHandler, newHoldHandler -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- openStream, streamFailed, refreshRegion -->
+
+### Scripts and styles of the shell
+
+The content security policy allows no inline script, no `style` attribute and
+no event attribute, so behavior reaches the scripts through ids and
+`data-fleet-*` attributes, and every listener is delegated from the document.
+
+| File | Holds |
+|------|-------|
+| `fleet-theme.js` | Applies the theme stored in the browser setting `ze-theme`, which the other web modes write, before the first paint. It is the one script loaded without `defer` |
+| `fleet.js` | The shell: the theme switch; the sidebar's collapse, pin, two tabs and width; the tree's expansion, lazy branches, filter and keyboard; the side panel pin; the header search; the event stream client and the region refresh |
+| `fleet-shell.css` | The theme variables under the names and with the values the web stylesheet uses, in a dark default and a light theme; the spacing, sidebar and chart variables; the surface variables; the regions, the tree, the object header, the breadcrumb and the tab row; the one responsive form below 60rem |
+
+The sidebar's width is the custom property `--fleet-sidebar-width`, which the
+script sets on the root element through the object model, clamped to 12rem to
+28rem, by dragging the handle or with the arrow keys on it. Where a browser
+refuses that, the script falls back to three widths chosen by a class. The
+width, both pins and the collapsed state are browser settings, not part of an
+address.
+
+The surface variables carry the relationship between the page and what lies
+on it. In the dark theme the page is `--bg-primary`, a card and the sidebar
+are `--bg-secondary`, and the header is `--bg-inset`. In the light theme the
+page is `--bg-secondary`, a card and the sidebar are `--bg-primary`, and the
+header is `--bg-secondary` with a line under it.
+
+Two rules hold for every fleet stylesheet, and `TestFleetStylesUseVariablesOnly`
+enforces them over every sheet under `assets/`. A color is written as a
+literal only as the value of a custom property, and only in `fleet-shell.css`.
+A gap, which is the value of `gap`, `margin` and `padding` in every form, is
+`0`, `auto` or one of the six spacing variables. A size is not a gap: widths,
+heights, offsets, border widths, radii and font sizes are free.
+<!-- source: internal/component/web/fleetui/assets/fleet-theme.js -- the ze-theme read -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- applyWidth, applyTreeState, start -->
+<!-- source: internal/component/web/fleetui/assets/fleet-shell.css -- the :root and [data-theme="light"] blocks -->
+<!-- source: internal/component/web/fleetui/style_test.go -- TestFleetStylesUseVariablesOnly, styleFindings -->
+
 ## Routes
 
 The package registers its routes with the web route registry from `init()`,
@@ -166,11 +347,15 @@ and the hub mounts them when the web server starts.
 
 | Pattern | Serves |
 |---------|--------|
-| `GET /fleet/` | The whole `/fleet/` subtree. `/fleet/` itself is the estate page; any other address under it answers 404 until its page exists |
+| `GET /fleet/` | Every page address under the prefix |
+| `GET /fleet/fragment/` | The fragments |
+| `GET /fleet/events` | The live event stream |
 | `GET /fleet/assets/` | The embedded styles and scripts, with `Cache-Control: no-cache` |
+| `POST /fleet/prototype/step`, `POST /fleet/prototype/hold` | The two prototype-only routes, under the mutation wrap |
 
-Both routes use the authenticated wrap. Both carry the same enabling function,
-which answers true only when a data source is registered. The hub calls it
+The `GET` routes use the authenticated wrap and carry the same enabling
+function, which answers true only when a data source is registered. That of
+the prototype-only routes answers true only when that source can be stepped. The hub calls each
 once, at web server start, after every `init()` has run, so registration order
 does not matter. A route whose enabling function answers false is not mounted,
 and its portal entry is not registered.
@@ -180,7 +365,7 @@ because the interface has its own shell and the server forbids framing a page.
 
 So a build that links the package and no source serves no fleet route and
 lists no fleet entry. That is every shipped build today.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, buildShellHandler -->
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildShellHandler -->
 <!-- source: cmd/ze/hub/service_web.go -- startWebServer, the RegisteredWebRoutes loop -->
 <!-- source: internal/component/web/fleetui/register_test.go -- TestFleetRoutesAbsentWithoutSource -->
 

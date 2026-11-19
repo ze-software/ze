@@ -1,0 +1,191 @@
+// Design: docs/architecture/fleet-interface.md -- toasts and the confirm dialog
+// Related: assets/fleet-components.js -- arms a toast, counts the hidden ones, fills and judges the confirm dialog
+// Related: component_action.templ -- the data-confirm attributes a control carries
+
+package fleetui
+
+import "strconv"
+
+// ToastLevel is the level of a toast. The zero value is not a level.
+type ToastLevel uint8
+
+// The levels of a toast.
+const (
+	// ToastUnspecified is the invalid zero value.
+	ToastUnspecified ToastLevel = iota
+	// ToastInformational leaves after toastShortSeconds.
+	ToastInformational
+	// ToastSuccess leaves after toastShortSeconds.
+	ToastSuccess
+	// ToastWarning stays until dismissed.
+	ToastWarning
+	// ToastError stays until dismissed.
+	ToastError
+)
+
+// toastShortSeconds is how long an informational or a success toast stays. A
+// lifetime of zero means the toast stays until the operator dismisses it.
+const toastShortSeconds = 6
+
+var (
+	toastWords     = []string{"Notice", "Information", "Success", "Warning", "Error"}
+	toastKeys      = []string{"unspecified", "info", "success", "warning", "error"}
+	toastTones     = []Tone{ToneNeutral, ToneAccent, ToneSuccess, ToneWarning, ToneError}
+	toastLifetimes = []int{0, toastShortSeconds, toastShortSeconds, 0, 0}
+)
+
+// Word answers the word written beside the level's mark.
+func (level ToastLevel) Word() string {
+	if int(level) < len(toastWords) {
+		return toastWords[level]
+	}
+
+	return toastWords[ToastUnspecified]
+}
+
+// Key answers the level's name in a class.
+func (level ToastLevel) Key() string {
+	if int(level) < len(toastKeys) {
+		return toastKeys[level]
+	}
+
+	return toastKeys[ToastUnspecified]
+}
+
+// Tone answers the colour of the level.
+func (level ToastLevel) Tone() Tone {
+	return toneOf(toastTones, level)
+}
+
+// LifetimeSeconds answers how long a toast of the level stays, or zero for a
+// toast that stays until dismissed. A level outside the named set stays.
+func (level ToastLevel) LifetimeSeconds() int {
+	if int(level) < len(toastLifetimes) {
+		return toastLifetimes[level]
+	}
+
+	return 0
+}
+
+// toastRole answers the live region role of a toast: a warning or an error
+// interrupts, the others wait their turn.
+func toastRole(level ToastLevel) string {
+	if level == ToastWarning || level == ToastError {
+		return "alert"
+	}
+
+	return "status"
+}
+
+// ToastView is one toast: one line saying what happened, an optional second
+// line, and a link to the task, the alarm or the page that records it. A
+// toast is never the only record of anything.
+type ToastView struct {
+	Message string
+	Detail  string
+	Link    *LinkView
+	Level   ToastLevel
+}
+
+// toastAreaID is the id of the region toasts are added to.
+const toastAreaID = "fleet-toasts"
+
+// Toast draws one toast: the mark and the word of its level, its lines, its
+// link and the control that dismisses it. The script removes it when its
+// lifetime ends.
+templ Toast(v ToastView) {
+	<div class={ "fleet-toast", "fleet-toast--" + v.Level.Key() } role={ toastRole(v.Level) } data-fleet-toast="true" data-toast-lifetime={ strconv.Itoa(v.Level.LifetimeSeconds()) }>
+		<span class={ "fleet-toast-mark", v.Level.Tone().Class() }>
+			@Icon(v.Level.Tone().Mark())
+		</span>
+		<div class="fleet-toast-body">
+			<p class="fleet-toast-message">
+				<span class="fleet-toast-word">{ v.Level.Word() }</span>
+				{ " " + v.Message }
+			</p>
+			if v.Detail != "" {
+				<p class="fleet-toast-detail">{ v.Detail }</p>
+			}
+			if v.Link != nil {
+				@NavLink(NavLinkView{Href: v.Link.Href, Class: "fleet-link"}) {
+					{ v.Link.Label }
+				}
+			}
+		</div>
+		<button type="button" class="fleet-icon-button" data-fleet-toast-close="true" aria-label="Dismiss this notification" title="Dismiss">
+			@Icon("close")
+		</button>
+	</div>
+}
+
+// ToastOOB draws a toast as an out-of-band swap: a handler adds it to any
+// htmx answer, and htmx appends it to the toast area whatever the answer's
+// own target is. The script arms it when it arrives.
+templ ToastOOB(v ToastView) {
+	<div id={ toastAreaID } hx-swap-oob="beforeend">
+		@Toast(v)
+	</div>
+}
+
+// ToastArea draws the two overlays the shell holds once per page: the region
+// toasts stack in, at the bottom right with the newest lowest, and the
+// confirm dialog. At most four toasts show; the script counts the rest in
+// the line above them.
+templ ToastArea() {
+	<div class="fleet-toasts-frame" role="region" aria-label="Notifications">
+		<p class="fleet-toasts-more" data-fleet-toast-more="true" hidden></p>
+		<div class="fleet-toasts" id={ toastAreaID }></div>
+	</div>
+	@confirmDialog()
+}
+
+// confirmBody draws what the confirm dialog shows: the action, its targets,
+// an optional sentence, and for a destructive action the field in which the
+// operator types the target's name or the count. The dialog holds it empty,
+// and the script fills the slots from the control that opened it.
+templ confirmBody(v ConfirmView, live bool) {
+	<h2 class="fleet-confirm-action" data-confirm-slot="action"
+		if live {
+			id="fleet-confirm-title"
+		}
+	>{ v.Action }</h2>
+	<p class="fleet-confirm-targets" data-confirm-slot="targets">{ v.Targets }</p>
+	<p class="fleet-confirm-detail" data-confirm-slot="detail">{ v.Detail }</p>
+	<div class="fleet-confirm-expect" data-confirm-slot="expect-block" hidden?={ v.Expect == "" }>
+		<label class="fleet-confirm-expect-label">
+			<span>
+				Type
+				<strong class="fleet-mono" data-confirm-slot="expect">{ v.Expect }</strong>
+				to confirm
+			</span>
+			<input class="fleet-field" type="text" autocomplete="off" spellcheck="false" data-confirm-slot="input" disabled?={ !live }/>
+		</label>
+	</div>
+	<div class="fleet-confirm-buttons">
+		<button type="submit" value="cancel" class="fleet-button" disabled?={ !live }>Cancel</button>
+		<button type="submit" value="confirm" class={ "fleet-button", "fleet-button--primary", "fleet-confirm-go" } data-confirm-slot="confirm" disabled?={ !live || v.Expect != "" }>Confirm</button>
+	</div>
+}
+
+// confirmDialog draws the one confirm dialog of a page. Any control carrying
+// data-confirm attributes opens it; on confirm the script submits the
+// control's form. A destructive action is drawn apart, in the error colour,
+// and its confirm button stays disabled until the typed text matches.
+templ confirmDialog() {
+	<dialog class="fleet-confirm" id="fleet-confirm" aria-labelledby="fleet-confirm-title">
+		<form method="dialog" class="fleet-confirm-form">
+			@confirmBody(ConfirmView{}, true)
+		</form>
+	</dialog>
+}
+
+// ConfirmPreview draws the content of the confirm dialog for one action, in
+// place and inert. It exists for the states page, where both kinds of
+// confirmation are judged without opening a dialog.
+templ ConfirmPreview(v ConfirmView) {
+	<div class={ "fleet-confirm", "fleet-confirm--static", templ.KV("fleet-confirm--destructive", v.Destructive) }>
+		<div class="fleet-confirm-form">
+			@confirmBody(v, false)
+		</div>
+	</div>
+}

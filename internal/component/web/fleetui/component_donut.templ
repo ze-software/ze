@@ -1,0 +1,96 @@
+// Design: docs/architecture/fleet-interface.md -- the status donut and its legend
+// Related: component_donut.go -- DonutArcs, the geometry of the ring
+// Related: component_card.templ -- the card a donut sits in
+
+package fleetui
+
+// DonutView is one status donut: what it counts, the icon of the object in
+// its centre, and its segments. Every segment is listed in the legend, a
+// count of zero included, so the legend's shape never changes.
+type DonutView struct {
+	Caption  string
+	Icon     string
+	Segments []DonutSegmentView
+}
+
+// donutLabel answers the accessible name of the ring.
+func donutLabel(v DonutView) string {
+	return v.Caption + ", total " + countText(DonutTotal(v.Segments))
+}
+
+// donutRing draws the ring: the empty track, then one arc per segment that
+// counts something, with a small gap between neighbors.
+templ donutRing(v DonutView) {
+	<div class="fleet-donut-ring">
+		<svg class="fleet-donut-svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label={ donutLabel(v) }>
+			<circle class="fleet-donut-track" cx="60" cy="60" r="46" fill="none" stroke="currentColor" stroke-width="14"></circle>
+			for _, arc := range DonutArcs(v.Segments) {
+				<circle class={ "fleet-donut-arc", arc.Class } cx="60" cy="60" r="46" fill="none" stroke="currentColor" stroke-width="14" stroke-dasharray={ arc.Dash() } stroke-dashoffset={ arc.Shift() } transform="rotate(-90 60 60)"></circle>
+			}
+		</svg>
+		<span class="fleet-donut-centre">
+			@Icon(v.Icon)
+		</span>
+	</div>
+}
+
+// legendLine draws the dot, the word and the count of one segment. The word
+// and the count are one link when the segment has rows to open.
+templ legendLine(segment DonutSegmentView) {
+	<li class="fleet-legend-line">
+		<span class={ "fleet-legend-dot", "fleet-fill", donutColorClass(segment) }></span>
+		if segment.Href != "" {
+			@NavLink(NavLinkView{Href: segment.Href, Class: "fleet-legend-link"}) {
+				<span class="fleet-legend-word">{ segment.Word }</span>
+				<span class="fleet-legend-count">{ countText(segment.Count) }</span>
+			}
+		} else {
+			<span class="fleet-legend-word">{ segment.Word }</span>
+			<span class="fleet-legend-count">{ countText(segment.Count) }</span>
+		}
+		if segment.Info != "" {
+			<span class="fleet-info-mark" title={ segment.Info } tabindex="0">
+				@Icon("info")
+				<span class="fleet-visually-hidden">{ segment.Info }</span>
+			</span>
+		}
+	</li>
+}
+
+// Donut draws a ring split by state beside its caption and legend, with the
+// total at the bottom right.
+templ Donut(v DonutView) {
+	<div class="fleet-donut">
+		@donutRing(v)
+		<div class="fleet-donut-side">
+			<p class="fleet-donut-caption">{ v.Caption }</p>
+			<ul class="fleet-legend">
+				for _, segment := range v.Segments {
+					@legendLine(segment)
+				}
+			</ul>
+		</div>
+		<dl class="fleet-donut-total">
+			<dt class="fleet-figure-caption">Total</dt>
+			<dd class="fleet-donut-total-figure">{ countText(DonutTotal(v.Segments)) }</dd>
+		</dl>
+	</div>
+}
+
+// DonutCardView is a card of one donut, or of two related donuts stacked
+// with a thin line between them.
+type DonutCardView struct {
+	Card   CardView
+	Donuts []DonutView
+}
+
+// DonutCard draws a card holding its donuts.
+templ DonutCard(v DonutCardView) {
+	@Card(v.Card) {
+		<div class="fleet-donut-stack">
+			for _, donut := range v.Donuts {
+				@Donut(donut)
+			}
+		</div>
+	}
+}

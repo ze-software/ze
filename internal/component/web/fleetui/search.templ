@@ -1,0 +1,26 @@
+// Design: docs/architecture/fleet-interface.md -- the header search results markup
+// Related: handler_search.go -- the search these results come from
+// Related: assets/fleet.js -- the keyboard of the search field and its results
+
+package fleetui
+
+// searchResults renders what the header search found: one link per device or
+// page, the first of which the enter key opens. Text that finds nothing says
+// so, and empty text renders nothing.
+templ searchResults(view SearchResultsView) {
+	if len(view.Results) > 0 {
+		<ul class="fleet-search-list" aria-label="Search results">
+			for _, result := range view.Results {
+				<li class="fleet-search-item">
+					@NavLink(NavLinkView{Href: result.Href, Class: "fleet-search-link"}) {
+						@Icon(result.Icon)
+						<span class="fleet-search-title">{ result.Title }</span>
+						<span class="fleet-search-detail">{ result.Detail }</span>
+					}
+				</li>
+			}
+		</ul>
+	} else if view.Text != "" {
+		<p class="fleet-search-empty" role="status">No device or page matches "{ view.Text }"</p>
+	}
+}

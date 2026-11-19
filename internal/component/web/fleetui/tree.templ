@@ -1,0 +1,147 @@
+// Design: docs/architecture/fleet-interface.md -- the estate tree markup
+// Related: handler_tree.go -- the rows these components render
+// Related: shell_view.go -- TreePaneView, TreeRowsView and TreeRowView
+// Related: assets/fleet.js -- expansion, the filter box and the keyboard
+
+package fleetui
+
+// treeSkeletonRows is how many skeleton rows stand in for the children of a
+// row while they load.
+const treeSkeletonRows = 3
+
+// treePane renders the Estate tab of the sidebar: the tree view selector,
+// the filter box and the tree. The script keeps which rows are expanded
+// under the name of the tree view.
+templ treePane(view TreePaneView) {
+	<div class="fleet-tree-pane">
+		<select class="fleet-tree-view" id={ idTreeView } aria-label="Tree view" title="Tree view" data-fleet-action="tree-view">
+			@treeViewOptions(view)
+		</select>
+		<div class="fleet-tree-filter">
+			<input type="search" class="fleet-tree-filter-field" id="fleet-tree-filter" name="tree-filter" placeholder="Filter the estate tree" aria-label="Filter the estate tree" aria-controls={ idTree } autocomplete="off" value={ view.Rows.Filter }/>
+			<span class="fleet-field-icon">
+				@Icon("search")
+			</span>
+		</div>
+		<div class="fleet-tree" id={ idTree } data-fleet-region={ regionKeyTree } data-fleet-name={ fragmentTree } data-fleet-item-from="fleet-tree-filter">
+			@treeRows(view.Rows)
+		</div>
+	</div>
+}
+
+// treeViewOptions renders the entries of the tree view selector. The value
+// of an entry is the address of the page in hand under that view, which the
+// script opens.
+templ treeViewOptions(view TreePaneView) {
+	for _, option := range view.Options {
+		<option value={ option.Href } selected?={ option.Selected }>{ option.Title }</option>
+	}
+}
+
+// treeRows renders the tree: the estate row with everything under it, or,
+// when a filter keeps no device, the sentence that says so with the control
+// that clears the filter. The tree carries the name of its view, under which
+// the script keeps its expansion state.
+templ treeRows(view TreeRowsView) {
+	<ul class="fleet-tree-list" role="tree" aria-label="Estate tree" data-fleet-view={ view.ViewName }>
+		for _, row := range view.Rows {
+			@treeRow(row)
+		}
+	</ul>
+	if view.Empty {
+		<div class="fleet-tree-empty" role="status">
+			if view.Filter != "" {
+				<p class="fleet-tree-empty-sentence">No devices match this filter</p>
+				<button type="button" class="fleet-tree-empty-action" data-fleet-action="tree-filter-clear">Clear the filter</button>
+			} else {
+				<p class="fleet-tree-empty-sentence">No devices are declared on this hub</p>
+			}
+		</div>
+	}
+}
+
+// treeBranch renders the rows under one tree row, for a row whose children
+// were left out of the tree.
+templ treeBranch(view TreeRowsView) {
+	for _, row := range view.Rows {
+		@treeRow(row)
+	}
+}
+
+// treeRow renders one row and the rows under it. Left to right: a chevron
+// when the row has children; the object's icon with the mark of its state,
+// or a spinner while a task targets it; the name; then, right aligned, the
+// count of a group or the alarm badge of a device, and the three-dot menu.
+templ treeRow(row TreeRowView) {
+	<li
+		class="fleet-tree-item"
+		role="treeitem"
+		data-fleet-key={ row.Key }
+		if row.Expandable {
+			aria-expanded={ boolText(row.Expanded) }
+		}
+		if row.Selected {
+			aria-selected="true"
+		}
+		if row.LazyURL != "" {
+			data-fleet-lazy={ row.LazyURL }
+		}
+	>
+		<div class={ "fleet-tree-row", templ.KV("fleet-tree-row--selected", row.Selected) }>
+			if row.Expandable {
+				<button type="button" class="fleet-tree-toggle" data-fleet-action="tree-toggle" aria-label={ "Expand or collapse " + row.Title } tabindex="-1">
+					@Icon("chevron-right")
+				</button>
+			} else {
+				<span class="fleet-tree-toggle fleet-tree-toggle--none"></span>
+			}
+			@NavLink(NavLinkView{Href: row.Href, Class: "fleet-tree-link", Current: row.Selected}) {
+				<span class="fleet-tree-icon">
+					if row.Busy {
+						@Icon(row.Icon.Icon)
+						<span class="fleet-spinner fleet-spinner--mark" title="A task is running here"></span>
+						<span class="fleet-visually-hidden">A task is running. { row.Icon.Status.Word }</span>
+					} else {
+						@ObjectIcon(row.Icon)
+					}
+				</span>
+				<span class="fleet-tree-name">{ row.Title }</span>
+			}
+			if row.Count != "" {
+				<span class={ "fleet-tree-count", templ.KV("fleet-tree-count--attention", row.Attention) } title="Connected devices over all devices">{ row.Count }</span>
+			}
+			if row.Alarms > 0 {
+				<span class="fleet-tree-alarms" title="Open alarms">
+					{ countText(row.Alarms) }
+					<span class="fleet-visually-hidden">open alarms</span>
+				</span>
+			}
+			if len(row.Menu.Items) + len(row.Menu.Destructive) > 0 {
+				@DotsMenu(row.Menu)
+			}
+		</div>
+		if row.Expandable {
+			<ul class="fleet-tree-children" role="group" hidden?={ !row.Expanded }>
+				if row.LazyURL != "" {
+					@treeSkeleton()
+				} else {
+					for _, child := range row.Children {
+						@treeRow(child)
+					}
+				}
+			</ul>
+		}
+	</li>
+}
+
+// treeSkeleton renders the rows that stand in for the children of a row
+// while they load. They are decoration: assistive technology is told once
+// that the rows are loading.
+templ treeSkeleton() {
+	<li class="fleet-tree-skeleton" role="status">
+		<span class="fleet-visually-hidden">Loading</span>
+		for range treeSkeletonRows {
+			<span class="fleet-tree-skeleton-bar"></span>
+		}
+	</li>
+}

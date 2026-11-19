@@ -118,14 +118,14 @@ func TestPaginateFigures(t *testing.T) {
 	cases := []struct {
 		name                string
 		total, number, size int
-		want                Page
+		want                PageWindow
 	}{
-		{"first page", 49, 1, 25, Page{Number: 1, Pages: 2, Size: 25, Total: 49, First: 1, Last: 25}},
-		{"last partial page", 49, 2, 25, Page{Number: 2, Pages: 2, Size: 25, Total: 49, First: 26, Last: 49}},
-		{"exact fit", 100, 1, 100, Page{Number: 1, Pages: 1, Size: 100, Total: 100, First: 1, Last: 100}},
-		{"one row over", 101, 2, 100, Page{Number: 2, Pages: 2, Size: 100, Total: 101, First: 101, Last: 101}},
-		{"fewer rows than a page", 4, 1, 50, Page{Number: 1, Pages: 1, Size: 50, Total: 4, First: 1, Last: 4}},
-		{"no row", 0, 1, 50, Page{Number: 1, Pages: 1, Size: 50, Total: 0, First: 0, Last: 0}},
+		{"first page", 49, 1, 25, PageWindow{Number: 1, Pages: 2, Size: 25, Total: 49, First: 1, Last: 25}},
+		{"last partial page", 49, 2, 25, PageWindow{Number: 2, Pages: 2, Size: 25, Total: 49, First: 26, Last: 49}},
+		{"exact fit", 100, 1, 100, PageWindow{Number: 1, Pages: 1, Size: 100, Total: 100, First: 1, Last: 100}},
+		{"one row over", 101, 2, 100, PageWindow{Number: 2, Pages: 2, Size: 100, Total: 101, First: 101, Last: 101}},
+		{"fewer rows than a page", 4, 1, 50, PageWindow{Number: 1, Pages: 1, Size: 50, Total: 4, First: 1, Last: 4}},
+		{"no row", 0, 1, 50, PageWindow{Number: 1, Pages: 1, Size: 50, Total: 0, First: 0, Last: 0}},
 	}
 
 	for index := range cases {
@@ -199,7 +199,7 @@ func TestQueryDevices(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{coreLon01, edgeLon01, edgeLon02}, namesOf(answer.Rows))
-	assert.Equal(t, Page{Number: 1, Pages: 1, Size: 25, Total: 3, First: 1, Last: 3}, answer.Page)
+	assert.Equal(t, PageWindow{Number: 1, Pages: 1, Size: 25, Total: 3, First: 1, Last: 3}, answer.Page)
 }
 
 // TestQueryDevicesPagesTheMatches asks for the second page of a query over a
@@ -220,7 +220,7 @@ func TestQueryDevicesPagesTheMatches(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, second.Rows, 25)
 	assert.Equal(t, "edge-az", second.Rows[0].Device.Name)
-	assert.Equal(t, Page{Number: 2, Pages: 3, Size: 25, Total: 60, First: 26, Last: 50}, second.Page)
+	assert.Equal(t, PageWindow{Number: 2, Pages: 3, Size: 25, Total: 60, First: 26, Last: 50}, second.Page)
 
 	beyond, err := QueryDevices(views, DeviceQuery{Page: 9, Size: 25})
 	require.NoError(t, err)

@@ -1,0 +1,212 @@
+// Design: docs/architecture/fleet-interface.md -- the states a pane shows in place of data
+// Related: icons.templ -- the illustrations
+// Related: source_errors.go -- FailureOf, which names the state a failed answer shows
+
+package fleetui
+
+// A pane never renders blank. Each state below names what is missing and
+// offers the next action.
+
+// HeroKind is the state a pane shows in place of its data. The zero value is
+// not a state.
+type HeroKind uint8
+
+// The states of a pane.
+const (
+	// HeroUnspecified is the invalid zero value.
+	HeroUnspecified HeroKind = iota
+	// HeroNoData means a filter kept nothing. The action clears the filter.
+	HeroNoData
+	// HeroNothingConfigured means nothing is declared yet. The action opens
+	// the administration page that adds one.
+	HeroNothingConfigured
+	// HeroOffline means the device is offline and the values are the last
+	// it reported. The action opens the device's tasks.
+	HeroOffline
+	// HeroNotSupported means the device runs a version that does not answer
+	// the view. The action shows the device's version.
+	HeroNotSupported
+	// HeroRelayRefused means the device refused the relay. The sentence is
+	// the device's own refusal, word for word, and the line is the
+	// configuration line that grants the relay.
+	HeroRelayRefused
+	// HeroUnauthorized means the operator's profile does not allow the view.
+	HeroUnauthorized
+	// HeroFailed means the question failed. The line is the command that
+	// shows the same data at the CLI, and the action retries.
+	HeroFailed
+)
+
+var (
+	heroKeys = []string{
+		"unspecified", "no-data", "nothing-configured", "offline", "not-supported",
+		"relay-refused", "unauthorized", "failed",
+	}
+	heroIllustrations = []string{
+		illustrationEmpty, illustrationEmpty, illustrationSetup, illustrationOffline,
+		illustrationVersion, illustrationLocked, illustrationLocked, illustrationFailed,
+	}
+)
+
+// Key answers the state's name in a class.
+func (kind HeroKind) Key() string {
+	if int(kind) < len(heroKeys) {
+		return heroKeys[kind]
+	}
+
+	return heroKeys[HeroUnspecified]
+}
+
+// Illustration answers the name of the picture drawn over the sentence.
+func (kind HeroKind) Illustration() string {
+	if int(kind) < len(heroIllustrations) {
+		return heroIllustrations[kind]
+	}
+
+	return heroIllustrations[HeroUnspecified]
+}
+
+// StateHeroView is one state of a pane: the sentence saying what is missing,
+// an optional second sentence, an optional line the operator can copy (a
+// configuration line, a command), and the one action offered.
+type StateHeroView struct {
+	Sentence string
+	Detail   string
+	Line     string
+	LineName string
+	Action   *ActionView
+	Kind     HeroKind
+}
+
+// StateHero draws a state: a centred picture, the sentence, and one action.
+templ StateHero(v StateHeroView) {
+	<div class={ "fleet-hero", "fleet-hero--" + v.Kind.Key() } role="status">
+		@Illustration(v.Kind.Illustration())
+		<p class="fleet-hero-sentence">{ v.Sentence }</p>
+		if v.Detail != "" {
+			<p class="fleet-hero-detail">{ v.Detail }</p>
+		}
+		if v.Line != "" {
+			<p class="fleet-hero-line">
+				<code class="fleet-mono">{ v.Line }</code>
+				@CopyButton(CopyView{Text: v.Line, Name: v.LineName})
+			</p>
+		}
+		if v.Action != nil {
+			<p class="fleet-hero-action">
+				@ActionButton(*v.Action)
+			</p>
+		}
+	</div>
+}
+
+// skeletonRowsMax is the most skeleton rows a pane draws.
+const skeletonRowsMax = 12
+
+// SkeletonView is the loading state: skeleton rows for a table or a list, or
+// a skeleton card. A pane that loads shows this, never a spinner alone.
+type SkeletonView struct {
+	Rows int
+	Card bool
+	Span int
+}
+
+// skeletonRows answers how many rows a skeleton draws, inside 1 to
+// skeletonRowsMax.
+func skeletonRows(rows int) int {
+	return min(max(rows, 1), skeletonRowsMax)
+}
+
+// Skeleton draws the loading state. Its bars are decoration: assistive
+// technology is told once that the content is loading.
+templ Skeleton(v SkeletonView) {
+	if v.Card {
+		<div class={ "fleet-card", "fleet-skeleton-card", cardSpanClass(v.Span) } role="status">
+			<span class="fleet-visually-hidden">Loading</span>
+			<span class="fleet-skeleton-bar fleet-skeleton-bar--title" aria-hidden="true"></span>
+			<span class="fleet-skeleton-bar fleet-skeleton-bar--block" aria-hidden="true"></span>
+		</div>
+	} else {
+		<div class="fleet-skeleton" role="status">
+			<span class="fleet-visually-hidden">Loading</span>
+			for range skeletonRows(v.Rows) {
+				<span class="fleet-skeleton-bar" aria-hidden="true"></span>
+			}
+		</div>
+	}
+}
+
+// StaleBannerView is the banner drawn over content that no longer updates:
+// "Live updates stopped at 14:02", with the action that reconnects.
+type StaleBannerView struct {
+	Sentence string
+	Action   *ActionView
+}
+
+// StaleBanner draws the banner over stale content.
+templ StaleBanner(v StaleBannerView) {
+	<div class="fleet-banner fleet-banner--stale" role="status">
+		<span class="fleet-banner-mark fleet-tone--warning">
+			@Icon("mark-warning")
+		</span>
+		<span class="fleet-banner-text">{ v.Sentence }</span>
+		if v.Action != nil {
+			@ActionButton(*v.Action)
+		}
+	</div>
+}
+
+// GoodNewsView is the empty state of a dashboard list that is empty because
+// nothing is wrong: two short lines, for example "All good" and "No alarms
+// open".
+type GoodNewsView struct {
+	First  string
+	Second string
+}
+
+// GoodNews draws an empty list as good news: a centred picture and two short
+// lines in the success colour. It is not left blank and not drawn as an
+// error.
+templ GoodNews(v GoodNewsView) {
+	<div class="fleet-good-news" role="status">
+		@Illustration(illustrationGood)
+		<p class="fleet-good-news-first">{ v.First }</p>
+		<p class="fleet-good-news-second">{ v.Second }</p>
+	</div>
+}
+
+// CalloutView is a box telling the operator to act: a first line in weight
+// 600 and a second line that may hold a link.
+type CalloutView struct {
+	Title  string
+	Text   string
+	Link   *LinkView
+	Action *ActionView
+}
+
+// Callout draws a bordered box in the warning colour with a round warning
+// mark at its left.
+templ Callout(v CalloutView) {
+	<div class="fleet-callout" role="note">
+		<span class="fleet-callout-mark fleet-tone--warning">
+			@Icon("mark-warning")
+		</span>
+		<div class="fleet-callout-body">
+			<p class="fleet-callout-title">{ v.Title }</p>
+			<p class="fleet-callout-text">
+				{ v.Text }
+				if v.Link != nil {
+					{ " " }
+					@NavLink(NavLinkView{Href: v.Link.Href, Class: "fleet-link"}) {
+						{ v.Link.Label }
+					}
+				}
+			</p>
+			if v.Action != nil {
+				<p class="fleet-callout-action">
+					@ActionButton(*v.Action)
+				</p>
+			}
+		</div>
+	</div>
+}

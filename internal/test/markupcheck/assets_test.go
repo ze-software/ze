@@ -129,3 +129,35 @@ func TestAssetFindingsLeavesANestedPackageToItsOwnScan(t *testing.T) {
 	assert.Equal(t, 1, refs, "the nested package's own scan resolves its reference")
 	assert.Empty(t, findings)
 }
+
+// TestTreeFindingsResolvesEachTreeAgainstItsOwnFilesystem scans a page that
+// names assets of two served trees.
+//
+// VALIDATES: a path under a second tree resolves against that tree's
+// filesystem; a path either tree lacks is a finding; a path under neither is
+// a finding that names both prefixes.
+// PREVENTS: a package that links another package's assets having to skip
+// them, which would let a rename there pass here.
+func TestTreeFindingsResolvesEachTreeAgainstItsOwnFilesystem(t *testing.T) {
+	dir := writeAssetTempl(t, `<link href="/own/assets/shell.css">
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/gone.js"></script>
+<script src="/own/assets/htmx.min.js"></script>
+<script src="/other/assets/x.js"></script>
+`)
+
+	trees := []ServedTree{
+		{Prefix: "/own/assets/", Assets: servedAssets("shell.css")},
+		{Prefix: "/assets/", Assets: servedAssets("htmx.min.js")},
+	}
+
+	findings, refs, err := treeFindings(dir, trees)
+	require.NoError(t, err)
+
+	assert.Equal(t, 4, refs, "the four paths under a served tree are resolved")
+	require.Len(t, findings, 3)
+	assert.Contains(t, findings[0], `"/assets/gone.js", which the served filesystem does not hold`)
+	assert.Contains(t, findings[1], `"/own/assets/htmx.min.js", which the served filesystem does not hold`,
+		"a file the other tree holds does not resolve a path under this one")
+	assert.Contains(t, findings[2], `"/other/assets/x.js", which is not under "/own/assets/" or "/assets/"`)
+}

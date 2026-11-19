@@ -107,12 +107,22 @@ candidate editing. Labels and CLI commands continue to show the literal key.
 <!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes -->
 
-The fleet interface owns one more prefix, `/fleet/`, with its assets at
-`/fleet/assets/`. Its package registers both routes through the web route
-registry, and the server mounts them only in a build that links a fleet data
-source, so a standard build answers `/fleet/` as it answers any address no
-route owns. The routes and their package are described in `fleet-interface.md`.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered -->
+The fleet interface owns one more prefix, `/fleet/`. Its package registers
+its routes through the web route registry, and the server mounts them only in
+a build that links a fleet data source, so a standard build answers `/fleet/`
+as it answers any address no route owns.
+
+| Pattern | Serves |
+|---------|--------|
+| `GET /fleet/` | Every fleet page: the estate, a group node, a device, the task list, an administration page |
+| `GET /fleet/fragment/` | One region of a page, for htmx |
+| `GET /fleet/events` | The live event stream of one page, per connection |
+| `GET /fleet/assets/` | The fleet styles and scripts |
+| `POST /fleet/prototype/step`, `POST /fleet/prototype/hold` | Advance the sample estate's script by one event, and stop it from advancing on its own. Mounted only over a source that can be stepped, which no shipped build links |
+
+The routes, the addresses under them and their package are described in
+`fleet-interface.md`.
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered -->
 
 ## Offline backup workspace
 

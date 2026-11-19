@@ -65,6 +65,56 @@ func namedAssets(path, body string) []string {
 // serves /fleet/assets/, and read from the web package's root each of its
 // stylesheets would be a path off the web prefix.
 func assetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
+	return treeFindings(root, []ServedTree{{Prefix: prefix, Assets: assets}})
+}
+
+// ServedTree is one asset tree the pages of a package may name: the URL
+// prefix the tree is mounted at, and the filesystem served there.
+type ServedTree struct {
+	Prefix string
+	Assets fs.FS
+}
+
+// servedBy answers the tree whose prefix value sits under, or false. The
+// trees are tried in order, and no prefix of one tree is a prefix of
+// another's paths in practice: "/assets/" does not match "/fleet/assets/x".
+func servedBy(trees []ServedTree, value string) (ServedTree, bool) {
+	for _, tree := range trees {
+		if strings.HasPrefix(value, tree.Prefix) {
+			return tree, true
+		}
+	}
+
+	return ServedTree{}, false
+}
+
+// offTreeFinding is the message for an asset path under none of trees. With
+// one tree it is the wording a package that serves one tree has always got.
+func offTreeFinding(tb *textbuf.Buffer, path, value string, trees []ServedTree) string {
+	tb.Reset()
+	tb.Str(path).Str(" names ").Quoted(value).Str(", which is not under ")
+
+	for index, tree := range trees {
+		if index > 0 {
+			tb.Str(" or ")
+		}
+		tb.Quoted(tree.Prefix)
+	}
+
+	if len(trees) == 1 {
+		return tb.Str("; this package serves no other asset tree").String()
+	}
+
+	return tb.Str("; the pages of this package name no other asset tree").String()
+}
+
+// treeFindings is assetFindings over several served trees. A package whose
+// pages load another package's assets beside its own names each tree: the
+// fleet interface serves /fleet/assets/ and links the vendored htmx and uPlot
+// the web package serves at /assets/. A path under none of the trees is a
+// finding, exactly as with one tree, and a path under one of them resolves
+// against that tree's filesystem.
+func treeFindings(root string, trees []ServedTree) ([]string, int, error) {
 	var (
 		findings []string
 		refs     int
@@ -96,22 +146,20 @@ func assetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
 		}
 
 		for _, value := range namedAssets(path, string(body)) {
-			if !strings.HasPrefix(value, prefix) {
+			tree, served := servedBy(trees, value)
+			if !served {
 				if !strings.Contains(value, "assets/") {
 					continue
 				}
 
-				tb.Reset()
-				findings = append(findings, tb.Str(path).Str(" names ").Quoted(value).
-					Str(", which is not under ").Quoted(prefix).
-					Str("; this package serves no other asset tree").String())
+				findings = append(findings, offTreeFinding(&tb, path, value, trees))
 
 				continue
 			}
 
 			refs++
 
-			if _, statErr := fs.Stat(assets, strings.TrimPrefix(value, prefix)); statErr != nil {
+			if _, statErr := fs.Stat(tree.Assets, strings.TrimPrefix(value, tree.Prefix)); statErr != nil {
 				tb.Reset()
 				findings = append(findings, tb.Str(path).Str(" names ").Quoted(value).
 					Str(", which the served filesystem does not hold").String())
@@ -138,6 +186,27 @@ func AssertAssetsResolve(t *testing.T, root, prefix string, assets fs.FS, minRef
 	t.Helper()
 
 	findings, refs, err := assetFindings(root, prefix, assets)
+	if err != nil {
+		t.Fatalf("scan %s for asset references: %v", root, err)
+	}
+
+	if short := Shortfall("asset references", refs, minRefs); short != "" {
+		t.Errorf("scan %s %s", root, short)
+	}
+
+	for _, f := range findings {
+		t.Errorf("%s", f)
+	}
+}
+
+// AssertAssetsResolveIn is AssertAssetsResolve for a package whose pages name
+// more than one served tree. Each tree is given with the filesystem served at
+// its prefix, so a path under another package's tree is resolved like the
+// package's own and a rename there is a red test here too.
+func AssertAssetsResolveIn(t *testing.T, root string, trees []ServedTree, minRefs int) {
+	t.Helper()
+
+	findings, refs, err := treeFindings(root, trees)
 	if err != nil {
 		t.Fatalf("scan %s for asset references: %v", root, err)
 	}

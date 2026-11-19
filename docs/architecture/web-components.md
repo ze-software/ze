@@ -565,7 +565,7 @@ sibling.
 |---|---|---|
 | `TestNoGoFileBuildsMarkup` | `internal/test/markupcheck`, `AssertNoMarkup` | A Go string literal that builds a tag. It reads the FORM of a tag, so `usage: set <leaf>` is not a finding, and it knows HTML's void elements, so a bare `<br>` is one. Direct operator text follows the contract below. An exemption that explains nothing is a finding, and so is a table that changed size |
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | An inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
-| `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | A `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
+| `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` and `AssertAssetsResolveIn` | A `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve. A package whose pages load another package's assets beside its own names each served tree with its filesystem (`AssertAssetsResolveIn`), so a path under either resolves and a path under neither is still refused |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | A component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
 | `./le doc check templ-output` | `internal/le/doc/check` and `internal/le/doc/wiring` | A `*_templ.go` its `.templ` source no longer produces |
 | `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | A rendered byte that moved with no fixture behind it |
@@ -580,7 +580,10 @@ typed-data guard read the directory they are given and no directory under it,
 because a nested package serves its own asset tree at its own prefix. The
 markup guard and the inline guard also read every directory under theirs. The
 fleet interface, `internal/component/web/fleetui`, serves `/fleet/assets/` and
-runs the four guards over itself in `guard_test.go`.
+runs the four guards over itself in `guard_test.go`. Its shell also links the
+vendored htmx and uPlot the web package serves at `/assets/`, so its asset
+guard names both trees and resolves the second against the directory the web
+package embeds.
 
 The golden walk over a templ tree leaves out a directory below the package's
 own that holds a Go source file, with everything under it. That directory is
@@ -589,12 +592,16 @@ package above cannot name and its capture cannot render. A nested directory
 with no Go source file is not a package, so a `.templ` file placed there is
 still demanded of the package above. A nested package's markup is captured
 only when that package declares a `golden.Set` of its own. The fleet package
-declares none today: `sample/handler_test.go` asserts what its shell names,
-not its bytes.
+declares one, in `golden_test.go`, with its fixtures under
+`internal/component/web/fleetui/testdata/golden/`. Its capture plan is joined
+from one function per family of templates (`fleetGoldenParts`), so a family
+adds its plan in a test file of its own.
 <!-- source: internal/test/markupcheck/assets.go -- assetFindings -->
 <!-- source: internal/test/golden/golden.go -- holdsGoSource -->
 <!-- source: internal/test/templcheck/templcheck.go -- generatedFiles -->
 <!-- source: internal/component/web/fleetui/guard_test.go -- TestFleetTemplAssetsResolve, TestFleetViewDataIsTyped -->
+<!-- source: internal/component/web/fleetui/golden_test.go -- fleetGoldenParts, TestFleetGoldenOutput -->
+<!-- source: internal/test/markupcheck/assets.go -- ServedTree, treeFindings, AssertAssetsResolveIn -->
 
 For candidate review, golden capture tests accept `-update-golden -golden-output
 <directory>`. The capture mirrors each fixture path under that directory and

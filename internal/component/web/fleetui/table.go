@@ -219,9 +219,9 @@ func (set *ColumnSet[T]) Sort(rows []T, spec SortSpec) ([]T, error) {
 	return sorted, nil
 }
 
-// Page is one page of a table and the figures its pagination row shows:
+// PageWindow is one page of a table and the figures its pagination row shows:
 // "First to Last of Total".
-type Page struct {
+type PageWindow struct {
 	// Number is the page shown, from one, and Pages how many there are. A
 	// table with no row has one empty page.
 	Number int
@@ -239,7 +239,7 @@ type Page struct {
 // Paginate answers the page of a table of total rows. A size that is not
 // offered is the default size, a number below one is the first page, and a
 // number beyond the last page is the last page.
-func Paginate(total, number, size int) Page {
+func Paginate(total, number, size int) PageWindow {
 	if !validPageSize(size) {
 		size = PageSizeDefault
 	}
@@ -248,7 +248,7 @@ func Paginate(total, number, size int) Page {
 	pages := max((total+size-1)/size, 1)
 	number = min(max(number, 1), pages)
 
-	page := Page{Number: number, Pages: pages, Size: size, Total: total}
+	page := PageWindow{Number: number, Pages: pages, Size: size, Total: total}
 	if total > 0 {
 		page.First = (number-1)*size + 1
 		page.Last = min(number*size, total)
@@ -259,7 +259,7 @@ func Paginate(total, number, size int) Page {
 
 // PageRows answers the rows of rows that page shows. page MUST come from
 // Paginate over len(rows).
-func PageRows[T any](rows []T, page Page) []T {
+func PageRows[T any](rows []T, page PageWindow) []T {
 	if page.Total != len(rows) {
 		panic("BUG: fleetui.PageRows: the page was not computed over these rows")
 	}
@@ -287,7 +287,7 @@ type DeviceAnswer struct {
 	Rows []DeviceView
 	// Page holds the figures of the pagination row. Its Total is the number
 	// of devices that match the filter.
-	Page Page
+	Page PageWindow
 }
 
 // QueryDevices answers one page of the devices table over views, which are

@@ -1,57 +1,145 @@
-// Design: docs/architecture/fleet-interface.md -- the sample estate of the review build
+// Design: docs/architecture/fleet-interface.md -- the sample data source of the review build
+// Detail: estate.go -- the devices of the sample estate, as tables
+// Detail: history.go -- the week of samples, generated per request
+// Detail: activity.go -- the alarms and the tasks
+// Detail: rollout.go -- the rollouts and the audit trail
+// Detail: config.go -- the configuration texts, their versions, and the administration answers
+// Detail: views.go -- what a sample device answers through the relay
+// Detail: console.go -- the commands the sample console answers
+// Detail: script.go -- the scripted events and the state they change
 // Related: register.go -- the registration that makes this the build's data source
 //
 // Package sample answers the fleet pages from a fixed estate, so the interface
 // can be opened and judged before any real estate exists. Only a build made
 // with the ze_fleet_ui_sample tag links it, and no shipped build sets that
 // tag: sample data in a shipped build would be shown as real.
+//
+// The estate is written as tables. Every time in them is an age, measured
+// back from the moment the source was made, so "last seen" and a chart range
+// read the same whenever the build is started. The only state that changes is
+// the script's: see script.go.
 package sample
 
 import (
 	"context"
-	"errors"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/web/fleetui"
-	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // estateName is the name of the sample hub, and so of the sample estate.
 const estateName = "hub-lon-01"
 
-// The label keys of the sample estate. Every sample device takes its labels
-// from this set, so a key is spelled once and a tree level or a filter that
-// names one matches every device carrying it.
-const (
-	labelSite = "site"
-	labelRole = "role"
+// Stepper is the stepped mode of the sample script. The fleet package finds it
+// by a type assertion on the registered source, for its prototype-only route
+// and for tests, and a source that is not the sample one does not have it.
+type Stepper interface {
+	// Step applies the next event of the script, publishes it, and answers
+	// it. It also holds the script, as Hold does. After Close it refuses.
+	Step() (fleetui.Event, error)
+	// Hold stops the timer from advancing the script, for good. A test calls
+	// it before it opens a page, so no event arrives that it did not step.
+	Hold()
+}
+
+// The interfaces the sample source fills.
+var (
+	_ fleetui.Source = (*estate)(nil)
+	_ Stepper        = (*estate)(nil)
 )
 
-// errNotInSample is the cause of every question the sample estate does not
-// answer yet. Each method that returns it is replaced by a sample answer as
-// the estate is filled, and the error leaves with the last of them.
-var errNotInSample = errors.New("not available in this sample yet")
-
-// notInSample is the refusal of a question the sample estate does not answer
-// yet. what names what was asked for, such as "The sample history".
-func notInSample(what string) error {
-	return opererr.Wrap(errNotInSample, what+" is not available in this sample yet.",
-		"The sample estate answers this page from recorded data, and none is recorded for it, so the page has nothing to show.",
-		"open /fleet/")
-}
-
-// estate is the sample data source. Its fixed answers hold no state, and its
-// feed is safe for concurrent use, so the estate is.
+// estate is the sample data source. Safe for concurrent use.
+//
+// It owns one goroutine, the script timer. The sequence is: the first
+// Subscribe starts it, each tick applies one event of the script, and Close
+// stops it and waits for it. A caller that subscribed MUST call Close when the
+// source is no longer used; the registered source of a review build lives as
+// long as the process.
 type estate struct {
-	// feed carries the scripted events of the sample estate to the open
-	// pages. Nothing publishes into it yet.
+	// clock is the wall clock, and start is what it read when the source was
+	// made. Neither changes.
+	clock func() time.Time
+	start time.Time
+	// period is the time between two scripted events in timed mode. It is set
+	// before the first Subscribe and never after.
+	period time.Duration
+
 	feed fleetui.Feed
+	// stop is closed by Close to end the timer, and done is closed by the
+	// timer when it has ended.
+	stop chan struct{}
+	done chan struct{}
+
+	// mu guards every field below.
+	mu     sync.Mutex
+	script scriptState
+	// held reports that the timer no longer advances the script.
+	held bool
+	// started reports that the timer goroutine was started.
+	started bool
+	closed  bool
 }
 
-// Now answers the clock of the sample hub, which is the clock of the machine
-// the review build runs on.
-func (*estate) Now(context.Context) (time.Time, error) {
-	return time.Now(), nil
+// newEstate builds the sample source. clock is the wall clock: time.Now in a
+// build, a fixed function in a test.
+func newEstate(clock func() time.Time) *estate {
+	start := clock()
+
+	return &estate{
+		clock:  clock,
+		start:  start,
+		period: scriptPeriod,
+		stop:   make(chan struct{}),
+		done:   make(chan struct{}),
+		script: newScriptState(start),
+	}
+}
+
+// snapshot is everything an answer is computed from: the two clocks and the
+// script's state, copied under the lock. The tables never change, so an
+// answer built from one snapshot is consistent with itself.
+type snapshot struct {
+	start  time.Time
+	now    time.Time
+	script scriptState
+}
+
+// snapshot copies the state an answer is computed from.
+func (source *estate) snapshot() *snapshot {
+	source.mu.Lock()
+	defer source.mu.Unlock()
+
+	return &snapshot{start: source.start, now: source.clock(), script: source.script.clone()}
+}
+
+// ago answers the moment age before the source was made.
+func (snap *snapshot) ago(age time.Duration) time.Time {
+	return snap.start.Add(-age)
+}
+
+// Close stops the script timer, waits for it, and closes the event feed. A
+// second Close does nothing.
+func (source *estate) Close() {
+	source.mu.Lock()
+	if source.closed {
+		source.mu.Unlock()
+		return
+	}
+	source.closed = true
+	started := source.started
+	source.mu.Unlock()
+
+	close(source.stop)
+	if started {
+		<-source.done
+	}
+	source.feed.Close()
+}
+
+// Now answers the clock of the sample hub.
+func (source *estate) Now(context.Context) (time.Time, error) {
+	return source.clock(), nil
 }
 
 // Estate answers the name of the sample estate.
@@ -59,186 +147,241 @@ func (*estate) Estate(context.Context) (fleetui.Estate, error) {
 	return fleetui.Estate{Name: estateName}, nil
 }
 
-// Devices answers the sample devices. Each call builds its own, so a caller
-// that changes its answer changes no other caller's.
-func (*estate) Devices(context.Context) ([]fleetui.Device, error) {
-	return devices(), nil
+// Devices answers the sample devices. Each call builds its own.
+func (source *estate) Devices(context.Context) ([]fleetui.Device, error) {
+	return devicesAt(source.snapshot()), nil
 }
 
 // Device answers one sample device by name.
-func (*estate) Device(_ context.Context, name string) (fleetui.Device, error) {
-	found := devices()
-	for index := range found {
-		if found[index].Name == name {
-			return found[index], nil
-		}
+func (source *estate) Device(_ context.Context, name string) (fleetui.Device, error) {
+	row, err := findRow(name)
+	if err != nil {
+		return fleetui.Device{}, err
 	}
 
-	return fleetui.Device{}, fleetui.DeviceUnknownError(name)
+	return deviceAt(row, source.snapshot()), nil
 }
 
-// Subscribe opens a subscription to the events of the sample estate.
-func (source *estate) Subscribe(context.Context) (*fleetui.Subscription, error) {
-	return source.feed.Subscribe()
-}
-
+// TreeViews answers the tree views the sample hub declares.
 func (*estate) TreeViews(context.Context) ([]fleetui.TreeView, error) {
-	return nil, notInSample("The declared tree views")
+	return declaredTreeViews(), nil
 }
 
+// SavedFilters answers the same saved filters for every user: the sample hub
+// keeps no per-user state.
 func (*estate) SavedFilters(context.Context, string) ([]fleetui.SavedFilter, error) {
-	return nil, notInSample("The saved filters")
+	return savedFilters(), nil
 }
 
-func (*estate) DeviceSeries(context.Context, string, fleetui.Metric, fleetui.TimeSpan) (fleetui.Series, error) {
-	return fleetui.Series{}, notInSample("The history of a device")
+// DeviceSeries answers the generated history of one metric of one device.
+func (source *estate) DeviceSeries(
+	_ context.Context, device string, metric fleetui.Metric, span fleetui.TimeSpan,
+) (fleetui.Series, error) {
+	return deviceSeries(source.snapshot(), device, metric, span)
 }
 
-func (*estate) EstateSeries(context.Context, []string, fleetui.Metric, fleetui.TimeSpan) (fleetui.Series, error) {
-	return fleetui.Series{}, notInSample("The history of the estate")
+// EstateSeries answers the generated history of one metric over devices.
+func (source *estate) EstateSeries(
+	_ context.Context, devices []string, metric fleetui.Metric, span fleetui.TimeSpan,
+) (fleetui.Series, error) {
+	return estateSeries(source.snapshot(), devices, metric, span)
 }
 
-func (*estate) HistoryUsage(context.Context) (fleetui.HistoryUsage, error) {
-	return fleetui.HistoryUsage{}, notInSample("The history usage")
+// HistoryUsage answers how much the sample history would hold.
+func (source *estate) HistoryUsage(context.Context) (fleetui.HistoryUsage, error) {
+	return historyUsage(source.snapshot()), nil
 }
 
-func (*estate) Alarms(context.Context) ([]fleetui.Alarm, error) {
-	return nil, notInSample("The alarm list")
+// Alarms answers the open alarms.
+func (source *estate) Alarms(context.Context) ([]fleetui.Alarm, error) {
+	return alarmsAt(source.snapshot()), nil
 }
 
-func (*estate) AlarmHistory(context.Context, string) ([]fleetui.AlarmEvent, error) {
-	return nil, notInSample("The alarm history of a device")
-}
-
-func (*estate) Tasks(context.Context) ([]fleetui.Task, error) {
-	return nil, notInSample("The task list")
-}
-
-func (*estate) Task(context.Context, string) (fleetui.TaskDetail, error) {
-	return fleetui.TaskDetail{}, notInSample("The detail of a task")
-}
-
-func (*estate) DeviceConfig(context.Context, string) (fleetui.DeviceConfig, error) {
-	return fleetui.DeviceConfig{}, notInSample("The configuration of a device")
-}
-
-func (*estate) ConfigVersions(context.Context, string) ([]fleetui.ConfigVersion, error) {
-	return nil, notInSample("The configuration history of a device")
-}
-
-func (*estate) ConfigText(context.Context, string, string) (string, error) {
-	return "", notInSample("The text of a configuration version")
-}
-
-func (*estate) Divergence(context.Context, string) (fleetui.Divergence, error) {
-	return fleetui.Divergence{}, notInSample("The divergence of a device")
-}
-
-func (*estate) Rollouts(context.Context) ([]fleetui.Rollout, error) {
-	return nil, notInSample("The rollout list")
-}
-
-func (*estate) Rollout(context.Context, string) (fleetui.RolloutDetail, error) {
-	return fleetui.RolloutDetail{}, notInSample("The detail of a rollout")
-}
-
-func (*estate) AuditEntries(context.Context) ([]fleetui.AuditEntry, error) {
-	return nil, notInSample("The audit trail")
-}
-
-func (*estate) Templates(context.Context) ([]fleetui.Template, error) {
-	return nil, notInSample("The template list")
-}
-
-func (*estate) AccessProfiles(context.Context) ([]fleetui.AccessProfile, error) {
-	return nil, notInSample("The access table")
-}
-
-func (*estate) Settings(context.Context) (fleetui.Settings, error) {
-	return fleetui.Settings{}, notInSample("The fleet settings")
-}
-
-func (*estate) DeviceSystem(context.Context, string) (fleetui.DeviceSystem, error) {
-	return fleetui.DeviceSystem{}, notInSample("The system view of a device")
-}
-
-func (*estate) DeviceInterfaces(context.Context, string) ([]fleetui.Interface, error) {
-	return nil, notInSample("The interfaces of a device")
-}
-
-func (*estate) DevicePeers(context.Context, string) ([]fleetui.Peer, error) {
-	return nil, notInSample("The BGP peers of a device")
-}
-
-func (*estate) DeviceFamilies(context.Context, string) ([]fleetui.FamilySummary, error) {
-	return nil, notInSample("The BGP summary of a device")
-}
-
-func (*estate) DeviceAdjacencies(context.Context, string) ([]fleetui.ProtocolAdjacencies, error) {
-	return nil, notInSample("The routing adjacencies of a device")
-}
-
-func (*estate) DeviceLogs(context.Context, string) ([]fleetui.LogLine, error) {
-	return nil, notInSample("The log of a device")
-}
-
-func (*estate) Console(context.Context, string, string, string) (fleetui.ConsoleAnswer, error) {
-	return fleetui.ConsoleAnswer{}, notInSample("The console of a device")
-}
-
-// devices builds the sample devices. Between them they hold every display
-// state: healthy, degraded, down, diverged, offline and unknown.
-func devices() []fleetui.Device {
-	healthy := []fleetui.HealthComponent{{Name: "bgp", State: fleetui.HealthStateHealthy}}
-
-	return []fleetui.Device{
-		{
-			Name:           "edge-lon-01",
-			Labels:         []fleetui.Label{{Key: labelSite, Value: "lon"}, {Key: labelRole, Value: "edge"}},
-			Connection:     fleetui.Connection{Connected: true, EverConnected: true},
-			Config:         fleetui.ConfigFacts{State: fleetui.ConfigStateInSync},
-			HealthReported: true,
-			Health:         healthy,
-		},
-		{
-			Name:           "edge-lon-04",
-			Labels:         []fleetui.Label{{Key: labelSite, Value: "lon"}, {Key: labelRole, Value: "edge"}},
-			Connection:     fleetui.Connection{Connected: true, EverConnected: true},
-			Config:         fleetui.ConfigFacts{State: fleetui.ConfigStateInSync},
-			HealthReported: true,
-			Health:         []fleetui.HealthComponent{{Name: "disk", State: fleetui.HealthStateDegraded}},
-		},
-		{
-			Name:           "core-ams-01",
-			Labels:         []fleetui.Label{{Key: labelSite, Value: "ams"}, {Key: labelRole, Value: "core"}},
-			Connection:     fleetui.Connection{Connected: true, EverConnected: true},
-			Config:         fleetui.ConfigFacts{State: fleetui.ConfigStateInSync},
-			HealthReported: true,
-			Health:         []fleetui.HealthComponent{{Name: "bgp", State: fleetui.HealthStateDown}},
-		},
-		{
-			Name:           "rs-fra-01",
-			Labels:         []fleetui.Label{{Key: labelSite, Value: "fra"}, {Key: labelRole, Value: "route-server"}},
-			Connection:     fleetui.Connection{Connected: true, EverConnected: true},
-			Config:         fleetui.ConfigFacts{State: fleetui.ConfigStateDiverged},
-			HealthReported: true,
-			Health:         healthy,
-		},
-		{
-			Name:           "cpe-par-07",
-			Labels:         []fleetui.Label{{Key: labelSite, Value: "par"}, {Key: labelRole, Value: "customer-premises"}},
-			Connection:     fleetui.Connection{EverConnected: true},
-			Config:         fleetui.ConfigFacts{State: fleetui.ConfigStateInSync},
-			HealthReported: true,
-			Health:         healthy,
-		},
-		{
-			// No site label: the tree needs a device outside every site. No
-			// health report either, so its state is unknown.
-			Name:       "cpe-0113",
-			Labels:     []fleetui.Label{{Key: labelRole, Value: "customer-premises"}},
-			Connection: fleetui.Connection{Connected: true, EverConnected: true},
-			Config:     fleetui.ConfigFacts{State: fleetui.ConfigStateNeverFetched},
-		},
+// AlarmHistory answers the alarms of one device over the last week.
+func (source *estate) AlarmHistory(_ context.Context, device string) ([]fleetui.AlarmEvent, error) {
+	row, err := findRow(device)
+	if err != nil {
+		return nil, err
 	}
+
+	return alarmHistoryAt(source.snapshot(), row.name), nil
+}
+
+// Tasks answers the tasks the sample hub keeps.
+func (source *estate) Tasks(context.Context) ([]fleetui.Task, error) {
+	return tasksAt(source.snapshot()), nil
+}
+
+// Task answers one task with its per-device results.
+func (source *estate) Task(_ context.Context, id string) (fleetui.TaskDetail, error) {
+	return taskAt(source.snapshot(), id)
+}
+
+// DeviceConfig answers the configuration the sample hub holds for a device.
+func (*estate) DeviceConfig(_ context.Context, device string) (fleetui.DeviceConfig, error) {
+	row, err := findRow(device)
+	if err != nil {
+		return fleetui.DeviceConfig{}, err
+	}
+
+	return deviceConfig(row), nil
+}
+
+// ConfigVersions answers the versions the sample hub has held for a device.
+func (source *estate) ConfigVersions(_ context.Context, device string) ([]fleetui.ConfigVersion, error) {
+	row, err := findRow(device)
+	if err != nil {
+		return nil, err
+	}
+
+	return configVersions(row, source.snapshot()), nil
+}
+
+// ConfigText answers the text of one version of a device's configuration.
+func (*estate) ConfigText(_ context.Context, device, version string) (string, error) {
+	row, err := findRow(device)
+	if err != nil {
+		return "", err
+	}
+
+	return configTextOf(row, version)
+}
+
+// Divergence answers both sides of the diverged device's configuration.
+func (source *estate) Divergence(_ context.Context, device string) (fleetui.Divergence, error) {
+	row, err := findRow(device)
+	if err != nil {
+		return fleetui.Divergence{}, err
+	}
+
+	return divergenceOf(row, source.snapshot())
+}
+
+// Rollouts answers the rollouts.
+func (source *estate) Rollouts(context.Context) ([]fleetui.Rollout, error) {
+	return rolloutsAt(source.snapshot()), nil
+}
+
+// Rollout answers one rollout with its batches and devices.
+func (source *estate) Rollout(_ context.Context, name string) (fleetui.RolloutDetail, error) {
+	return rolloutAt(source.snapshot(), name)
+}
+
+// AuditEntries answers the audit trail of the last week.
+func (source *estate) AuditEntries(context.Context) ([]fleetui.AuditEntry, error) {
+	return auditAt(source.snapshot()), nil
+}
+
+// Templates answers the configuration templates.
+func (source *estate) Templates(context.Context) ([]fleetui.Template, error) {
+	return templatesAt(source.snapshot()), nil
+}
+
+// AccessProfiles answers the access table.
+func (*estate) AccessProfiles(context.Context) ([]fleetui.AccessProfile, error) {
+	return accessProfiles(), nil
+}
+
+// Settings answers the fleet settings of the sample hub.
+func (*estate) Settings(context.Context) (fleetui.Settings, error) {
+	return settings(), nil
+}
+
+// DeviceSystem answers the hardware, the resources and the clock of a device.
+func (source *estate) DeviceSystem(_ context.Context, device string) (fleetui.DeviceSystem, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return fleetui.DeviceSystem{}, err
+	}
+
+	return systemAt(row, snap), nil
+}
+
+// DeviceInterfaces answers the interfaces of a device.
+func (source *estate) DeviceInterfaces(_ context.Context, device string) ([]fleetui.Interface, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return nil, err
+	}
+
+	return interfacesAt(row, snap), nil
+}
+
+// DevicePeers answers the BGP peers of a device.
+func (source *estate) DevicePeers(_ context.Context, device string) ([]fleetui.Peer, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return nil, err
+	}
+
+	return peersAt(row, snap), nil
+}
+
+// DeviceFamilies answers the BGP summary of a device. The device that runs
+// the oldest release does not answer it.
+func (source *estate) DeviceFamilies(_ context.Context, device string) ([]fleetui.FamilySummary, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return nil, err
+	}
+	if row.release == releaseOldest {
+		return nil, viewUnsupported(row)
+	}
+
+	return familiesAt(row), nil
+}
+
+// DeviceAdjacencies answers the adjacencies of the other routing protocols a
+// device runs. A device that runs none answers an empty list.
+func (source *estate) DeviceAdjacencies(
+	_ context.Context, device string,
+) ([]fleetui.ProtocolAdjacencies, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return nil, err
+	}
+
+	return adjacenciesAt(row, snap), nil
+}
+
+// DeviceLogs answers the recent log lines of a device.
+func (source *estate) DeviceLogs(_ context.Context, device string) ([]fleetui.LogLine, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return nil, err
+	}
+
+	return logsAt(row, snap), nil
+}
+
+// Console answers one of the commands the sample console knows.
+func (source *estate) Console(_ context.Context, device, _, command string) (fleetui.ConsoleAnswer, error) {
+	snap := source.snapshot()
+
+	row, err := reach(snap, device)
+	if err != nil {
+		return fleetui.ConsoleAnswer{}, err
+	}
+
+	return consoleAnswer(row, snap, command)
+}
+
+// Subscribe opens a subscription to the scripted events, and starts the
+// script timer when it is the first.
+func (source *estate) Subscribe(context.Context) (*fleetui.Subscription, error) {
+	source.startScript()
+
+	return source.feed.Subscribe()
 }

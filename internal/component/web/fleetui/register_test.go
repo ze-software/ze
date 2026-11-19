@@ -12,16 +12,23 @@ import (
 )
 
 // fleetRoutes answers the registered web routes that sit under the fleet
-// prefix. It reads the web package's registry, which is what the hub mounts.
+// prefix, whatever their method. It reads the web package's registry, which
+// is what the hub mounts.
 func fleetRoutes() []web.WebRoute {
 	var found []web.WebRoute
 	for _, route := range web.RegisteredWebRoutes() {
-		if strings.HasPrefix(route.Pattern, shellPattern) {
+		_, path, _ := strings.Cut(route.Pattern, " ")
+		if strings.HasPrefix(path, fleetPath) {
 			found = append(found, route)
 		}
 	}
 
 	return found
+}
+
+// fleetPatterns is every route the fleet interface registers.
+var fleetPatterns = []string{
+	assetsPattern, fragmentPattern, eventsPattern, stepPattern, holdPattern, shellPattern,
 }
 
 // TestFleetRoutesAbsentWithoutSource reads the fleet routes out of the web
@@ -37,7 +44,12 @@ func TestFleetRoutesAbsentWithoutSource(t *testing.T) {
 	require.False(t, linked, "this test binary must link no data source")
 
 	routes := fleetRoutes()
-	require.Len(t, routes, 2, "the shell route and the assets route register from init()")
+
+	patterns := make([]string, 0, len(routes))
+	for _, route := range routes {
+		patterns = append(patterns, route.Pattern)
+	}
+	require.ElementsMatch(t, fleetPatterns, patterns, "the routes that register from init()")
 
 	for _, route := range routes {
 		require.NotNil(t, route.Enabled, "%s must be gated on a registered source", route.Pattern)

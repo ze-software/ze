@@ -7,8 +7,12 @@
 
 package sample
 
-import "github.com/ze-software/ze/internal/component/web/fleetui"
+import (
+	"time"
+
+	"github.com/ze-software/ze/internal/component/web/fleetui"
+)
 
 func init() {
-	fleetui.MustRegisterSource(&estate{})
+	fleetui.MustRegisterSource(newEstate(time.Now))
 }

@@ -1,0 +1,236 @@
+// Design: docs/architecture/fleet-interface.md -- fleet links, buttons, menus, tags and copy controls
+// Related: component_view.go -- LinkView, ActionView, MenuView, ConfirmView
+// Related: assets/fleet-components.js -- menus, copy controls and the confirm dialog
+
+package fleetui
+
+// contentTarget is the region a navigation link loads its address into. The
+// shell declares the element; every link names it, because htmx 4 inherits no
+// attribute.
+const contentTarget = "#fleet-content"
+
+// NavLinkView is a link to a fleet address. Name is its accessible name when
+// its content is an icon alone.
+type NavLinkView struct {
+	Href    string
+	Class   string
+	Name    string
+	Current bool
+}
+
+// NavLink draws a link that opens a fleet address. It is a real link, so it
+// works without the script; with it, htmx loads the address into the content
+// region and pushes it, so every view keeps an address that reproduces it.
+templ NavLink(v NavLinkView) {
+	<a
+		class={ v.Class }
+		href={ templ.URL(v.Href) }
+		hx-get={ v.Href }
+		hx-target={ contentTarget }
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		if v.Current {
+			aria-current="page"
+		}
+		if v.Name != "" {
+			aria-label={ v.Name }
+			title={ v.Name }
+		}
+	>
+		{ children... }
+	</a>
+}
+
+// The looks of an action.
+const (
+	actionLookLink    = "fleet-action-link"
+	actionLookButton  = "fleet-button"
+	actionLookPrimary = "fleet-button fleet-button--primary"
+	actionLookItem    = "fleet-menu-item"
+	actionLookIcon    = "fleet-icon-button"
+)
+
+// actionButtonType answers the type of an action's button: it submits when
+// the action names a form or a field, and does nothing by itself otherwise.
+func actionButtonType(v ActionView) string {
+	if v.Form != "" || v.Name != "" {
+		return "submit"
+	}
+
+	return "button"
+}
+
+// actionDestructive says whether an action is drawn in the error colour.
+func actionDestructive(v ActionView) bool {
+	return v.Confirm != nil && v.Confirm.Destructive
+}
+
+// The two kinds of confirmation the dialog script tells apart.
+const (
+	confirmKindRoutine     = "routine"
+	confirmKindDestructive = "destructive"
+)
+
+// confirmKind answers the kind of a confirmation as the script reads it.
+func confirmKind(v *ConfirmView) string {
+	if v.Destructive {
+		return confirmKindDestructive
+	}
+
+	return confirmKindRoutine
+}
+
+// actionContent draws the icon and the word of an action. With the icon look
+// the word is kept for assistive technology only.
+templ actionContent(v ActionView, look string) {
+	if v.Icon != "" {
+		@Icon(v.Icon)
+	}
+	if look == actionLookIcon {
+		<span class="fleet-visually-hidden">{ v.Label }</span>
+	} else {
+		<span class="fleet-action-label">{ v.Label }</span>
+	}
+}
+
+// actionControl draws one action in a look. An action with an address is a
+// link; any other is a button. A disabled action is always a button, so it
+// keeps its place and its reason. An action with a confirmation carries the
+// data-confirm attributes the script reads before it submits.
+templ actionControl(v ActionView, look string) {
+	if v.Href != "" && !v.Disabled {
+		@NavLink(NavLinkView{Href: v.Href, Class: look}) {
+			@actionContent(v, look)
+		}
+	} else {
+		<button
+			type={ actionButtonType(v) }
+			class={ look, templ.KV("fleet-action--destructive", actionDestructive(v)) }
+			disabled?={ v.Disabled || v.Bulk }
+			if v.Form != "" {
+				form={ v.Form }
+			}
+			if v.Name != "" {
+				name={ v.Name }
+				value={ v.Value }
+			}
+			if v.Reason != "" {
+				title={ v.Reason }
+			}
+			if v.Bulk && !v.Disabled {
+				data-fleet-bulk-action="true"
+			}
+			if v.Confirm != nil {
+				data-confirm-action={ v.Confirm.Action }
+				data-confirm-targets={ v.Confirm.Targets }
+				data-confirm-detail={ v.Confirm.Detail }
+				data-confirm-expect={ v.Confirm.Expect }
+				data-confirm-kind={ confirmKind(v.Confirm) }
+			}
+		>
+			@actionContent(v, look)
+		</button>
+	}
+}
+
+// ActionLink draws an action as a text link with its icon: the creating
+// action of a section, a row's own action in the side panel.
+templ ActionLink(v ActionView) {
+	@actionControl(v, actionLookLink)
+}
+
+// ActionButton draws an action as a bordered button with its icon.
+templ ActionButton(v ActionView) {
+	@actionControl(v, actionLookButton)
+}
+
+// PrimaryButton draws an action as the filled button of its form.
+templ PrimaryButton(v ActionView) {
+	@actionControl(v, actionLookPrimary)
+}
+
+// IconButton draws an action as its icon alone, named for assistive
+// technology by its label.
+templ IconButton(v ActionView) {
+	@actionControl(v, actionLookIcon)
+}
+
+// menuList draws the actions of a menu, the destructive ones last and apart.
+templ menuList(v MenuView) {
+	<ul class="fleet-menu-list" hidden>
+		for _, item := range v.Items {
+			<li>
+				@actionControl(item, actionLookItem)
+			</li>
+		}
+		if len(v.Destructive) > 0 {
+			<li class="fleet-menu-divider" role="separator"></li>
+			for _, item := range v.Destructive {
+				<li>
+					@actionControl(item, actionLookItem)
+				</li>
+			}
+		}
+	</ul>
+}
+
+// Menu draws a bordered button with a chevron that opens a list of actions.
+// The script opens it, and closes it on escape and on a click outside.
+templ Menu(v MenuView) {
+	<div class="fleet-menu" data-fleet-menu="true">
+		<button type="button" class="fleet-button fleet-menu-button" aria-expanded="false" data-fleet-menu-button="true">
+			if v.Icon != "" {
+				@Icon(v.Icon)
+			}
+			<span class="fleet-action-label">{ v.Label }</span>
+			@Icon("chevron-down")
+		</button>
+		@menuList(v)
+	</div>
+}
+
+// DotsMenu draws the three-dot control that opens a row's or an object's
+// remaining actions. Its label names it for assistive technology.
+templ DotsMenu(v MenuView) {
+	<div class="fleet-menu fleet-menu--dots" data-fleet-menu="true">
+		<button type="button" class="fleet-icon-button fleet-menu-button" aria-expanded="false" aria-label={ v.Label } title={ v.Label } data-fleet-menu-button="true">
+			@Icon("dots")
+		</button>
+		@menuList(v)
+	</div>
+}
+
+// TagView is one label, written key=value. Remove is set where the operator
+// may remove the label.
+type TagView struct {
+	Key    string
+	Value  string
+	Remove *ActionView
+}
+
+// Tag draws one label as a small filled chip, with a remove control where
+// the operator may edit it.
+templ Tag(v TagView) {
+	<span class="fleet-chip">
+		<span class="fleet-chip-text">{ v.Key }={ v.Value }</span>
+		if v.Remove != nil {
+			@actionControl(*v.Remove, actionLookIcon)
+		}
+	</span>
+}
+
+// CopyView is a copy control: the text it copies and the name of the value,
+// which names the control.
+type CopyView struct {
+	Text string
+	Name string
+}
+
+// CopyButton draws a control that copies a value. The script writes the text
+// to the clipboard and shows "Copied" for a moment.
+templ CopyButton(v CopyView) {
+	<button type="button" class="fleet-icon-button fleet-copy" data-fleet-copy={ v.Text } aria-label={ "Copy " + v.Name } title={ "Copy " + v.Name }>
+		@Icon("copy")
+		<span class="fleet-copy-done" role="status" hidden>Copied</span>
+	</button>
+}

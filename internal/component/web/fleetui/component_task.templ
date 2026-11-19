@@ -1,0 +1,272 @@
+// Design: docs/architecture/fleet-interface.md -- the task panel, task and event rows, alarm rows
+// Related: component_view.go -- TaskStatus and AlarmStatus, the states drawn here
+// Related: assets/fleet-components.js -- opens and closes the task panel
+
+package fleetui
+
+import (
+	"strconv"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// TaskResultView is the result of a task on one device: its state, the
+// device's answer or refusal, already bounded by the source, and how long it
+// took.
+type TaskResultView struct {
+	Device   string
+	Href     string
+	Answer   string
+	Duration string
+	Status   Status
+}
+
+// TaskRowView is one task or event in a list. Name says what it is (its kind
+// and a summary of its targets). When is its time in words ("Ended 59
+// minutes ago"). Done over Total is its progress in devices; a row with a
+// Total of zero draws no progress bar. Results are its parts, shown when the
+// row is expanded. EyeHref opens the row in the side panel.
+type TaskRowView struct {
+	Name    string
+	Actor   string
+	When    string
+	EyeHref string
+	Results []TaskResultView
+	Status  Status
+	Done    int
+	Total   int
+}
+
+// progressPercent answers the width of a progress bar. A total that is not
+// positive answers false: the row then draws no bar.
+func progressPercent(done, total int) (int, bool) {
+	return Percent(float64(done), float64(total))
+}
+
+// progressWidth answers the class of the fill of a progress bar.
+func progressWidth(done, total int) string {
+	percent, known := progressPercent(done, total)
+	if !known {
+		return widthClass(0)
+	}
+
+	return widthClass(percent)
+}
+
+// ProgressText answers progress in words: "3 of 5 devices".
+func ProgressText(done, total int) string {
+	return textbuf.New().Int(int64(done)).Str(" of ").Int(int64(total)).Str(" devices").String()
+}
+
+// taskProgress draws the progress bar of a task and its figures.
+templ taskProgress(v TaskRowView) {
+	<span class="fleet-progress">
+		<span class="fleet-progress-track" role="progressbar" aria-label={ "Progress of " + v.Name } aria-valuemin="0" aria-valuemax={ strconv.Itoa(v.Total) } aria-valuenow={ strconv.Itoa(v.Done) }>
+			<span class={ "fleet-progress-fill", "fleet-fill", progressWidth(v.Done, v.Total), v.Status.Tone.Class() }></span>
+		</span>
+		<span class="fleet-progress-text">{ ProgressText(v.Done, v.Total) }</span>
+	</span>
+}
+
+// taskSummary draws the line of a task: the name, a small result mark, the
+// count of its parts, its progress and its actor, then right aligned its
+// time, a larger result indicator with the state's word, and the eye.
+templ taskSummary(v TaskRowView) {
+	<span class="fleet-task-name">{ v.Name }</span>
+	<span class="fleet-task-mark">
+		@StatusMark(v.Status)
+	</span>
+	if len(v.Results) > 0 {
+		<span class="fleet-pill" title={ strconv.Itoa(len(v.Results)) + " results" }>{ strconv.Itoa(len(v.Results)) }</span>
+	}
+	if v.Total > 0 {
+		@taskProgress(v)
+	}
+	if v.Actor != "" {
+		<span class="fleet-task-actor">{ v.Actor }</span>
+	}
+	<span class="fleet-task-when">{ v.When }</span>
+	<span class="fleet-task-result">
+		@StatusWord(v.Status)
+	</span>
+}
+
+// taskEye draws the eye that opens a task in the side panel.
+templ taskEye(v TaskRowView) {
+	if v.EyeHref != "" {
+		@NavLink(NavLinkView{Href: v.EyeHref, Class: "fleet-icon-button", Name: "Show the details of " + v.Name}) {
+			@Icon("eye")
+		}
+	}
+}
+
+// TaskRow draws one task or event as a list row. A row with results expands,
+// by its chevron, to one line per device: the device, its state, its answer
+// and how long it took.
+templ TaskRow(v TaskRowView) {
+	<li class="fleet-task-row">
+		if len(v.Results) > 0 {
+			<details class="fleet-task-details">
+				<summary class="fleet-task-summary">
+					<span class="fleet-task-chevron">
+						@Icon("chevron-right")
+					</span>
+					@taskSummary(v)
+				</summary>
+				<ul class="fleet-task-results">
+					for _, result := range v.Results {
+						<li class="fleet-task-result-row">
+							@NavLink(NavLinkView{Href: result.Href, Class: "fleet-object-link"}) {
+								{ result.Device }
+							}
+							@StatusWord(result.Status)
+							<span class="fleet-mono fleet-task-answer">{ result.Answer }</span>
+							<span class="fleet-task-duration">{ result.Duration }</span>
+						</li>
+					}
+				</ul>
+			</details>
+		} else {
+			<div class="fleet-task-summary fleet-task-summary--plain">
+				<span class="fleet-task-chevron"></span>
+				@taskSummary(v)
+			</div>
+		}
+		@taskEye(v)
+	</li>
+}
+
+// TaskListView is a list of tasks or events. Empty is what the list says when
+// it holds none.
+type TaskListView struct {
+	Rows  []TaskRowView
+	Empty GoodNewsView
+}
+
+// TaskList draws tasks or events as a list, not a grid. It is the list of
+// the task panel and of the Tasks tabs.
+templ TaskList(v TaskListView) {
+	if len(v.Rows) == 0 {
+		@GoodNews(v.Empty)
+	} else {
+		<ul class="fleet-task-list">
+			for _, row := range v.Rows {
+				@TaskRow(row)
+			}
+		</ul>
+	}
+}
+
+// TaskTabView is one tab of the task panel: a state of task and how many
+// tasks are in it. Href is the fragment address that answers the panel with
+// this tab open.
+type TaskTabView struct {
+	Label  string
+	Href   string
+	Count  int
+	Active bool
+}
+
+// taskPanelID is the id of the task panel, which the header's Tasks button
+// names in data-fleet-toggle.
+const taskPanelID = "fleet-task-panel"
+
+// TaskPanelView is the task panel: its four tabs (Running, Succeeded, Failed,
+// All) with their counts, the tasks of the open tab, and the address of
+// every task. Open draws it shown; the script toggles it afterwards. Preview
+// draws it in place for the states page, under an id of its own, so it never
+// answers the header button of the page that holds it.
+type TaskPanelView struct {
+	Tabs    []TaskTabView
+	List    TaskListView
+	AllHref string
+	Open    bool
+	Preview bool
+}
+
+// taskPanelElementID answers the id of a task panel.
+func taskPanelElementID(v TaskPanelView) string {
+	if v.Preview {
+		return taskPanelID + "-preview"
+	}
+
+	return taskPanelID
+}
+
+// TaskPanel draws the task panel, 30rem wide over the content. A tab asks
+// its fragment and replaces the panel with the answer, so the panel stays
+// open on the tab the operator chose.
+templ TaskPanel(v TaskPanelView) {
+	<aside
+		class={ "fleet-task-panel", templ.KV("fleet-task-panel--static", v.Preview) }
+		id={ taskPanelElementID(v) }
+		aria-label="Tasks"
+		hidden?={ !v.Open }
+		if !v.Preview {
+			data-fleet-overlay="true"
+		}
+	>
+		<header class="fleet-task-panel-head">
+			<h2 class="fleet-task-panel-title">Tasks</h2>
+			if v.AllHref != "" {
+				@NavLink(NavLinkView{Href: v.AllHref, Class: "fleet-card-link"}) {
+					See all
+				}
+			}
+			<button type="button" class="fleet-icon-button" data-fleet-toggle={ taskPanelElementID(v) } aria-label="Close the task panel" title="Close">
+				@Icon("close")
+			</button>
+		</header>
+		<div class="fleet-task-tabs" role="tablist" aria-label="Tasks by state">
+			for _, tab := range v.Tabs {
+				<button type="button" role="tab" class={ "fleet-task-tab", templ.KV("fleet-task-tab--active", tab.Active) } aria-selected={ boolText(tab.Active) } hx-get={ tab.Href } hx-target={ "#" + taskPanelElementID(v) } hx-swap="outerHTML">
+					<span>{ tab.Label }</span>
+					<span class="fleet-pill">{ countText(tab.Count) }</span>
+				</button>
+			}
+		</div>
+		<div class="fleet-task-panel-body" role="tabpanel">
+			@TaskList(v.List)
+		</div>
+	</aside>
+}
+
+// AlarmRowView is one open alarm: its severity, the device it is on, what is
+// wrong, and since when, in words with the time itself as a tooltip.
+type AlarmRowView struct {
+	Device     string
+	DeviceHref string
+	Summary    string
+	Since      string
+	SinceExact string
+	Severity   Status
+}
+
+// AlarmListView is the list of alarms on a card. Empty is the good news shown
+// when no alarm is open.
+type AlarmListView struct {
+	Rows  []AlarmRowView
+	Empty GoodNewsView
+}
+
+// AlarmList draws open alarms, one per row: the severity word with its mark,
+// the device as a link, the summary, and since when. With none open it says
+// so as good news.
+templ AlarmList(v AlarmListView) {
+	if len(v.Rows) == 0 {
+		@GoodNews(v.Empty)
+	} else {
+		<ul class="fleet-alarm-list">
+			for _, row := range v.Rows {
+				<li class="fleet-alarm-row">
+					@StatusWord(row.Severity)
+					@NavLink(NavLinkView{Href: row.DeviceHref, Class: "fleet-object-link"}) {
+						{ row.Device }
+					}
+					<span class="fleet-alarm-summary">{ row.Summary }</span>
+					<span class="fleet-alarm-since" title={ row.SinceExact }>{ row.Since }</span>
+				</li>
+			}
+		</ul>
+	}
+}

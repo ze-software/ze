@@ -1,0 +1,211 @@
+// Design: docs/architecture/fleet-interface.md -- the component gallery: every component in every state
+// Related: component_gallery.go -- NewGalleryView, the fixed data drawn here
+
+package fleetui
+
+// galleryGroup draws one titled group of the gallery.
+templ galleryGroup(title string) {
+	<section class="fleet-gallery-group" aria-label={ title }>
+		<h2 class="fleet-gallery-title">{ title }</h2>
+		{ children... }
+	</section>
+}
+
+// galleryMarksGroup draws the icons, the illustrations, the state marks and
+// the small parts.
+templ galleryMarksGroup(v *GalleryMarksView) {
+	@galleryGroup("Icons") {
+		<div class="fleet-gallery-row">
+			for _, name := range v.Icons {
+				<span class="fleet-gallery-icon">
+					@Icon(name)
+					<span>{ name }</span>
+				</span>
+			}
+		</div>
+	}
+	@galleryGroup("Illustrations") {
+		<div class="fleet-gallery-row">
+			for _, name := range v.Illustrations {
+				<span class="fleet-gallery-icon">
+					@Illustration(name)
+					<span>{ name }</span>
+				</span>
+			}
+		</div>
+	}
+	@galleryGroup("States, object icons, tags and copy") {
+		<div class="fleet-gallery-row">
+			for _, state := range v.States {
+				@StateWord(state)
+			}
+			for _, state := range v.States {
+				@StateMark(state)
+			}
+		</div>
+		<div class="fleet-gallery-row">
+			for _, status := range v.Statuses {
+				@StatusWord(status)
+			}
+		</div>
+		<div class="fleet-gallery-row">
+			for _, object := range v.Objects {
+				@ObjectIcon(object)
+			}
+			for _, tag := range v.Tags {
+				@Tag(tag)
+			}
+			<span class="fleet-mono">{ v.Copy.Text }</span>
+			@CopyButton(v.Copy)
+		</div>
+	}
+}
+
+// galleryControlsGroup draws every look of an action, and the menus.
+templ galleryControlsGroup(v *GalleryControlsView) {
+	@galleryGroup("Buttons, action links and menus") {
+		<div class="fleet-gallery-row">
+			for _, action := range v.Links {
+				@ActionLink(action)
+			}
+		</div>
+		<div class="fleet-gallery-row">
+			@PrimaryButton(v.Primary)
+			for _, action := range v.Buttons {
+				@ActionButton(action)
+			}
+			@IconButton(v.Icon)
+			@Menu(v.Menu)
+			@DotsMenu(v.Dots)
+		</div>
+	}
+}
+
+// galleryCardsGroup draws the dashboard cards on both grids.
+templ galleryCardsGroup(v *GalleryCardsView) {
+	@galleryGroup("Cards on the 12-column grid") {
+		@CardGrid(CardGridView{Columns: cardGridEstate}) {
+			for _, donut := range v.Donuts {
+				@DonutCard(donut)
+			}
+			@FiguresCard(v.Figures)
+			@Card(CardView{Title: "Alarms", Span: 8, Counted: true, Count: len(v.Alarms.Rows), Link: &LinkView{Label: "See all", Href: galleryAlarmsHref}}) {
+				@AlarmList(v.Alarms)
+			}
+			@Card(CardView{Title: "Alarms, none open", Span: 4}) {
+				@AlarmList(v.NoAlarms)
+			}
+			@Card(CardView{Title: "Usage bars", Span: 6, Foot: []FigureView{{Caption: "Total used", Value: "5.8", Unit: "GiB"}, {Caption: "Total free", Value: "2.2", Unit: "GiB"}}}) {
+				for _, bar := range v.Usage {
+					@UsageBar(bar)
+				}
+			}
+			@Card(CardView{Title: "Stacked bar and callout", Span: 6}) {
+				@StackedBar(v.Stacked)
+				@Callout(v.Callout)
+			}
+			@UsageGroup(v.Group)
+			@Skeleton(SkeletonView{Card: true, Span: 3})
+			for _, chart := range v.Charts {
+				@ChartCard(chart)
+			}
+		}
+	}
+	@galleryGroup("Cards on the 8-column grid") {
+		@CardGrid(CardGridView{Columns: cardGridDevice}) {
+			@QuickInfo(v.QuickInfo)
+		}
+	}
+}
+
+// galleryTablesGroup draws the table section with rows, with none, and with
+// a refused filter.
+templ galleryTablesGroup(v *GalleryTablesView) {
+	@galleryGroup("Table sections") {
+		@TableSection(v.Full)
+		@TableSection(v.Empty)
+		@TableSection(v.Refused)
+	}
+}
+
+// galleryPanelsGroup draws the side panel content with a row and without.
+templ galleryPanelsGroup(v *GalleryPanelsView) {
+	@galleryGroup("Side panel") {
+		<div class="fleet-gallery-row">
+			<div class="fleet-gallery-frame">
+				@PanelContent(v.Row)
+			</div>
+			<div class="fleet-gallery-frame">
+				@PanelContent(v.Empty)
+			</div>
+		</div>
+	}
+}
+
+// galleryStatesGroup draws every state a pane shows in place of data.
+templ galleryStatesGroup(v *GalleryStatesView) {
+	@galleryGroup("States of a pane") {
+		@StaleBanner(v.Stale)
+		@Skeleton(SkeletonView{Rows: 4})
+		for _, hero := range v.Heroes {
+			@StateHero(hero)
+		}
+		@GoodNews(v.Good)
+	}
+}
+
+// galleryOverlaysGroup draws the toasts, both confirmations and the tasks.
+templ galleryOverlaysGroup(v *GalleryOverlaysView) {
+	@galleryGroup("Toasts") {
+		for _, toast := range v.Toasts {
+			@Toast(toast)
+		}
+	}
+	@galleryGroup("Confirm dialog") {
+		<div class="fleet-gallery-row">
+			@ConfirmPreview(v.Routine)
+			@ConfirmPreview(v.Destructive)
+		</div>
+		<div class="fleet-gallery-row">
+			for _, opener := range v.Openers {
+				@ActionButton(opener)
+			}
+		</div>
+	}
+	@galleryGroup("Task panel and task rows") {
+		@TaskPanel(v.Tasks)
+		@TaskList(v.NoTasks)
+	}
+}
+
+// galleryConsoleGroup draws the terminal, granted and refused, and the diff.
+templ galleryConsoleGroup(v *GalleryConsoleView) {
+	@galleryGroup("Terminal") {
+		@Terminal(v.Terminal)
+		@Terminal(v.Refused)
+		<div class="fleet-terminal-scrollback fleet-mono">
+			for _, entry := range v.Entries {
+				@TerminalEntry(entry)
+			}
+		</div>
+	}
+	@galleryGroup("Diff") {
+		@Diff(v.Diff)
+	}
+}
+
+// ComponentGallery draws every fleet component in every state and variant.
+// It is the states page of the prototype. The shell that holds it draws the
+// toast area and the confirm dialog, which the gallery's controls open.
+templ ComponentGallery(v GalleryView) {
+	<div class="fleet-gallery">
+		@galleryMarksGroup(v.Marks)
+		@galleryControlsGroup(v.Controls)
+		@galleryCardsGroup(v.Cards)
+		@galleryTablesGroup(v.Tables)
+		@galleryPanelsGroup(v.Panels)
+		@galleryStatesGroup(v.States)
+		@galleryOverlaysGroup(v.Overlays)
+		@galleryConsoleGroup(v.Console)
+	</div>
+}

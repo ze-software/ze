@@ -1,0 +1,176 @@
+// Design: docs/architecture/fleet-interface.md -- the usage bar, the stacked bar and the grouped usage card
+// Related: component_donut.go -- UsageTone and StackedShares
+// Related: component_card.templ -- the card and the figures of a foot
+
+package fleetui
+
+// UsagePartView is a second category drawn in the same track as a usage bar,
+// in another colour.
+type UsagePartView struct {
+	Name    string
+	Percent int
+}
+
+// UsageBarView is one usage bar. Known is false when the device has reported
+// no figure: the bar then shows a dash, never 0%. Scale shows the 0%, 50%,
+// 100% line above the track. Tall draws a thicker track that holds its own
+// percentage when the fill is wide enough.
+type UsageBarView struct {
+	Name    string
+	Extra   []UsagePartView
+	Percent int
+	Known   bool
+	Scale   bool
+	Tall    bool
+}
+
+// usageLabel answers the accessible name of a usage bar.
+func usageLabel(v UsageBarView) string {
+	if !v.Known {
+		return v.Name + ", not reported"
+	}
+
+	return v.Name + " " + percentText(clampPercent(v.Percent))
+}
+
+// usageInside says whether the fill is wide enough to hold its percentage.
+func usageInside(v UsageBarView) bool {
+	return v.Tall && clampPercent(v.Percent) >= usageInsidePercent
+}
+
+// usageTrack draws the track of a usage bar and its fill. The fill is in the
+// accent colour, the warning colour from 80% and the error colour from 90%.
+templ usageTrack(v UsageBarView) {
+	<div class={ "fleet-usage-track", templ.KV("fleet-usage-track--tall", v.Tall) } role="img" aria-label={ usageLabel(v) }>
+		if v.Known {
+			<span class={ "fleet-usage-fill", "fleet-fill", widthClass(v.Percent), UsageTone(clampPercent(v.Percent)).Class() }>
+				if usageInside(v) {
+					<span class="fleet-usage-inside">{ percentText(clampPercent(v.Percent)) }</span>
+				}
+			</span>
+			for _, part := range v.Extra {
+				<span class={ "fleet-usage-fill", "fleet-fill", "fleet-chart-color--3", widthClass(part.Percent) }></span>
+			}
+		}
+	</div>
+}
+
+// UsageBar draws one labelled bar: the scale, the track, and under it, right
+// aligned, a dot, the name and the percentage of each category.
+templ UsageBar(v UsageBarView) {
+	<div class="fleet-usage">
+		if v.Scale {
+			<div class="fleet-usage-scale" aria-hidden="true">
+				<span>0%</span>
+				<span>50%</span>
+				<span>100%</span>
+			</div>
+		}
+		@usageTrack(v)
+		<ul class="fleet-usage-legend">
+			<li class="fleet-usage-legend-item">
+				if v.Known {
+					<span class={ "fleet-legend-dot", "fleet-fill", UsageTone(clampPercent(v.Percent)).Class() }></span>
+					<span class="fleet-usage-name">{ v.Name }</span>
+					<span class="fleet-usage-percent">{ percentText(clampPercent(v.Percent)) }</span>
+				} else {
+					<span class="fleet-usage-name">{ v.Name }</span>
+					<span class="fleet-usage-percent" title="Not reported">-</span>
+				}
+			</li>
+			for _, part := range v.Extra {
+				<li class="fleet-usage-legend-item">
+					<span class="fleet-legend-dot fleet-fill fleet-chart-color--3"></span>
+					<span class="fleet-usage-name">{ part.Name }</span>
+					<span class="fleet-usage-percent">{ percentText(clampPercent(part.Percent)) }</span>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// UsageMini draws the thin bar of a table cell beside its percentage.
+templ UsageMini(v UsageBarView) {
+	<span class="fleet-usage-mini">
+		@usageTrack(v)
+		if v.Known {
+			<span class="fleet-usage-percent">{ percentText(clampPercent(v.Percent)) }</span>
+		} else {
+			<span class="fleet-usage-percent" title="Not reported">-</span>
+		}
+	</span>
+}
+
+// UsageColumnView is one column of a grouped usage card: a title, a one-line
+// subtitle, the bar, and a foot of caption and figure pairs such as USED,
+// AVAILABLE and TOTAL.
+type UsageColumnView struct {
+	Title    string
+	Subtitle string
+	Bar      UsageBarView
+	Foot     []FigureView
+}
+
+// UsageGroupView is a full-width card of related usage bars, split into
+// columns by thin vertical lines.
+type UsageGroupView struct {
+	Card    CardView
+	Columns []UsageColumnView
+}
+
+// UsageGroup draws related usage bars in one card, one column each.
+templ UsageGroup(v UsageGroupView) {
+	@Card(v.Card) {
+		<div class="fleet-usage-group">
+			for _, column := range v.Columns {
+				<div class="fleet-usage-column">
+					<h3 class="fleet-usage-column-title">{ column.Title }</h3>
+					<p class="fleet-usage-column-subtitle">{ column.Subtitle }</p>
+					@UsageBar(column.Bar)
+					@FigureList(FigureListView{Figures: column.Foot})
+				</div>
+			}
+		</div>
+	}
+}
+
+// StackedBarView is one bar split by category, with a legend. Its segments
+// are the donut's: a word, a count, a colour and the rows the count opens.
+type StackedBarView struct {
+	Name     string
+	Segments []DonutSegmentView
+}
+
+// stackedCounts answers the counts of the segments, in order.
+func stackedCounts(segments []DonutSegmentView) []int {
+	counts := make([]int, len(segments))
+	for index := range segments {
+		counts[index] = segments[index].Count
+	}
+
+	return counts
+}
+
+// stackedLabel answers the accessible name of a stacked bar.
+func stackedLabel(v StackedBarView) string {
+	return v.Name + ", total " + countText(DonutTotal(v.Segments))
+}
+
+// StackedBar draws one bar whose segments share its width in proportion to
+// their counts, then one legend line per segment, a count of zero included.
+templ StackedBar(v StackedBarView) {
+	<div class="fleet-stacked">
+		<div class="fleet-stacked-track" role="img" aria-label={ stackedLabel(v) }>
+			for index, share := range StackedShares(stackedCounts(v.Segments)) {
+				if share > 0 {
+					<span class={ "fleet-stacked-part", "fleet-fill", widthClass(share), donutColorClass(v.Segments[index]) }></span>
+				}
+			}
+		</div>
+		<ul class="fleet-legend fleet-legend--row">
+			for _, segment := range v.Segments {
+				@legendLine(segment)
+			}
+		</ul>
+	</div>
+}
