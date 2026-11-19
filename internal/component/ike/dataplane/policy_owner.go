@@ -73,14 +73,19 @@ func cidrKey(n *net.IPNet, ipv6 bool) string {
 // then lets the second peer to establish capture the first peer's traffic, and lets
 // either peer's teardown blackhole the survivor.
 //
-// A bypass policy is NOT tracked. Every peer installs the same four by design
-// (xfrmBackend.InstallPolicy), they are byte-identical, and they carry no per-peer
-// identity to conflict over.
+// A node-wide template-free entry (a catch-all, an operator BYPASS or DISCARD, an
+// interface exemption) is NOT tracked: it carries no per-peer identity to conflict
+// over. The template-free entries a peer installs are tracked (ownedEntry): a tunnel
+// Child SA's outbound forward allow and its delivery allow (engine/child.go
+// childOutboundForwardPolicy, appendChildDeliveryPolicy). The kernel tells policies
+// apart by selector, never by action, so another peer's PROTECT policy on the same
+// selector would otherwise be replaced by one on install, or deleted with it on
+// teardown.
 //
 // It also keeps, for EVERY entry Ze installed, template-free ones included, the role
 // and SPD name the installer gave it (labels), so a read can say which job and which
-// SPD each kernel row has. A label refuses nothing: ownership stays limited to
-// template-carrying policies, and the label only follows the kernel's lifetime of the
+// SPD each kernel row has. A label refuses nothing: ownership stays limited to the
+// entries ownedEntry names, and the label only follows the kernel's lifetime of the
 // entry, written once the kernel accepted the install and dropped once the kernel
 // confirmed the removal.
 //
@@ -139,6 +144,19 @@ func (o *policyOwners) annotate(info *PolicyInfo) {
 	}
 }
 
+// ownedEntry reports whether the ledger records p's owner and refuses another owner's
+// install or delete of p's selector: every template-carrying policy, and a template-free
+// entry a Child SA installs (PolicyRoleChildSA, its outbound forward and delivery
+// allows), which
+// belongs to one peer as its PROTECT policies do. Every other template-free entry is
+// node-wide and unowned.
+func ownedEntry(p SPParams) bool {
+	if !p.Action.isTemplateFree() {
+		return true
+	}
+	return p.Role == PolicyRoleChildSA
+}
+
 // policyHolder is the record for one claimed selector: who installed it, and whether
 // it is a transport-mode policy, which claim compares for overlap as well as identity.
 type policyHolder struct {
@@ -160,7 +178,7 @@ type policyHolder struct {
 // peer would then be allowed to take that live selector over. Answered under the same
 // lock as the write, so it cannot disagree with it.
 func (o *policyOwners) claim(p SPParams) (created bool, err error) {
-	if p.Action.isTemplateFree() {
+	if !ownedEntry(p) {
 		return false, nil
 	}
 	key := policyKey(p)
@@ -279,7 +297,7 @@ func prefixesOverlap(a, b string) bool {
 // removing the policy of the other direction, so a peer whose install was refused
 // would otherwise take the owning peer's live policy down on its way out.
 func (o *policyOwners) release(p SPParams) error {
-	if p.Action.isTemplateFree() {
+	if !ownedEntry(p) {
 		return nil
 	}
 	key := policyKey(p)
@@ -313,7 +331,7 @@ func (o *policyOwners) release(p SPParams) error {
 // not reach the kernel.
 func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 	key := policyKey(p)
-	if p.Action.isTemplateFree() {
+	if !ownedEntry(p) {
 		delErr := del()
 		if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
 			// The kernel still holds the entry, so its label stays.

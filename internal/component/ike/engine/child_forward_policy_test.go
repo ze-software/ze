@@ -205,12 +205,22 @@ func TestChildForwardPolicyCoversEverySelector(t *testing.T) {
 	child := mustInnerChild(t, innerPeerSA(t, reg, "forward-peer", "198.18.0.7"), dp,
 		[]string{"10.1.2.3/32", "10.1.2.4/32"}, []string{"10.2.0.0/24"})
 	t.Cleanup(child.Clear)
-	if len(dp.policies) != 6 {
-		t.Fatalf("two negotiated pairs installed %d policies, want six", len(dp.policies))
+	if len(dp.policies) != 10 {
+		t.Fatalf("two negotiated pairs installed %d policies, want ten (in, fwd, out, outbound fwd and delivery each)", len(dp.policies))
 	}
 	want := map[string]bool{"10.1.2.3/32": false, "10.1.2.4/32": false}
+	wantOutbound := map[string]bool{"10.1.2.3/32": false, "10.1.2.4/32": false}
 	for _, policy := range dp.policies {
 		if policy.Dir != dataplane.SADirFwd {
+			continue
+		}
+		if policy.Action == dataplane.SPActionBypass {
+			// The outbound forward entry of a pair: local to remote (RFC 4301 Section 5.1).
+			destination := policy.Dst.String()
+			if _, ok := wantOutbound[destination]; !ok || policy.Src.String() != "10.2.0.0/24" {
+				t.Fatalf("unexpected outbound forward selector %s -> %s", policy.Src, policy.Dst)
+			}
+			wantOutbound[destination] = true
 			continue
 		}
 		source := policy.Src.String()
@@ -227,6 +237,11 @@ func TestChildForwardPolicyCoversEverySelector(t *testing.T) {
 			t.Errorf("no forward policy installed for negotiated selector %s", source)
 		}
 	}
+	for destination, installed := range wantOutbound {
+		if !installed {
+			t.Errorf("no outbound forward entry installed for negotiated selector %s", destination)
+		}
+	}
 	removeChildSA(child, dp, slogutil.DiscardLogger())
 	if len(dp.policies) != 0 || len(dp.states) != 0 || reg.holdings() != 0 {
 		t.Fatal("multi-selector Child teardown left installed or claimed resources")
@@ -239,8 +254,11 @@ type forwardStrandedDP struct {
 	forwardRemovals int
 }
 
+// RemovePolicyParams fails the removal of the inbound transit policy, the FWD entry
+// carrying the SA's template. The template-free outbound forward entry is removed
+// normally, so a stranding leaves exactly the policy the registry adopts.
 func (d *forwardStrandedDP) RemovePolicyParams(policy dataplane.SPParams) error {
-	if policy.Dir == dataplane.SADirFwd {
+	if policy.Dir == dataplane.SADirFwd && policy.Action == dataplane.SPActionProtect {
 		d.forwardRemovals++
 		if d.failForward {
 			return syscall.EIO
@@ -284,7 +302,7 @@ func TestChildForwardPolicyAdoptsStrandedForward(t *testing.T) {
 	if dp.forwardRemovals != removals {
 		t.Fatal("retry tried to remove the live Child's adopted forward policy")
 	}
-	if len(dp.policies) != 3 || !dp.hasPolicy(next, dataplane.SADirFwd) {
+	if len(dp.policies) != 5 || !dp.hasPolicy(next, dataplane.SADirFwd) {
 		t.Fatal("retry removed the live Child's transit protection")
 	}
 	removeChildSA(next, dp, log)
@@ -323,7 +341,7 @@ func TestChildRekeyPredecessorCleared(t *testing.T) {
 			if replacement.installPrevious != nil {
 				t.Fatal("installation exit retained its predecessor")
 			}
-			if !old.ESPInstalled || len(dp.policies) != 3 || len(dp.states) != 2 {
+			if !old.ESPInstalled || len(dp.policies) != 5 || len(dp.states) != 2 {
 				t.Fatal("installation without policy writes disturbed the old Child")
 			}
 		})
@@ -539,5 +557,133 @@ func TestChildFailedRekeyHealthPublication(t *testing.T) {
 	}
 	if espInstalled(peers, old.Owner) {
 		t.Fatal("published metrics still report the predecessor healthy after restoration failure")
+	}
+}
+
+// TestChildOutboundForwardPolicyAdmitsProtectedHostTransit proves that a policy-based
+// tunnel Child SA (if_id 0) on a backend with a separate forward lookup installs the
+// outbound forward entry, so a packet a protected host sends towards the tunnel reaches
+// the OUT lookup that protects it under a blocking FWD default (`unmatched discard`).
+//
+// RFC 4301 Section 5.1, step 3a: "If there is a match, then process the packet as
+// specified by the matching cache entry, i.e., BYPASS, DISCARD, or PROTECT using AH or
+// ESP."
+//
+// Method: the production responder creator on the policy-recording fake. The entry
+// must carry the OUT selector (local to remote) in FWD, as a template-free allow (no
+// mode, endpoint, reqid or SA) one rank below the Child SA, owned by the peer, come
+// after OUT in the install order, and leave with the Child SA.
+func TestChildOutboundForwardPolicyAdmitsProtectedHostTransit(t *testing.T) {
+	dp := &forwardPolicyDP{spdDP: newSPDDP()}
+	log := slogutil.DiscardLogger()
+	reg := newInnerSelectorRegistry()
+	child := mustInnerChild(t, innerPeerSA(t, reg, "forward-peer", "198.18.0.7"), dp,
+		[]string{"10.1.2.3/32"}, []string{"10.2.0.0/24"})
+	t.Cleanup(child.Clear)
+	out := childPolicies(child, dataplane.SADirOut)[0]
+	if out.Src.String() != "10.2.0.0/24" || out.Dst.String() != "10.1.2.3/32" {
+		t.Fatalf("fixture: OUT selector %s -> %s, want 10.2.0.0/24 -> 10.1.2.3/32", out.Src, out.Dst)
+	}
+	want := dataplane.SPParams{
+		Src: out.Src, Dst: out.Dst, Dir: dataplane.SADirFwd, Action: dataplane.SPActionBypass,
+		Owner: "forward-peer", Role: dataplane.PolicyRoleChildSA, IfID: 0,
+		Priority: out.Priority + 1, UpperProto: out.UpperProto, SrcPort: out.SrcPort, DstPort: out.DstPort,
+	}
+	got, ok := dp.policies[spdKeyOf(want)]
+	if !ok {
+		t.Fatalf("no outbound forward entry %s -> %s: a protected host's transit meets the FWD default and is dropped", out.Src, out.Dst)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("outbound forward entry = %+v, want %+v", got, want)
+	}
+	if !dp.hasPolicy(child, dataplane.SADirFwd) {
+		t.Fatal("the outbound forward entry replaced the inbound transit policy")
+	}
+	installed := childInstalledPolicies(child)
+	if len(installed) != 5 || !reflect.DeepEqual(installed[3], want) || installed[2].Dir != dataplane.SADirOut {
+		t.Fatalf("install order = %d policies, want in, fwd, out, the outbound forward entry, then delivery", len(installed))
+	}
+	// RFC 4301 Section 5.2: the decrypted packet's own leg towards the protected host.
+	inbound := childPolicies(child, dataplane.SADirFwd)[0]
+	delivery := dataplane.SPParams{
+		Src: inbound.Src, Dst: inbound.Dst, Dir: dataplane.SADirOut, Action: dataplane.SPActionBypass,
+		Owner: "forward-peer", Role: dataplane.PolicyRoleChildSA, IfID: 0,
+		Priority: inbound.Priority + 1, UpperProto: inbound.UpperProto, SrcPort: inbound.SrcPort, DstPort: inbound.DstPort,
+	}
+	if got, ok := dp.policies[spdKeyOf(delivery)]; !ok || !reflect.DeepEqual(got, delivery) || !reflect.DeepEqual(installed[4], delivery) {
+		t.Fatalf("delivery entry = %+v (installed %v), want %+v last", got, ok, delivery)
+	}
+	if !dp.hasPolicy(child, dataplane.SADirOut) {
+		t.Fatal("the delivery entry replaced the OUT PROTECT policy")
+	}
+	if migrated := childMigratedPolicies(child); len(migrated) != 3 {
+		t.Fatalf("MOBIKE would move %d policies, want the three template-carrying ones", len(migrated))
+	}
+	removeChildSA(child, dp, log)
+	if len(dp.policies) != 0 {
+		t.Fatalf("Child teardown left %d policies, the outbound forward and delivery entries included", len(dp.policies))
+	}
+}
+
+// TestChildOutboundForwardPolicyBuiltOnlyForPolicyBasedTunnels takes the cases just
+// outside the entry's condition, where no outbound forward entry may be built: a Child
+// SA bound to an XFRM interface (its forwarded traffic is checked at if_id 0, where
+// xfrmInterfaceExemptions answers), a Child SA with no separate forward lookup
+// (transport mode, or a backend such as VPP), and a pair whose two sides are equal,
+// whose entries would carry the kernel selector of the inbound forward policy and of the
+// OUT PROTECT policy and replace them. The delivery entry (the inbound selectors in OUT)
+// follows the same conditions. The positive row is the same selectors at if_id 0. Method: the policy builder
+// over hand-built Child SAs, counting template-free forward entries and checking the
+// inbound forward policy is still built where the backend needs it.
+func TestChildOutboundForwardPolicyBuiltOnlyForPolicyBasedTunnels(t *testing.T) {
+	cidr := func(s string) *net.IPNet {
+		_, n, err := net.ParseCIDR(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	for _, tc := range []struct {
+		name          string
+		local, remote string
+		ifID          uint32
+		forward       bool
+		want          int
+	}{
+		{"policy-based tunnel at if_id 0", "10.2.0.0/24", "10.1.0.0/24", 0, true, 1},
+		{"tunnel bound to an XFRM interface", "10.2.0.0/24", "10.1.0.0/24", testChildIfID, true, 0},
+		{"no separate forward lookup", "10.2.0.0/24", "10.1.0.0/24", 0, false, 0},
+		{"equal sides keep the inbound forward policy", "0.0.0.0/0", "0.0.0.0/0", 0, true, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			child := &ChildSA{
+				TSLocal: cidr(tc.local), TSRemote: cidr(tc.remote), IfID: tc.ifID,
+				forwardPolicy: tc.forward, Owner: "forward-peer",
+			}
+			outbound, inbound, delivery := 0, 0, 0
+			for _, p := range childInstalledPolicies(child) {
+				if p.Dir == dataplane.SADirOut && p.Action == dataplane.SPActionBypass {
+					delivery++
+					continue
+				}
+				if p.Dir != dataplane.SADirFwd {
+					continue
+				}
+				if p.Action == dataplane.SPActionBypass {
+					outbound++
+					continue
+				}
+				inbound++
+			}
+			if outbound != tc.want {
+				t.Fatalf("built %d outbound forward entries, want %d", outbound, tc.want)
+			}
+			if delivery != tc.want {
+				t.Fatalf("built %d delivery entries, want %d", delivery, tc.want)
+			}
+			if tc.forward && inbound != 1 {
+				t.Fatalf("built %d inbound forward policies, want the one the backend needs", inbound)
+			}
+		})
 	}
 }

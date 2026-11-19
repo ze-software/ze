@@ -553,6 +553,84 @@ owner and `if_id`. VPP declares no separate forward lookup because its inbound S
 applies before routing; it still refuses a caller's explicit `SADirFwd`.
 Transport mode does not add a forward policy.
 
+**A packet a protected host sends towards the tunnel gets a forward entry too.**
+Linux checks every forwarded packet in FWD before its OUT lookup (`ip_forward` calls
+`xfrm4_policy_check` for `XFRM_POLICY_FWD`, then `xfrm4_route_forward`), and under
+`unmatched discard` the XFRM backend sets the namespace FWD default to block. The
+receive forward policy above matches only the remote-to-local orientation and requires
+the SA's template, so without an entry of its own a cleartext packet from a protected
+host meets the block default (`__xfrm_policy_check`, counted as `XfrmInNoPols`) and
+never reaches the OUT policy that would protect it: a policy-based tunnel carried no
+transit from the protected side under `unmatched discard`
+(`TestRFC4301TransitFromIKEPortIsNotBypassed`, its positive control). RFC 4301 Section
+5.1 gives that decision to the outbound lookup: "If there is a match, then process the
+packet as specified by the matching cache entry, i.e., BYPASS, DISCARD, or PROTECT
+using AH or ESP." So `childSendPolicies` builds, after each pair's OUT policy, an
+outbound forward entry (`childOutboundForwardPolicy`): the OUT selector in FWD, a
+template-free allow with no mode, endpoint, reqid or SA, owned by the peer, one rank
+below the Child SA's own. It hands the packet to the OUT lookup, which still decides
+it. This is strongSwan's "outbound" FWD policy (`install_policies_outbound` in
+`child_sa.c`, installed with reqid 0 and so no template, at a reduced priority "as they
+basically act as bypass policies for drop policies"), and the lower rank keeps the
+inbound forward policy of a tunnel with the reversed selectors winning where the two
+overlap, so a decrypted packet there still needs its template.
+
+The entry is built only where Ze's Child SA policies answer that FWD lookup: a
+tunnel-mode Child SA on a backend that declares `RequiresForwardPolicy`, at if_id 0.
+A Child SA bound to an XFRM interface gets none, because a packet routed into the
+interface is checked in FWD at if_id 0, where `xfrmInterfaceExemptions` admits it
+under `unmatched discard`. A pair whose two sides are equal (0.0.0.0/0 to 0.0.0.0/0)
+gets none either: the kernel tells policies apart by selector, direction and if_id,
+never by action or priority, so the entry would replace that pair's inbound forward
+policy (`appendChildOutboundForwardPolicy`). The ownership ledger records the entry's
+owner although it is template-free (`ownedEntry`, `dataplane/policy_owner.go`), so
+another peer's forward PROTECT policy on the same selector is neither replaced by it
+nor deleted with it. Install puts it after OUT and teardown removes it before OUT
+(`removeChildSAOutgoing`), so no forwarded packet is admitted while OUT does not
+protect it. MOBIKE does not move it (`childMigratedPolicies`): it names no endpoint.
+`TestChildOutboundForwardPolicyAdmitsProtectedHostTransit` and
+`TestChildOutboundForwardPolicyBuiltOnlyForPolicyBasedTunnels` prove the entry and its
+absences; the packet test above observes it on the wire.
+
+**A decrypted packet forwarded to a protected host gets a delivery entry.** Linux
+also runs an OUT lookup on every forwarded packet (`__xfrm_route_forward`), the
+decrypted ones included. Only the catch-all matched their remote-to-local
+orientation, and under `unmatched discard` it is BLOCK, so a packet that had passed
+its FWD PROTECT check was dropped as `XfrmOutPolBlock`: a policy-based gateway
+delivered nothing from the tunnel to the hosts behind it in the default
+configuration, and the packet tests worked around it with an operator out bypass
+(`runICMPForwarding`). RFC 4301 Section 5.2's check, "Then match the packet against
+the inbound selectors identified by the SAD entry to verify that the received packet
+is appropriate for the SA via which it was received", is that packet's verdict;
+Section 5.1's outbound steps cover "traffic entering the implementation via a
+protected interface and exiting via an unprotected interface", which it is not. So
+`childSendPolicies` ends each pair with a delivery entry (`appendChildDeliveryPolicy`):
+the inbound selectors in OUT, a template-free allow one rank below the Child SA, under
+the same conditions as the outbound forward entry, skipped where it would carry the
+kernel identity of the pair's OUT PROTECT policy, owned in the ledger, removed with the
+send path and not migrated. It admits nothing the FWD check refused: a cleartext packet
+from the unprotected side with a remote source matches the FWD PROTECT policy first and
+is refused as `XfrmInTmplMismatch`. A packet this node originates has no FWD check, so
+one whose source is inside the remote selector and whose destination is inside the
+local selector now leaves in clear towards the protected side instead of meeting the
+catch-all; with a remote selector of 0.0.0.0/0 that is every packet Ze itself sends to
+the local selector that no higher-ranked entry decides.
+`TestRFC4301DecryptedTransitReachesProtectedHostUnderDiscard` observes both halves.
+
+One half of forwarded traffic still stays with the OUT catch-all under
+`unmatched discard`: a forwarded ICMP error from a protected host meets it before
+`xfrm_out_fwd_icmp` can map it to the return SA, and is dropped there unless an
+operator entry passes it (the ICMP section below). The delivery entry carries the
+Child SA's own protocol, so it passes an ICMP error towards a protected host only when
+the Child SA's selector is any-protocol.
+
+<!-- source: internal/component/ike/engine/child.go -- childSendPolicies, appendChildOutboundForwardPolicies, appendChildOutboundForwardPolicy, childOutboundForwardPolicy, appendChildDeliveryPolicies, appendChildDeliveryPolicy, childMigratedPolicies, removeChildSAOutgoing -->
+<!-- source: internal/component/ike/engine/rfc4301_transit_delivery_integration_linux_test.go -- TestRFC4301DecryptedTransitReachesProtectedHostUnderDiscard -->
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- ownedEntry -->
+<!-- source: internal/component/ike/engine/child_forward_policy_test.go -- TestChildOutboundForwardPolicyAdmitsProtectedHostTransit, TestChildOutboundForwardPolicyBuiltOnlyForPolicyBasedTunnels -->
+
+
+
 RFC 4301 Section 5.2 says: "Then match the packet against the inbound selectors
 identified by the SAD entry to verify that the received packet is appropriate for
 the SA via which it was received." Linux's separate transit lookup is part of
@@ -1172,7 +1250,8 @@ the entry is never installed. That is an open defect, not a design.
 <!-- source: internal/component/ike/engine/spd_policy.go -- reconcileSPDPolicies -->
 <!-- source: internal/component/ike/engine/child.go -- isXFRMUnsupported -->
 
-MOBIKE migration policies come from the same complete Child SA policy set.
+MOBIKE migration policies come from the same Child SA policy set, less the outbound
+forward and delivery entries, which carry no template to move (`childMigratedPolicies`).
 Inbound and forward templates move from remote to local; outbound templates move
 from local to remote. The transaction retains each direction's owner and restores
 all three on rollback. An unnamed internal direction raises a `BUG` panic before
@@ -2549,6 +2628,14 @@ destination port 500 and 4500 (in) at priority 100. That entry also matched a
 protected host's forwarded datagram from those ports, which then left in clear where
 the tunnel should have carried it (`TestRFC4301TransitFromIKEPortIsNotBypassed`).
 
+No SPD rank is reserved for IKE any more. The band at 100 and below, which kept an
+operator `order` and a peer's `policy-priority` from outranking the node-wide entry,
+went with it: both leaves take any rank from 1 to 2147483647 (`spdRankMin`,
+`spdRankMax`), and an entry at rank 1 still cannot capture the IKE exchange, because
+the socket policy is consulted first. Rank 0 stays refused: `childPairPolicy` reads a
+zero peer rank as unstated and installs `PriorityChildSA`, and the kernel breaks an
+equal-priority tie by insertion order.
+
 The policy lives and dies with its socket: nothing installs or removes it at apply
 or exit, and `ip xfrm policy flush` does not touch it. Its priority carries
 `transport.IKESocketPolicyPriority` as a mark the kernel never matches, so the
@@ -2563,6 +2650,7 @@ policy decides nothing: VPP's SPD lives in VPP and never held an IKE bypass, bec
 the backend refuses every node-wide entry (`vppPolicyInterface`).
 
 <!-- source: internal/component/ike/transport/bypass_linux.go -- bypassIKESocket, ikeSocketPolicy -->
+<!-- source: internal/component/ike/ipsec/validate.go -- spdRankMin, spdRankMax, ValidatePolicyOrder -->
 <!-- source: internal/component/ike/transport/udp.go -- newTransport, IKESocketPolicyPriority, exemptFromIPsec, BypassError -->
 <!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- answerIKESocketBypass -->
 <!-- source: internal/component/ike/dataplane/policy_role.go -- socketPolicyRole -->

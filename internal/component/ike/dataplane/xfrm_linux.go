@@ -602,8 +602,8 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	// against strongSwan: "child-sa: install inbound policy: xfrm: policy add: file
 	// exists", once per second until "child-sa: hard lifetime expired".
 	//
-	// The IKE bypass is peer-independent by design: every peer installs the same
-	// four policies, so peer B's install would fail on peer A's.
+	// A node-wide entry (the catch-all, an operator entry) is re-asserted on every
+	// apply, so an exclusive add would fail on its own earlier install.
 	//
 	// XfrmPolicyUpdate sends XFRM_MSG_UPDPOLICY, and the kernel derives exclusivity
 	// from the message TYPE rather than from NLM_F_EXCL (net/xfrm/xfrm_user.c,

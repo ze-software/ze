@@ -8,6 +8,7 @@
 package engine
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"net"
@@ -92,6 +93,18 @@ func ikeTransitObserve(t *testing.T, fd int, spi uint32, want int) ikeTransitWir
 	return seen
 }
 
+// ikeOwnExchangeOctets is the size of each datagram of ikeOwnExchange: the 28-octet IKE
+// header, the floor below which UDPTransport.Run drops a datagram before Recv sees it.
+// The transport parses nothing else, so the content needs no IKE header form.
+const ikeOwnExchangeOctets = 28
+
+// ikeOwnExchangeDatagram is a datagram of ikeOwnExchangeOctets starting with label.
+func ikeOwnExchangeDatagram(label string) []byte {
+	datagram := make([]byte, ikeOwnExchangeOctets)
+	copy(datagram, label)
+	return datagram
+}
+
 // ikeOwnExchange sends one datagram each way between Ze's IKE socket on UDP 500 and
 // the outside peer's, and fails unless both arrive. Ze's socket is opened through
 // transport.NewUDPTransport, the constructor every production IKE socket comes from.
@@ -104,23 +117,25 @@ func ikeOwnExchange(t *testing.T, lab *espPolLab, unmatched string) {
 	lab.enter(t, lab.ze)
 
 	peerIKE := &net.UDPAddr{IP: net.ParseIP(espPolPeerOuter), Port: transport.IKEPort}
-	if err := ze.Send([]byte("ze-ike-out"), peerIKE); err != nil {
+	if err := ze.Send(ikeOwnExchangeDatagram("ze-ike-out"), peerIKE); err != nil {
 		t.Fatalf("%s: Ze's own IKE send was refused (%v); the SPD captured it", unmatched, err)
 	}
 	if !sadSelDelivered(t, peer) {
 		t.Fatalf("%s: Ze's own IKE datagram never reached the peer", unmatched)
 	}
 	zeIKE := &net.UDPAddr{IP: net.ParseIP(espPolZeOuter), Port: transport.IKEPort}
-	if _, err := peer.WriteToUDP([]byte("ze-ike-in"), zeIKE); err != nil {
+	reply := ikeOwnExchangeDatagram("ze-ike-in")
+	if _, err := peer.WriteToUDP(reply, zeIKE); err != nil {
 		t.Fatalf("%s: the peer's IKE reply could not be sent: %v", unmatched, err)
 	}
 	select {
 	case got := <-ze.Recv():
-		if string(got.Data) != "ze-ike-in" {
+		if !bytes.Equal(got.Data, reply) {
 			t.Fatalf("%s: Ze's IKE socket read %q, want the peer's reply", unmatched, got.Data)
 		}
 	case <-time.After(fragmentCaptureWait):
-		t.Fatalf("%s: the peer's IKE reply never reached Ze's IKE socket; the inbound SPD check dropped it", unmatched)
+		t.Fatalf("%s: the peer's %d-octet datagram to Ze's IKE socket on UDP %d was not read from the socket within %v",
+			unmatched, len(reply), transport.IKEPort, fragmentCaptureWait)
 	}
 }
 

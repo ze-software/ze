@@ -190,3 +190,55 @@ func TestPolicySelectorsOverlapExported(t *testing.T) {
 		})
 	}
 }
+
+// TestPolicyOwnersOwnAChildSAForwardAllow proves the ledger owns a template-free entry a
+// peer installs, here a tunnel Child SA's outbound forward allow; the Child's delivery
+// allow in OUT takes the same Role branch of ownedEntry, so this row stands for both.
+// The kernel tells policies apart by selector, never by action, so another peer's
+// forward PROTECT policy on the same selector must neither replace the allow nor be
+// deleted with it, and the allow must not replace that peer's PROTECT policy either.
+// A node-wide template-free entry on the same selector stays unowned. Method: claim,
+// release and deleteThenRelease, the three calls InstallPolicy and RemovePolicyParams
+// make, with a delete that records whether it ran.
+func TestPolicyOwnersOwnAChildSAForwardAllow(t *testing.T) {
+	src, dst := overlapTestNet(t, "10.2.0.0/24"), overlapTestNet(t, "10.1.0.0/24")
+	allow := SPParams{
+		Src: src, Dst: dst, Dir: SADirFwd, Action: SPActionBypass,
+		Owner: "peer-a", Role: PolicyRoleChildSA, Priority: 2001,
+	}
+	protect := SPParams{
+		Src: src, Dst: dst, Dir: SADirFwd, Action: SPActionProtect, Mode: ModeTunnel,
+		Owner: "peer-b", Role: PolicyRoleChildSA, Priority: 2000,
+	}
+	operator := SPParams{Src: src, Dst: dst, Dir: SADirFwd, Action: SPActionBypass, Role: PolicyRoleOperator}
+
+	var o policyOwners
+	if created, err := o.claim(allow); err != nil || !created {
+		t.Fatalf("claim(peer-a forward allow) = %v, %v; want a created record", created, err)
+	}
+	var owned *PolicyOwnedError
+	if _, err := o.claim(protect); !errors.As(err, &owned) {
+		t.Fatalf("claim(peer-b forward protect on peer-a's selector) = %v, want PolicyOwnedError", err)
+	}
+	if _, err := o.claim(operator); err != nil {
+		t.Fatalf("claim(node-wide operator bypass) = %v, want it untracked", err)
+	}
+	ran := false
+	foreign := allow
+	foreign.Owner = "peer-b"
+	if err := o.deleteThenRelease(foreign, func() error { ran = true; return nil }); !errors.As(err, &owned) || ran {
+		t.Fatalf("peer-b delete of peer-a's forward allow = %v (delete ran %v), want a refusal before the kernel", err, ran)
+	}
+	if err := o.release(foreign); !errors.As(err, &owned) {
+		t.Fatalf("peer-b release of peer-a's forward allow = %v, want PolicyOwnedError", err)
+	}
+	if err := o.deleteThenRelease(allow, func() error { ran = true; return syscall.ENOENT }); !errors.Is(err, syscall.ENOENT) || !ran {
+		t.Fatalf("peer-a delete = %v (delete ran %v), want the kernel's ENOENT passed on", err, ran)
+	}
+	if created, err := o.claim(protect); err != nil || !created {
+		t.Fatalf("claim(peer-b forward protect after peer-a left) = %v, %v; want a created record", created, err)
+	}
+	if _, err := o.claim(allow); !errors.As(err, &owned) {
+		t.Fatalf("claim(peer-a forward allow on peer-b's protect) = %v, want PolicyOwnedError", err)
+	}
+}

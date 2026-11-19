@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -749,7 +750,9 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 	//
 	// RFC 4301 Section 4.4.2: every negotiated pair protects with this SA.
 	// Linux checks decrypted transit traffic against FWD, not IN. Install both
-	// receive paths before OUT so no traffic leaves before its reply is accepted.
+	// receive paths before OUT so no traffic leaves before its reply is accepted,
+	// and the outbound forward entries after OUT (RFC 4301 Section 5.1), so a
+	// protected host's packet is admitted to the OUT lookup only once OUT protects it.
 	policies := childInstalledPolicies(child)
 	for i := range policies {
 		p := &policies[i]
@@ -894,17 +897,209 @@ func appendChildReceivePolicies(policies []dataplane.SPParams, child *ChildSA) [
 // RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
 // the entry for an inbound SA in the SAD MUST be initially populated with the value
 // or values negotiated at the time the SA was created." The complete installed set
-// includes every receive lookup that enforces those selectors (Section 5.2).
+// includes every receive lookup that enforces those selectors (Section 5.2), then the
+// send path (childSendPolicies), whose outbound forward entries come last so no
+// forwarded packet is admitted before the OUT entry that protects it exists.
 func childInstalledPolicies(child *ChildSA) []dataplane.SPParams {
-	directions := 2
-	if child.forwardPolicy {
-		directions++
-	}
-	policies := make([]dataplane.SPParams, 0, max(1, len(child.Selectors))*directions)
 	// RFC 4301 Section 5.2.
-	policies = appendChildReceivePolicies(policies, child)
+	policies := childReceivePolicies(child)
+	// RFC 4301 Sections 4.4.2 and 5.1.
+	return appendChildSendPolicies(policies, child)
+}
+
+// childMigratedPolicies is the template-carrying part of childInstalledPolicies: the
+// policies whose template names the tunnel endpoints a MOBIKE move or a NAT rebinding
+// changes. The outbound forward entries (childOutboundForwardPolicy) and the delivery
+// entries (appendChildDeliveryPolicy) carry no template and no endpoint, so they stay as
+// they are and are not handed to the migrator, which refuses any policy that is not the
+// tunnel's PROTECT entry.
+func childMigratedPolicies(child *ChildSA) []dataplane.SPParams {
+	// RFC 4301 Section 5.2.
+	policies := childReceivePolicies(child)
 	// RFC 4301 Section 4.4.2.
 	return appendChildPolicies(policies, child, dataplane.SADirOut)
+}
+
+// childSendPolicies builds the OUT PROTECT policies and the template-free entries that
+// complete Linux's forwarding path: the outbound forward entries, then the delivery
+// entries. removeChildSAOutgoing removes exactly
+// this set, so install and teardown cannot disagree on it.
+func childSendPolicies(child *ChildSA) []dataplane.SPParams {
+	return appendChildSendPolicies(make([]dataplane.SPParams, 0, 3*max(1, len(child.Selectors))), child)
+}
+
+// appendChildSendPolicies appends childSendPolicies to policies.
+func appendChildSendPolicies(policies []dataplane.SPParams, child *ChildSA) []dataplane.SPParams {
+	// RFC 4301 Section 4.4.2.
+	policies = appendChildPolicies(policies, child, dataplane.SADirOut)
+	// RFC 4301 Section 5.1.
+	policies = appendChildOutboundForwardPolicies(policies, child)
+	// RFC 4301 Section 5.2.
+	return appendChildDeliveryPolicies(policies, child)
+}
+
+// appendChildDeliveryPolicies appends, for each negotiated pair, the OUT entry that
+// lets a decrypted packet forwarded to a protected host leave towards it.
+//
+// RFC 4301 Section 5.2 processes traffic arriving on the unprotected side: "Then match
+// the packet against the inbound selectors identified by the SAD entry to verify that
+// the received packet is appropriate for the SA via which it was received." That check
+// is the packet's whole SPD verdict; Section 5.1's outbound steps apply to "traffic
+// entering the implementation via a protected interface and exiting via an unprotected
+// interface", which a packet leaving towards a protected host is not. Linux runs an OUT
+// lookup on every forwarded packet (__xfrm_route_forward), and there only the catch-all
+// matches the remote-to-local orientation: under `unmatched discard` it is BLOCK, so the
+// decrypted packet was dropped as XfrmOutPolBlock after passing its FWD PROTECT check.
+//
+// The entry is the inbound selectors in OUT, a template-free allow one rank below the
+// Child SA. It admits nothing the FWD check refused: a cleartext packet from the
+// unprotected side with a remote source meets the Child SA's FWD PROTECT policy first
+// and is refused for lacking its SA. A packet this node originates itself has no FWD
+// check, so one whose source is inside the remote selector and whose destination is
+// inside the local selector leaves in clear towards the protected side rather than
+// meeting the catch-all. It is built under the conditions of the outbound forward entry
+// (appendChildOutboundForwardPolicies), and skipped where it would carry the kernel
+// identity of the pair's own OUT PROTECT policy.
+func appendChildDeliveryPolicies(policies []dataplane.SPParams, child *ChildSA) []dataplane.SPParams {
+	if !child.forwardPolicy {
+		return policies
+	}
+	if child.IfID != 0 {
+		return policies
+	}
+	if len(child.Selectors) == 0 {
+		return appendChildDeliveryPolicy(policies, child, policyPair{
+			local:  child.TSLocal,
+			remote: child.TSRemote,
+		})
+	}
+	for _, pair := range child.Selectors {
+		// RFC 4301 Section 4.4.2.
+		pp, ok := childPolicyPair(child, pair)
+		if !ok {
+			continue
+		}
+		policies = appendChildDeliveryPolicy(policies, child, pp)
+	}
+	return policies
+}
+
+// appendChildDeliveryPolicy appends the delivery entry of one pair, unless it would
+// carry the same kernel selector as the pair's OUT PROTECT policy and replace it.
+func appendChildDeliveryPolicy(policies []dataplane.SPParams, child *ChildSA, pair policyPair) []dataplane.SPParams {
+	// RFC 4301 Section 5.2: the inbound selectors, the ones the FWD check enforced.
+	inbound := childPairPolicy(child, dataplane.SADirFwd, pair)
+	delivery := dataplane.SPParams{
+		Src:        inbound.Src,
+		Dst:        inbound.Dst,
+		Dir:        dataplane.SADirOut,
+		Action:     dataplane.SPActionBypass,
+		Owner:      inbound.Owner,
+		Role:       dataplane.PolicyRoleChildSA,
+		IfID:       inbound.IfID,
+		Priority:   inbound.Priority + 1,
+		UpperProto: inbound.UpperProto,
+		SrcPort:    inbound.SrcPort,
+		DstPort:    inbound.DstPort,
+	}
+	if samePolicyEntry(childPairPolicy(child, dataplane.SADirOut, pair), delivery) {
+		return policies
+	}
+	return append(policies, delivery)
+}
+
+// appendChildOutboundForwardPolicies appends, for each negotiated pair, the forward
+// entry that lets a packet a protected host sends towards the tunnel reach the OUT
+// lookup that protects it.
+//
+// RFC 4301 Section 5.1: "First consider the path for traffic entering the
+// implementation via a protected interface and exiting via an unprotected
+// interface." Step 3a: "If there is a match, then process the packet as specified by
+// the matching cache entry, i.e., BYPASS, DISCARD, or PROTECT using AH or ESP." That
+// decision is the OUT lookup's (SPD-O and SPD-S). Linux checks a forwarded packet in
+// FWD first (ip_forward calls xfrm4_policy_check for XFRM_POLICY_FWD, then
+// xfrm4_route_forward), and under `unmatched discard` the namespace FWD default is
+// block (installUnmatched), so without an entry of its own the packet is dropped as
+// XfrmInNoPols before the SPD-O lookup ever runs, and the tunnel carries no transit
+// from the protected side. The receive policies do not cover it: their FWD entry
+// matches the remote-to-local orientation and requires the SA's template.
+//
+// The entry is strongSwan's "outbound" FWD policy (install_policies_outbound in
+// src/libcharon/sa/child_sa.c): the OUT selectors in the forward direction, with no
+// reqid and so no template, a plain allow that only hands the packet on to the OUT
+// lookup, which still decides it. strongSwan installs it at a reduced priority so that
+// the inbound forward policy of a tunnel using the reversed selectors wins where the
+// two overlap; this entry ranks one place below the Child SA's own rank for the same
+// reason, so a decrypted packet in an overlap still meets the template its SA requires.
+//
+// It is built only where the FWD lookup is the one Ze's Child SA policies answer: a
+// tunnel-mode Child SA (childReceivePolicies' forwardPolicy) at if_id 0. Transport mode
+// carries nothing forwarded. A Child SA bound to an XFRM interface sits at the
+// interface's if_id, while a packet routed into the interface is checked in FWD at
+// if_id 0, where xfrmInterfaceExemptions already admits it under `unmatched discard`.
+func appendChildOutboundForwardPolicies(policies []dataplane.SPParams, child *ChildSA) []dataplane.SPParams {
+	if !child.forwardPolicy {
+		return policies
+	}
+	if child.IfID != 0 {
+		return policies
+	}
+	if len(child.Selectors) == 0 {
+		return appendChildOutboundForwardPolicy(policies, child, policyPair{
+			local:  child.TSLocal,
+			remote: child.TSRemote,
+		})
+	}
+	for _, pair := range child.Selectors {
+		// RFC 4301 Section 4.4.2.
+		pp, ok := childPolicyPair(child, pair)
+		if !ok {
+			continue
+		}
+		policies = appendChildOutboundForwardPolicy(policies, child, pp)
+	}
+	return policies
+}
+
+// appendChildOutboundForwardPolicy appends the outbound forward entry of one pair
+// (appendChildOutboundForwardPolicies), unless it would carry the same kernel selector
+// as the pair's own inbound forward policy. That happens when the pair's two sides are
+// equal (0.0.0.0/0 to 0.0.0.0/0, the usual site-to-site selector). The kernel tells
+// policies apart by selector, direction and if_id, never by action or priority, so the
+// entry would replace the inbound forward policy and admit decrypted transit without
+// its template. strongSwan's policy manager keeps the higher-priority inbound mapping
+// in that case, and so does this: the inbound forward policy stays, and a cleartext
+// packet that matches it is refused for lacking the SA it requires.
+func appendChildOutboundForwardPolicy(policies []dataplane.SPParams, child *ChildSA, pair policyPair) []dataplane.SPParams {
+	inbound := childPairPolicy(child, dataplane.SADirFwd, pair)
+	outbound := childOutboundForwardPolicy(child, pair)
+	if samePolicyEntry(inbound, outbound) {
+		return policies
+	}
+	return append(policies, outbound)
+}
+
+// childOutboundForwardPolicy builds the outbound forward entry of one pair: the OUT
+// policy's selector, owner, role and if_id in the forward direction, as a
+// template-free allow (dataplane.SPActionBypass) one rank below the Child SA's own.
+// It names no mode, endpoint, reqid or SA, and maps no ICMP error, because it hands the
+// packet to the OUT lookup rather than to a transform.
+func childOutboundForwardPolicy(child *ChildSA, pair policyPair) dataplane.SPParams {
+	// RFC 4301 Section 5.1: the selector is the one the OUT lookup decides on.
+	out := childPairPolicy(child, dataplane.SADirOut, pair)
+	return dataplane.SPParams{
+		Src:        out.Src,
+		Dst:        out.Dst,
+		Dir:        dataplane.SADirFwd,
+		Action:     dataplane.SPActionBypass,
+		Owner:      out.Owner,
+		Role:       dataplane.PolicyRoleChildSA,
+		IfID:       out.IfID,
+		Priority:   out.Priority + 1,
+		UpperProto: out.UpperProto,
+		SrcPort:    out.SrcPort,
+		DstPort:    out.DstPort,
+	}
 }
 
 // appendChildPolicies implements RFC 4301 Section 4.4.2:
@@ -1028,8 +1223,9 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 	// entries to express a desired access control policy."
 	//
 	// An unset rank resolves to the default the same way the mode above does, and it
-	// MUST NOT be passed through. Rank 0 is below the floor the config enforces
-	// (dataplane.PriorityIKEBypass), so it is a rank no committed peer holds.
+	// MUST NOT be passed through. Rank 0 is outside the range the config enforces
+	// (1 to 2147483647: spdRankMin and spdRankMax, ipsec/validate.go), so it is a rank
+	// no committed peer holds.
 	priority := int(child.PolicyPriority)
 	if priority == 0 {
 		priority = dataplane.PriorityChildSA
@@ -1360,11 +1556,16 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		// foreign delete on (dataplane.SPParams.Owner). A refusal here means another
 		// peer owns the selector, which is a takeover the install should already have
 		// stopped, so it is logged at Warn rather than swallowed.
-		outbound := childPolicies(child, dataplane.SADirOut)
+		//
+		// The send path is removed in the reverse of its install order: the outbound
+		// forward entries first, so no forwarded packet is admitted once the OUT entry
+		// that would protect it is gone.
+		outbound := childSendPolicies(child)
+		slices.Reverse(outbound)
 		for i := range outbound {
 			p := &outbound[i]
 			if err := removeZePolicy(dp, *p); err != nil {
-				logPolicyRemoveFailure(log, "outbound", child, err)
+				logPolicyRemoveFailure(log, dirLabel(p.Dir), child, err)
 				if !policyGone(err) {
 					left = append(left, *p)
 				}

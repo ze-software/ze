@@ -514,7 +514,8 @@ func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane, local 
 	moved := 0
 	current := ps.getChildSA()
 	if current != nil {
-		policies := childInstalledPolicies(current)
+		// RFC 4301 Section 5.2: the template-carrying policies move with the endpoints.
+		policies := childMigratedPolicies(current)
 		if err := ps.migrateMobikePair(sa, current, policies, dp, local); err != nil {
 			return moved, err
 		}
@@ -525,7 +526,7 @@ func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane, local 
 	if old := ps.supersededChild; old != nil && old != current {
 		var policies []dataplane.SPParams
 		if !samePolicySelector(current, old) {
-			policies = childInstalledPolicies(old)
+			policies = childMigratedPolicies(old)
 		}
 		if err := ps.migrateMobikePair(sa, old, policies, dp, local); err != nil {
 			return moved, err
