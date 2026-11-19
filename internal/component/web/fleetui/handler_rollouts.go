@@ -28,6 +28,7 @@ import (
 const (
 	rolloutsTitle        = "Rollouts"
 	rolloutsWordProgress = "Progress"
+	rolloutsWordStarted  = "Started"
 )
 
 // newRolloutSub is the sub parameter of the Rollouts tab that shows the new
@@ -165,8 +166,8 @@ func rolloutsTable(ctx context.Context, request *PageRequest) (templ.Component, 
 			Name: rolloutsTitle,
 			Headers: []ColumnHeaderView{
 				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Target", Kind: ColumnKindText},
-				{Label: "State", Kind: ColumnKindState}, {Label: rolloutsWordProgress, Kind: ColumnKindNumber},
-				{Label: auditWordActor, Kind: ColumnKindText}, {Label: "Started", Kind: ColumnKindTime},
+				{Label: columnWordState, Kind: ColumnKindState}, {Label: rolloutsWordProgress, Kind: ColumnKindNumber},
+				{Label: auditWordActor, Kind: ColumnKindText}, {Label: rolloutsWordStarted, Kind: ColumnKindTime},
 			},
 			Rows:  rows,
 			Empty: &StateHeroView{Kind: HeroNoData, Sentence: "No rollout matches the filter."},
@@ -198,7 +199,7 @@ func rolloutPage(ctx context.Context, request *PageRequest, name string) (templ.
 			{Label: "Target", Text: rollout.Target},
 			{Label: rolloutsWordProgress, Text: rolloutProgress(rollout)},
 			{Label: auditWordActor, Text: rollout.Actor},
-			{Label: "Started", Text: whenText(request, rollout.Started)},
+			{Label: rolloutsWordStarted, Text: whenText(request, rollout.Started)},
 		}},
 		Form: manageForm(request),
 	}
@@ -300,7 +301,7 @@ func rolloutDevices(request *PageRequest, detail *RolloutDetail) TableSectionVie
 		Headers: []ColumnHeaderView{
 			{Label: devicesWordDevice, Kind: ColumnKindText}, {Label: "Batch", Kind: ColumnKindNumber, Numeric: true},
 			{Label: auditWordResult, Kind: ColumnKindState}, {Label: "Device's answer", Kind: ColumnKindText},
-			{Label: "Time", Kind: ColumnKindTime},
+			{Label: wordTime, Kind: ColumnKindTime},
 		},
 		Rows:  rows,
 		Empty: &StateHeroView{Kind: HeroNoData, Sentence: "The rollout targets no device."},

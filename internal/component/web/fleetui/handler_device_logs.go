@@ -19,6 +19,13 @@ import (
 	"github.com/a-h/templ"
 )
 
+// logsWordSource labels what wrote a log line. A configuration version has
+// a source of its own, a different thing under the same word.
+const logsWordSource = "Source"
+
+// logSeverityAlert is the syslog severity alert, as a log line names it.
+const logSeverityAlert = "alert"
+
 // titleLogs is the title of the Logs tab's one section.
 const titleLogs = "Logs"
 
@@ -47,7 +54,7 @@ const (
 // Errors sub-tabs keep.
 var (
 	warningLevels = []string{"warn", "warning"}
-	errorLevels   = []string{"error", "err", "crit", "critical", "alert", "emerg", "fatal"}
+	errorLevels   = []string{"error", "err", "crit", "critical", logSeverityAlert, "emerg", "fatal"}
 )
 
 // logFilters is the filter grammar of the log table. registerLogTable fills
@@ -171,7 +178,7 @@ func logsBody(ctx context.Context, request *PageRequest, view *DeviceView) templ
 		Hidden:      carriedFields(address, paramFilter, paramPage, paramRow),
 		Menus: []MenuView{
 			filterMenu(address, "Level", fieldLevel, distinct(lines, func(row *LogLine) string { return row.Level })),
-			filterMenu(address, "Source", fieldSource, distinct(lines, func(row *LogLine) string { return row.Source })),
+			filterMenu(address, logsWordSource, fieldSource, distinct(lines, func(row *LogLine) string { return row.Source })),
 		},
 	}
 
@@ -214,9 +221,9 @@ func logsBody(ctx context.Context, request *PageRequest, view *DeviceView) templ
 		Table: TableView{
 			Name: "Log of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				{Label: "Time", Kind: ColumnKindTime},
+				{Label: wordTime, Kind: ColumnKindTime},
 				{Label: "Level", Kind: ColumnKindState},
-				{Label: "Source", Kind: ColumnKindText},
+				{Label: logsWordSource, Kind: ColumnKindText},
 				{Label: "Message", Kind: ColumnKindText},
 			},
 			Rows:  rows,

@@ -11,6 +11,12 @@
 
 package fleetui
 
+// The names of the icons a confirmation and a chart tool draw.
+const (
+	iconCheck = "check"
+	iconChart = "chart"
+)
+
 // The names of the icons the shell draws for each kind of object.
 const (
 	iconEstate = "estate"

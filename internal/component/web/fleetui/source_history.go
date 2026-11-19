@@ -77,7 +77,7 @@ var (
 		"Traffic in", "Traffic out", "Devices connected", "Peers established",
 	}
 	metricUnits = []string{
-		"", "%", "%", "%", "", "bit/s", "bit/s", "devices", "peers",
+		"", "%", "%", "%", "", metricUnitRate, metricUnitRate, "devices", "peers",
 	}
 )
 

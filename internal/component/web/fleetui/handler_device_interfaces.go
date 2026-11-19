@@ -167,7 +167,7 @@ func interfacesBody(ctx context.Context, request *PageRequest, view *DeviceView)
 		Text:        address.View.Filter,
 		Placeholder: "Filter: a name, state:down, type:ethernet",
 		Hidden:      carriedFields(address, paramFilter, paramPage, paramRow),
-		Menus:       []MenuView{filterMenu(address, "State", fieldState, interfaceStateKeys)},
+		Menus:       []MenuView{filterMenu(address, columnWordState, fieldState, interfaceStateKeys)},
 	}
 
 	matched := interfaces
@@ -317,7 +317,7 @@ func interfaceRow(address Address, row *Interface) RowView {
 // submits the tool form with the tool and the interface as its item.
 func interfaceTools(name string) []ActionView {
 	return []ActionView{
-		{Label: interfaceToolTitles[toolCounters], Icon: "chart", Form: deviceToolFormID, Name: paramItem, Value: toolCounters + "/" + name},
+		{Label: interfaceToolTitles[toolCounters], Icon: iconChart, Form: deviceToolFormID, Name: paramItem, Value: toolCounters + "/" + name},
 		{Label: interfaceToolTitles[toolPing], Icon: glyphTerminal, Form: deviceToolFormID, Name: paramItem, Value: toolPing + "/" + name},
 	}
 }
@@ -382,7 +382,7 @@ func interfacePanel(ctx context.Context, request *PageRequest) (templ.Component,
 			Icon:      ObjectIconView{Icon: iconDevice, Status: linkStatus(row), Marked: true},
 			Actions:   interfaceTools(row.Name),
 			Cards: []PanelCardView{
-				{Title: "State", Rows: []ValueView{
+				{Title: columnWordState, Rows: []ValueView{
 					{Label: "Type", Text: row.Kind},
 					{Label: "Administrative state", Status: adminStatus(row)},
 					{Label: "Link state", Status: linkStatus(row)},

@@ -35,6 +35,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// objectKeyDevice is the key of the device object in an address.
+const objectKeyDevice = "device"
+
 // The fixed parts of the fleet addresses under fleetPath.
 const (
 	// EventsPath is the address of the live event stream.
@@ -84,7 +87,7 @@ const (
 	ObjectAdmin
 )
 
-var objectKindSegments = []string{enumKeyUnspecified, "estate", "group", "device", "tasks", "admin"}
+var objectKindSegments = []string{enumKeyUnspecified, "estate", "group", objectKeyDevice, "tasks", "admin"}
 
 // String answers the kind's first path segment.
 func (kind ObjectKind) String() string {

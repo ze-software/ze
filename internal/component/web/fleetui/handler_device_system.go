@@ -116,11 +116,11 @@ func identitySection(ctx context.Context, request *PageRequest, view *DeviceView
 	rows := slices.Concat([]ValueView{
 		{Label: devicesWordName, Text: device.Name, Mono: true, Copy: true},
 		{Label: devicesWordModel, Text: inventory.Model},
-		{Label: "Serial number", Text: inventory.Serial, Mono: true, Copy: true},
-		{Label: "Software version", Text: inventory.SoftwareVersion, Mono: true},
+		{Label: devicesWordSerial, Text: inventory.Serial, Mono: true, Copy: true},
+		{Label: devicesWordSoftware, Text: inventory.SoftwareVersion, Mono: true},
 		{Label: "Build", Text: inventory.Build, Mono: true, Copy: true},
 		{Label: "Kernel", Text: inventory.Kernel, Mono: true},
-		{Label: "Uptime", Text: uptime},
+		{Label: devicesWordUptime, Text: uptime},
 	}, clockRows(ctx, request, device.Name))
 
 	return deviceFacts(DeviceFactsView{Title: titleIdentity, Reported: reportedNote(request, view), Rows: rows})
@@ -273,7 +273,7 @@ func healthSection(_ context.Context, request *PageRequest, view *DeviceView) te
 		Name: "Health of " + device.Name,
 		Headers: []ColumnHeaderView{
 			{Label: "Component", Kind: ColumnKindText},
-			{Label: "State", Kind: ColumnKindState},
+			{Label: columnWordState, Kind: ColumnKindState},
 			{Label: wordDetail, Kind: ColumnKindText},
 		},
 		Rows: rows,

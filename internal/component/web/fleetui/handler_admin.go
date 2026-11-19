@@ -32,6 +32,8 @@ const (
 	wordNotAllowed  = "Not allowed"
 	wordAddDevice   = "Add device"
 	wordFilters     = "Saved filters"
+	wordTreeViews   = "Tree views"
+	wordTemplates   = "Templates"
 	deviceNameMax   = 64
 	deviceNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
 )
@@ -76,7 +78,7 @@ func estatePrimary(request *PageRequest) (ActionView, bool) {
 
 // estateDevicesHref answers the estate's devices table narrowed by filter.
 func estateDevicesHref(request *PageRequest, filter string) string {
-	return Address{Kind: ObjectEstate, Tab: "devices", View: ViewParams{
+	return Address{Kind: ObjectEstate, Tab: devicesTab, View: ViewParams{
 		Filter: filter, TreeView: request.Address.View.TreeView,
 	}}.String()
 }
@@ -316,9 +318,9 @@ func adminTreeViewsContent(_ context.Context, request *PageRequest) (templ.Compo
 	create.Icon = glyphPlus
 
 	return adminTable(request, pendingNote(), TableSectionView{
-		Title: "Tree views", Create: &create,
+		Title: wordTreeViews, Create: &create,
 		Table: TableView{
-			Name: "Tree views",
+			Name: wordTreeViews,
 			Headers: []ColumnHeaderView{
 				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Title", Kind: ColumnKindText},
 				{Label: "Levels, in order", Kind: ColumnKindText}, {Label: wordKind, Kind: ColumnKindText},
@@ -393,9 +395,9 @@ func adminTemplatesContent(ctx context.Context, request *PageRequest) (templ.Com
 	}
 
 	return adminTable(request, pendingNote(), TableSectionView{
-		Title: "Templates",
+		Title: wordTemplates,
 		Table: TableView{
-			Name: "Templates",
+			Name: wordTemplates,
 			Headers: []ColumnHeaderView{
 				{Label: devicesWordName, Kind: ColumnKindText}, {Label: "Groups using it", Kind: ColumnKindText},
 				{Label: "Devices using it", Kind: ColumnKindNumber, Numeric: true},

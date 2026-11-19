@@ -298,7 +298,7 @@ func alarmsCardView(request *PageRequest, scope *dashboardScope, frame CardView)
 	frame.TitleHref = href
 	frame.Counted = true
 	frame.Count = len(scope.alarms)
-	frame.Link = &LinkView{Label: "See all", Href: href}
+	frame.Link = &LinkView{Label: wordSeeAll, Href: href}
 
 	return DashboardAlarmsView{
 		Card: frame,
@@ -585,8 +585,11 @@ func metricValueText(metric Metric, value float64) string {
 // metricUnitRate is the unit of a traffic metric.
 const metricUnitRate = "bit/s"
 
+// wordSeeAll labels the link from a card to the whole list it shows the top of.
+const wordSeeAll = "See all"
+
 // rateUnits are the units of a rate, each a thousand times the last.
-var rateUnits = []string{"bit/s", "kbit/s", "Mbit/s", "Gbit/s", "Tbit/s"}
+var rateUnits = []string{metricUnitRate, "kbit/s", "Mbit/s", "Gbit/s", "Tbit/s"}
 
 // rateText writes a rate in bits per second in the largest unit that keeps
 // it at one or above.

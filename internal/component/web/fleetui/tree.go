@@ -45,8 +45,8 @@ func BuiltinTreeViews() []TreeView {
 	return []TreeView{
 		{Name: TreeViewDefault, Title: "Site, then role", Levels: []string{labelSite, labelRole}},
 		{Name: labelRole, Title: "Role", Levels: []string{labelRole}},
-		{Name: fieldVersion, Title: "Software version", Levels: []string{fieldVersion}},
-		{Name: fieldState, Title: "State", Levels: []string{fieldState}},
+		{Name: fieldVersion, Title: devicesWordSoftware, Levels: []string{fieldVersion}},
+		{Name: fieldState, Title: devicesWordState, Levels: []string{fieldState}},
 	}
 }
 

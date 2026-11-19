@@ -23,7 +23,7 @@ func init() {
 		{Name: devicesTab, Title: tabTitleDevices},
 		{Name: activityTabAlarms, Title: tabTitleAlarms},
 		{Name: tabEstateRollouts, Title: rolloutsTitle},
-		{Name: activityTabTasks, Title: "Tasks"},
+		{Name: activityTabTasks, Title: tasksTitle},
 	} {
 		MustRegisterTab(ObjectEstate, tab)
 	}
@@ -32,7 +32,7 @@ func init() {
 		{Name: TabDashboard, Title: tabTitleDashboard},
 		{Name: devicesTab, Title: tabTitleDevices},
 		{Name: activityTabAlarms, Title: tabTitleAlarms},
-		{Name: activityTabTasks, Title: "Tasks"},
+		{Name: activityTabTasks, Title: tasksTitle},
 	} {
 		MustRegisterTab(ObjectGroup, tab)
 	}
@@ -45,7 +45,7 @@ func init() {
 		{Name: tabDeviceRouting, Title: "Routing"},
 		{Name: tabDeviceConfig, Title: "Config"},
 		{Name: tabDeviceLogs, Title: "Logs"},
-		{Name: activityTabTasks, Title: "Tasks"},
+		{Name: activityTabTasks, Title: tasksTitle},
 	} {
 		MustRegisterTab(ObjectDevice, tab)
 	}
@@ -54,9 +54,9 @@ func init() {
 	for _, tab := range []Tab{
 		{Name: tabAdminDevices, Title: tabTitleDevices},
 		{Name: tabAdminLabels, Title: devicesWordLabels},
-		{Name: tabAdminTreeViews, Title: "Tree views"},
+		{Name: tabAdminTreeViews, Title: wordTreeViews},
 		{Name: tabAdminFilters, Title: wordFilters},
-		{Name: tabAdminTemplates, Title: "Templates"},
+		{Name: tabAdminTemplates, Title: wordTemplates},
 		{Name: tabAdminAccess, Title: "Access"},
 		{Name: tabAdminAudit, Title: "Audit"},
 		{Name: tabAdminHistory, Title: "History"},

@@ -173,7 +173,7 @@ const taskPanelRowsMax = 20
 
 var (
 	taskTabKeys   = []string{enumKeyUnspecified, "running", "succeeded", "failed", "all"}
-	taskTabLabels = []string{enumWordUnspecified, enumWordRunning, "Succeeded", enumWordFailed, "All"}
+	taskTabLabels = []string{enumWordUnspecified, enumWordRunning, enumWordSucceeded, enumWordFailed, "All"}
 	taskTabEmpty  = []GoodNewsView{
 		{},
 		{First: goodNewsAllQuiet, Second: "No task is running"},

@@ -78,6 +78,13 @@ const (
 	devicesWordAddress     = "Management address"
 )
 
+// The words of what a device reports about itself, in its panel, its
+// dashboard, its System tab and the tree.
+const (
+	devicesWordSerial   = "Serial number"
+	devicesWordSoftware = "Software version"
+)
+
 // devicesLabelJoin joins a label's key and value, as a tag and a
 // label:key=value term write them.
 const devicesLabelJoin = "="
@@ -748,8 +755,8 @@ func devicesIdentityRows(view *DeviceView) []ValueView {
 		{Label: devicesWordName, Text: view.Device.Name, Mono: true, Copy: true},
 		{Label: devicesWordState, Status: DisplayStatus(view.State)},
 		{Label: devicesWordModel, Text: inventory.Model, Copy: true},
-		{Label: "Serial number", Text: inventory.Serial, Mono: true, Copy: true},
-		{Label: "Software version", Text: inventory.SoftwareVersion, Mono: true, Copy: true},
+		{Label: devicesWordSerial, Text: inventory.Serial, Mono: true, Copy: true},
+		{Label: devicesWordSoftware, Text: inventory.SoftwareVersion, Mono: true, Copy: true},
 		{Label: devicesWordAddress, Text: devicesAddress(inventory.ManagementAddr), Mono: true, Copy: true},
 	}
 }

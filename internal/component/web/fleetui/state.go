@@ -28,6 +28,7 @@ const (
 	enumWordDegraded    = "Degraded"
 	enumWordRunning     = "Running"
 	enumWordRejected    = "Rejected"
+	enumWordSucceeded   = "Succeeded"
 )
 
 // enumText answers the entry of table for value, or enumInvalid for a value
@@ -303,7 +304,7 @@ const (
 var (
 	auditResultWords = []string{
 		enumWordUnspecified, "Recorded", "Started", enumWordPending, enumWordRunning, "Paused",
-		"Succeeded", enumWordFailed, "Canceled", "Partly failed",
+		enumWordSucceeded, enumWordFailed, "Canceled", "Partly failed",
 	}
 	auditResultKeys = []string{
 		enumKeyUnspecified, "recorded", "started", enumKeyPending, "running", "paused",
@@ -399,7 +400,7 @@ const (
 )
 
 var (
-	taskStateWords = []string{enumWordUnspecified, enumWordPending, enumWordRunning, "Succeeded", enumWordFailed, "Canceled", "Partly failed"}
+	taskStateWords = []string{enumWordUnspecified, enumWordPending, enumWordRunning, enumWordSucceeded, enumWordFailed, "Canceled", "Partly failed"}
 	taskStateKeys  = []string{enumKeyUnspecified, enumKeyPending, "running", "succeeded", enumKeyFailed, "canceled", "partly-failed"}
 	// taskStateActive marks the states of a task that is not over: pending
 	// and running.

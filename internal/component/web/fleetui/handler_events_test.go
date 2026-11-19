@@ -48,9 +48,11 @@ func openStream(t *testing.T, scope string) *liveStream {
 	live.server = httptest.NewServer(handler)
 	t.Cleanup(live.close)
 
-	// The stream owns the response from here, so close closes its body even
-	// when a check below refuses the status.
+	// close ends the stream mid-test through live.response; the cleanup
+	// closes the body even when a check below refuses the status. A second
+	// Close of a client body answers nil.
 	response := live.get(t, scope)
+	t.Cleanup(func() { assert.NoError(t, response.Body.Close()) })
 	live.response = response
 	live.reader = bufio.NewReader(response.Body)
 	require.Equal(t, http.StatusOK, response.StatusCode)

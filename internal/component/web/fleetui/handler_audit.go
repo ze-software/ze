@@ -54,6 +54,12 @@ const auditWordActor = "Actor"
 // and a task.
 const auditWordResult = "Result"
 
+// wordTime labels when an entry, a version, a log line or a batch happened.
+const wordTime = "Time"
+
+// wordSummary labels the one line that says what a change did.
+const wordSummary = "Summary"
+
 // auditFilters is the filter grammar of the audit table, without the time
 // terms, which parseAuditQuery reads itself. Its fields are registered from
 // the family's register file.
@@ -217,9 +223,9 @@ func auditContent(ctx context.Context, request *PageRequest) (templ.Component, e
 			Table: TableView{
 				Name: "Audit trail",
 				Headers: []ColumnHeaderView{
-					{Label: "Time", Kind: ColumnKindTime}, {Label: auditWordActor, Kind: ColumnKindText},
+					{Label: wordTime, Kind: ColumnKindTime}, {Label: auditWordActor, Kind: ColumnKindText},
 					{Label: "Event", Kind: ColumnKindText}, {Label: "Device or target", Kind: ColumnKindText},
-					{Label: auditWordResult, Kind: ColumnKindState}, {Label: "Summary", Kind: ColumnKindText},
+					{Label: auditWordResult, Kind: ColumnKindState}, {Label: wordSummary, Kind: ColumnKindText},
 				},
 				Rows:     rows,
 				Controls: true,
@@ -263,7 +269,7 @@ func auditRangeMenu(request *PageRequest) MenuView {
 		return ActionView{Label: label, Href: address.String()}
 	}
 
-	return MenuView{Label: "Time", Items: []ActionView{
+	return MenuView{Label: wordTime, Items: []ActionView{
 		item("Last hour", SetFilterTerm(filter, auditTermAfter, now.Add(-time.Hour).Format(auditTimeLayout))),
 		item("Last day", SetFilterTerm(filter, auditTermAfter, now.Add(-24*time.Hour).Format(auditTimeLayout))),
 		item("Last week", SetFilterTerm(filter, auditTermAfter, now.Add(-7*24*time.Hour).Format(auditTimeLayout))),
@@ -329,13 +335,13 @@ func auditPanel(ctx context.Context, request *PageRequest) (templ.Component, err
 
 	rows := []ValueView{
 		{Label: "Entry", Text: entry.ID, Mono: true, Copy: true},
-		{Label: "Time", Text: whenText(request, entry.At)},
+		{Label: wordTime, Text: whenText(request, entry.At)},
 		{Label: auditWordActor, Text: entry.Actor},
 		{Label: "Event", Text: entry.Event, Mono: true},
 		{Label: "Device or target", Text: entry.Target},
 		{Label: devicesWordDevices, Text: countText(entry.Devices)},
 		{Label: auditWordResult, Status: AuditResultStatus(entry.Result)},
-		{Label: "Summary", Text: entry.Summary},
+		{Label: wordSummary, Text: entry.Summary},
 	}
 	if entry.TaskID != "" {
 		task := Address{Kind: ObjectTasks, View: ViewParams{Row: entry.TaskID, TreeView: request.Address.View.TreeView}}

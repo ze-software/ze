@@ -23,6 +23,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// configWordVersion labels a version of a device's configuration, not its
+// software version.
+const configWordVersion = "Version"
+
 // The fragments the manage family registers. Each section of a page that can
 // fail on its own is one of them, so it can be fetched again alone.
 const (
@@ -350,8 +354,8 @@ func configHistoryFragment(ctx context.Context, request *PageRequest, _ string) 
 	return TableSection(TableSectionView{Table: TableView{
 		Name: "Configuration versions of " + device.Device.Name,
 		Headers: []ColumnHeaderView{
-			{Label: "Time", Kind: ColumnKindTime}, {Label: "Version", Kind: ColumnKindText},
-			{Label: auditWordActor, Kind: ColumnKindText}, {Label: "Summary", Kind: ColumnKindText},
+			{Label: wordTime, Kind: ColumnKindTime}, {Label: configWordVersion, Kind: ColumnKindText},
+			{Label: auditWordActor, Kind: ColumnKindText}, {Label: wordSummary, Kind: ColumnKindText},
 			{Label: "Result on the device", Kind: ColumnKindState},
 		},
 		Rows:     rows,
@@ -478,10 +482,10 @@ func configPanel(ctx context.Context, request *PageRequest) (templ.Component, er
 	}
 
 	rows := []ValueView{
-		{Label: "Version", Text: version.Version, Mono: true, Copy: true},
-		{Label: "Time", Text: whenText(request, version.At)},
+		{Label: configWordVersion, Text: version.Version, Mono: true, Copy: true},
+		{Label: wordTime, Text: whenText(request, version.At)},
 		{Label: auditWordActor, Text: version.Actor},
-		{Label: "Summary", Text: version.Summary},
+		{Label: wordSummary, Text: version.Summary},
 		{Label: "Result on the device", Status: ConfigVersionResultStatus(version.Result)},
 	}
 	if version.Answer != "" {
@@ -491,7 +495,7 @@ func configPanel(ctx context.Context, request *PageRequest) (templ.Component, er
 	return PanelWithDiff(PanelDiffView{
 		Panel: PanelView{
 			Title: "Version " + version.Version, CloseHref: closeHref,
-			Cards: []PanelCardView{{Title: "Version", Rows: rows}},
+			Cards: []PanelCardView{{Title: configWordVersion, Rows: rows}},
 		},
 		Diff: diff,
 	}), nil

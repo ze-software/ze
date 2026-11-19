@@ -77,12 +77,12 @@ func quickInfoView(scope *dashboardScope, frame CardView) QuickInfoView {
 
 	return QuickInfoView{Card: frame, Items: []ValueView{
 		{Label: devicesWordName, Text: facts.Name, Mono: true, Copy: true},
-		{Label: "State", Status: DisplayStatus(device.State)},
+		{Label: devicesWordState, Status: DisplayStatus(device.State)},
 		{Label: devicesWordLabels, Tags: labels},
 		{Label: devicesWordModel, Text: facts.Inventory.Model},
-		{Label: "Serial number", Text: facts.Inventory.Serial, Mono: true, Copy: true},
-		{Label: "Software version", Text: deviceVersion(device), Mono: true},
-		{Label: "Uptime", Text: uptime},
+		{Label: devicesWordSerial, Text: facts.Inventory.Serial, Mono: true, Copy: true},
+		{Label: devicesWordSoftware, Text: deviceVersion(device), Mono: true},
+		{Label: devicesWordUptime, Text: uptime},
 		{Label: wordConfigTitle, Status: ConfigStatus(facts.Config.State)},
 		{Label: "Configuration version", Text: facts.Config.HubVersion, Mono: true, Copy: true},
 		{Label: devicesWordLastSeen, Text: seen},
@@ -145,7 +145,7 @@ func deviceConfigView(request *PageRequest, scope *dashboardScope, frame CardVie
 	frame.TitleHref = scope.tab(dashTabConfig, "").String()
 
 	return DashboardConfigView{Card: frame, Rows: []ValueView{
-		{Label: "State", Status: ConfigStatus(config.State)},
+		{Label: devicesWordState, Status: ConfigStatus(config.State)},
 		{Label: "Hub version", Text: config.HubVersion, Mono: true},
 		{Label: "Device version", Text: config.DeviceVersion, Mono: true},
 		{Label: "Template", Text: config.Template},

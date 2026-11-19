@@ -319,8 +319,8 @@ func peersTable(request *PageRequest, view *DeviceView, peers []Peer) templ.Comp
 				sortHeader(address, "Peer", ColumnKindAddress, fieldName, false),
 				sortHeader(address, devicesWordGroup, ColumnKindText, fieldGroup, false),
 				sortHeader(address, "Remote AS", ColumnKindNumber, fieldAS, true),
-				sortHeader(address, "State", ColumnKindState, fieldState, false),
-				sortHeader(address, "Since", ColumnKindTime, fieldSince, false),
+				sortHeader(address, columnWordState, ColumnKindState, fieldState, false),
+				sortHeader(address, wordSince, ColumnKindTime, fieldSince, false),
 				sortHeader(address, "Received", ColumnKindNumber, fieldReceived, true),
 				sortHeader(address, "Sent", ColumnKindNumber, fieldSent, true),
 				{Label: "Last error", Kind: ColumnKindText},
@@ -392,8 +392,8 @@ func adjacencyTable(request *PageRequest, view *DeviceView, protocol *ProtocolAd
 			Headers: []ColumnHeaderView{
 				{Label: "Neighbor", Kind: ColumnKindAddress},
 				{Label: "Interface", Kind: ColumnKindText},
-				{Label: "State", Kind: ColumnKindState},
-				{Label: "Since", Kind: ColumnKindTime},
+				{Label: columnWordState, Kind: ColumnKindState},
+				{Label: wordSince, Kind: ColumnKindTime},
 			},
 			Rows: rows,
 			Empty: &StateHeroView{
@@ -441,8 +441,8 @@ func peerPanel(ctx context.Context, request *PageRequest) (templ.Component, erro
 					{Label: "Address", Text: row.Address.String(), Mono: true, Copy: true},
 					{Label: devicesWordGroup, Text: row.Group},
 					{Label: "Remote AS", Text: textbuf.StringUint32(row.RemoteAS), Mono: true},
-					{Label: "State", Status: peerStatus(row)},
-					{Label: "Since", Text: since},
+					{Label: columnWordState, Status: peerStatus(row)},
+					{Label: wordSince, Text: since},
 					{Label: "Last error", Text: row.LastError},
 				}},
 				{Title: "Prefixes", Rows: []ValueView{

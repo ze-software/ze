@@ -251,12 +251,12 @@ func tasksContent(ctx context.Context, request *PageRequest) (templ.Component, e
 	matches := activityMatches(len(kept), len(tasks), tasksSubject)
 	kinds := taskKindsInUse(tasks)
 	menus := []MenuView{
-		activityFilterMenu(request, "State", fieldState, taskStateKeys[1:], taskStateWords[1:]),
+		activityFilterMenu(request, columnWordState, fieldState, taskStateKeys[1:], taskStateWords[1:]),
 		activityFilterMenu(request, wordKind, activityFieldKind, kinds, taskKindWordsOf(kinds)),
 	}
 
 	return tasksSection(TasksSectionView{
-		Title: "Tasks",
+		Title: tasksTitle,
 		Query: activityQuery(request, "fleet-tasks-filter",
 			"Filter tasks, as in state:failed kind:config-push device:edge-lon-01", matches, refusal, menus),
 		Pager: activityPager(request.Address, page, tasksSubject),
@@ -417,12 +417,12 @@ func taskCards(request *PageRequest, detail *TaskDetail) []PanelCardView {
 	rows := []ValueView{
 		{Label: "Identifier", Text: task.ID, Mono: true, Copy: true},
 		{Label: wordKind, Text: TaskKindWords(task.Kind)},
-		{Label: "State", Status: TaskStatus(task.State)},
+		{Label: columnWordState, Status: TaskStatus(task.State)},
 		{Label: rolloutsWordProgress, Text: ProgressText(task.Finished, len(task.Devices))},
 		{Label: enumWordFailed, Text: textbuf.StringInt(int64(task.Failed))},
 		{Label: auditWordActor, Text: task.Actor},
 		{Label: "Targets", Text: task.Target},
-		{Label: "Started", Text: activityTime(task.Started)},
+		{Label: rolloutsWordStarted, Text: activityTime(task.Started)},
 	}
 	if !task.State.Active() {
 		rows = append(rows,

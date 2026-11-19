@@ -48,6 +48,7 @@ const bugAlarmKind = "the alarm kind"
 const (
 	wordDetail = "Detail"
 	wordKind   = "Kind"
+	wordSince  = "Since"
 )
 
 // wordOpenAlarms titles the alarms still open, on the alarm page, a dashboard
@@ -329,7 +330,7 @@ func alarmHeaders(request *PageRequest) []ColumnHeaderView {
 		alarmHeader(request, devicesWordDevice, ColumnKindText, alarmColumnDevice),
 		alarmHeader(request, "Alarm", ColumnKindText, alarmColumnKind),
 		{Label: wordDetail, Kind: ColumnKindText},
-		alarmHeader(request, "Since", ColumnKindTime, alarmColumnSince),
+		alarmHeader(request, wordSince, ColumnKindTime, alarmColumnSince),
 		{Label: "Duration", Kind: ColumnKindTime},
 	}
 }
@@ -457,7 +458,7 @@ func alarmCard(request *PageRequest, row *alarmRow) PanelCardView {
 		{Label: wordKind, Text: alarm.Kind, Mono: true},
 		{Label: "Alarm", Text: alarm.Summary},
 		{Label: wordDetail, Text: alarm.Detail},
-		{Label: "Since", Text: activityTime(alarm.Since)},
+		{Label: wordSince, Text: activityTime(alarm.Since)},
 		{Label: "Open for", Text: activityDuration(now.Sub(alarm.Since))},
 		{Label: "Identifier", Text: alarm.ID, Mono: true, Copy: true},
 	}}

@@ -11,6 +11,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// columnWordState labels the column of a row's state: a device's, an
+// interface's, a peer's, a rollout's or a task's.
+const columnWordState = "State"
+
 // The table section is the same stack wherever a table appears: section
 // title, query row, table actions row, selection row, pager, table, selection
 // row, pager. Every address in these views is one the page handler rendered
