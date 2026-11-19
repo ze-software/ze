@@ -886,9 +886,12 @@ func (s *pppSession) transmitMRU() uint16 {
 // phase, wait for the unit to drain after a reconnect, set the MTU on pppN
 // through the iface backend (the transmit MRU, lowered to an accepted
 // RADIUS Framed-MTU by interfaceMTU), connect the channel to the unit, set
-// the MRU on the unit fd, bring pppN up, start the IPv6 service, and publish
-// EventSessionUp with that MTU. Returns false on failure or an LCP interruption. The caller
-// MUST resume the session loop when LCP has entered negotiation or termination.
+// the MRU on the unit fd, bring pppN up, install the IPv4 Framed-Routes,
+// start the IPv6 service (which installs the Framed-IPv6-Routes), and publish
+// EventSessionUp with that MTU. The framed routes wait for the interface:
+// Linux refuses a route through an interface that is down. Returns false on
+// failure or an LCP interruption. The caller MUST resume the session loop
+// when LCP has entered negotiation or termination.
 //
 // Order matters: set the interface MTU BEFORE connecting the channel, and
 // the fd-side MRU BEFORE asking the kernel to bring the interface up, so
@@ -1006,8 +1009,17 @@ func (s *pppSession) activateNetwork(mtu uint16) error {
 		return errors.New(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
 	}
 	s.mu.Lock()
+	ipv4Opened := s.ipcpState == LCPStateOpened
 	ipv6Opened := s.ipv6cpState == LCPStateOpened
 	s.mu.Unlock()
+	if ipv4Opened {
+		// RFC 2865 Section 5.22: Linux refuses a route through an interface
+		// that is down, so the Framed-Routes install only now, through the
+		// address onNCPOpened installed. A refused route fails the session.
+		if err := s.installNCPFramedRoutesIPv4Locked(); err != nil {
+			return err
+		}
+	}
 	if ipv6Opened {
 		// RFC 3162 Section 2.5: a refused Framed-IPv6-Route fails the session.
 		if err := s.afterLCPOpenIPv6Service(); err != nil {

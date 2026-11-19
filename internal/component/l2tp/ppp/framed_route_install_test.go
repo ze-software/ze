@@ -71,12 +71,15 @@ var framedRouteWant = []routeCall{
 }
 
 // Goal: an L2TP session installs each RADIUS Framed-Route through its own
-// interface before the assignment enables forwarding, and withdraws it when
-// the network lifetime ends. Method: a real Driver runs LCP, CHAP and IPCP
-// against a recording data plane; the profile is staged the way the RADIUS
-// provider stages it, and the recorder is read at the assignment and at LCP-down.
+// interface once that interface is up, before session-up, and withdraws it
+// when the network lifetime ends. Linux refuses a route through an interface
+// that is down (ENETDOWN), so a route added before admin-up fails the session.
+// Method: a real Driver runs LCP, CHAP and IPCP against a recording data plane
+// that refuses a route on an interface not yet up; the profile is staged the
+// way the RADIUS provider stages it, and the recorder is read at the
+// assignment, at session-up and at LCP-down.
 func TestFramedRouteInstalledThroughL2TPSessionInterface(t *testing.T) {
-	backend := &fakeBackend{}
+	backend := &fakeBackend{requireAdminUp: true}
 	driver := NewProductionDriver(discardLogger())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
@@ -90,17 +93,23 @@ func TestFramedRouteInstalledThroughL2TPSessionInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 	assignment := awaitFramedRouteAssignment(t, driver, peer, request)
-	if got := backend.RouteAddCalls(); !slices.Equal(got, framedRouteWant) {
-		t.Fatalf("routes installed before the assignment = %+v, want %+v", got, framedRouteWant)
+	if got := backend.RouteAddCalls(); len(got) != 0 {
+		t.Fatalf("routes added before the interface is up = %+v, want none", got)
 	}
 	if !slices.Equal(assignment.FramedRoutes, framedRouteProfile) {
 		t.Errorf("assignment routes = %+v, want the accepted profile", assignment.FramedRoutes)
 	}
+	assignment.Acknowledge()
+	awaitLifecycleUp(t, driver.EventsOut())
+	if got := backend.UpCalls(); len(got) == 0 {
+		t.Fatal("session-up without bringing the interface up")
+	}
+	if got := backend.RouteAddCalls(); !slices.Equal(got, framedRouteWant) {
+		t.Fatalf("routes installed at session-up = %+v, want %+v", got, framedRouteWant)
+	}
 	if removed := backend.RouteRemoveCalls(); len(removed) != 0 {
 		t.Fatalf("routes withdrawn while the network is live = %+v", removed)
 	}
-	assignment.Acknowledge()
-	awaitLifecycleUp(t, driver.EventsOut())
 
 	writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest, 0x42, nil)
 	down, ok := waitForEvent(t, driver.EventsOut(), time.Second).(EventLCPDown)
@@ -116,10 +125,11 @@ func TestFramedRouteInstalledThroughL2TPSessionInterface(t *testing.T) {
 
 // Goal: a route the data plane refuses fails the session instead of serving
 // a subset of the authorized routes, and the uncertain add is still withdrawn.
-// Method: the recorder refuses every route add; the session must publish
-// session-down naming the Framed-Route, no assignment, and withdraw the route.
+// Method: the recorder refuses every route add on an interface that is up;
+// after the assignment the session must publish session-down naming the
+// Framed-Route, never session-up, and withdraw the route.
 func TestFramedRouteRefusedFailsTheSession(t *testing.T) {
-	backend := &fakeBackend{addRouteErr: errors.New("route refused by the data plane")}
+	backend := &fakeBackend{requireAdminUp: true, addRouteErr: errors.New("route refused by the data plane")}
 	driver := NewProductionDriver(discardLogger())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
@@ -158,10 +168,15 @@ func TestFramedRouteRefusedFailsTheSession(t *testing.T) {
 	}
 	exchange := &ncpTestDriver{driver: driver, peer: peer}
 	exchange.completeIPCP(t)
+	assigned, ok := waitForEvent(t, driver.EventsOut(), time.Second).(EventSessionIPAssigned)
+	if !ok {
+		t.Fatal("IPCP did not publish an assignment")
+	}
+	assigned.Acknowledge()
 	event := waitForEvent(t, driver.EventsOut(), time.Second)
 	down, ok := event.(EventSessionDown)
 	if !ok {
-		t.Fatalf("event after a refused framed route = %T, want session-down and no assignment", event)
+		t.Fatalf("event after a refused framed route = %T, want session-down and no session-up", event)
 	}
 	if !strings.Contains(down.Reason, "Framed-Route") {
 		t.Errorf("session-down reason = %q, want it to name the Framed-Route", down.Reason)

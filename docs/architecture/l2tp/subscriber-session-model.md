@@ -534,16 +534,29 @@ Announcing a framed route does not forward its traffic, so the PPP session
 also installs each IPv4 framed route through its own `SessionHandle`, the
 per-session data plane that already carries the peer address and the
 DHCPv6-PD route. Both transports stage the accepted profile on the original
-authentication request (`StageFramedRoutes`), and the session installs it in
-`onNCPOpened`, after the IPv4 address and before the assignment publication
-that enables forwarding. A gateway of `0.0.0.0` names the subscriber's
-assigned address (RFC 2865 Section 5.22). The session records each receipt
-before the call, refuses the session when the data plane refuses a route,
-and withdraws the receipts newest first, before the address, in the same
-gated IPv4 withdrawal that LCP-down, IPCP renegotiation and final cleanup
-run. Routes go through the data plane's own cleanup ownership. On the kernel
-backend they die with the PPP unit, and on VPP with the session's retained
-paths. A gateway equal to the peer's address stays a route via the peer;
+authentication request (`StageFramedRoutes`), and the session installs it
+once the interface is up: Linux refuses a route through an interface that
+is not up (`fib_check_nh` answers `ENETDOWN`), and the interface comes up
+only after the assignment. The order is: `onNCPOpened` installs the IPv4
+address, refuses an over-limit profile, and publishes the assignment; then
+`activateNetwork` sets the MTU, connects the channel, sets the receive MRU,
+brings the interface up, installs the IPv4 framed routes
+(`installNCPFramedRoutesIPv4Locked`), starts the IPv6 service, and only then
+publishes session-up. An IPCP that opens on an already connected channel
+(the interface is up) installs them in `reconcileNCPFamily`, before the
+connect that re-enables forwarding. A gateway of `0.0.0.0` names the
+subscriber's assigned address (RFC 2865 Section 5.22). The session records
+each receipt before the call, refuses the session when the data plane
+refuses a route, and withdraws the receipts newest first, before the
+address, in the same gated IPv4 withdrawal that LCP-down, IPCP
+renegotiation and final cleanup run. Routes go through the data plane's own
+cleanup ownership. On the kernel backend they die with the PPP unit, and on
+VPP with the session's retained paths. The kernel session keeps its own
+receipt for every attempted add; a receipt whose add the kernel refused
+(a terminal NACK) is released when the kernel answers its withdrawal with
+`ESRCH`, which confirms that exact route is absent, while a receipt whose
+add outcome is uncertain is released only by a successful withdrawal
+(`sessionRouteReceipt`, `routeConfirmedAbsent`). A gateway equal to the peer's address stays a route via the peer;
 any other gateway is installed as a device route through the session
 interface, with no gateway, and its receipt records the device route so the
 withdrawal has the same shape (`newFramedRouteReceipt`). The interface is
@@ -564,10 +577,11 @@ that fails the session; every other one leaves the session IPv4-only. Both
 families count together against one limit, `l2tpevents.FramedRoutesMax`
 (64), which the RADIUS extraction, the route observer and both installers
 read.
-<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4Locked, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- activateNetwork, afterLCPOpenIPv6Service -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPRouteRequest -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, withdrawNCPFamilyLocked -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, reconcileNCPFamily, withdrawNCPFamilyLocked -->
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- sessionRouteReceipt, routeConfirmedAbsent, AddRoute, RemoveRoute -->
 <!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, acceptAuthDecision -->
 <!-- source: internal/component/l2tp/ppp/request.go -- StageFramedRoutes -->
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
@@ -26,6 +27,12 @@ type fakeBackend struct {
 	addRouteErr    error
 	removeAddrErr  error
 	removeRouteErr error
+	// requireAdminUp models the Linux refusal of a route through an
+	// interface that is not up (fib_check_nh answers ENETDOWN): AddRoute on
+	// a name SetAdminUp has not brought up returns syscall.ENETDOWN. Off by
+	// default, since most tests drive one owner without the activation stage.
+	requireAdminUp bool
+	adminUp        map[string]bool
 }
 
 type mtuCall struct {
@@ -63,7 +70,14 @@ func (f *fakeBackend) SetAdminUp(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.upCalls = append(f.upCalls, name)
-	return f.upErr
+	if f.upErr != nil {
+		return f.upErr
+	}
+	if f.adminUp == nil {
+		f.adminUp = make(map[string]bool)
+	}
+	f.adminUp[name] = true
+	return nil
 }
 
 func (f *fakeBackend) AddAddressP2P(name, localCIDR, peerCIDR string) error {
@@ -86,6 +100,11 @@ func (f *fakeBackend) AddRoute(name, destCIDR, gateway string, metric int, proto
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.routeAddCalls = append(f.routeAddCalls, routeCall{name, destCIDR, gateway, metric, proto})
+	if f.requireAdminUp {
+		if !f.adminUp[name] {
+			return syscall.ENETDOWN
+		}
+	}
 	return f.addRouteErr
 }
 

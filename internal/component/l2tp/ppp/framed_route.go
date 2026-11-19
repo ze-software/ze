@@ -1,7 +1,8 @@
 // Design: docs/architecture/l2tp/subscriber-session-model.md -- framed routes through the session interface
 // RFC: rfc/full/rfc2865.txt -- RFC 2865 Section 5.22 (Framed-Route)
 // RFC: rfc/full/rfc3162.txt -- RFC 3162 Section 2.5 (Framed-IPv6-Route)
-// Related: ncp.go -- onNCPOpened installs, withdrawNCPFamilyLocked withdraws
+// Related: session_run.go -- activateNetwork installs once the interface is up
+// Related: ncp.go -- reconcileNCPFamily installs on a reopened IPCP, withdrawNCPFamilyLocked withdraws
 // Related: ipv6_service.go -- the IPv6 service owns the Framed-IPv6-Route receipts
 // Related: session_handle.go -- SessionHandle.AddRoute and RemoveRoute, the per-session data plane
 
@@ -56,7 +57,7 @@ func newFramedRouteReceipt(route l2tpevents.FramedRoute, subscriber netip.Addr) 
 		return framedRouteReceipt{}, errors.New("framed route has no destination prefix")
 	}
 	ipv4 := route.Prefix.Addr().Is4()
-	// refuse-by-default: guards pppSession.installNCPFramedRoutesIPv4 and IPv6Service.installFramedRoutes -- a zero Gateway names no gateway and is never read as the subscriber
+	// refuse-by-default: guards pppSession.installNCPFramedRoutesIPv4Locked and IPv6Service.installFramedRoutes -- a zero Gateway names no gateway and is never read as the subscriber
 	if !route.Gateway.IsValid() {
 		return framedRouteReceipt{}, errors.New("framed route " + route.Prefix.String() + " carries no gateway")
 	}
@@ -82,39 +83,31 @@ func newFramedRouteReceipt(route l2tpevents.FramedRoute, subscriber netip.Addr) 
 	return framedRouteReceipt{destination: route.Prefix.Masked(), gateway: gateway, metric: int(route.Metric)}, nil
 }
 
-// installNCPFramedRoutesIPv4 installs each IPv4 Framed-Route of the accepted
-// profile through this session's interface, after its address. A route the
-// data plane refuses fails the session: Ze never serves a subscriber a
+// errFramedRouteIPv4Refused marks a network activation that failed because
+// an IPv4 Framed-Route could not be installed.
+var errFramedRouteIPv4Refused = errors.New("RADIUS Framed-Route installation")
+
+// installNCPFramedRoutesIPv4Locked installs each IPv4 Framed-Route of the
+// accepted profile through this session's interface, once IPCP has installed
+// its address and the interface is administratively up: Linux refuses a route
+// through an interface that is down (fib_check_nh answers ENETDOWN). A route
+// the data plane refuses fails the session: Ze never serves a subscriber a
 // subset of the routes the server authorized. The receipt is recorded before
 // each call, so the same gated withdrawal removes an uncertain add.
-// It MUST run under the same owner gate as installNCPIPv4 and Close, and
-// MUST release that gate before assignment publication.
+// Caller MUST hold nativeReleaseMu, the owner gate of installNCPIPv4 and
+// Close, and MUST have brought the interface up (activateNetwork) or found
+// the channel connected, which implies it (reconcileNCPFamily).
 // RFC 2865 Section 5.22: "This Attribute provides routing information to be configured for the user on the NAS."
-func (s *pppSession) installNCPFramedRoutesIPv4() error {
-	s.nativeReleaseMu.Lock()
-	defer s.nativeReleaseMu.Unlock()
-	s.mu.Lock()
-	closed := s.filesClosed
-	s.mu.Unlock()
-	if closed {
-		return ErrSessionNotFound
-	}
-	select {
-	case <-s.stopCh:
-		return ErrSessionNotFound
-	case <-s.sessStop:
-		return ErrSessionNotFound
-	default:
-	}
+func (s *pppSession) installNCPFramedRoutesIPv4Locked() error {
 	if err := checkFramedRoutesLimit(s.authenticatedFramedRoutes); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errFramedRouteIPv4Refused, err)
 	}
 	// Framed-IPv6-Route entries go to the IPv6 service, which installs them
 	// once the peer's link-local address exists (framedRoutesOfFamily).
 	for _, route := range framedRoutesOfFamily(s.authenticatedFramedRoutes, AddressFamilyIPv4) {
 		receipt, err := newFramedRouteReceipt(route, s.peerIPv4)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", errFramedRouteIPv4Refused, err)
 		}
 		// A server may list one route twice; the data plane owns it once.
 		if slices.Contains(s.installedFramedIPv4, receipt) {
@@ -122,9 +115,9 @@ func (s *pppSession) installNCPFramedRoutesIPv4() error {
 		}
 		s.installedFramedIPv4 = append(s.installedFramedIPv4, receipt)
 		if err := s.dataplane.AddRoute(receipt.destination, receipt.gateway, receipt.metric, rtproto.Iface); err != nil {
-			return fmt.Errorf("framed route %s %s was refused, so the subscriber cannot be served all its authorized routes; "+
+			return fmt.Errorf("%w: framed route %s %s was refused, so the subscriber cannot be served all its authorized routes; "+
 				"correct the subscriber's RADIUS Framed-Route (a 0.0.0.0 gateway names the subscriber): %w",
-				receipt.destination, receipt.nextHop(), err)
+				errFramedRouteIPv4Refused, receipt.destination, receipt.nextHop(), err)
 		}
 	}
 	return nil

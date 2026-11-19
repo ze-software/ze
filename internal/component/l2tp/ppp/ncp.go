@@ -1429,13 +1429,14 @@ func (s *pppSession) nextNCPCodeRejectID(family AddressFamily) uint8 {
 }
 
 // onNCPOpened runs per-family post-Opened side effects. IPv4 programs
-// pppN with its assigned address and peer route, then the accepted
-// profile's Framed-Routes through the same interface. The platform's IPv6
-// service programs the IPv6 addresses, then the profile's Framed-IPv6-Routes
-// through the same interface. Both publish and await
+// pppN with its assigned address and peer route. Both publish and await
 // EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.
+// The accepted profile's Framed-Routes and the IPv6 service (its addresses,
+// then the Framed-IPv6-Routes) follow the assignment, once the interface is
+// up: activateNetwork for the first lifetime, reconcileNCPFamily for an NCP
+// that opens on a connected channel.
 func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 	switch family {
 	case AddressFamilyIPv4:
@@ -1447,11 +1448,12 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
 			return false
 		}
-		// RFC 2865 Section 5.22: the routes resolve through the address just
-		// installed, and are in place before the assignment enables forwarding.
-		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the route-installation error; no IP assignment is published.
-		if err := s.installNCPFramedRoutesIPv4(); err != nil {
-			s.fail(tb.Reset().Str("RADIUS Framed-Route installation: ").Err(err).String())
+		// RFC 2865 Section 5.22: an over-limit profile is refused before the
+		// assignment announces it; installNCPFramedRoutesIPv4Locked checks
+		// the same limit again where the routes reach the data plane.
+		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the limit error; no IP assignment is published.
+		if err := checkFramedRoutesLimit(s.authenticatedFramedRoutes); err != nil {
+			s.fail(tb.Reset().Err(errFramedRouteIPv4Refused).Str(": ").Err(err).String())
 			return false
 		}
 		if !s.sendIPAssigned(EventSessionIPAssigned{
@@ -1548,6 +1550,13 @@ func (s *pppSession) reconcileNCPFamily(family AddressFamily) (bool, error) {
 			return false, err
 		}
 		return true, nil
+	}
+	// RFC 2865 Section 5.22: a connected channel means activateNetwork has
+	// brought the interface up, so the routes install now, before the
+	// connect re-enables forwarding. A refused route fails the session
+	// through reconcileOpenedNCP, after this gate is released.
+	if err := s.installNCPFramedRoutesIPv4Locked(); err != nil {
+		return false, err
 	}
 	err := s.dataplane.Connect()
 	if err != nil {

@@ -164,7 +164,9 @@ type EventSessionIPAssigned struct {
 	Username string
 	// FramedRoutes contains the exact authenticated profile for this network.
 	// PPPoE announces it from here; L2TP announces the actor's metadata copy
-	// of the same Access-Accept. Both sessions have installed its IPv4 routes.
+	// of the same Access-Accept. The session installs its IPv4 routes after
+	// this assignment, once the interface is up (activateNetwork), and a
+	// refused route fails the session.
 	FramedRoutes []l2tpevents.FramedRoute `json:",omitempty"`
 	Family       AddressFamily
 	Local        netip.Addr

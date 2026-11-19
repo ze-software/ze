@@ -1829,8 +1829,10 @@ kernel-owned route. The next IPCP negotiation can reuse the address on the retai
 ### RADIUS framed routes
 
 Each IPv4 Framed-Route in the subscriber's Access-Accept is installed as a
-route through the session's PPP interface, right after IPCP installs the
-peer address and before forwarding is enabled. A gateway of `0.0.0.0` is
+route through the session's PPP interface once that interface is up, after
+IPCP installs the peer address and before the session is reported up.
+Linux refuses a route through an interface that is not up, so the routes
+wait for it. A gateway of `0.0.0.0` is
 replaced by the address IPCP assigned to the subscriber (RFC 2865 Section
 5.22), and a gateway equal to that address is kept. The route takes the
 attribute's first metric as its priority, carries the interface routing
@@ -1881,14 +1883,18 @@ subscriber's RADIUS profile, then let the subscriber reconnect.
 The routes are withdrawn before the peer address when the network lifetime
 ends, whether by an LCP reset, an IPCP renegotiation or session-down. A
 route whose withdrawal fails is retried with the session's other cleanup.
+A route the kernel refused to install, and then reports as absent
+(`no such process`) when Ze withdraws it, counts as removed: it does not
+leave the session's cleanup unconfirmed.
 No framed route outlives its interface. Linux deletes every route through
 an interface when the interface goes, and a PPP interface goes when its
 last descriptor closes, which includes a daemon that stops or crashes. The
 IPv6 routes are withdrawn the same way, before the link-local addresses,
 when the IPv6 service stops.
-<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, withdrawNCPFamilyLocked -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4Locked, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, reconcileNCPFamily, withdrawNCPFamilyLocked -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- activateNetwork, afterLCPOpenIPv6Service -->
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- RemoveRoute, routeConfirmedAbsent -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPRouteRequest -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractFramedRoutes, parseFramedRoute -->
 

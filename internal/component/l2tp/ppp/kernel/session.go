@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"sync"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
@@ -49,13 +51,48 @@ type session struct {
 	ops                 sessionOps
 	connected           bool
 	addresses           map[netip.Prefix]sessionAddress
-	routes              map[sessionRoute]struct{}
+	routes              map[sessionRoute]sessionRouteReceipt
 }
 
 const maxSessionAddresses = 1024
 
 // Bound retained cleanup intents even when a backend's add result is unknown.
 const maxSessionRoutes = 1024
+
+// sessionRouteReceipt is the cleanup intent one attempted route add retains.
+// addRefused records that the kernel answered the add that created this
+// receipt with a terminal refusal (nativeWriteRejected).
+// refuse-by-default: guards session.RemoveRoute -- the zero value claims no
+// refusal, so a successful or uncertain add keeps the strict withdrawal, where
+// only a successful native removal releases the receipt.
+type sessionRouteReceipt struct {
+	addRefused bool
+}
+
+// nativeWriteRejected reports whether err carries the native writer's
+// terminal matched-NACK marker (iface.NativePPPWriter): the kernel answered
+// the request with an errno. A transport failure, an expired context and an
+// unresolved outcome carry no marker. The marker alone proves no absence.
+func nativeWriteRejected(err error) bool {
+	var rejected interface{ NativePPPWriteRejected() bool }
+	if !errors.As(err, &rejected) {
+		return false
+	}
+	return rejected.NativePPPWriteRejected()
+}
+
+// routeConfirmedAbsent reports whether a route removal failed because the
+// kernel answered that no route matches the exact tuple: a terminal NACK
+// carrying ESRCH. Linux returns ESRCH from both fib_table_delete (IPv4) and
+// ip6_route_del (IPv6) when nothing matches; the owner guard (kernel patch
+// 0008, fib_owner_check) refuses a matching route of another owner with
+// ESTALE or EOPNOTSUPP instead, so ESRCH never hides an installed route.
+func routeConfirmedAbsent(err error) bool {
+	if !nativeWriteRejected(err) {
+		return false
+	}
+	return errors.Is(err, unix.ESRCH)
+}
 
 // sessionRoute identifies a path on this owner's exclusively held PPP unit.
 // Its zero value is invalid. Only newSessionRoute constructs native queries;
@@ -461,7 +498,8 @@ func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric 
 	if protocol == rtproto.Any {
 		return errors.New("ppp: session route protocol names no producer")
 	}
-	if _, owned := s.routes[route]; !owned {
+	_, owned := s.routes[route]
+	if !owned {
 		// Linux treats deletion priority zero as a wildcard, including
 		// explicit zero, and a deletion without a gateway as a wildcard
 		// over gateways (IPv4 fib_nh_match, IPv6 ip6_route_del). Retained
@@ -492,20 +530,38 @@ func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric 
 			return errors.New("ppp: session route ownership limit reached")
 		}
 		if s.routes == nil {
-			s.routes = make(map[sessionRoute]struct{})
+			s.routes = make(map[sessionRoute]sessionRouteReceipt)
 		}
-		// The backend exposes only an error, so an invoked add may have
-		// installed its path before failing. Keep that exact cleanup intent.
-		s.routes[route] = struct{}{}
 	}
+	// The backend exposes only an error, so an invoked add may have
+	// installed its path before failing. Keep that exact cleanup intent. A
+	// repeated add of an owned receipt resets it: an earlier attempt may
+	// have installed the path this attempt is now refused for (EEXIST).
+	s.routes[route] = sessionRouteReceipt{}
 	s.mu.Unlock()
 	locked = false
-	return operations.AddRoute(ctx, route.destination, route.gateway, route.metric, route.protocol)
+	err = operations.AddRoute(ctx, route.destination, route.gateway, route.metric, route.protocol)
+	if owned {
+		return err
+	}
+	if !nativeWriteRejected(err) {
+		return err
+	}
+	// The add that created this receipt was refused by the kernel. Record it
+	// so a withdrawal the kernel answers with ESRCH confirms the absence.
+	s.mu.Lock()
+	locked = true
+	if _, retained := s.routes[route]; retained {
+		s.routes[route] = sessionRouteReceipt{addRefused: true}
+	}
+	return err
 }
 
 // RemoveRoute MUST withdraw only this owner's exact cleanup receipt. A missing
 // receipt is already complete and performs no native operation. An error keeps
 // the receipt; callers MUST retain this owner and retry that same withdrawal.
+// One error releases it: the kernel answering ESRCH for a receipt whose add it
+// refused, which confirms the exact route is absent (routeConfirmedAbsent).
 // Close may retire the original while ACK waits; the exact writer settles it.
 func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metric int, protocol rtproto.Proto) error {
 	operations, err := s.beginNativeMutation()
@@ -527,7 +583,8 @@ func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metr
 		return err
 	}
 	// refuse-by-default: guards ppp.IPv6Service.Stop -- no owned receipt needs no native withdrawal
-	if _, owned := s.routes[route]; !owned {
+	receipt, owned := s.routes[route]
+	if !owned {
 		// No attempted mutation belongs to this owner. Never turn another
 		// producer's matching route into this session's cleanup obligation.
 		return nil
@@ -535,7 +592,14 @@ func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metr
 	s.mu.Unlock()
 	locked = false
 	if err := operations.RemoveRoute(ctx, route.destination, route.gateway, route.metric, route.protocol); err != nil {
-		return err
+		// An uncertain add may still have installed the path, so only the
+		// add the kernel refused lets ESRCH stand for a confirmed absence.
+		if !receipt.addRefused {
+			return err
+		}
+		if !routeConfirmedAbsent(err) {
+			return err
+		}
 	}
 	s.mu.Lock()
 	locked = true
