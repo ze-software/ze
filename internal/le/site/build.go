@@ -185,7 +185,7 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 // that states a test count one shared read of the test-health render
 // (Paths.testHealth). A full build and a producer run both start here.
 func buildPaths(repository, output string) (Paths, error) {
-	paths, err := resolvePaths(repository, output)
+	paths, err := ResolvePaths(repository, output)
 	if err != nil {
 		return Paths{}, err
 	}

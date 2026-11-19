@@ -338,26 +338,26 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	command := row.Command
 	grouped := operatorsByAvailability(command)
 	var out textbuf.Buffer
-	out.Str("# `").Str(markdownCell(command.Path)).Str("`\n\n")
+	out.Str("# ").Str(markdownCode(command.Path)).Str("\n\n")
 	out.Str(markdownProse(commandLede(command))).Str("\n\n## Ze command\n\n")
-	out.Str("- Registry path: `").Str(markdownCell(command.Path)).Str("`\n")
+	out.Str("- Registry path: ").Str(markdownCode(command.Path)).Byte('\n')
 	if command.Usage != "" {
-		out.Str("- Usage: `").Str(markdownCell(command.Usage)).Str("`\n")
+		out.Str("- Usage: ").Str(markdownCode(command.Usage)).Byte('\n')
 	}
-	out.Str("- Mode: ").Str(markdownCell(commandModeLabel(command.Mode))).Byte('\n')
-	out.Str("- Wire method: `").Str(markdownCell(orNotListed(command.WireMethod))).Str("`\n")
+	out.Str("- Mode: ").Str(markdownProse(commandModeLabel(command.Mode))).Byte('\n')
+	out.Str("- Wire method: ").Str(markdownCode(orNotListed(command.WireMethod))).Byte('\n')
 	out.Str("- Backends: ").Str(backendsMirror(command)).Byte('\n')
-	out.Str("- Task support: ").Str(markdownCell(commandTaskSupportLabel(command.TaskSupport))).Byte('\n')
+	out.Str("- Task support: ").Str(markdownProse(commandTaskSupportLabel(command.TaskSupport))).Byte('\n')
 	out.Str("- Subcommands: ").Str(subcommandsMirror(command)).Byte('\n')
-	out.Str("- Answer shape: ").Str(markdownCell(orNotDeclared(command.AnswerShape))).Byte('\n')
-	out.Str("- Address fields: ").Str(orNone(strings.Join(command.AddressFields, ", "))).Byte('\n')
-	out.Str("- Column order: ").Str(orNone(markdownCell(columnOrdersLine(command)))).Byte('\n')
+	out.Str("- Answer shape: ").Str(markdownProse(orNotDeclared(command.AnswerShape))).Byte('\n')
+	out.Str("- Address fields: ").Str(markdownProse(orNone(strings.Join(command.AddressFields, ", ")))).Byte('\n')
+	out.Str("- Column order: ").Str(markdownProse(orNone(columnOrdersLine(command)))).Byte('\n')
 	for _, availability := range availabilityOrder {
 		out.Str("- ").Str(detailPipeLabel(availability, command.AnswerShape != "")).Str(": ").
-			Str(orNone(strings.Join(grouped[availability], ", "))).Byte('\n')
+			Str(markdownProse(orNone(strings.Join(grouped[availability], ", ")))).Byte('\n')
 	}
-	out.Str("- Command pipes: ").Str(orNone(commandPipeMirrorList(command))).Byte('\n')
-	out.Str("- Pipe aliases: ").Str(orNone(aliasMirrorList(command))).Str("\n\n")
+	out.Str("- Command pipes: ").Str(orNone(commandPipeMirrorList(command, markdownCode))).Byte('\n')
+	out.Str("- Pipe aliases: ").Str(orNone(aliasMirrorList(command, markdownCode))).Str("\n\n")
 	if command.Description != "" {
 		out.Str(markdownProse(command.Description)).Str("\n\n")
 	}
@@ -367,27 +367,27 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 		out.Str("No vendor equivalent has been curated yet for this Ze command.\n\n")
 	}
 	for _, entry := range row.Entries {
-		out.Str("### ").Str(entry.Intent).Str("\n\nCategory: ").Str(entry.Category).Str("\n\n")
+		out.Str("### ").Str(markdownProse(entry.Intent)).Str("\n\nCategory: ").Str(markdownProse(entry.Category)).Str("\n\n")
 		if entry.Notes != "" {
-			out.Str(markdownCell(entry.Notes)).Str("\n\n")
+			out.Str(markdownProse(entry.Notes)).Str("\n\n")
 		}
 	}
 	out.Str("## Vendor equivalents\n\n")
 	for _, vendor := range vendors {
-		out.Str("### ").Str(mapping.vendorLabel(vendor)).Byte('\n')
+		out.Str("### ").Str(markdownProse(mapping.vendorLabel(vendor))).Byte('\n')
 		commands := row.vendorCommands(vendor)
 		if len(commands) == 0 {
 			out.Str("\nNo equivalent listed.\n\n")
 			continue
 		}
 		for _, item := range commands {
-			out.Str("- `").Str(markdownCell(item.Command.Command)).Str("` (").Str(item.Command.Confidence).Str(", ").
-				Str(orNoSourceRef(strings.Join(item.Command.SourceRefs, ", "))).Str(")\n")
+			out.Str("- ").Str(markdownCode(item.Command.Command)).Str(" (").Str(markdownProse(item.Command.Confidence)).Str(", ").
+				Str(markdownProse(orNoSourceRef(strings.Join(item.Command.SourceRefs, ", ")))).Str(")\n")
 			if item.Intent != "" {
-				out.Str("  - Intent: ").Str(markdownCell(item.Intent)).Byte('\n')
+				out.Str("  - Intent: ").Str(markdownProse(item.Intent)).Byte('\n')
 			}
 			if item.Command.Notes != "" {
-				out.Str("  - Note: ").Str(markdownCell(item.Command.Notes)).Byte('\n')
+				out.Str("  - Note: ").Str(markdownProse(item.Command.Notes)).Byte('\n')
 			}
 		}
 		out.Byte('\n')
@@ -401,7 +401,7 @@ func backendsMirror(command *catalogCommand) string {
 	if len(command.Backend) == 0 {
 		return backendsUnrestricted
 	}
-	return markdownCodeList(command.Backend)
+	return markdownCodeList(command.Backend, markdownCode)
 }
 
 // subcommandsMirror writes what an operator can type after one command.
@@ -409,7 +409,7 @@ func subcommandsMirror(command *catalogCommand) string {
 	if len(command.Subcommands) == 0 {
 		return subcommandsNone
 	}
-	return markdownCodeList(command.Subcommands)
+	return markdownCodeList(command.Subcommands, markdownCode)
 }
 
 // argumentMirrorTable writes the arguments section of one detail mirror.
@@ -428,9 +428,9 @@ func argumentMirrorTable(command *catalogCommand) string {
 	for _, argument := range command.Args {
 		values := argumentValuesAny
 		if len(argument.Values) != 0 {
-			values = markdownCodeList(argument.Values)
+			values = markdownCodeList(argument.Values, markdownCellCode)
 		}
-		out.Str("| `").Str(markdownCell(argument.Name)).Str("` | ").Str(markdownCell(argument.Type)).Str(" | ").
+		out.Str("| ").Str(markdownCellCode(argument.Name)).Str(" | ").Str(markdownCell(argument.Type)).Str(" | ").
 			Str(argumentRequiredLabel(argument)).Str(" | ").Str(values).Str(" | ").
 			Str(markdownProse(argument.ShortHelp)).Str(" | ").Str(markdownProse(argument.Description)).Str(" |\n")
 	}
@@ -448,10 +448,10 @@ func orNoSourceRef(value string) string {
 }
 
 // commandPipeMirrorList writes a command's own pipes as one mirror line.
-func commandPipeMirrorList(command *catalogCommand) string {
+func commandPipeMirrorList(command *catalogCommand, renderCode func(string) string) string {
 	values := make([]string, 0, len(command.Pipes))
 	for _, pipe := range command.Pipes {
-		value := "`" + markdownCell(pipeDisplayName(pipe)) + "`"
+		value := renderCode(pipeDisplayName(pipe))
 		if pipe.Description != "" {
 			value += ": " + markdownProse(pipe.Description)
 		}
@@ -461,15 +461,15 @@ func commandPipeMirrorList(command *catalogCommand) string {
 }
 
 // aliasMirrorList writes a command's pipe aliases as one mirror line.
-func aliasMirrorList(command *catalogCommand) string {
+func aliasMirrorList(command *catalogCommand, renderCode func(string) string) string {
 	values := make([]string, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
-		value := "`" + markdownCell(alias.Name) + "`"
+		value := renderCode(alias.Name)
 		if alias.Description != "" {
 			value += ": " + markdownProse(alias.Description)
 		}
 		if alias.Expansion != "" {
-			value += " (`" + markdownCell(alias.Expansion) + "`)"
+			value += " (" + renderCode(alias.Expansion) + ")"
 		}
 		values = append(values, value)
 	}

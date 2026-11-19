@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,8 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
+
+var blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
 
 // VALIDATES: every former website launcher has a native site action.
 func TestActionsExposeNativeWebsiteWorkflows(t *testing.T) {
@@ -38,7 +41,7 @@ func TestResolvePathsRejectsInTreeOutput(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "website"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolvePaths(root, filepath.Join(root, "website", "public")); err == nil {
+	if _, err := ResolvePaths(root, filepath.Join(root, "website", "public")); err == nil {
 		t.Fatal("accepted an output inside website sources")
 	}
 }
@@ -117,7 +120,11 @@ func TestRenderCSSExpandsNestedImports(t *testing.T) {
 // VALIDATES: descendant pseudo-class selectors still target descendants after minification.
 // PREVENTS: removing the descendant combinator so article title rules never match.
 func TestMinifyCSSPreservesDescendantPseudoSelector(t *testing.T) {
-	got := string(minifyCSS([]byte(`.hero :is(h1, h2) { font-size: 3rem; }`)))
+	data, err := minifyCSS([]byte(`.hero :is(h1, h2) { font-size: 3rem; }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
 	want := `.hero :is(h1,h2){font-size:3rem}`
 	if got != want {
 		t.Fatalf("minified CSS = %q, want %q", got, want)
@@ -356,7 +363,7 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(output, "assets", "site.js"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	paths, err := resolvePaths(root, output)
+	paths, err := ResolvePaths(root, output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +409,7 @@ func TestALinkedWorktreeSeedsFromTheMainCheckoutsPagesTree(t *testing.T) {
 	worktree := filepath.Join(checkout, "tmp", "verify-worktree", "fixture")
 	roadmapGit(t, checkout, "worktree", "add", "-q", "--detach", worktree)
 
-	paths, err := resolvePaths(worktree, "")
+	paths, err := ResolvePaths(worktree, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +480,7 @@ func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	paths, err := resolvePaths(root, output)
+	paths, err := ResolvePaths(root, output)
 	if err != nil {
 		t.Fatal(err)
 	}

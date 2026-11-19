@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -37,6 +38,11 @@ const (
 	secondReadGap = 10 * time.Second
 	// requestWait bounds one request.
 	requestWait = 30 * time.Second
+	// lookingGlassAssets is where the looking glass serves its static files.
+	lookingGlassAssets = "/lg/assets/"
+	// lookingGlassBound is what the error of a walk that reached exchangesMax
+	// tells the reader to change.
+	lookingGlassBound = "the simulated network grew, so raise exchangesMax in internal/le/site/lgreplay/record.go"
 
 	headerHTMX        = "HX-Request"
 	headerContentType = "Content-Type"
@@ -79,10 +85,32 @@ func (r request) key() string {
 	return ExchangeKey(r.method, r.path, r.query, r.form, r.htmx)
 }
 
-// recorder is one run. It is not safe for concurrent use.
+// crawler asks one server and follows what its answers name: the part of a
+// run the looking glass recorder and Crawler share. It is not safe for
+// concurrent use.
+type crawler struct {
+	// base is the server as a URL with no path.
+	base   string
+	client *http.Client
+	// server names what answered, in an error: "the looking glass".
+	server string
+	// assetAttribute finds the static files an answer loads. Nil finds none.
+	assetAttribute *regexp.Regexp
+	exchangesMax   int
+	bodyBytesMax   int
+	// bound says, in the error of a walk that reached exchangesMax, what to
+	// change.
+	bound string
+	// normalize rewrites an answer's body. count says the answer is one the
+	// recording keeps, so its replacements are counted.
+	normalize func(text string, count bool) string
+}
+
+// recorder is one run of the looking glass recorder. It is not safe for
+// concurrent use.
 type recorder struct {
 	lookingGlass lookingGlass
-	client       *http.Client
+	crawler      crawler
 	normalizer   *normalizer
 }
 
@@ -99,15 +127,25 @@ func record(ctx context.Context, lookingGlass lookingGlass, steps []Step, proven
 	if err != nil {
 		return Recording{}, fmt.Errorf("looking glass address %q: %w", lookingGlass.base, err)
 	}
+	normalizer := newNormalizer(listener.Host)
 	recorder := recorder{
 		lookingGlass: lookingGlass,
-		// A redirect is an answer like any other: it is recorded, not followed.
-		client: &http.Client{
-			Timeout:       requestWait,
-			Transport:     &http.Transport{Proxy: nil},
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		crawler: crawler{
+			base: lookingGlass.base,
+			// A redirect is an answer like any other: it is recorded, not followed.
+			client: &http.Client{
+				Timeout:       requestWait,
+				Transport:     &http.Transport{Proxy: nil},
+				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+			},
+			server:         "the looking glass",
+			assetAttribute: assetPattern([]string{lookingGlassAssets}),
+			exchangesMax:   exchangesMax,
+			bodyBytesMax:   bodyBytesMax,
+			bound:          lookingGlassBound,
+			normalize:      normalizer.apply,
 		},
-		normalizer: newNormalizer(listener.Host),
+		normalizer: normalizer,
 	}
 	recording := Recording{Schema: Schema, Provenance: provenance}
 
@@ -115,11 +153,12 @@ func record(ctx context.Context, lookingGlass lookingGlass, steps []Step, proven
 	if err != nil {
 		return Recording{}, err
 	}
-	requests, err = recorder.followUps(ctx, requests, &recording)
+	requests, err = recorder.crawler.followUps(ctx, requests, &recording.Exchanges)
 	if err != nil {
 		return Recording{}, err
 	}
-	if err := recorder.assets(ctx, &recording); err != nil {
+	recording.Assets, err = recorder.crawler.assets(ctx, recording.Exchanges)
+	if err != nil {
 		return Recording{}, err
 	}
 	if err := recorder.stream(ctx, &recording); err != nil {
@@ -156,7 +195,7 @@ func (r *recorder) tour(ctx context.Context, steps []Step, recording *Recording)
 			return nil, fmt.Errorf("tour step %d asks %s, which an earlier step already asks", index+1, key)
 		}
 		asked[key] = true
-		exchange, err := r.ask(ctx, request, true)
+		exchange, err := r.crawler.ask(ctx, request, true)
 		if err != nil {
 			return nil, fmt.Errorf("tour step %d: %w", index+1, err)
 		}
@@ -169,17 +208,18 @@ func (r *recorder) tour(ctx context.Context, steps []Step, recording *Recording)
 }
 
 // followUps asks every request a recorded answer names through hx-get, and the
-// requests those answers name in turn, until none is new. The walk is bounded
-// by exchangesMax.
-func (r *recorder) followUps(ctx context.Context, requests []request, recording *Recording) ([]request, error) {
+// requests those answers name in turn, until none is new, appending each
+// answer to exchanges and its request to requests. The walk is bounded by
+// exchangesMax.
+func (c *crawler) followUps(ctx context.Context, requests []request, exchanges *[]Exchange) ([]request, error) {
 	asked := map[string]bool{}
-	for index := range recording.Exchanges {
-		asked[recording.Exchanges[index].Key] = true
+	for index := range *exchanges {
+		asked[(*exchanges)[index].Key] = true
 	}
-	// recording.Exchanges grows inside the loop: an answer appended here is
-	// read for its own follow-up requests later in the same loop.
-	for index := 0; index < len(recording.Exchanges); index++ {
-		parent := recording.Exchanges[index]
+	// *exchanges grows inside the loop: an answer appended here is read for
+	// its own follow-up requests later in the same loop.
+	for index := 0; index < len(*exchanges); index++ {
+		parent := (*exchanges)[index]
 		if !isMarkup(parent.ContentType) {
 			continue
 		}
@@ -193,44 +233,61 @@ func (r *recorder) followUps(ctx context.Context, requests []request, recording 
 			if asked[key] {
 				continue
 			}
-			if len(recording.Exchanges) == exchangesMax {
-				return nil, fmt.Errorf("the recording reached %d requests while following the answer to %s: "+
-					"the simulated network grew, so raise exchangesMax in internal/le/site/lgreplay/record.go",
-					exchangesMax, parent.Key)
+			if len(*exchanges) >= c.exchangesMax {
+				return nil, fmt.Errorf("the recording reached %d requests while following the answer to %s: %s",
+					c.exchangesMax, parent.Key, c.bound)
 			}
 			asked[key] = true
-			exchange, err := r.ask(ctx, request, true)
+			exchange, err := c.ask(ctx, request, true)
 			if err != nil {
 				return nil, fmt.Errorf("answer to %s names a request that failed: %w", parent.Key, err)
 			}
-			recording.Exchanges = append(recording.Exchanges, exchange)
+			*exchanges = append(*exchanges, exchange)
 			requests = append(requests, request)
 		}
 	}
 	return requests, nil
 }
 
-// assets fetches every static file the recorded documents load.
-func (r *recorder) assets(ctx context.Context, recording *Recording) error {
+// assets fetches every static file the recorded documents load, in the order
+// the documents first name them.
+func (c *crawler) assets(ctx context.Context, exchanges []Exchange) ([]Asset, error) {
+	if c.assetAttribute == nil {
+		return nil, nil
+	}
+	var assets []Asset
 	fetched := map[string]bool{}
-	for index := range recording.Exchanges {
-		exchange := &recording.Exchanges[index]
+	for index := range exchanges {
+		exchange := &exchanges[index]
 		if !isMarkup(exchange.ContentType) {
 			continue
 		}
-		for _, path := range attributeValues(assetAttribute, exchange.Body) {
+		for _, path := range attributeValues(c.assetAttribute, exchange.Body) {
 			if fetched[path] {
 				continue
 			}
 			fetched[path] = true
-			answer, err := r.ask(ctx, request{method: methodGet, path: path}, false)
+			answer, err := c.ask(ctx, request{method: methodGet, path: path}, false)
 			if err != nil {
-				return fmt.Errorf("asset of %s: %w", exchange.Key, err)
+				return nil, fmt.Errorf("asset of %s: %w", exchange.Key, err)
 			}
-			recording.Assets = append(recording.Assets, Asset{Path: path, ContentType: answer.ContentType, Body: answer.Body})
+			assets = append(assets, Asset{Path: path, ContentType: answer.ContentType, Body: answer.Body})
 		}
 	}
-	return nil
+	return assets, nil
+}
+
+// assetPattern answers the pattern that finds a src or href under one of
+// prefixes, or nil for no prefix.
+func assetPattern(prefixes []string) *regexp.Regexp {
+	if len(prefixes) == 0 {
+		return nil
+	}
+	quoted := make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		quoted = append(quoted, regexp.QuoteMeta(prefix))
+	}
+	return regexp.MustCompile(`\b(?:src|href)="((?:` + strings.Join(quoted, "|") + `)[^"]+)"`)
 }
 
 // stream keeps the first messages of the event stream the recorded answers
@@ -253,14 +310,14 @@ func (r *recorder) stream(ctx context.Context, recording *Recording) error {
 	}
 	streamCtx, cancel := context.WithTimeout(ctx, streamWait)
 	defer cancel()
-	httpRequest, err := http.NewRequestWithContext(streamCtx, http.MethodGet, r.lookingGlass.base+path, http.NoBody)
+	httpRequest, err := http.NewRequestWithContext(streamCtx, http.MethodGet, r.crawler.base+path, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("event stream %s: %w", path, err)
 	}
 	httpRequest.Header.Set("Accept", streamContentType)
 	// The stream has no end, so the client's whole-request timeout does not
 	// apply: streamCtx bounds it.
-	client := &http.Client{Transport: r.client.Transport}
+	client := &http.Client{Transport: r.crawler.client.Transport}
 	answer, err := client.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("event stream %s: %w", path, err)
@@ -318,7 +375,7 @@ func (r *recorder) secondRead(ctx context.Context, requests []request, recorded 
 	}
 	varies := []string{}
 	for index, request := range requests {
-		secondAnswer, err := r.ask(ctx, request, false)
+		secondAnswer, err := r.crawler.ask(ctx, request, false)
 		if err != nil {
 			return nil, fmt.Errorf("second read: %w", err)
 		}
@@ -343,11 +400,11 @@ func (r *recorder) secondRead(ctx context.Context, requests []request, recorded 
 // keeps.
 //
 // Any status but 200 is refused. A recording is a demonstration of answers,
-// and a looking glass that refuses a question the tour or its own page asks
-// is a defect to see, not a page to publish.
-func (r *recorder) ask(ctx context.Context, request request, count bool) (Exchange, error) {
+// and a server that refuses a question the tour or its own page asks is a
+// defect to see, not a page to publish.
+func (c *crawler) ask(ctx context.Context, request request, count bool) (Exchange, error) {
 	key := request.key()
-	target := r.lookingGlass.base + request.path
+	target := c.base + request.path
 	if len(request.query) > 0 {
 		target += "?" + encodeFields(request.query)
 	}
@@ -365,20 +422,20 @@ func (r *recorder) ask(ctx context.Context, request request, count bool) (Exchan
 	if request.htmx {
 		httpRequest.Header.Set(headerHTMX, "true")
 	}
-	answer, err := r.client.Do(httpRequest)
+	answer, err := c.client.Do(httpRequest)
 	if err != nil {
 		return Exchange{}, fmt.Errorf("%s: %w", key, err)
 	}
 	defer answer.Body.Close() //nolint:errcheck // the body was read whole or the read's error is returned
-	content, err := io.ReadAll(io.LimitReader(answer.Body, bodyBytesMax+1))
+	content, err := io.ReadAll(io.LimitReader(answer.Body, int64(c.bodyBytesMax)+1))
 	if err != nil {
 		return Exchange{}, fmt.Errorf("%s: read the answer: %w", key, err)
 	}
-	if len(content) > bodyBytesMax {
-		return Exchange{}, fmt.Errorf("%s: the answer is larger than %d bytes", key, bodyBytesMax)
+	if len(content) > c.bodyBytesMax {
+		return Exchange{}, fmt.Errorf("%s: the answer is larger than %d bytes", key, c.bodyBytesMax)
 	}
 	if answer.StatusCode != http.StatusOK {
-		return Exchange{}, fmt.Errorf("%s: the looking glass answered %s: %.300q", key, answer.Status, content)
+		return Exchange{}, fmt.Errorf("%s: %s answered %s: %.300q", key, c.server, answer.Status, content)
 	}
 	if !utf8.Valid(content) {
 		return Exchange{}, fmt.Errorf("%s: the answer (%s) is not text, and a recording holds text only",
@@ -388,6 +445,122 @@ func (r *recorder) ask(ctx context.Context, request request, count bool) (Exchan
 		Key: key, Method: strings.ToUpper(request.method), Path: request.path, Query: request.query, Form: request.form,
 		HTMX: request.htmx, Via: request.via, Status: answer.StatusCode,
 		ContentType: answer.Header.Get(headerContentType),
-		Body:        r.normalizer.apply(string(content), count),
+		Body:        c.normalize(string(content), count),
+	}, nil
+}
+
+// Request is one question a Crawler asks.
+type Request struct {
+	Method string
+	Path   string
+	// Query and Form are the fields in the order they are sent.
+	Query []Field
+	Form  []Field
+	// HTMX says the request carries HX-Request, as htmx sends it.
+	HTMX bool
+}
+
+// Crawler records a server other than the looking glass: the walk the
+// looking glass recorder makes, with the server, the asset prefixes and the
+// bounds given rather than fixed. It asks every step, then every request the
+// answers name through hx-get and the requests those answers name in turn,
+// then the static files the answers load under AssetPrefixes. It changes no
+// answer: a value that varies run to run is the caller's to fix at its source.
+type Crawler struct {
+	// Base is the server as a URL with no path.
+	Base string
+	// Client asks every request. A redirect is recorded as an answer only when
+	// the client does not follow it.
+	Client *http.Client
+	// AssetPrefixes are the path prefixes of the server's static files. An
+	// answer's src or href under one of them is fetched as an asset.
+	AssetPrefixes []string
+	// ExchangesMax bounds the requests one crawl holds, the steps included. A
+	// crawl that reaches it is refused, never cut short.
+	ExchangesMax int
+	// BodyBytesMax bounds one answer.
+	BodyBytesMax int
+}
+
+// Crawled is what one crawl recorded: the steps' answers first, in their
+// order, then the answers they named, in the order they were found.
+type Crawled struct {
+	Exchanges []Exchange
+	Assets    []Asset
+}
+
+// Crawl asks steps and what their answers name. Any answer but a 200 in text,
+// a step that repeats an earlier one, and a walk past either bound is refused
+// with an error that names the request.
+func (c Crawler) Crawl(ctx context.Context, steps []Request) (Crawled, error) {
+	walk, err := c.crawler()
+	if err != nil {
+		return Crawled{}, err
+	}
+	if len(steps) == 0 {
+		return Crawled{}, errors.New("the crawl has no step, so there is nothing to record")
+	}
+	if len(steps) > c.ExchangesMax {
+		return Crawled{}, fmt.Errorf("the crawl has %d steps, more than its bound of %d requests", len(steps), c.ExchangesMax)
+	}
+	var crawled Crawled
+	requests := make([]request, 0, len(steps))
+	asked := map[string]bool{}
+	for index, step := range steps {
+		request := request{
+			method: strings.ToUpper(step.Method), path: step.Path, query: step.Query, form: step.Form,
+			htmx: step.HTMX, via: viaTour,
+		}
+		key := request.key()
+		if asked[key] {
+			return Crawled{}, fmt.Errorf("step %d asks %s, which an earlier step already asks", index+1, key)
+		}
+		asked[key] = true
+		exchange, err := walk.ask(ctx, request, true)
+		if err != nil {
+			return Crawled{}, fmt.Errorf("step %d: %w", index+1, err)
+		}
+		crawled.Exchanges = append(crawled.Exchanges, exchange)
+		requests = append(requests, request)
+	}
+	if _, err := walk.followUps(ctx, requests, &crawled.Exchanges); err != nil {
+		return Crawled{}, err
+	}
+	crawled.Assets, err = walk.assets(ctx, crawled.Exchanges)
+	if err != nil {
+		return Crawled{}, err
+	}
+	return crawled, nil
+}
+
+// crawler answers the shared walk with c's settings, or why they cannot
+// drive one.
+func (c Crawler) crawler() (crawler, error) {
+	if _, err := url.Parse(c.Base); err != nil {
+		return crawler{}, fmt.Errorf("crawl address %q: %w", c.Base, err)
+	}
+	if c.Base == "" {
+		return crawler{}, errors.New("the crawl names no server address")
+	}
+	if c.Client == nil {
+		return crawler{}, errors.New("the crawl has no HTTP client")
+	}
+	if c.ExchangesMax < 1 {
+		return crawler{}, fmt.Errorf("the crawl's exchange bound is %d, and it must allow one request", c.ExchangesMax)
+	}
+	if c.BodyBytesMax < 1 {
+		return crawler{}, fmt.Errorf("the crawl's answer size bound is %d bytes, and it must allow one", c.BodyBytesMax)
+	}
+	for _, prefix := range c.AssetPrefixes {
+		if !strings.HasPrefix(prefix, "/") {
+			return crawler{}, fmt.Errorf("asset prefix %q does not start with /", prefix)
+		}
+	}
+	return crawler{
+		base: c.Base, client: c.Client, server: "the server",
+		assetAttribute: assetPattern(c.AssetPrefixes),
+		exchangesMax:   c.ExchangesMax, bodyBytesMax: c.BodyBytesMax,
+		bound:     "raise the crawl's ExchangesMax, or narrow its steps",
+		normalize: func(text string, _ bool) string { return text },
 	}, nil
 }

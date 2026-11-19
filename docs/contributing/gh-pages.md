@@ -327,7 +327,13 @@ the figure and the key. Fix it in the page's source: write the value as
 or through `factLookup.marked` (`markedFact`) in a producer, reading the value
 from the snapshot rather than counting it again. The matching rule is
 in `docs/architecture/site-facts.md`, "One published copy of each value".
-<!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
+The check reads every HTML file the site publishes, the shared header
+`assets/header.html` included, and skips what the publication receipt skips:
+the paths of the artifact's own ignore list (`tmp/`) and the git metadata
+(`publicationIgnored`). A review page kept under `tmp/`, such as the fleet
+demonstration, is therefore not judged.
+<!-- source: internal/le/site/plaintext.go -- checkPlainFigures, plainFiguresOfArtifact -->
+<!-- source: internal/le/site/publication.go -- publicationIgnored -->
 
 The RFC pages that still carry server-written figures would be listed in
 `website/data/plain-figure-ratchet.json` (none is: the compliance index moved its figures to `data-ze-rfc` marks), which the check reads from the
@@ -482,6 +488,11 @@ the same verified `cli-dashboard.cast` that the site publishes, including when
 only selected page producers are rebuilt. It is generated content; change the
 recording and rebuild the site instead of editing the SVG. Generation errors
 leave the previous SVG intact and fail the build.
+
+Beside it, the README shows the looking glass in trace mode,
+`docs/demos/lg-trace.webp`. That picture is not generated: it is a capture of
+step 7 of the tour on the `labs/looking-glass-graph/` replay (the trace of
+198.18.0.0/24), so retake it by hand when the looking glass interface changes.
 <!-- source: internal/le/site/readme_demo.go -- renderReadmeDemo -->
 <!-- source: internal/le/site/terminaldemo/readme_svg.go -- Asset.ReadmeSVG -->
 <!-- source: README.md -- terminal-demo-hero -->
@@ -602,9 +613,20 @@ involved.
 
 The recorder refuses a checkout that holds uncommitted changes, before it
 starts anything: the file names the checkout's commit as the code that
-answered, and with uncommitted changes that commit did not. Commit first, then
-record. `trial` records the tree as it is, to try the recorder: the file then
-says `"tree-dirty": true`, and the site build refuses to publish it.
+answered, and with uncommitted changes that commit did not. To publish, commit
+first, then record.
+
+`trial` records the tree as it is, so you can look at the replay locally after
+a change to the looking glass, without a commit:
+
+```
+./le site lg-replay record trial binary <path-to-ze>
+./le --name session site build producer lg-replay producer authored
+```
+
+The file then says `"tree-dirty": true`. The build renders it with a notice
+that it is a trial, and `./le site check` refuses to publish a site that
+carries it ("Publish" below). The recorder's refusal and its help say both.
 
 The action starts the simulated network of
 `internal/test/fixture/lg_simulated_network.go` (`RunLGSimulatedNetwork`, the run
@@ -671,10 +693,9 @@ that part:
 ### Publish
 
 `./le site build` reads the recording and never records: a checkout without
-the file publishes a block that says the looking glass is not recorded yet. A
-recording whose provenance says the tree was dirty stops the build, with the
-command that records properly: the page names the commit as the code that
-answered, and a trial is not that. To
+the file publishes a block that says the looking glass is not recorded yet.
+The build renders any recording and refuses none: building the site renders
+data and never runs a check (`ai/META-DECISIONS.md`, "Website design"). To
 see the replay while editing it, render its two producers over the existing
 artifact:
 
@@ -684,10 +705,39 @@ artifact:
 
 | Published file | Producer | Content |
 |----------------|----------|---------|
-| `labs/looking-glass-graph/index.html` | `authored` | The page. Its source names the replay with `<!-- site-block: lg-replay -->`, and the block registered under that id is the mount, the tour as a list, the provenance and the transcript link |
+| `labs/looking-glass-graph/index.html` | `authored` | The page. Its source names the replay with `<!-- site-block: lg-replay -->`, and the block registered under that id is the mount, the tour as a list, the provenance, the transcript link, the marks the check reads and, for a trial recording, its notice |
 | `labs/looking-glass-graph/replay/frame.html` | `lg-replay` | The frame document: a content security policy, the recording, and the player inline. It fetches nothing |
 | `labs/looking-glass-graph/replay/transcript.txt` | `lg-replay` | The tour as text: each step's caption, request and answer |
 | `assets/lg-replay.js`, `assets/site.css` | `lg-replay`, and every full build | The player and the replay's styles, for the page. A producer run renders no asset, so this producer calls the asset render a full build calls (`RenderAssets`): the command above then shows the replay with nothing else rebuilt |
+
+A trial recording, one whose provenance says `"tree-dirty": true`, is rendered
+with a notice that says so in plain words: the recording was made from a
+checkout with uncommitted changes, so the commit it names did not alone
+produce these answers, and it is not for publication. The notice is a
+`.section-note` under the block's heading, and the same sentence opens the
+transcript and closes the frame document's one paragraph. The block's root
+element states two marks for the check, which judges the built page and not
+the recording: `data-lg-replay-commit`, the recording's whole commit, and
+`data-lg-replay-trial`, present exactly when the recording is a trial.
+
+`./le site check` is where a replay that must not be published is refused. It
+reads the marks of `labs/looking-glass-graph/index.html` in the artifact and
+answers each refusal in its report under `replay`, and as an operator error
+whose last line is the command that fixes it:
+
+| What the check finds | The fix it names |
+|----------------------|------------------|
+| The replay comes from a trial recording | `./le site lg-replay record`, from a committed tree |
+| The recording's commit is not HEAD or an ancestor of HEAD in this checkout, or the checkout does not hold it: a recording made on a branch that was rebased or never landed | `./le site lg-replay record`, from a committed tree |
+| The commit the page states is not a commit id | `./le site lg-replay record` |
+| The page mounts a replay and states no commit: an artifact built before the marks existed | `./le site build` |
+
+A page whose block says the looking glass is not recorded yet carries no
+replay, and the check refuses nothing there. `./le site record` runs the same
+check population, so it writes no publication receipt for a refused replay.
+<!-- source: internal/le/site/lgreplay_check.go -- checkLGReplay, lgReplayPageMarks, lgReplayCommitInHistory -->
+<!-- source: internal/le/site/lgreplay.go -- lgReplayTrialNotice, lgReplayCommitMark, lgReplayTrialMark -->
+<!-- source: internal/le/site/actions.go -- checkSiteArtifact, checkReport -->
 
 An authored page carries a generated block by naming it in a `site-block`
 comment. The block's owner registers what it expands to with
@@ -738,7 +788,79 @@ and reads the web server's request log.
 `TestLGReplayFrameOpenedDirectlyRunsNothingRecorded` opens the frame document
 itself and reads that nothing recorded ran, and
 `TestLGReplayKeepsABoundedListOfFrameErrors` reads the bound on the errors.
-<!-- source: website/assets/js/lg-replay.js -- mountPlayer, keepError, frameMain, frameRefusal -->
+<!-- source: website/assets/js/lg-replay.js -- mountPlayer, errorKeeper, frameMain, frameRefusal -->
+
+### A second product: the fleet demonstration
+
+The same format, crawl, frame writer and player replay the fleet interface
+for `./le site fleet-demo render`, which writes under the output's
+`tmp/fleet-demo/` and is never published. What that product needs is stated
+in its recording and off when the recording is silent, so the looking glass's
+file, frame and tests do not change:
+
+- `player` holds the product's settings: the frame's title, what its no-frame
+  paragraph names and links, the asset prefixes, the notice for an
+  unrecorded request and its class, and three switches: a silent
+  `EventSource`, keeping the pushed address, and answering plain forms.
+- `chunks` keeps answers in files beside the frame. The frame asks its host
+  page for a chunk by name, the host fetches the file its mount's
+  `data-lg-replay-chunks` names for that chunk and nothing else, and hands the
+  answers over by message. A request waits for its chunk, a second request
+  for the same chunk waits on the same load, and a chunk that fails to load
+  answers with the notice naming it.
+- `fallbacks` answer, in order, a request nothing recorded: the fleet answers
+  every posted action with one recorded toast.
+
+`Crawler` in `internal/le/site/lgreplay` is the recorder's walk for a server
+other than the looking glass, with the asset prefixes and the bounds given;
+the looking glass recorder makes the same walk with its own values.
+`site.ReplayFrameDocument` writes either frame document. A mount with no tour
+steps is a frame alone (`mountFrame`), filling the mount when it carries
+`data-lg-replay-fill`. The key names of each field are in `website/AI.md`,
+"Looking glass replay".
+<!-- source: internal/le/site/lgreplay/recording.go -- Player, Chunk, Fallback, SplitChunks, EncodeChunk, ChunkFiles -->
+<!-- source: internal/le/site/lgreplay/record.go -- Crawler, crawler -->
+<!-- source: internal/le/site/lgreplay.go -- ReplayFrameDocument -->
+<!-- source: website/assets/js/lg-replay.js -- mountFrame, chunkServer, frameMain -->
+
+### Render the fleet demonstration
+
+```
+./le site fleet-demo render [output <website-output>]
+```
+
+The action serves the fleet pages in process, through `fleetui.NewRoutes`,
+over a sample estate built with `sample.New` at a clock pinned to the commit
+date of HEAD, with the account `demo`. The web package's shared scripts come
+from its own asset handler. It records the estate dashboard and every style
+and script the page loads, then writes three files under the output's
+`tmp/fleet-demo/`, and nowhere else:
+
+| File | Holds |
+|------|-------|
+| `index.html` | The host page: a bar naming it a recorded demonstration on sample data, the commit and date, that live updates are not recorded and that it is not published, above the frame. It is marked no-index, carries no site navigation, and loads the site's `assets/lg-replay.js` and `assets/site.css` by relative paths, so it plays from a review server whose root is not the output's |
+| `frame.html` | The frame document, written by `site.ReplayFrameDocument` |
+| `recording.json` | The recording the frame carries |
+
+`output` defaults to the gh-pages checkout beside this one, resolved and
+refused as every site action resolves it (`site.ResolvePaths`). An output with
+no built site (no `index.html`, `assets/site.css` or `assets/lg-replay.js`) is
+refused, because the host page loads those files, and so is a link or a file
+on the way to `tmp/fleet-demo/`. Open `tmp/fleet-demo/index.html` from the
+owner's review server of the output. `./le site build` neither creates nor
+refreshes it, and nothing of it is published: `tmp/` is outside every walk of
+the site. The page registry, the sitemap and the search index skip it as an
+unpublished directory; the publication receipt, the plain-figure check and git
+skip it through the artifact's own ignore list; and a build carries it across
+with its bytes unchanged. The answer names each file and its size, the exchange count and the
+commit. A le built without the `ze_web` and `ze_fleet_ui` tags refuses the
+action, because it has no fleet pages to record.
+<!-- source: internal/le/site/fleetdemo/actions.go -- runRender, newDemonstration -->
+<!-- source: internal/le/site/fleetdemo/render.go -- render, demoDirectoryIn, recordEstate, linkedAssets -->
+<!-- source: internal/le/site/fleetdemo/host.go -- hostPage, hostBarText -->
+<!-- source: internal/le/site/fleetdemo/render_absent.go -- render -->
+<!-- source: internal/le/site/pages.go -- unpublishedDirectories, pageRegistry -->
+<!-- source: internal/le/site/artifactignore.go -- artifactIgnoreContent -->
 
 ## Linking a website page from a guide
 
@@ -802,6 +924,19 @@ as the full build. These operations do not replace the full build's artifact
 validation, ownership record or publication stamps.
 <!-- source: internal/le/site/producer.go -- RenderProducer, renderInto -->
 <!-- source: internal/le/site/assets.go -- RenderAssets -->
+
+The shared stylesheet transformation preserves quoted text and rejects an
+unmatched comment close, an unclosed comment or an unclosed string before
+replacing the published asset. These checks apply to the complete expanded
+local import tree. The refusal identifies the expanded byte offset and names
+the source repair and rebuild command.
+<!-- source: internal/le/site/assets.go -- siteStylesheet, minifyCSS, renderCSS -->
+
+The canonical-artifact markup browser tests serve `../gh-pages` after its native
+build. They check BFD metadata-card contrast in both themes and at desktop and
+phone widths, and verify that the firewall and command-reference guides publish
+table headers and data cells without raw table-row paragraphs.
+<!-- source: internal/le/site/browsertest/markup_test.go -- TestPublishedBFDDetailCardContrast, TestPublishedGuideTablesAreTables, markupBrowser -->
 
 The fixtures retain the complete recorded RFC graph and roadmap rather than
 requiring an already-published RFC-map page. Per-RFC figures remain read-only
@@ -1039,7 +1174,13 @@ rather than starting a list. Usage stays in a code
 span, where prose escapes would change the displayed command. The drift reader
 compares visible text: neutral emphasis, links and HTML wrappers are allowed,
 but an unescaped tag that hides a placeholder is lost contract text.
+Detail mirrors render literal code with `markdownCode`; table producers use
+`markdownCellCode`, which escapes pipes for GFM cells. Shared pipe, alias and
+code-list producers receive the caller's code renderer, so a detail bullet
+does not inherit a table's literal backslash.
 <!-- source: internal/le/site/commands.go -- markdownProse, commandMirrorDescription -->
+<!-- source: internal/le/site/commands.go -- markdownCode, markdownCellCode, markdownCodeList -->
+<!-- source: internal/le/site/equivalentdetail.go -- equivalentDetailMirror, commandPipeMirrorList, aliasMirrorList -->
 <!-- source: internal/le/site/derived.go -- writeLLMSCommands -->
 <!-- source: internal/le/doc/yangcontract/command_surfaces.go -- markdownInlineVisibleText, validatePrimaryMarkdownContract, validateLLMSCommandContract -->
 

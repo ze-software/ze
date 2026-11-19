@@ -59,9 +59,10 @@ const recordWhy = "record the looking glass for the website's replay.\n" +
 	"byte-identical.\n" +
 	"The file names the checkout's commit as the code that answered, so a checkout\n" +
 	"with uncommitted changes is refused before anything starts. The trial keyword\n" +
-	"records it anyway, to try the recorder: the file then says the tree was dirty,\n" +
-	"and ./le site build refuses to publish it.\n" +
-	"./le site build publishes the replay from the file. It never records."
+	"records it anyway, to look at the replay locally after a change: the file\n" +
+	"then says the tree was dirty, ./le site build renders it with a notice that it\n" +
+	"is a trial, and ./le site check refuses to publish a site that carries it.\n" +
+	"./le site build renders the replay from the file. It never records."
 
 var actions = leaction.New(area,
 	leaction.Action{
@@ -72,7 +73,7 @@ var actions = leaction.New(area,
 			{Keyword: keywordBinary, Kind: leaction.KindPath, Help: "the ze to record; without it, the ze found in PATH", Value: "ze-binary", Requirement: leaction.Optional},
 			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the file the recording is written to", Value: "json-file", Requirement: leaction.Optional},
 			{Keyword: keywordPort, Kind: leaction.KindUint, Help: "the first of the ports the run may listen on", Value: "port", Requirement: leaction.Optional},
-			{Keyword: keywordTrial, Kind: leaction.KindSwitch, Help: "record an uncommitted tree; the site refuses to publish it", Requirement: leaction.Optional},
+			{Keyword: keywordTrial, Kind: leaction.KindSwitch, Help: "local view of an uncommitted tree; site check refuses it", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runRecord,
 	},
@@ -319,24 +320,56 @@ type checkout struct {
 	uncommitted []string
 }
 
-// readCheckout answers what git knows about the checkout at root.
+// readCheckout answers what git knows about the checkout at root. The
+// recording file is this action's own product, not code that answered: a file
+// left by an earlier run does not make the tree uncommitted.
 func readCheckout(ctx context.Context, root string) (checkout, error) {
+	head, err := ReadCheckout(ctx, root, File)
+	if err != nil {
+		return checkout{}, err
+	}
+	return checkout{
+		provenance:  Provenance{Recorder: RecorderCommand, Commit: head.Commit, CommitDate: head.CommitDate, TreeDirty: len(head.Uncommitted) > 0},
+		uncommitted: head.Uncommitted,
+	}, nil
+}
+
+// Checkout is what git knows about the checkout a recording of the site is
+// made from: its last commit, that commit's date, and what differs from it.
+type Checkout struct {
+	// Commit is the full hash of the checkout's last commit, and CommitDate
+	// its committer date in strict ISO 8601: the commit's, never the run's,
+	// so two runs on one commit state the same.
+	Commit     string
+	CommitDate string
+	// Uncommitted holds one `git status --porcelain` line for each path that
+	// differs from the commit, the excluded ones left out.
+	Uncommitted []string
+}
+
+// ReadCheckout answers what git knows about the checkout at root, leaving out
+// of Uncommitted every path of excluded: the recorder's own products, which
+// are not code that answered. Every recorder of the site reads its provenance
+// here (site lg-replay, site fleet-demo), so they name a commit the same way.
+func ReadCheckout(ctx context.Context, root string, excluded ...string) (Checkout, error) {
 	commit, err := gitAnswer(ctx, root, "rev-parse", "HEAD")
 	if err != nil {
-		return checkout{}, gitFailure(err, root)
+		return Checkout{}, gitFailure(err, root)
 	}
 	date, err := gitAnswer(ctx, root, "show", "--no-patch", "--format=%cI", "HEAD")
 	if err != nil {
-		return checkout{}, gitFailure(err, root)
+		return Checkout{}, gitFailure(err, root)
 	}
-	// The recording file is this action's own product, not code that answered:
-	// a file left by an earlier run does not make the tree uncommitted.
-	status, err := gitAnswer(ctx, root, "status", "--porcelain", "--", ".", ":(exclude)"+File)
+	query := []string{"status", "--porcelain", "--", "."}
+	for _, path := range excluded {
+		query = append(query, ":(exclude)"+path)
+	}
+	status, err := gitAnswer(ctx, root, query...)
 	if err != nil {
-		return checkout{}, gitFailure(err, root)
+		return Checkout{}, gitFailure(err, root)
 	}
 	if commit == "" {
-		return checkout{}, opererr.New("The checkout at "+root+" holds no commit",
+		return Checkout{}, opererr.New("The checkout at "+root+" holds no commit",
 			"A recording names the commit as the code that answered, and there is none to name. Commit the tree, then record",
 			"git -C "+root+" log -1")
 	}
@@ -344,10 +377,7 @@ func readCheckout(ctx context.Context, root string) (checkout, error) {
 	if status != "" {
 		uncommitted = strings.Split(status, "\n")
 	}
-	return checkout{
-		provenance:  Provenance{Recorder: RecorderCommand, Commit: commit, CommitDate: date, TreeDirty: len(uncommitted) > 0},
-		uncommitted: uncommitted,
-	}, nil
+	return Checkout{Commit: commit, CommitDate: date, Uncommitted: uncommitted}, nil
 }
 
 // gitFailure answers the operator error of a git query that failed in root.
@@ -369,6 +399,8 @@ func writeFailure(cause error, path string) *opererr.Error {
 // refuseUncommitted refuses to record a checkout that holds uncommitted
 // changes, unless the line asked for a trial. A recording names its commit as
 // the code that answered, and with uncommitted changes that commit did not.
+// A trial is for looking at the replay locally: the site build renders it
+// with a notice, and ./le site check refuses to publish it.
 func refuseUncommitted(recorded checkout, trial bool) error {
 	if len(recorded.uncommitted) == 0 {
 		return nil
@@ -390,8 +422,8 @@ func refuseUncommitted(recorded checkout, trial bool) error {
 		fmt.Sprintf("The checkout holds %d uncommitted changes (%s%s), so nothing was recorded",
 			len(recorded.uncommitted), strings.Join(shown, "; "), more),
 		"A recording names commit "+commit+" as the code that answered, and the website publishes that claim. "+
-			"Commit the changes and record again. To try the recorder on this tree instead, record a trial: "+
-			"its file says the tree was dirty, and ./le site build refuses to publish it",
+			"To publish, commit the changes and record again. To look at the replay locally on this tree, record a trial: "+
+			"./le site build renders it with a notice that it is a trial, and ./le site check refuses to publish it",
 		RecorderCommand+" "+keywordTrial)
 }
 
@@ -400,7 +432,7 @@ func refuseUncommitted(recorded checkout, trial bool) error {
 func gitAnswer(ctx context.Context, root string, args ...string) (string, error) {
 	queryCtx, cancel := context.WithTimeout(ctx, gitWait)
 	defer cancel()
-	query := exec.CommandContext(queryCtx, "git", args...) //nolint:gosec // the arguments are literals of this package; root is the checkout lepath.Root found
+	query := exec.CommandContext(queryCtx, "git", args...) //nolint:gosec // literals and paths of the site recorders, as arguments with no shell; root is the checkout lepath.Root found
 	query.Dir = root
 	// A git status killed at its deadline while it refreshes the index leaves a
 	// lock that blocks every session, so the query takes no optional lock.

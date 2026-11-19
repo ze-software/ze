@@ -8,6 +8,10 @@
 // build embeds that file in a frame where the player script
 // (website/assets/js/lg-replay.js) answers the looking glass's own requests
 // from it.
+//
+// The format, the crawl (Crawler) and the chunk helpers also serve a second
+// product, the fleet interface, whose recording states what it needs in the
+// optional fields of Recording.
 package sitelgreplay
 
 import (
@@ -54,6 +58,229 @@ type Recording struct {
 	// Stream is a sample of the live event stream. It is nil when no recorded
 	// answer names a stream, and the player then answers one with its notice.
 	Stream *Stream `json:"stream,omitempty"`
+
+	// The three fields below serve a recording of another product, the fleet
+	// interface. Each is optional and omitted when empty, so a looking glass
+	// recording holds none of them and means what it meant before they
+	// existed: the schema did not change.
+
+	// Player is the product's settings for the player. Nil means the looking
+	// glass's own, which are the defaults Player states field by field.
+	Player *Player `json:"player,omitempty"`
+	// Chunks are the parts of a recording too large to travel in its frame.
+	// Each chunk's answers are a file of their own (EncodeChunk), which the
+	// host page fetches when the frame first asks one of its keys. An answer a
+	// chunk holds is not in Exchanges.
+	Chunks []Chunk `json:"chunks,omitempty"`
+	// Fallbacks answer a request that neither Exchanges nor a chunk holds: the
+	// first rule whose method and path prefix match it answers.
+	Fallbacks []Fallback `json:"fallbacks,omitempty"`
+}
+
+// NoticeRequestToken stands in Player.NoticeText for the request the
+// recording does not hold, as the player names it.
+const NoticeRequestToken = "{request}"
+
+// Player is what the player needs to know about the product it replays. Every
+// field is optional, and an empty one takes the looking glass's value, stated
+// on the field.
+type Player struct {
+	// Title is the frame document's title. Default: "Ze looking glass replay".
+	Title string `json:"title,omitempty"`
+	// Subject names what the frame document replays, in the paragraph a
+	// reader sees when the document is opened outside its page. Default:
+	// "Ze looking glass".
+	Subject string `json:"subject,omitempty"`
+	// HostPage is the address of the page that plays the frame, relative to
+	// the frame document, which that paragraph links. Default: "../".
+	HostPage string `json:"host-page,omitempty"`
+	// AssetPrefixes are the path prefixes of the product's own static files:
+	// an image a swapped answer names under one of them is put inline from
+	// Assets. Default: "/lg/assets/".
+	AssetPrefixes []string `json:"asset-prefixes,omitempty"`
+	// NoticeText is the notice that stands in the page in place of an answer
+	// the recording does not hold. NoticeRequestToken in it is replaced by the
+	// request. Default: "Not in this recording: {request}. The replay holds the
+	// answers of the tour and of the rows its pages show."
+	NoticeText string `json:"notice-text,omitempty"`
+	// NoticeClass is the class of the notice's element, so the product's own
+	// stylesheet styles it. Default: "error-banner".
+	NoticeClass string `json:"notice-class,omitempty"`
+	// SilentEventSource gives the frame an EventSource that opens and never
+	// delivers a message, so a page's stream client sees a connected, quiet
+	// stream. Default: off, and the frame has the browser's EventSource,
+	// which its policy refuses.
+	SilentEventSource bool `json:"silent-event-source,omitempty"`
+	// KeepPushedAddress keeps the last address the page pushed into the
+	// history, and resolves the page's relative addresses against it. Default:
+	// off, and a push is dropped.
+	KeepPushedAddress bool `json:"keep-pushed-address,omitempty"`
+	// PlainForms answers a form that no htmx attribute submits, and whose
+	// page's own script leaves its submission alone, as the browser would: a
+	// GET form opens its action with its fields as a link to them would, a
+	// dialog form closes its dialog, and any other shows the notice. Default:
+	// off, and every such form shows the notice.
+	PlainForms bool `json:"plain-forms,omitempty"`
+}
+
+// Chunk is one part of a recording kept in a file of its own.
+//
+// A chunk lists its own keys, rather than the recording holding a map from
+// key to chunk: each key and each chunk name is then written once, the file
+// says which chunk the frame must ask for in the same place it says what the
+// chunk holds, and the player builds its map in one pass.
+type Chunk struct {
+	// Name is how the frame asks the host for the chunk. The host maps it to
+	// File itself, so the frame can name a chunk and never a URL.
+	Name string `json:"name"`
+	// File is the chunk's file, relative to the frame document, in the same
+	// directory.
+	File string `json:"file"`
+	// Size is the file's length in bytes.
+	Size int `json:"size"`
+	// Keys are the keys of the exchanges the file holds, in its order.
+	Keys []string `json:"keys"`
+}
+
+// Fallback answers every request of one method under one path prefix that no
+// exchange holds.
+type Fallback struct {
+	Method     string   `json:"method"`
+	PathPrefix string   `json:"path-prefix"`
+	Exchange   Exchange `json:"exchange"`
+}
+
+// chunkNamePattern is what a chunk name may hold. The name becomes the file's
+// name, and the host refuses a file name with any other character, so no
+// chunk can name a file outside the frame's directory.
+var chunkNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// chunkFileExtension ends every chunk file's name.
+const chunkFileExtension = ".json"
+
+// ChunkSplit is a list of exchanges divided into what travels in the frame
+// and what goes to chunk files.
+type ChunkSplit struct {
+	// Inline are the exchanges the frame carries, in their order.
+	Inline []Exchange
+	// Chunks are the chunks, in the order their first exchange came.
+	Chunks []Chunk
+	// Contents holds each chunk file's bytes by the chunk's name.
+	Contents map[string][]byte
+}
+
+// SplitChunks divides exchanges by group, which answers the name of the chunk
+// an exchange belongs to, or "" for one the frame carries. A chunk keeps its
+// exchanges in their order. A name that is not a chunk name, or a key two
+// exchanges share, is refused.
+func SplitChunks(exchanges []Exchange, group func(Exchange) string) (ChunkSplit, error) {
+	split := ChunkSplit{Contents: map[string][]byte{}}
+	members := map[string][]Exchange{}
+	keys := map[string]bool{}
+	for index := range exchanges {
+		exchange := exchanges[index]
+		if keys[exchange.Key] {
+			return ChunkSplit{}, fmt.Errorf("two exchanges have the key %s", exchange.Key)
+		}
+		keys[exchange.Key] = true
+		name := group(exchange)
+		if name == "" {
+			split.Inline = append(split.Inline, exchange)
+			continue
+		}
+		if !chunkNamePattern.MatchString(name) {
+			return ChunkSplit{}, fmt.Errorf("chunk name %q for %s: a chunk name is lower-case letters, digits and hyphens, "+
+				"starting with a letter or a digit", name, exchange.Key)
+		}
+		if _, known := members[name]; !known {
+			split.Chunks = append(split.Chunks, Chunk{Name: name, File: name + chunkFileExtension})
+		}
+		members[name] = append(members[name], exchange)
+	}
+	for index := range split.Chunks {
+		chunk := &split.Chunks[index]
+		content, err := EncodeChunk(members[chunk.Name])
+		if err != nil {
+			return ChunkSplit{}, fmt.Errorf("chunk %s: %w", chunk.Name, err)
+		}
+		chunk.Size = len(content)
+		for _, exchange := range members[chunk.Name] {
+			chunk.Keys = append(chunk.Keys, exchange.Key)
+		}
+		split.Contents[chunk.Name] = content
+	}
+	return split, nil
+}
+
+// EncodeChunk answers a chunk file's bytes: the exchanges as one JSON list,
+// with no indentation, because a chunk is read by the player and never by a
+// person, and one trailing newline.
+func EncodeChunk(exchanges []Exchange) ([]byte, error) {
+	if exchanges == nil {
+		exchanges = []Exchange{}
+	}
+	var out bytes.Buffer
+	if err := json.NewEncoder(&out).Encode(exchanges); err != nil {
+		return nil, fmt.Errorf("encode a recording chunk: %w", err)
+	}
+	return out.Bytes(), nil
+}
+
+// ChunkFiles answers the value of the host mount's data-lg-replay-chunks
+// attribute: a JSON object from each chunk's name to its file. The host page
+// fetches only the files this names, so the frame can ask for a chunk by name
+// and never make the host fetch an address of its choosing. The caller escapes
+// the value for the attribute.
+func ChunkFiles(chunks []Chunk) (string, error) {
+	files := make(map[string]string, len(chunks))
+	for _, chunk := range chunks {
+		files[chunk.Name] = chunk.File
+	}
+	// encoding/json writes a map's keys sorted, so the value is stable.
+	encoded, err := json.Marshal(files)
+	if err != nil {
+		return "", fmt.Errorf("encode the chunk files: %w", err)
+	}
+	return string(encoded), nil
+}
+
+// checkParts refuses a recording whose chunks or fallbacks contradict each
+// other or name a file the host would refuse: a chunk name or file that is not
+// one, two chunks of one name, a key that two chunks hold or that also travels
+// in the frame, and a fallback with no method or a prefix that is no path.
+func (r Recording) checkParts() error {
+	held := map[string]string{}
+	for index := range r.Exchanges {
+		held[r.Exchanges[index].Key] = "the frame"
+	}
+	names := map[string]bool{}
+	for _, chunk := range r.Chunks {
+		if !chunkNamePattern.MatchString(chunk.Name) {
+			return fmt.Errorf("chunk name %q is not a chunk name: lower-case letters, digits and hyphens", chunk.Name)
+		}
+		if names[chunk.Name] {
+			return fmt.Errorf("two chunks are named %s", chunk.Name)
+		}
+		names[chunk.Name] = true
+		if chunk.File != chunk.Name+chunkFileExtension {
+			return fmt.Errorf("chunk %s names the file %q, and its file is %q", chunk.Name, chunk.File, chunk.Name+chunkFileExtension)
+		}
+		for _, key := range chunk.Keys {
+			if holder, found := held[key]; found {
+				return fmt.Errorf("chunk %s holds %s, which %s also holds", chunk.Name, key, holder)
+			}
+			held[key] = "chunk " + chunk.Name
+		}
+	}
+	for index, fallback := range r.Fallbacks {
+		if fallback.Method == "" {
+			return fmt.Errorf("fallback %d names no method", index+1)
+		}
+		if !strings.HasPrefix(fallback.PathPrefix, "/") {
+			return fmt.Errorf("fallback %d has the path prefix %q, which does not start with /", index+1, fallback.PathPrefix)
+		}
+	}
+	return nil
 }
 
 // Provenance says where a recording comes from and what was changed in it.
@@ -329,7 +556,6 @@ func (n *normalizer) declared() []Normalization {
 
 var (
 	followUpAttribute = regexp.MustCompile(`\bhx-get="([^"]+)"`)
-	assetAttribute    = regexp.MustCompile(`\b(?:src|href)="(/lg/assets/[^"]+)"`)
 	streamAttribute   = regexp.MustCompile(`\bhx-sse:connect="([^"]+)"`)
 )
 
@@ -394,6 +620,9 @@ func Read(path string) (Recording, error) {
 	decoder := json.NewDecoder(bytes.NewReader(content))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&recording); err != nil {
+		return Recording{}, fmt.Errorf("%s: %w", path, err)
+	}
+	if err := recording.checkParts(); err != nil {
 		return Recording{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return recording, nil

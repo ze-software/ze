@@ -104,13 +104,22 @@ func TestUncommittedChangesAreRefusedUnlessTrial(t *testing.T) {
 	if !strings.Contains(refusal.Why(), "commit 0123456789 ") {
 		t.Errorf("the refusal does not name the commit: %s", refusal.Why())
 	}
+	// The refusal says what the trial it offers is good for, and where it
+	// stops: the site check refuses to publish it.
+	for _, want := range []string{"look at the replay locally", "./le site check refuses to publish it"} {
+		if !strings.Contains(refusal.Why(), want) {
+			t.Errorf("the refusal does not say %q: %s", want, refusal.Why())
+		}
+	}
 	if refusal.Fix() != RecorderCommand+" trial" {
 		t.Errorf("fix %q, want the trial command", refusal.Fix())
 	}
 }
 
 // TestRecordDeclaresTheTrialKeyword proves the action declares trial as a
-// parameter, which is what puts it in the action's help and completion.
+// parameter, which is what puts it in the action's help and completion, that
+// the help says what a trial is for and that the site check refuses it, and
+// that the parameter's help line fits the launcher's 60 characters.
 func TestRecordDeclaresTheTrialKeyword(t *testing.T) {
 	for _, action := range Actions().Actions {
 		if action.Verb != "record" {
@@ -118,8 +127,16 @@ func TestRecordDeclaresTheTrialKeyword(t *testing.T) {
 		}
 		for _, parameter := range action.Parameters {
 			if parameter.Keyword == keywordTrial {
-				if !strings.Contains(action.Why, "trial keyword") {
-					t.Fatalf("the action's help does not explain the trial keyword:\n%s", action.Why)
+				for _, want := range []string{"trial keyword", "look at the replay locally", "./le site check refuses"} {
+					if !strings.Contains(action.Why, want) {
+						t.Fatalf("the action's help does not say %q:\n%s", want, action.Why)
+					}
+				}
+				if !strings.Contains(parameter.Help, "site check refuses") {
+					t.Errorf("the trial keyword's help line does not say the site check refuses it: %s", parameter.Help)
+				}
+				if len(parameter.Help) > 60 {
+					t.Errorf("the trial keyword's help line holds %d characters, and the launcher takes 60: %s", len(parameter.Help), parameter.Help)
 				}
 				return
 			}

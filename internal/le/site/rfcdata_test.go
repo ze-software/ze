@@ -530,7 +530,7 @@ func TestTheNativeRefreshPublishesTheRFCData(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(output, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	paths, err := resolvePaths(root, output)
+	paths, err := ResolvePaths(root, output)
 	if err != nil {
 		t.Fatal(err)
 	}

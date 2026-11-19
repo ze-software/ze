@@ -16,13 +16,33 @@
    plays nothing (frameRefusal).
 
    The recording's format and the request key are stated in
-   internal/le/site/lgreplay/recording.go (Recording, ExchangeKey). */
+   internal/le/site/lgreplay/recording.go (Recording, ExchangeKey).
+
+   The same player replays another product, the fleet interface. What differs
+   is stated by that product's recording, never here: its settings (player),
+   the answers kept in files of their own (chunks), and the answers given to a
+   request nothing recorded (fallbacks). A recording without them, the looking
+   glass's, plays exactly as it did before they existed. A mount with no tour
+   steps is a frame alone (mountFrame), which fills its element when the
+   element carries data-lg-replay-fill. */
 (function () {
   'use strict';
 
   var FROM_HOST = 'lg-replay-host';
   var FROM_FRAME = 'lg-replay-frame';
   var SCHEMA = 2;
+  /* The looking glass's settings, which a recording's player settings
+     replace field by field (Player in recording.go). */
+  var DEFAULT_ASSET_PREFIXES = ['/lg/assets/'];
+  var DEFAULT_NOTICE = 'Not in this recording: {request}. The replay holds the answers of the tour and of the rows its pages show.';
+  var DEFAULT_NOTICE_CLASS = 'error-banner';
+  var NOTICE_REQUEST = '{request}';
+  /* A chunk's file is named after the chunk and sits beside the frame
+     document (chunkNamePattern in recording.go). The host fetches no other
+     name, so the frame cannot point it at an address of its own. */
+  var CHUNK_FILE = /^[a-z0-9][a-z0-9-]*\.json$/;
+  /* How long the frame waits for the host to hand it a chunk. */
+  var CHUNK_WAIT_MS = 30000;
   /* The looking glass sends one stream message every five seconds
      (handleUIEvents), and the replay keeps that pace. */
   var STREAM_INTERVAL_MS = 5000;
@@ -73,6 +93,143 @@
     return node;
   }
 
+  /* chunkServer answers a function that hands the frame window target the
+     chunk it named. The files come from the mount's data-lg-replay-chunks,
+     an object from chunk name to file name (ChunkFiles in recording.go): the
+     host fetches only a file that object names, under a name CHUNK_FILE
+     accepts, relative to the frame document. Each file is fetched once per
+     page, and a failed fetch is tried again on the next ask. A mount without
+     the attribute answers every ask with a failure. */
+  function chunkServer(mount, frameSource, report) {
+    var files = {};
+    var declared = mount.getAttribute('data-lg-replay-chunks');
+    if (declared) {
+      try {
+        var parsed = JSON.parse(declared);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) files = parsed;
+        else report('data-lg-replay-chunks is not an object from chunk name to file');
+      } catch (error) {
+        report('data-lg-replay-chunks cannot be read: ' + error.message);
+      }
+    }
+    var loads = {};
+    return function (target, name) {
+      function answer(message) {
+        message.from = FROM_HOST;
+        message.name = name;
+        target.postMessage(message, '*');
+      }
+      if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(files, name)) {
+        answer({ type: 'chunk-failed', reason: 'the page names no chunk ' + String(name) });
+        return;
+      }
+      var file = files[name];
+      if (typeof file !== 'string' || !CHUNK_FILE.test(file)) {
+        answer({ type: 'chunk-failed', reason: 'the page names no chunk file for ' + name });
+        return;
+      }
+      if (!loads[name]) {
+        var address = new URL(file, new URL(frameSource, document.baseURI));
+        loads[name] = fetch(address).then(function (response) {
+          if (!response.ok) throw new Error(file + ' answered ' + response.status);
+          return response.json();
+        }).then(function (exchanges) {
+          if (!Array.isArray(exchanges)) throw new Error(file + ' holds no list of exchanges');
+          return exchanges;
+        });
+        loads[name].catch(function () { delete loads[name]; });
+      }
+      loads[name].then(function (exchanges) {
+        answer({ type: 'chunk', exchanges: exchanges });
+      }, function (error) {
+        answer({ type: 'chunk-failed', reason: String(error && error.message ? error.message : error) });
+      });
+    };
+  }
+
+  /* errorKeeper answers the function that keeps what goes wrong in the frame
+     on the mount: the first ERRORS_MAX errors in data-lg-replay-errors, each
+     cut to ERROR_LENGTH_MAX characters. At the bound the list stops growing,
+     and data-lg-replay-errors-dropped counts every error that came after it.
+     The first errors are kept because they say what went wrong; the later
+     ones are mostly their consequences. */
+  function errorKeeper(mount) {
+    var kept = 0;
+    var dropped = 0;
+    return function (text) {
+      if (kept === ERRORS_MAX) {
+        dropped += 1;
+        mount.setAttribute('data-lg-replay-errors-dropped', String(dropped));
+        return;
+      }
+      kept += 1;
+      var list = mount.getAttribute('data-lg-replay-errors');
+      var line = text.slice(0, ERROR_LENGTH_MAX);
+      mount.setAttribute('data-lg-replay-errors', list ? list + ' | ' + line : line);
+    };
+  }
+
+  /* mountFrame mounts a recording with no tour: the frame alone, with no
+     controls. It opens the entry page, loads every page the frame asks for in
+     a new frame element, as mountPlayer does, and serves the frame's chunks.
+     With data-lg-replay-fill on the mount the frame takes the mount's whole
+     box: the page that carries the mount gives it its size. */
+  function mountFrame(mount) {
+    var frameSource = mount.getAttribute('data-lg-replay-frame');
+    var fill = mount.hasAttribute('data-lg-replay-fill');
+    var keepError = errorKeeper(mount);
+    var serveChunk = chunkServer(mount, frameSource, keepError);
+    var frame = null;
+    var loads = 0;
+
+    function loadFrame(key) {
+      var fresh = document.createElement('iframe');
+      fresh.className = 'lg-replay__frame';
+      fresh.title = mount.getAttribute('data-lg-replay-title') || 'Recorded replay';
+      fresh.setAttribute('sandbox', 'allow-scripts allow-forms');
+      fresh.src = frameSource + (key ? '#' + encodeURIComponent(key) : '');
+      if (fill) {
+        fresh.style.display = 'block';
+        fresh.style.width = '100%';
+        fresh.style.height = '100%';
+        fresh.style.border = '0';
+      }
+      mount.setAttribute('data-lg-replay-state', 'loading');
+      mount.removeAttribute('data-lg-replay-page');
+      if (frame) mount.replaceChild(fresh, frame);
+      else mount.appendChild(fresh);
+      frame = fresh;
+    }
+
+    while (mount.firstChild) mount.removeChild(mount.firstChild);
+    loadFrame('');
+
+    window.addEventListener('message', function (event) {
+      if (event.source !== frame.contentWindow) return;
+      var message = event.data;
+      if (!message || message.from !== FROM_FRAME) return;
+      if (message.type === 'ready') {
+        loads += 1;
+        mount.setAttribute('data-lg-replay-state', 'ready');
+        mount.setAttribute('data-lg-replay-page', message.key);
+        mount.setAttribute('data-lg-replay-loads', String(loads));
+      } else if (message.type === 'open') {
+        loadFrame(message.key);
+      } else if (message.type === 'chunk') {
+        serveChunk(frame.contentWindow, message.name);
+      } else if (message.type === 'answered') {
+        mount.setAttribute('data-lg-replay-answered', message.key);
+      } else if (message.type === 'missing') {
+        mount.setAttribute('data-lg-replay-missing', message.request);
+      } else if (message.type === 'error') {
+        keepError(String(message.text));
+      } else if (message.type === 'refused') {
+        mount.setAttribute('data-lg-replay-state', 'refused');
+        mount.appendChild(newElement('p', 'lg-replay__status', String(message.reason)));
+      }
+    });
+  }
+
   function mountPlayer(mount) {
     var section = mount.closest('.lg-replay') || mount.parentNode;
     var steps = Array.prototype.slice.call(section.querySelectorAll('[data-lg-replay-step]'));
@@ -85,26 +242,12 @@
     var state = {
       step: -1, current: -1, target: -1, playing: false, busy: false, ready: false, opening: false,
       page: '', progress: '', recoveredStep: -1, loads: 0,
-      timer: 0, watchdog: 0, errors: 0, errorsDropped: 0
+      timer: 0, watchdog: 0
     };
 
     /* The frame can raise an error on every request for as long as the page
-       stays open, so the mount keeps the first ERRORS_MAX of them in
-       data-lg-replay-errors, each cut to ERROR_LENGTH_MAX characters. At the
-       bound the list stops growing, and data-lg-replay-errors-dropped counts
-       every error that came after it. The first errors are kept because they
-       say what went wrong; the later ones are mostly their consequences. */
-    function keepError(text) {
-      if (state.errors === ERRORS_MAX) {
-        state.errorsDropped += 1;
-        mount.setAttribute('data-lg-replay-errors-dropped', String(state.errorsDropped));
-        return;
-      }
-      state.errors += 1;
-      var kept = mount.getAttribute('data-lg-replay-errors');
-      var line = text.slice(0, ERROR_LENGTH_MAX);
-      mount.setAttribute('data-lg-replay-errors', kept ? kept + ' | ' + line : line);
-    }
+       stays open, so the mount keeps a bounded list of them (errorKeeper). */
+    var keepError = errorKeeper(mount);
 
     var controls = newElement('div', 'lg-replay__controls');
     controls.setAttribute('role', 'group');
@@ -129,6 +272,7 @@
     answer.setAttribute('aria-label', 'Recorded text answer');
 
     var frameSource = mount.getAttribute('data-lg-replay-frame');
+    var serveChunk = chunkServer(mount, frameSource, keepError);
     var frame = null;
 
     /* The host owns which recorded page the frame shows. Every load is a new
@@ -328,6 +472,8 @@
         loadFrame(message.key);
       } else if (message.type === 'step-done') {
         stepDone();
+      } else if (message.type === 'chunk') {
+        serveChunk(frame.contentWindow, message.name);
       } else if (message.type === 'text') {
         answer.textContent = message.body;
         answer.hidden = false;
@@ -373,8 +519,14 @@
     });
   }
 
+  /* A mount whose section lists tour steps gets the tour's controls; one
+     with no step is the frame alone. */
   function hostMain() {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-lg-replay]'), mountPlayer);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-lg-replay]'), function (mount) {
+      var section = mount.closest('.lg-replay') || mount.parentNode;
+      if (section.querySelector('[data-lg-replay-step]')) mountPlayer(mount);
+      else mountFrame(mount);
+    });
   }
 
   /* ---- inside the frame ------------------------------------------------- */
@@ -411,8 +563,31 @@
       return;
     }
 
+    /* The product's settings, each the looking glass's when the recording
+       states none (Player in recording.go). */
+    var settings = recording.player || {};
+    var assetPrefixes = settings['asset-prefixes'] || DEFAULT_ASSET_PREFIXES;
+    var noticeText = settings['notice-text'] || DEFAULT_NOTICE;
+    var noticeClass = settings['notice-class'] || DEFAULT_NOTICE_CLASS;
+
     var exchanges = {};
     recording.exchanges.forEach(function (exchange) { exchanges[exchange.key] = exchange; });
+    /* chunkOf names, for each key a chunk holds, the chunk to ask the host
+       for. A loaded chunk's exchanges join exchanges, so a key is looked up
+       in one place once its chunk is in. */
+    var chunkOf = {};
+    var chunkConflict = '';
+    (recording.chunks || []).forEach(function (chunk) {
+      (chunk.keys || []).forEach(function (key) {
+        if (exchanges[key] || chunkOf[key]) chunkConflict = chunkConflict || key;
+        chunkOf[key] = chunk.name;
+      });
+    });
+    if (chunkConflict) {
+      tellHost({ type: 'refused', reason: 'The recording holds ' + chunkConflict + ' twice, so the replay cannot tell which answer is recorded.' });
+      return;
+    }
+    var fallbacks = recording.fallbacks || [];
     var assets = {};
     recording.assets.forEach(function (asset) { assets[asset.path] = asset; });
     /* The key of the answer the step in progress waits for. */
@@ -426,10 +601,17 @@
       return 'data:' + asset['content-type'].split(';')[0] + ';charset=utf-8,' + encodeURIComponent(asset.body);
     }
 
+    function isAssetPath(path) {
+      return assetPrefixes.some(function (prefix) {
+        return path.length > prefix.length && path.indexOf(prefix) === 0;
+      });
+    }
+
     /* An image of a swapped fragment would be fetched from the network, which
        the frame's policy refuses, so its recorded bytes go inline. */
     function inlineImages(markup) {
-      return markup.replace(/\bsrc="(\/lg\/assets\/[^"]+)"/g, function (whole, path) {
+      return markup.replace(/\bsrc="(\/[^"]+)"/g, function (whole, path) {
+        if (!isAssetPath(path)) return whole;
         var asset = assets[path];
         if (!asset || asset['content-type'].indexOf('image/') !== 0) return whole;
         return 'src="' + dataURI(asset) + '"';
@@ -442,6 +624,100 @@
 
     function reportMissing(key) {
       tellHost({ type: 'missing', request: requestLabel(key) });
+    }
+
+    /* ---- chunks, through the host ---- */
+
+    /* A chunk is asked for once: every request for it while it travels waits
+       on the same load. A load the host refuses, or does not answer within
+       CHUNK_WAIT_MS, fails every request waiting on it, and the next request
+       asks again. */
+    var chunkLoads = {};
+
+    function loadChunk(name) {
+      if (chunkLoads[name]) return chunkLoads[name].promise;
+      var pending = { settled: false };
+      pending.promise = new Promise(function (resolve, reject) {
+        pending.resolve = resolve;
+        pending.reject = reject;
+      });
+      pending.timer = window.setTimeout(function () {
+        settleChunk(name, 'the page did not hand it over within ' + (CHUNK_WAIT_MS / 1000) + ' seconds');
+      }, CHUNK_WAIT_MS);
+      chunkLoads[name] = pending;
+      tellHost({ type: 'chunk', name: name });
+      return pending.promise;
+    }
+
+    /* settleChunk ends the load of name: failure is why it failed, or '' for
+       a chunk that is in. */
+    function settleChunk(name, failure) {
+      var pending = chunkLoads[name];
+      if (!pending || pending.settled) return;
+      pending.settled = true;
+      window.clearTimeout(pending.timer);
+      if (failure) {
+        delete chunkLoads[name];
+        pending.reject(failure);
+        return;
+      }
+      pending.resolve();
+    }
+
+    /* A chunk's exchanges join the frame's only under the keys the recording
+       says that chunk holds, so a chunk cannot replace another answer. */
+    function chunkArrived(name, held) {
+      var pending = chunkLoads[name];
+      if (!pending || pending.settled) return;
+      if (!Array.isArray(held)) {
+        settleChunk(name, 'the page handed over no list of answers');
+        return;
+      }
+      held.forEach(function (exchange) {
+        var key = exchange && exchange.key;
+        if (typeof key === 'string' && chunkOf[key] === name) {
+          exchanges[key] = exchange;
+          return;
+        }
+        tellHost({ type: 'error', text: 'chunk ' + name + ' holds ' + String(key) + ', which the recording does not list in it' });
+      });
+      settleChunk(name, '');
+    }
+
+    function chunkFailure(name, reason) {
+      return 'The part of the recording named ' + name + ' could not be loaded: ' + reason + '.';
+    }
+
+    /* withExchange calls found with the exchange recorded under key, or
+       missing with why there is none ('' when nothing recorded it). An
+       exchange the frame holds is answered at once, as it always was; one in
+       a chunk once the chunk is in. */
+    function withExchange(key, found, missing) {
+      if (exchanges[key]) {
+        found(exchanges[key]);
+        return;
+      }
+      var name = chunkOf[key];
+      if (!name) {
+        missing('');
+        return;
+      }
+      loadChunk(name).then(function () {
+        if (exchanges[key]) found(exchanges[key]);
+        else missing('');
+      }, function (reason) {
+        missing(chunkFailure(name, String(reason)));
+      });
+    }
+
+    /* The first fallback whose method and path prefix match the request, or
+       null. */
+    function fallbackFor(request) {
+      for (var index = 0; index < fallbacks.length; index++) {
+        var fallback = fallbacks[index];
+        if (fallback.method === request.method && request.path.indexOf(fallback['path-prefix']) === 0) return fallback;
+      }
+      return null;
     }
 
     /* The sandbox gives the frame an origin of its own with no storage, and
@@ -461,13 +737,72 @@
     });
 
     /* htmx pushes each page's URL. The frame document has one URL, and a
-       sandboxed document may not take another, so the push is dropped. */
-    window.history.pushState = function () {};
-    window.history.replaceState = function () {};
+       sandboxed document may not take another, so the push is dropped. A
+       recording that asks keeps the last pushed address instead, and the
+       page's relative addresses resolve against it, as they would against
+       the address bar; the frame's own location never changes. */
+    var pushedAddress = '';
+    if (settings['keep-pushed-address']) {
+      var keepAddress = function (state, title, url) {
+        if (url === undefined || url === null) return;
+        pushedAddress = new URL(String(url), addressBase()).href;
+      };
+      window.history.pushState = keepAddress;
+      window.history.replaceState = keepAddress;
+    } else {
+      window.history.pushState = function () {};
+      window.history.replaceState = function () {};
+    }
+
+    /* The address the page's relative addresses resolve against. */
+    function addressBase() {
+      return pushedAddress || window.location.href;
+    }
+
+    /* A page's stream client meets a stream that opens and stays quiet, when
+       the recording asks: the frame's policy refuses a real one, and a client
+       that saw it fail would show a lost connection. The recording is one
+       moment, so there is nothing to send on it. */
+    if (settings['silent-event-source']) {
+      class SilentEventSource extends EventTarget {
+        constructor(url, options) {
+          super();
+          var source = this;
+          this.url = new URL(String(url), addressBase()).href;
+          this.withCredentials = Boolean(options && options.withCredentials);
+          this.readyState = SilentEventSource.CONNECTING;
+          this.onopen = null;
+          this.onmessage = null;
+          this.onerror = null;
+          /* The handler properties run before any listener, as the
+             browser's own do when set first. */
+          ['open', 'message', 'error'].forEach(function (type) {
+            source.addEventListener(type, function (event) {
+              var handler = source['on' + type];
+              if (typeof handler === 'function') handler.call(source, event);
+            });
+          });
+          window.setTimeout(function () {
+            if (source.readyState !== SilentEventSource.CONNECTING) return;
+            source.readyState = SilentEventSource.OPEN;
+            source.dispatchEvent(new Event('open'));
+          }, 0);
+        }
+
+        close() {
+          this.readyState = SilentEventSource.CLOSED;
+        }
+      }
+      [['CONNECTING', 0], ['OPEN', 1], ['CLOSED', 2]].forEach(function (state) {
+        SilentEventSource[state[0]] = state[1];
+        SilentEventSource.prototype[state[0]] = state[1];
+      });
+      window.EventSource = SilentEventSource;
+    }
 
     function requestOf(input, init) {
       var raw = typeof input === 'string' ? input : (input && input.url) ? input.url : String(input);
-      var target = new URL(raw, window.location.href);
+      var target = new URL(raw, addressBase());
       var method = (init.method || (input && input.method) || 'GET').toUpperCase();
       var headers = new Headers(init.headers || (input && input.headers) || {});
       var form = [];
@@ -514,32 +849,22 @@
       });
     }
 
-    function noticeResponse(request) {
+    /* noticeResponse answers a request the recording does not hold. failure,
+       when not empty, says why a chunk that should hold it could not load. */
+    function noticeResponse(request, failure) {
       if (!request.htmx) {
-        return new Response('Not in this recording: ' + requestLabel(request.key) + '\n',
+        return new Response('Not in this recording: ' + requestLabel(request.key) + '\n' + (failure ? failure + '\n' : ''),
           { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
       var notice = document.createElement('div');
-      notice.className = 'error-banner';
+      notice.className = noticeClass;
       notice.setAttribute('role', 'status');
-      notice.textContent = 'Not in this recording: ' + requestLabel(request.key) +
-        '. The replay holds the answers of the tour and of the rows its pages show.';
+      notice.textContent = noticeText.split(NOTICE_REQUEST).join(requestLabel(request.key)) + (failure ? ' ' + failure : '');
       return new Response(notice.outerHTML,
         { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
-    /* Every request the looking glass's scripts make arrives here: htmx and
-       its stream extension both call fetch. Nothing is sent anywhere. */
-    window.fetch = function (input, init) {
-      var request = requestOf(input, init || {});
-      if (recording.stream && request.method === 'GET' && request.path === recording.stream.path) {
-        return Promise.resolve(streamResponse(init && init.signal));
-      }
-      var exchange = exchanges[request.key];
-      if (!exchange) {
-        reportMissing(request.key);
-        return Promise.resolve(noticeResponse(request));
-      }
+    function answerResponse(exchange) {
       tellHost({ type: 'answered', key: exchange.key });
       if (stepExchangeKey === exchange.key) {
         stepExchangeKey = '';
@@ -548,8 +873,36 @@
         window.setTimeout(function () { tellHost({ type: 'step-done' }); }, 150);
       }
       var body = isMarkup(exchange) ? inlineImages(exchange.body) : exchange.body;
-      return Promise.resolve(new Response(body,
-        { status: exchange.status, headers: { 'Content-Type': exchange['content-type'] } }));
+      return new Response(body,
+        { status: exchange.status, headers: { 'Content-Type': exchange['content-type'] } });
+    }
+
+    /* A request no exchange holds: the first matching fallback answers it,
+       and the notice otherwise. A chunk that failed to load gets the notice
+       that says so, never a fallback. */
+    function unrecordedResponse(request, failure) {
+      var fallback = failure ? null : fallbackFor(request);
+      if (fallback) return answerResponse(fallback.exchange);
+      reportMissing(request.key);
+      return noticeResponse(request, failure);
+    }
+
+    /* Every request the page's scripts make arrives here: htmx and the looking
+       glass's stream extension both call fetch. Nothing is sent anywhere. */
+    window.fetch = function (input, init) {
+      var request = requestOf(input, init || {});
+      if (recording.stream && request.method === 'GET' && request.path === recording.stream.path) {
+        return Promise.resolve(streamResponse(init && init.signal));
+      }
+      var exchange = exchanges[request.key];
+      if (exchange) return Promise.resolve(answerResponse(exchange));
+      return new Promise(function (resolve) {
+        withExchange(request.key, function (found) {
+          resolve(answerResponse(found));
+        }, function (failure) {
+          resolve(unrecordedResponse(request, failure));
+        });
+      });
     };
 
     /* The host loads every document of the frame, in a new frame element, so
@@ -561,6 +914,17 @@
       tellHost({ type: 'open', key: key, step: step });
     }
 
+    /* openRecorded opens the recorded page key names, as a plain link to it
+       does, or gives the notice when no page is recorded under it. */
+    function openRecorded(key) {
+      withExchange(key, function (exchange) {
+        if (isMarkup(exchange)) openDocument(key, false);
+        else reportMissing(key);
+      }, function () {
+        reportMissing(key);
+      });
+    }
+
     /* A plain link or form would leave the frame document for a URL the site
        does not serve. A recorded page opens from the recording, and anything
        else gets the notice. */
@@ -570,31 +934,58 @@
       if (link.hasAttribute('hx-get')) return;
       if (link.hasAttribute('hx-post')) return;
       event.preventDefault();
-      var target = new URL(link.getAttribute('href'), window.location.href);
-      var key = exchangeKey('GET', target.pathname, fieldsOf(target.searchParams), [], false);
-      if (exchanges[key] && isMarkup(exchanges[key])) {
-        openDocument(key, false);
-        return;
-      }
-      reportMissing(key);
+      var target = new URL(link.getAttribute('href'), addressBase());
+      openRecorded(exchangeKey('GET', target.pathname, fieldsOf(target.searchParams), [], false));
     }, true);
-    document.addEventListener('submit', function (event) {
-      var form = event.target;
-      if (form.hasAttribute('hx-post')) return;
-      if (form.hasAttribute('hx-get')) return;
-      event.preventDefault();
-      reportMissing((form.getAttribute('method') || 'GET').toUpperCase() + ' ' + (form.getAttribute('action') || ''));
-    }, true);
+    if (settings['plain-forms']) {
+      /* A form no htmx attribute submits, and whose page's own script did not
+         take the submission, is answered the way the browser would: a GET
+         form opens its action with its fields as a link to them would, a
+         dialog form closes its dialog, and any other gets the notice. The
+         listener runs last, so a script's own handling comes first. */
+      window.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (event.defaultPrevented) return;
+        if (form.hasAttribute('hx-post')) return;
+        if (form.hasAttribute('hx-get')) return;
+        var method = (form.getAttribute('method') || 'GET').toUpperCase();
+        if (method === 'DIALOG') return;
+        event.preventDefault();
+        var target = new URL(form.getAttribute('action') || '', addressBase());
+        if (method !== 'GET') {
+          reportMissing(method + ' ' + target.pathname);
+          return;
+        }
+        openRecorded(exchangeKey('GET', target.pathname, fieldsOf(new FormData(form, event.submitter)), [], false));
+      });
+    } else {
+      document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (form.hasAttribute('hx-post')) return;
+        if (form.hasAttribute('hx-get')) return;
+        event.preventDefault();
+        reportMissing((form.getAttribute('method') || 'GET').toUpperCase() + ' ' + (form.getAttribute('action') || ''));
+      }, true);
+    }
 
+    /* showDocument puts the recorded page key names in place: at once when
+       the frame holds it, once its chunk is in when a chunk does. */
     function showDocument(key) {
-      var exchange = exchanges[key];
-      if (!exchange) {
-        document.body.textContent = 'Not in this recording: ' + requestLabel(key);
+      withExchange(key, function (exchange) {
+        putDocument(key, exchange);
+      }, function (failure) {
+        document.body.textContent = 'Not in this recording: ' + requestLabel(key) + (failure ? ' ' + failure : '');
         reportMissing(key);
-        return;
-      }
+      });
+    }
+
+    function putDocument(key, exchange) {
       var recordedDocument = new DOMParser().parseFromString(exchange.body, 'text/html');
       var scripts = [];
+      /* A script with src and defer, or a module, runs once the document is
+         parsed, after every classic script, in document order: they are
+         kept apart and run after the others. */
+      var deferred = [];
       var lang = recordedDocument.documentElement.getAttribute('lang');
       if (lang) document.documentElement.setAttribute('lang', lang);
       document.title = recordedDocument.title;
@@ -615,7 +1006,8 @@
             reportMissing('GET ' + node.getAttribute('src'));
             return;
           }
-          scripts.push(script.body);
+          if (node.hasAttribute('defer') || node.getAttribute('type') === 'module') deferred.push(script.body);
+          else scripts.push(script.body);
         } else if (name === 'script') {
           scripts.push(node.textContent);
         } else if (name === 'style') {
@@ -627,16 +1019,20 @@
         if (asset) image.setAttribute('src', dataURI(asset));
       });
       document.documentElement.replaceChild(document.importNode(recordedDocument.body, true), document.body);
-      /* A script element made here runs as it is inserted, so the looking
-         glass's scripts run in the order its page loads them. */
-      scripts.forEach(function (text) {
+      /* A script element made here runs as it is inserted, so the page's
+         scripts run in the order its page loads them. */
+      scripts.concat(deferred).forEach(function (text) {
         document.head.appendChild(newElement('script', '', text));
       });
-      /* This runs while the frame document is still loading, so the scripts'
-         DOMContentLoaded handlers fire when it ends. Were it ever to run
-         later, they would wait for an event that has passed. */
+      /* A page the frame holds is put in place while the frame document is
+         still loading, so the scripts' DOMContentLoaded and load handlers
+         fire when it ends. A page from a chunk arrives after both events,
+         so they are dispatched for the scripts that just registered. */
       if (document.readyState !== 'loading') {
         document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true }));
+      }
+      if (document.readyState === 'complete') {
+        window.dispatchEvent(new Event('load'));
       }
       tellHost({ type: 'ready', key: key });
     }
@@ -708,6 +1104,8 @@
       var message = event.data;
       if (!message || message.from !== FROM_HOST) return;
       if (message.type === 'step') playStep(message.index);
+      else if (message.type === 'chunk') chunkArrived(message.name, message.exchanges);
+      else if (message.type === 'chunk-failed') settleChunk(message.name, String(message.reason));
     });
 
     var openingKey = recording.entry;

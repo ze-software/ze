@@ -33,8 +33,11 @@ func (p Paths) readTestHealth() (testhealth.Rendered, error) {
 	return p.testHealth()
 }
 
-// resolvePaths derives the site source and output roots from one checkout.
-func resolvePaths(repository, output string) (Paths, error) {
+// ResolvePaths derives the site source and output roots from one checkout.
+// Every site action resolves its output here, the sub-areas outside this
+// package (site fleet-demo) included, so each refuses an output inside the
+// website sources the same way.
+func ResolvePaths(repository, output string) (Paths, error) {
 	root, err := filepath.Abs(repository)
 	if err != nil {
 		return Paths{}, err

@@ -65,7 +65,7 @@ var actions = leaction.New(area,
 			{Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"},
 			{Keyword: keywordProducer, Kind: leaction.KindLabel, Help: "render only this producer's pages over the artifact", Value: "name", Requirement: leaction.Optional, Repeat: true, Source: producerCandidates},
 		}, AnswerArgs: runBuild},
-	leaction.Action{Verb: "check", Summary: "check the Pages artifact holds no source inputs", Why: "verify that the Pages artifact contains no source-only website inputs",
+	leaction.Action{Verb: "check", Summary: "check the Pages artifact holds no source inputs", Why: "verify that the Pages artifact contains no source-only website inputs, and that the looking glass replay it carries is not a trial recording and names a commit in this checkout's history",
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional},
 			{Keyword: publicationReceiptKeyword, Kind: leaction.KindSwitch, Help: "verify the saved source and reviewed artifact bytes"},
@@ -174,17 +174,25 @@ type checkReport struct {
 	PlainFigures []plainFigure `json:"plain-figures,omitempty"`
 	// StaleRatchet names each page website/data/plain-figure-ratchet.json
 	// lists that no longer shows a plain figure, so its entry is owed removal.
-	StaleRatchet []string           `json:"stale-ratchet,omitempty"`
-	Coverage     Coverage           `json:"coverage"`
-	Publication  *publicationReport `json:"publication,omitempty"`
+	StaleRatchet []string `json:"stale-ratchet,omitempty"`
+	// Replay names each reason the looking glass replay the artifact carries
+	// is not for publication (checkLGReplay): a trial recording, or a
+	// recording whose commit is not in the checkout's history.
+	Replay      []replayRefusal    `json:"replay,omitempty"`
+	Coverage    Coverage           `json:"coverage"`
+	Publication *publicationReport `json:"publication,omitempty"`
 }
 
 // exit answers the status one check reports. An artifact is refused when it
 // carries a source-only input, when a public route has no Markdown mirror, when
 // a named non-route artifact is absent, when a page shows a published value
 // outside its marker, when the plain-figure ratchet lists a page that shows
-// none, and when a published route has no producer or has two.
+// none, when its looking glass replay is not for publication, and when a
+// published route has no producer or has two.
 func (report checkReport) exit() int {
+	if len(report.Replay) != 0 {
+		return 1
+	}
 	if len(report.SourceOnly) != 0 || len(report.MissingMirrors) != 0 {
 		return 1
 	}
@@ -212,7 +220,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	paths, err := resolvePaths(root, arguments.One(keywordOutput))
+	paths, err := ResolvePaths(root, arguments.One(keywordOutput))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -222,6 +230,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
+	reportReplayRefusals(report.Replay)
 	if code := report.exit(); code != 0 {
 		return report, code
 	}
@@ -266,6 +275,10 @@ func checkSiteArtifact(paths Paths) (checkReport, error) {
 	}
 	report.PlainFigures = plain.Figures
 	report.StaleRatchet = plain.StaleRatchet
+	report.Replay, err = checkLGReplay(context.Background(), paths)
+	if err != nil {
+		return report, err
+	}
 	report.Coverage, err = checkCoverage(paths)
 	if err != nil {
 		return report, err
@@ -351,7 +364,7 @@ func runConfigTree(arguments leaction.Arguments) (any, int) {
 			"cd <ze-checkout> && ./le site config-tree"))
 		return nil, 1
 	}
-	paths, err := resolvePaths(root, arguments.One(keywordOutput))
+	paths, err := ResolvePaths(root, arguments.One(keywordOutput))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

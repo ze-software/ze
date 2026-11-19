@@ -136,6 +136,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/setup/docker/kernel"
 	_ "github.com/ze-software/ze/internal/le/site"
 	_ "github.com/ze-software/ze/internal/le/site/facts"
+	_ "github.com/ze-software/ze/internal/le/site/fleetdemo"
 	_ "github.com/ze-software/ze/internal/le/site/history"
 	_ "github.com/ze-software/ze/internal/le/site/lgreplay"
 	_ "github.com/ze-software/ze/internal/le/site/release"

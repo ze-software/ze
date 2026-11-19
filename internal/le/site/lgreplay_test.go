@@ -210,15 +210,10 @@ func TestLGReplayBlockWithoutARecording(t *testing.T) {
 	}
 }
 
-// TestLGReplayRefusesARecordingOfADirtyTree proves the site publishes no
-// recording whose provenance says the checkout held uncommitted changes: the
-// block and the producer both refuse it, naming the command that records
-// properly, and nothing is written.
-func TestLGReplayRefusesARecordingOfADirtyTree(t *testing.T) {
-	paths := lgReplayCheckout(t, false)
-	trial := lgReplaySample()
-	trial.Provenance.TreeDirty = true
-	content, err := trial.Encode()
+// lgReplayWriteRecording writes recording as the checkout's recording.
+func lgReplayWriteRecording(t *testing.T, paths Paths, recording sitelgreplay.Recording) {
+	t.Helper()
+	content, err := recording.Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,28 +224,102 @@ func TestLGReplayRefusesARecordingOfADirtyTree(t *testing.T) {
 	if err := os.WriteFile(recorded, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
 
-	_, blockErr := lgReplayBlockHTML(paths, lgReplayPage)
-	_, producerErr := renderLGReplay(paths)
-	for name, err := range map[string]error{"the block": blockErr, "the producer": producerErr} {
-		if err == nil {
-			t.Fatalf("%s published a recording of a tree with uncommitted changes", name)
-		}
-		for _, want := range []string{
-			"recorded from a checkout with uncommitted changes",
-			"commit 0123456789 ",
-			"fix: " + sitelgreplay.RecorderCommand,
-		} {
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("%s: the refusal lacks %q:\n%v", name, want, err)
-			}
-		}
-		if !strings.HasSuffix(err.Error(), "fix: "+sitelgreplay.RecorderCommand) {
-			t.Errorf("%s: the command that records properly is not the last line:\n%v", name, err)
+// TestLGReplayRendersATrialRecordingWithItsNotice proves the build renders a
+// recording whose provenance says the checkout held uncommitted changes, and
+// refuses nothing: building the site renders data and never runs a check
+// (ai/META-DECISIONS.md, "Website design"). The block, the transcript and the
+// frame document each say it is a trial that is not for publication, and the
+// block states the mark ./le site check refuses. The refusal this test
+// asserted of the build until 2026-11-19 is asserted of the check, in
+// TestSiteCheckRefusesATrialRecording.
+func TestLGReplayRendersATrialRecordingWithItsNotice(t *testing.T) {
+	paths := lgReplayCheckout(t, false)
+	trial := lgReplaySample()
+	trial.Provenance.TreeDirty = true
+	lgReplayWriteRecording(t, paths, trial)
+
+	block, err := lgReplayBlockHTML(paths, lgReplayPage)
+	if err != nil {
+		t.Fatalf("the block refused a trial recording, and a build renders one: %v", err)
+	}
+	said := []string{
+		"Trial recording, not for publication.",
+		"made from a checkout with uncommitted changes, so commit 0123456789 alone did not produce these answers",
+		"./le site check refuses a site that carries it",
+		"record again with " + sitelgreplay.RecorderCommand,
+	}
+	for _, want := range append([]string{
+		`<div class="lg-replay" data-lg-replay-commit="0123456789abcdef0123" data-lg-replay-trial>`,
+		`<div class="section-note" role="note">`,
+		`<strong>Trial recording, not for publication.</strong>`,
+		// The replay itself is rendered whole.
+		`data-lg-replay data-lg-replay-frame="replay/frame.html"`,
+		`<li data-lg-replay-step="0">`,
+		"from commit 0123456789 (2026-11-18)",
+	}, said[1:]...) {
+		if !strings.Contains(block, want) {
+			t.Errorf("the block of a trial recording lacks %q:\n%s", want, block)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(paths.Output, "labs")); !os.IsNotExist(err) {
-		t.Fatalf("the producer wrote under labs/ from a refused recording: %v", err)
+
+	if routes, err := renderLGReplay(paths); err != nil || len(routes) != 0 {
+		t.Fatalf("producer: routes=%v err=%v, want a trial recording rendered with no route and no error", routes, err)
+	}
+	directory := filepath.Join(paths.Output, "labs", "looking-glass-graph", "replay")
+	transcript, err := os.ReadFile(filepath.Join(directory, lgReplayTranscript))
+	if err != nil {
+		t.Fatal(err)
+	}
+	header, _, _ := strings.Cut(string(transcript), "\n1. ")
+	frame, err := os.ReadFile(filepath.Join(directory, lgReplayFrame))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, notice, found := strings.Cut(string(frame), `<p id="lg-replay-notice">`)
+	if !found {
+		t.Fatalf("the frame document carries no notice paragraph:\n%s", frame)
+	}
+	notice, _, _ = strings.Cut(notice, "</p>")
+	for name, text := range map[string]string{"the transcript's header": header, "the frame document's notice": notice} {
+		for _, want := range said {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s lacks %q:\n%s", name, want, text)
+			}
+		}
+	}
+}
+
+// TestLGReplayOfACommittedTreeCarriesNoTrialNotice proves a recording made
+// from a committed tree states its commit for the check, and that neither the
+// block, the transcript nor the frame document calls it a trial.
+func TestLGReplayOfACommittedTreeCarriesNoTrialNotice(t *testing.T) {
+	paths := lgReplayCheckout(t, true)
+	block, err := lgReplayBlockHTML(paths, lgReplayPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(block, `<div class="lg-replay" data-lg-replay-commit="0123456789abcdef0123">`) {
+		t.Errorf("the block does not state its recording's commit and nothing else on its root:\n%s", block)
+	}
+	recording := lgReplaySample()
+	transcript, err := lgReplayTranscriptText(recording)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame, err := lgReplayFrameDocument(recording, "/* the player */")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The frame document is judged without the recording it embeds.
+	frame, _, _ = strings.Cut(frame, `<script type="application/json"`)
+	for name, text := range map[string]string{"the block": block, "the transcript": transcript, "the frame document": frame} {
+		for _, unwanted := range []string{"Trial recording", "data-lg-replay-trial", "section-note"} {
+			if strings.Contains(text, unwanted) {
+				t.Errorf("%s of a committed recording carries %q:\n%s", name, unwanted, text)
+			}
+		}
 	}
 }
 
@@ -302,5 +371,40 @@ func TestAuthoredPageExpandsARegisteredBlock(t *testing.T) {
 	}
 	if !strings.Contains(string(source), "<!-- site-block: "+lgReplayBlock+" -->") {
 		t.Fatalf("website/%s no longer names the %s block", lgReplayPage, lgReplayBlock)
+	}
+}
+
+// TestReplayFrameDocumentTakesThePlayerSettings proves the frame document of a
+// recording with player settings carries that recording's title, subject and
+// host page, escaped, under the same policy, and that a recording without them
+// gets the looking glass's.
+func TestReplayFrameDocumentTakesThePlayerSettings(t *testing.T) {
+	looking, err := ReplayFrameDocument(lgReplaySample(), "/* the player */")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"<title>Ze looking glass replay</title>",
+		`This document replays a recorded Ze looking glass, and only inside the frame of <a href="../">its page</a>, with JavaScript.`,
+	} {
+		if !strings.Contains(string(looking), want) {
+			t.Errorf("the looking glass frame lacks %q", want)
+		}
+	}
+
+	recording := lgReplaySample()
+	recording.Player = &sitelgreplay.Player{Title: "Fleet <recorded>", Subject: "Ze fleet & co", HostPage: "./"}
+	fleet, err := ReplayFrameDocument(recording, "/* the player */")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"<title>Fleet &lt;recorded&gt;</title>",
+		`This document replays a recorded Ze fleet &amp; co, and only inside the frame of <a href="./">its page</a>, with JavaScript.`,
+		`content="` + lgReplayPolicy + `"`,
+	} {
+		if !strings.Contains(string(fleet), want) {
+			t.Errorf("the frame of a recording with player settings lacks %q:\n%s", want, fleet)
+		}
 	}
 }

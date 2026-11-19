@@ -396,6 +396,13 @@ claimed. It refuses `partial` and `refresh`, which are whole-site steps.
 
 ### Markdown to HTML contract
 
+The stylesheet publisher expands local imports, then scans CSS quotes and
+comments before publishing `assets/site.css`. It preserves quoted text,
+including escaped quotes and literal comment markers. An unmatched comment
+close, an unclosed comment or an unclosed string refuses publication with a
+source-repair instruction. Whitespace minification applies only outside strings.
+<!-- source: internal/le/site/assets.go -- siteStylesheet, minifyCSS -->
+
 Ordinary Markdown pages use the shared site renderer. A dedicated renderer is
 justified when the HTML is computed from structured data, live command output,
 source extraction or another input with its own transformation.
@@ -655,21 +662,59 @@ Keep these when you change it:
   its page (`frameRefusal`).
 - The recording is regenerated, never edited by hand. A value that changes run
   to run gets a rule in the recorder, and the file declares it.
-- The recording comes from a clean checkout: the recorder refuses uncommitted
-  changes unless the line says `trial`, and the build refuses to publish a
-  recording that says `"tree-dirty": true`. The page names the commit as the
-  code that answered.
+- A published recording comes from a committed tree, and the page names the
+  commit as the code that answered. The recorder refuses uncommitted changes
+  unless the line says `trial`.
+- A trial recording (`"tree-dirty": true`) is for looking at the replay
+  locally after a change: `./le site lg-replay record trial binary <ze>`, then
+  `./le site build producer lg-replay producer authored`. The build renders
+  it and refuses nothing, because building the site renders data and never
+  runs a check. The block then carries a notice, the site's `.section-note`,
+  that it is a trial recording made from a checkout with uncommitted changes
+  and is not for publication. Keep the notice in that existing component: do
+  not give it a style of its own.
+- `./le site check` refuses a site whose replay comes from a trial recording,
+  and one whose recording names a commit that is not in the checkout's
+  history. It reads `data-lg-replay-trial` and `data-lg-replay-commit` on the
+  block's root element, so keep both marks when you change the block. The fix
+  it names is `./le site lg-replay record`, from a committed tree.
 - The page and the transcript say that no network shown is a real one. The
   prefixes come from `198.18.0.0/15` (benchmarking, RFC 2544), because the
   three IPv4 documentation blocks are `/24`s the speakers already use.
 - The graph modes are `aspath`, `nexthop` and `trace`, the names the looking
   glass uses in its URL (`/lg/graph?prefix=X&mode=trace`) and on its page.
+- The player and the frame writer serve a second recording, the fleet
+  interface's, and everything that recording needs is stated in the recording
+  and off by default. A change for the fleet never changes what the looking
+  glass replay does: its recording file stays byte for byte, and its browser
+  tests pass unchanged.
+
+The second recording is the fleet demonstration, written by `./le site
+fleet-demo render` under the output's `tmp/fleet-demo/`, so it is not
+published: no page links it, and the routes, the sitemap, the search index and
+the publication receipt never see `tmp/`. It uses the same format with three
+optional fields, each absent from `data/lg-replay.json`:
+
+| Field | What the player does with it |
+|-------|------------------------------|
+| `player` | The product's settings, each defaulting to the looking glass's: the frame document's `title`, the `subject` and `host-page` its no-frame paragraph names, the `asset-prefixes` whose images are put inline, the unrecorded-request notice (`notice-text`, where `{request}` names the request, and `notice-class`), and three switches. `silent-event-source` gives the frame an `EventSource` that opens and never sends, so a stream client sees a quiet, connected stream. `keep-pushed-address` keeps the last address the page pushed and resolves relative addresses against it. `plain-forms` answers a form no htmx attribute or page script handles as the browser would: a GET form opens its action and fields as a link would, a dialog form closes its dialog |
+| `chunks` | Answers too large to travel in the frame. Each chunk has a `name`, a `file` beside the frame (`<name>.json`, a JSON list of exchanges), a `size` and the `keys` it holds. The frame asks its host page for a chunk by name; the host fetches only the file its mount's `data-lg-replay-chunks` object names for it, and hands the answers back by message. The frame checks the message comes from its parent, the host that it comes from its frame |
+| `fallbacks` | Ordered rules, each a `method`, a `path-prefix` and the `exchange` that answers a request nothing else holds. The fleet answers every posted action with one recorded toast |
+
+A mount with no tour steps is a frame alone, with no controls; with
+`data-lg-replay-fill` the frame takes the mount's whole box, set by the player
+on the frame element, because the demonstration's host page does not load the
+site stylesheet. `site.ReplayFrameDocument` writes either frame document under
+the same policy: chunks arrive by message, so the policy needs no
+`connect-src`.
 
 How it is recorded, published and played: `docs/contributing/gh-pages.md`,
 "Looking glass replay".
-<!-- source: internal/le/site/lgreplay.go -- lgReplayBlockHTML, renderLGReplay, lgReplayPolicy -->
+<!-- source: internal/le/site/lgreplay.go -- lgReplayBlockHTML, renderLGReplay, lgReplayPolicy, ReplayFrameDocument, lgReplayTrialNotice -->
+<!-- source: internal/le/site/lgreplay_check.go -- checkLGReplay -->
 <!-- source: internal/le/site/lgreplay/actions.go -- runRecord -->
-<!-- source: website/assets/js/lg-replay.js -- mountPlayer -->
+<!-- source: internal/le/site/lgreplay/recording.go -- Player, Chunk, Fallback, SplitChunks, ChunkFiles -->
+<!-- source: website/assets/js/lg-replay.js -- mountPlayer, mountFrame, chunkServer -->
 
 ### Site design and content rules
 

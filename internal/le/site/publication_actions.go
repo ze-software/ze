@@ -38,7 +38,7 @@ func runPublicationRecord(arguments leaction.Arguments) (any, int) {
 	if err != nil {
 		return publicationFailure(err)
 	}
-	paths, err := resolvePaths(root, arguments.One(keywordOutput))
+	paths, err := ResolvePaths(root, arguments.One(keywordOutput))
 	if err != nil {
 		return publicationFailure(err)
 	}
@@ -46,6 +46,7 @@ func runPublicationRecord(arguments leaction.Arguments) (any, int) {
 	if err != nil {
 		return publicationFailure(err)
 	}
+	reportReplayRefusals(checked.Replay)
 	if code := checked.exit(); code != 0 {
 		return checked, code
 	}

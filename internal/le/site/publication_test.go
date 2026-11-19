@@ -461,7 +461,7 @@ func publicationFixture(t *testing.T) (Paths, string) {
 	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatal(err)
 	}
-	paths, err := resolvePaths(root, output)
+	paths, err := ResolvePaths(root, output)
 	if err != nil {
 		t.Fatal(err)
 	}

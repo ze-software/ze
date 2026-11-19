@@ -2,6 +2,7 @@ package sitelgreplay
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -203,5 +204,221 @@ func TestRecordingBytesAreStable(t *testing.T) {
 	}
 	if _, err := Read(path); err == nil {
 		t.Fatal("a recording of another schema was read")
+	}
+}
+
+// chunkedRecording is sampleRecording with every optional field filled: the
+// player's settings, two chunks and two fallbacks whose prefixes overlap, so
+// their order decides which one answers.
+func chunkedRecording() Recording {
+	recording := sampleRecording()
+	recording.Player = &Player{
+		Title: "Ze fleet interface, recorded", Subject: "Ze fleet interface", HostPage: "./",
+		AssetPrefixes: []string{"/fleet/assets/", "/assets/"},
+		NoticeText:    "This is not part of the recorded demonstration: " + NoticeRequestToken + ".",
+		NoticeClass:   "fleet-toast", SilentEventSource: true, KeepPushedAddress: true, PlainForms: true,
+	}
+	recording.Chunks = []Chunk{
+		{Name: "estate", File: "estate.json", Size: 120, Keys: []string{"GET /fleet/estate htmx"}},
+		{Name: "device-r1", File: "device-r1.json", Size: 80, Keys: []string{"GET /fleet/device/r1", "GET /fleet/device/r1 htmx"}},
+	}
+	toast := Exchange{
+		Key: "POST /fleet/action/", Method: "POST", Path: "/fleet/action/", HTMX: true, Via: viaTour, Status: 200,
+		ContentType: "text/html; charset=utf-8", Body: "<div>Recorded demonstration: this action was not sent</div>",
+	}
+	recording.Fallbacks = []Fallback{
+		{Method: "POST", PathPrefix: "/fleet/action/reboot", Exchange: toast},
+		{Method: "POST", PathPrefix: "/fleet/action/", Exchange: toast},
+	}
+	return recording
+}
+
+// writeAndRead encodes recording to a file and answers what Read makes of it.
+func writeAndRead(t *testing.T, recording Recording) (Recording, []byte, error) {
+	t.Helper()
+	content, err := recording.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "recording.json")
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	read, err := Read(path)
+	return read, content, err
+}
+
+// TestRecordingOptionalFieldsRoundTrip proves the fields a second product
+// needs are optional: a recording without them encodes none of their keys and
+// reads back equal, one with every one of them reads back equal, and the
+// committed looking glass recording re-encodes to its own bytes.
+//
+// Method: encode, read back through Read, compare whole values; then read the
+// committed file and compare its re-encoding byte for byte.
+func TestRecordingOptionalFieldsRoundTrip(t *testing.T) {
+	plain := sampleRecording()
+	read, content, err := writeAndRead(t, plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(read, plain) {
+		t.Fatalf("a recording without the optional fields read back:\n got %+v\nwant %+v", read, plain)
+	}
+	for _, key := range []string{`"player"`, `"chunks"`, `"fallbacks"`} {
+		if bytes.Contains(content, []byte(key)) {
+			t.Errorf("a recording without the optional fields encodes the key %s:\n%s", key, content)
+		}
+	}
+
+	chunked := chunkedRecording()
+	read, content, err = writeAndRead(t, chunked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(read, chunked) {
+		t.Fatalf("a recording with the optional fields read back:\n got %+v\nwant %+v", read, chunked)
+	}
+	for _, key := range []string{`"asset-prefixes"`, `"notice-text"`, `"silent-event-source"`, `"path-prefix"`, `"keys"`} {
+		if !bytes.Contains(content, []byte(key)) {
+			t.Errorf("the encoded recording has no key %s:\n%s", key, content)
+		}
+	}
+
+	committed := filepath.Join("..", "..", "..", "..", filepath.FromSlash(File))
+	original, err := os.ReadFile(committed) //nolint:gosec // the committed recording of this checkout
+	if err != nil {
+		t.Fatal(err)
+	}
+	recording, err := Read(committed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recording.Player != nil || recording.Chunks != nil || recording.Fallbacks != nil {
+		t.Fatalf("the looking glass recording holds a field of another product: player %v, %d chunks, %d fallbacks",
+			recording.Player, len(recording.Chunks), len(recording.Fallbacks))
+	}
+	again, err := recording.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(again, original) {
+		t.Fatalf("%s re-encodes to other bytes: %d bytes read, %d written", File, len(original), len(again))
+	}
+}
+
+// TestFallbacksKeepTheirOrder proves the fallbacks read back in the order they
+// were written: the player answers with the first that matches, so a narrower
+// prefix written first must stay first.
+func TestFallbacksKeepTheirOrder(t *testing.T) {
+	read, _, err := writeAndRead(t, chunkedRecording())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prefixes []string
+	for _, fallback := range read.Fallbacks {
+		prefixes = append(prefixes, fallback.PathPrefix)
+	}
+	want := []string{"/fleet/action/reboot", "/fleet/action/"}
+	if !reflect.DeepEqual(prefixes, want) {
+		t.Fatalf("fallback order: got %q, want %q", prefixes, want)
+	}
+}
+
+// TestSplitChunksGroupsTheExchanges proves a split keeps an ungrouped
+// exchange in the frame, gives each chunk its exchanges in their order, names
+// its file after it, states the file's size and keys, and that the chunk file
+// reads back as exactly those exchanges.
+func TestSplitChunksGroupsTheExchanges(t *testing.T) {
+	exchange := func(path string) Exchange {
+		return Exchange{
+			Key: "GET " + path, Method: "GET", Path: path, Via: viaLink, Status: 200,
+			ContentType: "text/html; charset=utf-8", Body: "<p>" + path + "</p>",
+		}
+	}
+	exchanges := []Exchange{exchange("/fleet/"), exchange("/fleet/device/r1"), exchange("/fleet/device/r2"), exchange("/fleet/device/r1/tab")}
+	groups := map[string]string{"/fleet/device/r1": "device-r1", "/fleet/device/r1/tab": "device-r1", "/fleet/device/r2": "device-r2"}
+	split, err := SplitChunks(exchanges, func(exchange Exchange) string { return groups[exchange.Path] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(split.Inline, exchanges[:1]) {
+		t.Fatalf("inline exchanges: got %+v, want the entry page alone", split.Inline)
+	}
+	var names []string
+	for _, chunk := range split.Chunks {
+		names = append(names, chunk.Name+"="+chunk.File+":"+strings.Join(chunk.Keys, ","))
+		if chunk.Size != len(split.Contents[chunk.Name]) {
+			t.Errorf("chunk %s states %d bytes, and its file has %d", chunk.Name, chunk.Size, len(split.Contents[chunk.Name]))
+		}
+	}
+	want := []string{
+		"device-r1=device-r1.json:GET /fleet/device/r1,GET /fleet/device/r1/tab",
+		"device-r2=device-r2.json:GET /fleet/device/r2",
+	}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("chunks: got %q, want %q", names, want)
+	}
+	var held []Exchange
+	if err := json.Unmarshal(split.Contents["device-r1"], &held); err != nil {
+		t.Fatalf("the chunk file does not parse as a list of exchanges: %v", err)
+	}
+	if !reflect.DeepEqual(held, []Exchange{exchanges[1], exchanges[3]}) {
+		t.Fatalf("chunk device-r1 holds %+v", held)
+	}
+
+	recording := sampleRecording()
+	recording.Exchanges = split.Inline
+	recording.Chunks = split.Chunks
+	if _, _, err := writeAndRead(t, recording); err != nil {
+		t.Fatalf("a recording of the split is refused: %v", err)
+	}
+	files, err := ChunkFiles(split.Chunks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files != `{"device-r1":"device-r1.json","device-r2":"device-r2.json"}` {
+		t.Fatalf("the host's chunk files: %s", files)
+	}
+}
+
+// TestSplitChunksRefusesWhatTheHostCouldNotServe proves a chunk name that is
+// not a plain file name, and a key two exchanges share, are refused.
+func TestSplitChunksRefusesWhatTheHostCouldNotServe(t *testing.T) {
+	page := Exchange{Key: "GET /fleet/", Method: "GET", Path: "/fleet/", Status: 200, ContentType: "text/html"}
+	for name, tc := range map[string]struct {
+		exchanges []Exchange
+		group     string
+	}{
+		"a name that leaves the directory": {exchanges: []Exchange{page}, group: "../estate"},
+		"a name with a capital":            {exchanges: []Exchange{page}, group: "Estate"},
+		"a key twice":                      {exchanges: []Exchange{page, page}, group: "estate"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := SplitChunks(tc.exchanges, func(Exchange) string { return tc.group }); err == nil {
+				t.Fatal("the split was accepted")
+			}
+		})
+	}
+}
+
+// TestReadRefusesChunksAndFallbacksThatContradict proves Read refuses a
+// recording whose chunks or fallbacks the player could not follow honestly.
+func TestReadRefusesChunksAndFallbacksThatContradict(t *testing.T) {
+	for name, change := range map[string]func(*Recording){
+		"a key in the frame and in a chunk": func(r *Recording) { r.Chunks[0].Keys = append(r.Chunks[0].Keys, "GET /lg/peers") },
+		"a key in two chunks":               func(r *Recording) { r.Chunks[1].Keys = append(r.Chunks[1].Keys, "GET /fleet/estate htmx") },
+		"two chunks of one name":            func(r *Recording) { r.Chunks[1].Name = "estate"; r.Chunks[1].File = "estate.json" },
+		"a file that is not the chunk's":    func(r *Recording) { r.Chunks[0].File = "../frame.html" },
+		"a chunk name that is no file name": func(r *Recording) { r.Chunks[0].Name = "a/b"; r.Chunks[0].File = "a/b.json" },
+		"a fallback with no method":         func(r *Recording) { r.Fallbacks[0].Method = "" },
+		"a fallback prefix that is no path": func(r *Recording) { r.Fallbacks[0].PathPrefix = "fleet/action/" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			recording := chunkedRecording()
+			change(&recording)
+			if _, _, err := writeAndRead(t, recording); err == nil {
+				t.Fatal("Read accepted the recording")
+			}
+		})
 	}
 }

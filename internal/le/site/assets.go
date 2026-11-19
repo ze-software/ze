@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 var cssImport = regexp.MustCompile(`(?m)^\s*@import\s+url\(["']?([^"')]+)["']?\);\s*$`)
-var blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
 var cssSpace = regexp.MustCompile(`\s+`)
 var cssPunctuationSpace = regexp.MustCompile(`\s*([{},;])\s*`)
 var cssColonSpace = regexp.MustCompile(`:\s*`)
@@ -38,7 +39,7 @@ func siteStylesheet(source string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return minifyCSS(content), nil
+	return minifyCSS(content)
 }
 
 // renderCSS writes the deployable stylesheet into the artifact.
@@ -92,13 +93,63 @@ func expandCSS(path string, active map[string]bool) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func minifyCSS(content []byte) []byte {
-	text := blockComment.ReplaceAllString(string(content), "")
-	text = cssSpace.ReplaceAllString(text, " ")
-	text = cssPunctuationSpace.ReplaceAllString(text, "$1")
-	text = cssColonSpace.ReplaceAllString(text, ":")
-	text = strings.ReplaceAll(text, ";}", "}")
-	return []byte(strings.TrimSpace(text))
+// minifyCSS treats strings as opaque bytes. Comment syntax outside a string
+// must be balanced before renderCSS can replace the published stylesheet.
+func minifyCSS(content []byte) ([]byte, error) {
+	var out, code bytes.Buffer
+	flush := func() {
+		text := cssSpace.ReplaceAllString(code.String(), " ")
+		text = cssPunctuationSpace.ReplaceAllString(text, "$1")
+		text = cssColonSpace.ReplaceAllString(text, ":")
+		out.WriteString(strings.ReplaceAll(text, ";}", "}"))
+		code.Reset()
+	}
+	// Each step consumes at least one source byte; quotes and comments consume
+	// at most the remaining input, so malformed source cannot extend this scan.
+	for offset := 0; offset < len(content); {
+		character := content[offset]
+		if character == '"' || character == '\'' {
+			flush()
+			start := offset
+			offset++
+			closed := false
+			for offset < len(content) {
+				if content[offset] == '\\' {
+					offset += min(2, len(content)-offset)
+					continue
+				}
+				if content[offset] == character {
+					offset++
+					closed = true
+					break
+				}
+				offset++
+			}
+			if !closed {
+				return nil, opererr.New(fmt.Sprintf("stylesheet has an unclosed string at expanded byte %d; close the string in website/assets/css/", start),
+					"Publication stopped to preserve the stylesheet's rules.", "./le site build")
+			}
+			out.Write(content[start:offset])
+			continue
+		}
+		if bytes.HasPrefix(content[offset:], []byte("/*")) {
+			end := bytes.Index(content[offset+2:], []byte("*/"))
+			if end == -1 {
+				return nil, opererr.New(fmt.Sprintf("stylesheet has an unclosed comment at expanded byte %d; close the comment in website/assets/css/", offset),
+					"Publication stopped to preserve the stylesheet's rules.", "./le site build")
+			}
+			offset += end + 4
+			continue
+		}
+		if bytes.HasPrefix(content[offset:], []byte("*/")) {
+			return nil, opererr.New(fmt.Sprintf("stylesheet has an unmatched comment close at expanded byte %d; repair the comment in website/assets/css/", offset),
+				"Publication stopped to preserve the stylesheet's rules.", "./le site build")
+		}
+		code.WriteByte(character)
+		offset++
+	}
+	flush()
+	return bytes.TrimSpace(out.Bytes()), nil
 }
 
 // renderJS writes every authored script under website/assets/js/ to

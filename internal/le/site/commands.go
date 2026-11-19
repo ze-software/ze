@@ -503,19 +503,19 @@ func commandMirrorDescription(command *catalogCommand) string {
 		parts = append(parts, description)
 	}
 	if command.Usage != "" {
-		parts = append(parts, "`"+markdownCell(command.Usage)+"`")
+		parts = append(parts, markdownCellCode(command.Usage))
 	}
 	if len(command.Args) != 0 {
 		parts = append(parts, "Arguments: "+strings.Join(argumentMirrorLines(command), "<br>"))
 	}
 	if len(command.Backend) != 0 {
-		parts = append(parts, "Backends: "+markdownCodeList(command.Backend))
+		parts = append(parts, "Backends: "+markdownCodeList(command.Backend, markdownCellCode))
 	}
 	if command.TaskSupport != "" {
 		parts = append(parts, "Task support: "+markdownCell(commandTaskSupportLabel(command.TaskSupport)))
 	}
 	if len(command.Subcommands) != 0 {
-		parts = append(parts, "Subcommands: "+markdownCodeList(command.Subcommands))
+		parts = append(parts, "Subcommands: "+markdownCodeList(command.Subcommands, markdownCellCode))
 	}
 	return strings.Join(parts, "<br>")
 }
@@ -528,9 +528,9 @@ func argumentMirrorLines(command *catalogCommand) []string {
 	for _, argument := range command.Args {
 		values := argumentValuesAny
 		if len(argument.Values) != 0 {
-			values = "one of " + markdownCodeList(argument.Values)
+			values = "one of " + markdownCodeList(argument.Values, markdownCellCode)
 		}
-		lines = append(lines, "`"+markdownCell(argument.Name)+"` "+markdownCell(argument.Type)+
+		lines = append(lines, markdownCellCode(argument.Name)+" "+markdownCell(argument.Type)+
 			", required: "+argumentRequiredLabel(argument)+", "+values+argumentTextsMarkdown(argument))
 	}
 	return lines
@@ -553,26 +553,26 @@ func argumentTextsMarkdown(argument catalogArg) string {
 func commandMirrorPipes(command *catalogCommand) string {
 	var parts []string
 	if command.AnswerShape != "" {
-		parts = append(parts, "Answer shape: "+markdownCodeList([]string{command.AnswerShape}))
+		parts = append(parts, "Answer shape: "+markdownCellCode(command.AnswerShape))
 	}
 	if len(command.AddressFields) != 0 {
-		parts = append(parts, "Address fields: "+markdownCodeList(command.AddressFields))
+		parts = append(parts, "Address fields: "+markdownCodeList(command.AddressFields, markdownCellCode))
 	}
 	if len(command.ColumnOrders) != 0 {
-		parts = append(parts, "Column order: "+markdownCodeList([]string{columnOrdersLine(command)}))
+		parts = append(parts, "Column order: "+markdownCellCode(columnOrdersLine(command)))
 	}
 	// The two lists are the detail page's mirror renderers, so a command pipe
 	// and an alias read the same on either surface, description included.
 	if len(command.Pipes) != 0 {
-		parts = append(parts, "Command: "+commandPipeMirrorList(command))
+		parts = append(parts, "Command: "+commandPipeMirrorList(command, markdownCellCode))
 	}
 	if len(command.Aliases) != 0 {
-		parts = append(parts, "Aliases: "+aliasMirrorList(command))
+		parts = append(parts, "Aliases: "+aliasMirrorList(command, markdownCellCode))
 	}
 	grouped := operatorsByAvailability(command)
 	for _, availability := range availabilityOrder {
 		if names := grouped[availability]; len(names) != 0 {
-			parts = append(parts, availabilityLabels[availability]+": "+markdownCodeList(names))
+			parts = append(parts, availabilityLabels[availability]+": "+markdownCodeList(names, markdownCellCode))
 		}
 	}
 	if len(parts) == 0 {
@@ -582,7 +582,7 @@ func commandMirrorPipes(command *catalogCommand) string {
 }
 
 // markdownProse preserves registry text as literal prose, including placeholders
-// and punctuation that could start Markdown blocks. Code spans use markdownCell
+// and punctuation that could start Markdown blocks. Code spans use markdownCode
 // instead: backslash escapes are not active inside code.
 func markdownProse(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
@@ -608,12 +608,37 @@ func markdownCell(value string) string {
 	return strings.ReplaceAll(strings.Join(strings.Fields(value), " "), "|", `\|`)
 }
 
-// markdownCodeList writes several values as a comma-separated list of code
-// spans, each safe inside a table cell.
-func markdownCodeList(values []string) string {
+// markdownCode keeps literal command text inside a code span. Its delimiter
+// exceeds every backtick run in the value, so command text cannot close it.
+func markdownCode(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	longest, run := 0, 0
+	for _, character := range value {
+		if character == '`' {
+			run++
+			longest = max(longest, run)
+		} else {
+			run = 0
+		}
+	}
+	delimiter := strings.Repeat("`", longest+1)
+	if strings.HasPrefix(value, "`") || strings.HasSuffix(value, "`") {
+		value = " " + value + " "
+	}
+	return delimiter + value + delimiter
+}
+
+// markdownCellCode adds the GFM table escape before writing a code span.
+func markdownCellCode(value string) string {
+	return markdownCode(markdownCell(value))
+}
+
+// markdownCodeList writes a comma-separated list using its caller's rendering
+// context: a detail paragraph or a GFM table cell.
+func markdownCodeList(values []string, renderCode func(string) string) string {
 	spans := make([]string, 0, len(values))
 	for _, value := range values {
-		spans = append(spans, "`"+markdownCell(value)+"`")
+		spans = append(spans, renderCode(value))
 	}
 	return strings.Join(spans, ", ")
 }
