@@ -182,7 +182,7 @@ NetBox paths are relative to `https://raw.githubusercontent.com/netbox-community
 
 **Behavior to preserve:**
 - A managed client with no `netbox client <c>` entry and no `netbox` selector in its `client-<name>.conf` is served exactly `client-<name>.conf`, byte for byte, as today; its version hash is unchanged. A hub built without the netbox gate serves every client exactly as today.
-- The managed protocol (four verbs, `pkg/fleet/envelope.go`) is unchanged; no new verb.
+- The managed protocol (`pkg/fleet/envelope.go`: five verbs since fleet-7 added `config-held`) is unchanged; no new verb.
 - BGP group inheritance semantics are unchanged; a generated peer is an ordinary peer to the reactor.
 - A client can only fetch its own config.
 
@@ -202,7 +202,7 @@ Behavior section above; they are not a design review, which stays the owner's.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Managed config serving | `internal/component/plugin/server/managed.go` `HandleConfigFetch` | Reads, hashes and answers `current` or the client's whole config | Extends: a NetBox-enabled client is served the composed config instead |
-| Managed protocol | `pkg/fleet/envelope.go` | Five verbs since fleet-7 added `config-held` (this spec's "four verbs" predates it) | Does not apply: no new verb |
+| Managed protocol | `pkg/fleet/envelope.go` | Five verbs since fleet-7 added `config-held` | Does not apply: no new verb |
 | Hub write observer | `cmd/ze/hub/managed_server.go` (`SetWriteObserver` to `NotifyConfigChanged`) | Notifies a client when its config file is written | Extends: a composed config change notifies the same way |
 | BGP group resolution | `internal/component/bgp/config/resolve.go` `ResolveBGPTree` | Deep-merges groups into peers | Does not apply: a generated peer is an ordinary peer |
 | Editor writes | `internal/component/cli/editor_commands.go` `Editor.SetValue`, `Editor.DeleteValue` | Every CLI and web edit goes through them | Extends: refuses edits under generated entries |
