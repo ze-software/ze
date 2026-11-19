@@ -46,14 +46,14 @@ func handTopologySpec() TopologySpec {
 			{Loopback: handReflector, Clients: []netip.Addr{handClient}},
 			{Loopback: handClient},
 		},
-		Neighbours: []TopologyNeighbour{
+		Neighbors: []TopologyNeighbor{
 			{
 				Address: handTransitA, AS: 65101, Border: handBorder1, BorderNextHop: NextHopPolicySelf,
-				Announces: []NeighbourRoute{{Prefix: handTwoExits, ASPathBeyond: []uint32{65201}}},
+				Announces: []NeighborRoute{{Prefix: handTwoExits, ASPathBeyond: []uint32{65201}}},
 			},
 			{
 				Address: handTransitB, AS: 65102, Border: handBorder2, BorderNextHop: NextHopPolicySelf,
-				Announces: []NeighbourRoute{
+				Announces: []NeighborRoute{
 					{Prefix: handOneExit},
 					{Prefix: handTwoExits, ASPathBeyond: []uint32{65201}},
 				},
@@ -63,7 +63,7 @@ func handTopologySpec() TopologySpec {
 }
 
 // generatedTopologyParams returns the network of AC-16: five routers of one AS
-// and six external neighbours.
+// and six external neighbors.
 func generatedTopologyParams(seed uint64) TopologyParams {
 	return TopologyParams{
 		Seed:             seed,
@@ -71,10 +71,10 @@ func generatedTopologyParams(seed uint64) TopologyParams {
 		Routers:          5,
 		Borders:          2,
 		ReflectorClients: 2,
-		Neighbours:       6,
+		Neighbors:        6,
 		Prefixes:         8,
 		RouterFirst:      netip.MustParseAddr("10.0.0.1"),
-		NeighbourFirst:   netip.MustParseAddr("192.0.2.1"),
+		NeighborFirst:    netip.MustParseAddr("192.0.2.1"),
 	}
 }
 
@@ -104,7 +104,7 @@ func announcementOf(t *testing.T, topology *Topology, address netip.Addr, prefix
 
 // TestTopologySameSeedSameNetwork verifies that the generator is deterministic.
 //
-// VALIDATES: AC-16 — one seed gives the same routers, neighbours, prefixes,
+// VALIDATES: AC-16 — one seed gives the same routers, neighbors, prefixes,
 // per-speaker announcements and traces, and another seed gives another network.
 // PREVENTS: a map order or an unseeded choice reaching the generated network.
 func TestTopologySameSeedSameNetwork(t *testing.T) {
@@ -116,7 +116,7 @@ func TestTopologySameSeedSameNetwork(t *testing.T) {
 	assert.Equal(t, first.Speakers(), second.Speakers())
 	assert.Equal(t, first.Prefixes(), second.Prefixes())
 
-	var routers, neighbours int
+	var routers, neighbors int
 	for _, speaker := range first.Speakers() {
 		switch speaker.Session {
 		case SessionKindInternal:
@@ -129,13 +129,13 @@ func TestTopologySameSeedSameNetwork(t *testing.T) {
 				assert.Equal(t, firstTrace, secondTrace, "trace of %s from %s", prefix, speaker.Address)
 			}
 		case SessionKindExternal:
-			neighbours++
+			neighbors++
 		case SessionKindUnspecified:
 			assert.Failf(t, "unspecified session", "speaker %s has no session kind", speaker.Address)
 		}
 	}
 	assert.Equal(t, 5, routers, "routers of the AS")
-	assert.Equal(t, 6, neighbours, "external neighbours")
+	assert.Equal(t, 6, neighbors, "external neighbors")
 	// Eight prefixes from outside and the one that originates inside.
 	assert.Len(t, first.Prefixes(), 9)
 
@@ -148,8 +148,8 @@ func TestTopologySameSeedSameNetwork(t *testing.T) {
 //
 // VALIDATES: AC-17 — the route a border router learned outside carries its
 // own loopback toward the collector and toward the other routers, and the
-// neighbour's AS path unchanged.
-// PREVENTS: the neighbour's address, or a path with an AS added, leaving the
+// neighbor's AS path unchanged.
+// PREVENTS: the neighbor's address, or a path with an AS added, leaving the
 // border router.
 func TestBorderRouterRewritesNextHop(t *testing.T) {
 	topology, err := NewTopology(handTopologySpec())
@@ -188,7 +188,7 @@ func TestReflectorRewritesReflectedNextHop(t *testing.T) {
 
 // TestRouterAnnouncesItsBestExit verifies each router's choice between two exits.
 //
-// VALIDATES: AC-18 — for a prefix two neighbours announce on two border
+// VALIDATES: AC-18 — for a prefix two neighbors announce on two border
 // routers, each router announces one best path with the next hop the model
 // computed, and the model states why, the tie included.
 // PREVENTS: a router announcing both exits, or a tie broken without a reason.
@@ -236,7 +236,7 @@ func TestRouterAnnouncesItsBestExit(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			spec := handTopologySpec()
-			spec.Neighbours[0].Announces[0].ASPathBeyond = test.beyondA
+			spec.Neighbors[0].Announces[0].ASPathBeyond = test.beyondA
 			topology, err := NewTopology(spec)
 			require.NoError(t, err)
 
@@ -256,12 +256,12 @@ func TestRouterAnnouncesItsBestExit(t *testing.T) {
 	}
 }
 
-// TestExternalNeighbourKeepsItsNextHop verifies an external neighbour's own session.
+// TestExternalNeighborKeepsItsNextHop verifies an external neighbor's own session.
 //
-// VALIDATES: AC-17 — on its eBGP session with the collector a neighbour
+// VALIDATES: AC-17 — on its eBGP session with the collector a neighbor
 // announces its own address as next hop and its own AS first in the path.
-// PREVENTS: the border router's rewrite applied to the neighbour's announcement.
-func TestExternalNeighbourKeepsItsNextHop(t *testing.T) {
+// PREVENTS: the border router's rewrite applied to the neighbor's announcement.
+func TestExternalNeighborKeepsItsNextHop(t *testing.T) {
 	topology, err := NewTopology(handTopologySpec())
 	require.NoError(t, err)
 
@@ -385,8 +385,8 @@ func TestTraceOfHandCheckedPrefix(t *testing.T) {
 // TestTraceEndsWhereThePrefixOriginates verifies a prefix originated inside the AS.
 //
 // VALIDATES: AC-30 — the route has an empty AS path, its trace ends at the
-// originating router and says so, and no external neighbour announces it.
-// PREVENTS: an origin inside the AS read as an exit toward a neighbour.
+// originating router and says so, and no external neighbor announces it.
+// PREVENTS: an origin inside the AS read as an exit toward a neighbor.
 func TestTraceEndsWhereThePrefixOriginates(t *testing.T) {
 	spec := handTopologySpec()
 	spec.Routers[3].Originates = []netip.Prefix{handInside}
@@ -412,14 +412,14 @@ func TestTraceEndsWhereThePrefixOriginates(t *testing.T) {
 }
 
 // TestTraceLeavesTowardExternalAddress verifies a border router that keeps the
-// neighbour's next hop.
+// neighbor's next hop.
 //
 // VALIDATES: the third end of a trace — a next hop that is no router's address
 // leaves the AS at the router announcing it, toward that address.
 // PREVENTS: an unchanged external next hop read as a broken chain.
 func TestTraceLeavesTowardExternalAddress(t *testing.T) {
 	spec := handTopologySpec()
-	spec.Neighbours[1].BorderNextHop = NextHopPolicyUnchanged
+	spec.Neighbors[1].BorderNextHop = NextHopPolicyUnchanged
 	topology, err := NewTopology(spec)
 	require.NoError(t, err)
 
@@ -493,50 +493,50 @@ func TestNewTopologyRefusesInvalidSpec(t *testing.T) {
 		},
 		{
 			"no next-hop policy",
-			func(spec *TopologySpec) { spec.Neighbours[0].BorderNextHop = NextHopPolicyUnspecified },
+			func(spec *TopologySpec) { spec.Neighbors[0].BorderNextHop = NextHopPolicyUnspecified },
 			"set BorderNextHop to NextHopPolicySelf or NextHopPolicyUnchanged",
 		},
 		{
 			"an unknown next-hop policy",
-			func(spec *TopologySpec) { spec.Neighbours[0].BorderNextHop = NextHopPolicy(9) },
+			func(spec *TopologySpec) { spec.Neighbors[0].BorderNextHop = NextHopPolicy(9) },
 			"is no known policy",
 		},
 		{
-			"a neighbour in the local AS",
-			func(spec *TopologySpec) { spec.Neighbours[0].AS = handLocalAS },
+			"a neighbor in the local AS",
+			func(spec *TopologySpec) { spec.Neighbors[0].AS = handLocalAS },
 			"has the local AS 65000",
 		},
 		{
-			"a neighbour attached to no router",
-			func(spec *TopologySpec) { spec.Neighbours[0].Border = handTransitB },
+			"a neighbor attached to no router",
+			func(spec *TopologySpec) { spec.Neighbors[0].Border = handTransitB },
 			"which is no router's loopback",
 		},
 		{
-			"a neighbour at a router's address",
-			func(spec *TopologySpec) { spec.Neighbours[0].Address = handClient },
+			"a neighbor at a router's address",
+			func(spec *TopologySpec) { spec.Neighbors[0].Address = handClient },
 			"has the address of a router of the AS",
 		},
 		{
-			"two neighbours at one address",
-			func(spec *TopologySpec) { spec.Neighbours[1].Address = handTransitA },
+			"two neighbors at one address",
+			func(spec *TopologySpec) { spec.Neighbors[1].Address = handTransitA },
 			"share address 192.0.2.1",
 		},
 		{
 			"the local AS in a path",
-			func(spec *TopologySpec) { spec.Neighbours[0].Announces[0].ASPathBeyond = []uint32{handLocalAS} },
+			func(spec *TopologySpec) { spec.Neighbors[0].Announces[0].ASPathBeyond = []uint32{handLocalAS} },
 			"refuses as a loop",
 		},
 		{
 			"a prefix with host bits",
 			func(spec *TopologySpec) {
-				spec.Neighbours[0].Announces[0].Prefix = netip.MustParsePrefix("198.51.100.1/24")
+				spec.Neighbors[0].Announces[0].Prefix = netip.MustParsePrefix("198.51.100.1/24")
 			},
 			"write it as 198.51.100.0/24",
 		},
 		{
-			"a prefix announced twice by one neighbour",
+			"a prefix announced twice by one neighbor",
 			func(spec *TopologySpec) {
-				spec.Neighbours[0].Announces = append(spec.Neighbours[0].Announces, spec.Neighbours[0].Announces[0])
+				spec.Neighbors[0].Announces = append(spec.Neighbors[0].Announces, spec.Neighbors[0].Announces[0])
 			},
 			"twice",
 		},
@@ -565,7 +565,7 @@ func TestTopologyRefusesUnknownQuestion(t *testing.T) {
 	require.Error(t, err)
 	_, err = topology.Trace(handClient, handInside)
 	require.Error(t, err)
-	// An external neighbour is no router of the AS, so it has no trace.
+	// An external neighbor is no router of the AS, so it has no trace.
 	_, err = topology.Trace(handTransitA, handTwoExits)
 	require.Error(t, err)
 }

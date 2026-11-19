@@ -108,7 +108,7 @@ const topologyHoldTime = 90
 
 // GenerateFromTopology creates one PeerProfile per speaker of topology, in the
 // order of Topology.Speakers: the routers of the AS, then the external
-// neighbours. The topology is the input beside the seed: the profiles keep the
+// neighbors. The topology is the input beside the seed: the profiles keep the
 // shape Generate gives them, and each one carries, as its RouteSet, the routes
 // the model computed for that speaker.
 //

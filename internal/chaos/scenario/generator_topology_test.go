@@ -95,17 +95,15 @@ func TestGenerateFromTopologyRefusesUnspecifiedSession(t *testing.T) {
 	assert.Contains(t, err.Error(), "neither internal nor external")
 }
 
-// peerBlock returns the text of the peer block chaos-peer-<index> of config, up
-// to the next peer block or the end.
+// peerBlock returns the body of the peer block chaos-peer-<index> of config:
+// the text after its opening line, up to the next peer block or the end.
 func peerBlock(t *testing.T, config string, index int) string {
 	t.Helper()
-	start := strings.Index(config, fmt.Sprintf("    peer chaos-peer-%d {\n", index))
-	require.GreaterOrEqual(t, start, 0, "peer %d", index)
-	rest := config[start+1:]
-	if next := strings.Index(rest, "    peer chaos-peer-"); next >= 0 {
-		return rest[:next]
-	}
-	return rest
+	_, rest, found := strings.Cut(config, fmt.Sprintf("    peer chaos-peer-%d {\n", index))
+	require.True(t, found, "peer %d", index)
+	// With no later peer block, Cut answers the whole rest.
+	body, _, _ := strings.Cut(rest, "    peer chaos-peer-")
+	return body
 }
 
 // TestConfigGenCollectorForTopology writes the daemon config of a generated
@@ -122,7 +120,7 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 	require.NoError(t, err)
 	profiles, err := GenerateFromTopology(topology)
 	require.NoError(t, err)
-	require.Len(t, profiles, 11, "five routers and six external neighbours")
+	require.Len(t, profiles, 11, "five routers and six external neighbors")
 	const portFirst = 1790
 	for index := range profiles {
 		profiles[index].ZePort = portFirst + index
@@ -151,7 +149,7 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 		assert.Contains(t, config, fmt.Sprintf("port %d;", portFirst+index), "speaker %d", index)
 	}
 
-	// Each of the six external neighbours carries the import policy that makes
+	// Each of the six external neighbors carries the import policy that makes
 	// Ze keep its routes (RFC 8212), the five routers carry none, and no peer
 	// carries an export policy: a collector announces nothing.
 	const importPolicy = "        filter {\n            import {\n                final accept;\n            }\n        }\n"

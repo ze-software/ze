@@ -16,6 +16,15 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const (
+	// lgOriginSearchPrefixPair is the route whose AS path is 65010 65001 and
+	// nothing else: the one route the path anchored at both ends lists.
+	lgOriginSearchPrefixPair = "10.40.1.0/24"
+	// lgSearchFieldASPath is the AS path field of the search form
+	// (internal/component/lg/search.templ).
+	lgSearchFieldASPath = "aspath"
+)
+
 // The routes lgOriginSearch injects, all under addrLGPeerFirst, each with the
 // AS path it carries. 65001 originates three of them: behind one AS, behind
 // two, and prepended three times. 10.40.2.0/24 crosses 65001 and is originated
@@ -23,7 +32,7 @@ import (
 var lgOriginSearchRoutes = []struct {
 	prefix, path string
 }{
-	{"10.40.1.0/24", "65010,65001"},
+	{lgOriginSearchPrefixPair, "65010,65001"},
 	{"10.40.2.0/24", "65001,65002"},
 	{"10.40.3.0/24", "64999,65010,65001"},
 	{"10.40.4.0/24", "65010,65001,65001,65001"},
@@ -37,8 +46,8 @@ var lgOriginSearchWant = []struct {
 	aspath   string
 	prefixes []string
 }{
-	{"65001$", []string{"10.40.1.0/24", "10.40.3.0/24", "10.40.4.0/24"}},
-	{"^65010 65001$", []string{"10.40.1.0/24"}},
+	{"65001$", []string{lgOriginSearchPrefixPair, "10.40.3.0/24", "10.40.4.0/24"}},
+	{"^65010 65001$", []string{lgOriginSearchPrefixPair}},
 }
 
 // lgOriginSearch injects routes that 65001 originates and one that only
@@ -62,7 +71,7 @@ func lgOriginSearch(ctx context.Context, _ []string) error {
 
 		for _, question := range lgOriginSearchWant {
 			body, err := lgCoveringRequest(ctx, http.MethodPost, base+"/lg/search",
-				url.Values{"aspath": {question.aspath}}.Encode())
+				url.Values{lgSearchFieldASPath: {question.aspath}}.Encode())
 			if err != nil {
 				return err
 			}

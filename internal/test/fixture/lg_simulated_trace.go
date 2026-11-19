@@ -29,6 +29,9 @@ const (
 	lgSimulatedTraceNextHop = "next-hop"
 	lgSimulatedTraceASPath  = "as-path"
 	lgSimulatedTraceExit    = "exit"
+	// lgSimulatedTraceRouter is the kind of a node line that names a router
+	// of the AS, as against an external neighbor.
+	lgSimulatedTraceRouter = "router"
 	// lgSimulatedChainRouters is the shortest chain that proves the walk
 	// crosses a router between its start and its exit (AC-24).
 	lgSimulatedChainRouters = 3
@@ -79,7 +82,7 @@ func lgSimulatedReadTrace(text string, prefix netip.Prefix) (lgSimulatedTraceTex
 
 	for _, line := range lines[1:] {
 		fields := strings.Fields(line)
-		if len(fields) >= 4 && fields[0] == "node" && fields[1] == "router" && fields[3] == lgSimulatedTraceExit {
+		if len(fields) >= 4 && fields[0] == "node" && fields[1] == lgSimulatedTraceRouter && fields[3] == lgSimulatedTraceExit {
 			read.exits = append(read.exits, fields[2])
 		}
 		if len(fields) == 0 || fields[0] != lgSimulatedTraceKeyword {
@@ -172,7 +175,7 @@ func lgSimulatedTraceProblem(got, want lgSimulatedTraceLine) string {
 type lgSimulatedTraceTally struct {
 	traces       int
 	chains       int // Walks that cross at least lgSimulatedChainRouters routers (AC-24).
-	oneExit      int // Prefixes one neighbour announces, every walk ending at one exit (AC-22).
+	oneExit      int // Prefixes one neighbor announces, every walk ending at one exit (AC-22).
 	originInside int // Walks that end where the prefix originates inside the AS (AC-30).
 	externalExit int // Walks that leave the AS toward an address of no router (AC-27).
 }
@@ -274,17 +277,17 @@ func lgSimulatedTraceCompare(ctx context.Context, base string, topology *chaossc
 		if len(announcers) != 1 {
 			continue
 		}
-		// A border router that keeps the neighbour's next hop gives every
+		// A border router that keeps the neighbor's next hop gives every
 		// router that address, so each walk leaves the AS at its own start and
 		// the prefix has no single exit router to end at. The comparison with
 		// the model above is the whole proof of such a prefix.
 		if keptExternalNextHop {
 			continue
 		}
-		// One neighbour announces the prefix: one exit router is drawn, and
+		// One neighbor announces the prefix: one exit router is drawn, and
 		// every router's chain ends at it (AC-22).
 		if len(read.exits) != 1 || len(lastRouters) != 1 || !lastRouters[read.exits[0]] {
-			return tally, fmt.Errorf("the trace graph of %s, which one neighbour announces, marks the exits %v and its walks end at %v:\n%s",
+			return tally, fmt.Errorf("the trace graph of %s, which one neighbor announces, marks the exits %v and its walks end at %v:\n%s",
 				prefix, read.exits, lastRouters, text)
 		}
 		tally.oneExit++

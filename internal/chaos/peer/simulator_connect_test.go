@@ -177,9 +177,9 @@ func runToOutcome(t *testing.T, cfg SimulatorConfig) []Event {
 // retriesOf answers the connection retries among events, in order.
 func retriesOf(events []Event) []Event {
 	var retries []Event
-	for _, ev := range events {
-		if ev.Type == EventReconnecting {
-			retries = append(retries, ev)
+	for index := range events {
+		if events[index].Type == EventReconnecting {
+			retries = append(retries, events[index])
 		}
 	}
 	return retries
@@ -195,7 +195,9 @@ func retriesOf(events []Event) []Event {
 // PREVENTS: the simulator ending the run on "reading OPEN: reading header: EOF"
 // when Ze replaces a peer while the speaker connects.
 func TestSimulatorRetriesAConnectionClosedBeforeTheOpen(t *testing.T) {
-	ze := startFakeZe(t, closeAtOnce, closeAtOnce, completeHandshake)
+	// The repeated answer is the scenario: two connections closed, then one kept.
+	answers := []connectionAnswer{closeAtOnce, closeAtOnce, completeHandshake}
+	ze := startFakeZe(t, answers...)
 
 	events := runToOutcome(t, SimulatorConfig{Profile: connectProfile(), Seed: 42, Addr: ze.addr})
 

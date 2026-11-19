@@ -20,7 +20,7 @@ const lgSimulatedTraceSample = "mode trace\n" +
 	"node router 198.51.100.2 exit\n" +
 	"node router 198.51.100.3\n" +
 	"node router 198.51.100.4\n" +
-	"node neighbour 203.0.113.9 name=ixp-lan-a\n" +
+	"node neighbor 203.0.113.9 name=ixp-lan-a\n" +
 	"node AS64500\n" +
 	"node AS65101 name=Transit A\n" +
 	"edge 198.51.100.4 -> 198.51.100.3\n" +

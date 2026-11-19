@@ -18,9 +18,9 @@ import (
 // The speakers and routes the tests below share. 65101 is 0xFE4D and 64500 is
 // 0xFBF4, the AS numbers of the path as they appear in the expected bytes.
 const (
-	routeSetLocalAS     = 65000
-	routeSetNeighbourAS = 65101
-	routeSetFarAS       = 64500
+	routeSetLocalAS    = 65000
+	routeSetNeighborAS = 65101
+	routeSetFarAS      = 64500
 )
 
 var (
@@ -43,11 +43,11 @@ const bgpMarker = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 // VALIDATES: the route goes out with the next hop and the AS path it was given.
 // The path already starts with the speaker's own AS, and nothing is prepended
 // to it. No LOCAL_PREF is present on an external session.
-// PREVENTS: a simulated neighbour announcing its AS twice, or the fixed next hop
+// PREVENTS: a simulated neighbor announcing its AS twice, or the fixed next hop
 // of the seed-generated mode in place of the given one.
 func TestRouteSetUpdateBytesEBGP(t *testing.T) {
 	sender := NewSender(SenderConfig{
-		ASN:      routeSetNeighbourAS,
+		ASN:      routeSetNeighborAS,
 		IsIBGP:   false,
 		NextHop:  netip.MustParseAddr("10.255.0.1"),
 		RouteSet: &scenario.RouteSet{},
@@ -56,7 +56,7 @@ func TestRouteSetUpdateBytesEBGP(t *testing.T) {
 	data, err := sender.BuildAnnouncement(scenario.Announcement{
 		Prefix:  routeSetOutsidePrefix,
 		NextHop: netip.MustParseAddr("192.0.2.1"),
-		ASPath:  []uint32{routeSetNeighbourAS, routeSetFarAS},
+		ASPath:  []uint32{routeSetNeighborAS, routeSetFarAS},
 	})
 	require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func TestRouteSetUpdateBytesIBGP(t *testing.T) {
 	learned, err := sender.BuildAnnouncement(scenario.Announcement{
 		Prefix:  routeSetOutsidePrefix,
 		NextHop: netip.MustParseAddr("10.0.0.3"),
-		ASPath:  []uint32{routeSetNeighbourAS, routeSetFarAS},
+		ASPath:  []uint32{routeSetNeighborAS, routeSetFarAS},
 	})
 	require.NoError(t, err)
 	wantLearned := updateHex(
@@ -139,7 +139,7 @@ func TestRouteSetRefusesPathTheSenderWouldChange(t *testing.T) {
 		ASPath:  []uint32{routeSetFarAS},
 	}
 	sender := NewSender(SenderConfig{
-		ASN:      routeSetNeighbourAS,
+		ASN:      routeSetNeighborAS,
 		RouteSet: &scenario.RouteSet{Announcements: []scenario.Announcement{foreign}},
 	})
 
@@ -177,10 +177,10 @@ func TestRouteSetBuildRouteAnswersForItsPrefixes(t *testing.T) {
 	announcement := scenario.Announcement{
 		Prefix:  routeSetOutsidePrefix,
 		NextHop: netip.MustParseAddr("192.0.2.1"),
-		ASPath:  []uint32{routeSetNeighbourAS, routeSetFarAS},
+		ASPath:  []uint32{routeSetNeighborAS, routeSetFarAS},
 	}
 	config := SenderConfig{
-		ASN:      routeSetNeighbourAS,
+		ASN:      routeSetNeighborAS,
 		NextHop:  netip.MustParseAddr("10.255.0.1"),
 		RouteSet: &scenario.RouteSet{Announcements: []scenario.Announcement{announcement}},
 	}
@@ -198,7 +198,7 @@ func TestRouteSetBuildRouteAnswersForItsPrefixes(t *testing.T) {
 	assert.NotNil(t, seeded.BuildRoute(routeSetInsidePrefix), "the seed-generated mode builds any prefix")
 	assert.NotEqual(t, want, seeded.BuildRoute(routeSetOutsidePrefix), "the seed-generated mode uses its own next hop")
 
-	empty := NewSender(SenderConfig{ASN: routeSetNeighbourAS, RouteSet: &scenario.RouteSet{}})
+	empty := NewSender(SenderConfig{ASN: routeSetNeighborAS, RouteSet: &scenario.RouteSet{}})
 	assert.Nil(t, empty.BuildRoute(routeSetOutsidePrefix), "an empty set announces nothing, it is not the seed-generated mode")
 }
 
@@ -219,7 +219,7 @@ func TestSimulatorAnnouncesItsRouteSet(t *testing.T) {
 	go fakeZePeer(t, ln, zeResult)
 
 	set := &scenario.RouteSet{Announcements: []scenario.Announcement{
-		{Prefix: routeSetOutsidePrefix, NextHop: netip.MustParseAddr("10.0.0.3"), ASPath: []uint32{routeSetNeighbourAS, routeSetFarAS}},
+		{Prefix: routeSetOutsidePrefix, NextHop: netip.MustParseAddr("10.0.0.3"), ASPath: []uint32{routeSetNeighborAS, routeSetFarAS}},
 		{Prefix: routeSetInsidePrefix, NextHop: netip.MustParseAddr("10.0.0.2")},
 	}}
 	profile := SimProfile{

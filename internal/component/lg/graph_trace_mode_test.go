@@ -121,7 +121,7 @@ func TestTraceGraphModeAnswersText(t *testing.T) {
 	}
 	for _, line := range []string{
 		"node router 198.51.100.1 exit\n",
-		"node neighbour 203.0.113.9 name=ixp-lan-a\n",
+		"node neighbor 203.0.113.9 name=ixp-lan-a\n",
 		"node AS65101 name=Transit <A>\n",
 		"edge 198.51.100.1 -> AS65101\n",
 		"trace ipv4/unicast 198.18.0.0/24 198.51.100.4 routers=198.51.100.4,198.51.100.3,198.51.100.1" +
@@ -193,7 +193,7 @@ func TestTraceGraphModeStatesWhatItDoesNotDraw(t *testing.T) {
 		t.Errorf("svg past the cap: status %d, body %q, want 200 and %q", rec.Code, rec.Body.String(), capMessage)
 	}
 
-	// The only row comes from an external neighbour, so no walk starts.
+	// The only row comes from an external neighbor, so no walk starts.
 	noRouter := traceModeEngine{
 		summary: traceTestSummaryText(
 			traceTestRouter("198.51.100.1"), traceTestPeer{address: "203.0.113.9", remoteAS: 65102},
@@ -211,7 +211,7 @@ func TestTraceGraphModeStatesWhatItDoesNotDraw(t *testing.T) {
 // do (engineRefusal, with the failure's status), refuses a summary that cannot
 // say which peers are routers of the AS, and the mode word is checked.
 // PREVENTS: "No route found" over a failed dispatch, and a trace drawn from a
-// summary that would take a router for a neighbour.
+// summary that would take a router for a neighbor.
 func TestTraceGraphModeRefusals(t *testing.T) {
 	t.Run("the rib query fails", func(t *testing.T) {
 		engine := traceModeFourRouters()
@@ -294,10 +294,10 @@ func TestTraceLayoutFollowsTheWalk(t *testing.T) {
 		return position
 	}
 	client, reflector, exit := at("198.51.100.4"), at("198.51.100.3"), at("198.51.100.1")
-	second, neighbour := at("198.51.100.2"), at("203.0.113.9")
+	second, neighbor := at("198.51.100.2"), at("203.0.113.9")
 	first, other, origin := layout.ASes[65101], layout.ASes[65102], layout.ASes[64500]
 
-	columns := []int{client.X, reflector.X, exit.X, neighbour.X, first.X, origin.X}
+	columns := []int{client.X, reflector.X, exit.X, neighbor.X, first.X, origin.X}
 	for i := 1; i < len(columns); i++ {
 		if columns[i] <= columns[i-1] {
 			t.Fatalf("column %d starts at %d, not right of %d: %v", i, columns[i], columns[i-1], columns)

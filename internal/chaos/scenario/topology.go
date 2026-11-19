@@ -16,8 +16,8 @@ import (
 // Limits of a topology. A hand-written or generated network past these is
 // refused, so every loop below is bounded by a number stated here.
 const (
-	topologyRoutersMax    = 32
-	topologyNeighboursMax = 128
+	topologyRoutersMax   = 32
+	topologyNeighborsMax = 128
 	// topologyRoutesMax bounds the prefixes one speaker originates or announces.
 	topologyRoutesMax = 256
 )
@@ -30,12 +30,12 @@ const (
 	SessionKindUnspecified SessionKind = iota
 	// SessionKindInternal is an iBGP session: the speaker is a router of the AS.
 	SessionKindInternal
-	// SessionKindExternal is an eBGP session: the speaker is an external neighbour.
+	// SessionKindExternal is an eBGP session: the speaker is an external neighbor.
 	SessionKindExternal
 )
 
 // NextHopPolicy says what a border router writes as next hop on a route it
-// learned from an external neighbour, toward the other routers and the collector.
+// learned from an external neighbor, toward the other routers and the collector.
 type NextHopPolicy uint8
 
 const (
@@ -43,7 +43,7 @@ const (
 	NextHopPolicyUnspecified NextHopPolicy = iota
 	// NextHopPolicySelf rewrites the next hop to the border router's own loopback.
 	NextHopPolicySelf
-	// NextHopPolicyUnchanged keeps the external neighbour's address.
+	// NextHopPolicyUnchanged keeps the external neighbor's address.
 	NextHopPolicyUnchanged
 )
 
@@ -79,7 +79,7 @@ const (
 	// ChoiceReasonOriginatedHere: the router originates the prefix itself.
 	ChoiceReasonOriginatedHere
 	// ChoiceReasonExternalOverInternal: equal path lengths, and the chosen route was
-	// learned from an external neighbour while the other came from inside.
+	// learned from an external neighbor while the other came from inside.
 	ChoiceReasonExternalOverInternal
 	// ChoiceReasonLowerPeerAddress: the two best routes rank equal, and the chosen one
 	// was learned from the speaker with the lower address.
@@ -87,7 +87,7 @@ const (
 )
 
 // TopologySpec describes a network: the routers of one AS and the external
-// neighbours attached to them. It is the input of NewTopology, written by hand
+// neighbors attached to them. It is the input of NewTopology, written by hand
 // or produced by GenerateTopology.
 //
 // The iBGP sessions follow from the routers: a client holds one session, with
@@ -95,9 +95,9 @@ const (
 // other such router.
 type TopologySpec struct {
 	// LocalAS is the AS of the routers and of the collector.
-	LocalAS    uint32
-	Routers    []TopologyRouter
-	Neighbours []TopologyNeighbour
+	LocalAS   uint32
+	Routers   []TopologyRouter
+	Neighbors []TopologyNeighbor
 }
 
 // TopologyRouter is one router of the AS.
@@ -113,26 +113,26 @@ type TopologyRouter struct {
 	Originates []netip.Prefix
 }
 
-// TopologyNeighbour is one external neighbour, on an eBGP session with one
+// TopologyNeighbor is one external neighbor, on an eBGP session with one
 // border router and on an eBGP session of its own with the collector.
-type TopologyNeighbour struct {
-	// Address is the neighbour's address on the link to its border router. It
+type TopologyNeighbor struct {
+	// Address is the neighbor's address on the link to its border router. It
 	// is also its session address with the collector and its BGP identifier.
 	Address netip.Addr
 	AS      uint32
-	// Border is the loopback of the router the neighbour is attached to.
+	// Border is the loopback of the router the neighbor is attached to.
 	Border netip.Addr
-	// BorderNextHop is what Border writes on the routes this neighbour sends.
+	// BorderNextHop is what Border writes on the routes this neighbor sends.
 	BorderNextHop NextHopPolicy
-	Announces     []NeighbourRoute
+	Announces     []NeighborRoute
 }
 
-// NeighbourRoute is one prefix an external neighbour announces.
-type NeighbourRoute struct {
+// NeighborRoute is one prefix an external neighbor announces.
+type NeighborRoute struct {
 	Prefix netip.Prefix
-	// ASPathBeyond holds the AS numbers after the neighbour's own, toward the
-	// origin. It is empty when the neighbour originates the prefix. The path
-	// on the wire is the neighbour's AS followed by these.
+	// ASPathBeyond holds the AS numbers after the neighbor's own, toward the
+	// origin. It is empty when the neighbor originates the prefix. The path
+	// on the wire is the neighbor's AS followed by these.
 	ASPathBeyond []uint32
 }
 
@@ -140,7 +140,7 @@ type NeighbourRoute struct {
 type Announcement struct {
 	Prefix  netip.Prefix
 	NextHop netip.Addr
-	// ASPath is the whole AS path on the wire, the neighbour's own AS first on
+	// ASPath is the whole AS path on the wire, the neighbor's own AS first on
 	// an external session. It is empty for a prefix that originates inside the
 	// AS. A sender MUST NOT prepend anything to it.
 	ASPath []uint32
@@ -149,7 +149,7 @@ type Announcement struct {
 // Speaker is one simulated BGP speaker and everything it sends to the collector.
 type Speaker struct {
 	// Address is the speaker's session address with the collector and its BGP
-	// identifier: a router's loopback, or a neighbour's link address.
+	// identifier: a router's loopback, or a neighbor's link address.
 	Address netip.Addr
 	// AS is the speaker's own AS.
 	AS      uint32
@@ -200,13 +200,13 @@ type traceKey struct {
 func (t *Topology) LocalAS() uint32 { return t.localAS }
 
 // Speakers returns every speaker: the routers in the order of the spec, then
-// the external neighbours in the order of the spec.
+// the external neighbors in the order of the spec.
 func (t *Topology) Speakers() []Speaker { return t.speakers }
 
 // Prefixes returns every prefix of the network, ordered by address then length.
 func (t *Topology) Prefixes() []netip.Prefix { return t.prefixes }
 
-// Announcers returns the addresses of the external neighbours announcing
+// Announcers returns the addresses of the external neighbors announcing
 // prefix, in address order. The list is empty for a prefix that only
 // originates inside the AS, and a prefix the network does not hold is an error.
 func (t *Topology) Announcers(prefix netip.Prefix) ([]netip.Addr, error) {
@@ -259,7 +259,7 @@ func NewTopology(spec TopologySpec) (*Topology, error) {
 	if err := learned.addOriginated(model, spec); err != nil {
 		return nil, err
 	}
-	neighbours, err := learned.addNeighbours(model, spec)
+	neighbors, err := learned.addNeighbors(model, spec)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func NewTopology(spec TopologySpec) (*Topology, error) {
 			topology.traces[traceKey{router: loopback, prefix: prefix}] = trace
 		}
 	}
-	topology.speakers = slices.Concat(routers, neighbours)
+	topology.speakers = slices.Concat(routers, neighbors)
 	return topology, nil
 }
 
@@ -317,7 +317,7 @@ type modelRoute struct {
 	asPath []uint32
 	// nextHop is the next hop the router writes when it announces the route
 	// as its own choice: its loopback on a route it originates, its loopback
-	// or the neighbour's address on a route learned outside, by the border's
+	// or the neighbor's address on a route learned outside, by the border's
 	// policy, and the next hop it received on a route learned inside.
 	nextHop netip.Addr
 	source  routeSource
@@ -411,9 +411,9 @@ func (m *topologyModel) addClient(reflector int, client netip.Addr) error {
 // learnedRoutes holds what the routers learn before any iBGP exchange.
 type learnedRoutes struct {
 	// candidates holds, per prefix and per router, the routes the router
-	// originates or learns from its external neighbours.
+	// originates or learns from its external neighbors.
 	candidates map[netip.Prefix][][]modelRoute
-	// announcers holds, per prefix, the external neighbours announcing it. A
+	// announcers holds, per prefix, the external neighbors announcing it. A
 	// prefix that only originates inside the AS has a key and no address.
 	announcers map[netip.Prefix][]netip.Addr
 }
@@ -442,43 +442,43 @@ func (l *learnedRoutes) addOriginated(model *topologyModel, spec TopologySpec) e
 	return nil
 }
 
-// addNeighbours validates the external neighbours, hands each border router
-// the routes its neighbours send, and returns the neighbours as speakers.
-func (l *learnedRoutes) addNeighbours(model *topologyModel, spec TopologySpec) ([]Speaker, error) {
-	if len(spec.Neighbours) > topologyNeighboursMax {
-		return nil, fmt.Errorf("topology: %d external neighbours, and the model holds at most %d: remove neighbours",
-			len(spec.Neighbours), topologyNeighboursMax)
+// addNeighbors validates the external neighbors, hands each border router
+// the routes its neighbors send, and returns the neighbors as speakers.
+func (l *learnedRoutes) addNeighbors(model *topologyModel, spec TopologySpec) ([]Speaker, error) {
+	if len(spec.Neighbors) > topologyNeighborsMax {
+		return nil, fmt.Errorf("topology: %d external neighbors, and the model holds at most %d: remove neighbors",
+			len(spec.Neighbors), topologyNeighborsMax)
 	}
-	speakers := make([]Speaker, 0, len(spec.Neighbours))
+	speakers := make([]Speaker, 0, len(spec.Neighbors))
 	addresses := map[netip.Addr]bool{}
-	for _, neighbour := range spec.Neighbours {
-		border, err := model.validateNeighbour(spec.LocalAS, neighbour)
+	for _, neighbor := range spec.Neighbors {
+		border, err := model.validateNeighbor(spec.LocalAS, neighbor)
 		if err != nil {
 			return nil, err
 		}
-		if addresses[neighbour.Address] {
-			return nil, fmt.Errorf("topology: two external neighbours share address %s: give each its own", neighbour.Address)
+		if addresses[neighbor.Address] {
+			return nil, fmt.Errorf("topology: two external neighbors share address %s: give each its own", neighbor.Address)
 		}
-		addresses[neighbour.Address] = true
+		addresses[neighbor.Address] = true
 
-		nextHop := neighbour.Address
-		if neighbour.BorderNextHop == NextHopPolicySelf {
-			nextHop = neighbour.Border
+		nextHop := neighbor.Address
+		if neighbor.BorderNextHop == NextHopPolicySelf {
+			nextHop = neighbor.Border
 		}
-		speaker := Speaker{Address: neighbour.Address, AS: neighbour.AS, Session: SessionKindExternal}
-		for _, route := range neighbour.Announces {
-			asPath := append([]uint32{neighbour.AS}, route.ASPathBeyond...)
+		speaker := Speaker{Address: neighbor.Address, AS: neighbor.AS, Session: SessionKindExternal}
+		for _, route := range neighbor.Announces {
+			asPath := append([]uint32{neighbor.AS}, route.ASPathBeyond...)
 			l.add(len(model.loopbacks), route.Prefix, border, modelRoute{
 				asPath:  asPath,
 				nextHop: nextHop,
 				source:  sourceExternal,
-				from:    neighbour.Address,
+				from:    neighbor.Address,
 			})
-			l.announcers[route.Prefix] = append(l.announcers[route.Prefix], neighbour.Address)
-			// The neighbour announces on its own session with its own address:
-			// the rewrite is the border router's, never the neighbour's.
+			l.announcers[route.Prefix] = append(l.announcers[route.Prefix], neighbor.Address)
+			// The neighbor announces on its own session with its own address:
+			// the rewrite is the border router's, never the neighbor's.
 			speaker.Announcements = append(speaker.Announcements,
-				Announcement{Prefix: route.Prefix, NextHop: neighbour.Address, ASPath: asPath})
+				Announcement{Prefix: route.Prefix, NextHop: neighbor.Address, ASPath: asPath})
 		}
 		slices.SortFunc(speaker.Announcements, func(a, b Announcement) int {
 			return comparePrefixes(a.Prefix, b.Prefix)
@@ -488,56 +488,56 @@ func (l *learnedRoutes) addNeighbours(model *topologyModel, spec TopologySpec) (
 	return speakers, nil
 }
 
-// validateNeighbour checks one external neighbour and returns the index of
+// validateNeighbor checks one external neighbor and returns the index of
 // its border router.
-func (m *topologyModel) validateNeighbour(localAS uint32, neighbour TopologyNeighbour) (int, error) {
-	if !neighbour.Address.Is4() {
-		return 0, fmt.Errorf("topology: an external neighbour has address %q, which is no IPv4 address: set Address to one",
-			neighbour.Address)
+func (m *topologyModel) validateNeighbor(localAS uint32, neighbor TopologyNeighbor) (int, error) {
+	if !neighbor.Address.Is4() {
+		return 0, fmt.Errorf("topology: an external neighbor has address %q, which is no IPv4 address: set Address to one",
+			neighbor.Address)
 	}
-	if _, isRouter := m.routerOf[neighbour.Address]; isRouter {
-		return 0, fmt.Errorf("topology: external neighbour %s has the address of a router of the AS: give it its own",
-			neighbour.Address)
+	if _, isRouter := m.routerOf[neighbor.Address]; isRouter {
+		return 0, fmt.Errorf("topology: external neighbor %s has the address of a router of the AS: give it its own",
+			neighbor.Address)
 	}
-	if neighbour.AS == 0 {
-		return 0, fmt.Errorf("topology: external neighbour %s has AS 0: set AS to its AS number", neighbour.Address)
+	if neighbor.AS == 0 {
+		return 0, fmt.Errorf("topology: external neighbor %s has AS 0: set AS to its AS number", neighbor.Address)
 	}
-	if neighbour.AS == localAS {
-		return 0, fmt.Errorf("topology: external neighbour %s has the local AS %d: an external neighbour is in another AS",
-			neighbour.Address, localAS)
+	if neighbor.AS == localAS {
+		return 0, fmt.Errorf("topology: external neighbor %s has the local AS %d: an external neighbor is in another AS",
+			neighbor.Address, localAS)
 	}
-	border, known := m.routerOf[neighbour.Border]
+	border, known := m.routerOf[neighbor.Border]
 	if !known {
-		return 0, fmt.Errorf("topology: external neighbour %s is attached to %q, which is no router's loopback: set Border to one",
-			neighbour.Address, neighbour.Border)
+		return 0, fmt.Errorf("topology: external neighbor %s is attached to %q, which is no router's loopback: set Border to one",
+			neighbor.Address, neighbor.Border)
 	}
-	switch neighbour.BorderNextHop {
+	switch neighbor.BorderNextHop {
 	case NextHopPolicySelf, NextHopPolicyUnchanged:
 	case NextHopPolicyUnspecified:
 		return 0, fmt.Errorf(
-			"topology: external neighbour %s does not say what its border router writes as next hop: set BorderNextHop to NextHopPolicySelf or NextHopPolicyUnchanged",
-			neighbour.Address)
+			"topology: external neighbor %s does not say what its border router writes as next hop: set BorderNextHop to NextHopPolicySelf or NextHopPolicyUnchanged",
+			neighbor.Address)
 	default:
 		// The spec is caller input, so a value outside the named set is refused.
-		return 0, fmt.Errorf("topology: external neighbour %s has BorderNextHop %d, which is no known policy: use NextHopPolicySelf or NextHopPolicyUnchanged",
-			neighbour.Address, neighbour.BorderNextHop)
+		return 0, fmt.Errorf("topology: external neighbor %s has BorderNextHop %d, which is no known policy: use NextHopPolicySelf or NextHopPolicyUnchanged",
+			neighbor.Address, neighbor.BorderNextHop)
 	}
-	prefixes := make([]netip.Prefix, 0, len(neighbour.Announces))
-	for _, route := range neighbour.Announces {
+	prefixes := make([]netip.Prefix, 0, len(neighbor.Announces))
+	for _, route := range neighbor.Announces {
 		prefixes = append(prefixes, route.Prefix)
 		for _, as := range route.ASPathBeyond {
 			if as == 0 {
-				return 0, fmt.Errorf("topology: external neighbour %s announces %s with AS 0 in its path: remove it",
-					neighbour.Address, route.Prefix)
+				return 0, fmt.Errorf("topology: external neighbor %s announces %s with AS 0 in its path: remove it",
+					neighbor.Address, route.Prefix)
 			}
 			if as == localAS {
 				return 0, fmt.Errorf(
-					"topology: external neighbour %s announces %s with the local AS %d in its path, which a border router refuses as a loop: remove it",
-					neighbour.Address, route.Prefix, localAS)
+					"topology: external neighbor %s announces %s with the local AS %d in its path, which a border router refuses as a loop: remove it",
+					neighbor.Address, route.Prefix, localAS)
 			}
 		}
 	}
-	if err := validateTopologyPrefixes(neighbour.Address, prefixes); err != nil {
+	if err := validateTopologyPrefixes(neighbor.Address, prefixes); err != nil {
 		return 0, err
 	}
 	return border, nil

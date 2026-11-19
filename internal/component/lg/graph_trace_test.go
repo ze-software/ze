@@ -166,7 +166,7 @@ func traceTestExpectWalk(
 // VALIDATES: a walk follows each router's next hop to the router whose session
 // address it is, across two intermediate routers, to the exit router.
 // PREVENTS: a trace that stops after one hop, as the next-hop graph's rows do,
-// or that walks from an external neighbour's row.
+// or that walks from an external neighbor's row.
 func TestTraceWalkGoesRouterToRouter(t *testing.T) {
 	routers := traceTestSummary(t,
 		traceTestRouter("198.51.100.1"), traceTestRouter("198.51.100.3"),
@@ -184,7 +184,7 @@ func TestTraceWalkGoesRouterToRouter(t *testing.T) {
 	g := buildTraceGraph(routes, routers)
 
 	if len(g.Walks) != 4 {
-		t.Fatalf("walks = %d, want 4: one per router, none from the external neighbour", len(g.Walks))
+		t.Fatalf("walks = %d, want 4: one per router, none from the external neighbor", len(g.Walks))
 	}
 	path := []uint32{65101, 64500}
 	traceTestExpectWalk(t, traceTestWalkOf(t, g, "198.51.100.5"),
@@ -233,8 +233,8 @@ func TestTraceGraphLinksExitToFirstAS(t *testing.T) {
 	if want := []traceASEdge{{From: 64496, To: 64500}, {From: 65101, To: 64496}}; !slices.Equal(g.ASEdges, want) {
 		t.Errorf("AS edges = %v, want %v", g.ASEdges, want)
 	}
-	if len(g.Neighbours) != 0 {
-		t.Errorf("neighbours = %v, want none: the exit announces its own address", g.Neighbours)
+	if len(g.Neighbors) != 0 {
+		t.Errorf("neighbors = %v, want none: the exit announces its own address", g.Neighbors)
 	}
 }
 
@@ -259,16 +259,16 @@ func TestTraceWalkExitsOnOwnAddress(t *testing.T) {
 }
 
 // VALIDATES: AC-27, A-10 -- a next hop that is no router's address leaves the
-// AS at that router toward that address, whether or not the neighbour at that
+// AS at that router toward that address, whether or not the neighbor at that
 // address holds a session with Ze.
-// PREVENTS: a walk that needs a session, or a row, for the external neighbour.
+// PREVENTS: a walk that needs a session, or a row, for the external neighbor.
 func TestTraceWalkLeavesAtExternalNextHop(t *testing.T) {
-	neighbour := netip.MustParseAddr("203.0.113.9")
+	neighbor := netip.MustParseAddr("203.0.113.9")
 	border := netip.MustParseAddr("198.51.100.2")
 
 	sessions := map[string][]traceTestPeer{
-		"the neighbour holds no session": {traceTestRouter("198.51.100.2")},
-		"the neighbour holds a session": {
+		"the neighbor holds no session": {traceTestRouter("198.51.100.2")},
+		"the neighbor holds a session": {
 			traceTestRouter("198.51.100.2"), {address: "203.0.113.9", remoteAS: 65102},
 		},
 	}
@@ -288,13 +288,13 @@ func TestTraceWalkLeavesAtExternalNextHop(t *testing.T) {
 			trace := traceTestWalkOf(t, g, "198.51.100.2")
 			traceTestExpectWalk(t, trace, traceTestAddrs("198.51.100.2"),
 				traceEndExitExternalAddress, "203.0.113.9", []uint32{65102, 64500})
-			if want := []netip.Addr{neighbour}; !slices.Equal(g.Neighbours, want) {
-				t.Errorf("neighbours = %v, want %v", g.Neighbours, want)
+			if want := []netip.Addr{neighbor}; !slices.Equal(g.Neighbors, want) {
+				t.Errorf("neighbors = %v, want %v", g.Neighbors, want)
 			}
-			if want := []traceHopEdge{{From: border, To: neighbour}}; !slices.Equal(g.HopEdges, want) {
+			if want := []traceHopEdge{{From: border, To: neighbor}}; !slices.Equal(g.HopEdges, want) {
 				t.Errorf("hop edges = %v, want %v", g.HopEdges, want)
 			}
-			if want := []traceEntryEdge{{From: neighbour, AS: 65102}}; !slices.Equal(g.EntryEdges, want) {
+			if want := []traceEntryEdge{{From: neighbor, AS: 65102}}; !slices.Equal(g.EntryEdges, want) {
 				t.Errorf("entry edges = %v, want %v", g.EntryEdges, want)
 			}
 			if got := trace.statement(); !strings.Contains(got, "toward 203.0.113.9") {
@@ -339,7 +339,7 @@ func TestTraceWalkStopsOnRevisitedRouter(t *testing.T) {
 
 // VALIDATES: AC-28 -- a next hop naming a router of the AS that sent no route
 // for the prefix ends the walk at that router, with its statement.
-// PREVENTS: the named router read as an external neighbour, or the row before
+// PREVENTS: the named router read as an external neighbor, or the row before
 // it drawn as the exit.
 func TestTraceWalkStopsOnRouterWithoutRoute(t *testing.T) {
 	routers := traceTestSummary(t, traceTestRouter("198.51.100.3"), traceTestRouter("198.51.100.4"))
@@ -364,8 +364,8 @@ func TestTraceWalkStopsOnRouterWithoutRoute(t *testing.T) {
 	if got := walk.statement(); !strings.Contains(got, "ends at 198.51.100.3: Ze holds no route from it") {
 		t.Errorf("statement = %q, want the router and that Ze holds no route from it", got)
 	}
-	if len(g.Neighbours) != 0 {
-		t.Errorf("neighbours = %v, want none: 198.51.100.3 is a router of the AS", g.Neighbours)
+	if len(g.Neighbors) != 0 {
+		t.Errorf("neighbors = %v, want none: 198.51.100.3 is a router of the AS", g.Neighbors)
 	}
 }
 
@@ -433,7 +433,7 @@ func TestTraceGraphTextIsOrdered(t *testing.T) {
 		"node router 198.51.100.2 exit\n" +
 		"node router 198.51.100.3\n" +
 		"node router 198.51.100.4\n" +
-		"node neighbour 203.0.113.9 name=ixp-lan-a\n" +
+		"node neighbor 203.0.113.9 name=ixp-lan-a\n" +
 		"node AS64500\n" +
 		"node AS65101 name=Transit A\n" +
 		"node AS65102\n" +
@@ -527,8 +527,8 @@ func TestTraceWalkStopsOnSeveralRoutes(t *testing.T) {
 	if got := trace.statement(); !strings.Contains(got, "Ze holds several routes from it") {
 		t.Errorf("statement = %q, want that Ze holds several routes", got)
 	}
-	if len(g.ASes) != 0 || len(g.Neighbours) != 0 {
-		t.Errorf("ASes = %v, neighbours = %v, want none: no route was chosen", g.ASes, g.Neighbours)
+	if len(g.ASes) != 0 || len(g.Neighbors) != 0 {
+		t.Errorf("ASes = %v, neighbors = %v, want none: no route was chosen", g.ASes, g.Neighbors)
 	}
 }
 
@@ -600,7 +600,7 @@ func TestTraceGraphBoundsTheWalksItLists(t *testing.T) {
 
 // VALIDATES: a summary that cannot say which peers are routers of the AS is
 // refused, and the routers are the peers the engine calls internal.
-// PREVENTS: a router read as an external neighbour because its `peer-type`
+// PREVENTS: a router read as an external neighbor because its `peer-type`
 // was missing or unknown, which would state a wrong exit.
 func TestTraceRoutersRefusesUnreadableSummary(t *testing.T) {
 	refused := map[string]string{

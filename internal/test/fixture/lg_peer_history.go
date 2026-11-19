@@ -156,8 +156,12 @@ func lgPeerHistoryWait(ctx context.Context, p *sdk.Plugin, dropped, eorSent int)
 		}
 		return engine.eorSent >= eorSent
 	}) {
-		return lgPeerHistoryEngine{}, fmt.Errorf("peer history: %s never reached %d drops and %d End-of-RIB sent: last read %+v, error %v",
-			lgPeerHistoryAddress, dropped, eorSent, engine, readErr)
+		if readErr != nil {
+			return lgPeerHistoryEngine{}, fmt.Errorf("peer history: %s never reached %d drops and %d End-of-RIB sent: last read %+v: %w",
+				lgPeerHistoryAddress, dropped, eorSent, engine, readErr)
+		}
+		return lgPeerHistoryEngine{}, fmt.Errorf("peer history: %s never reached %d drops and %d End-of-RIB sent: last read %+v",
+			lgPeerHistoryAddress, dropped, eorSent, engine)
 	}
 	return engine, nil
 }
@@ -270,8 +274,12 @@ func lgPeerHistoryWatchSecondDrop(ctx context.Context, p *sdk.Plugin, base strin
 		}
 	}
 	engine, readErr := lgPeerHistoryRead(ctx, p)
-	return fmt.Errorf("peer history: %d /lg/events messages never carried two drops for %s, last count shown %q; show bgp answers %+v, error %v",
-		lgPeerHistoryStreamMessages, lgPeerHistoryAddress, shown, engine, readErr)
+	if readErr != nil {
+		return fmt.Errorf("peer history: %d /lg/events messages never carried two drops for %s, last count shown %q: %w",
+			lgPeerHistoryStreamMessages, lgPeerHistoryAddress, shown, readErr)
+	}
+	return fmt.Errorf("peer history: %d /lg/events messages never carried two drops for %s, last count shown %q; show bgp answers %+v",
+		lgPeerHistoryStreamMessages, lgPeerHistoryAddress, shown, engine)
 }
 
 // lgPeerHistoryStreamMessage reads one server-sent message and answers its

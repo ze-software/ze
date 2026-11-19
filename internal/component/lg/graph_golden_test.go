@@ -27,9 +27,9 @@ type lgGraphCase struct {
 	Engine traceModeEngine
 }
 
-// lgGraphTwoExits is a prefix two external neighbours announce: .1 and .2 are
+// lgGraphTwoExits is a prefix two external neighbors announce: .1 and .2 are
 // the exits, each with its own path to AS64500, .3 reflects .1's route and .4
-// is its client. Both neighbours hold a session of their own with Ze and
+// is its client. Both neighbors hold a session of their own with Ze and
 // announce their own address, as a collector's peers do.
 func lgGraphTwoExits() traceModeEngine {
 	return traceModeEngine{
@@ -50,7 +50,7 @@ func lgGraphTwoExits() traceModeEngine {
 	}
 }
 
-// lgGraphOneExit is a prefix one external neighbour announces: .1 is the only
+// lgGraphOneExit is a prefix one external neighbor announces: .1 is the only
 // exit, .2 and .3 point at it, and .4 is the client of .3.
 func lgGraphOneExit() traceModeEngine {
 	return traceModeEngine{

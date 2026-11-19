@@ -48,7 +48,7 @@ func lgRangesFix(t *testing.T, err error) string {
 // looking glass with no names.
 func TestExtractLGNextHopRangesIgnoresEnabled(t *testing.T) {
 	want := map[netip.Prefix]string{
-		netip.MustParsePrefix("198.51.100.0/24"):    "ixp-lan-a",
+		netip.MustParsePrefix("198.51.100.0/24"):   "ixp-lan-a",
 		netip.MustParsePrefix("2001:db8:100::/64"): "ixp-lan-a",
 	}
 	for _, enabled := range []string{"", "false", "true"} {
@@ -75,8 +75,8 @@ func TestExtractLGNextHopRangesIgnoresEnabled(t *testing.T) {
 // block with no entry.
 func TestExtractLGNextHopRangesNoList(t *testing.T) {
 	for name, tree := range map[string]*Tree{
-		"nil tree":      nil,
-		"no block":      NewTree(),
+		"nil tree":        nil,
+		"no block":        NewTree(),
 		"block, no entry": lgRangesTree("true"),
 	} {
 		got, err := ExtractLGNextHopRanges(tree)
@@ -166,11 +166,11 @@ func TestExtractLGNextHopRangesCountBoundary(t *testing.T) {
 // reader takes: 32 and 128 are the last valid ones, 33 and 129 are refused.
 func TestExtractLGNextHopRangesPrefixLengthBoundary(t *testing.T) {
 	for key, valid := range map[string]bool{
-		"198.51.100.7/32":      true,
-		"198.51.100.7/33":      false,
+		"198.51.100.7/32":     true,
+		"198.51.100.7/33":     false,
 		"2001:db8:100::7/128": true,
 		"2001:db8:100::7/129": false,
-		"198.51.100.0":         false,
+		"198.51.100.0":        false,
 	} {
 		_, err := ExtractLGNextHopRanges(lgRangesTree("", key, "rs1"))
 		if valid && err != nil {

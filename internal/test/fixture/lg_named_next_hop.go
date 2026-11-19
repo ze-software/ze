@@ -40,6 +40,9 @@ const (
 	// next-hop graph's text form (internal/component/lg/graph_nexthop.go,
 	// renderNextHopGraphText).
 	lgNamedGraphNameField = "name="
+	// lgNamedGraphFormatText is the value of the graph page's format
+	// parameter that asks for the text form in place of the drawing.
+	lgNamedGraphFormatText = "text"
 )
 
 // lgNamedNextHopDriver takes the config file the daemon reads and the file
@@ -182,7 +185,7 @@ func lgNamedSearchRow(ctx context.Context, conn *lgNamedConn, prefix string) (st
 // lgNamedGraphNode asks the next-hop graph of one prefix in its text form and
 // answers the fields of the node line of one address.
 func lgNamedGraphNode(ctx context.Context, conn *lgNamedConn, prefix, address string) ([]string, error) {
-	query := url.Values{columnPrefix: {prefix}, "mode": {"nexthop"}, "format": {"text"}}.Encode()
+	query := url.Values{columnPrefix: {prefix}, "mode": {"nexthop"}, "format": {lgNamedGraphFormatText}}.Encode()
 	body, err := conn.ask(ctx, http.MethodGet, "/lg/graph?"+query, "")
 	if err != nil {
 		return nil, err

@@ -43,7 +43,7 @@ const (
 // lgRouteAgeCell is the Age cell of a route row of the search page
 // (internal/component/lg/route_table.templ): the exact seconds in
 // data-seconds, and the age as a reader takes it as the cell's text.
-var lgRouteAgeCell = regexp.MustCompile(`<td class="route-age" data-seconds="([0-9]+)">([^<]*)</td>`)
+var lgRouteAgeCell = regexp.MustCompile(`<td class="route-age" data-seconds="(\d+)">([^<]*)</td>`)
 
 // lgRouteAge learns one route, waits for the API to answer a growing age for
 // it, checks that the route table shows an age between two reads of the API,
@@ -183,7 +183,7 @@ func lgRouteAgeWaitSettled(ctx context.Context, base string) (int, error) {
 // answers the `age` of its one route, in seconds. A missing route, a second
 // route, a missing `age` member and a negative age are each an error.
 func lgRouteAgeRead(ctx context.Context, base string) (int, error) {
-	target := base + "/api/looking-glass/routes/prefix?" + url.Values{"prefix": {lgRouteAgePrefix}}.Encode()
+	target := base + "/api/looking-glass/routes/prefix?" + url.Values{columnPrefix: {lgRouteAgePrefix}}.Encode()
 	body, err := lgCoveringRequest(ctx, http.MethodGet, target, "")
 	if err != nil {
 		return 0, err

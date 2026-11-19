@@ -1,6 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — simulated network topology
 // Overview: topology.go — the topology model a generated network is computed by
-// Related: generator.go — generateEBGPASNs, the neighbours' AS numbers
+// Related: generator.go — generateEBGPASNs, the neighbors' AS numbers
 
 package scenario
 
@@ -18,25 +18,25 @@ type TopologyParams struct {
 	LocalAS uint32
 	// Routers is the number of routers of the AS, 3 to 32.
 	Routers int
-	// Borders is the number of routers with external neighbours, 2 to Routers-1.
+	// Borders is the number of routers with external neighbors, 2 to Routers-1.
 	// The reflector is never one of them.
 	Borders int
 	// ReflectorClients is the number of routers that are clients of the one
 	// route reflector, 0 to Routers-1. With none, no trace crosses an
 	// intermediate router and GenerateTopology refuses the network.
 	ReflectorClients int
-	// Neighbours is the number of external neighbours, Borders to 128. Every
+	// Neighbors is the number of external neighbors, Borders to 128. Every
 	// border router gets at least one.
-	Neighbours int
+	Neighbors int
 	// Prefixes is the number of prefixes announced from outside, 2 to 256. The
 	// first has two exits on two border routers and the second has one. One
 	// more prefix always originates inside the AS.
 	Prefixes int
 	// RouterFirst is the loopback of the first router. The others follow it.
 	RouterFirst netip.Addr
-	// NeighbourFirst is the address of the first external neighbour. The
+	// NeighborFirst is the address of the first external neighbor. The
 	// others follow it.
-	NeighbourFirst netip.Addr
+	NeighborFirst netip.Addr
 }
 
 // GenerateTopology builds a deterministic network from params and computes it.
@@ -80,13 +80,13 @@ func (p TopologyParams) validate() error {
 		return fmt.Errorf("topology: %d reflector clients of %d routers, and the reflector is not its own client: lower ReflectorClients to %d or less",
 			p.ReflectorClients, p.Routers, p.Routers-1)
 	}
-	if p.Neighbours < p.Borders {
-		return fmt.Errorf("topology: %d external neighbours for %d border routers, and each border router needs one: raise Neighbours",
-			p.Neighbours, p.Borders)
+	if p.Neighbors < p.Borders {
+		return fmt.Errorf("topology: %d external neighbors for %d border routers, and each border router needs one: raise Neighbors",
+			p.Neighbors, p.Borders)
 	}
-	if p.Neighbours > topologyNeighboursMax {
-		return fmt.Errorf("topology: %d external neighbours, and the model holds at most %d: lower Neighbours",
-			p.Neighbours, topologyNeighboursMax)
+	if p.Neighbors > topologyNeighborsMax {
+		return fmt.Errorf("topology: %d external neighbors, and the model holds at most %d: lower Neighbors",
+			p.Neighbors, topologyNeighborsMax)
 	}
 	if p.Prefixes < 2 {
 		return fmt.Errorf("topology: %d prefixes, and a generated network needs one with two exits and one with one: raise Prefixes to 2 or more",
@@ -107,7 +107,7 @@ func (p TopologyParams) validate() error {
 // caller gives the speakers their addresses from those. A generated network
 // announces up to topologyRoutesMax /24s, which three /24s cannot hold, and
 // carving them into longer prefixes would show a looking glass routes no
-// operator accepts from a neighbour. The benchmarking range is routed nowhere
+// operator accepts from a neighbor. The benchmarking range is routed nowhere
 // on the Internet, so no generated prefix is a real network.
 var topologyInsidePrefix = netip.PrefixFrom(netip.AddrFrom4([4]byte{198, 19, 0, 0}), 24)
 
@@ -119,9 +119,9 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 	if err != nil {
 		return TopologySpec{}, fmt.Errorf("topology: RouterFirst: %w", err)
 	}
-	links, err := consecutiveAddresses(params.NeighbourFirst, params.Neighbours)
+	links, err := consecutiveAddresses(params.NeighborFirst, params.Neighbors)
 	if err != nil {
-		return TopologySpec{}, fmt.Errorf("topology: NeighbourFirst: %w", err)
+		return TopologySpec{}, fmt.Errorf("topology: NeighborFirst: %w", err)
 	}
 
 	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
@@ -146,21 +146,21 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 	originator := rng.Intn(params.Routers)
 	routers[originator].Originates = []netip.Prefix{topologyInsidePrefix}
 
-	neighbourAS := generateEBGPASNs(rng, params.Neighbours, params.LocalAS)
-	if len(neighbourAS) < params.Neighbours {
-		return TopologySpec{}, fmt.Errorf("topology: the private AS range holds %d numbers for %d external neighbours: lower Neighbours",
-			len(neighbourAS), params.Neighbours)
+	neighborAS := generateEBGPASNs(rng, params.Neighbors, params.LocalAS)
+	if len(neighborAS) < params.Neighbors {
+		return TopologySpec{}, fmt.Errorf("topology: the private AS range holds %d numbers for %d external neighbors: lower Neighbors",
+			len(neighborAS), params.Neighbors)
 	}
-	neighbours := make([]TopologyNeighbour, params.Neighbours)
-	for index := range neighbours {
-		// The first neighbours take one border router each, so none is left bare.
+	neighbors := make([]TopologyNeighbor, params.Neighbors)
+	for index := range neighbors {
+		// The first neighbors take one border router each, so none is left bare.
 		border := index
 		if index >= params.Borders {
 			border = rng.Intn(params.Borders)
 		}
-		neighbours[index] = TopologyNeighbour{
+		neighbors[index] = TopologyNeighbor{
 			Address:       links[index],
-			AS:            neighbourAS[index],
+			AS:            neighborAS[index],
 			Border:        borders[border],
 			BorderNextHop: NextHopPolicySelf,
 		}
@@ -170,7 +170,7 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 	for index := range params.Prefixes {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{198, 18, byte(index), 0}), 24)
 		rng.Shuffle(len(remote), func(i, j int) { remote[i], remote[j] = remote[j], remote[i] })
-		first := rng.Intn(params.Neighbours)
+		first := rng.Intn(params.Neighbors)
 
 		// The first prefix has two exits, the second one, the rest either.
 		exits := 1
@@ -181,21 +181,21 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 			exits = 1 + rng.Intn(2)
 		}
 		if exits == 1 {
-			// Zero, one or two AS numbers beyond the neighbour.
-			neighbours[first].Announces = append(neighbours[first].Announces,
-				NeighbourRoute{Prefix: prefix, ASPathBeyond: slices.Clone(remote[:rng.Intn(3)])})
+			// Zero, one or two AS numbers beyond the neighbor.
+			neighbors[first].Announces = append(neighbors[first].Announces,
+				NeighborRoute{Prefix: prefix, ASPathBeyond: slices.Clone(remote[:rng.Intn(3)])})
 			continue
 		}
 		// Two exits on two border routers, toward one origin AS, each through
 		// its own transit AS or straight to the origin.
-		second := neighbourOnOtherBorder(rng, neighbours, first)
+		second := neighborOnOtherBorder(rng, neighbors, first)
 		origin := remote[0]
-		neighbours[first].Announces = append(neighbours[first].Announces,
-			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[1], origin)})
-		neighbours[second].Announces = append(neighbours[second].Announces,
-			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[2], origin)})
+		neighbors[first].Announces = append(neighbors[first].Announces,
+			NeighborRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[1], origin)})
+		neighbors[second].Announces = append(neighbors[second].Announces,
+			NeighborRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[2], origin)})
 	}
-	return TopologySpec{LocalAS: params.LocalAS, Routers: routers, Neighbours: neighbours}, nil
+	return TopologySpec{LocalAS: params.LocalAS, Routers: routers, Neighbors: neighbors}, nil
 }
 
 // consecutiveAddresses returns count IPv4 addresses starting at first.
@@ -215,8 +215,8 @@ func consecutiveAddresses(first netip.Addr, count int) ([]netip.Addr, error) {
 }
 
 // remoteASNumbers returns the AS numbers a generated path holds beyond a
-// neighbour: the documentation range 64496 to 64511, without the local AS.
-// The neighbours take theirs from the private range, so the two never collide.
+// neighbor: the documentation range 64496 to 64511, without the local AS.
+// The neighbors take theirs from the private range, so the two never collide.
 func remoteASNumbers(localAS uint32) []uint32 {
 	remote := make([]uint32, 0, 16)
 	for as := uint32(64496); as <= 64511; as++ {
@@ -227,20 +227,20 @@ func remoteASNumbers(localAS uint32) []uint32 {
 	return remote
 }
 
-// neighbourOnOtherBorder picks a neighbour attached to another border router
-// than neighbours[first]. One always exists: there are two border routers or
-// more, and each holds a neighbour.
-func neighbourOnOtherBorder(rng *rand.Rand, neighbours []TopologyNeighbour, first int) int {
+// neighborOnOtherBorder picks a neighbor attached to another border router
+// than neighbors[first]. One always exists: there are two border routers or
+// more, and each holds a neighbor.
+func neighborOnOtherBorder(rng *rand.Rand, neighbors []TopologyNeighbor, first int) int {
 	var others []int
-	for index := range neighbours {
-		if neighbours[index].Border != neighbours[first].Border {
+	for index := range neighbors {
+		if neighbors[index].Border != neighbors[first].Border {
 			others = append(others, index)
 		}
 	}
 	return others[rng.Intn(len(others))]
 }
 
-// pathToOrigin returns the AS numbers beyond a neighbour for a prefix of
+// pathToOrigin returns the AS numbers beyond a neighbor for a prefix of
 // origin: the origin alone, or one transit AS then the origin.
 func pathToOrigin(rng *rand.Rand, transit, origin uint32) []uint32 {
 	if rng.Intn(2) == 0 {

@@ -792,7 +792,7 @@ network. Both return a `Topology`, which is immutable.
 | Part of the spec | What it states |
 |------------------|----------------|
 | `TopologyRouter` | The loopback, which is also the session address with the collector and the BGP identifier. The clients it reflects routes for. The prefixes it originates |
-| `TopologyNeighbour` | Its address and AS, the border router it is attached to, what that border router writes as next hop on its routes (`NextHopPolicySelf` or `NextHopPolicyUnchanged`), and the prefixes it announces with the AS path beyond its own AS |
+| `TopologyNeighbor` | Its address and AS, the border router it is attached to, what that border router writes as next hop on its routes (`NextHopPolicySelf` or `NextHopPolicyUnchanged`), and the prefixes it announces with the AS path beyond its own AS |
 
 The iBGP sessions follow from the routers. A client holds one session, with its
 reflector. Every router that is no client holds a session with every other such

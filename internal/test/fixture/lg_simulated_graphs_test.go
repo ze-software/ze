@@ -74,7 +74,7 @@ func TestLGSimulatedReadGraphRefusesWhatIsNotTheGraph(t *testing.T) {
 
 // VALIDATES: the graphs expected of a network are the model's announcements:
 // for the prefix whose next hop a border router keeps, every router points at
-// the neighbour's address and only the neighbour is egress; for the prefix the
+// the neighbor's address and only the neighbor is egress; for the prefix the
 // other border router rewrites, that router is egress and the two others point
 // at it.
 // PREVENTS: an expectation that states the next-hop-self shape for every
@@ -148,12 +148,12 @@ func TestLGNextHopUnchangedHandCheckedAgreesWithTheModel(t *testing.T) {
 }
 
 // lgNextHopUnchangedKeptText is the trace graph of the kept prefix as the looking
-// glass must write it: every router leaves toward the neighbour's address.
+// glass must write it: every router leaves toward the neighbor's address.
 const lgNextHopUnchangedKeptText = "mode trace\n" +
 	"node router 198.51.100.1 exit\n" +
 	"node router 198.51.100.2 exit\n" +
 	"node router 198.51.100.3 exit\n" +
-	"node neighbour 203.0.113.1\n" +
+	"node neighbor 203.0.113.1\n" +
 	"node AS65101\n" +
 	"node AS65201\n" +
 	"trace ipv4/unicast 198.18.0.0/24 198.51.100.1 routers=198.51.100.1 end=exit-external-address" +

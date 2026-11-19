@@ -61,7 +61,7 @@ type traceRouters struct {
 // states the local AS on each peer, and comparing with it finds no router.
 //
 // A summary that cannot say so is refused: with a peer whose type or address
-// cannot be read, the walk would take a router for an external neighbour and
+// cannot be read, the walk would take a router for an external neighbor and
 // state a wrong exit.
 func traceRoutersFrom(summary map[string]any) (traceRouters, error) {
 	peers := summaryPeers(summary)
@@ -247,7 +247,7 @@ type traceASEdge struct {
 // so two builds from the same rows are equal whatever order the rows came in.
 type traceGraph struct {
 	Routers    []traceRouter    // By address.
-	Neighbours []netip.Addr     // External next hops walks leave the AS toward, by address.
+	Neighbors  []netip.Addr     // External next hops walks leave the AS toward, by address.
 	ASes       []uint32         // Every AS of an exit route's path, by number.
 	HopEdges   []traceHopEdge   // By From, then To.
 	EntryEdges []traceEntryEdge // By From, then AS.
@@ -259,7 +259,7 @@ type traceGraph struct {
 
 // nodeCount is what the node cap counts: routers, external next hops and ASes.
 func (g *traceGraph) nodeCount() int {
-	return len(g.Routers) + len(g.Neighbours) + len(g.ASes)
+	return len(g.Routers) + len(g.Neighbors) + len(g.ASes)
 }
 
 // traceWalksListedMax bounds the walks the text form and the drawing list, one
@@ -411,7 +411,7 @@ func traceRouterRouteFrom(row map[string]any) traceRouterRoute {
 
 // traceRoutesByRouter groups the rows by prefix, then by the router that sent them.
 // A row from a peer that is no router of the AS starts no walk and is left
-// out: an external neighbour is reached by a router's next hop, never walked
+// out: an external neighbor is reached by a router's next hop, never walked
 // from.
 //
 // Each router sends the collector its one best path, so a router's row for a
@@ -569,7 +569,7 @@ func buildTraceGraph(routes []any, routers traceRouters) *traceGraph {
 // draw derives the nodes and edges from the traces.
 func (g *traceGraph) draw() {
 	routers := make(map[netip.Addr]traceRouter)
-	neighbours := make(map[netip.Addr]struct{})
+	neighbors := make(map[netip.Addr]struct{})
 	ases := make(map[uint32]struct{})
 	hops := make(map[traceHopEdge]struct{})
 	entries := make(map[traceEntryEdge]struct{})
@@ -593,7 +593,7 @@ func (g *traceGraph) draw() {
 			traceASChain(walk.ASPath, ases, steps)
 		case traceEndExitExternalAddress:
 			last.Exit = true
-			neighbours[walk.NextHop] = struct{}{}
+			neighbors[walk.NextHop] = struct{}{}
 			hops[traceHopEdge{From: last.Address, To: walk.NextHop}] = struct{}{}
 			entries[traceEntryEdge{From: walk.NextHop, AS: walk.ASPath[0]}] = struct{}{}
 			traceASChain(walk.ASPath, ases, steps)
@@ -603,7 +603,7 @@ func (g *traceGraph) draw() {
 			// address outside the routers of the AS: the hop is drawn, and
 			// no AS follows it.
 			if walk.NextHop != last.Address {
-				neighbours[walk.NextHop] = struct{}{}
+				neighbors[walk.NextHop] = struct{}{}
 				hops[traceHopEdge{From: last.Address, To: walk.NextHop}] = struct{}{}
 			}
 		case traceEndLoop:
@@ -620,11 +620,11 @@ func (g *traceGraph) draw() {
 	}
 	slices.SortFunc(g.Routers, func(a, b traceRouter) int { return a.Address.Compare(b.Address) })
 
-	g.Neighbours = make([]netip.Addr, 0, len(neighbours))
-	for address := range neighbours {
-		g.Neighbours = append(g.Neighbours, address)
+	g.Neighbors = make([]netip.Addr, 0, len(neighbors))
+	for address := range neighbors {
+		g.Neighbors = append(g.Neighbors, address)
 	}
-	slices.SortFunc(g.Neighbours, netip.Addr.Compare)
+	slices.SortFunc(g.Neighbors, netip.Addr.Compare)
 
 	g.ASes = make([]uint32, 0, len(ases))
 	for number := range ases {
@@ -730,9 +730,9 @@ func renderTraceGraphText(g *traceGraph, names traceNames) string {
 		}
 		traceWriteName(&text, names.ofAddress(router.Address))
 	}
-	for _, neighbour := range g.Neighbours {
-		text.Str("node neighbour ").Addr(neighbour)
-		traceWriteName(&text, names.ofAddress(neighbour))
+	for _, neighbor := range g.Neighbors {
+		text.Str("node neighbor ").Addr(neighbor)
+		traceWriteName(&text, names.ofAddress(neighbor))
 	}
 	for _, number := range g.ASes {
 		text.Str("node AS").Str(asn.Text(number, asn.Configured()))

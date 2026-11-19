@@ -31,7 +31,7 @@ import (
 
 // lgSimulatedNetworkParams is the network the fixture runs: five routers of
 // one AS, two of them border routers and two of them clients of the one route
-// reflector, six external neighbours, eight prefixes from outside and one
+// reflector, six external neighbors, eight prefixes from outside and one
 // originated inside. It is the shape TestTopologyHasMultiHopTrace
 // (internal/chaos/scenario/topology_test.go) proves for seeds 1 to 25, with the
 // same order between the two address ranges.
@@ -47,20 +47,20 @@ var lgSimulatedNetworkParams = chaosscenario.TopologyParams{
 	Routers:          5,
 	Borders:          2,
 	ReflectorClients: 2,
-	Neighbours:       6,
+	Neighbors:        6,
 	Prefixes:         8,
 	RouterFirst:      netip.MustParseAddr("198.51.100.1"),
-	NeighbourFirst:   netip.MustParseAddr("203.0.113.1"),
+	NeighborFirst:    netip.MustParseAddr("203.0.113.1"),
 }
 
 // What the generator builds for every seed, written out here and never asked
-// of the model: the routers and the neighbours each fill one range, the first
+// of the model: the routers and the neighbors each fill one range, the first
 // prefix from outside has two exits, the second has one, and one prefix
 // originates inside the AS (generateTopologySpec,
 // internal/chaos/scenario/topology_generate.go).
 var (
 	lgSimulatedRouterRange    = netip.MustParsePrefix("198.51.100.0/24")
-	lgSimulatedNeighbourRange = netip.MustParsePrefix("203.0.113.0/24")
+	lgSimulatedNeighborRange  = netip.MustParsePrefix("203.0.113.0/24")
 	lgSimulatedPrefixTwoExits = netip.MustParsePrefix("198.18.0.0/24")
 	lgSimulatedPrefixOneExit  = netip.MustParsePrefix("198.18.1.0/24")
 	lgSimulatedPrefixInside   = netip.MustParsePrefix("198.19.0.0/24")
@@ -552,9 +552,7 @@ func lgSimulatedStartSpeakers(ctx context.Context, daemon *lgSimulatedDaemon, pr
 			break
 		}
 		// The simulator owns conn from here and closes it when its session ends.
-		speakers.running.Add(1)
-		go func() {
-			defer speakers.running.Done()
+		speakers.running.Go(func() {
 			chaospeer.RunSimulator(sessionCtx, chaospeer.SimulatorConfig{
 				Profile: chaospeer.SimProfile{
 					Index:      profile.Index,
@@ -574,7 +572,7 @@ func lgSimulatedStartSpeakers(ctx context.Context, daemon *lgSimulatedDaemon, pr
 				Events: events,
 				Quiet:  true,
 			})
-		}()
+		})
 	}
 	go func() {
 		speakers.running.Wait()
@@ -704,7 +702,7 @@ func lgSimulatedPeersProblem(page string, speakers []chaosscenario.Speaker) stri
 			return fmt.Sprintf("peers page does not list the speaker %s", speaker.Address)
 		}
 		want := map[string]string{
-			"State":     "established",
+			"State":     stateEstablished,
 			"Remote AS": strconv.FormatUint(uint64(speaker.AS), 10),
 			"Received":  strconv.Itoa(len(speaker.Announcements)),
 		}
@@ -733,7 +731,7 @@ type lgSimulatedRoute struct {
 // lgSimulatedSearch asks the search page for every prefix of the model and
 // compares the rows with the model: every speaker announcing the prefix, with
 // the next hop and the AS path the model computed for it, and nothing else. The
-// external neighbours among the rows are compared with Topology.Announcers on
+// external neighbors among the rows are compared with Topology.Announcers on
 // their own (AC-20). Three prefixes are then checked against what the
 // generator states it builds, with no value taken from the model.
 func lgSimulatedSearch(ctx context.Context, base string, topology *chaosscenario.Topology) error {
@@ -771,7 +769,7 @@ func lgSimulatedSearch(ctx context.Context, base string, topology *chaosscenario
 			}
 		}
 		if !slices.Equal(gotAnnouncers, wantAnnouncers) {
-			return fmt.Errorf("search for %s listed the external neighbours %v, and the model's announcers are %v",
+			return fmt.Errorf("search for %s listed the external neighbors %v, and the model's announcers are %v",
 				prefix, gotAnnouncers, wantAnnouncers)
 		}
 	}
@@ -849,9 +847,9 @@ func lgSimulatedSearchRows(ctx context.Context, base string, prefix netip.Prefix
 // lgSimulatedHandChecked compares three prefixes with what the generator
 // states it builds for every seed, so the model and the looking glass cannot
 // agree on a shared mistake. The first prefix from outside has two exits: two
-// external neighbours announce it, each with its own address as next hop, and
+// external neighbors announce it, each with its own address as next hop, and
 // each of the five routers announces it with a router's loopback as next hop,
-// never a neighbour's address, because a border router rewrites the next hop to
+// never a neighbor's address, because a border router rewrites the next hop to
 // itself. The second has one exit. The inside prefix has no external announcer
 // and an empty AS path from every router.
 func lgSimulatedHandChecked(listed map[netip.Prefix][]lgSimulatedRoute) error {
@@ -859,13 +857,13 @@ func lgSimulatedHandChecked(listed map[netip.Prefix][]lgSimulatedRoute) error {
 	if err != nil {
 		return err
 	}
-	if len(twoExits.neighbours) != 2 {
-		return fmt.Errorf("search for %s listed %d external neighbours, and the prefix has two exits: %v",
-			lgSimulatedPrefixTwoExits, len(twoExits.neighbours), twoExits.neighbours)
+	if len(twoExits.neighbors) != 2 {
+		return fmt.Errorf("search for %s listed %d external neighbors, and the prefix has two exits: %v",
+			lgSimulatedPrefixTwoExits, len(twoExits.neighbors), twoExits.neighbors)
 	}
-	for _, route := range twoExits.neighbours {
+	for _, route := range twoExits.neighbors {
 		if route.nextHop != route.peer {
-			return fmt.Errorf("search for %s: the external neighbour %s announces the next hop %s, and it announces its own address",
+			return fmt.Errorf("search for %s: the external neighbor %s announces the next hop %s, and it announces its own address",
 				lgSimulatedPrefixTwoExits, route.peer, route.nextHop)
 		}
 	}
@@ -888,18 +886,18 @@ func lgSimulatedHandChecked(listed map[netip.Prefix][]lgSimulatedRoute) error {
 	if err != nil {
 		return err
 	}
-	if len(oneExit.neighbours) != 1 {
-		return fmt.Errorf("search for %s listed %d external neighbours, and the prefix has one exit: %v",
-			lgSimulatedPrefixOneExit, len(oneExit.neighbours), oneExit.neighbours)
+	if len(oneExit.neighbors) != 1 {
+		return fmt.Errorf("search for %s listed %d external neighbors, and the prefix has one exit: %v",
+			lgSimulatedPrefixOneExit, len(oneExit.neighbors), oneExit.neighbors)
 	}
 
 	inside, err := lgSimulatedSplitRoutesByPeerRange(lgSimulatedPrefixInside, listed)
 	if err != nil {
 		return err
 	}
-	if len(inside.neighbours) != 0 {
-		return fmt.Errorf("search for %s listed the external neighbours %v, and the prefix originates inside the AS",
-			lgSimulatedPrefixInside, inside.neighbours)
+	if len(inside.neighbors) != 0 {
+		return fmt.Errorf("search for %s listed the external neighbors %v, and the prefix originates inside the AS",
+			lgSimulatedPrefixInside, inside.neighbors)
 	}
 	if len(inside.routers) != lgSimulatedNetworkParams.Routers {
 		return fmt.Errorf("search for %s listed %d routers, and each of the %d routers announces it: %v",
@@ -916,12 +914,12 @@ func lgSimulatedHandChecked(listed map[netip.Prefix][]lgSimulatedRoute) error {
 
 // lgSimulatedRoutesByPeerRange is the rows of one prefix, split by the range of the peer.
 type lgSimulatedRoutesByPeerRange struct {
-	routers    []lgSimulatedRoute
-	neighbours []lgSimulatedRoute
+	routers   []lgSimulatedRoute
+	neighbors []lgSimulatedRoute
 }
 
 // lgSimulatedSplitRoutesByPeerRange splits the rows listed for prefix into those a router
-// sent and those an external neighbour sent. A prefix that was not searched,
+// sent and those an external neighbor sent. A prefix that was not searched,
 // and a peer in neither range, are errors.
 func lgSimulatedSplitRoutesByPeerRange(prefix netip.Prefix, listed map[netip.Prefix][]lgSimulatedRoute) (lgSimulatedRoutesByPeerRange, error) {
 	routes, searched := listed[prefix]
@@ -935,16 +933,16 @@ func lgSimulatedSplitRoutesByPeerRange(prefix netip.Prefix, listed map[netip.Pre
 			return lgSimulatedRoutesByPeerRange{}, fmt.Errorf("search for %s: peer %q: %w", prefix, route.peer, err)
 		}
 		inRouters := lgSimulatedRouterRange.Contains(peer)
-		inNeighbours := lgSimulatedNeighbourRange.Contains(peer)
+		inNeighbors := lgSimulatedNeighborRange.Contains(peer)
 		if inRouters {
 			split.routers = append(split.routers, route)
 		}
-		if inNeighbours {
-			split.neighbours = append(split.neighbours, route)
+		if inNeighbors {
+			split.neighbors = append(split.neighbors, route)
 		}
 		if !inRouters {
-			if !inNeighbours {
-				return lgSimulatedRoutesByPeerRange{}, fmt.Errorf("search for %s listed the peer %s, which is neither a router nor an external neighbour of the network",
+			if !inNeighbors {
+				return lgSimulatedRoutesByPeerRange{}, fmt.Errorf("search for %s listed the peer %s, which is neither a router nor an external neighbor of the network",
 					prefix, route.peer)
 			}
 		}

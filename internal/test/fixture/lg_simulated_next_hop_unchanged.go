@@ -1,4 +1,4 @@
-// Design: docs/architecture/chaos-web-dashboard.md -- a hand-written network whose border router keeps the neighbour's next hop, run against a real ze
+// Design: docs/architecture/chaos-web-dashboard.md -- a hand-written network whose border router keeps the neighbor's next hop, run against a real ze
 // Related: lg_simulated_network.go -- the run this network goes through (lgSimulatedRunNetworkPlan)
 // Related: lg_simulated_trace.go -- the comparison of the trace graph with the model's traces
 
@@ -15,28 +15,28 @@ import (
 )
 
 // The hand-written network: three routers of one AS in a full mesh, and two
-// external neighbours. The first border router keeps the next hop its
-// neighbour sent, the second rewrites it to itself, so the one network holds
+// external neighbors. The first border router keeps the next hop its
+// neighbor sent, the second rewrites it to itself, so the one network holds
 // the case under test and the case beside it.
 //
 // The generated network cannot hold the first case: its border routers always
 // rewrite the next hop (generateTopologySpec,
 // internal/chaos/scenario/topology_generate.go).
 var (
-	lgNextHopUnchangedBorderKeeps   = netip.MustParseAddr("198.51.100.1")
-	lgNextHopUnchangedBorderSelf    = netip.MustParseAddr("198.51.100.2")
-	lgNextHopUnchangedRouterInner   = netip.MustParseAddr("198.51.100.3")
-	lgNextHopUnchangedNeighbourKept = netip.MustParseAddr("203.0.113.1")
-	lgNextHopUnchangedNeighbourSelf = netip.MustParseAddr("203.0.113.2")
-	lgNextHopUnchangedPrefixKept    = netip.MustParsePrefix("198.18.0.0/24")
-	lgNextHopUnchangedPrefixSelf    = netip.MustParsePrefix("198.18.1.0/24")
+	lgNextHopUnchangedBorderKeeps  = netip.MustParseAddr("198.51.100.1")
+	lgNextHopUnchangedBorderSelf   = netip.MustParseAddr("198.51.100.2")
+	lgNextHopUnchangedRouterInner  = netip.MustParseAddr("198.51.100.3")
+	lgNextHopUnchangedNeighborKept = netip.MustParseAddr("203.0.113.1")
+	lgNextHopUnchangedNeighborSelf = netip.MustParseAddr("203.0.113.2")
+	lgNextHopUnchangedPrefixKept   = netip.MustParsePrefix("198.18.0.0/24")
+	lgNextHopUnchangedPrefixSelf   = netip.MustParsePrefix("198.18.1.0/24")
 )
 
 const (
-	lgNextHopUnchangedLocalAS         = 65000
-	lgNextHopUnchangedNeighbourKeptAS = 65101
-	lgNextHopUnchangedNeighbourSelfAS = 65102
-	lgNextHopUnchangedOriginAS        = 65201
+	lgNextHopUnchangedLocalAS        = 65000
+	lgNextHopUnchangedNeighborKeptAS = 65101
+	lgNextHopUnchangedNeighborSelfAS = 65102
+	lgNextHopUnchangedOriginAS       = 65201
 )
 
 // lgNextHopUnchangedSpec answers the hand-written network.
@@ -48,18 +48,18 @@ func lgNextHopUnchangedSpec() chaosscenario.TopologySpec {
 			{Loopback: lgNextHopUnchangedBorderSelf},
 			{Loopback: lgNextHopUnchangedRouterInner},
 		},
-		Neighbours: []chaosscenario.TopologyNeighbour{
+		Neighbors: []chaosscenario.TopologyNeighbor{
 			{
-				Address: lgNextHopUnchangedNeighbourKept, AS: lgNextHopUnchangedNeighbourKeptAS,
+				Address: lgNextHopUnchangedNeighborKept, AS: lgNextHopUnchangedNeighborKeptAS,
 				Border: lgNextHopUnchangedBorderKeeps, BorderNextHop: chaosscenario.NextHopPolicyUnchanged,
-				Announces: []chaosscenario.NeighbourRoute{
+				Announces: []chaosscenario.NeighborRoute{
 					{Prefix: lgNextHopUnchangedPrefixKept, ASPathBeyond: []uint32{lgNextHopUnchangedOriginAS}},
 				},
 			},
 			{
-				Address: lgNextHopUnchangedNeighbourSelf, AS: lgNextHopUnchangedNeighbourSelfAS,
+				Address: lgNextHopUnchangedNeighborSelf, AS: lgNextHopUnchangedNeighborSelfAS,
 				Border: lgNextHopUnchangedBorderSelf, BorderNextHop: chaosscenario.NextHopPolicySelf,
-				Announces: []chaosscenario.NeighbourRoute{{Prefix: lgNextHopUnchangedPrefixSelf}},
+				Announces: []chaosscenario.NeighborRoute{{Prefix: lgNextHopUnchangedPrefixSelf}},
 			},
 		},
 	}
@@ -69,10 +69,10 @@ func lgNextHopUnchangedSpec() chaosscenario.TopologySpec {
 // above, written out by hand from BGP's rules and never asked of the model, so
 // the model and the looking glass cannot agree on a shared mistake.
 //
-// The kept prefix: the first border router passes the neighbour's address on,
+// The kept prefix: the first border router passes the neighbor's address on,
 // inside the AS and to the collector, so every router's next hop is that
 // address, which is no router's. Each walk therefore leaves the AS at the
-// router it started from, toward the neighbour.
+// router it started from, toward the neighbor.
 //
 // The rewritten prefix: the second border router writes itself, so the two
 // other routers' walks cross to it and end there on its own address.
@@ -81,7 +81,7 @@ func lgNextHopUnchangedHandChecked() map[netip.Prefix]map[string]lgSimulatedTrac
 	kept := func(router string) lgSimulatedTraceLine {
 		return lgSimulatedTraceLine{
 			routers: []string{router}, end: "exit-external-address",
-			nextHop: lgNextHopUnchangedNeighbourKept.String(), asPath: []string{"65101", "65201"},
+			nextHop: lgNextHopUnchangedNeighborKept.String(), asPath: []string{"65101", "65201"},
 		}
 	}
 	rewritten := func(routers ...string) lgSimulatedTraceLine {

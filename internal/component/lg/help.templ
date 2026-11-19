@@ -118,7 +118,7 @@ templ helpPage() {
 			A walk starts at each router of the AS that sent a route for the prefix. It reads that
 			router's next hop, moves to the router whose session address that is, and repeats. A
 			router whose next hop is its own address is the exit, highlighted green as in the next
-			hop graph. A next hop that is the address of no router of the AS is the neighbour the
+			hop graph. A next hop that is the address of no router of the AS is the neighbor the
 			walk leaves the AS toward. From there the graph draws the AS path of the exit route, the
 			origin AS on the right.
 		</p>
@@ -131,7 +131,7 @@ templ helpPage() {
 		<p class="trace-note">{ traceNote }</p>
 		<p>
 			A router is matched to a next hop by the address of its session with this looking
-			glass. A router that writes another of its addresses as next hop is read as a neighbour
+			glass. A router that writes another of its addresses as next hop is read as a neighbor
 			outside the AS.
 		</p>
 	</template>

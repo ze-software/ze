@@ -101,8 +101,8 @@ func TestLGSimulatedPeersProblemNamesTheDifference(t *testing.T) {
 // that break what the generator states it builds.
 //
 // VALIDATES: rows in the stated shape pass, and a second exit missing, a
-// neighbour announcing another next hop than its own address, and a router
-// announcing a neighbour's address as next hop are each refused.
+// neighbor announcing another next hop than its own address, and a router
+// announcing a neighbor's address as next hop are each refused.
 // PREVENTS: the literal check agreeing with any set of rows.
 func TestLGSimulatedHandCheckedRefusesAWrongNetwork(t *testing.T) {
 	routers := func(nextHop, asPath string) []lgSimulatedRoute {

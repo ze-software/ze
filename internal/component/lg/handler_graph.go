@@ -157,7 +157,7 @@ func (s *LGServer) handleTraceGraph(w http.ResponseWriter, routes []any, format 
 
 	routers, err := traceRoutersFrom(summary)
 	if err != nil {
-		// A summary that cannot tell a router of the AS from a neighbour would
+		// A summary that cannot tell a router of the AS from a neighbor would
 		// draw a wrong exit, so the trace is refused and never drawn partly.
 		// The refusal carries the whole reason to the reader, and names the
 		// command that shows the summary, so this line is a record of the
@@ -206,7 +206,7 @@ const traceSummaryFix = "ze " + cmdBGPOverview
 func traceSummaryRefusal(err error) *opererr.Error {
 	return opererr.New(
 		cmdBGPOverview+": "+err.Error(),
-		"the trace tells a router of the AS from an external neighbour by each peer's "+
+		"the trace tells a router of the AS from an external neighbor by each peer's "+
 			"peer-type and address, so without them it would state a wrong exit",
 		traceSummaryFix,
 	)

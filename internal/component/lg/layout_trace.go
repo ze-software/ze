@@ -58,7 +58,7 @@ func (l *traceLayout) lineY(i int) int {
 func computeTraceLayout(g *traceGraph, names traceNames) *traceLayout {
 	routerColumn, routerColumns := traceRouterColumns(g)
 	asFirst := routerColumns
-	if len(g.Neighbours) > 0 {
+	if len(g.Neighbors) > 0 {
 		asFirst++
 	}
 	asColumn, columns := traceASColumns(g, asFirst)
@@ -73,8 +73,8 @@ func computeTraceLayout(g *traceGraph, names traceNames) *traceLayout {
 	for _, router := range g.Routers {
 		widen(routerColumn[router.Address], traceAddressLabel(router.Address, names))
 	}
-	for _, neighbour := range g.Neighbours {
-		widen(routerColumns, traceAddressLabel(neighbour, names))
+	for _, neighbor := range g.Neighbors {
+		widen(routerColumns, traceAddressLabel(neighbor, names))
 	}
 	for _, number := range g.ASes {
 		widen(asColumn[number], traceASLabel(number, names))
@@ -103,15 +103,15 @@ func computeTraceLayout(g *traceGraph, names traceNames) *traceLayout {
 	}
 
 	layout := &traceLayout{
-		Addresses: make(map[netip.Addr]Position, len(g.Routers)+len(g.Neighbours)),
+		Addresses: make(map[netip.Addr]Position, len(g.Routers)+len(g.Neighbors)),
 		ASes:      make(map[uint32]Position, len(g.ASes)),
 		Ends:      traceEndLines(g),
 	}
 	for _, router := range g.Routers {
 		layout.Addresses[router.Address] = place(routerColumn[router.Address])
 	}
-	for _, neighbour := range g.Neighbours {
-		layout.Addresses[neighbour] = place(routerColumns)
+	for _, neighbor := range g.Neighbors {
+		layout.Addresses[neighbor] = place(routerColumns)
 	}
 	for _, number := range g.ASes {
 		layout.ASes[number] = place(asColumn[number])
@@ -228,8 +228,8 @@ func renderTraceGraphSVG(g *traceGraph, layout *traceLayout, names traceNames) s
 		}
 		writeTraceAddressNode(&svg, class, router.Address, layout, names)
 	}
-	for _, neighbour := range g.Neighbours {
-		writeTraceAddressNode(&svg, routerNodeClass, neighbour, layout, names)
+	for _, neighbor := range g.Neighbors {
+		writeTraceAddressNode(&svg, routerNodeClass, neighbor, layout, names)
 	}
 	for _, number := range g.ASes {
 		label := traceASLabel(number, names)
