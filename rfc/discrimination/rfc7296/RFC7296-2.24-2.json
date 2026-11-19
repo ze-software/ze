@@ -1,9 +1,20 @@
 [
   {
     "rid": "RFC7296-2.24-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE",
+    "unit-sha": "c0292cf2f52d459f",
+    "claim-sha": "e51efbc17d90f39b",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/espform.go::writeESPForm",
+    "producer-sha": "16afaaf015e3744a",
+    "break": "line 350: \"buf[1] = tos\" -\u003e \"buf[1] = tos | 3\""
+  },
+  {
+    "rid": "RFC7296-2.24-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE",
-    "unit-sha": "56ff477329ea278d",
+    "unit-sha": "c0292cf2f52d459f",
     "claim-sha": "da814d3a3cfb8b1b",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/espform.go::writeESPForm",

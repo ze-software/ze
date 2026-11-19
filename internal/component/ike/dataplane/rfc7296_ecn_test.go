@@ -2,22 +2,17 @@
 
 package dataplane
 
-// RFC naming: untagged -- proves the XFRM mode mapping, not ECN handling; the RFC7296-2.24 tags sit on the tests that drive the production mapping.
+// RFC naming: untagged -- proves the XFRM mode mapping, not ECN handling; the RFC7296-2.24 tags sit on the kernel-state and decapsulation tests.
 
 import (
 	"testing"
 )
 
-// The RFC7296-2.24 tags sit on the tests that drive the production mapping:
-// rfc7296_ecn_linux_test.go over xfrmStateFromParams (the whole SAParams-to-kernel
-// mapping), and engine/rfc7296_ecn_test.go over createFirstChildSA (the producer
-// of the SAParams). What stays here is the cross-platform half of the mode mapping
-// those two rest on, untagged because on its own it does not prove Section 2.24.
-//
-// the two RFC7296-2.24 tests that lived here are REPLACED, not weakened. They
-// asserted over a type literal's field names; their replacements named above drive
-// production code and are mutation-verified. The assertion count fell here because the
-// assertions moved to those files.
+// The RFC7296-2.24 tags sit on tests that read what the kernel does with the state Ze
+// installs: rfc7296_ecn_kernel_state_linux_test.go reads the NOECN bit the kernel stores,
+// and engine's TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE reads the ECN field a
+// decapsulated packet arrives with. What stays here is the cross-platform half of the mode
+// mapping, untagged because on its own it does not prove Section 2.24.
 
 // VALIDATES: the mode mapping that decides whether an installed SA is a tunnel-mode SA at
 // all, which is the class RFC 7296 Section 2.24 binds.

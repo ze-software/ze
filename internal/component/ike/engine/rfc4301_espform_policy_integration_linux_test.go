@@ -1014,6 +1014,9 @@ func espPolReceivedTOS(t *testing.T, conn *net.UDPConn) (uint8, bool) {
 
 // RFC requirement: RFC7296-2.24-2 positive -- on a tunnel-mode Child SA installed by createFirstChildSA for an IKE SA on UDP port 4500 with no NAT detected, whose inbound state carries the ESP-in-UDP template, under the SPD a first configuration apply builds, bare ESP received over a veth whose outer IPv4 header carries ECN CE, around an inner packet inside the SA's selectors marked ECN-capable (0b10), is delivered with the inner TOS octet CE (0x03), read from the IP_TOS control message, both as one whole datagram the fast path rewrites and as a fragmented one the complete path re-presents.
 //
+// RFC requirement: RFC7296-2.24-1 negative -- on the same Child SA, SPD and receive path, a fragmented bare ESP datagram whose outer IPv4 header carries ECT(0) (0b10) rather than CE, around an inner packet marked ECN-capable (0b10), is delivered through the complete path with the inner TOS octet unchanged at 0x02, read from the IP_TOS control message: the inner CE of row 2 comes from the outer header, not from the complete path setting it.
+// RFC requirement: RFC7296-2.24-2 negative -- the same row: with no congestion indication on the outer header, the fragmented bare ESP datagram's inner packet is delivered through the complete path with TOS 0x02, not CE, so the complete path's decapsulation copies the outer indication rather than marking every packet.
+//
 // RFC 7296 Section 2.24: decapsulators "MUST implement the tunnel encapsulation and
 // decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN
 // congestion indications."
@@ -1034,8 +1037,13 @@ func espPolReceivedTOS(t *testing.T, conn *net.UDPConn) (uint8, bool) {
 // reassemble it and the counter must not move, so it reached XFRM through the complete
 // path, whose reader reads the reassembled header's TOS (ip_frag_reasm keeps the head's
 // CE when every fragment carries CE) and writes it into the re-presented header.
+// Row 3 is the negative: the same fragmented datagram at outer ECT(0), whose inner packet
+// must arrive at 0x02. ipip_ecn_decapsulate sets CE on the inner header only when the
+// outer TOS is CE, and ip_frag_reasm combines fragments that all carry ECT(0) into ECT(0),
+// so the complete path re-presents 0x02 and XFRM leaves the inner octet alone.
 // MUTATION: writeESPForm writing buf[1] = 0 turns row 2 red (inner TOS 0x02); row 1 stays
-// green, because the fast path never rebuilds the header.
+// green, because the fast path never rebuilds the header. writeESPForm writing
+// buf[1] = tos | 3 marks every re-presented header CE and turns row 3 red (inner TOS 0x03).
 //
 //ze:guest-root
 func TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE(t *testing.T) {
@@ -1085,6 +1093,26 @@ func TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE(t *testing.T) {
 	}
 	if tos != espPolTOSCE {
 		t.Errorf("row 2 (fragmented bare ESP, outer CE, inner 0b10): the inner packet arrived with TOS %#02x, want %#02x (CE); the complete path discarded the congestion indication", tos, espPolTOSCE)
+	}
+
+	// Row 3: fragmented bare ESP at outer TOS ECT(0), through the complete path. No
+	// congestion indication is on the outer header, so none may reach the inner one.
+	sender.setOuterTOS(t, espPolTOSECNCapable)
+	reassembled = espPolReassembled(t)
+	rewritten = espPolFastPath(t).Rewritten4
+	sender.sendBare(t, large)
+	tos, delivered = espPolReceivedTOS(t, listener)
+	if moved := espPolReassembled(t) - reassembled; moved < 1 {
+		t.Fatalf("row 3 (fragmented bare ESP, outer ECT(0)): ReasmOKs moved by %d; the datagram did not reach Ze in fragments, so the row tests nothing", moved)
+	}
+	if !delivered {
+		t.Fatal("row 3 (fragmented bare ESP, outer ECT(0), inside the selectors): not delivered, so its TOS cannot be judged")
+	}
+	if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != 0 {
+		t.Errorf("row 3 (fragmented bare ESP, outer ECT(0)): the fast path rewrote %d datagrams, want 0; a fragment belongs to the complete path", moved)
+	}
+	if tos != espPolTOSECNCapable {
+		t.Errorf("row 3 (fragmented bare ESP, outer ECT(0), inner 0b10): the inner packet arrived with TOS %#02x, want %#02x (ECT(0)); the receive path set a congestion indication no header carried", tos, espPolTOSECNCapable)
 	}
 }
 

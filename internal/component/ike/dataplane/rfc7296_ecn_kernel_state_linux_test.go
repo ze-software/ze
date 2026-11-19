@@ -66,11 +66,10 @@ func ecnKernelStoredSA(t *testing.T, spi uint32, proto uint8) nl.XfrmUsersaInfo 
 // (ipip_ecn_decapsulate in net/xfrm/xfrm_input.c), which is the ECN full-functionality
 // behavior the section requires.
 //
-// PREVENTS: the vacuity of TestEcnInstalledStateDisablesNothing, which scans the Go value
-// Ze hands the library for a field whose name mentions "ecn" or "flag". netlink.XfrmState
-// has no such field, so that scan finds nothing for every state and cannot go red. The
-// NOECN bit exists only in the serialized xfrm_usersa_info header, so this test reads it
-// there, after the kernel stored it.
+// PREVENTS: proving ECN over the Go value Ze hands the library. netlink.XfrmState has no
+// field for the NOECN bit, so a scan of that value finds nothing for every state and cannot
+// go red. The bit exists only in the serialized xfrm_usersa_info header, so this test reads
+// it there, after the kernel stored it.
 //
 // Method: install the ecnTunnelParams fixture under a distinctive SPI in a private user
 // and network namespace, dump the SAD over raw netlink, and decode the one header with
