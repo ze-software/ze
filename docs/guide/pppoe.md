@@ -270,7 +270,10 @@ The session also installs each framed route through its own interface
 before forwarding starts, and withdraws it when the network lifetime ends.
 An IPv4 route's `0.0.0.0` gateway is replaced by the subscriber's address,
 and an IPv6 route's `::` gateway by the subscriber's link-local address,
-once the IPv6 service starts. A route the data plane refuses, or a profile
+once the IPv6 service starts. Any other gateway, one that is not the
+subscriber's address, is installed as a device route through the session
+interface: the link is point-to-point, so that route reaches the
+subscriber. A route the data plane refuses, or a profile
 over the limit below, takes the session down. The L2TP guide describes the
 installed routes ([RADIUS framed routes](l2tp.md#radius-framed-routes)).
 <!-- source: internal/component/l2tp/ppp/framed_route.go -- installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, installFramedRoutes, removeFramedRoutes -->

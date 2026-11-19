@@ -176,18 +176,21 @@ func nativePPPRouteFeature(destination netip.Prefix, gateway netip.Addr, metric 
 	if destination.Addr().Is4In6() {
 		return 0, errors.New("PPP original route destination has an IPv4-mapped mask")
 	}
-	if !gateway.IsValid() {
-		return 0, errors.New("PPP original route gateway is invalid")
-	}
-	if gateway.Zone() != "" {
-		return 0, errors.New("PPP original route gateway has an unsupported zone")
-	}
-	gateway = gateway.Unmap()
-	if gateway.IsUnspecified() {
-		return 0, errors.New("PPP original route gateway is unspecified")
-	}
-	if destination.Addr().Is4() != gateway.Is4() {
-		return 0, errors.New("PPP original route destination and gateway have different families")
+	// The invalid Addr names a device route through the session interface,
+	// never a missing answer: the request then carries RTA_OIF and no
+	// RTA_GATEWAY (nativePPPRouteRequest). The unspecified address stays
+	// refused, so "no gateway" has exactly one spelling.
+	if gateway.IsValid() {
+		if gateway.Zone() != "" {
+			return 0, errors.New("PPP original route gateway has an unsupported zone")
+		}
+		gateway = gateway.Unmap()
+		if gateway.IsUnspecified() {
+			return 0, errors.New("PPP original route gateway is unspecified")
+		}
+		if destination.Addr().Is4() != gateway.Is4() {
+			return 0, errors.New("PPP original route destination and gateway have different families")
+		}
 	}
 	if metric < 0 {
 		return 0, errors.New("PPP original route metric is negative")
@@ -222,17 +225,18 @@ func nativePPPRouteRequest(kind, index int, destination netip.Prefix, gateway ne
 	}
 	header.Protocol = uint8(protocol)
 	header.Dst_len = uint8(destination.Bits())
-	// A PPP session interface is point-to-point: every next hop is reached
-	// through it, so the gateway is on-link whether or not it is the peer's
-	// address. Without RTNH_F_ONLINK Linux refuses a gateway no connected
-	// route covers (a RADIUS Framed-Route naming another subscriber router).
-	// The delete carries it too: IPv4 fib_nh_match compares the flag, so a
-	// delete without it would not match the route the add installed.
-	header.Flags |= unix.RTNH_F_ONLINK
+	// rtm_flags stays zero: Ze's owner guard (rtnl_owner_route_get, kernel
+	// patch 0008) refuses an owner-guarded route with any rtm flag set, so
+	// RTNH_F_ONLINK is never available here. A gateway no connected route
+	// covers is sent by the caller as a device route instead (no gateway).
 	request := nl.NewNetlinkRequest(kind, flags)
 	request.AddData(header)
 	request.AddData(nl.NewRtAttr(unix.RTA_DST, destination.Masked().Addr().AsSlice()))
-	request.AddData(nl.NewRtAttr(unix.RTA_GATEWAY, gateway.Unmap().AsSlice()))
+	// The invalid gateway is a device route: RTA_OIF alone names the next
+	// hop, which on a point-to-point link is the peer.
+	if gateway.IsValid() {
+		request.AddData(nl.NewRtAttr(unix.RTA_GATEWAY, gateway.Unmap().AsSlice()))
+	}
 	request.AddData(nl.NewRtAttr(unix.RTA_OIF, nl.Uint32Attr(uint32(index))))
 	if metric > 0 {
 		request.AddData(nl.NewRtAttr(unix.RTA_PRIORITY, nl.Uint32Attr(uint32(metric))))

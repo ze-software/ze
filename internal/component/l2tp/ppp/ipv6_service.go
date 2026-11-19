@@ -54,8 +54,9 @@ type iPv6ServiceConfig struct {
 	Lifetimes        DHCPv6Lifetimes
 	ReleasePrefix    func(netip.Prefix)
 	// FramedRoutes are the accepted profile's Framed-IPv6-Route entries,
-	// installed at service start through the peer's link-local address
-	// (framed_route.go, installFramedRoutes).
+	// installed at service start through the session interface, via the
+	// peer's link-local address or as a device route (framed_route.go,
+	// installFramedRoutes).
 	FramedRoutes []l2tpevents.FramedRoute
 }
 

@@ -506,9 +506,17 @@ and withdraws the receipts newest first, before the address, in the same
 gated IPv4 withdrawal that LCP-down, IPCP renegotiation and final cleanup
 run. Routes go through the data plane's own cleanup ownership. On the kernel
 backend they die with the PPP unit, and on VPP with the session's retained
-paths. The kernel backend installs each route on-link (`RTNH_F_ONLINK`): the
-session interface is point-to-point, so a gateway that is not the peer's
-address still resolves through it.
+paths. A gateway equal to the peer's address stays a route via the peer;
+any other gateway is installed as a device route through the session
+interface, with no gateway, and its receipt records the device route so the
+withdrawal has the same shape (`newFramedRouteReceipt`). The interface is
+point-to-point, so a device route reaches the peer exactly as a route via
+the peer does. On-link (`RTNH_F_ONLINK`) is not available: Ze's kernel owner
+guard for session routes (`rtnl_owner_route_get`, kernel patch 0008)
+refuses any route request with an `rtm_flags` bit set, and Linux refuses a
+gateway no connected route covers. The kernel request then carries `RTA_OIF`
+and no `RTA_GATEWAY` (`nativePPPRouteRequest`); VPP programs an attached
+path through the session's `sw_if_index`.
 
 Framed-IPv6-Route values go to the IPv6 service instead, which installs them
 at its start, after the link-local pair and before the carrier opens, with a

@@ -1281,7 +1281,7 @@ func (s *pppSession) nextNCPCodeRejectID(family AddressFamily) uint8 {
 // pppN with its assigned address and peer route, then the accepted
 // profile's Framed-Routes through the same interface. The platform's IPv6
 // service programs the IPv6 addresses, then the profile's Framed-IPv6-Routes
-// through the peer's link-local address. Both publish and await
+// through the same interface. Both publish and await
 // EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.

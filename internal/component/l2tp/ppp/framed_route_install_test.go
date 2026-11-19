@@ -63,10 +63,11 @@ var framedRouteProfile = []l2tpevents.FramedRoute{
 
 // framedRouteWant is what the session must install for framedRouteProfile:
 // the IPv4 routes through its own interface, 0.0.0.0 replaced by the address
-// IPCP assigned to the peer, the explicit gateway kept.
+// IPCP assigned to the peer, the explicit gateway that is not the peer
+// installed as a device route (no gateway, rendered as the invalid Addr).
 var framedRouteWant = []routeCall{
 	{framedRouteTestInterface, "198.51.100.0/24", ipcpTestPeer.String(), 11, rtproto.Iface},
-	{framedRouteTestInterface, "203.0.113.0/25", "192.0.2.77", 0, rtproto.Iface},
+	{framedRouteTestInterface, "203.0.113.0/25", netip.Addr{}.String(), 0, rtproto.Iface},
 }
 
 // Goal: an L2TP session installs each RADIUS Framed-Route through its own
@@ -237,7 +238,8 @@ func TestFramedRouteOverLimitFailsTheSession(t *testing.T) {
 
 // Goal: the IPv6 service installs each Framed-IPv6-Route through the session
 // interface with the :: gateway replaced by the peer's link-local address,
-// keeps an explicit gateway, installs a duplicate once, and withdraws them
+// installs an explicit gateway that is not the peer as a device route,
+// installs a duplicate once, and withdraws them
 // newest first before the link-local pair. Method: the real session start
 // boundary over a recording data plane, mirroring the delegated-route test.
 func TestIPv6FramedRouteInstalledThroughPeerLinkLocal(t *testing.T) {
@@ -267,7 +269,7 @@ func TestIPv6FramedRouteInstalledThroughPeerLinkLocal(t *testing.T) {
 	name := handle.Identity().InterfaceName
 	want := []routeCall{
 		{name, "2001:db8:12::/48", "fe80::200:0:0:2", 5, rtproto.Iface},
-		{name, "2001:db8:34::/48", "2001:db8::7", 0, rtproto.Iface},
+		{name, "2001:db8:34::/48", netip.Addr{}.String(), 0, rtproto.Iface},
 	}
 	if got := backend.RouteAddCalls(); !slices.Equal(got, want) {
 		t.Fatalf("IPv6 framed routes installed = %+v, want %+v", got, want)
@@ -353,8 +355,10 @@ func TestIPv6FramedRouteRemovalFailureKeepsLinkLocal(t *testing.T) {
 	}
 }
 
-// Goal: the 0.0.0.0 gateway names the subscriber, an explicit gateway is
-// kept, and a route with no gateway or no subscriber address is refused.
+// Goal: the 0.0.0.0 gateway names the subscriber, an explicit gateway equal
+// to the subscriber is kept, any other explicit gateway becomes a device
+// route (the invalid Addr), and a route with no gateway or no subscriber
+// address is refused.
 // Method: table over newFramedRouteReceipt, the installer's resolver.
 func TestFramedRouteReceiptResolvesTheGateway(t *testing.T) {
 	subscriber := netip.MustParseAddr("192.0.2.41")
@@ -367,13 +371,16 @@ func TestFramedRouteReceiptResolvesTheGateway(t *testing.T) {
 		ok         bool
 	}{
 		{"unspecified names the subscriber", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.IPv4Unspecified()}, subscriber, subscriber, true},
-		{"explicit gateway kept", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.MustParseAddr("192.0.2.77")}, subscriber, netip.MustParseAddr("192.0.2.77"), true},
+		{"explicit gateway equal to the subscriber kept", l2tpevents.FramedRoute{Prefix: prefix, Gateway: subscriber}, subscriber, subscriber, true},
+		{"explicit non-subscriber gateway becomes a device route", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.MustParseAddr("192.0.2.77")}, subscriber, netip.Addr{}, true},
+		{"explicit gateway without a subscriber address becomes a device route", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.MustParseAddr("192.0.2.77")}, netip.Addr{}, netip.Addr{}, true},
 		{"no gateway refused", l2tpevents.FramedRoute{Prefix: prefix}, subscriber, netip.Addr{}, false},
 		{"subscriber without address refused", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.IPv4Unspecified()}, netip.Addr{}, netip.Addr{}, false},
 		{"ipv6 gateway refused", l2tpevents.FramedRoute{Prefix: prefix, Gateway: netip.IPv6Unspecified()}, subscriber, netip.Addr{}, false},
 		{"ipv6 prefix with an ipv4 subscriber refused", l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("2001:db8::/32"), Gateway: netip.IPv6Unspecified()}, subscriber, netip.Addr{}, false},
 		{"ipv6 unspecified names the peer link-local", l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("2001:db8::/32"), Gateway: netip.IPv6Unspecified()}, netip.MustParseAddr("fe80::2"), netip.MustParseAddr("fe80::2"), true},
-		{"ipv6 explicit gateway kept", l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("2001:db8::/32"), Gateway: netip.MustParseAddr("2001:db8::7")}, netip.MustParseAddr("fe80::2"), netip.MustParseAddr("2001:db8::7"), true},
+		{"ipv6 explicit gateway equal to the peer link-local kept", l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("2001:db8::/32"), Gateway: netip.MustParseAddr("fe80::2")}, netip.MustParseAddr("fe80::2"), netip.MustParseAddr("fe80::2"), true},
+		{"ipv6 explicit non-peer gateway becomes a device route", l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("2001:db8::/32"), Gateway: netip.MustParseAddr("2001:db8::7")}, netip.MustParseAddr("fe80::2"), netip.Addr{}, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			receipt, err := newFramedRouteReceipt(tt.route, tt.subscriber)

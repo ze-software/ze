@@ -62,19 +62,20 @@ const maxSessionRoutes = 1024
 // AddRoute separately refuses the wildcard query protocol as a producer.
 type sessionRoute struct {
 	destination netip.Prefix
-	gateway     netip.Addr
-	metric      int
-	protocol    rtproto.Proto
+	// gateway is the next hop, or the invalid Addr for a device route
+	// through the unit: on a point-to-point link both reach the peer.
+	gateway  netip.Addr
+	metric   int
+	protocol rtproto.Proto
 }
 
 // Canonical request values and receipt identity must agree before any backend
 // call; native serialization must not truncate an input into another path.
+// The invalid gateway names a device route; the unspecified one stays refused,
+// so a route without a gateway has exactly one spelling.
 func newSessionRoute(destination netip.Prefix, gateway netip.Addr, metric int, protocol rtproto.Proto) (sessionRoute, error) {
 	if !destination.IsValid() {
 		return sessionRoute{}, errors.New("ppp: invalid session route")
-	}
-	if !gateway.IsValid() {
-		return sessionRoute{}, errors.New("ppp: invalid session route peer")
 	}
 	peer := gateway.Unmap()
 	if peer.IsUnspecified() {
@@ -93,6 +94,19 @@ func newSessionRoute(destination netip.Prefix, gateway netip.Addr, metric int, p
 		return sessionRoute{}, errors.New("ppp: session route protocol exceeds native width")
 	}
 	return sessionRoute{destination: destination.Masked(), gateway: peer, metric: metric, protocol: protocol}, nil
+}
+
+// sessionRouteGatewaysDiffer reports whether a deletion naming one gateway
+// can never match the route installed with the other. A device route's
+// deletion carries no gateway, so it matches a route via any gateway.
+func sessionRouteGatewaysDiffer(retained, route netip.Addr) bool {
+	if !retained.IsValid() {
+		return false
+	}
+	if !route.IsValid() {
+		return false
+	}
+	return retained != route
 }
 
 type sessionAddressState uint8
@@ -449,12 +463,14 @@ func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric 
 	}
 	if _, owned := s.routes[route]; !owned {
 		// Linux treats deletion priority zero as a wildcard, including
-		// explicit zero. Retained uncertain paths must stay unambiguous.
+		// explicit zero, and a deletion without a gateway as a wildcard
+		// over gateways (IPv4 fib_nh_match, IPv6 ip6_route_del). Retained
+		// uncertain paths must stay unambiguous.
 		for retained := range s.routes {
 			if retained.destination != route.destination {
 				continue
 			}
-			if retained.gateway != route.gateway {
+			if sessionRouteGatewaysDiffer(retained.gateway, route.gateway) {
 				continue
 			}
 			if retained.protocol != route.protocol {
@@ -462,7 +478,12 @@ func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric 
 			}
 			if retained.metric > 0 {
 				if route.metric > 0 {
-					continue
+					if retained.metric != route.metric {
+						continue
+					}
+					// Equal priorities here mean one of the two is a device
+					// route: the same gateway would be the owned route itself.
+					return errors.New("ppp: a device route and a gateway route at one priority make withdrawal ambiguous")
 				}
 			}
 			return errors.New("ppp: session route priorities make zero-metric withdrawal ambiguous")

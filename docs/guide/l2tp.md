@@ -1763,29 +1763,36 @@ Each IPv4 Framed-Route in the subscriber's Access-Accept is installed as a
 route through the session's PPP interface, right after IPCP installs the
 peer address and before forwarding is enabled. A gateway of `0.0.0.0` is
 replaced by the address IPCP assigned to the subscriber (RFC 2865 Section
-5.22); any other gateway is used as written. The route takes the attribute's
-first metric as its priority, carries the interface routing protocol (`253`)
-and goes into the main table, beside the peer route. For example, the
-Access-Accept attribute `Framed-Route = "198.51.100.0/24 0.0.0.0 1"` for a
-subscriber assigned `192.0.2.41` on `ppp0` installs:
+5.22), and a gateway equal to that address is kept. The route takes the
+attribute's first metric as its priority, carries the interface routing
+protocol (`253`) and goes into the main table, beside the peer route. For
+example, the Access-Accept attribute `Framed-Route = "198.51.100.0/24 0.0.0.0 1"`
+for a subscriber assigned `192.0.2.41` on `ppp0` installs:
 
 ```
-198.51.100.0/24 via 192.0.2.41 dev ppp0 proto 253 metric 1 onlink
+198.51.100.0/24 via 192.0.2.41 dev ppp0 proto 253 metric 1
 ```
 
-The kernel route is on-link: a PPP interface is point-to-point, so any
-gateway, the subscriber's address or a router behind it, is reached through
-`ppp0`.
+Any other gateway, such as a router behind the subscriber, is installed as a
+device route through the session interface, with no gateway. A PPP interface
+is point-to-point and the subscriber is its only neighbour, so a packet sent
+through `ppp0` reaches the subscriber exactly as one sent via its address
+does. `Framed-Route = "203.0.113.128/25 203.0.113.77 1"` installs:
+
+```
+203.0.113.128/25 dev ppp0 proto 253 metric 1
+```
 
 Each Framed-IPv6-Route is installed the same way through the session
 interface when the IPv6 service starts, after the link-local addresses and
 before IPv6 forwarding. A gateway of `::` is replaced by the subscriber's
-link-local address (RFC 3162 Section 2.5). The Access-Accept attribute
-`Framed-IPv6-Route = "2001:db8:12::/48 :: 5"` for a subscriber whose
-interface identifier is `0200:0000:0000:0002` installs:
+link-local address (RFC 3162 Section 2.5), and any gateway other than that
+address is installed as a device route through `ppp0`. The Access-Accept
+attribute `Framed-IPv6-Route = "2001:db8:12::/48 :: 5"` for a subscriber
+whose interface identifier is `0200:0000:0000:0002` installs:
 
 ```
-2001:db8:12::/48 via fe80::200:0:0:2 dev ppp0 proto 253 metric 5 onlink
+2001:db8:12::/48 via fe80::200:0:0:2 dev ppp0 proto 253 metric 5
 ```
 
 Ze accepts at most 64 framed routes, IPv4 and IPv6 counted together, from

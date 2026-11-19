@@ -20,11 +20,22 @@ import (
 
 // framedRouteReceipt is the exact route a session asked its data plane to
 // install for one Framed-Route. Removal names the same four values, so the
-// data plane withdraws only what this session installed.
+// data plane withdraws only what this session installed, in the same shape:
+// a device route is withdrawn as a device route.
 type framedRouteReceipt struct {
 	destination netip.Prefix
-	gateway     netip.Addr
-	metric      int
+	// gateway is the subscriber's address, or the invalid Addr for a device
+	// route through the session interface (newFramedRouteReceipt).
+	gateway netip.Addr
+	metric  int
+}
+
+// nextHop names the receipt's next hop for an operator message.
+func (r framedRouteReceipt) nextHop() string {
+	if !r.gateway.IsValid() {
+		return "through the session interface"
+	}
+	return "via " + r.gateway.String()
 }
 
 // newFramedRouteReceipt resolves the route the session installs through its
@@ -32,6 +43,14 @@ type framedRouteReceipt struct {
 // address IPCP assigned for IPv4, the peer's link-local address for IPv6.
 // RFC 2865 Section 5.22: "Whenever the gateway address is specified as "0.0.0.0" the IP address of the user SHOULD be used as the gateway address."
 // RFC 3162 Section 2.5: "Whenever the gateway address is the IPv6 unspecified address the IP address of the user SHOULD be used as the gateway address."
+// A gateway equal to the subscriber stays a route via the subscriber. Any
+// other gateway becomes a device route through the session interface: the
+// session is a point-to-point link whose only neighbour is the subscriber,
+// so a packet sent to any next hop on it reaches the subscriber, exactly as
+// a route via the subscriber does. Linux refuses a gateway no connected
+// route covers, and Ze's owner-guarded session routes cannot carry
+// RTNH_F_ONLINK (kernel patch 0008 refuses any rtm flag), so the device
+// route is the one form that installs the route the server authorized.
 func newFramedRouteReceipt(route l2tpevents.FramedRoute, subscriber netip.Addr) (framedRouteReceipt, error) {
 	if !route.Prefix.IsValid() {
 		return framedRouteReceipt{}, errors.New("framed route has no destination prefix")
@@ -56,6 +75,9 @@ func newFramedRouteReceipt(route l2tpevents.FramedRoute, subscriber netip.Addr) 
 	}
 	if uint64(route.Metric) > uint64(math.MaxInt) {
 		return framedRouteReceipt{}, errors.New("framed route " + route.Prefix.String() + " metric exceeds the native width")
+	}
+	if gateway != subscriber {
+		gateway = netip.Addr{}
 	}
 	return framedRouteReceipt{destination: route.Prefix.Masked(), gateway: gateway, metric: int(route.Metric)}, nil
 }
@@ -88,7 +110,7 @@ func (s *pppSession) installNCPFramedRoutesIPv4() error {
 		return err
 	}
 	// Framed-IPv6-Route entries go to the IPv6 service, which installs them
-	// through the peer's link-local address (framedRoutesOfFamily).
+	// once the peer's link-local address exists (framedRoutesOfFamily).
 	for _, route := range framedRoutesOfFamily(s.authenticatedFramedRoutes, AddressFamilyIPv4) {
 		receipt, err := newFramedRouteReceipt(route, s.peerIPv4)
 		if err != nil {
@@ -100,9 +122,9 @@ func (s *pppSession) installNCPFramedRoutesIPv4() error {
 		}
 		s.installedFramedIPv4 = append(s.installedFramedIPv4, receipt)
 		if err := s.dataplane.AddRoute(receipt.destination, receipt.gateway, receipt.metric, rtproto.Iface); err != nil {
-			return fmt.Errorf("framed route %s via %s was refused, so the subscriber cannot be served all its authorized routes; "+
+			return fmt.Errorf("framed route %s %s was refused, so the subscriber cannot be served all its authorized routes; "+
 				"correct the subscriber's RADIUS Framed-Route (a 0.0.0.0 gateway names the subscriber): %w",
-				receipt.destination, receipt.gateway, err)
+				receipt.destination, receipt.nextHop(), err)
 		}
 	}
 	return nil
@@ -159,7 +181,8 @@ var errFramedRouteRefused = errors.New("RADIUS Framed-IPv6-Route installation")
 
 // installFramedRoutes installs each Framed-IPv6-Route of the accepted profile
 // through the session interface, after the link-local pair, with the
-// unspecified gateway replaced by the peer's link-local address. The receipt
+// unspecified gateway replaced by the peer's link-local address and any
+// gateway other than the peer installed as a device route. The receipt
 // is recorded before each call, so Stop withdraws an uncertain add.
 // RFC 3162 Section 2.5: "This Attribute provides routing information to be configured for the user on the NAS."
 func (s *IPv6Service) installFramedRoutes() error {
@@ -177,9 +200,9 @@ func (s *IPv6Service) installFramedRoutes() error {
 		}
 		s.framedRoutes = append(s.framedRoutes, receipt)
 		if err := s.cfg.Dataplane.AddRoute(receipt.destination, receipt.gateway, receipt.metric, rtproto.Iface); err != nil {
-			return fmt.Errorf("%w: framed route %s via %s was refused, so the subscriber cannot be served all its authorized routes; "+
+			return fmt.Errorf("%w: framed route %s %s was refused, so the subscriber cannot be served all its authorized routes; "+
 				"correct the subscriber's RADIUS Framed-IPv6-Route (a :: gateway names the subscriber): %w",
-				errFramedRouteRefused, receipt.destination, receipt.gateway, err)
+				errFramedRouteRefused, receipt.destination, receipt.nextHop(), err)
 		}
 	}
 	return nil

@@ -38,9 +38,19 @@ func (b *routeOwnershipBackend) AddRoute(name, destination, gateway string, metr
 	// host bits; gateway serialization alone normalizes IPv4-mapped addresses.
 	route := routeOwnershipTuple{name, destination, gateway, metric, protocol}
 	b.adds = append(b.adds, route)
-	route.gateway = netip.MustParseAddr(gateway).Unmap().String()
+	route.gateway = routeOwnershipCanonicalGateway(gateway)
 	b.routes[route] = true
 	return b.addErr
+}
+
+// routeOwnershipCanonicalGateway unmaps a gateway's text. A device route
+// carries the invalid Addr, whose text is kept as sent; any other text that
+// does not parse still fails the test.
+func routeOwnershipCanonicalGateway(gateway string) string {
+	if gateway == (netip.Addr{}).String() {
+		return gateway
+	}
+	return netip.MustParseAddr(gateway).Unmap().String()
 }
 
 func (b *routeOwnershipBackend) RemoveRoute(name, destination, gateway string, metric int, protocol rtproto.Proto) error {
@@ -52,7 +62,7 @@ func (b *routeOwnershipBackend) RemoveRoute(name, destination, gateway string, m
 	if b.removeErr != nil {
 		return b.removeErr
 	}
-	route.gateway = netip.MustParseAddr(gateway).Unmap().String()
+	route.gateway = routeOwnershipCanonicalGateway(gateway)
 	delete(b.routes, route)
 	return nil
 }
@@ -226,8 +236,10 @@ func TestKernelSessionRouteRefusedAddAcquiresNoReceipt(t *testing.T) {
 	handle, backend := newRouteOwnershipSession(t)
 	destination := netip.MustParsePrefix("2001:db8:1::/64")
 	gateway := netip.MustParseAddr("fe80::2")
-	if err := handle.AddRoute(destination, netip.Addr{}, 7, rtproto.Static); err == nil {
-		t.Fatal("invalid gateway accepted")
+	// The invalid Addr is a device route and is accepted; the unspecified
+	// address is the gateway spelling the session refuses.
+	if err := handle.AddRoute(destination, netip.IPv6Unspecified(), 7, rtproto.Static); err == nil {
+		t.Fatal("unspecified gateway accepted")
 	}
 	foreign := routeOwnershipTuple{"created-ppp", destination.String(), gateway.String(), 7, rtproto.Static}
 	backend.routes[foreign] = true
@@ -242,6 +254,42 @@ func TestKernelSessionRouteRefusedAddAcquiresNoReceipt(t *testing.T) {
 	}
 	if !backend.routes[foreign] {
 		t.Fatal("foreign route removed after refused add")
+	}
+}
+
+// Goal: a device route (no gateway) is owned and withdrawn as the exact tuple
+// it was added with, and a device route beside a gateway route to the same
+// destination and priority is refused, since its gateway-less deletion would
+// match either in Linux. Method: the recording backend over one session.
+func TestKernelSessionDeviceRouteOwnershipIsExact(t *testing.T) {
+	handle, backend := newRouteOwnershipSession(t)
+	destination := netip.MustParsePrefix("203.0.113.128/25")
+	if err := handle.AddRoute(destination, netip.Addr{}, 7, rtproto.Static); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.RemoveRoute(destination, netip.Addr{}, 7, rtproto.Static); err != nil {
+		t.Fatal(err)
+	}
+	want := routeOwnershipTuple{"created-ppp", destination.String(), netip.Addr{}.String(), 7, rtproto.Static}
+	if len(backend.adds) != 1 || backend.adds[0] != want {
+		t.Fatalf("native adds = %+v, want the device route %+v once", backend.adds, want)
+	}
+	if len(backend.removes) != 1 || backend.removes[0] != want {
+		t.Fatalf("native withdrawals = %+v, want the device route %+v once", backend.removes, want)
+	}
+
+	peer := netip.MustParseAddr("192.0.2.41")
+	if err := handle.AddRoute(destination, peer, 7, rtproto.Static); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.AddRoute(destination, netip.Addr{}, 7, rtproto.Static); err == nil {
+		t.Fatal("device route beside a gateway route at one priority accepted")
+	}
+	if err := handle.AddRoute(destination, netip.Addr{}, 9, rtproto.Static); err != nil {
+		t.Fatalf("device route at another priority refused: %v", err)
+	}
+	if len(backend.adds) != 3 {
+		t.Fatalf("native adds = %+v, want the refused device route never sent", backend.adds)
 	}
 }
 

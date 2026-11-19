@@ -111,14 +111,21 @@ func TestNativePPPModelAddressRequests(t *testing.T) {
 
 // TestNativePPPModelRouteReplaceRequests checks actual byte-level route identity
 // and replacement flags; replacing exclusive creation would fail this model.
+// An empty gateway is a device route through the session interface: the
+// request must then carry RTA_OIF and no RTA_GATEWAY attribute at all.
 func TestNativePPPModelRouteReplaceRequests(t *testing.T) {
 	for _, pair := range []struct{ destination, gateway string }{
 		{"192.0.2.199/24", "198.51.100.2"},
 		{"2001:db8:1234::19/48", "fe80::2"},
+		{"203.0.113.128/25", ""},
+		{"2001:db8:5678::/48", ""},
 	} {
 		for _, kind := range []int{unix.RTM_NEWROUTE, unix.RTM_DELROUTE} {
 			destination := netip.MustParsePrefix(pair.destination)
-			gateway := netip.MustParseAddr(pair.gateway)
+			var gateway netip.Addr
+			if pair.gateway != "" {
+				gateway = netip.MustParseAddr(pair.gateway)
+			}
 			request := nativePPPRouteRequest(kind, 37, destination, gateway, 19, rtproto.Iface)
 			wire := request.Serialize()
 			header := wire[unix.SizeofNlMsghdr:]
@@ -131,17 +138,22 @@ func TestNativePPPModelRouteReplaceRequests(t *testing.T) {
 			if header[5] != byte(rtproto.Iface) {
 				t.Fatal("route request lost ownership protocol")
 			}
-			// rtm_flags, bytes 8 to 11 of struct rtmsg: a point-to-point
-			// session reaches every gateway on-link, on add and delete alike.
-			if nl.NativeEndian().Uint32(header[8:12])&unix.RTNH_F_ONLINK == 0 {
-				t.Fatalf("route request kind %d lacks RTNH_F_ONLINK for gateway %s", kind, gateway)
+			// rtm_flags, bytes 8 to 11 of struct rtmsg: Ze's owner guard
+			// (kernel patch 0008, rtnl_owner_route_get) refuses any flag.
+			if flags := nl.NativeEndian().Uint32(header[8:12]); flags != 0 {
+				t.Fatalf("route request kind %d sets rtm_flags %#x, which the owner guard refuses", kind, flags)
 			}
 			attributes := nativePPPModelAttributes(t, header[unix.SizeofRtMsg:])
 			if !bytes.Equal(attributes[unix.RTA_DST], destination.Masked().Addr().AsSlice()) {
 				t.Fatal("route request changed masked destination")
 			}
-			if !bytes.Equal(attributes[unix.RTA_GATEWAY], gateway.AsSlice()) {
-				t.Fatal("route request changed gateway")
+			encoded, carried := attributes[unix.RTA_GATEWAY]
+			if gateway.IsValid() {
+				if !bytes.Equal(encoded, gateway.AsSlice()) {
+					t.Fatal("route request changed gateway")
+				}
+			} else if carried {
+				t.Fatalf("device route request kind %d carries RTA_GATEWAY %x", kind, encoded)
 			}
 			if nl.NativeEndian().Uint32(attributes[unix.RTA_OIF]) != 37 {
 				t.Fatal("route request lost captured original output index")
