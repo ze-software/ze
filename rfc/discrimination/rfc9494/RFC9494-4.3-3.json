@@ -168,12 +168,12 @@
     "rid": "RFC9494-4.3-3",
     "polarity": "positive",
     "unit": "test/plugin/llgr-egress-state-unloaded.ci",
-    "unit-sha": "db48a79f7e58fc92",
+    "unit-sha": "ef6beec83c075d50",
     "claim-sha": "33b4cccfae137595",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
-    "producer-sha": "f29395774282303c",
-    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=2:contains=FFFFFF01"
   }
 ]

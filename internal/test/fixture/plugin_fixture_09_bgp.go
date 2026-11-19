@@ -68,9 +68,17 @@ func peerCounter09(ctx context.Context, p *sdk.Plugin, address, field string) in
 	return 0
 }
 
-func llgrReadvertise09(_ string) Driver {
+func llgrReadvertise09(name string) Driver {
 	return func(ctx context.Context, _ []string) error {
 		return observe09(ctx, "observer", func(ctx context.Context, p *sdk.Plugin) error {
+			if name == "llgr-egress-state-unloaded" {
+				// The announced /24 covers its own next hop without this terminal /32.
+				covers := terminalCovers{label: "LLGR readvertise", device: llgrReceivedDevice,
+					instance: llgrReceivedInstance, addresses: []string{addrPeerOne}}
+				if err := covers.install(ctx, p); err != nil {
+					return err
+				}
+			}
 			var best commandResult09
 			Poll(ctx, 60, 250*time.Millisecond, func() bool {
 				best = dispatch09(ctx, p, "show bgp rib best")

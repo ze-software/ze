@@ -1,4 +1,6 @@
 # Test: LLGR egress filter toward a neighbor with no LLGR Capability recorded.
+# The daemon must re-advertise the selected route with the Section 4.6 wire
+# treatment. A unit cannot observe the configured reflection and replay rails.
 #
 # bgp-gr runs internal (`internal gr { use bgp-gr }`), and its llgr-egress
 # member answers from the capability state runGRPlugin records. bgp-gr is
@@ -79,6 +81,10 @@ EOF_OBSN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	# Let the observer install a terminal /32 for the unchanged NEXT_HOP.
+	internal rib {
+		use rib
+	}
 	internal rs {
 		use bgp-rs
 	}
