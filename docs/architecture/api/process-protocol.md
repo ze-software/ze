@@ -5268,6 +5268,10 @@ so a mixed request cannot discard route provenance. Zero follows ordinary local/
 must resolve on the authenticated accepting Process connection captured for
 that request. Route metadata and the process name cannot declare source kind.
 
+The text update handler carries the accepted-origin ID into announcement and
+withdrawal batches. When a native caller supplies the ID only in the request
+context, each reactor entry copies it into the batch before origin admission.
+
 The consumer owns one immutable accepted record per original protocol,
 source instance, table, native family/prefix and admitted peer scope. A new
 version gets a new opaque ID. The snapshot preserves the original preference

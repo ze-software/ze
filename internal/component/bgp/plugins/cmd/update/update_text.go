@@ -1458,6 +1458,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				RecoverySource:      recoverySource,
 				RecoverySourceOwner: recoveryOwner,
 				RecoveryGeneration:  recoveryGeneration,
+				OriginAdmissionID:   plugin.OriginAdmissionID(originCtx),
 				SentOwnerMessage:    sentOwnerMessage,
 				DestinationOwner:    destinationOwner,
 

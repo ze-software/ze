@@ -1123,6 +1123,9 @@ func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer
 // takes: a withdrawal is an UPDATE, and a program allowed to put a route into a
 // peer must be allowed to take it out again.
 func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
+	if batch.OriginAdmissionID == 0 {
+		batch.OriginAdmissionID = plugin.OriginAdmissionID(ctx)
+	}
 	destinationOwner, _ := sender.Destination()
 	if err := ctx.Err(); err != nil {
 		return err
