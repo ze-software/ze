@@ -35,6 +35,11 @@ const (
 // rollout form. Its filter parameter is the target of the new rollout.
 const newRolloutSub = "new"
 
+// rolloutNewFormID is the id of the new rollout form's fields. The manage
+// form posts them with the Start action, so the rollout started is the one
+// the operator chose.
+const rolloutNewFormID = "fleet-rollout-new"
+
 // The batch sizes the new rollout form offers, as a percentage of the
 // connected devices of the target, and the one it starts with.
 var rolloutBatchPercents = []int{10, 25, 50, 100}
@@ -338,14 +343,14 @@ func rolloutForm(ctx context.Context, request *PageRequest) (templ.Component, er
 		PreviewURL: FragmentLink(fragmentRolloutPreview, request.Address, ""),
 		Form:       manageForm(request),
 	}
+	view.Form.Include = "#" + rolloutNewFormID
 	preview, err := rolloutPreview(request.Snapshot.Views, target, rolloutBatchPercentDefault)
 	if err != nil {
 		view.Query.Refusal = refusalText(err)
-		view.Start = ActionView{Label: "Start", Disabled: true, Reason: "The target filter is refused, so it names no device."}
+		view.Preview.Start = ActionView{Label: "Start", Disabled: true, Reason: "The target filter is refused, so it names no device."}
 		return RolloutForm(view), nil
 	}
 	view.Preview = preview
-	view.Start = rolloutStart(target, &preview)
 
 	return RolloutForm(view), nil
 }
@@ -377,16 +382,35 @@ func rolloutTargets(request *PageRequest, saved []SavedFilter) ([]LinkView, erro
 	}
 	for index := range tree.Root.Children {
 		node := &tree.Root.Children[index]
-		if node.Level.Missing || strings.ContainsAny(node.Level.Value, " \t") {
+		if node.Level.Missing {
 			continue
+		}
+		filter, carried := groupFilter(node.Level)
+		if !carried {
+			continue // the filter grammar cannot carry this group's value, so no link can name it
 		}
 		choices = append(choices, LinkView{
 			Label: "Group: " + node.Title,
-			Href:  rolloutFormAddress(request, SetFilterTerm("", node.Level.Key, node.Level.Value)).String(),
+			Href:  rolloutFormAddress(request, filter).String(),
 		})
 	}
 
 	return choices, nil
+}
+
+// groupFilter answers the filter that names the devices under a group node,
+// and whether the filter grammar carries it. A registered tree level reads a
+// field of the device, so its term names that field. Any other level reads a
+// label, so its term is the label term the Label menu writes
+// (SetLabelFilterTerm): a short key:value would read a key named like a
+// field as that field, the key label as another pair and the key has as a
+// flag, and so name other devices than the group holds.
+func groupFilter(level GroupLevel) (string, bool) {
+	if levelRegistered(level.Key) {
+		return SetFilterTerm("", level.Key, level.Value)
+	}
+
+	return SetLabelFilterTerm("", DeviceFilters().Fields(), level.Key, level.Value)
 }
 
 // rolloutStart answers the Start action, confirmed with the counts of
@@ -411,7 +435,8 @@ func rolloutStart(target string, preview *RolloutPreviewView) ActionView {
 
 // rolloutPreview resolves a target filter over the estate's devices and
 // splits its connected devices into batches of percent of them: the count it
-// changes, the count it skips as offline, and the devices of each batch.
+// changes, the count it skips as offline, the devices of each batch, and the
+// Start action confirmed with those batches.
 func rolloutPreview(views []DeviceView, target string, percent int) (RolloutPreviewView, error) {
 	filter, err := DeviceFilters().Parse(target, LabelKeys(views))
 	if err != nil {
@@ -431,6 +456,7 @@ func rolloutPreview(views []DeviceView, target string, percent int) (RolloutPrev
 
 	preview := RolloutPreviewView{Connected: len(connected), Offline: offline, Percent: percent}
 	if len(connected) == 0 {
+		preview.Start = rolloutStart(target, &preview)
 		return preview, nil
 	}
 
@@ -442,6 +468,7 @@ func rolloutPreview(views []DeviceView, target string, percent int) (RolloutPrev
 			Devices: textbuf.New().Join(connected[first:last], ", ").String(),
 		})
 	}
+	preview.Start = rolloutStart(target, &preview)
 
 	return preview, nil
 }

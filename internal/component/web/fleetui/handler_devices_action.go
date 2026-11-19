@@ -179,11 +179,13 @@ func devicesTableOf(address Address) error {
 }
 
 // devicesActionToast answers the toast of one posted action: what the
-// prototype would have done, to how many devices, naming them.
+// prototype would have done, to how many devices, naming them. An action
+// carried out on its targets is SelectionDone, so the page unticks the rows;
+// a refusal and a selection with no target leave them as they are.
 func devicesActionToast(request *PageRequest, form url.Values) (ToastView, error) {
 	key := form.Get(devicesFieldAction)
 	if key == devicesActionFilterSave {
-		return devicesFilterSaveToast(form.Get(paramFilter)), nil
+		return devicesFilterSaveToast(request, form.Get(paramFilter))
 	}
 
 	action, err := devicesActionOf(key)
@@ -217,14 +219,23 @@ func devicesActionToast(request *PageRequest, form url.Values) (ToastView, error
 		detail.Byte('.')
 	}
 
-	return ToastView{Level: ToastInformational, Message: devicesPrototypeWord, Detail: detail.Slice()}, nil
+	return ToastView{
+		Level: ToastInformational, Message: devicesPrototypeWord, Detail: detail.Slice(),
+		SelectionDone: true,
+	}, nil
 }
 
-// devicesNames writes at most devicesToastNamesMax names, then the count of
-// the others.
+// devicesNames writes at most devicesToastNamesMax names, each as echoText
+// quotes it, since a skipped name is posted text the estate does not hold,
+// then the count of the others.
 func devicesNames(text *textbuf.Buffer, names []string) {
 	shown := min(len(names), devicesToastNamesMax)
-	text.Join(names[:shown], ", ")
+	for index, name := range names[:shown] {
+		if index > 0 {
+			text.Str(", ")
+		}
+		text.Str(echoText(name))
+	}
 	if len(names) > shown {
 		text.Str(", and ").Int(int64(len(names) - shown)).Str(" more")
 	}
@@ -239,7 +250,7 @@ func devicesActionOf(key string) (*devicesAction, error) {
 	}
 
 	return nil, opererr.New(
-		textbuf.New().Str("The action ").Quoted(key).Str(" is not an action of the devices table.").Slice(),
+		textbuf.New().Str("The action ").Quoted(echoText(key)).Str(" is not an action of the devices table.").Slice(),
 		"The table posts the actions of its buttons and menus, and this one names none of them, so nothing was done.",
 		"choose the action from the table's buttons and menus")
 }
@@ -305,16 +316,27 @@ func devicesSelectionTooLarge(count int) error {
 }
 
 // devicesFilterSaveToast answers the toast of the Save control: saved
-// filters are fixed samples in the prototype, so nothing is stored.
-func devicesFilterSaveToast(filter string) ToastView {
+// filters are fixed samples in the prototype, so nothing is stored. A filter
+// the devices table would refuse, one longer than FilterLengthMax characters
+// included, is refused as the table refuses it, since a saved filter is one
+// the table applies.
+func devicesFilterSaveToast(request *PageRequest, filter string) (ToastView, error) {
 	if filter == "" {
-		return ToastView{Level: ToastWarning, Message: "There is no filter to save.", Detail: "Type a filter first, then save it."}
+		return ToastView{Level: ToastWarning, Message: "There is no filter to save.", Detail: "Type a filter first, then save it."}, nil
 	}
 
-	detail := textbuf.New().Str("Save filter ").Quoted(filter).
+	scope, err := devicesScope(request)
+	if err != nil {
+		return ToastView{}, err
+	}
+	if _, err := DeviceFilters().Parse(filter, LabelKeys(scope)); err != nil {
+		return ToastView{}, err
+	}
+
+	detail := textbuf.New().Str("Save filter ").Quoted(echoText(filter)).
 		Str(": the saved filters are fixed samples in the prototype, so it was not stored.").Slice()
 
-	return ToastView{Level: ToastInformational, Message: devicesPrototypeWord, Detail: detail}
+	return ToastView{Level: ToastInformational, Message: devicesPrototypeWord, Detail: detail}, nil
 }
 
 // devicesUnknownTab is the refusal of an action posted for a page that has

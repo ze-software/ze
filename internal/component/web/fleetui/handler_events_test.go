@@ -3,6 +3,7 @@ package fleetui
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -243,6 +244,39 @@ func TestEventStreamRefusals(t *testing.T) {
 	full := getFleet(t, stream, EventsPath+"?scope="+pathEstate)
 	assert.Equal(t, http.StatusServiceUnavailable, full.Code)
 	requireRefusalText(t, full.Body.String())
+}
+
+// unreachableDevicesSource is the test estate whose device list the data
+// layer cannot answer, with the error err.
+type unreachableDevicesSource struct {
+	*testSource
+	err error
+}
+
+func (source *unreachableDevicesSource) Devices(context.Context) ([]Device, error) {
+	return nil, source.err
+}
+
+// TestEventStreamScopeFailureIsNeverASuccess asks for the stream of a group
+// while the data layer cannot list the devices.
+//
+// VALIDATES: a scope the data layer could not build answers 503 for every
+// failure a page shows under a success status (offline, relay refused,
+// unsupported, deadline), and 503 for a failed source, each with the
+// operator error.
+// PREVENTS: a text refusal under 200, which an EventSource reads as a stream
+// that says nothing.
+func TestEventStreamScopeFailureIsNeverASuccess(t *testing.T) {
+	failures := []error{ErrDeviceOffline, ErrRelayRefused, ErrViewUnsupported, ErrDeadline, errors.New("the store is gone")}
+	for _, failure := range failures {
+		source := &unreachableDevicesSource{testSource: newTestSource(),
+			err: opererr.Wrap(failure, "The device list is not available.", "The test source refuses it.", "ask again later")}
+		stream := newEventStream(source)
+
+		refused := getFleet(t, stream, EventsPath+"?scope="+pathGroup)
+		assert.Equal(t, http.StatusServiceUnavailable, refused.Code, "failure %v", failure)
+		requireRefusalText(t, refused.Body.String())
+	}
 }
 
 // requireRefusalText asserts that an answer is an operator error: it ends

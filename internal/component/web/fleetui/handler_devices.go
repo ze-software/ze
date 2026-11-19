@@ -19,6 +19,7 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -322,7 +323,7 @@ func devicesStateMenu(request *PageRequest, base ViewParams) MenuView {
 	states := DisplayStates()
 	items := make([]ActionView, 0, len(states)+1)
 	for _, state := range states {
-		filter := SetFilterTerm(base.Filter, fieldState, state.Key())
+		filter := setFixedFilterTerm(base.Filter, fieldState, state.Key())
 		items = append(items, ActionView{Label: state.String(), Href: devicesFilterLink(request, base, filter)})
 	}
 	items = append(items, ActionView{
@@ -334,8 +335,8 @@ func devicesStateMenu(request *PageRequest, base ViewParams) MenuView {
 
 // devicesLabelMenu is the assisted Label menu: one item per label value in
 // use among the object's devices, each writing the key's term into the
-// filter. A key that is also a field of the table is written in the long
-// form, label:key=value, because the short form would name the field.
+// filter (SetLabelFilterTerm). A pair the filter grammar cannot carry is not
+// offered.
 func devicesLabelMenu(request *PageRequest, scope []DeviceView, base ViewParams) MenuView {
 	fields := DeviceFilters().Fields()
 	items := make([]ActionView, 0, devicesLabelItemsMax+1)
@@ -351,9 +352,9 @@ func devicesLabelMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 				return MenuView{Label: devicesWordLabel, Icon: ColumnKindTag.Icon(), Items: items}
 			}
 
-			filter := SetFilterTerm(base.Filter, usage.Key, value.Value)
-			if slices.Contains(fields, usage.Key) {
-				filter = SetFilterTerm(base.Filter, filterLabelKey, usage.Key+devicesLabelJoin+value.Value)
+			filter, carried := SetLabelFilterTerm(base.Filter, fields, usage.Key, value.Value)
+			if !carried {
+				continue
 			}
 
 			label := textbuf.New().Str(usage.Key).Str(devicesLabelJoin).Str(value.Value).
@@ -365,6 +366,28 @@ func devicesLabelMenu(request *PageRequest, scope []DeviceView, base ViewParams)
 	return MenuView{Label: devicesWordLabel, Icon: ColumnKindTag.Icon(), Items: items}
 }
 
+// SetLabelFilterTerm answers filter with the term that a row carries the
+// label key=value, and whether the filter grammar carries it (SetFilterTerm).
+// The short form key:value is written when it reads back as the label: the
+// key is not one of fields, the fields of the table, nor the word label or
+// has, and the short form carries the pair. Otherwise the long form
+// label:key=value is written, which a key holding an equals sign cannot
+// carry, since the pair is cut at its first one.
+func SetLabelFilterTerm(filter string, fields []string, key, value string) (string, bool) {
+	// A key holding the pair separator reads back as another pair in either
+	// form, so it is refused before the short form is tried.
+	if strings.Contains(key, devicesLabelJoin) {
+		return "", false
+	}
+	if !slices.Contains(fields, key) && key != filterLabelKey && key != filterFlagKey {
+		if set, carried := SetFilterTerm(filter, key, value); carried {
+			return set, true
+		}
+	}
+
+	return SetFilterTerm(filter, filterLabelKey, key+devicesLabelJoin+value)
+}
+
 // devicesVersionMenu is the assisted Version menu: one item per software
 // version the object's devices report, the newest first, and one removing
 // the version term.
@@ -372,7 +395,10 @@ func devicesVersionMenu(request *PageRequest, scope []DeviceView, base ViewParam
 	versions := Versions(scope)
 	items := make([]ActionView, 0, len(versions)+1)
 	for _, version := range versions {
-		filter := SetFilterTerm(base.Filter, fieldVersion, version)
+		filter, carried := SetFilterTerm(base.Filter, fieldVersion, version)
+		if !carried {
+			continue
+		}
 		items = append(items, ActionView{Label: version, Href: devicesFilterLink(request, base, filter)})
 	}
 	items = append(items, ActionView{
@@ -647,10 +673,15 @@ func devicesUsageCell(name string, percent float64, reported bool) CellView {
 }
 
 // devicesAlarmsLink answers the address of the estate's alarms filtered on
-// one device.
+// one device, or the empty text, no link, for a name the filter grammar
+// cannot carry (SetFilterTerm).
 func devicesAlarmsLink(request *PageRequest, name string) string {
+	filter, carried := SetFilterTerm("", devicesAlarmField, name)
+	if !carried {
+		return ""
+	}
 	target := Address{Kind: ObjectEstate, Tab: devicesAlarmsTab, View: linkView(request)}
-	target.View.Filter = SetFilterTerm("", devicesAlarmField, name)
+	target.View.Filter = filter
 
 	return target.String()
 }
@@ -662,7 +693,12 @@ func devicesAlarmsCell(request *PageRequest, view *DeviceView) CellView {
 		return NumberCell(countText(0))
 	}
 
-	return LinkCell(countText(view.AlarmsOpen), devicesAlarmsLink(request, view.Device.Name))
+	link := devicesAlarmsLink(request, view.Device.Name)
+	if link == "" {
+		return NumberCell(countText(view.AlarmsOpen))
+	}
+
+	return LinkCell(countText(view.AlarmsOpen), link)
 }
 
 // devicesTabLink answers the address of one tab of a device.
@@ -681,7 +717,7 @@ func devicesMenu(request *PageRequest, name string) *MenuView {
 		Items: []ActionView{
 			{Label: devicesWordOpenDevice, Icon: iconOpen, Href: deviceAddress(request, name).String()},
 			{Label: devicesWordOpenConsole, Icon: glyphTerminal, Href: devicesTabLink(request, name, devicesConsoleTab)},
-			{Label: devicesWordDiagnostic, Icon: iconTasks, Href: devicesTabLink(request, name, tabDeviceTasks)},
+			{Label: devicesWordDiagnostic, Icon: iconTasks, Href: devicesTabLink(request, name, activityTabTasks)},
 			{Label: devicesWordPushConfig, Icon: iconAdmin, Href: devicesTabLink(request, name, devicesConfigTab)},
 		},
 	}

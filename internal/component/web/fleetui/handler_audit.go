@@ -270,9 +270,9 @@ func auditRangeMenu(request *PageRequest) MenuView {
 	}
 
 	return MenuView{Label: wordTime, Items: []ActionView{
-		item("Last hour", SetFilterTerm(filter, auditTermAfter, now.Add(-time.Hour).Format(auditTimeLayout))),
-		item("Last day", SetFilterTerm(filter, auditTermAfter, now.Add(-24*time.Hour).Format(auditTimeLayout))),
-		item("Last week", SetFilterTerm(filter, auditTermAfter, now.Add(-7*24*time.Hour).Format(auditTimeLayout))),
+		item("Last hour", setFixedFilterTerm(filter, auditTermAfter, now.Add(-time.Hour).Format(auditTimeLayout))),
+		item("Last day", setFixedFilterTerm(filter, auditTermAfter, now.Add(-24*time.Hour).Format(auditTimeLayout))),
+		item("Last week", setFixedFilterTerm(filter, auditTermAfter, now.Add(-7*24*time.Hour).Format(auditTimeLayout))),
 		item("Any time", RemoveFilterTerm(filter, auditTermAfter)),
 	}}
 }
@@ -470,7 +470,24 @@ func (export *auditExport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(body.Bytes()) //nolint:errcheck // the answer is committed; a failed write means the browser left
 }
 
-// writeAuditCSV writes the header row, then one row per entry.
+// csvFormulaLeads are the first characters that make a spreadsheet read a
+// CSV cell as a formula: equals, plus, minus, at, tab and carriage return.
+const csvFormulaLeads = "=+-@\t\r"
+
+// csvCell answers text as a cell no spreadsheet runs: a cell that would start
+// a formula is prefixed with a single quote, which a spreadsheet shows as
+// text. The audit trail carries text from devices and operators, so a cell
+// such as "=HYPERLINK(...)" would otherwise run on the reader's machine.
+func csvCell(text string) string {
+	if text != "" && strings.IndexByte(csvFormulaLeads, text[0]) >= 0 {
+		return "'" + text
+	}
+
+	return text
+}
+
+// writeAuditCSV writes the header row, then one row per entry, every cell
+// through csvCell.
 func writeAuditCSV(body *bytes.Buffer, entries []AuditEntry) error {
 	writer := csv.NewWriter(body)
 	if err := writer.Write(auditColumns); err != nil {
@@ -481,6 +498,9 @@ func writeAuditCSV(body *bytes.Buffer, entries []AuditEntry) error {
 		record := []string{
 			entry.ID, entry.At.UTC().Format(time.RFC3339), entry.Actor, entry.Event, entry.Target,
 			countText(entry.Devices), entry.Result.Key(), entry.Summary, entry.TaskID,
+		}
+		for cell := range record {
+			record[cell] = csvCell(record[cell])
 		}
 		if err := writer.Write(record); err != nil {
 			return err

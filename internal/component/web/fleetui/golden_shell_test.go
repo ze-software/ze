@@ -147,6 +147,9 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 			{Name: "staleBanner", Fixture: "shellStaleBanner", Variants: []golden.Variant{
 				{Data: staleBanner()},
 			}},
+			{Name: "heldBanner", Variants: []golden.Variant{
+				{Data: heldBanner()},
+			}},
 			{Name: "objectRegion", Variants: []golden.Variant{
 				{Name: "device", Data: objectRegion(device.Main)},
 				{Name: "group", Data: objectRegion(group.Main)},
@@ -195,6 +198,7 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 			{Name: "treeRow", Variants: []golden.Variant{
 				{Name: "estate", Data: treeRow(goldenTree(t, "").Rows[0])},
 				{Name: "busy-device", Data: treeRow(busyRow)},
+				{Name: "hostile", Data: treeRow(hostileTreeRow(goldenTree(t, "").Rows[0]))},
 			}},
 			{Name: "treeSkeleton", Variants: []golden.Variant{
 				{Data: treeSkeleton()},
@@ -205,6 +209,8 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 				{Name: "found", Data: searchResults(searchView(search, "lon"))},
 				{Name: "pages", Data: searchResults(searchView(search, "s"))},
 				{Name: "none", Data: searchResults(searchView(search, "no-such-text"))},
+				{Name: "hostile-found", Data: searchResults(hostileSearch(true))},
+				{Name: "hostile-none", Data: searchResults(hostileSearch(false))},
 			}},
 		},
 	}

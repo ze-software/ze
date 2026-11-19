@@ -19,6 +19,7 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -132,7 +133,7 @@ func dashboardChartFragment(ctx context.Context, request *PageRequest, item stri
 func chartAnswer(ctx context.Context, request *PageRequest, key string) chartData {
 	chart, held := lookupChart(key)
 	if !held {
-		return chartRefused(textbuf.New().Str("This dashboard has no chart named ").Quoted(key).Str(".").Slice())
+		return chartFailed(chartUnknown(key))
 	}
 
 	scope, err := dashboardScopeOf(request)
@@ -234,12 +235,19 @@ func chartExpected(now time.Time, interval time.Duration) string {
 // sample at.
 const chartClockLayout = "15:04"
 
-// chartFailed answers a chart whose data could not be read: no line, and the
-// refusal's own words as the message.
-func chartFailed(err error) chartData {
-	refusal := refusalOf(err)
+// chartUnknown is the refusal of a chart key no chart registered.
+func chartUnknown(key string) error {
+	problem := textbuf.New().Str("This dashboard has no chart named ").Quoted(echoText(key)).Str(".").Slice()
 
-	return chartRefused(textbuf.New().Str(refusal.Problem()).Byte(' ').Str(refusal.Why()).Slice())
+	return opererr.New(problem,
+		"The page asked for the data of a chart this build does not draw, so there is no line to show.",
+		"reload the page to get its current charts")
+}
+
+// chartFailed answers a chart whose data could not be read: no line, and the
+// refusal's own words, its problem, why and fix, as the message.
+func chartFailed(err error) chartData {
+	return chartRefused(activityRefusalText(err))
 }
 
 // chartRefused answers a chart with no line and message in its place.

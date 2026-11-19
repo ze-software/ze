@@ -732,6 +732,16 @@ html {
   color: var(--warning);
 }
 
+/* The mark of a live refresh that waits for the operator's edit: news, not
+   a fault, so it takes the accent where the lost stream takes the warning. */
+.fleet-stale--held {
+  border-bottom-color: var(--accent);
+}
+
+.fleet-stale--held > svg {
+  color: var(--accent);
+}
+
 .fleet-stale-action {
   margin: 0 0 0 auto;
 }
@@ -867,6 +877,12 @@ html {
   /* A narrow viewport has no room beside the content, pinned or not. */
   .fleet-panel-pinned .fleet-side-panel[data-fleet-panel="open"] {
     position: fixed;
+  }
+
+  /* Nor for the pinned panel's sentence while no row is open: drawn here it
+     would cover the whole content. */
+  .fleet-panel-pinned .fleet-side-panel[data-fleet-panel="empty"] {
+    display: none;
   }
 
   .fleet-hub-name,

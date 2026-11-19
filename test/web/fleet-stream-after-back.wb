@@ -1,0 +1,33 @@
+# Test: a page the browser restores on Back follows the live stream again
+# VALIDATES: spec-fleet-ui-1 user story 4 with the closure review's
+#            back-forward cache finding -- a page restored from the browser's
+#            back-forward cache opens its live stream again
+# PREVENTS: a restored page that shows no live update and no stale banner,
+#           because pagehide closed its stream and nothing reopened it
+#
+# Goal: prove the stream is open after Back, whether the browser restored the
+# page from its cache or loaded it again.
+# Method: the devices table opens its stream (the root's data-fleet-stream,
+# set when the hub subscribed it). The test leaves the shell for another
+# document with a full load, then goes back. A browser that keeps the page in
+# its back-forward cache restores it with the stream closed by pagehide; the
+# pageshow listener opens it again. The expectation waits on the attribute,
+# never on a time. A browser that reloads the page instead opens the stream
+# on load, so this case is red before the fix only where the browser
+# restores from its cache.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/
+expect=html:id=fleet-content:contains=44 of 44 devices
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+
+action=open:path=/fleet/tasks/
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+
+action=back
+expect=url:contains=/fleet/estate/devices/
+expect=html:id=fleet-content:contains=44 of 44 devices
+expect=attribute:selector=html:name=data-fleet-stream:value=open

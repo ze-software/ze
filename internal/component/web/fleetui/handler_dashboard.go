@@ -230,9 +230,16 @@ func (scope *dashboardScope) tab(tab, filter string) Address {
 }
 
 // devicesWith answers the devices tab of the scope's object filtered to the
-// devices whose field holds value: the rows a count of a card stands for.
-func (scope *dashboardScope) devicesWith(field, value string) string {
-	return scope.tab(dashTabDevices, SetFilterTerm("", field, value)).String()
+// devices whose field holds one of values, or none of them when negated: the
+// rows a count of a card stands for. It answers the empty text, no link, for
+// values the filter grammar cannot carry (SetFilterTerm).
+func (scope *dashboardScope) devicesWith(field string, negated bool, values ...string) string {
+	filter, carried := setFilterTerm("", field, negated, values)
+	if !carried {
+		return ""
+	}
+
+	return scope.tab(dashTabDevices, filter).String()
 }
 
 // names answers the names of the scope's devices, as a history question
@@ -391,7 +398,7 @@ func dashboardOfflineSlot(request *PageRequest, scope *dashboardScope) templ.Com
 			Kind:     HeroOffline,
 			Sentence: textbuf.New().Str(name).Str(" is offline.").Slice(),
 			Detail:   detail,
-			Action:   deviceAction(request, tabDeviceTasks, "Open the device's tasks", iconTasks),
+			Action:   deviceAction(request, activityTabTasks, "Open the device's tasks", iconTasks),
 		},
 	}
 

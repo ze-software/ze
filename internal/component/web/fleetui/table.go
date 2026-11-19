@@ -158,6 +158,22 @@ func (set *ColumnSet[T]) Keys() []string {
 	return keys
 }
 
+// resolved answers spec with its column named: the first column, the one the
+// table sorts by by default, for a spec that names none.
+func (set *ColumnSet[T]) resolved(spec SortSpec) SortSpec {
+	if spec.Column != "" {
+		return spec
+	}
+
+	column, err := set.column(spec)
+	if err != nil {
+		panic("BUG: fleetui: the default sort column of " + set.subject + " was refused")
+	}
+	spec.Column = column.Key
+
+	return spec
+}
+
 // column answers the column spec names: the first one for the default sort.
 func (set *ColumnSet[T]) column(spec SortSpec) (Column[T], error) {
 	set.mu.RLock()

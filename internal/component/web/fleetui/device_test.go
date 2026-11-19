@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -403,8 +404,126 @@ func TestDeviceConsoleOfARefusingDeviceClosesTheTerminal(t *testing.T) {
 	requireAll(t, recorder.Body.String(), testRefusal, `data-terminal-refused="true"`)
 }
 
+// TestDeviceConsoleRefusesAnAddressWithNoDevice posts to a console address
+// that names no device.
+//
+// VALIDATES: the refusal is a terminal entry under a success status, with
+// the problem and the fix, as every refusal of the console route is.
+// PREVENTS: a plain text refusal the terminal cannot append, which the
+// operator sees as an answer with no output.
 func TestDeviceConsoleRefusesAnAddressWithNoDevice(t *testing.T) {
 	recorder := postConsole(t, "", "show version")
 
-	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	requireAll(t, recorder.Body.String(), "fleet-terminal-entry", "names no device", "Try: open the device&#39;s Console tab")
+}
+
+// TestDeviceConsoleRefusesAnOverlongFormAsAnEntry posts a form longer than
+// the route reads.
+//
+// VALIDATES: the refusal is a terminal entry under a success status, with
+// the bound and the fix.
+// PREVENTS: a 400 in plain text the terminal cannot append.
+func TestDeviceConsoleRefusesAnOverlongFormAsAnEntry(t *testing.T) {
+	recorder := postConsole(t, edgeLon01, strings.Repeat("a", consoleFormBytesMax+1))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	requireAll(t, recorder.Body.String(), "fleet-terminal-entry", "The command could not be read.", "Try: type a shorter command")
+}
+
+// TestDeviceConsoleCutsAnOverlongCommandOnACharacter posts a command of
+// two-byte characters longer than the console sends on.
+//
+// VALIDATES: the echoed command is cut after consoleCommandMax characters,
+// never inside one.
+// PREVENTS: an echo that ends in half a character.
+func TestDeviceConsoleCutsAnOverlongCommandOnACharacter(t *testing.T) {
+	recorder := postConsole(t, edgeLon01, strings.Repeat("é", consoleCommandMax+1))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	body := recorder.Body.String()
+	assert.True(t, utf8.ValidString(body), "the echo holds whole characters only")
+	assert.Contains(t, body, strings.Repeat("é", consoleCommandMax))
+	assert.NotContains(t, body, strings.Repeat("é", consoleCommandMax+1))
+	assert.Contains(t, body, "The command is too long.")
+}
+
+// TestSortHeaderMarksTheDefaultColumn draws the header of a device table's
+// default column on an address that names no sort column.
+//
+// VALIDATES: the default column is marked sorted, ascending or descending
+// as the address says, and its first click turns the order around.
+// PREVENTS: a table sorted by a column no header marks, whose first click
+// sorts it the same way again.
+func TestSortHeaderMarksTheDefaultColumn(t *testing.T) {
+	address := testAddress(t, deviceTarget(edgeLon01, tabDeviceInterfaces))
+	address.View.Sort = SortSpec{}
+	first := interfaceColumns.resolved(SortSpec{}).Column
+	require.NotEmpty(t, first)
+
+	header := sortHeader(interfaceColumns, address, "First", ColumnKindText, first, false)
+	assert.Equal(t, SortMarkAscending, header.Sort)
+	want := address
+	want.View.Sort = SortSpec{Column: first, Descending: true}
+	want.View.Page = 1
+	want.View.Row = ""
+	assert.Equal(t, want.String(), header.SortHref, "the first click sorts the default column descending")
+
+	address.View.Sort = SortSpec{Descending: true}
+	descending := sortHeader(interfaceColumns, address, "First", ColumnKindText, first, false)
+	assert.Equal(t, SortMarkDescending, descending.Sort)
+
+	for _, key := range interfaceColumns.Keys() {
+		if key != first {
+			other := sortHeader(interfaceColumns, address, "Other", ColumnKindText, key, false)
+			assert.Zero(t, other.Sort, "only the default column is marked")
+		}
+	}
+}
+
+// fixCount counts the fix lines of the refusals markup shows.
+func fixCount(markup string) int {
+	return strings.Count(markup, "Fix: ")
+}
+
+// TestDeviceTablesShowEveryRefusalWithItsFix asks the interfaces, peers and
+// logs tables for a filter and a sort they refuse.
+//
+// VALIDATES: each refusal is shown with its fix, and a refused filter and a
+// refused sort are both shown.
+// PREVENTS: a refusal that names the problem and not the fix, and a sort
+// refusal that hides why the rows are unfiltered.
+func TestDeviceTablesShowEveryRefusalWithItsFix(t *testing.T) {
+	badFilter := url.Values{paramFilter: {"nosuchfield:x"}}.Encode()
+	both := url.Values{paramFilter: {"nosuchfield:x"}, paramSort: {"nosuchcolumn"}}.Encode()
+
+	for _, tab := range []string{tabDeviceInterfaces, tabDeviceRouting} {
+		t.Run(tab, func(t *testing.T) {
+			base := fixCount(getDevicePage(t, deviceTarget(edgeLon01, tab)))
+			filtered := fixCount(getDevicePage(t, deviceTarget(edgeLon01, tab)+"?"+badFilter))
+			sorted := fixCount(getDevicePage(t, deviceTarget(edgeLon01, tab)+"?"+both))
+
+			assert.Equal(t, base+1, filtered, "the filter refusal names its fix")
+			assert.Equal(t, base+2, sorted, "the filter and the sort refusals are both shown")
+		})
+	}
+
+	logs := deviceTarget(edgeLon01, tabDeviceLogs)
+	assert.Equal(t, fixCount(getDevicePage(t, logs))+1, fixCount(getDevicePage(t, logs+"?"+badFilter)))
+}
+
+// TestDeviceErrorsNameTheirFix asks for an unknown interface tool and for
+// the clock of a device that refuses relayed commands.
+//
+// VALIDATES: the toast and the clock row carry the refusal's fix.
+// PREVENTS: an operator told what failed and not what to do.
+func TestDeviceErrorsNameTheirFix(t *testing.T) {
+	page := testAddress(t, deviceTarget(edgeLon01, tabDeviceInterfaces))
+	toast := getDeviceFragment(t, FragmentLink(fragmentDeviceTool, page, "nosuchtool/eth0"))
+	assert.Contains(t, toast, "Fix: choose a tool from the row")
+
+	request := &PageRequest{Source: newDeviceTestSource()}
+	rows := clockRows(t.Context(), request, cpe0113)
+	require.Len(t, rows, 1)
+	assert.Contains(t, rows[0].Text, "Fix: "+testGrantLine)
 }

@@ -3,6 +3,7 @@ package fleetui
 import (
 	"html"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -430,6 +431,26 @@ func TestFleetFragmentRefusals(t *testing.T) {
 
 	longest := getFleet(t, fragments, fragmentTreePath+"?item="+string(long[:fragmentItemMax]))
 	assert.Equal(t, http.StatusOK, longest.Code, "the longest item allowed is answered")
+}
+
+// TestFleetFragmentItemBoundCountsCharacters asks for a fragment whose item
+// is the longest filter in characters, each character two bytes long.
+//
+// VALIDATES: the fragment bound counts characters, as the filter's own bound
+// and the refusal's wording do, so a filter the parser accepts is answered.
+// PREVENTS: a non-ASCII filter of FilterLengthMax characters refused as too
+// long because its bytes were counted.
+func TestFleetFragmentItemBoundCountsCharacters(t *testing.T) {
+	handler, _ := testHandler()
+	fragments := http.HandlerFunc(handler.serveFragment)
+
+	longest := url.QueryEscape(strings.Repeat("é", fragmentItemMax))
+	answered := getFleet(t, fragments, fragmentTreePath+"?item="+longest)
+	assert.Equal(t, http.StatusOK, answered.Code, "the longest item allowed, in characters, is answered")
+
+	over := url.QueryEscape(strings.Repeat("é", fragmentItemMax+1))
+	refused := getFleet(t, fragments, fragmentTreePath+"?item="+over)
+	assert.Equal(t, http.StatusBadRequest, refused.Code)
 }
 
 // TestFleetSearchFindsDevicesAndPages asks the header search.

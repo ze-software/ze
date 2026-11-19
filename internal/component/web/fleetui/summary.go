@@ -16,7 +16,6 @@ import (
 	"errors"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -176,8 +175,10 @@ func Versions(views []DeviceView) []string {
 }
 
 // compareVersions orders two software versions: negative when a is the
-// older. Versions are compared part by part between dots, a part that is a
-// number as a number, so 1.4.10 is newer than 1.4.9.
+// older, zero only for the same text. Versions are compared part by part
+// between dots (compareVersionPart), so 1.4.10 is newer than 1.4.9, and a
+// version that extends another is the newer. The order is total, so every
+// sort of versions answers the same order whatever order they came in.
 func compareVersions(a, b string) int {
 	partsA := strings.Split(a, ".")
 	partsB := strings.Split(b, ".")
@@ -191,19 +192,61 @@ func compareVersions(a, b string) int {
 	return cmp.Compare(len(partsA), len(partsB))
 }
 
-// compareVersionPart orders two parts of a version: as numbers when both are
-// numbers, as text otherwise.
+// compareVersionPart orders two parts of a version, as the leading number of
+// each and the text after it: a part that opens with no digit is older than
+// one that does, leading numbers compare as numbers of any length, a part
+// with text after its number is older than the number alone (1.4.2-rc1 is
+// older than 1.4.2), and texts compare as text. Parts these leave equal, 01
+// and 1, compare as text, so the order is total: each step is a total
+// order, and the steps are taken one after another.
 func compareVersionPart(a, b string) int {
-	numberA, errA := strconv.Atoi(a)
-	numberB, errB := strconv.Atoi(b)
-	if errA != nil {
-		return strings.Compare(a, b)
+	numberA, restA := versionPartNumber(a)
+	numberB, restB := versionPartNumber(b)
+
+	if order := compareFalseFirst(numberA != "", numberB != ""); order != 0 {
+		return order
 	}
-	if errB != nil {
-		return strings.Compare(a, b)
+	if order := cmp.Compare(len(numberA), len(numberB)); order != 0 {
+		return order
+	}
+	if order := strings.Compare(numberA, numberB); order != 0 {
+		return order
+	}
+	if order := compareFalseFirst(restA == "", restB == ""); order != 0 {
+		return order
+	}
+	if order := strings.Compare(restA, restB); order != 0 {
+		return order
 	}
 
-	return cmp.Compare(numberA, numberB)
+	return strings.Compare(a, b)
+}
+
+// compareFalseFirst orders two truths, false before true.
+func compareFalseFirst(a, b bool) int {
+	switch {
+	case a == b:
+		return 0
+	case b:
+		return -1
+	default:
+		return 1
+	}
+}
+
+// versionPartNumber answers the leading digits of part, their leading zeros
+// dropped, and the text after them.
+func versionPartNumber(part string) (string, string) {
+	end := 0
+	for end < len(part) && part[end] >= '0' && part[end] <= '9' {
+		end++
+	}
+	number := strings.TrimLeft(part[:end], "0")
+	if number == "" && end > 0 {
+		number = "0"
+	}
+
+	return number, part[end:]
 }
 
 // LabelKeys answers the label keys in use among the devices of views, each

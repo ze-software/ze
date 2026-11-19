@@ -169,22 +169,25 @@ func uintText(value uint64) string {
 	return textbuf.StringUint(value)
 }
 
-// sortHeader answers the header cell of a sortable column of the table at
-// address: its sort address turns the sort around when the table is already
-// sorted by it, and goes back to the first page.
-func sortHeader(address Address, label string, kind ColumnKind, key string, numeric bool) ColumnHeaderView {
+// sortHeader answers the header cell of a sortable column of the table of
+// columns at address: its sort address turns the sort around when the table
+// is already sorted by it, and goes back to the first page. An address that
+// names no sort column is sorted by the table's default column, which is
+// marked as sorted the same way.
+func sortHeader[T any](columns *ColumnSet[T], address Address, label string, kind ColumnKind, key string, numeric bool) ColumnHeaderView {
 	header := ColumnHeaderView{Label: label, Kind: kind, Numeric: numeric}
 
-	sorted := address.View.Sort.Column == key
+	current := columns.resolved(address.View.Sort)
+	sorted := current.Column == key
 	if sorted {
 		header.Sort = SortMarkAscending
-		if address.View.Sort.Descending {
+		if current.Descending {
 			header.Sort = SortMarkDescending
 		}
 	}
 
 	target := address
-	target.View.Sort = SortSpec{Column: key, Descending: sorted && !address.View.Sort.Descending}
+	target.View.Sort = SortSpec{Column: key, Descending: sorted && !current.Descending}
 	target.View.Page = 1
 	target.View.Row = ""
 	header.SortHref = target.String()
@@ -209,12 +212,17 @@ func carriedFields(address Address, drop ...string) []HiddenFieldView {
 }
 
 // filterMenu answers an assisted filter menu: one item per value, each
-// opening the table with the term written into its filter.
+// opening the table with the term written into its filter. A value the
+// filter grammar cannot carry (SetFilterTerm) is not offered.
 func filterMenu(address Address, label, field string, values []string) MenuView {
 	menu := MenuView{Label: label, Icon: glyphFilter, Items: make([]ActionView, 0, len(values))}
 	for _, value := range values {
+		filter, carried := SetFilterTerm(address.View.Filter, field, value)
+		if !carried {
+			continue
+		}
 		target := address
-		target.View.Filter = SetFilterTerm(address.View.Filter, field, value)
+		target.View.Filter = filter
 		target.View.Page = 1
 		target.View.Row = ""
 		menu.Items = append(menu.Items, ActionView{Label: value, Href: target.String()})

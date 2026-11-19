@@ -1,6 +1,7 @@
 package fleetui
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"net/http"
@@ -326,6 +327,38 @@ func TestManageAuditExportCSV(t *testing.T) {
 	assert.Equal(t, "A-1", records[2][0])
 }
 
+// TestManageAuditExportCSVRunsNoFormula exports entries whose text starts a
+// spreadsheet formula.
+//
+// VALIDATES: each cell that starts with = + - @, a tab or a carriage return
+// is written as text, prefixed with a single quote; other cells are kept as
+// they are.
+// PREVENTS: CSV injection, where a summary a device or an operator wrote
+// runs as a formula on the machine of whoever opens the export.
+func TestManageAuditExportCSVRunsNoFormula(t *testing.T) {
+	entries := []AuditEntry{{
+		ID: "A-9", At: testNow, Actor: "@bob", Event: "+event", Target: "-target",
+		Devices: 1, Result: AuditResultSucceeded, Summary: `=HYPERLINK("http://example.com","x")`, TaskID: "\tT-1",
+	}, {
+		ID: "A-8", At: testNow, Actor: "alice", Event: "config-push", Target: edgeLon01,
+		Devices: 1, Result: AuditResultSucceeded, Summary: "\rcarried", TaskID: "T-2",
+	}}
+
+	var body bytes.Buffer
+	require.NoError(t, writeAuditCSV(&body, entries))
+
+	records, err := csv.NewReader(&body).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records, 3)
+	assert.Equal(t, "'@bob", records[1][2])
+	assert.Equal(t, "'+event", records[1][3])
+	assert.Equal(t, "'-target", records[1][4])
+	assert.Equal(t, `'=HYPERLINK("http://example.com","x")`, records[1][7])
+	assert.Equal(t, "'\tT-1", records[1][8])
+	assert.Equal(t, "alice", records[2][2], "a cell that starts no formula is kept")
+	assert.Equal(t, "'\rcarried", records[2][7])
+}
+
 // TestManageAdminPagesAnswer asks for every administration page of the
 // family.
 //
@@ -394,4 +427,28 @@ func TestManageDiffLines(t *testing.T) {
 	assert.Equal(t, DiffRowView{Left: "b", Right: "x", LeftNumber: 2, RightNumber: 2, Kind: DiffChanged}, rows[1])
 	assert.Equal(t, DiffRowView{Left: "c", Right: "c", LeftNumber: 3, RightNumber: 3, Kind: DiffSame}, rows[2])
 	assert.Equal(t, DiffRowView{Right: "d", RightNumber: 4, Kind: DiffAdded}, rows[3])
+}
+
+// TestManageActionQuotesAtMostAnEcho posts a manage action item whose key
+// and target are far longer than a toast quotes.
+//
+// VALIDATES: the toast quotes the key and the target cut by echoText.
+// PREVENTS: a toast that echoes the whole posted item.
+func TestManageActionQuotesAtMostAnEcho(t *testing.T) {
+	long := strings.Repeat("x", 4096)
+	echo := strings.Repeat("x", echoMax) + echoEllipsis
+
+	unknown, err := manageActionAnswer(t.Context(), nil, url.Values{paramItem: {long}})
+	require.NoError(t, err)
+	assert.Contains(t, unknown.Message, echo)
+	assert.Less(t, len(unknown.Message), 200)
+
+	for key := range manageActions {
+		known, err := manageActionAnswer(t.Context(), nil, url.Values{paramItem: {key + manageActionSep + long}})
+		require.NoError(t, err)
+		assert.Contains(t, known.Detail, echo)
+		assert.NotContains(t, known.Detail, echo[:echoMax]+"x")
+
+		break
+	}
 }

@@ -75,8 +75,9 @@ func sharedRender(t *testing.T) {
 			}
 			shared.exchanges = map[string]sitelgreplay.Exchange{}
 			shared.chunks = map[string][]sitelgreplay.Exchange{}
-			for _, exchange := range shared.recording.Exchanges {
-				shared.exchanges[exchange.Key] = exchange
+			for index := range shared.recording.Exchanges {
+				exchange := &shared.recording.Exchanges[index]
+				shared.exchanges[exchange.Key] = *exchange
 			}
 			for _, chunk := range shared.recording.Chunks {
 				content, err := os.ReadFile(filepath.Join(directory, chunk.File)) //nolint:gosec // a file the render wrote
@@ -88,8 +89,8 @@ func sharedRender(t *testing.T) {
 					return err
 				}
 				shared.chunks[chunk.Name] = held
-				for _, exchange := range held {
-					shared.exchanges[exchange.Key] = exchange
+				for index := range held {
+					shared.exchanges[held[index].Key] = held[index]
 				}
 			}
 			return nil
@@ -450,4 +451,21 @@ func TestFleetDemoRecordsStepsInsideAnObjectWithoutTheTree(t *testing.T) {
 	tab, found := shared.exchanges[requestKey(pageRequest(device))]
 	require.True(t, found, "the device's tab is recorded")
 	assert.Contains(t, tab.Body, treeRows, "a tab asked from nowhere carries the tree")
+}
+
+// TestTourRecordsLabelTermsAsTheLabelMenuWritesThem records the label terms
+// of keys named like a field, like the word label and like the word has.
+//
+// VALIDATES: the tour writes a label term with the page's own label writer,
+// so each recorded address is the one the Label menu links.
+// PREVENTS: a short key:value recorded for the label model, which the page
+// reads as the model field and never links, so the demonstration holds an
+// address no link reaches and lacks the one the menu does.
+func TestTourRecordsLabelTermsAsTheLabelMenuWritesThem(t *testing.T) {
+	fields := fleetui.DeviceFilters().Fields()
+	var terms []string
+	for _, pair := range [][2]string{{"site", "lon"}, {"model", "mx"}, {"has", "alarm"}, {"label", "x"}} {
+		terms = appendLabelTerm(terms, fields, pair[0], pair[1])
+	}
+	assert.Equal(t, []string{"site:lon", "label:model=mx", "label:has=alarm", "label:label=x"}, terms)
 }

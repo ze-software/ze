@@ -1,0 +1,34 @@
+# Test: Enter on a search that finds nothing opens no later result
+# VALIDATES: spec-fleet-ui-1 header search with the closure review's search
+#            finding -- the enter key opens the first result of the answer it
+#            asked for; an answer with no result consumes the request
+# PREVENTS: a later search, typed after an Enter that found nothing, that
+#           opens its first result although the operator never pressed Enter
+#           for it
+#
+# Goal: prove the request the enter key makes ends with the answer it
+# started.
+# Method: the test types text no device or page matches and presses Enter at
+# once, inside the search delay (fleet.js SEARCH_DELAY), so the key runs the
+# search and asks for its first result; the answer says nothing matches.
+# It then types edge-lon-01, which matches, and waits for that answer in the
+# results box. Before the fix the answer's first link was clicked in the same
+# task as the swap, which closed and emptied the box and left the page, so
+# the box never shows the answer; after it, the box shows the answer and the
+# address is still the devices table's.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/
+expect=html:id=fleet-content:contains=44 of 44 devices
+
+action=fill:id=fleet-search:value=no-such-text
+action=press:id=fleet-search:key=Enter
+expect=html:id=fleet-search-results:contains=No device or page matches
+
+action=fill:id=fleet-search:value=edge-lon-01
+expect=html:id=fleet-search-results:contains=edge-lon-01
+expect=url:contains=/fleet/estate/devices/
+expect=attribute:selector=#fleet-search:name=aria-expanded:value=true

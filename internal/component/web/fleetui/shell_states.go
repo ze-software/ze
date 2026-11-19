@@ -83,7 +83,7 @@ func failureHeroView(request *PageRequest, err error) StateHeroView {
 		view.Action = estateAction(request)
 	case FailureOffline:
 		view.Kind = HeroOffline
-		view.Action = deviceAction(request, tabDeviceTasks, "Open the device's tasks", iconTasks)
+		view.Action = deviceAction(request, activityTabTasks, "Open the device's tasks", iconTasks)
 	case FailureRelayRefused:
 		// The fix of a refused relay is the configuration line that grants
 		// it, which the operator copies to the device.
@@ -172,9 +172,9 @@ const (
 	taskTabKeySucceeded = "succeeded"
 )
 
-// The tabs of a device a state links to.
+// The tabs of a device a state links to. The Tasks tab is activityTabTasks,
+// the name the activity family registers it under.
 const (
-	tabDeviceTasks  = "tasks"
 	tabDeviceSystem = "system"
 )
 

@@ -45,17 +45,19 @@ type RolloutFormView struct {
 	Percents   []int
 	PreviewURL string
 	Preview    RolloutPreviewView
-	Start      ActionView
 	Form       ManageFormView
 }
 
 // RolloutPreviewView is what a target resolves to: the connected devices it
-// changes, the offline ones it skips, and its batches at Percent.
+// changes, the offline ones it skips, and its batches at Percent. Start is
+// the action that starts it, confirmed with these batches: it is drawn with
+// the preview, so a batch size the operator chooses swaps both.
 type RolloutPreviewView struct {
 	Connected int
 	Offline   int
 	Percent   int
 	Batches   []RolloutBatchPreview
+	Start     ActionView
 }
 
 // RolloutBatchPreview is one batch of the preview and its devices.
@@ -135,7 +137,7 @@ templ RolloutForm(v RolloutFormView) {
 			</ul>
 			@QueryRow(v.Query)
 		</section>
-		<form class="fleet-manage-fields" id="fleet-rollout-new" method="get" action={ templ.URL(v.PreviewURL) }>
+		<form class="fleet-manage-fields" id={ rolloutNewFormID } method="get" action={ templ.URL(v.PreviewURL) }>
 			<label class="fleet-manage-field">
 				<span class="fleet-manage-field-label">What to push</span>
 				<select name="push">
@@ -163,14 +165,12 @@ templ RolloutForm(v RolloutFormView) {
 		<section class="fleet-manage-section" id="fleet-rollout-preview" aria-live="polite">
 			@RolloutPreview(v.Preview)
 		</section>
-		<div class="fleet-manage-resolve">
-			@PrimaryButton(v.Start)
-		</div>
 		@ManageForm(v.Form)
 	</div>
 }
 
-// RolloutPreview draws what a target resolves to and its batches.
+// RolloutPreview draws what a target resolves to, its batches, and the
+// Start action confirmed with them.
 templ RolloutPreview(v RolloutPreviewView) {
 	<h3 class="fleet-manage-section-title">Preview</h3>
 	<p class="fleet-manage-counts">
@@ -188,5 +188,10 @@ templ RolloutPreview(v RolloutPreviewView) {
 				</li>
 			}
 		</ol>
+	}
+	if v.Start.Label != "" {
+		<div class="fleet-manage-resolve">
+			@PrimaryButton(v.Start)
+		</div>
 	}
 }

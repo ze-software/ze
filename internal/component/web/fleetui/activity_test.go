@@ -434,3 +434,45 @@ func TestToastDemoAnswersEachLevel(t *testing.T) {
 func textLifetime(level ToastLevel) string {
 	return map[ToastLevel]string{ToastInformational: "6", ToastSuccess: "6", ToastWarning: "0", ToastError: "0"}[level]
 }
+
+// TestTaskActionQuotesAtMostAnEcho asks for a task action whose item is far
+// longer than a toast quotes.
+//
+// VALIDATES: the refusal quotes the item cut by echoText, and an id longer
+// than echoMax characters is refused without asking the source.
+// PREVENTS: a toast that echoes the whole posted item.
+func TestTaskActionQuotesAtMostAnEcho(t *testing.T) {
+	long := strings.Repeat("x", 4096)
+	echo := strings.Repeat("x", echoMax) + echoEllipsis
+
+	refusal := refusalOf(taskActionUnknown(long))
+	assert.Contains(t, refusal.Problem(), echo)
+	assert.NotContains(t, refusal.Problem(), echo[:echoMax]+"x")
+
+	// The test source refuses a task it does not hold by quoting the id
+	// whole, so an id that reached it would be echoed in full.
+	request := &PageRequest{Address: Address{Kind: ObjectTasks}, Source: newTestSource(), Username: testUser}
+	// The toast quotes the whole posted item, verb included, cut by echoText.
+	posted := taskVerbCancel + taskItemSeparator + long
+	toast := taskActionToast(t.Context(), request, posted)
+	assert.Contains(t, toast.Message+toast.Detail, echoText(posted))
+	assert.NotContains(t, toast.Message+toast.Detail, posted[:echoMax+1])
+}
+
+// TestAlarmsShowAFilterAndASortRefusalTogether asks the alarm table for a
+// filter and a sort it refuses at once.
+//
+// VALIDATES: both refusals are shown, each with its fix.
+// PREVENTS: a sort refusal that replaces the filter refusal, leaving the
+// rows unfiltered with no word why.
+func TestAlarmsShowAFilterAndASortRefusalTogether(t *testing.T) {
+	const content = "/fleet/fragment/content/estate/alarms/"
+	both := url.Values{paramFilter: {"nosuchfield:x"}, paramSort: {"nosuchcolumn"}}.Encode()
+
+	base := strings.Count(activityFragment(t, newActivitySource(), content), "Fix: ")
+	refused := activityFragment(t, newActivitySource(), content+"?"+both)
+
+	assert.Equal(t, base+2, strings.Count(refused, "Fix: "))
+	assert.Contains(t, refused, "nosuchfield")
+	assert.Contains(t, refused, "nosuchcolumn")
+}

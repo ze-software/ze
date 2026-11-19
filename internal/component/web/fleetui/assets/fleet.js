@@ -564,10 +564,159 @@
 
   // --- Regions --------------------------------------------------------------
 
+  // dialogOpen says whether a modal dialog is open: the confirm dialog holds
+  // the control it was opened from, and a refresh would replace it.
+  function dialogOpen() {
+    return document.querySelector('dialog[open]') !== null;
+  }
+
+  // choiceChanged says whether a select shows another choice than the one it
+  // was drawn with. A single choice drawn with no selected option shows its
+  // first, as the browser does.
+  function choiceChanged(field) {
+    var i;
+    if (field.multiple) {
+      for (i = 0; i < field.options.length; i++) {
+        if (field.options[i].selected !== field.options[i].defaultSelected) return true;
+      }
+      return false;
+    }
+    var drawn = 0;
+    for (i = 0; i < field.options.length; i++) {
+      if (field.options[i].defaultSelected) drawn = i;
+    }
+    return field.options.length > 0 && field.selectedIndex !== drawn;
+  }
+
+  // dirty says whether a field holds what the operator chose rather than what
+  // the page was drawn with: a ticked row, typed text, a changed choice.
+  function dirty(field) {
+    var type = (field.type || '').toLowerCase();
+    if (type === 'checkbox' || type === 'radio') return field.checked !== field.defaultChecked;
+    if (field.tagName === 'SELECT') return choiceChanged(field);
+    if (type === 'hidden' || type === 'submit' || type === 'button') return false;
+    return field.value !== field.defaultValue;
+  }
+
+  // CHOICE_TYPES are the inputs a click settles: focus on one holds nothing
+  // the page does not show, and its value is judged by dirty.
+  var CHOICE_TYPES = ['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'hidden'];
+
+  // entering says whether node is a field the operator is typing or choosing
+  // in, whose text a refresh would take from under them.
+  function entering(node) {
+    if (!typing(node)) return false;
+    if (node.tagName !== 'INPUT') return true;
+    return CHOICE_TYPES.indexOf((node.type || '').toLowerCase()) < 0;
+  }
+
+  // holdsState says whether a region element holds what the browser alone
+  // knows: a field the operator is in, a field they changed, or a dialog
+  // opened over the page. A refresh would discard it.
+  function holdsState(element) {
+    if (dialogOpen()) return true;
+    var focused = document.activeElement;
+    if (focused && focused !== element && element.contains(focused) && entering(focused)) return true;
+    var fields = element.querySelectorAll('input, textarea, select');
+    for (var i = 0; i < fields.length; i++) {
+      if (dirty(fields[i])) return true;
+    }
+    return false;
+  }
+
+  // held lists the region elements whose refresh waits, and heldTasks says
+  // whether the task panel's does. Each is refreshed once, when what held it
+  // is gone, or when the operator applies it from the paused mark.
+  var held = [];
+  var heldTasks = false;
+
+  // HELD is the attribute the root carries while a refresh waits. A browser
+  // test waits for it, and the paused mark (#fleet-held, shell.templ
+  // heldBanner) is shown while it is set, so a page that holds its refresh
+  // never looks live while it is not.
+  var HELD = 'data-fleet-held';
+
+  function markHeld(on) {
+    var banner = byId('fleet-held');
+    if (on) {
+      root.setAttribute(HELD, 'true');
+      if (banner) banner.hidden = false;
+      return;
+    }
+    root.removeAttribute(HELD);
+    if (banner) banner.hidden = true;
+  }
+
+  function hold(element) {
+    if (held.indexOf(element) < 0) held.push(element);
+    markHeld(true);
+  }
+
+  // releaseHeld applies the refreshes that waited and whose element no longer
+  // holds browser state. An element a navigation removed is dropped: the
+  // page that replaced it is current.
+  function releaseHeld() {
+    var waiting = held;
+    held = [];
+    waiting.forEach(function (element) {
+      if (!element.isConnected) return;
+      if (holdsState(element)) {
+        held.push(element);
+        return;
+      }
+      refreshElement(element);
+    });
+    if (heldTasks && !dialogOpen()) {
+      heldTasks = false;
+      refreshTasks();
+    }
+    if (held.length === 0 && !heldTasks) markHeld(false);
+  }
+
+  // applyHeld is the paused mark's Apply now: the operator chose the live
+  // page over what they were editing, so every waiting refresh is fetched,
+  // whatever the element still holds. The task panel still waits for an
+  // open dialog, whose confirmation would otherwise lose its control.
+  function applyHeld() {
+    var waiting = held;
+    held = [];
+    waiting.forEach(function (element) {
+      if (element.isConnected) fetchElement(element);
+    });
+    if (heldTasks && !dialogOpen()) {
+      heldTasks = false;
+      refreshTasks();
+    }
+    if (!heldTasks) markHeld(false);
+  }
+
+  function releaseSoon() {
+    if (held.length === 0 && !heldTasks) return;
+    // The browser moves the focus after the event that left a field, and
+    // closes a dialog after its close event is queued: read the page once it
+    // settled.
+    window.setTimeout(releaseHeld, 0);
+  }
+
   // refreshElement fetches again the fragment one element of a region names,
   // into that element. An element that names a field sends its text as the
-  // item, which is how the tree keeps its filter across a refresh.
+  // item, which is how the tree keeps its filter across a refresh. An element
+  // that holds browser state waits, and is refreshed when it no longer does.
   function refreshElement(element) {
+    var name = element.getAttribute('data-fleet-name');
+    if (!name) return;
+
+    if (holdsState(element)) {
+      hold(element);
+      return;
+    }
+
+    fetchElement(element);
+  }
+
+  // fetchElement loads the fragment element names into it, sending the text
+  // of the field it names as the item.
+  function fetchElement(element) {
     var name = element.getAttribute('data-fleet-name');
     if (!name) return;
 
@@ -586,6 +735,14 @@
   function refreshTasks() {
     var panel = byId('fleet-task-panel');
     if (!panel) return;
+
+    // The confirm dialog may have been opened from a control of the panel:
+    // the refresh waits until it closes.
+    if (dialogOpen()) {
+      heldTasks = true;
+      markHeld(true);
+      return;
+    }
 
     var url = fragmentURL('tasks', '');
     if (!panel.hidden) {
@@ -731,6 +888,8 @@
 
     var text = field.value.trim();
     if (text === '') {
+      // Nothing is searched, so there is no answer for the enter key to open.
+      searchOpensFirst = false;
       box.textContent = '';
       setSearchOpen(false);
       return;
@@ -803,7 +962,7 @@
 
   // afterSwap runs after htmx swapped anything: a navigation inside the
   // shell, a refreshed region, a branch of the tree.
-  function afterSwap() {
+  function afterSwap(event) {
     var content = byId('fleet-content-body');
     var title = content ? content.getAttribute('data-fleet-title') : null;
     if (title) document.title = title;
@@ -812,13 +971,19 @@
     followPanel();
     applyPanel();
 
-    if (searchOpensFirst) {
+    // The enter key asked for the first result of the answer it started.
+    // That answer is this swap of the results, whatever it holds: an answer
+    // with no result consumes the request, so no later answer opens a result
+    // the operator did not ask for. htmx dispatches the event on the element
+    // it swapped into.
+    if (event && event.target === searchBox()) {
+      var opens = searchOpensFirst;
+      searchOpensFirst = false;
       var links = searchLinks();
-      if (links[0]) {
-        searchOpensFirst = false;
-        links[0].click();
-      }
+      if (opens && links[0]) links[0].click();
     }
+
+    releaseSoon();
 
     // The page changed: the stream follows the new one, and the selected
     // row is brought into view.
@@ -876,6 +1041,9 @@
         break;
       case 'events-reconnect':
         reconnect();
+        break;
+      case 'held-apply':
+        applyHeld();
         break;
       default:
         break;
@@ -936,6 +1104,21 @@
     document.addEventListener('htmx:after:swap', afterSwap);
     window.addEventListener('popstate', function () { window.setTimeout(afterSwap, 0); });
     window.addEventListener('pagehide', closeStream);
+    // A page the browser restores from its back-forward cache runs no script
+    // again, and pagehide closed its stream: it opens it again, and fetches
+    // every region once, as after any lost stream.
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) reconnect();
+    });
+    document.addEventListener('focusout', releaseSoon);
+    document.addEventListener('change', releaseSoon);
+    // The selection buttons tick and untick rows with no change event.
+    document.addEventListener('click', releaseSoon);
+    document.addEventListener('reset', releaseSoon, true);
+    // A completed bulk action unticks its rows with no change event
+    // (fleet-components.js clearDoneSelection).
+    document.addEventListener('htmx:after:request', releaseSoon);
+    document.addEventListener('close', releaseSoon, true);
   }
 
   // The script is deferred, so the document is parsed when it runs.

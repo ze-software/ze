@@ -181,8 +181,9 @@ func planTour(ctx context.Context, source fleetui.Source, account string, scope 
 		plan.objects = append(plan.objects, fleetui.Address{Kind: fleetui.ObjectDevice, Device: opened[index].Name})
 	}
 	plan.objects = append(plan.objects, fleetui.Address{Kind: fleetui.ObjectTasks}, fleetui.Address{Kind: fleetui.ObjectAdmin})
-	for _, address := range objectPages(plan.objects, fleetui.Tabs) {
-		plan.page(address)
+	pages := objectPages(plan.objects, fleetui.Tabs)
+	for index := range pages {
+		plan.page(pages[index])
 	}
 
 	plan.charts(estate, opened)
@@ -238,14 +239,15 @@ func appendGroups(objects []fleetui.Address, nodes []fleetui.TreeNode) []fleetui
 // kind that takes no tab.
 func objectPages(objects []fleetui.Address, tabs func(fleetui.ObjectKind) []fleetui.Tab) []fleetui.Address {
 	var pages []fleetui.Address
-	for _, object := range objects {
+	for index := range objects {
+		object := &objects[index]
 		registered := tabs(object.Kind)
 		if len(registered) == 0 {
-			pages = append(pages, object)
+			pages = append(pages, *object)
 			continue
 		}
 		for _, tab := range registered {
-			page := object
+			page := *object
 			page.Tab = tab.Name
 			pages = append(pages, page)
 		}
@@ -257,8 +259,9 @@ func objectPages(objects []fleetui.Address, tabs func(fleetui.ObjectKind) []flee
 // holds no exchange, as its tab link asks for it.
 func unreached(objects []fleetui.Address, tabs func(fleetui.ObjectKind) []fleetui.Tab, held func(key string) bool) []string {
 	var missing []string
-	for _, page := range objectPages(objects, tabs) {
-		request := pageRequest(page)
+	pages := objectPages(objects, tabs)
+	for index := range pages {
+		request := pageRequest(pages[index])
 		key := sitelgreplay.ExchangeKey(request.Method, request.Path, request.Query, nil, request.HTMX)
 		if !held(key) {
 			missing = append(missing, key)
@@ -315,9 +318,9 @@ func (plan *tour) charts(estate fleetui.Address, devices []fleetui.Device) {
 			dashboards = append(dashboards, fleetui.Address{Kind: fleetui.ObjectDevice, Device: devices[index].Name})
 		}
 	}
-	for _, dashboard := range dashboards {
+	for index := range dashboards {
 		for _, chartRange := range fleetui.ChartRanges() {
-			page := dashboard
+			page := dashboards[index]
 			page.Tab = fleetui.TabDashboard
 			page.View.Range = chartRange
 			plan.page(page)
@@ -375,17 +378,15 @@ func (plan *tour) devicesTable(ctx context.Context, source fleetui.Source, accou
 	for index := range devices {
 		versions = append(versions, devices[index].Inventory.SoftwareVersion)
 		for _, label := range devices[index].Labels {
-			labels = append(labels, fleetui.SetFilterTerm("", label.Key, label.Value))
+			labels = appendLabelTerm(labels, fields, label.Key, label.Value)
 		}
 	}
 	var terms []string
 	for _, state := range states {
-		terms = append(terms, fleetui.SetFilterTerm("", stateField, state))
+		terms = appendFilterTerm(terms, stateField, state)
 	}
 	for _, version := range sortedOnce(versions) {
-		if version != "" {
-			terms = append(terms, fleetui.SetFilterTerm("", versionField, version))
-		}
+		terms = appendFilterTerm(terms, versionField, version)
 	}
 	terms = append(terms, sortedOnce(labels)...)
 	saved, err := source.SavedFilters(ctx, account)
@@ -562,8 +563,9 @@ func discover(exchanges []sitelgreplay.Exchange) ([]sitelgreplay.Request, error)
 // attributeTargets answers the unescaped value of every match of pattern in
 // body, in order.
 func attributeTargets(pattern *regexp.Regexp, body string) []string {
-	var values []string
-	for _, match := range pattern.FindAllStringSubmatch(body, -1) {
+	matches := pattern.FindAllStringSubmatch(body, -1)
+	values := make([]string, 0, len(matches))
+	for _, match := range matches {
 		values = append(values, html.UnescapeString(match[1]))
 	}
 	return values
@@ -579,7 +581,7 @@ func targetRequest(target string, htmx bool) (sitelgreplay.Request, error) {
 	if raw == "" {
 		return request, nil
 	}
-	for _, pair := range strings.Split(raw, "&") {
+	for pair := range strings.SplitSeq(raw, "&") {
 		name, value, _ := strings.Cut(pair, "=")
 		decodedName, err := url.QueryUnescape(name)
 		if err != nil {
@@ -773,4 +775,32 @@ func boundFailure(bound string, figure int, what string) *opererr.Error {
 	return opererr.New("The fleet demonstration is past its bound "+bound+" of "+strconv.Itoa(figure)+": "+what,
 		"The bounds are the tour's measured size with room to spare, so the tour grew, and nothing was written.",
 		"narrow the tour where the kinds above say it grew (docs/contributing/gh-pages.md, \"Render the fleet demonstration\"), or raise "+bound+" in internal/le/site/fleetdemo/tour.go with its reason, then "+RenderCommand)
+}
+
+// appendFilterTerm answers terms with the filter that asks field for value,
+// as the page's own assisted menus write it. A value the filter grammar cannot
+// carry (fleetui.SetFilterTerm answers false) has no link on the page, so the
+// tour records no address for it either.
+func appendFilterTerm(terms []string, field, value string) []string {
+	term, carried := fleetui.SetFilterTerm("", field, value)
+	if !carried {
+		return terms
+	}
+
+	return append(terms, term)
+}
+
+// appendLabelTerm answers terms with the filter that asks for the label
+// key=value, as the page's Label menu writes it (fleetui.SetLabelFilterTerm,
+// over fields, the fields of the devices table): the long form label:key=value
+// for a key named like a field, label or has. A pair the filter grammar
+// cannot carry has no link on the page, so the tour records no address for
+// it either.
+func appendLabelTerm(terms, fields []string, key, value string) []string {
+	term, carried := fleetui.SetLabelFilterTerm("", fields, key, value)
+	if !carried {
+		return terms
+	}
+
+	return append(terms, term)
 }

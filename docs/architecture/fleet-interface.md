@@ -187,7 +187,7 @@ state in that section and keeps its others.
 | Fragment | `/fleet/fragment/<name>/<page path>`, read by `ParseFragment`. It carries the page it belongs to with its view, and `item` for a fragment a page holds several of or that takes one argument. "Fragments" lists the ones the shell registers |
 | Tabs | A registered set per kind of object (`MustRegisterTab`, `Tabs`). The parser accepts only a registered tab, so a page family adds a tab from its own register file |
 | View parameters | `q`, `sort`, `page`, `size`, `id`, `range`, `view`, `sub`. `sub` names a sub-view of the page, which the page judges: a device tab's sub-tab, the opened divergence diff (`sub=divergence`), the new-rollout form (`sub=new`). A page size other than 25, 50 or 100 is 50; a page below one is one; a chart range other than `hour`, `day` or `week` is `day`; an absent tree view is `site-role`. A default is left out of a rendered address |
-| Filter | `FilterSchema` holds the grammar of one table: bare word, `field:value`, `field:a,b`, `field:!value`, `field:>n`, `field:<n`, `label:key=value`, a label key in use as a field, `has:<flag>`, terms ANDed. Fields and flags are registered. A filter is at most 512 characters and 32 terms. A refusal wraps `ErrFilterRefused`, names the term and lists the fields. `SetFilterTerm` writes the choice of an assisted menu into the filter text |
+| Filter | `FilterSchema` holds the grammar of one table: bare word, `field:value`, `field:a,b`, `field:!value`, `field:>n`, `field:<n`, `label:key=value`, a label key in use as a field, `has:<flag>`, terms ANDed. Fields and flags are registered. A filter is at most 512 characters and 32 terms. A refusal wraps `ErrFilterRefused`, names the term and lists the fields. `SetFilterTerm` writes the choice of an assisted menu into the filter text, and answers false, writing nothing, for a field or value the grammar cannot carry (empty, holding a space or comma, or opening with `!`, `>` or `<`), so a menu offers no item for it and a link that would name it is not drawn |
 | Tree | A tree view is an ordered list of level keys. A key is a label key, unless a tree level is registered under it (`version`, `state`, `group`), which reads a field of the device. Built-in views: `site-role`, `role`, `version`, `state`. At most eight levels |
 | Sort | `ColumnSet` holds the sortable columns of one table, registered. The sort is stable; `sort=-column` is descending; an unknown column wraps `ErrSortRefused`. The state column sorts by severity: down, offline, diverged, degraded, unknown, healthy |
 | Page | `Paginate` clamps the page to the last one and answers the figures "first to last of total" |
@@ -380,7 +380,9 @@ A fragment answers markup, or JSON when its builder answers `fragmentJSON`.
 page. It carries no data of the estate. Each event is named `stale` and lists
 the regions of the page that are stale, among `tree`, `content`, `tasks` and
 `header`, and the script fetches again the fragment of every element marked
-with that region (`data-fleet-region`, `data-fleet-name`).
+with that region (`data-fleet-region`, `data-fleet-name`), unless that
+element holds what the operator is doing in the browser: then its refresh
+waits (Hold, below).
 
 | Rule | Detail |
 |------|--------|
@@ -392,9 +394,19 @@ with that region (`data-fleet-region`, `data-fleet-name`).
 | Loss | The script shows a banner with the time the updates stopped, tries again after one second and then twice as long each time, up to thirty seconds and eight attempts, and fetches every region once when the stream is back |
 | Open | While the page's stream is open the root element carries `data-fleet-stream="open"`; closing the stream removes it. The hub subscribes the stream before it answers, so from then on every event reaches the page, and a browser test waits for the attribute, never for a time, before it steps the estate |
 | Stepping | `POST /fleet/prototype/step` advances a scripted source by one event and answers the kind of the event and the device it is about. `POST /fleet/prototype/hold` stops the source from advancing its script on its own and changes nothing else; there is no route that resumes it, because `Hold` is for good. Both are mounted only when the registered source implements `Stepper`, which only the sample source does, so a browser test decides when the estate changes. Asked by htmx they answer a line for the control's target and an informational toast out of band |
+| Scope refusal | A scope that names no page answers 400. A scope that cannot be built never answers a success status, because an EventSource reads any success as a stream: a group no device is in answers 404, a profile that may not read the devices 403, and a data layer that could not answer 503. The page then works without live updates |
+| Hold | An element whose refresh would discard browser state waits instead: a field the operator is in, a field they changed (a ticked row, typed text, a changed choice), or an open dialog, which holds every region and the task panel. Each waiting element is fetched once, when what held it is gone, which the script checks after a focus change, a change, a click, a reset, a dialog close, a swap and an answered request. An element a navigation removed is dropped, since the page that replaced it is current |
+| `data-fleet-held` | While any refresh waits, the root element carries `data-fleet-held="true"`; when none waits it is removed. A browser test waits for it, never for a time, to know a refresh is held |
+| Paused mark | While the root carries `data-fleet-held`, the main pane shows, below where the lost stream banner appears, the mark "Live updates are paused while you edit" (`#fleet-held`), styled by `fleet-shell.css` with no `style` attribute, so a held page never looks live. Its Apply now fetches every waiting element at once, discarding what they held; the task panel still waits for an open dialog |
+| Bulk done | An action carried out on the rows its form posted answers the header `X-Fleet-Selection-Done: true` (`ToastView.SelectionDone`). The script unticks that form's rows, which releases the refresh they held. A refusal, an action with no row and a filter save answer no header, so the rows stay ticked for the operator to try again |
+| Back-forward | A page the browser restores from its back-forward cache runs no script again, and `pagehide` closed its stream: on `pageshow` the script opens the stream again and fetches every region once, as after any lost stream |
 | Header controls | Over a `Stepper`, the header carries Step and Hold beside the "Sample data" tag (`headerScript`, ids `fleet-proto-step` and `fleet-proto-hold`), so the owner can move the estate one event at a time from any page while reviewing it. Each is a button of its own form, posting to its route with `hx-swap="none"`: the page swaps nothing, the toast lands out of band, and the event reaches every region through the page's stream. Over any other source the header draws no control, because the routes are not mounted |
-<!-- source: internal/component/web/fleetui/handler_events.go -- eventStream.ServeHTTP, eventStream.run, eventScope.stale, eventScope.settle, Stepper, newStepHandler, newHoldHandler -->
-<!-- source: internal/component/web/fleetui/assets/fleet.js -- openStream, closeStream, streamFailed, refreshRegion, STREAM_OPEN -->
+<!-- source: internal/component/web/fleetui/handler_events.go -- eventStream.ServeHTTP, eventStream.run, eventScope.stale, eventScope.settle, scopeRefusalStatus, Stepper, newStepHandler, newHoldHandler -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- openStream, closeStream, streamFailed, refreshRegion, refreshElement, holdsState, hold, markHeld, releaseHeld, applyHeld, HELD, STREAM_OPEN, start (pageshow) -->
+<!-- source: internal/component/web/fleetui/shell.templ -- heldBanner -->
+<!-- source: internal/component/web/fleetui/handler_action.go -- actionSelectionDoneHeader, actionHandler.ServeHTTP -->
+<!-- source: internal/component/web/fleetui/handler_devices_action.go -- devicesActionToast -->
+<!-- source: internal/component/web/fleetui/assets/fleet-components.js -- clearDoneSelection -->
 <!-- source: internal/component/web/fleetui/shell_view.go -- HeaderScriptView, headerScriptView -->
 <!-- source: internal/component/web/fleetui/shell.templ -- headerScript -->
 

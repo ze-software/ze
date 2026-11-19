@@ -1,0 +1,43 @@
+# Test: a live refresh waits while a row of the content is ticked
+# VALIDATES: spec-fleet-ui-1 user story 4 with the closure review's live
+#            refresh finding -- an event that makes the content stale does
+#            not discard what the operator chose in the browser: a ticked row
+#            keeps the content as drawn, and the refresh lands once the row
+#            is unticked
+# PREVENTS: a stream event that re-fetches the content and drops the rows an
+#           operator ticked for a bulk action
+#
+# Goal: prove the content region holds its refresh while it holds browser
+# state, and applies it when that state is gone.
+# Method: the review build starts with its sample script held, so the estate
+# changes only when the header's Step is pressed. core-par-02 is offline from
+# the start (sample/estate.go offlineFor), so the devices table filtered to
+# state:offline holds its row; the script's first step takes cpe-lon-03
+# offline, which adds it to that table. The test ticks core-par-02, steps,
+# and waits for the root's data-fleet-held, which fleet.js sets when a
+# refresh waits: the table still lacks cpe-lon-03 at that point. Unticking
+# the row releases the refresh, and the table then shows cpe-lon-03. Every
+# wait is on state the page shows, never on a time.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=env:var=ze.web.fleet.sample.held:value=true
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/?q=state%3Aoffline
+expect=html:id=fleet-content:contains=core-par-02
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+
+action=click:text=Select core-par-02
+expect=attribute:selector=tr.fleet-table-row--selected:name=class:contains=fleet-table-row--selected
+
+# Step 1: cpe-lon-03 goes offline, and the content is stale. Its refresh waits.
+action=click:id=fleet-proto-step
+expect=attribute:selector=html:name=data-fleet-held:value=true
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+expect=attribute:selector=tr.fleet-table-row--selected:name=class:contains=fleet-table-row--selected
+
+# Unticked, the content holds nothing of the browser's: the refresh lands.
+action=click:text=Select core-par-02
+expect=html:id=fleet-content:contains=cpe-lon-03

@@ -1,0 +1,47 @@
+# Test: a held live refresh shows the paused mark, and Apply now applies it
+# VALIDATES: spec-fleet-ui-1 user story 4 with the closure review's held
+#            refresh finding -- while a region holds its refresh for what the
+#            operator is doing in the browser, the page says so near the live
+#            banner, and its Apply now control fetches the waiting refresh
+# PREVENTS: a page that holds its refresh with no sign of it, looking live
+#           while it shows what was read before the event, for as long as a
+#           row stays ticked
+#
+# Question: does the page show that it holds a refresh, and does the
+# operator's Apply now land it? Only a browser decides it: the hold, the
+# mark and the control are fleet.js state over a live event stream.
+# Method: the review build starts with its sample script held, so the estate
+# changes only when the header's Step is pressed. core-par-02 is offline from
+# the start (sample/estate.go offlineFor), so the devices table filtered to
+# state:offline holds its row; the script's first step takes cpe-lon-03
+# offline, which adds it to that table. The test ticks core-par-02 and steps:
+# the root carries data-fleet-held, the paused mark is shown and the table
+# still lacks cpe-lon-03. Apply now, with the row still ticked, lands the
+# refresh: the table shows cpe-lon-03 and the mark is gone. Every wait is on
+# state the page shows, never on a time.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=env:var=ze.web.fleet.sample.held:value=true
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/?q=state%3Aoffline
+expect=html:id=fleet-content:contains=core-par-02
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+expect=element:not-text=Live updates are paused
+
+action=click:text=Select core-par-02
+expect=attribute:selector=tr.fleet-table-row--selected:name=class:contains=fleet-table-row--selected
+
+# Step 1: cpe-lon-03 goes offline, and the content is stale. Its refresh
+# waits, and the page says so.
+action=click:id=fleet-proto-step
+expect=attribute:selector=html:name=data-fleet-held:value=true
+expect=element:text=Live updates are paused
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+
+# Apply now lands the refresh although the row is still ticked.
+action=click:text=button "Apply now"
+expect=html:id=fleet-content:contains=cpe-lon-03
+expect=element:not-text=Live updates are paused

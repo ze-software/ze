@@ -270,18 +270,20 @@ func peersTable(request *PageRequest, view *DeviceView, peers []Peer) templ.Comp
 	}
 
 	matched := peers
+	refusals := make([]error, 0, 2)
 	filter, err := peerFilters.Parse(address.View.Filter, nil)
 	if err == nil {
 		matched = filter.Apply(peers)
 	} else {
-		query.Refusal = refusalOf(err).Problem()
+		refusals = append(refusals, err)
 	}
 
 	sorted, err := peerColumns.Sort(matched, address.View.Sort)
 	if err != nil {
 		sorted = matched
-		query.Refusal = refusalOf(err).Problem()
+		refusals = append(refusals, err)
 	}
+	query.Refusal = refusalsText(refusals)
 
 	page := Paginate(len(sorted), address.View.Page, address.View.Size)
 	query.Matches = matchesText(len(sorted), len(peers), peersSubject)
@@ -316,13 +318,13 @@ func peersTable(request *PageRequest, view *DeviceView, peers []Peer) templ.Comp
 		Table: TableView{
 			Name: "BGP peers of " + view.Device.Name,
 			Headers: []ColumnHeaderView{
-				sortHeader(address, "Peer", ColumnKindAddress, fieldName, false),
-				sortHeader(address, devicesWordGroup, ColumnKindText, fieldGroup, false),
-				sortHeader(address, "Remote AS", ColumnKindNumber, fieldAS, true),
-				sortHeader(address, columnWordState, ColumnKindState, fieldState, false),
-				sortHeader(address, wordSince, ColumnKindTime, fieldSince, false),
-				sortHeader(address, "Received", ColumnKindNumber, fieldReceived, true),
-				sortHeader(address, "Sent", ColumnKindNumber, fieldSent, true),
+				sortHeader(peerColumns, address, "Peer", ColumnKindAddress, fieldName, false),
+				sortHeader(peerColumns, address, devicesWordGroup, ColumnKindText, fieldGroup, false),
+				sortHeader(peerColumns, address, "Remote AS", ColumnKindNumber, fieldAS, true),
+				sortHeader(peerColumns, address, columnWordState, ColumnKindState, fieldState, false),
+				sortHeader(peerColumns, address, wordSince, ColumnKindTime, fieldSince, false),
+				sortHeader(peerColumns, address, "Received", ColumnKindNumber, fieldReceived, true),
+				sortHeader(peerColumns, address, "Sent", ColumnKindNumber, fieldSent, true),
 				{Label: "Last error", Kind: ColumnKindText},
 			},
 			Rows:     rows,

@@ -229,11 +229,12 @@ templ adminLinks(view SidebarView) {
 	}
 }
 
-// shellMain renders the main pane: the banner that says live updates
-// stopped, the object region and the content region.
+// shellMain renders the main pane: the banners that say live updates
+// stopped or are paused, the object region and the content region.
 templ shellMain(view MainView, content templ.Component) {
 	<main class="fleet-main" id="fleet-main">
 		@staleBanner()
+		@heldBanner()
 		<div class="fleet-object" id={ idObject } data-fleet-region={ regionKeyContent } data-fleet-name={ fragmentObject }>
 			@objectRegion(view)
 		</div>
@@ -250,6 +251,19 @@ templ staleBanner() {
 		@Icon("alert")
 		<span class="fleet-stale-text">Live updates stopped at <time id="fleet-stale-time"></time>. This page shows what was read then.</span>
 		<button type="button" class="fleet-stale-action" data-fleet-action="events-reconnect">Reconnect</button>
+	</div>
+}
+
+// heldBanner renders the mark shown while a live refresh waits because a
+// region holds what the operator is doing in the browser: a ticked row,
+// typed text, a changed choice or an open dialog. The script shows it while
+// the root carries data-fleet-held, and its control applies the waiting
+// refreshes at once.
+templ heldBanner() {
+	<div class="fleet-stale fleet-stale--held" id="fleet-held" role="status" hidden>
+		@Icon("info")
+		<span class="fleet-stale-text">Live updates are paused while you edit, so your ticked rows and typed text are kept. They apply when you finish; applying them now discards your edits.</span>
+		<button type="button" class="fleet-stale-action" data-fleet-action="held-apply">Apply now</button>
 	</div>
 }
 

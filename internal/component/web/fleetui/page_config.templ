@@ -14,10 +14,13 @@ type ManageSectionView struct {
 
 // ManageFormView is the hidden form every action of a manage page submits.
 // URL is the manage action of the page in hand; the submitting button adds
-// the action and its target as the item field of the posted body.
+// the action and its target as the item field of the posted body. Include,
+// when set, names the form whose fields are posted with the action: the
+// choices of the new rollout form.
 type ManageFormView struct {
-	ID  string
-	URL string
+	ID      string
+	URL     string
+	Include string
 }
 
 // ConfigTabView is the Config tab of a device. Offline is the banner of a
@@ -65,7 +68,11 @@ templ manageSection(v ManageSectionView) {
 // ManageForm draws the hidden form the actions of a manage page submit. Its
 // answer is a toast, swapped out of band, so the form swaps nothing itself.
 templ ManageForm(v ManageFormView) {
-	<form id={ v.ID } class="fleet-manage-form" method="post" action={ templ.URL(v.URL) } hx-post={ v.URL } hx-target="this" hx-swap="none"></form>
+	if v.Include != "" {
+		<form id={ v.ID } class="fleet-manage-form" method="post" action={ templ.URL(v.URL) } hx-post={ v.URL } hx-target="this" hx-swap="none" hx-include={ v.Include }></form>
+	} else {
+		<form id={ v.ID } class="fleet-manage-form" method="post" action={ templ.URL(v.URL) } hx-post={ v.URL } hx-target="this" hx-swap="none"></form>
+	}
 }
 
 // ConfigTab draws the Config tab of a device.

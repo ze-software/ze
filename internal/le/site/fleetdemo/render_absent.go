@@ -2,20 +2,16 @@
 
 // Design: docs/contributing/gh-pages.md -- the fleet interface demonstration: a le without the fleet interface
 // Related: render.go -- render, in a le that links the fleet interface
+// Related: render_refusal.go -- the refusal this render answers
 
 package sitefleetdemo
 
 import (
 	"context"
-
-	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // render refuses: this le was built without the fleet interface, so there are
-// no fleet pages to record. le is built with every tag of feature-gates.txt,
-// so only a build made by hand without ze_web or ze_fleet_ui answers this.
-func render(context.Context, demonstration) (rendered, error) {
-	return rendered{}, opererr.New("This le was built without the fleet interface, so it has no fleet pages to record",
-		"The demonstration records the fleet package's own handlers, which the ze_web and ze_fleet_ui tags link, and this le was built without them.",
-		"./le site fleet-demo render")
+// no fleet pages to record. absentRefusal names why and the fix.
+func render(_ context.Context, demo demonstration) (rendered, error) {
+	return rendered{}, absentRefusal(demo.repository)
 }

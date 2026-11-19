@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -615,15 +616,99 @@ func (schema *FilterSchema[T]) refuse(problem, fix string) error {
 	return opererr.Wrap(ErrFilterRefused, problem, filterWhy, fix)
 }
 
-// SetFilterTerm answers filter with the term of one field set to value: the
-// first term that names the field is replaced, any later one is dropped, and
-// a filter with none gains the term at its end. An assisted filter menu
-// writes its choice into the filter box with it, so the box always shows the
-// whole filter.
-func SetFilterTerm(filter, field, value string) string {
-	term := field + filterFieldSeparator + value
-	prefix := field + filterFieldSeparator
+// SetFilterTerm answers filter with the term of one field set to any of
+// values, and true: the first term that names the field is replaced, any
+// later one is dropped, and a filter with none gains the term at its end. An
+// assisted filter menu writes its choice into the filter box with it, so the
+// box always shows the whole filter. For the field label, values is the one
+// pair key=value, and the terms replaced are those of that key alone.
+//
+// The grammar has no quoting, so it answers false, and no filter, when it
+// cannot carry the term: a field that is empty or holds a colon or a space, a
+// value that is empty, holds a space or a comma, or opens with !, > or <, and
+// a label pair with no key or no value. Any filter written for such a value
+// would read back as other terms than the caller asked for, so a caller
+// offers no link for it.
+func SetFilterTerm(filter, field string, values ...string) (string, bool) {
+	return setFilterTerm(filter, field, false, values)
+}
 
+// setFilterTerm is SetFilterTerm, with the term written for none of values
+// when negated is true.
+func setFilterTerm(filter, field string, negated bool, values []string) (string, bool) {
+	if !filterFieldCarried(field) || len(values) == 0 {
+		return "", false
+	}
+
+	prefix := field + filterFieldSeparator
+	if field == filterLabelKey {
+		key, carried := filterLabelPairKey(values)
+		if !carried || negated {
+			return "", false
+		}
+		prefix += key + groupSeparator
+	} else {
+		for _, value := range values {
+			if !filterValueCarried(value) {
+				return "", false
+			}
+		}
+	}
+
+	term := textbuf.New().Str(field).Str(filterFieldSeparator)
+	if negated {
+		term.Str(filterNegation)
+	}
+	term.Join(values, filterListSeparator)
+
+	return placeFilterTerm(filter, prefix, term.Slice()), true
+}
+
+// filterFieldCarried reports whether the grammar reads field back as the
+// field of a term.
+func filterFieldCarried(field string) bool {
+	return field != "" && !strings.ContainsFunc(field, unicode.IsSpace) && !strings.Contains(field, filterFieldSeparator)
+}
+
+// filterValueCarried reports whether the grammar reads value back as one
+// literal value of a term, neither a list, a negation nor a comparison.
+func filterValueCarried(value string) bool {
+	if value == "" || strings.ContainsFunc(value, unicode.IsSpace) || strings.Contains(value, filterListSeparator) {
+		return false
+	}
+
+	return !strings.HasPrefix(value, filterNegation) && !isComparison(value)
+}
+
+// filterLabelPairKey answers the key of the one label pair key=value that
+// values holds, and whether the grammar reads the pair back: one pair, with
+// no space, a key and a value. The pair is cut at its first equals sign, as
+// compileLabel cuts it.
+func filterLabelPairKey(values []string) (string, bool) {
+	if len(values) != 1 || strings.ContainsFunc(values[0], unicode.IsSpace) {
+		return "", false
+	}
+
+	key, value, valued := strings.Cut(values[0], groupSeparator)
+
+	return key, valued && key != "" && value != ""
+}
+
+// setFixedFilterTerm is SetFilterTerm for a value of the package's own fixed
+// vocabulary: a state key, or a time it formats itself. The grammar carries
+// every such value, so one it cannot carry is a bug of this package.
+func setFixedFilterTerm(filter, field, value string) string {
+	set, carried := SetFilterTerm(filter, field, value)
+	if !carried {
+		panic("BUG: fleetui: the filter grammar cannot carry the fixed value " + field + filterFieldSeparator + value)
+	}
+
+	return set
+}
+
+// placeFilterTerm answers filter with term in place of the first term that
+// opens with prefix, the later ones dropped, or at its end when none does.
+func placeFilterTerm(filter, prefix, term string) string {
 	terms := strings.Fields(filter)
 	kept := make([]string, 0, len(terms)+1)
 	placed := false

@@ -33,9 +33,9 @@ const (
 	// renderWait bounds one render. The sample estate is in memory and the
 	// handlers answer in process, but every answer reads the estate whole:
 	// the first full tour asked about 9,000 requests in about seven minutes
-	// (some 47 ms each), and the narrowed tour's estimated 3,000 take about
-	// two and a half. The bound stops a handler that never answers, with
-	// room for a busy machine.
+	// (some 47 ms each), and the narrowed tour asks 2,007 (measured), about
+	// a minute and a half at that rate. The bound stops a handler that never
+	// answers, with room for a busy machine.
 	renderWait = 10 * time.Minute
 )
 
@@ -91,12 +91,12 @@ type demonstration struct {
 	clock func() time.Time
 	// scope is how much of the estate the tour opens. The action leaves it
 	// the whole tour; only a test narrows it.
-	scope tourScope
+	scope tourScope //nolint:unused // read by the tour, which a build with ze_web and ze_fleet_ui links (tour.go)
 }
 
 // tourScope is how much of the estate a tour opens. The zero scope is the
 // whole tour, which every render of the action records.
-type tourScope struct {
+type tourScope struct { //nolint:unused // read by the tour, which a build with ze_web and ze_fleet_ui links (tour.go)
 	// sampled keeps, beside the estate, the task list and the
 	// administration, the first group node of the default tree view with the
 	// nodes below it, the first featured device and the first ordinary one
@@ -141,11 +141,17 @@ type rendered struct {
 	assets    int
 }
 
+// The report's keys for a size in bytes and for an answer count.
+const (
+	reportBytes     = "bytes"
+	reportExchanges = "exchanges"
+)
+
 // kindReport answers sizes as the report prints them.
 func kindReport(sizes []kindSize) []map[string]any {
 	report := make([]map[string]any, 0, len(sizes))
 	for _, size := range sizes {
-		report = append(report, map[string]any{"kind": size.kind, "exchanges": size.exchanges, "bytes": size.bytes})
+		report = append(report, map[string]any{"kind": size.kind, reportExchanges: size.exchanges, reportBytes: size.bytes})
 	}
 	return report
 }
@@ -182,28 +188,28 @@ func runRender(arguments leaction.Arguments) (any, int) {
 	files := make([]map[string]any, 0, len(written.files))
 	total := 0
 	for _, file := range written.files {
-		files = append(files, map[string]any{"file": file.path, "bytes": file.size})
+		files = append(files, map[string]any{"file": file.path, reportBytes: file.size})
 		total += file.size
 	}
 
 	chunks := make([]map[string]any, 0, len(written.chunks))
 	for _, chunk := range written.chunks {
 		chunks = append(chunks, map[string]any{
-			"chunk": chunk.name, "exchanges": chunk.exchanges, "bytes": chunk.size, "kinds": kindReport(chunk.kinds),
+			"chunk": chunk.name, reportExchanges: chunk.exchanges, reportBytes: chunk.size, "kinds": kindReport(chunk.kinds),
 		})
 	}
 
 	return map[string]any{
-		"output":    paths.Output,
-		"files":     files,
-		"chunks":    chunks,
-		"kinds":     kindReport(written.kinds),
-		"bytes":     total,
-		"exchanges": written.exchanges,
-		"assets":    written.assets,
-		"commit":    demo.provenance.Commit,
-		"trial":     demo.provenance.TreeDirty,
-		"published": false,
+		"output":        paths.Output,
+		"files":         files,
+		"chunks":        chunks,
+		"kinds":         kindReport(written.kinds),
+		reportBytes:     total,
+		reportExchanges: written.exchanges,
+		"assets":        written.assets,
+		"commit":        demo.provenance.Commit,
+		"trial":         demo.provenance.TreeDirty,
+		"published":     false,
 	}, 0
 }
 

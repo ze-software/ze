@@ -21,6 +21,14 @@
 # positive expectation polls the region until the stream's refresh lands.
 # The step waits for the page's stream to be open (the root's
 # data-fleet-stream, set when the hub has subscribed it), never for a time.
+# Each press waits for the answer of the press before it: the Step form has
+# no hx-sync, and htmx queues one request behind the one in flight and drops
+# a third, so presses sent back to back would reach the hub as fewer steps on
+# a slow host. The step route answers htmx with a toast naming the event it
+# published (newStepHandler), and the script is sequential, so the toast of
+# step N proves step N reached the hub. Step 5 publishes what step 1 did, so
+# before it the test waits for step 1's toast to leave (an informational
+# toast leaves on its own, toastShortSeconds after it shows).
 
 option=needs-build-tag:value=ze_fleet_ui_sample:state=present
 option=env:var=ze.web.fleet.sample.held:value=true
@@ -47,14 +55,25 @@ expect=url:contains=q=state%3Aoffline
 expect=html:id=fleet-header-tasks:contains=Tasks, 2 running
 
 # Steps 2 to 8: the alarm opens, two results, the device returns, the alarm
-# clears, two more results. Step 9 ends T-2051.
+# clears, two more results. Step 9 ends T-2051. Each press waits for its own
+# toast before the next one.
+expect=html:id=fleet-toasts:contains=The sample script published device-changed cpe-lon-03.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published alarm-opened core-lon-01.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published task-progressed cpe-ams-01.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published task-progressed cpe-ams-02.
+action=wait-html:not-contains=The sample script published device-changed cpe-lon-03.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published device-changed cpe-lon-03.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published alarm-cleared core-lon-01.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published task-progressed cpe-fra-03.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published task-progressed cpe-fra-01.
 action=click:id=fleet-proto-step
+expect=html:id=fleet-toasts:contains=The sample script published task-ended.
 expect=html:id=fleet-header-tasks:contains=Tasks, 1 running
 expect=url:contains=q=state%3Aoffline

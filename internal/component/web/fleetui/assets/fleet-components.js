@@ -3,7 +3,9 @@
  * Everything is attached through data attributes and delegated from the
  * document, because htmx replaces the content region and a listener bound to
  * an element would be lost with it. No markup is built here: a toast, a menu
- * and the confirm dialog are drawn by their templates.
+ * and the confirm dialog are drawn by their templates. The one exception is
+ * the error toast of a confirmed action whose control is gone, which no
+ * server answer exists to carry (confirmLost).
  *
  * A server answer adds a toast by carrying the ToastOOB component: htmx
  * appends it to #fleet-toasts, and the observer below arms it on arrival.
@@ -110,6 +112,31 @@
       if (table.getAttribute('data-fleet-table') !== formId) return;
       setAll(table, how !== 'none');
       setEveryMatch(formId, how === 'matches');
+      refreshTable(table);
+    });
+  }
+
+  // SELECTION_DONE is the response header of an action carried out on the
+  // rows its form posted (handler_action.go actionSelectionDoneHeader).
+  var SELECTION_DONE = 'X-Fleet-Selection-Done';
+
+  // clearDoneSelection unticks the rows of a bulk form whose action was
+  // carried out: they did what they were ticked for, and a ticked row holds
+  // the live refresh of its region (fleet.js holdsState), which fleet.js
+  // releases after this request. A refusal leaves the rows ticked, for the
+  // operator to try again.
+  function clearDoneSelection(event) {
+    // htmx names the form it posted, or the submit button that posted it.
+    var form = event.target && event.target.form ? event.target.form : event.target;
+    if (!form || !form.matches || !form.matches('[data-fleet-bulk-form]')) return;
+    var ctx = event.detail && event.detail.ctx;
+    if (!ctx || !ctx.response || !ctx.response.headers) return;
+    if (ctx.response.headers.get(SELECTION_DONE) !== 'true') return;
+
+    setEveryMatch(form.id, false);
+    document.querySelectorAll('[data-fleet-table]').forEach(function(table) {
+      if (table.getAttribute('data-fleet-table') !== form.id) return;
+      setAll(table, false);
       refreshTable(table);
     });
   }
@@ -270,15 +297,87 @@
     slot(dialog, 'confirm').disabled = input.value.trim() !== expect;
   }
 
+  // CONFIRM_IDENTITY names the attributes that tell one confirmable control
+  // from another: the same action, on the same targets, of the same form,
+  // with the same field.
+  var CONFIRM_IDENTITY = ['id', 'form', 'name', 'value', 'data-confirm-action', 'data-confirm-targets'];
+
+  function sameControl(a, b) {
+    return CONFIRM_IDENTITY.every(function(name) {
+      return a.getAttribute(name) === b.getAttribute(name);
+    });
+  }
+
+  // controlInPage answers the control the operator confirmed, as the page
+  // holds it now. A refresh that landed while the dialog was open replaced
+  // the control the dialog was opened from, and a detached button submits
+  // nothing when clicked: the one drawn in its place is found again.
+  function controlInPage(saved) {
+    if (saved.isConnected) return saved;
+
+    var found = null;
+    document.querySelectorAll('[data-confirm-action]').forEach(function(control) {
+      if (!found && sameControl(control, saved)) found = control;
+    });
+    return found;
+  }
+
+  // confirmLost says, in an error toast, that the confirmed action could not
+  // be sent, so a confirmed action never vanishes in silence.
+  function confirmLost(action) {
+    var area = toastArea();
+    if (!area) return;
+
+    var toast = document.createElement('div');
+    toast.className = 'fleet-toast fleet-toast--error';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('data-fleet-toast', 'true');
+    toast.setAttribute('data-fleet-confirm-lost', 'true');
+    toast.setAttribute('data-toast-lifetime', '0');
+
+    var body = document.createElement('div');
+    body.className = 'fleet-toast-body';
+    var message = document.createElement('p');
+    message.className = 'fleet-toast-message';
+    var word = document.createElement('span');
+    word.className = 'fleet-toast-word';
+    word.textContent = 'Error';
+    message.appendChild(word);
+    message.appendChild(document.createTextNode(' "' + action + '" was not sent: the page changed while it was being confirmed.'));
+    var detail = document.createElement('p');
+    detail.className = 'fleet-toast-detail';
+    detail.textContent = 'The control it was confirmed from is no longer on the page, or is disabled now. Check the page as it is, then start the action again.';
+    body.appendChild(message);
+    body.appendChild(detail);
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'fleet-icon-button';
+    close.setAttribute('data-fleet-toast-close', 'true');
+    close.setAttribute('aria-label', 'Dismiss this notification');
+    close.title = 'Dismiss';
+    close.textContent = 'x';
+
+    toast.appendChild(body);
+    toast.appendChild(close);
+    area.appendChild(toast);
+  }
+
   function onConfirmClose(dialog) {
-    var control = confirming;
+    var saved = confirming;
     confirming = null;
-    if (!control || dialog.returnValue !== 'confirm') return;
+    if (!saved || dialog.returnValue !== 'confirm') return;
 
     // The typed text is judged again here: the confirm button is the only
     // way to answer "confirm", and it is disabled until the text matches.
     var expect = slot(dialog, 'expect').textContent;
     if (expect !== '' && slot(dialog, 'input').value.trim() !== expect) return;
+
+    var control = controlInPage(saved);
+    if (!control || control.disabled) {
+      confirmLost(saved.getAttribute('data-confirm-action') || 'The action');
+      return;
+    }
 
     control.dataset.fleetConfirmed = 'true';
     control.click();
@@ -404,6 +503,7 @@
   document.addEventListener('input', onInput);
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('htmx:after:swap', refresh);
+  document.addEventListener('htmx:after:request', clearDoneSelection);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', refresh);

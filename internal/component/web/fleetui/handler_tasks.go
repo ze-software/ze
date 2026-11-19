@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/a-h/templ"
 
@@ -37,7 +38,6 @@ const (
 	activityTabTasks  = "tasks"
 	activityTabAlarms = "alarms"
 	activityTabStates = "states"
-	activityTabConfig = "config"
 	activityTabAudit  = "audit"
 )
 
@@ -491,8 +491,10 @@ func taskActionAnswer(ctx context.Context, request *PageRequest, form url.Values
 func taskActionToast(ctx context.Context, request *PageRequest, item string) ToastView {
 	list := &LinkView{Label: "Open the task list", Href: Address{Kind: ObjectTasks, View: linkView(request)}.String()}
 
+	// An id longer than a toast quotes names no task, and is never handed to
+	// the source, which would quote it whole in its refusal.
 	verb, id, named := strings.Cut(item, taskItemSeparator)
-	if !named {
+	if !named || utf8.RuneCountInString(id) > echoMax {
 		return refusalToast(taskActionUnknown(item), list)
 	}
 
@@ -541,7 +543,7 @@ func taskActionToast(ctx context.Context, request *PageRequest, item string) Toa
 // taskActionUnknown is the refusal of a task action item that names no verb
 // and task.
 func taskActionUnknown(item string) error {
-	problem := textbuf.New().Str("The task action ").Quoted(item).Str(" is not one the fleet interface offers.").String()
+	problem := textbuf.New().Str("The task action ").Quoted(echoText(item)).Str(" is not one the fleet interface offers.").String()
 
 	return opererr.Wrap(ErrAddressUnknown, problem,
 		"An action names its verb and its task, and this names neither a known verb nor a task, so nothing was done.",
@@ -577,6 +579,19 @@ func activityRefusalText(err error) string {
 	refusal := refusalOf(err)
 
 	return refusal.Problem() + " " + refusal.Why() + " Fix: " + refusal.Fix()
+}
+
+// refusalsText answers the refusals one table met, each as
+// activityRefusalText writes it, in the order they were met: a filter and a
+// sort refused together are both shown, so the operator learns why the rows
+// are unfiltered as well as why they are unsorted.
+func refusalsText(errs []error) string {
+	texts := make([]string, 0, len(errs))
+	for _, err := range errs {
+		texts = append(texts, activityRefusalText(err))
+	}
+
+	return textbuf.New().Join(texts, " ").Slice()
 }
 
 // activityMatches answers the count of rows a filter keeps: "3 of 15 tasks".
@@ -635,8 +650,12 @@ func activityFilterMenu(request *PageRequest, label, field string, values, words
 	menu := MenuView{Label: label, Icon: glyphFilter, Items: make([]ActionView, 0, len(values))}
 
 	for index, value := range values {
+		filter, carried := SetFilterTerm(request.Address.View.Filter, field, value)
+		if !carried {
+			continue
+		}
 		target := request.Address
-		target.View.Filter = SetFilterTerm(target.View.Filter, field, value)
+		target.View.Filter = filter
 		target.View.Page = 1
 		target.View.Row = ""
 		menu.Items = append(menu.Items, ActionView{Label: words[index], Href: target.String()})

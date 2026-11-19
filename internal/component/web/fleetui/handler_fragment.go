@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/a-h/templ"
 
@@ -99,7 +100,7 @@ func (handler *fleetHandler) serveFragment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if len(fragment.Item) > fragmentItemMax {
+	if utf8.RuneCountInString(fragment.Item) > fragmentItemMax {
 		answerRefusal(w, itemTooLong(), http.StatusBadRequest)
 		return
 	}

@@ -1,0 +1,46 @@
+# Test: a completed bulk action unticks its rows and releases the held refresh
+# VALIDATES: spec-fleet-ui-1 user story 4 with the closure review's held
+#            refresh finding -- the rows a bulk action was carried out on are
+#            unticked when its answer arrives, so the live refresh they held
+#            lands and the paused mark goes
+# PREVENTS: rows left ticked after their action completed, which hold the
+#           table's refresh for as long as the page stays open
+#
+# Question: does a completed bulk action end the hold its ticked rows made?
+# Only a browser decides it: the untick follows the action's response header
+# (X-Fleet-Selection-Done, pinned for the server by
+# TestDevicesBulkDoneClearsTheSelection), and the release is fleet.js state.
+# Method: the sample script is held, so the estate changes only when Step is
+# pressed. core-par-02 is offline from the start, so the table filtered to
+# state:offline holds its row; the first step takes cpe-lon-03 offline. The
+# test ticks core-par-02, steps, and sees the hold and its mark. Add label,
+# confirmed, is carried out on the ticked row: its toast arrives, the row is
+# unticked, and the table then shows cpe-lon-03 with the mark gone. Every
+# wait is on state the page shows, never on a time.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=env:var=ze.web.fleet.sample.held:value=true
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/?q=state%3Aoffline
+expect=html:id=fleet-content:contains=core-par-02
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+
+action=click:text=Select core-par-02
+expect=attribute:selector=tr.fleet-table-row--selected:name=class:contains=fleet-table-row--selected
+
+action=click:id=fleet-proto-step
+expect=attribute:selector=html:name=data-fleet-held:value=true
+expect=element:text=Live updates are paused
+expect=html:id=fleet-content:not-contains=cpe-lon-03
+
+# The action is carried out on the ticked row: its rows are unticked, and the
+# refresh they held lands.
+action=click:text=button "Add label"
+expect=html:id=fleet-confirm:contains=Add label
+action=click:text=button "Confirm"
+expect=html:id=fleet-toasts:contains=Add label, 1 device: core-par-02.
+expect=html:id=fleet-content:contains=cpe-lon-03
+expect=element:not-text=Live updates are paused

@@ -27,9 +27,17 @@ const (
 	dashInterfaceUp     = "up"
 )
 
-// dashPeerNotEstablished is the state filter value of the peers that are
-// neither established nor administratively down.
-const dashPeerNotEstablished = filterNegation + dashPeerEstablished + filterListSeparator + dashStateAdminDown
+// dashPeersNotEstablished answers the state filter of the peers that are
+// neither established nor administratively down: one negated term over both
+// words. The grammar carries both words, so a refusal is a bug of this package.
+func dashPeersNotEstablished() string {
+	filter, carried := setFilterTerm("", fieldState, true, []string{dashPeerEstablished, dashStateAdminDown})
+	if !carried {
+		panic("BUG: fleetui: the filter grammar cannot carry the negated peer states")
+	}
+
+	return filter
+}
 
 // dashboardNoSample is the line of a card over the last sample of a device
 // that has reported none.
@@ -183,16 +191,16 @@ func dashboardPeersCard(_ context.Context, _ *PageRequest, scope *dashboardScope
 		return dashboardNote(DashboardNoteView{Card: frame, Text: dashboardNoSample}), nil
 	}
 
-	routing := func(state string) string {
-		return scope.tab(dashTabRouting, SetFilterTerm("", fieldState, state)).String()
+	routing := func(filter string) string {
+		return scope.tab(dashTabRouting, filter).String()
 	}
 
 	return DonutCard(DonutCardView{Card: frame, Donuts: []DonutView{{Icon: iconDevice, Segments: []DonutSegmentView{
-		{Word: "Established", Href: routing(dashPeerEstablished), Count: latest.PeersEstablished, Tone: ToneSuccess},
+		{Word: "Established", Href: routing(setFixedFilterTerm("", fieldState, dashPeerEstablished)), Count: latest.PeersEstablished, Tone: ToneSuccess},
 		// A peer that is not established is in whatever state the device
 		// names, so the link asks for none of the other two segments' words.
-		{Word: "Not established", Href: routing(dashPeerNotEstablished), Count: latest.PeersDown, Tone: ToneError},
-		{Word: "Administratively down", Href: routing(dashStateAdminDown), Count: latest.PeersAdminDown, Tone: ToneMuted},
+		{Word: "Not established", Href: routing(dashPeersNotEstablished()), Count: latest.PeersDown, Tone: ToneError},
+		{Word: "Administratively down", Href: routing(setFixedFilterTerm("", fieldState, dashStateAdminDown)), Count: latest.PeersAdminDown, Tone: ToneMuted},
 	}}}}), nil
 }
 
@@ -206,7 +214,7 @@ func dashboardInterfacesCard(_ context.Context, _ *PageRequest, scope *dashboard
 	}
 
 	interfaces := func(state string) string {
-		return scope.tab(dashTabInterfaces, SetFilterTerm("", fieldState, state)).String()
+		return scope.tab(dashTabInterfaces, setFixedFilterTerm("", fieldState, state)).String()
 	}
 
 	return DonutCard(DonutCardView{Card: frame, Donuts: []DonutView{{Icon: iconDevice, Segments: []DonutSegmentView{

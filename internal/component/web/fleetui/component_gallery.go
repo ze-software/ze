@@ -79,13 +79,13 @@ func galleryDevicesView(view ViewParams) string {
 // galleryFiltered answers the address of the estate's devices table filtered
 // by the one term field:value.
 func galleryFiltered(field, value string) string {
-	return galleryDevicesView(ViewParams{Filter: SetFilterTerm("", field, value)})
+	return galleryDevicesView(ViewParams{Filter: setFixedFilterTerm("", field, value)})
 }
 
 // galleryLondonEdge is the filter of the gallery's saved filter: the devices
 // of site lon with role edge.
 func galleryLondonEdge() string {
-	return SetFilterTerm(SetFilterTerm("", galleryLabelSite, gallerySiteLondon), galleryLabelRole, galleryRoleEdge)
+	return setFixedFilterTerm(setFixedFilterTerm("", galleryLabelSite, gallerySiteLondon), galleryLabelRole, galleryRoleEdge)
 }
 
 // GalleryMarksView holds the icons, the state marks and the small parts.
@@ -520,7 +520,7 @@ func galleryQuery(id, text, matches, refusal string) *QueryRowView {
 }
 
 func galleryPager(total, number int) *PagerView {
-	london := SetFilterTerm("", galleryLabelSite, gallerySiteLondon)
+	london := setFixedFilterTerm("", galleryLabelSite, gallerySiteLondon)
 	first := galleryDevicesView(ViewParams{Filter: london})
 	last := galleryDevicesView(ViewParams{Filter: london, Page: 3})
 
@@ -650,7 +650,7 @@ func galleryStates() *GalleryStatesView {
 			},
 			{
 				Kind: HeroOffline, Sentence: "edge-lon-04 has been offline since 14:02. The values below were reported then",
-				Action: &ActionView{Label: "Open the device's tasks", Icon: iconTasks, Href: galleryDeviceTab(galleryDevice, tabDeviceTasks)},
+				Action: &ActionView{Label: "Open the device's tasks", Icon: iconTasks, Href: galleryDeviceTab(galleryDevice, activityTabTasks)},
 			},
 			{
 				Kind: HeroNotSupported, Sentence: "This device runs a version that does not answer this view",

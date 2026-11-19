@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/component/web/fleetui"
@@ -91,8 +92,10 @@ type recorded struct {
 
 // render records the tour over the sample estate at the demonstration's
 // clock, and writes the host page, the frame, the recording's index and one
-// file per chunk into the output's demoDirectory. It writes nowhere else, and
-// nothing when a bound is passed.
+// file per chunk into the output's demoDirectory. It writes nowhere else: no
+// directory on the way and no file it writes may be a symbolic link
+// (demoDirectoryIn, writeDemoFiles). It writes nothing when a bound is
+// passed, or when one of those files is anything but a regular file.
 func render(ctx context.Context, demo demonstration) (rendered, error) {
 	directory, err := demoDirectoryIn(demo.output)
 	if err != nil {
@@ -128,10 +131,6 @@ func render(ctx context.Context, demo demonstration) (rendered, error) {
 		return rendered{}, err
 	}
 
-	type demoFile struct {
-		name    string
-		content []byte
-	}
 	files := []demoFile{
 		{name: hostFile, content: hostPage(demo.provenance, chunkFiles)},
 		{name: frameFile, content: frame},
@@ -145,15 +144,68 @@ func render(ctx context.Context, demo demonstration) (rendered, error) {
 		})
 		written.exchanges += len(chunk.Keys)
 	}
-	for _, file := range files {
-		target := filepath.Join(directory, file.name)
-		if err := os.WriteFile(target, file.content, 0o644); err != nil { //nolint:gosec // a page of the website output's unpublished tmp/
-			return rendered{}, writeFailure(err, target)
-		}
-		written.files = append(written.files, writtenFile{path: demoDirectory + "/" + file.name, size: len(file.content)})
+	written.files, err = writeDemoFiles(directory, files)
+	if err != nil {
+		return rendered{}, err
 	}
 
 	return written, nil
+}
+
+// demoFile is one file of the demonstration: its name in demoDirectory and
+// its bytes.
+type demoFile struct {
+	name    string
+	content []byte
+}
+
+// writeDemoFiles writes files into directory, the demonstration's directory
+// demoDirectoryIn answered. It refuses before writing any file when one of
+// the names is held by anything other than a regular file: a symbolic link
+// there would send the write out of the output, and a directory or a device
+// is no file of an earlier render. Each file is then opened without
+// following a link, so a link made between the check and the write is
+// refused too.
+func writeDemoFiles(directory string, files []demoFile) ([]writtenFile, error) {
+	for _, file := range files {
+		target := filepath.Join(directory, file.name)
+		info, err := os.Lstat(target)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, writeFailure(err, target)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, opererr.New(target+" is not a regular file, so the demonstration will not write over it",
+				"The demonstration replaces only its own files under "+demoDirectory+"/ of the output, and a link there could lead the write elsewhere. Nothing was written.",
+				"ls -l "+target)
+		}
+	}
+
+	written := make([]writtenFile, 0, len(files))
+	for _, file := range files {
+		target := filepath.Join(directory, file.name)
+		if err := writeDemoFile(target, file.content); err != nil {
+			return nil, writeFailure(err, target)
+		}
+		written = append(written, writtenFile{path: demoDirectory + "/" + file.name, size: len(file.content)})
+	}
+	return written, nil
+}
+
+// writeDemoFile writes content to target, refusing a symbolic link at target
+// (O_NOFOLLOW) rather than writing where it points.
+func writeDemoFile(target string, content []byte) error {
+	file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o644) //nolint:gosec // a page of the website output's unpublished tmp/; a link is refused
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(content); err != nil {
+		file.Close() //nolint:errcheck,gosec // the write error is the one reported
+		return err
+	}
+	return file.Close()
 }
 
 // demoDirectoryIn answers the demonstration's directory in output, made if
@@ -171,7 +223,7 @@ func demoDirectoryIn(output string) (string, error) {
 	}
 
 	directory := output
-	for _, segment := range strings.Split(demoDirectory, "/") {
+	for segment := range strings.SplitSeq(demoDirectory, "/") {
 		directory = filepath.Join(directory, segment)
 		info, err := os.Lstat(directory)
 		if errors.Is(err, fs.ErrNotExist) {

@@ -31,6 +31,11 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 	one := func(name string, data any) golden.Unit {
 		return golden.Unit{Name: name, Variants: []golden.Variant{{Data: data}}}
 	}
+	// hostile adds to one a variant drawn with operator text that would
+	// open an element or break out of an attribute (hostile_test.go).
+	hostile := func(name string, data, hostileData any) golden.Unit {
+		return golden.Unit{Name: name, Variants: []golden.Variant{{Data: data}, {Name: "hostile", Data: hostileData}}}
+	}
 
 	return golden.Spec{
 		"icons.templ": {
@@ -45,7 +50,7 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 		"component_action.templ": {
 			one("NavLink", NavLink(NavLinkView{Href: galleryAdminHref, Class: "fleet-sidebar-link", Name: galleryLabels, Current: true})),
 			one("actionContent", actionContent(link, actionLookLink)),
-			one("actionControl", actionControl(controls.Buttons[0], actionLookButton)),
+			hostile("actionControl", actionControl(controls.Buttons[0], actionLookButton), actionControl(hostileAction(), actionLookButton)),
 			one("ActionLink", ActionLink(link)),
 			one("PanelLink", PanelLink(PanelLinkView{Href: "/fleet/estate/devices/?id=edge-lon-04", Panel: "/fleet/fragment/side-panel/estate/devices/?id=edge-lon-04", Row: "edge-lon-04", Name: "Details of edge-lon-04"})),
 			one("ActionButton", ActionButton(controls.Buttons[0])),
@@ -66,7 +71,7 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 		},
 		"component_terminal.templ": {
 			one("Terminal", Terminal(console.Terminal)),
-			one("TerminalEntry", TerminalEntry(console.Entries[0])),
+			hostile("TerminalEntry", TerminalEntry(console.Entries[0]), TerminalEntry(hostileTerminalEntry())),
 			one("Diff", Diff(console.Diff)),
 		},
 		"component_card.templ": {
@@ -111,7 +116,7 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 			one("headerCell", headerCell(table.Headers[0])),
 			one("cellText", cellText(galleryCPE, "")),
 			one("Cell", Cell(table.Rows[0].Cells[0])),
-			one("tableRow", tableRow(table, table.Rows[0])),
+			hostile("tableRow", tableRow(table, table.Rows[0]), tableRow(table, hostileTableRow(table))),
 			one("Table", Table(table)),
 			one("sectionCreate", sectionCreate(full)),
 			one("TableSection", TableSection(full)),
@@ -126,7 +131,7 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 			one("AlarmList", AlarmList(cards.Alarms)),
 		},
 		"component_toast.templ": {
-			one("Toast", Toast(overlays.Toasts[0])),
+			hostile("Toast", Toast(overlays.Toasts[0]), Toast(hostileToast())),
 			one("ToastOOB", ToastOOB(overlays.Toasts[0])),
 			one("ToastArea", ToastArea()),
 			one("confirmBody", confirmBody(overlays.Routine, false)),

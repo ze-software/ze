@@ -241,11 +241,13 @@ func runWebTests(ctx context.Context, selected []*zeTestWebTest, bins zeTestWebB
 
 	success := pr.Run(ctx)
 	// Quiet output suppresses onFail. Scheduler admission errors must still
-	// reach the case result when its execution callback never ran.
+	// reach the case result when its execution callback never ran, and so
+	// must a skip, which a caller could not otherwise tell from a pass.
 	for i, record := range records {
 		if record.Error != nil {
 			selected[i].SetError(record.Error)
 		}
+		selected[i].skipped = record.SkipReason
 	}
 
 	if verbose {
@@ -367,6 +369,10 @@ type zeTestWebTest struct {
 	// Discovery owns this snapshot; execution MUST NOT mutate it or reread Path.
 	parsed    *webtesting.WBTestCase
 	admission runner.Record
+	// skipped is the reason the run skipped the case, as the scheduler
+	// recorded it (a discovery skip or a needs-build-tag mismatch with the
+	// DUT); empty for a case that ran. runWebTests sets it after Run.
+	skipped string
 }
 
 type zeTestWebServer struct {

@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/a-h/templ"
 
@@ -134,7 +135,7 @@ func consoleOfflineHero(request *PageRequest, view *DeviceView) StateHeroView {
 		Kind:     HeroOffline,
 		Sentence: view.Device.Name + " is offline, so it has no console.",
 		Detail:   detail,
-		Action:   deviceAction(request, tabDeviceTasks, "Open the device's tasks", iconTasks),
+		Action:   deviceAction(request, activityTabTasks, "Open the device's tasks", iconTasks),
 	}
 }
 
@@ -166,27 +167,35 @@ func (handler *consoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	name, prefixed := strings.CutPrefix(r.URL.Path, consolePath)
 	name = strings.TrimSuffix(name, "/")
 	if !prefixed || name == "" || strings.Contains(name, "/") {
-		answerRefusal(w, consoleAddressUnknown(r.URL.Path), http.StatusNotFound)
+		answerConsoleRefusal(ctx, w, consoleAddressUnknown(r.URL.Path))
 		return
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, consoleFormBytesMax)
 	if err := r.ParseForm(); err != nil {
-		answerRefusal(w, opererr.Wrap(err, "The command could not be read.",
-			"The form the terminal posted was malformed or too long, so nothing ran.",
-			"type the command again"), http.StatusBadRequest)
+		answerConsoleRefusal(ctx, w, opererr.Wrap(err, "The command could not be read.",
+			"The form the terminal posted was malformed or longer than "+textbuf.StringInt(consoleFormBytesMax)+" bytes, so nothing ran.",
+			"type a shorter command"))
 		return
 	}
 
 	address := Address{Kind: ObjectDevice, Device: name, Tab: tabDeviceConsole}
 	request, err := NewPageRequest(ctx, handler.source, address, web.GetUsernameFromRequest(r))
 	if err != nil {
-		answerRefusal(w, err, http.StatusServiceUnavailable)
+		answerConsoleRefusal(ctx, w, err)
 		return
 	}
 
 	command := strings.Join(strings.Fields(r.PostForm.Get(consoleField)), " ")
 	renderAnswer(ctx, w, http.StatusOK, TerminalEntry(consoleEntry(ctx, request, command)))
+}
+
+// answerConsoleRefusal answers a request the route refused before any command
+// ran, as an entry with the refusal's problem, why and fix under a success
+// status: the terminal appends only an entry, so a plain text refusal would
+// reach the operator as an answer with no output.
+func answerConsoleRefusal(ctx context.Context, w http.ResponseWriter, err error) {
+	renderAnswer(ctx, w, http.StatusOK, TerminalEntry(refusedEntry("", err)))
 }
 
 // consoleEntry runs one command on the request's device and answers the
@@ -201,8 +210,8 @@ func consoleEntry(ctx context.Context, request *PageRequest, command string) Ter
 		return TerminalEntryView{Output: "Type a command, or " + consoleHelp + " for the list of commands."}
 	}
 
-	if len(command) > consoleCommandMax {
-		return refusedEntry(command[:consoleCommandMax], opererr.New("The command is too long.",
+	if utf8.RuneCountInString(command) > consoleCommandMax {
+		return refusedEntry(string([]rune(command)[:consoleCommandMax]), opererr.New("The command is too long.",
 			"The console sends a command of at most "+textbuf.StringInt(consoleCommandMax)+" characters, so nothing ran.",
 			"shorten the command"))
 	}

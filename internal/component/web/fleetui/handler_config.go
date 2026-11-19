@@ -127,14 +127,14 @@ func manageActionAnswer(_ context.Context, _ *PageRequest, form url.Values) (Toa
 	if !known {
 		return ToastView{
 			Level:   ToastError,
-			Message: textbuf.New().Str("The fleet interface has no action named ").Quoted(key).Str(".").String(),
+			Message: textbuf.New().Str("The fleet interface has no action named ").Quoted(echoText(key)).Str(".").String(),
 			Detail:  "Nothing was done. Reload the page to get its current actions.",
 		}, nil
 	}
 
 	detail := textbuf.New().Str(word)
 	if target != "" {
-		detail.Str(" on ").Str(target)
+		detail.Str(" on ").Str(echoText(target))
 	}
 	detail.Str(" was not done: in the functional interface it goes through the candidate, the diff and the commit.")
 

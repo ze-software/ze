@@ -700,7 +700,7 @@ What the five page families decided that departs from or adds to this spec and i
 |-------|-------|
 | Artifact | `tmp/review/fleet-ui-1-interactive-prototype-15269d3e-0e9f-48a2-918c-3e6749565424.md` |
 | `./le spec review check` | clean, over the files commit A carries |
-| Rounds | 2 |
+| Rounds | 2 over commit A's files, then 3 over the whole change set (see below) |
 | Reviewer lenses used | Round 1: wiring and security over the route registration, the hub imports, the auth wrap, the event stream, the request bounds, the panic traces, the shared guard changes, and documentation drift. Round 2: the anchor fixes and the spec amendments only |
 
 ### Findings fixed
@@ -716,6 +716,30 @@ What the five page families decided that departs from or adds to this spec and i
 
 ### Run 2
 - Scope: the two anchor repoints and the five spec edits. `./le doc check all` shows no undeclared anchor under a fleet page. 0 BLOCKER, 0 ISSUE.
+
+### Whole change set (2026-11-19): three rounds, after the gate refused a review over commit A's files alone
+The removal commit's gate requires the review to cover every code file the spec's work touched (362 files across its commits, about 45,000 lines). Runs 1 and 2 above read the whole diff but recorded over commit A's seven files only, and the closing agent declined to record CLEAN over files it had not read. The owner chose a full review by independent reviewers, none of whom wrote the code. Findings files: `tmp/session/2026-11-18-205620/scratch/ui1-review/r1-findings.md` to `r7-findings.md`.
+
+| Round | Scope | Result |
+|-------|-------|--------|
+| 1 | Five reviewers, one per area: request handlers (24 files), core logic (32), templates, assets and golden fixtures (224: the 22 `.templ` sources read whole for their generated files, current per `./le doc check templ-output`; the fixtures scanned in full for the CSP and escaping lenses), tests and the sample (51), demonstration tooling, build gates and harness (31) | 26 ISSUE, no BLOCKER. Fixed by three fix agents, each with a test that fails on the old code |
+| 2 | Every fix of round 1, and the three harness files round 1 read only in part (`parsing.go`, `runner.go`, `parity_test.go`) | 3 ISSUE. Fixed |
+| 3 | The round 2 fixes | CLEAN: 0 BLOCKER, 0 ISSUE, 3 NOTE |
+
+Defects of the prototype the review found and fixed, by consequence:
+
+| Area | Defect | Fix |
+|------|--------|-----|
+| Security | The audit CSV export wrote operator and device text into cells verbatim, so a cell starting `=` ran as a spreadsheet formula | `csvCell` quotes such cells (`TestManageAuditExportCSVRunsNoFormula`) |
+| Security | The demonstration writer followed a link planted at a file it writes, so a write could land outside the website output | `writeDemoFiles` refuses anything but a regular file and opens without following a link (`TestFleetDemoRefusesALinkAtAFileItWrites`) |
+| Operator data loss | Every live event re-rendered the page, discarding ticked rows, typed filter text and form choices | The refresh waits while a region holds browser state, shows a "Live updates are paused while you edit" mark with Apply now, and resumes when a bulk action completes (`fleet-live-holds-ticked-rows.wb`, `fleet-live-held-mark.wb`, `fleet-live-held-bulk-done.wb`) |
+| Lost action | A confirmed action did nothing when a live refresh replaced its control while the dialog was open | Refreshes wait while a dialog is open, and the control is found again at confirm, with an error toast if it is gone (`fleet-confirm-survives-refresh.wb`) |
+| Wrong rows | Filter links wrote values the grammar cannot carry, so a menu or a rollout group link opened other rows than it named | `SetFilterTerm` refuses them and label pairs use one writer, `SetLabelFilterTerm` (`TestSetFilterTermRefusesWhatTheGrammarCannotCarry`, `TestRolloutGroupTargetsNameTheGroupsDevices`) |
+| Errors | Console refusals, chart failures and several table refusals lost their fix; a sort refusal hid a filter refusal; the event stream answered a source failure as success | Every one now shows problem, why and fix; the stream answers 404, 403 or 503 |
+| Order | Version order was not transitive, so the Software card's newest versions changed between requests | A total order (`TestCompareVersionsIsATotalOrder`) |
+| Smaller | Default sort column unmarked, echoed posted text unbounded, a length bound counting bytes, live updates lost after Back, a stray duplicate task panel, the rollout confirm's stale batch count, a narrow-window panel, a timing-dependent browser test, an untested harness admission | Each fixed with its pinning test |
+
+Test changes judged by an independent `ze-test-judge` agent: 18 units, all approved (the two weakened-check rows in `tmp/commit-weakening-approved-aa93e975.md`, the fixture and count verdicts as `Test-judge:` trailers on the fix commit). Scoped runs green on the final code: `internal/component/web/fleetui` with and without `ze.tags=ze_fleet_ui_sample`, `internal/le/site/fleetdemo`, `internal/test/cli`, all 13 fleet browser cases, each new or rewritten case 40 or 80 times under load with no failure; `./le go lint` clean on `fleetui` and `fleetdemo`.
 
 ## Pre-Commit Verification
 

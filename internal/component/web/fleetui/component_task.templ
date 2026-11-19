@@ -203,7 +203,9 @@ func taskPanelElementID(v TaskPanelView) string {
 
 // TaskPanel draws the task panel, 30rem wide over the content. A tab asks
 // its fragment and replaces the panel with the answer, so the panel stays
-// open on the tab the operator chose.
+// open on the tab the operator chose. The tabs of a preview are inert: the
+// fragment answers the page's own panel, which would replace the preview
+// with a second fleet-task-panel the header button then finds first.
 templ TaskPanel(v TaskPanelView) {
 	<aside
 		class={ "fleet-task-panel", templ.KV("fleet-task-panel--static", v.Preview) }
@@ -227,10 +229,17 @@ templ TaskPanel(v TaskPanelView) {
 		</header>
 		<div class="fleet-task-tabs" role="tablist" aria-label="Tasks by state">
 			for _, tab := range v.Tabs {
-				<button type="button" role="tab" class={ "fleet-task-tab", templ.KV("fleet-task-tab--active", tab.Active) } aria-selected={ boolText(tab.Active) } hx-get={ tab.Href } hx-target={ "#" + taskPanelElementID(v) } hx-swap="outerHTML">
-					<span>{ tab.Label }</span>
-					<span class="fleet-pill">{ countText(tab.Count) }</span>
-				</button>
+				if v.Preview {
+					<button type="button" role="tab" class={ "fleet-task-tab", templ.KV("fleet-task-tab--active", tab.Active) } aria-selected={ boolText(tab.Active) } aria-disabled="true">
+						<span>{ tab.Label }</span>
+						<span class="fleet-pill">{ countText(tab.Count) }</span>
+					</button>
+				} else {
+					<button type="button" role="tab" class={ "fleet-task-tab", templ.KV("fleet-task-tab--active", tab.Active) } aria-selected={ boolText(tab.Active) } hx-get={ tab.Href } hx-target={ "#" + taskPanelElementID(v) } hx-swap="outerHTML">
+						<span>{ tab.Label }</span>
+						<span class="fleet-pill">{ countText(tab.Count) }</span>
+					</button>
+				}
 			}
 		</div>
 		<div class="fleet-task-panel-body" role="tabpanel">

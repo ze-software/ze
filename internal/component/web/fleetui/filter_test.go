@@ -284,14 +284,91 @@ func TestSetFilterTerm(t *testing.T) {
 		{"replaced in place", "state:down site:lon", "state", "offline", "state:offline site:lon"},
 		{"a second term of the field is dropped", "state:down lon state:healthy", "state", "offline", "state:offline lon"},
 		{"a field whose name starts another is left alone", "statement:x", "state", "offline", "statement:x state:offline"},
-		{"a list is a value", "site:lon", "state", "degraded,down", "site:lon state:degraded,down"},
 	}
 
 	for index := range cases {
 		tc := &cases[index]
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, SetFilterTerm(tc.filter, tc.field, tc.value))
+			got, carried := SetFilterTerm(tc.filter, tc.field, tc.value)
+			require.True(t, carried)
+			assert.Equal(t, tc.want, got)
 		})
+	}
+
+	list, carried := SetFilterTerm("site:lon", "state", "degraded", "down")
+	require.True(t, carried, "several values are a list")
+	assert.Equal(t, "site:lon state:degraded,down", list)
+
+	negated, carried := setFilterTerm("site:lon", "version", true, []string{"1.2", "1.3"})
+	require.True(t, carried, "a negated list")
+	assert.Equal(t, "site:lon version:!1.2,1.3", negated)
+}
+
+// TestSetFilterTermOfALabelReplacesThatKeyAlone writes two label pairs.
+//
+// VALIDATES: a label pair replaces the label term of its own key, and leaves
+// the label term of another key in place.
+// PREVENTS: a label menu choice that silently drops the label term of
+// another key.
+func TestSetFilterTermOfALabelReplacesThatKeyAlone(t *testing.T) {
+	filter, carried := SetFilterTerm("label:site=lon label:role=edge", "label", "site=ams")
+	require.True(t, carried)
+	assert.Equal(t, "label:site=ams label:role=edge", filter)
+}
+
+// TestSetFilterTermRefusesWhatTheGrammarCannotCarry writes values the filter
+// grammar would read back as other terms.
+//
+// VALIDATES: SetFilterTerm answers false for a value with a space or a
+// comma, an empty value, a value opening with !, > or <, a field with a
+// colon or a space, and a label pair with no key or no value; every term it
+// does answer parses back as the one term it wrote.
+// PREVENTS: an assisted menu link that opens other rows than it names, from
+// a label value, a log source or a rollout target that holds such text.
+func TestSetFilterTermRefusesWhatTheGrammarCannotCarry(t *testing.T) {
+	refused := []struct {
+		name  string
+		field string
+		value string
+	}{
+		{"a space splits the term", "site", "new york"},
+		{"a comma makes a list", "site", "lon,ams"},
+		{"an empty value", "site", ""},
+		{"a leading ! negates", "site", "!lon"},
+		{"a leading > compares", "site", ">lon"},
+		{"a leading < compares", "site", "<lon"},
+		{"a field with a colon", "a:b", "lon"},
+		{"a field with a space", "a b", "lon"},
+		{"an empty field", "", "lon"},
+		{"a label pair with no value", "label", "site="},
+		{"a label pair with no key", "label", "=lon"},
+		{"a label with no pair", "label", "site"},
+		{"a label pair with a space", "label", "site=new york"},
+	}
+	for index := range refused {
+		tc := &refused[index]
+		t.Run(tc.name, func(t *testing.T) {
+			got, carried := SetFilterTerm("state:offline", tc.field, tc.value)
+			assert.False(t, carried)
+			assert.Empty(t, got)
+		})
+	}
+
+	carried := []struct {
+		field string
+		value string
+	}{
+		{"state", "offline"},
+		{"label", "site=lon,ams"},
+		{"label", "site=!lon"},
+		{"version", "1.2:rc1"},
+	}
+	for _, tc := range carried {
+		got, ok := SetFilterTerm("", tc.field, tc.value)
+		require.True(t, ok, "%s:%s", tc.field, tc.value)
+		assert.Equal(t, []string{tc.field + ":" + tc.value}, strings.Fields(got))
+		_, err := DeviceFilters().Parse(got, nil)
+		assert.NoError(t, err, "%s parses back", got)
 	}
 }
 

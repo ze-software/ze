@@ -311,10 +311,31 @@ func writeFrame(w io.Writer, controller *http.ResponseController, frame string) 
 	return controller.Flush()
 }
 
+// scopeRefusalStatus is the status of a stream whose scope could not be
+// built. An EventSource treats any answer under 200 as a stream, so a
+// refusal never answers a success status: a group no device is in answers
+// 404, a profile that may not read the devices 403, and a data layer that
+// could not answer 503, under which the page works without live updates.
+func scopeRefusalStatus(err error) int {
+	switch FailureOf(err) {
+	case FailureNotFound:
+		return http.StatusNotFound
+	case FailureUnauthorized:
+		return http.StatusForbidden
+	case FailureOffline, FailureRelayRefused, FailureUnsupported, FailureDeadline, FailureFailed:
+		return http.StatusServiceUnavailable
+	case FailureUnspecified:
+		panic("BUG: fleetui: FailureOf answered no failure")
+	default:
+		panic("BUG: fleetui: FailureOf answered a failure outside its set")
+	}
+}
+
 // ServeHTTP runs one stream until the browser leaves. A scope that names no
-// page answers 400, a group no device is in answers 404, and a source that
-// already serves its maximum of streams answers 503 with the source's own
-// operator error: the page then works without live updates.
+// page answers 400, a scope that cannot be built answers the refusal status
+// of scopeRefusalStatus, and a source that already serves its maximum of
+// streams answers 503 with the source's own operator error: the page then
+// works without live updates.
 func (stream *eventStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -326,7 +347,7 @@ func (stream *eventStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	scope, err := newEventScope(ctx, stream.source, address)
 	if err != nil {
-		answerRefusal(w, err, failureStatus(err))
+		answerRefusal(w, err, scopeRefusalStatus(err))
 		return
 	}
 

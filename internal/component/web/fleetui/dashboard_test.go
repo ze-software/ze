@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -526,4 +527,19 @@ func TestDashboardBusiestRanksByTheAddressChoice(t *testing.T) {
 	refused := dashboardRequest(t, newDashboardSource(), pathEstate+"?sort=bogus")
 	_, err = busiestCardView(refused, dashboardScopeFor(t, refused), CardView{Title: titleBusiest})
 	require.ErrorIs(t, err, ErrRankRefused)
+}
+
+// TestDashboardChartRefusalsNameTheirFix asks for a chart no chart
+// registered.
+//
+// VALIDATES: the chart's message holds the problem, why and fix.
+// PREVENTS: a chart message that names the problem and not what to do.
+func TestDashboardChartRefusalsNameTheirFix(t *testing.T) {
+	unknown := chartAnswer(t.Context(), nil, "nosuchchart")
+	assert.True(t, unknown.Empty)
+	assert.Contains(t, unknown.Message, `"nosuchchart"`)
+	assert.Contains(t, unknown.Message, "Fix: reload the page")
+
+	failed := chartFailed(ErrDeadline)
+	assert.Contains(t, failed.Message, "Fix: ze show doctor")
 }

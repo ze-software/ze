@@ -130,6 +130,18 @@ func MustRegisterTreeLevel(level TreeLevel) {
 	treeLevels.levels[level.Key] = level
 }
 
+// levelRegistered reports whether key names a registered tree level, one
+// that reads a field of the device, rather than a level that reads the label
+// of that key.
+func levelRegistered(key string) bool {
+	treeLevels.mu.RLock()
+	defer treeLevels.mu.RUnlock()
+
+	_, registered := treeLevels.levels[key]
+
+	return registered
+}
+
 // levelOf answers the level a key names: the registered level of that key,
 // or the level that reads the label of that key.
 func levelOf(key string) TreeLevel {

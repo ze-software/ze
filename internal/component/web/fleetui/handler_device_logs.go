@@ -194,7 +194,7 @@ func logsBody(ctx context.Context, request *PageRequest, view *DeviceView) templ
 	if err == nil {
 		matched = filter.Apply(lines)
 	} else {
-		query.Refusal = refusalOf(err).Problem()
+		query.Refusal = activityRefusalText(err)
 	}
 
 	page := Paginate(len(matched), address.View.Page, address.View.Size)

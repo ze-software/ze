@@ -85,6 +85,12 @@ type ToastView struct {
 	Detail  string
 	Link    *LinkView
 	Level   ToastLevel
+	// SelectionDone says the toast answers an action carried out on the rows
+	// the form posted. The action route tells the page so
+	// (actionSelectionDoneHeader), and the page unticks those rows: they did
+	// what they were ticked for, and a ticked row holds the live refresh of
+	// its region. A refusal leaves them ticked, for the operator to try again.
+	SelectionDone bool
 }
 
 // toastAreaID is the id of the region toasts are added to.

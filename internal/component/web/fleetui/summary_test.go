@@ -1,6 +1,8 @@
 package fleetui
 
 import (
+	"cmp"
+	"slices"
 	"testing"
 	"time"
 
@@ -36,7 +38,7 @@ func TestCountByState(t *testing.T) {
 // PREVENTS: a card whose figure and whose link disagree.
 func TestCountByStateEqualsItsFilter(t *testing.T) {
 	for _, count := range CountByState(testViews()) {
-		kept := filterNames(t, SetFilterTerm("", "state", count.State.Key()))
+		kept := filterNames(t, setFixedFilterTerm("", "state", count.State.Key()))
 
 		assert.Len(t, kept, count.Count, count.State.String())
 	}
@@ -105,6 +107,47 @@ func TestCompareVersions(t *testing.T) {
 	assert.Negative(t, compareVersions("1.4", "1.4.1"))
 	assert.Zero(t, compareVersions("1.4.2", "1.4.2"))
 	assert.Negative(t, compareVersions("1.4.2-rc1", "1.4.2-rc2"))
+}
+
+// TestCompareVersionsIsATotalOrder orders versions that mix numeric parts and
+// parts with text.
+//
+// VALIDATES: 1.2-rc1 sorts below 1.9 below 1.10, a pre-release sorts below
+// its release, every pair answers opposite orders both ways, the order is
+// transitive over every triple, zero only for the same text, and every
+// order of the input sorts to the same answer.
+// PREVENTS: 9 < 10 < 2a < 9, a cycle under which a sort of map keys, and the
+// versions the Software card names, change between requests.
+func TestCompareVersionsIsATotalOrder(t *testing.T) {
+	assert.Negative(t, compareVersions("1.2-rc1", "1.9"))
+	assert.Negative(t, compareVersions("1.9", "1.10"))
+	assert.Negative(t, compareVersions("1.2-rc1", "1.10"))
+	assert.Negative(t, compareVersions("1.4.2-rc1", "1.4.2"))
+	assert.Negative(t, compareVersions("1.beta", "1.0"))
+	assert.Negative(t, compareVersions("1.99999999999999999999", "1.100000000000000000000"))
+
+	versions := []string{"1.9", "1.10", "1.2-rc1", "1.2a", "1.2", "1.01", "1.1", "1.beta", "2", "1.10.0", "1.x", "1.9b"}
+	for _, a := range versions {
+		for _, b := range versions {
+			assert.Equal(t, -sign(compareVersions(b, a)), sign(compareVersions(a, b)), "%s against %s", a, b)
+			assert.Equal(t, a == b, compareVersions(a, b) == 0, "%s against %s", a, b)
+			for _, c := range versions {
+				if compareVersions(a, b) < 0 && compareVersions(b, c) < 0 {
+					assert.Negative(t, compareVersions(a, c), "%s < %s < %s", a, b, c)
+				}
+			}
+		}
+	}
+
+	want := slices.SortedFunc(slices.Values(versions), compareVersions)
+	reversed := slices.Clone(versions)
+	slices.Reverse(reversed)
+	assert.Equal(t, want, slices.SortedFunc(slices.Values(reversed), compareVersions))
+}
+
+// sign answers -1, 0 or 1 as order is negative, zero or positive.
+func sign(order int) int {
+	return cmp.Compare(order, 0)
 }
 
 // TestEstateFigures reads the figures of the Estate card over the test

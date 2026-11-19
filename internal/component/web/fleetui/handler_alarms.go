@@ -224,10 +224,10 @@ func alarmsContent(_ context.Context, request *PageRequest) (templ.Component, er
 
 	view := request.Address.View
 
-	kept, refusal := rows, ""
+	kept, refused := rows, make([]error, 0, 2)
 	filter, err := alarmFilters.Parse(view.Filter, LabelKeys(devices))
 	if err != nil {
-		refusal = activityRefusalText(err)
+		refused = append(refused, err)
 	}
 	if err == nil {
 		kept = filter.Apply(rows)
@@ -235,7 +235,7 @@ func alarmsContent(_ context.Context, request *PageRequest) (templ.Component, er
 
 	sorted, err := alarmColumns.Sort(kept, view.Sort)
 	if err != nil {
-		refusal = activityRefusalText(err)
+		refused = append(refused, err)
 		sorted, err = alarmColumns.Sort(kept, SortSpec{})
 		if err != nil {
 			return nil, err
@@ -253,7 +253,7 @@ func alarmsContent(_ context.Context, request *PageRequest) (templ.Component, er
 	return TableSection(TableSectionView{
 		Title: wordOpenAlarms,
 		Query: activityQuery(request, "fleet-alarms-filter",
-			"Filter alarms, as in severity:critical kind:component-down device:edge-lon-04", matches, refusal, menus),
+			"Filter alarms, as in severity:critical kind:component-down device:edge-lon-04", matches, refusalsText(refused), menus),
 		Pager: activityPager(request.Address, page, alarmsSubject),
 		Table: alarmTable(request, PageRows(sorted, page)),
 	}), nil

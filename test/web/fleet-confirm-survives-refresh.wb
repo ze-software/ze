@@ -1,0 +1,36 @@
+# Test: an action confirmed while the estate changes is still sent
+# VALIDATES: spec-fleet-ui-1 AC on confirmations with the closure review's
+#            confirm dialog finding -- a refresh that arrives while the
+#            confirm dialog is open waits until it closes, so the control the
+#            dialog was opened from is the one the confirmation submits
+# PREVENTS: a confirmed Cancel that vanishes in silence, because a refresh
+#           replaced the control and the script clicked the detached copy
+#
+# Goal: prove a confirmation survives a live refresh of the region that
+# holds its control.
+# Method: the sample script runs on its own timer here (not held), stepping
+# every five seconds, and each step makes regions of the page stale. The
+# task T-2051 is running (sample/script.go scriptSteps ends it at step 9), so
+# its side panel on the task list carries Cancel, a destructive action
+# confirmed by typing the task's id. The test opens the dialog, then waits
+# for the root's data-fleet-held, which fleet.js sets when a refresh waits
+# for the dialog; then it types the id and confirms. The hub answers any
+# cancel, accepted or refused, with a toast linking to the task, which is the
+# proof the post was sent. Every wait is on state the page shows.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/tasks/?id=T-2051
+expect=html:id=fleet-side-panel:contains=T-2051
+expect=attribute:selector=html:name=data-fleet-stream:value=open
+
+action=click:text=button "Cancel"
+expect=html:id=fleet-confirm:contains=Cancel the task T-2051
+expect=attribute:selector=html:name=data-fleet-held:value=true
+
+action=fill:text=to confirm:value=T-2051
+action=click:text=button "Confirm"
+expect=html:id=fleet-toasts:contains=Open the task
+expect=html:id=fleet-toasts:not-contains=data-fleet-confirm-lost

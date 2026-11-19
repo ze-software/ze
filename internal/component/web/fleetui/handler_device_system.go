@@ -131,7 +131,7 @@ func identitySection(ctx context.Context, request *PageRequest, view *DeviceView
 func clockRows(ctx context.Context, request *PageRequest, name string) []ValueView {
 	system, err := request.Source.DeviceSystem(ctx, name)
 	if err != nil {
-		return []ValueView{{Label: "System time", Text: refusalOf(err).Problem()}}
+		return []ValueView{{Label: "System time", Text: activityRefusalText(err)}}
 	}
 
 	return []ValueView{

@@ -390,3 +390,121 @@ func TestPanelAddressStillReproducesTheView(t *testing.T) {
 	assert.Contains(t, body, `data-fleet-eye="`+coreLon01+`" aria-current="page"`, "its eye is marked current")
 	assert.Len(t, devicesRows(body), PageSizeDefault, "the table is drawn under the panel")
 }
+
+// TestSetLabelFilterTermReadsBackAsTheLabel writes the label term of keys
+// and values the short form cannot carry.
+//
+// VALIDATES: a key that names a field, or the word label or has, and a value
+// the short form cannot carry are written in the long form; a pair neither
+// form carries is refused.
+// PREVENTS: a Label menu item whose link reads back as a flag test, a field
+// term, a list or a negation.
+func TestSetLabelFilterTermReadsBackAsTheLabel(t *testing.T) {
+	fields := DeviceFilters().Fields()
+	cases := []struct {
+		key, value, want string
+	}{
+		{"site", "lon", "site:lon"},
+		{fieldState, "x", "label:state=x"},
+		{"has", "x", "label:has=x"},
+		{"label", "x", "label:label=x"},
+		{"site", "lon,ams", "label:site=lon,ams"},
+		{"site", "!lon", "label:site=!lon"},
+		{"a:b", "lon", "label:a:b=lon"},
+	}
+	for _, tc := range cases {
+		got, carried := SetLabelFilterTerm("", fields, tc.key, tc.value)
+		require.True(t, carried, "%s=%s", tc.key, tc.value)
+		assert.Equal(t, tc.want, got)
+	}
+
+	for _, pair := range [][2]string{{"site", "new york"}, {"site", ""}, {"a=b", "lon"}} {
+		_, carried := SetLabelFilterTerm("", fields, pair[0], pair[1])
+		assert.False(t, carried, "%s=%s", pair[0], pair[1])
+	}
+}
+
+// TestEchoTextCutsLongPostedText quotes posted text of several lengths.
+//
+// VALIDATES: text of at most echoMax characters is quoted whole, and longer
+// text is cut after echoMax characters, between characters, and marked.
+// PREVENTS: a toast that quotes a megabyte of posted text back.
+func TestEchoTextCutsLongPostedText(t *testing.T) {
+	assert.Equal(t, "short", echoText("short"))
+
+	longest := strings.Repeat("é", echoMax)
+	assert.Equal(t, longest, echoText(longest))
+	assert.Equal(t, longest+echoEllipsis, echoText(longest+"é"))
+	assert.Equal(t, strings.Repeat("a", echoMax)+echoEllipsis, echoText(strings.Repeat("a", 1<<20)))
+}
+
+// TestDevicesActionsQuoteAtMostAnEcho posts an unknown action key, a
+// skipped row and a filter to save, each far longer than a toast quotes.
+//
+// VALIDATES: the toast quotes each posted text cut by echoText, and a filter
+// to save is refused as the devices table refuses it, the bound of
+// FilterLengthMax and an unknown field included.
+// PREVENTS: a toast that echoes the whole posted body, and a saved filter
+// the table could never apply.
+func TestDevicesActionsQuoteAtMostAnEcho(t *testing.T) {
+	long := strings.Repeat("x", 4096)
+	echo := strings.Repeat("x", echoMax) + echoEllipsis
+
+	for name, form := range map[string]url.Values{
+		"unknown action": {devicesFieldAction: {long}},
+		"skipped row":    {devicesFieldAction: {"estate-remove"}, devicesFieldRow: {edgeLon01, long}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			answer := postDevicesAction(t, "estate/devices/", form)
+			require.Equal(t, http.StatusOK, answer.Code)
+			assert.Contains(t, answer.Body.String(), echo)
+			assert.NotContains(t, answer.Body.String(), echo[:echoMax]+"x")
+		})
+	}
+
+	tooLong := postDevicesAction(t, "estate/devices/", url.Values{
+		devicesFieldAction: {devicesActionFilterSave}, paramFilter: {strings.Repeat("a", FilterLengthMax+1)},
+	})
+	require.Equal(t, http.StatusOK, tooLong.Code)
+	assert.Contains(t, tooLong.Body.String(), "The filter is longer than")
+	assert.NotContains(t, tooLong.Body.String(), "Save filter")
+
+	unknown := postDevicesAction(t, "estate/devices/", url.Values{
+		devicesFieldAction: {devicesActionFilterSave}, paramFilter: {"nosuchfield:x"},
+	})
+	require.Equal(t, http.StatusOK, unknown.Code)
+	assert.NotContains(t, unknown.Body.String(), "Save filter")
+
+	saved := postDevicesAction(t, "estate/devices/", url.Values{
+		devicesFieldAction: {devicesActionFilterSave}, paramFilter: {"state:offline"},
+	})
+	require.Equal(t, http.StatusOK, saved.Code)
+	assert.Contains(t, saved.Body.String(), "Save filter")
+}
+
+// TestDevicesBulkDoneClearsTheSelection posts a bulk action carried out on
+// its rows, one refused, one with no row, and a filter save.
+//
+// VALIDATES: only an action carried out on the posted rows answers the
+// selection done header, which tells the page to untick them.
+// PREVENTS: rows left ticked after their action completed, which hold the
+// live refresh of the table for as long as the page is open; and rows
+// unticked by a refusal or a filter save, which lose what the operator chose.
+func TestDevicesBulkDoneClearsTheSelection(t *testing.T) {
+	done := postDevicesAction(t, "estate/devices/", url.Values{
+		devicesFieldAction: {"label-add"},
+		devicesFieldRow:    {edgeLon01},
+	})
+	require.Equal(t, http.StatusOK, done.Code)
+	assert.Equal(t, "true", done.Header().Get(actionSelectionDoneHeader), "a completed action clears its selection")
+
+	for name, form := range map[string]url.Values{
+		"refused":     {devicesFieldAction: {"format-disk"}, devicesFieldRow: {edgeLon01}},
+		"no row":      {devicesFieldAction: {"label-add"}},
+		"filter save": {devicesFieldAction: {devicesActionFilterSave}, paramFilter: {"role:cpe"}, devicesFieldRow: {edgeLon01}},
+	} {
+		answer := postDevicesAction(t, "estate/devices/", form)
+		require.Equal(t, http.StatusOK, answer.Code, name)
+		assert.Empty(t, answer.Header().Get(actionSelectionDoneHeader), "%s keeps the selection", name)
+	}
+}

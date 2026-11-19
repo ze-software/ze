@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	sitelgreplay "github.com/ze-software/ze/internal/le/site/lgreplay"
 )
@@ -243,4 +244,130 @@ func TestFleetDemoRefusesAnOutputThatIsNotBuilt(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not a built website output")
 	assert.Empty(t, outputFiles(t, demo.output))
+}
+
+// TestFleetDemoRefusesALinkOnTheWay renders into built outputs whose tmp/ or
+// tmp/fleet-demo/ is a symbolic link to a directory outside the output, or a
+// regular file.
+//
+// VALIDATES: demoDirectoryIn refuses each with an operator error naming the
+// path, before anything is recorded, and nothing is written where the link
+// points.
+// PREVENTS: a demonstration written out of the website output through a link
+// on the way to tmp/fleet-demo/.
+func TestFleetDemoRefusesALinkOnTheWay(t *testing.T) {
+	cases := []struct {
+		name    string
+		prepare func(t *testing.T, output, outside string) string
+	}{
+		{name: "tmp is a link", prepare: func(t *testing.T, output, outside string) string {
+			require.NoError(t, os.Symlink(outside, filepath.Join(output, "tmp")))
+			return filepath.Join(output, "tmp")
+		}},
+		{name: "fleet-demo is a link", prepare: func(t *testing.T, output, outside string) string {
+			require.NoError(t, os.Mkdir(filepath.Join(output, "tmp"), 0o755))
+			require.NoError(t, os.Symlink(outside, filepath.Join(output, "tmp", "fleet-demo")))
+			return filepath.Join(output, "tmp", "fleet-demo")
+		}},
+		{name: "fleet-demo is a file", prepare: func(t *testing.T, output, _ string) string {
+			require.NoError(t, os.Mkdir(filepath.Join(output, "tmp"), 0o755))
+			path := filepath.Join(output, "tmp", "fleet-demo")
+			require.NoError(t, os.WriteFile(path, []byte("not a directory"), 0o644)) //nolint:gosec // a scratch output
+			return path
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			demo := testDemonstration(t)
+			outside := t.TempDir()
+			refused := tc.prepare(t, demo.output, outside)
+
+			_, err := render(t.Context(), demo)
+			require.Error(t, err)
+			var operatorErr *opererr.Error
+			require.ErrorAs(t, err, &operatorErr, "the refusal is an operator error")
+			assert.Equal(t, refused+" is not a directory of the website output", operatorErr.Problem())
+			assert.Equal(t, "ls -l "+refused, operatorErr.Fix())
+			assert.Empty(t, outputFiles(t, outside), "nothing is written where the link points")
+		})
+	}
+}
+
+// TestFleetDemoRefusesALinkAtAFileItWrites writes the demonstration's files
+// into its directory when one of their names, the host page, the frame, the
+// index or a chunk, is a symbolic link to a file outside the output, or a
+// directory.
+//
+// VALIDATES: writeDemoFiles refuses before writing any file, the linked file
+// keeps its bytes, and the directory holds only what was there; a file of an
+// earlier render is replaced; writeDemoFile itself refuses a link (the
+// O_NOFOLLOW open), so a link made after the check is refused too.
+// PREVENTS: a render that writes through a link at one of its own files, out
+// of the website output.
+func TestFleetDemoRefusesALinkAtAFileItWrites(t *testing.T) {
+	const kept = "the bytes outside the output"
+	names := []string{hostFile, frameFile, recordingFile, "estate.json"}
+	files := make([]demoFile, 0, len(names))
+	for _, name := range names {
+		files = append(files, demoFile{name: name, content: []byte("written " + name)})
+	}
+	prepared := func(t *testing.T) (directory, victim string) {
+		t.Helper()
+		demo := testDemonstration(t)
+		directory, err := demoDirectoryIn(demo.output)
+		require.NoError(t, err)
+		victim = filepath.Join(t.TempDir(), "victim")
+		require.NoError(t, os.WriteFile(victim, []byte(kept), 0o644)) //nolint:gosec // a scratch file
+		return directory, victim
+	}
+
+	for _, name := range names {
+		t.Run("link at "+name, func(t *testing.T) {
+			directory, victim := prepared(t)
+			link := filepath.Join(directory, name)
+			require.NoError(t, os.Symlink(victim, link))
+
+			_, err := writeDemoFiles(directory, files)
+			require.Error(t, err)
+			var operatorErr *opererr.Error
+			require.ErrorAs(t, err, &operatorErr)
+			assert.Equal(t, link+" is not a regular file, so the demonstration will not write over it", operatorErr.Problem())
+			content, readErr := os.ReadFile(victim)
+			require.NoError(t, readErr)
+			assert.Equal(t, kept, string(content), "the file the link points at keeps its bytes")
+			entries, readErr := os.ReadDir(directory)
+			require.NoError(t, readErr)
+			require.Len(t, entries, 1, "no file is written before the refusal")
+			assert.Equal(t, name, entries[0].Name())
+		})
+	}
+
+	t.Run("directory at a chunk", func(t *testing.T) {
+		directory, _ := prepared(t)
+		require.NoError(t, os.Mkdir(filepath.Join(directory, "estate.json"), 0o755))
+		_, err := writeDemoFiles(directory, files)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not a regular file")
+	})
+
+	t.Run("an earlier render is replaced", func(t *testing.T) {
+		directory, _ := prepared(t)
+		require.NoError(t, os.WriteFile(filepath.Join(directory, hostFile), []byte("earlier"), 0o644)) //nolint:gosec // a scratch output
+		written, err := writeDemoFiles(directory, files)
+		require.NoError(t, err)
+		assert.Len(t, written, len(files))
+		content, readErr := os.ReadFile(filepath.Join(directory, hostFile))
+		require.NoError(t, readErr)
+		assert.Equal(t, "written "+hostFile, string(content))
+	})
+
+	t.Run("the open follows no link", func(t *testing.T) {
+		directory, victim := prepared(t)
+		link := filepath.Join(directory, frameFile)
+		require.NoError(t, os.Symlink(victim, link))
+		require.Error(t, writeDemoFile(link, []byte("through the link")))
+		content, readErr := os.ReadFile(victim)
+		require.NoError(t, readErr)
+		assert.Equal(t, kept, string(content))
+	})
 }

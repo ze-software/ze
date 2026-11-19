@@ -171,18 +171,20 @@ func interfacesBody(ctx context.Context, request *PageRequest, view *DeviceView)
 	}
 
 	matched := interfaces
+	refusals := make([]error, 0, 2)
 	filter, err := interfaceFilters.Parse(address.View.Filter, nil)
 	if err == nil {
 		matched = filter.Apply(interfaces)
 	} else {
-		query.Refusal = refusalOf(err).Problem()
+		refusals = append(refusals, err)
 	}
 
 	sorted, err := interfaceColumns.Sort(matched, address.View.Sort)
 	if err != nil {
 		sorted = matched
-		query.Refusal = refusalOf(err).Problem()
+		refusals = append(refusals, err)
 	}
+	query.Refusal = refusalsText(refusals)
 
 	page := Paginate(len(sorted), address.View.Page, address.View.Size)
 	query.Matches = matchesText(len(sorted), len(interfaces), interfacesSubject)
@@ -220,17 +222,17 @@ func matchesText(kept, total int, noun string) string {
 // interfaceHeaders answers the header cells of the interfaces table.
 func interfaceHeaders(address Address) []ColumnHeaderView {
 	return []ColumnHeaderView{
-		sortHeader(address, devicesWordName, ColumnKindText, fieldName, false),
-		sortHeader(address, "Type", ColumnKindText, fieldType, false),
+		sortHeader(interfaceColumns, address, devicesWordName, ColumnKindText, fieldName, false),
+		sortHeader(interfaceColumns, address, "Type", ColumnKindText, fieldType, false),
 		{Label: "Admin", Kind: ColumnKindState},
-		sortHeader(address, "Link", ColumnKindState, fieldState, false),
+		sortHeader(interfaceColumns, address, "Link", ColumnKindState, fieldState, false),
 		{Label: "Addresses", Kind: ColumnKindAddress},
-		sortHeader(address, "Speed", ColumnKindNumber, fieldSpeed, true),
-		sortHeader(address, "MTU", ColumnKindNumber, fieldMTU, true),
-		sortHeader(address, "In", ColumnKindNumber, fieldIn, true),
-		sortHeader(address, "Out", ColumnKindNumber, fieldOut, true),
-		sortHeader(address, "Errors", ColumnKindNumber, fieldErrors, true),
-		sortHeader(address, "Drops", ColumnKindNumber, fieldDrops, true),
+		sortHeader(interfaceColumns, address, "Speed", ColumnKindNumber, fieldSpeed, true),
+		sortHeader(interfaceColumns, address, "MTU", ColumnKindNumber, fieldMTU, true),
+		sortHeader(interfaceColumns, address, "In", ColumnKindNumber, fieldIn, true),
+		sortHeader(interfaceColumns, address, "Out", ColumnKindNumber, fieldOut, true),
+		sortHeader(interfaceColumns, address, "Errors", ColumnKindNumber, fieldErrors, true),
+		sortHeader(interfaceColumns, address, "Drops", ColumnKindNumber, fieldDrops, true),
 	}
 }
 
@@ -346,7 +348,7 @@ func toolFragment(_ context.Context, request *PageRequest, item string) (templ.C
 		refusal := opererr.New(problem, "The row asked for a tool this page does not offer, so nothing ran.",
 			"choose a tool from the row's menu")
 
-		return Toast(ToastView{Message: refusal.Problem(), Detail: refusal.Why(), Level: ToastWarning}), nil
+		return Toast(ToastView{Message: refusal.Problem(), Detail: refusal.Why() + " Fix: " + refusal.Fix(), Level: ToastWarning}), nil
 	}
 
 	detail := textbuf.New().Str(title).Str(" of ").Str(target).Str(" on ").Str(view.Device.Name).

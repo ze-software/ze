@@ -914,7 +914,9 @@ a console command (`exchangeKind`, `sizeByKind`). The files, under the output's
 refused as every site action resolves it (`site.ResolvePaths`). An output with
 no built site (no `index.html`, `assets/site.css` or `assets/lg-replay.js`) is
 refused, because the host page loads those files, and so is a link or a file
-on the way to `tmp/fleet-demo/`. Open `tmp/fleet-demo/index.html` from the
+on the way to `tmp/fleet-demo/`, or anything but a regular file at a name the
+render writes; each file is opened without following a link, so a link made
+after that check is refused too (`writeDemoFiles`, `writeDemoFile`). Open `tmp/fleet-demo/index.html` from the
 owner's review server of the output. `./le site build` neither creates nor
 refreshes it, and nothing of it is published: `tmp/` is outside every walk of
 the site. The page registry, the sitemap and the search index skip it as an
@@ -924,7 +926,10 @@ with its bytes unchanged. The answer names each file and its size, each chunk
 with its answer count, its size and its answers by kind of request, the whole
 recording's answers by kind, the total bytes, the exchange count and the
 commit. A le built without the `ze_web` and `ze_fleet_ui` tags refuses the
-action, because it has no fleet pages to record.
+action, because it has no fleet pages to record. Its fix restores the
+`feature-gates.txt` row the manifest lacks, or, when the manifest declares
+both, runs the action again through the launcher, which rebuilds le from the
+manifest (`absentRefusal`).
 
 `internal/le/site/browsertest/fleetdemo_test.go` plays what the action writes.
 It renders the whole tour once per run through `sitefleetdemo.RenderInto`,

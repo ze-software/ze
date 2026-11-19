@@ -27,9 +27,38 @@ import (
 // actionPath is the address prefix of every action.
 const actionPath = fleetPath + actionSegment + "/"
 
+// actionSelectionDoneHeader is the response header an action answers with
+// when it was carried out on the rows its form posted (ToastView's
+// SelectionDone). fleet-components.js reads it and unticks the rows of that
+// form, which releases the live refresh they held (fleet.js holdsState).
+const actionSelectionDoneHeader = "X-Fleet-Selection-Done"
+
 // actionBytesMax bounds the body of an action: the names of DevicesMax
 // devices fit in it with room to spare.
 const actionBytesMax = 1 << 20
+
+// echoMax is the most characters of posted text a toast or a refusal quotes
+// back. The body of an action may hold actionBytesMax bytes, and a toast
+// that quoted all of it would fill the page.
+const echoMax = 64
+
+// echoEllipsis marks where echoText cut a posted text.
+const echoEllipsis = "..."
+
+// echoText answers posted text as a toast or a refusal quotes it: whole when
+// it holds at most echoMax characters, else its first echoMax characters and
+// echoEllipsis. It cuts between characters, never inside one.
+func echoText(text string) string {
+	count := 0
+	for index := range text {
+		if count == echoMax {
+			return text[:index] + echoEllipsis
+		}
+		count++
+	}
+
+	return text
+}
 
 // The words of a defective action registration.
 const (
@@ -135,6 +164,9 @@ func (handler *actionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	if err != nil {
 		toast = refusalToast(err, nil)
+	}
+	if toast.SelectionDone {
+		w.Header().Set(actionSelectionDoneHeader, "true")
 	}
 
 	renderAnswer(ctx, w, http.StatusOK, ToastOOB(toast))

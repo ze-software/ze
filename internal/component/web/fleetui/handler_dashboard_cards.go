@@ -71,7 +71,7 @@ func devicesCardView(scope *dashboardScope, frame CardView) DonutCardView {
 	for _, count := range counts {
 		segments = append(segments, DonutSegmentView{
 			Word:  count.State.String(),
-			Href:  scope.devicesWith(fieldState, count.State.Key()),
+			Href:  scope.devicesWith(fieldState, false, count.State.Key()),
 			Info:  displayStateInfo(count.State),
 			Count: count.Count,
 			Tone:  DisplayStatus(count.State).Tone,
@@ -114,7 +114,7 @@ func configCardView(scope *dashboardScope, frame CardView) DonutCardView {
 	for _, count := range counts {
 		segments = append(segments, DonutSegmentView{
 			Word:  count.State.String(),
-			Href:  scope.devicesWith(fieldConfig, count.State.Key()),
+			Href:  scope.devicesWith(fieldConfig, false, count.State.Key()),
 			Info:  configStateInfo(count.State),
 			Count: count.Count,
 			Tone:  ConfigStatus(count.State).Tone,
@@ -186,7 +186,7 @@ func softwareCardView(scope *dashboardScope, frame CardView) DonutCardView {
 // devices of no reported version.
 func softwareHref(scope *dashboardScope, count VersionCount) string {
 	if count.Bucket != VersionBucketUnreported {
-		return scope.devicesWith(fieldVersion, textbuf.New().Join(count.Versions, filterListSeparator).Slice())
+		return scope.devicesWith(fieldVersion, false, count.Versions...)
 	}
 
 	reported := Versions(scope.views)
@@ -196,7 +196,7 @@ func softwareHref(scope *dashboardScope, count VersionCount) string {
 		return scope.tab(dashTabDevices, "").String()
 	}
 
-	return scope.devicesWith(fieldVersion, filterNegation+textbuf.New().Join(reported, filterListSeparator).Slice())
+	return scope.devicesWith(fieldVersion, true, reported...)
 }
 
 // dashboardEstateCard is the Estate card: the figures of the estate.
@@ -254,14 +254,20 @@ func groupCardView(request *PageRequest, scope *dashboardScope, frame CardView) 
 }
 
 // alarmsHref answers the alarms the scope counts: the object's alarms tab,
-// or for a device, which has none, the estate's alarms of that device.
+// or for a device, which has none, the estate's alarms of that device. It
+// answers the empty text, no link, for a device name the filter grammar
+// cannot carry (SetFilterTerm).
 func (scope *dashboardScope) alarmsHref() string {
 	if scope.device == nil {
 		return scope.tab(dashTabAlarms, "").String()
 	}
 
+	filter, carried := SetFilterTerm("", dashboardAlarmDeviceField, scope.device.Device.Name)
+	if !carried {
+		return ""
+	}
 	estate := Address{Kind: ObjectEstate, Tab: dashTabAlarms, View: scope.object.View}
-	estate.View.Filter = SetFilterTerm("", dashboardAlarmDeviceField, scope.device.Device.Name)
+	estate.View.Filter = filter
 
 	return estate.String()
 }

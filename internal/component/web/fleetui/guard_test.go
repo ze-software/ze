@@ -22,9 +22,9 @@ import (
 // that is off by one fails TestFleetViewDataIsTyped with the number the
 // guard read.
 const (
-	// shellComponentCount is shell.templ (15), tree.templ (6) and
+	// shellComponentCount is shell.templ (16), tree.templ (6) and
 	// search.templ (1).
-	shellComponentCount = 22
+	shellComponentCount = 23
 	// sharedComponentCount is icons.templ and every component_*.templ.
 	sharedComponentCount = 83
 	// pageComponentCount is every page_*.templ: page_devices.templ (1),
