@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7871-11.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ECSQueryEchoesOption",
+    "unit-sha": "10deb34bbde196fe",
+    "claim-sha": "e9898d68e60165ad",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::EchoSubnet",
+    "producer-sha": "630a0a9e8ea59492",
+    "break": "line 261: \"SourceNetmask: c.Subnet.SourceNetmask,\" -\u003e \"SourceNetmask: 0,\""
+  }
+]

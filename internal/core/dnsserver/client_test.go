@@ -50,9 +50,14 @@ func TestClientIP_EDNS0AndPacket(t *testing.T) {
 		{"edns0-then-packet falls back", "edns0-then-packet", noECS, "9.9.9.9", true},
 	}
 	for _, tc := range cases {
-		got, ok := ClientIP(tc.msg, packet, tc.mode)
-		if ok != tc.wantOK || (ok && got.String() != tc.want) {
-			t.Errorf("%s: ClientIP = (%v,%v), want (%q,%v)", tc.name, got, ok, tc.want, tc.wantOK)
+		got, err := ClientIP(tc.msg, packet, tc.mode)
+		if err != nil {
+			t.Errorf("%s: ClientIP error %v, want a client", tc.name, err)
+			continue
+		}
+		ok := got.Addr.IsValid()
+		if ok != tc.wantOK || (ok && got.Addr.String() != tc.want) {
+			t.Errorf("%s: ClientIP = (%v,%v), want (%q,%v)", tc.name, got.Addr, ok, tc.want, tc.wantOK)
 		}
 	}
 }

@@ -283,9 +283,17 @@ longest-prefix mechanism and none of the caller's vocabulary.
 
 ## Client IP
 
-`ClientIP` returns the EDNS0 client-subnet address when the query carries one
-and the configuration allows it, and the packet source otherwise. The packet
+`ClientIP` returns a `Client`: the EDNS0 client-subnet address when the query
+carries an option with address bits and the mode reads it, and the packet
+source otherwise, with the checked option itself. A wrongly formatted option
+is an error wrapping `ErrMalformedSubnet`, which the consumer answers FORMERR
+(RFC 7871 Section 7.2.1). `EchoSubnet` adds the reply's option with the
+query's fields and the scope the consumer computed, and adds nothing for a
+query with no option or a mode that reads none. `Matcher.Scope` gives that
+scope for a source-prefix answer, never overlapping another entry. The packet
 source arrives as a `netip.Addr` value, so the function is testable with no
-fake `ResponseWriter`.
+fake `ResponseWriter`. geodns is the only consumer; as112 reads the packet
+source alone through `RemoteAddr`.
 
-<!-- source: internal/core/dnsserver/client.go -- ClientIP, RemoteAddr -->
+<!-- source: internal/core/dnsserver/client.go -- ClientIP, Client, ErrMalformedSubnet, EchoSubnet, RemoteAddr -->
+<!-- source: internal/core/dnsserver/matcher.go -- Matcher.Scope -->

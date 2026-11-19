@@ -190,7 +190,9 @@ module ze-as112-conf {
                     type zt:port;
                     default 853;
                     description
-                        "The RFC 7858 well-known 'domain-s' port is 853.";
+                        "The RFC 7858 well-known 'domain-s' port is 853. A commit with the value 53 is
+                         refused, because RFC 7858 Section 3.1 forbids DNS over TLS on the cleartext DNS
+                         port, which AS112 already serves.";
                     ze:help
                         "TCP port for the DoT listener.";
                 }

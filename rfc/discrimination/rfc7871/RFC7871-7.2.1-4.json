@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7871-7.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_MalformedOptionDrawsFormErr",
+    "unit-sha": "d5021307d728a577",
+    "claim-sha": "1fda239eed49b04d",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::checkSubnet",
+    "producer-sha": "ecfa8f06d685143f",
+    "break": "line 156: \"if subnet.SourceScope != 0 {\" -\u003e \"if subnet.SourceScope == 0 {\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_MalformedOptionDrawsFormErr",
+    "unit-sha": "d5021307d728a577",
+    "claim-sha": "435a9b38b8b00a2f",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuery",
+    "producer-sha": "65befc4d53a882de",
+    "break": "line 373: \"msg.Rcode = dns.RcodeFormatError\" -\u003e \"msg.Rcode = dns.RcodeSuccess\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_MalformedOptionOnTheWire",
+    "unit-sha": "3c240f09f77b96d0",
+    "claim-sha": "f587c75cec3c86cf",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuery",
+    "producer-sha": "65befc4d53a882de",
+    "break": "line 373: \"msg.Rcode = dns.RcodeFormatError\" -\u003e \"msg.Rcode = dns.RcodeSuccess\""
+  }
+]

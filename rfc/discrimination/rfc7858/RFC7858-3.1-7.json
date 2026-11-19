@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7858-3.1-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestForwardServerOffDoTPortAccepted",
+    "unit-sha": "a5b0c679045b6ad2",
+    "claim-sha": "b180b0adeb545b08",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "f017a0629c214f43",
+    "break": "line 267: \"uint16(p),\" -\u003e \"uint16(p)|1,\""
+  },
+  {
+    "rid": "RFC7858-3.1-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestForwardServerOn853Refused",
+    "unit-sha": "db580910faba1759",
+    "claim-sha": "102ee4cc4906b8cd",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "f017a0629c214f43",
+    "break": "line 267: \"uint16(p),\" -\u003e \"uint16(0),\""
+  }
+]

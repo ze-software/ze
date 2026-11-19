@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
@@ -189,6 +190,12 @@ func parseListener(name string, em map[string]any) (listenerEndpoint, error) {
 		}
 		port = uint16(p)
 	}
+	// RFC 7858 Section 3.1: the resolver has no DNS over TLS listener, so every
+	// listener answers cleartext DNS, and none may sit on port 853.
+	if err := dnsserver.RefuseCleartextOnDoTPort("listener \""+name+"\"", port,
+		"set service dns-resolver listener "+name+" port 53"); err != nil {
+		return listenerEndpoint{}, err
+	}
 	return listenerEndpoint{Name: name, IP: ip, Port: port}, nil
 }
 
@@ -237,7 +244,7 @@ func parseForward(r map[string]any) ([]upstream, error) {
 }
 
 // parseUpstream reads one forward server entry: its key is the address, and
-// its port defaults to 53.
+// its port defaults to 53, and port 853 is refused.
 func parseUpstream(entry configorder.Entry) (upstream, error) {
 	ip, err := netip.ParseAddr(entry.Key)
 	if err != nil {
@@ -254,6 +261,12 @@ func parseUpstream(entry configorder.Entry) (upstream, error) {
 	}
 	if p == 0 {
 		return upstream{}, fmt.Errorf("forward server %s port 0 is not a port a resolver answers on; set `port 53`", entry.Key)
+	}
+	// RFC 7858 Section 3.1: the forwarder sends cleartext DNS only (exchange in
+	// forward.go), so no forward server may be on port 853.
+	if err := dnsserver.RefuseCleartextOnDoTPort("forward server "+entry.Key, uint16(p),
+		"set service dns-resolver forward server "+entry.Key+" port 53"); err != nil {
+		return upstream{}, err
 	}
 	u.Port = uint16(p)
 	return u, nil

@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestForwardServerOffDoTPortAccepted",
+    "unit-sha": "a5b0c679045b6ad2",
+    "claim-sha": "671eae20b4b9c831",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "f017a0629c214f43",
+    "break": "line 267: \"uint16(p),\" -\u003e \"uint16(p)|1,\""
+  },
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestForwardServerOn853Refused",
+    "unit-sha": "db580910faba1759",
+    "claim-sha": "985fa97a8bd76f28",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "f017a0629c214f43",
+    "break": "line 267: \"uint16(p),\" -\u003e \"uint16(0),\""
+  },
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestResolverListenerOffDoTPortAccepted",
+    "unit-sha": "84ac180c56686919",
+    "claim-sha": "2b8eef0aeabee87f",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseListener",
+    "producer-sha": "a0a31c26ad63d82e",
+    "break": "line 195: \", port,\" -\u003e \", port|1,\""
+  },
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go::TestResolverListenerOn853Refused",
+    "unit-sha": "af5b1753bf01164d",
+    "claim-sha": "7c3d12f45f5ca412",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseListener",
+    "producer-sha": "a0a31c26ad63d82e",
+    "break": "line 195: \", port,\" -\u003e \", 0,\""
+  },
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOffDoTPortAccepted",
+    "unit-sha": "85e5dbb3bbe944cc",
+    "claim-sha": "b28342ac28c55efc",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseListeners",
+    "producer-sha": "8e4a5003fd6b1519",
+    "break": "line 673: \"name+\\\"\\\\\\\"\\\", port,\" -\u003e \"name+\\\"\\\\\\\"\\\", port|1,\""
+  },
+  {
+    "rid": "RFC7858-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOn853Refused",
+    "unit-sha": "fc199ff82836b49d",
+    "claim-sha": "94cef71f34ae7024",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseListeners",
+    "producer-sha": "8e4a5003fd6b1519",
+    "break": "line 673: \"name+\\\"\\\\\\\"\\\", port,\" -\u003e \"name+\\\"\\\\\\\"\\\", 0,\""
+  }
+]

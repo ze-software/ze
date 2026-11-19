@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7871-7.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_NoEchoWithoutECSOrInPacketMode",
+    "unit-sha": "74e61c841709e157",
+    "claim-sha": "ad598521e539acf8",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::ClientIP",
+    "producer-sha": "3398b38c8c15520e",
+    "break": "line 71: \"if mode != clientModePacket {\" -\u003e \"if true {\""
+  }
+]

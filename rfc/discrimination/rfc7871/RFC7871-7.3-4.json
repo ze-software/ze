@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7871-7.3-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_PrivacyMaskedQueryGetsTheFamilyUsed",
+    "unit-sha": "7a6b7e195bc5f381",
+    "claim-sha": "1ffc89db6aaf2f04",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::EchoSubnet",
+    "producer-sha": "630a0a9e8ea59492",
+    "break": "line 241: \"if family == subnetFamilyNone \u0026\u0026 c.Addr.IsValid() {\" -\u003e \"if c.Addr.IsValid() {\""
+  },
+  {
+    "rid": "RFC7871-7.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_PrivacyMaskedQueryGetsTheFamilyUsed",
+    "unit-sha": "7a6b7e195bc5f381",
+    "claim-sha": "8b8263b4c97906ac",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::EchoSubnet",
+    "producer-sha": "630a0a9e8ea59492",
+    "break": "line 241: \"if family == subnetFamilyNone \u0026\u0026 c.Addr.IsValid() {\" -\u003e \"if false {\""
+  }
+]

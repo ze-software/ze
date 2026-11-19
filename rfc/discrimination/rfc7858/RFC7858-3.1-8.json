@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7858-3.1-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOffDoTListenPortAccepted",
+    "unit-sha": "ee197521e4302807",
+    "claim-sha": "a6750f0f92188774",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/ports.go::RefuseCleartextOnConfiguredDoTPort",
+    "producer-sha": "139a7c763c5873e9",
+    "break": "line 70: \"if !sc.DoTEnabled {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC7858-3.1-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOnDoTListenPortRefused",
+    "unit-sha": "fd859a335f973ea8",
+    "claim-sha": "e8b818ca17cd2614",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseListeners",
+    "producer-sha": "8e4a5003fd6b1519",
+    "break": "line 677: \"name, port, secure)\" -\u003e \"name, port+1, secure)\""
+  }
+]

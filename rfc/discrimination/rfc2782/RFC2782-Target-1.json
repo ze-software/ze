@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2782-Target-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2782_srv_target_test.go::TestRFC2782_SRVTargetNeedsAnAddress",
+    "unit-sha": "3af078603c3e32e2",
+    "claim-sha": "76fc1d31fa8e8e08",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::checkSRVTargets",
+    "producer-sha": "07dbfcd41239bdb3",
+    "break": "line 516: \"if srvTargetResolves(cfg, hosts, rec.Target) {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC2782-Target-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc2782_srv_target_test.go::TestRFC2782_SRVTargetNeedsAnAddress",
+    "unit-sha": "3af078603c3e32e2",
+    "claim-sha": "2a425e27d009b85d",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::checkSRVTargets",
+    "producer-sha": "07dbfcd41239bdb3",
+    "break": "line 516: \"if srvTargetResolves(cfg, hosts, rec.Target) {\" -\u003e \"if false {\""
+  }
+]

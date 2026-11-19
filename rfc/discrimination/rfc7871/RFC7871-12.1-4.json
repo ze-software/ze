@@ -1,0 +1,45 @@
+[
+  {
+    "rid": "RFC7871-12.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_EveryReplyToAnECSQueryCarriesTheOption",
+    "unit-sha": "c81cedde7897a719",
+    "claim-sha": "c1da341ae1fc4855",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::EchoSubnet",
+    "producer-sha": "630a0a9e8ea59492",
+    "break": "line 237: \"if c.Subnet == nil {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC7871-12.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_EveryReplyToAnECSQueryCarriesTheOption",
+    "unit-sha": "c81cedde7897a719",
+    "claim-sha": "9549170a01414192",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::ClientIP",
+    "producer-sha": "3398b38c8c15520e",
+    "break": "line 76: \"if present {\" -\u003e \"if true {\"",
+    "paired": [
+      {
+        "producer": "internal/core/dnsserver/client.go::ClientIP",
+        "producer-sha": "3398b38c8c15520e",
+        "break": "line 77: \"c.Subnet = subnet\" -\u003e \"c.Subnet = \u0026dns.EDNS0_SUBNET{Family: subnetFamilyIPv4}\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/core/dnsserver/client.go::ClientIP",
+        "break": "line 76: \"if present {\" -\u003e \"if true {\"",
+        "seconds": 0,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/plugins/geodns\t0.244s"
+      },
+      {
+        "producer": "internal/core/dnsserver/client.go::ClientIP",
+        "break": "line 77: \"c.Subnet = subnet\" -\u003e \"c.Subnet = \u0026dns.EDNS0_SUBNET{Family: subnetFamilyIPv4}\"",
+        "seconds": 0,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/plugins/geodns\t0.242s"
+      }
+    ]
+  }
+]

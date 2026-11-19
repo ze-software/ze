@@ -75,6 +75,38 @@ same defaults the YANG states.
 
 <!-- source: internal/core/dnsserver/secure.go -- DefaultSecureConfig, ParseSecureLeaves -->
 
+## Cleartext and TLS never share a port
+
+RFC 7858 Section 3.1 keeps DNS over TLS off port 53 and cleartext DNS off port
+853. The YANG type of every port leaf is the plain `zt:port`, so the refusal
+is in the Go parse that both the offline verifier and the daemon's verify run,
+and it is an operator error with the fix.
+
+| Endpoint | Refused | Producer |
+|----------|---------|----------|
+| as112 and geodns `tls listen-port` | 53 | `ParseSecureLeaves` |
+| dns-resolver `listener` and `forward server` port | 853 | `parseListener`, `parseUpstream` |
+| geodns `listener` port | 853, and the `tls listen-port` while DoT is enabled | `parseListeners` |
+
+A DoT listener binds every IP of the cleartext listeners on its own port, so a
+geodns cleartext listener on that port would answer cleartext UDP on the DoT
+port. as112's cleartext listeners are fixed on 53, which its DoT port cannot
+be. The dns-resolver has no DoT listener and no DoT client, so every one of its
+endpoints is cleartext.
+
+<!-- source: internal/core/dnsserver/ports.go -- RefuseCleartextOnDoTPort, RefuseCleartextOnConfiguredDoTPort -->
+
+## DoH freshness
+
+Every DoH answer carries an explicit `Cache-Control: max-age`, so no HTTP
+cache assigns a heuristic lifetime of its own (RFC 8484 Section 5.1). A reply
+with answers takes the smallest Answer TTL. A reply with no answer and an
+Authority SOA takes the negative TTL, the smaller of the SOA record's TTL and
+its MINIMUM field (RFC 2308 Section 5). A reply with neither, such as a
+SERVFAIL, gets `max-age=0`.
+
+<!-- source: internal/core/dnsserver/secure.go -- dohFreshness -->
+
 ## DNSSEC is the RFC 4035 stub model
 
 The ze resolver sets the EDNS0 DO bit with CD=0 and relies on a validating

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8484-5.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/dnsserver/rfc8484_negative_freshness_test.go::TestDoHAnswerFreshnessIgnoresSOAMinimum",
+    "unit-sha": "2b9ae3768763bbcf",
+    "claim-sha": "729fc172b97890e8",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/secure.go::dohFreshness",
+    "producer-sha": "c890d508ed84aff2",
+    "break": "line 700: \"if len(msg.Answer) \u003e 0 {\" -\u003e \"if len(msg.Answer) \u003e 1 {\""
+  },
+  {
+    "rid": "RFC8484-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/rfc8484_negative_freshness_test.go::TestDoHNegativeFreshnessCappedBySOAMinimum",
+    "unit-sha": "753674c5ddf794c9",
+    "claim-sha": "d69b7cac7a1169eb",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/secure.go::negativeTTL",
+    "producer-sha": "d2e364ea7d81e1b3",
+    "break": "line 730: \"return min(soa.Hdr.Ttl, soa.Minttl)\" -\u003e \"return soa.Hdr.Ttl\""
+  }
+]

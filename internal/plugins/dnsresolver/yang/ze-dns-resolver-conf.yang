@@ -41,7 +41,9 @@ module ze-dns-resolver-conf {
                 ze:listener;
                 description "UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one
                     port. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN
-                    side. The ze:listener marking enables config-time port-conflict detection across services.";
+                    side. Port 853 is refused, because the resolver answers cleartext DNS and RFC 7858 Section 3.1
+                    reserves 853 for DNS over TLS. The ze:listener marking enables config-time port-conflict
+                    detection across services.";
                 ze:help "UDP and TCP listen endpoints for the resolver";
 
                 leaf name {
@@ -101,7 +103,9 @@ module ze-dns-resolver-conf {
                     leaf port {
                         type zt:port;
                         default 53;
-                        description "The upstream resolver's port.";
+                        description "The upstream resolver's port. Port 853 is refused, because Ze forwards
+                            cleartext DNS and RFC 7858 Section 3.1 forbids sending cleartext DNS to the DNS over
+                            TLS port.";
                         ze:help "Upstream resolver port";
                     }
                 }

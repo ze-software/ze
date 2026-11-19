@@ -239,7 +239,14 @@ func parseConfig(data string) (geodnsConfig, error) {
 		cfg.Enabled = v == configValueTrue
 	}
 
-	listeners, err := parseListeners(g)
+	// tls (DoT) + doh (DoH) listener config: shared parse, native-mirror port
+	// validation. Defaults seeded above via DefaultSecureConfig. It runs before
+	// the cleartext listeners, which must keep off the DoT port it reads.
+	if err := dnsserver.ParseSecureLeaves(g, &cfg.Secure, "geodns"); err != nil {
+		return cfg, err
+	}
+
+	listeners, err := parseListeners(g, cfg.Secure)
 	if err != nil {
 		return cfg, err
 	}
@@ -311,6 +318,11 @@ func parseConfig(data string) (geodnsConfig, error) {
 		}
 	}
 
+	// RFC 2782 "Target": every SRV target geodns answers for has an address.
+	if err := checkSRVTargets(cfg); err != nil {
+		return cfg, err
+	}
+
 	if srcMap, ok := asMap(g, "source"); ok {
 		prefixes := sortedKeys(srcMap)
 		for _, pfx := range prefixes {
@@ -330,12 +342,6 @@ func parseConfig(data string) (geodnsConfig, error) {
 			// set no host-set entry declares before this parse runs.
 			cfg.Sources = append(cfg.Sources, sourceEntry{Prefix: prefix.Masked(), HostSet: setName})
 		}
-	}
-
-	// tls (DoT) + doh (DoH) listener config: shared parse, native-mirror port
-	// validation. Defaults seeded above via DefaultSecureConfig.
-	if err := dnsserver.ParseSecureLeaves(g, &cfg.Secure, "geodns"); err != nil {
-		return cfg, err
 	}
 
 	return cfg, nil
@@ -487,6 +493,59 @@ func parseSRV(host string, m map[string]any, ttl uint32) (dnsRecord, error) {
 	return srvRecord(ttl, fields[0], fields[1], fields[2], name), nil
 }
 
+// checkSRVTargets refuses an SRV record whose target lies in a zone geodns
+// serves and has no address record there.
+//
+// RFC 2782, "Target": "There MUST be one or more address records for this
+// name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181)."
+//
+// geodns answers every name inside its zones, so it is the server that has to
+// hold the target's addresses. A client that drew the SRV record from one host
+// set draws the target's addresses from the same host set, so the address
+// record has to be in that set. The one exception is a synthesized
+// ns<n>.<zone> name, whose A record every client gets. A target outside every
+// served zone belongs to another zone's operator, and geodns cannot see it.
+func checkSRVTargets(cfg geodnsConfig) error {
+	for _, setName := range slices.Sorted(maps.Keys(cfg.HostSets)) {
+		hosts := cfg.HostSets[setName].Hosts
+		for _, host := range slices.Sorted(maps.Keys(hosts)) {
+			for _, rec := range hosts[host] {
+				if rec.Kind != kindSRV {
+					continue
+				}
+				if srvTargetResolves(cfg, hosts, rec.Target) {
+					continue
+				}
+				return fmt.Errorf("geodns: host-set %q host %q: srv target %q has no address record in host-set %q; "+
+					"RFC 2782 requires one for an SRV target, and geodns answers that name; "+
+					"add host %q with an address to host-set %q, or point the target at a name that has one",
+					setName, host, rec.Target, setName, rec.Target, setName)
+			}
+		}
+	}
+	return nil
+}
+
+// srvTargetResolves reports whether a client that drew an SRV record from the
+// host set holding hosts finds an address record for target: target lies
+// outside every served zone, is a synthesized ns<n>.<zone> glue name, or is a
+// host of the same set with an A or AAAA record.
+func srvTargetResolves(cfg geodnsConfig, hosts map[string][]dnsRecord, target string) bool {
+	zone := matchZone(target, cfg.Zones)
+	if zone == "" {
+		return true
+	}
+	if nsID(target, zone, cfg.Nameservers) > 0 {
+		return true
+	}
+	for _, rec := range hosts[target] {
+		if rec.Kind != kindSRV {
+			return true
+		}
+	}
+	return false
+}
+
 // parseTTL parses a decimal TTL and bounds it to RFC 2181 section 8 (0..maxTTL).
 func parseTTL(v string) (uint32, error) {
 	n, err := strconv.ParseUint(v, 10, 32)
@@ -571,10 +630,17 @@ func parseAddrList(m map[string]any, key string, v4Only bool) ([]netip.Addr, err
 // parseListeners reads the listener list (keyed by name, each with ip + port).
 // When no entry is configured it defaults to 127.0.0.1:5300 and ::1:5300. A
 // per-listener port of 0 is rejected (a DNS server needs a fixed port even
-// though the zt:listener type permits 0 for OS-assigned).
-func parseListeners(g map[string]any) ([]listenerEndpoint, error) {
+// though the zt:listener type permits 0 for OS-assigned). A port of 853, or the
+// DoT listen-port while DoT is enabled, is refused: the listener speaks
+// cleartext DNS (RFC 7858 Section 3.1). The default 5300 is neither, unless the
+// operator set the DoT listen-port to 5300, so the default list is checked too.
+func parseListeners(g map[string]any, secure dnsserver.SecureConfig) ([]listenerEndpoint, error) {
 	lm, ok := asMap(g, "listener")
 	if !ok || len(lm) == 0 {
+		// RFC 7858 Section 3.1
+		if err := dnsserver.RefuseCleartextOnConfiguredDoTPort("geodns", "(default)", defaultListenPort, secure); err != nil {
+			return nil, err
+		}
 		return []listenerEndpoint{
 			{IP: netip.MustParseAddr(loopbackIPv4), Port: defaultListenPort},
 			{IP: netip.MustParseAddr(loopbackIPv6), Port: defaultListenPort},
@@ -601,6 +667,15 @@ func parseListeners(g map[string]any) ([]listenerEndpoint, error) {
 				return nil, fmt.Errorf("geodns: listener %q port %q invalid, must be 1..65535", name, ps)
 			}
 			port = uint16(p)
+		}
+		// RFC 7858 Section 3.1: a geodns listener answers cleartext DNS, so
+		// none may sit on port 853, nor on the port the DoT listener binds.
+		if err := dnsserver.RefuseCleartextOnDoTPort("geodns: listener \""+name+"\"", port,
+			"set service geodns listener "+name+" port 5300"); err != nil {
+			return nil, err
+		}
+		if err := dnsserver.RefuseCleartextOnConfiguredDoTPort("geodns", name, port, secure); err != nil {
+			return nil, err
 		}
 		out = append(out, listenerEndpoint{IP: ip, Port: port})
 	}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7871-7.2.1-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_MalformedOptionDrawsFormErr",
+    "unit-sha": "d5021307d728a577",
+    "claim-sha": "c289a91f509aece6",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::ClientIP",
+    "producer-sha": "3398b38c8c15520e",
+    "break": "line 71: \"if mode != clientModePacket {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_MalformedOptionDrawsFormErr",
+    "unit-sha": "d5021307d728a577",
+    "claim-sha": "aa176b684664b6d9",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::checkSubnet",
+    "producer-sha": "ecfa8f06d685143f",
+    "break": "line 156: \"if subnet.SourceScope != 0 {\" -\u003e \"if false {\""
+  }
+]

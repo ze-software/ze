@@ -267,7 +267,8 @@ func DefaultSecureConfig() SecureConfig {
 // node (the map at service.<plugin>) onto sc. The tls container carries DoT's
 // enable + listen-port and the cert material shared with DoH; the doh container
 // carries DoH's enable + listen-port + path. A zero or non-numeric port is
-// rejected (defensive mirror of the YANG zt:port range 1..65535).
+// rejected (defensive mirror of the YANG zt:port range 1..65535), and a DoT
+// listen-port of 53 is refused (RFC 7858 Section 3.1).
 func ParseSecureLeaves(node map[string]any, sc *SecureConfig, svc string) error {
 	if tlsM, ok := node["tls"].(map[string]any); ok {
 		if v, ok := tlsM["enabled"].(string); ok {
@@ -277,6 +278,10 @@ func ParseSecureLeaves(node map[string]any, sc *SecureConfig, svc string) error 
 			p, err := strconv.ParseUint(v, 10, 16)
 			if err != nil || p == 0 {
 				return fmt.Errorf("%s: tls listen-port %q invalid (expected 1..65535)", svc, v)
+			}
+			// RFC 7858 Section 3.1
+			if err := refuseDoTOnCleartextPort(svc, uint16(p)); err != nil {
+				return err
 			}
 			sc.DoTPort = uint16(p)
 		}
@@ -614,11 +619,10 @@ func (m *Manager) dohHandler(localAddr net.Addr) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", dohContentType)
-		if ttl := minAnswerTTL(rw.msg); ttl > 0 {
-			// RFC 8484 §5.1: cap HTTP freshness at the smallest record TTL.
-			var tb textbuf.Buffer
-			w.Header().Set("Cache-Control", tb.Str("max-age=").Uint(uint64(ttl)).String())
-		}
+		// RFC 8484 Section 5.1: the freshness is always explicit, max-age=0
+		// included, so no HTTP cache assigns a heuristic lifetime above the cap.
+		var tb textbuf.Buffer
+		w.Header().Set("Cache-Control", tb.Str("max-age=").Uint(uint64(dohFreshness(rw.msg))).String())
 		w.WriteHeader(http.StatusOK)
 		if _, werr := w.Write(out); werr != nil {
 			m.log.Debug("dnsserver: doh response write", logKeyError, werr)
@@ -674,18 +678,56 @@ func httpRemoteAddr(s string) net.Addr {
 	return &net.TCPAddr{IP: net.ParseIP(host), Port: port}
 }
 
-// minAnswerTTL returns the smallest TTL across the answer section, or 0 when
-// there are no answers.
-func minAnswerTTL(msg *dns.Msg) uint32 {
-	var out uint32
-	first := true
-	for _, rr := range msg.Answer {
-		ttl := rr.Header().Ttl
-		if first || ttl < out {
-			out, first = ttl, false
+// dohFreshness returns the HTTP freshness lifetime, in seconds, of the DoH
+// response that carries msg. A reply with answers is capped by its smallest
+// Answer TTL. A reply with no answers is capped by its Authority SOA's
+// negative TTL. A reply with neither, such as a SERVFAIL or a referral, has no
+// lifetime to inherit and gets 0, so no cache keeps it.
+//
+// RFC 8484 Section 5.1: "The assigned freshness lifetime of a DoH HTTP
+// response MUST be less than or equal to the smallest TTL in the Answer
+// section of the DNS response."
+//
+// RFC 8484 Section 5.1: "If the DNS response has no records in the Answer
+// section, and the DNS response has an SOA record in the Authority section,
+// the response freshness lifetime MUST NOT be greater than the MINIMUM field
+// from that SOA record (see [RFC2308])."
+//
+// RFC 2308 Section 5: "Negative responses without SOA records SHOULD NOT be
+// cached as there is no way to prevent the negative responses looping forever
+// between a pair of servers even with a short TTL."
+func dohFreshness(msg *dns.Msg) uint32 {
+	if len(msg.Answer) > 0 {
+		return minAnswerTTL(msg.Answer)
+	}
+	for _, rr := range msg.Ns {
+		if soa, isSOA := rr.(*dns.SOA); isSOA {
+			return negativeTTL(soa)
+		}
+	}
+	return 0
+}
+
+// minAnswerTTL returns the smallest TTL across answers, which MUST NOT be
+// empty: dohFreshness calls it only when the Answer section holds a record.
+func minAnswerTTL(answers []dns.RR) uint32 {
+	out := answers[0].Header().Ttl
+	for _, rr := range answers[1:] {
+		if ttl := rr.Header().Ttl; ttl < out {
+			out = ttl
 		}
 	}
 	return out
+}
+
+// negativeTTL is the lifetime of a negative answer that carries soa in its
+// Authority section: the smaller of the SOA record's own TTL and its MINIMUM
+// field.
+//
+// RFC 2308 Section 5: "When the authoritative server creates this record its
+// TTL is taken from the minimum of the SOA.MINIMUM field and SOA's TTL."
+func negativeTTL(soa *dns.SOA) uint32 {
+	return min(soa.Hdr.Ttl, soa.Minttl)
 }
 
 // dohResponseWriter is an in-memory dns.ResponseWriter that captures the reply

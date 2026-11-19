@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7871-7.2.1-12",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ScopeOverlapsNoOtherPrefix",
+    "unit-sha": "cab6c4b77ba31528",
+    "claim-sha": "41f7408b41c9e77a",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/matcher.go::Scope",
+    "producer-sha": "e6eb8bae18cd51d1",
+    "break": "line 68: \"scope = max(scope, e.Prefix.Bits())\" -\u003e \"scope = max(scope, 0)\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-12",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ScopeOverlapsNoOtherPrefix",
+    "unit-sha": "cab6c4b77ba31528",
+    "claim-sha": "bcd5f9a29f0898c1",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/matcher.go::Scope",
+    "producer-sha": "e6eb8bae18cd51d1",
+    "break": "line 61: \"scope = max(scope, commonBits(ip, e.Prefix.Addr())+1)\" -\u003e \"scope = max(scope, 0)\""
+  }
+]

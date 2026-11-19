@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7871-12.1-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ScopeZeroWhenTheOptionIsUnused",
+    "unit-sha": "1b4a3967bad57c1f",
+    "claim-sha": "a7e36f39e66e06a1",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::subnetScope",
+    "producer-sha": "45f652074770ce90",
+    "break": "line 315: \"return st.matcher.Scope(client.Addr)\" -\u003e \"return 0\""
+  },
+  {
+    "rid": "RFC7871-12.1-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ScopeZeroWhenTheOptionIsUnused",
+    "unit-sha": "1b4a3967bad57c1f",
+    "claim-sha": "677c3f4dad470860",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::subnetScope",
+    "producer-sha": "45f652074770ce90",
+    "break": "line 308: \"if !tailored {\" -\u003e \"if false {\""
+  }
+]

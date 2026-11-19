@@ -41,7 +41,9 @@ module ze-geodns-conf {
                 ze:listener;
                 description "UDP+TCP listen endpoints. Each named entry binds one IP (IPv4 or IPv6) and one port. Repeat the same
                     port for a dual-stack pair. Ze defaults to 127.0.0.1:5300 and ::1:5300 when no entry is configured.
-                    The ze:listener marking enables config-time port-conflict detection across services.";
+                    A listener speaks cleartext DNS, so a commit that puts one on port 853, the DNS over TLS port, is
+                    refused (RFC 7858 Section 3.1). The ze:listener marking enables config-time port-conflict
+                    detection across services.";
                 ze:help "UDP and TCP listen endpoints for geodns.";
 
                 leaf name {
@@ -90,7 +92,15 @@ module ze-geodns-conf {
                 description "edns0-then-packet, the default, reads the address from the EDNS0 client-subnet option (RFC
                     7871) and falls back to the packet source address. packet ignores the option and always reads the
                     packet source. edns0 reads only the option. A query with no option then matches no `source`
-                    prefix, so a name the zone owns draws an empty NOERROR answer.";
+                    prefix, so a name the zone owns draws an empty NOERROR answer. An option with SOURCE PREFIX-LENGTH
+                    0 carries no address, so it counts as no option for the selection. Under edns0 and
+                    edns0-then-packet Ze answers as an RFC 7871 authoritative server: a query whose option is wrongly
+                    formatted (an unknown FAMILY, a non-zero SCOPE PREFIX-LENGTH, ADDRESS bits past SOURCE
+                    PREFIX-LENGTH, two options) draws FORMERR, and the reply to a query that carries an option echoes
+                    its FAMILY, SOURCE PREFIX-LENGTH and ADDRESS. The echoed SCOPE PREFIX-LENGTH is the length of the
+                    network the matched `source` prefix answers for, lengthened past any more specific `source`
+                    prefix inside it so no two scopes overlap, and 0 when the answer did not come from the option's
+                    address. Under packet the option is ignored and never echoed.";
                 ze:help "Where the client IP used for source selection is read from";
             }
 
@@ -296,7 +306,11 @@ module ze-geodns-conf {
                             description "The value is the hostname that runs the service. Ze adds the trailing dot when
                                 the value has none. A commit is refused when the name breaks the length bounds RFC
                                 1035 sets. Ze adds no address record for the target, so a client resolves that name
-                                in a second query.";
+                                in a second query. RFC 2782 states that 'There MUST be one or more address records for
+                                this name'. A target inside a zone Ze serves must therefore be a host of the same
+                                host-set with an address, or one of the synthesized ns1..nsN names of its zone, and a
+                                commit that breaks this is refused. A target outside every served zone is not
+                                checked.";
                             ze:help "SRV target hostname";
                         }
                     }
@@ -351,7 +365,10 @@ module ze-geodns-conf {
                     description
                         "The DoT listener binds this TCP port on every `listener` IP, and it uses no UDP. A
                         commit with the value 0 is refused. Move the port off 853 only when a client can be told the
-                        new one, because a DoT client uses 853 by default.";
+                        new one, because a DoT client uses 853 by default. A commit with the value 53 is refused,
+                        because RFC 7858 Section 3.1 forbids DNS over TLS on the cleartext DNS port. While DoT is
+                        enabled, a commit that puts a `listener` on this port is refused, because that listener
+                        would answer cleartext DNS on the DoT port.";
                     ze:help "TCP port for the DoT listener; the RFC 7858 well-known
                              'domain-s' port is 853.";
                 }

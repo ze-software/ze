@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7858-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/dnsserver/rfc7858_dot_port_test.go::TestDoTListenPort53Refused",
+    "unit-sha": "9a4569a4a8756f3b",
+    "claim-sha": "800e736c8504de37",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/ports.go::refuseDoTOnCleartextPort",
+    "producer-sha": "abce745cd1ea8445",
+    "break": "line 23: \"if port != CleartextDNSPort {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC7858-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/rfc7858_dot_port_test.go::TestDoTListenPortBesides53Accepted",
+    "unit-sha": "54e7241078ef3d11",
+    "claim-sha": "5e58412f3db24b76",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/ports.go::refuseDoTOnCleartextPort",
+    "producer-sha": "abce745cd1ea8445",
+    "break": "line 23: \"if port != CleartextDNSPort {\" -\u003e \"if port \u003e CleartextDNSPort {\""
+  }
+]

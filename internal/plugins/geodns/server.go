@@ -234,7 +234,11 @@ func appendNS(msg *dns.Msg, st *resolverState, zone string, authority bool) {
 // A/AAAA/SRV/ANY resolve per the client source. The RCODE is assigned directly
 // rather than through Msg.SetRcode, which calls SetReply and would drop every
 // question after the first from a multi-question reply.
-func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
+//
+// tailored reports that the answer depends on the client: some question read
+// the host set the client's source prefix selects. Every other answer (SOA, NS,
+// the nameserver glue, a name error, a refusal) is the same for every client.
+func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) (tailored bool) {
 	served, missing := false, false
 	for _, q := range r.Question {
 		zone := matchZone(q.Name, st.cfg.Zones)
@@ -254,6 +258,7 @@ func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
 				continue
 			}
 			added := false
+			tailored = true
 			for _, rec := range resolveHost(st, client, q.Name) {
 				if q.Qtype == dns.TypeANY || typeMatches(q.Qtype, rec.Kind) {
 					msg.Answer = append(msg.Answer, recordRR(q.Name, rec))
@@ -286,13 +291,39 @@ func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
 	case missing:
 		msg.Rcode = dns.RcodeNameError
 	}
+	return tailored
+}
+
+// subnetScope returns the SCOPE PREFIX-LENGTH of the client-subnet option the
+// reply carries: the network the matched source prefix answers for, when the
+// answer was chosen from the option's ADDRESS, and 0 otherwise.
+//
+// RFC 7871 Section 12.1: "If the option is supported but not actually used for
+// generating a response, its SCOPE PREFIX- LENGTH MUST be set to 0."
+//
+// The option is not used when no question read a host set (tailored false),
+// nor when the host set was chosen from the packet source, as for an option
+// with SOURCE PREFIX-LENGTH 0 under edns0-then-packet.
+func subnetScope(st *resolverState, client dnsserver.Client, tailored bool) uint8 {
+	if !tailored {
+		return 0
+	}
+	if !client.FromSubnet {
+		return 0
+	}
+	// RFC 7871 Section 7.2.1: the scope overlaps no other source prefix.
+	return st.matcher.Scope(client.Addr)
 }
 
 // answerQuery is geodns's dnsserver.AnswerFunc. The harness has already shaped
 // msg (SetReply/Authoritative/Compress/no-recursion, RFC 1035) and owns the
 // single wire write; geodns supplies the per-request state snapshot, metrics,
 // the enabled check, client-IP resolution (RFC 7871), and answer policy, then
-// returns whether the harness should send msg. p is the read-only transport
+// returns whether the harness should send msg. In edns0 and edns0-then-packet
+// mode geodns implements RFC 7871 as an Authoritative Nameserver: a query whose
+// client-subnet option is wrongly formatted draws FORMERR, and the reply to one
+// that carries a well-formed option echoes it with the answer's SCOPE
+// PREFIX-LENGTH. packet mode reads no option and echoes none. p is the read-only transport
 // peer; the packet source is resolved lazily (dnsserver.RemoteAddr) only when
 // the answer actually depends on it, so a refused query costs nothing for it.
 func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
@@ -331,9 +362,22 @@ func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 	// owns is a no-data answer, because no source prefix matches the zero Addr and
 	// so no host set is selected. Returning early instead answered every name,
 	// in-zone or not, with an empty NOERROR the harness then stamped AA on.
-	client, _ := dnsserver.ClientIP(r, dnsserver.RemoteAddr(p), st.cfg.ClientIPSource)
+	client, err := dnsserver.ClientIP(r, dnsserver.RemoteAddr(p), st.cfg.ClientIPSource)
+	if err != nil {
+		// RFC 7871 Section 7.2.1: "A query with a wrongly formatted option (e.g.,
+		// an unknown FAMILY) MUST be rejected and a FORMERR response MUST be
+		// returned to the sender, as described in [RFC6891], "Transport
+		// Considerations"."
+		// The reply carries no option: there is no well-formed one to echo.
+		// packet mode reads no option, so it never takes this branch.
+		msg.Rcode = dns.RcodeFormatError
+		return true
+	}
 
-	answerQuestions(msg, r, st, client)
+	tailored := answerQuestions(msg, r, st, client.Addr)
+	// RFC 7871 Sections 7.2.1, 7.3 and 12.1: the reply to a query that carried
+	// an option carries one, with the query's fields and the answer's scope.
+	dnsserver.EchoSubnet(msg, client, subnetScope(st, client, tailored))
 	return true
 }
 
