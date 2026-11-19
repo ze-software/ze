@@ -2,19 +2,43 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped-daemon defects an operator meets on an LNS with more than one tunnel: a subscriber's route is withdrawn or its session is cleared because a session on another tunnel holds the same session id, and every tunnel stops answering while one RADIUS server is slow. |
 | RFC gaps | - |
 | Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
-| Phase | 4/5: readable interfaces, captured RADIUS actions, task-owned accounting Stop (`93ff938cdb`), checked AC-8 withdrawal (`668a254aec`, `54fce2e657`) and captured-identity-only session reach (`1ed4cebeab`) landed; follow-ups `df9561a463`, `35cc9074ac`, `a3038dfec0`, `938cf958c1`, `23cfe9880f`. AC-4 and AC-8 daemon tests passed 80/80 stress and were promoted (`c801ecfe26`); the six CQM Linux causal checks, the `handleTick` Linux proof and the scale lab on `938cf958c1` passed. The selector-scope test passed 80/80 stress at `23cfe9880f` and is promoted to `test/l2tp/session-selector-scope.ci`. Open: the review gate and closure |
+| Phase | 4/5: readable interfaces, captured RADIUS actions, task-owned accounting Stop (`93ff938cdb`), checked AC-8 withdrawal (`668a254aec`, `54fce2e657`) and captured-identity-only session reach (`1ed4cebeab`) landed; follow-ups `df9561a463`, `35cc9074ac`, `a3038dfec0`, `938cf958c1`, `23cfe9880f`. AC-4 and AC-8 daemon tests passed 80/80 stress and were promoted (`c801ecfe26`); the six CQM Linux causal checks, the `handleTick` Linux proof and the scale lab on `938cf958c1` passed. The selector-scope test passed 80/80 stress at `23cfe9880f` and is promoted to `test/l2tp/session-selector-scope.ci`. Open: closure, blocked at its review gate (see Blocker) |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+The closure Review Gate (`/ze-close` step 5, round 1, 2026-11-19) found one
+ISSUE in this spec's production code. The closing agent was told to edit no
+code, so it hands the spec back.
+
+| What blocks | Producer | What clears it |
+|-------------|----------|----------------|
+| `l2tpReactor.retiredSessions` states no bound (style pass, "What bounds this loop, queue, retry, or cache?", `docs/contributing/ze-go-style.md`). `retainRemovedSessions` adds every ended session, and `pruneRetiredSessionsLocked` drops one only once its PPP and native release is confirmed. Under a permanent native cleanup failure on a churning LAC the map grows with every teardown, and the prune walks it under `tunnelsMu` on every teardown batch and every `CaptureSession` | `internal/component/l2tp/reactor.go` field `retiredSessions`; `internal/component/l2tp/session_retirement.go` `retainRemovedSessions`, `pruneRetiredSessionsLocked` | State the bound in the code above the field and above `retainRemovedSessions`: one entry per removed admission whose PPP or native release is unconfirmed, so it never outnumbers the PPP workers and kernel-worker owners still held. If that bound is judged insufficient, bound the map instead. Then a round-2 review over that fix, the review record and the two closure commits |
+
+Round 1 also corrected one stale public claim, a prose fix the closing agent
+committed: `features/l2tpv2-bng.md` still called
+`test/l2tp/slow-accounting-control.ci` a draft outside the live suite after
+`c801ecfe26` promoted it.
+
+Round 1 NOTEs. They do not block:
+
+| # | NOTE | Location |
+|---|------|----------|
+| 1 | Stale `test/draft/l2tp/...` paths in test-only fixture comments after promotion | `internal/test/fixture/tunnel_fixture_l2tp_session_selector.go` lines 9 and 54, and line 3 of its `_test.go`; `tunnel_fixture_l2tp_slow_accounting.go` lines 11 and 494, and line 3 of its `_test.go` |
+| 2 | A retired original whose cleanup is pending makes a bare `clear l2tp session id <id>` ambiguous even when only one live session holds the ID. The refusal lists the live one with `expected-id`, which then selects it, so it fails closed and stays usable | `session_capture.go` `CaptureSession`; `cmd/session_read.go` `sessionSelectorCandidates` |
+| 3 | `teardownSessionOnTunnel` still selects by tuple after `TeardownAllSessions` releases its walk lock. It serves only clear-all, so ending a same-label replacement matches that command's intent | `internal/component/l2tp/teardown.go` |
+| 4 | `./le test weakened check base origin/main` reports 10 findings, all in IKE files that hold another session's uncommitted work. `./le repo check` reports `AddProcess` in `plugin/process/manager.go`, which is another session's uncommitted edit. Neither belongs to this spec | working tree |
 
 ## Task
 
