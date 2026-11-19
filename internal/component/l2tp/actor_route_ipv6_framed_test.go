@@ -19,20 +19,19 @@ import (
 // replay and withdrawal while the same real PPP peer still answers Echo.
 func TestActorRouteCapturesOriginalIPv6FramedMetadata(t *testing.T) {
 	captureBirthSIDDraw(t)
-	bus := &recordingBus{}
-	observer := newSubscriberRouteObserver(nil, bus)
+	observer := newRecordedActorRoutes(t)
 	prefix := netip.MustParsePrefix("2001:db8::/32")
 	admission := newActorRouteAdmission(t, observer, actorRouteInput{
 		username: "ipv6-framed", address: netip.MustParseAddr("192.0.2.72"),
 		framedRoutes: []FramedRoute{{Prefix: prefix, Metric: 5}},
 	})
 	actorRouteEcho(t, admission.wire)
-	observer.reemitAll(93)
+	observer.replay(t, 93)
 	admission.reactor.handleLCPDown(admission.wire.beginRestart(t))
 
-	adds := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 0)
-	replayed := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 93)
-	removed := actorRouteEntries(t, bus.events(), redistevents.ActionRemove, 0)
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	replayed := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 93)
+	removed := actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0)
 	require.Len(t, adds, 2, "actor must capture the original IPv6 framed route beside its IPCP address")
 	token := adds[0].SourceInstance
 	require.NotZero(t, token)
@@ -57,8 +56,7 @@ func TestActorRouteCapturesOriginalIPv6FramedMetadata(t *testing.T) {
 // loses list members even when the direct observer's framed-route tests pass.
 func TestActorRouteCapturesEveryOriginalFramedRoute(t *testing.T) {
 	captureBirthSIDDraw(t)
-	bus := &recordingBus{}
-	observer := newSubscriberRouteObserver(nil, bus)
+	observer := newRecordedActorRoutes(t)
 	framed := []FramedRoute{
 		{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
 		{Prefix: netip.MustParsePrefix("172.16.0.0/12"), Metric: 2},
@@ -68,12 +66,12 @@ func TestActorRouteCapturesEveryOriginalFramedRoute(t *testing.T) {
 		username: "all-framed", address: netip.MustParseAddr("192.0.2.70"), framedRoutes: framed,
 	})
 	actorRouteEcho(t, admission.wire)
-	observer.reemitAll(94)
+	observer.replay(t, 94)
 	admission.reactor.handleLCPDown(admission.wire.beginRestart(t))
 
-	adds := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 0)
-	replayed := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 94)
-	removed := actorRouteEntries(t, bus.events(), redistevents.ActionRemove, 0)
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	replayed := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 94)
+	removed := actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0)
 	require.Len(t, adds, 4)
 	token := adds[0].SourceInstance
 	require.NotZero(t, token)

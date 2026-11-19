@@ -1,7 +1,6 @@
 // Design: docs/guide/l2tp.md -- subscriber route lifecycle
 // Related: redistribute.go -- source registration
-// Related: events/events.go -- typed EventBus handle for route-change
-// Related: reactor.go -- session FSM calls OnSessionIPUp / OnSessionDown
+// Related: subscriber/events/events.go -- route assignment and withdrawal notices
 
 package l2tp
 
@@ -11,42 +10,19 @@ import (
 	"sync"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	"github.com/ze-software/ze/internal/core/subscriberid"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/ze"
 )
-
-// RouteObserver is the callback contract invoked by the reactor when a
-// session's IP assignment or teardown requires a corresponding redistribute
-// action. Implementations are expected to be cheap; the reactor calls them
-// while holding only their own state (no reactor locks).
-//
-// Callers MUST NOT assume OnSessionIPUp fires exactly once per session:
-// IPv4 (IPCP) and IPv6 (IPv6CP) can each fire once per session, so a
-// dual-stack subscriber generates two events.
-//
-// OnSessionDown withdraws a network lifetime and is idempotent. It can also
-// run when the transport later terminates, after LCP already withdrew the routes.
-type RouteObserver interface {
-	// OnSessionIPUp fires when one NCP (IPCP or IPv6CP) successfully
-	// negotiates a peer IP. Called once per family per session.
-	// The actor MUST capture framedRoutes from its original metadata before
-	// unlocking. The observer MUST copy that immutable input before retaining it.
-	// Numeric labels are diagnostic; only birth selects a route record.
-	OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framedRoutes []FramedRoute)
-
-	// OnSessionDown fires when the session's per-session goroutine
-	// exits (peer CDN, local teardown, auth failure, NCP timeout).
-	// Numeric labels are diagnostic; only birth selects the original record.
-	OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16)
-}
 
 // routeRecord is the live state the observer tracks per session.
 type routeRecord struct {
 	instance      uint32
-	tunnelID      uint16
-	sessionID     uint16
+	network       l2tpevents.NetworkLifetime
 	username      string
 	v4            netip.Addr
 	v6            netip.Addr
@@ -54,15 +30,14 @@ type routeRecord struct {
 	framedEmitted bool
 }
 
-// subscriberRouteObserver is the concrete RouteObserver the Subsystem
-// installs into each reactor. It maintains a full birth -> routeRecord
-// map so the CLI and future RIB injection path can read the live set.
-//
-// Thread safety: the internal map is protected by mu; all public
-// methods are safe for concurrent use.
+// subscriberRouteObserver retains live routes by subscriber ID for one access
+// type. Its mutex protects the records and counters across event callbacks.
 type subscriberRouteObserver struct {
 	logger *slog.Logger
 	bus    ze.EventBus
+	access subscriber.AccessType
+	source redistevents.ProtocolID
+	emit   *events.Event[*redistevents.RouteChangeBatch]
 
 	mu sync.Mutex
 	// emitMu orders a replay against the incremental emits. Each incremental
@@ -71,66 +46,137 @@ type subscriberRouteObserver struct {
 	// record changed after the snapshot is then published after the replay's
 	// Add, never before it, so the replay cannot revive the route.
 	emitMu  sync.RWMutex
-	records map[subscriberid.L2TPBirth]*routeRecord
+	records map[string]*routeRecord
 
-	// injectedTotal and withdrawnTotal are monotonic counters the CLI
-	// `show l2tp statistics` handler reads to surface redistribute
-	// activity without having to walk the map.
+	// Totals count host route changes over the life of this reader.
 	injectedTotal  uint64
 	withdrawnTotal uint64
 }
 
-// newSubscriberRouteObserver returns an observer that logs every IP-up
-// and session-down, retains the last-known state per session, and emits
-// route-change events on the EventBus when bus is non-nil. When bus is
-// nil (tests, partial subsystem init), state tracking and counters
-// still work but no events are emitted.
-func newSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus) *subscriberRouteObserver {
+// SubscriberRouteSubscription owns one access type's subscriber route reader.
+type SubscriberRouteSubscription struct {
+	observer *subscriberRouteObserver
+	mu       sync.Mutex
+	inFlight sync.WaitGroup
+	stopped  bool
+	unsubs   []func()
+}
+
+// StartSubscriberRouteObserver subscribes to assignment, down and replay for
+// one access type. The owning transport MUST start it before emitting notices
+// and retain it until its terminal notices have all returned.
+func StartSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus, access subscriber.AccessType,
+	source redistevents.ProtocolID, emit *events.Event[*redistevents.RouteChangeBatch],
+) *SubscriberRouteSubscription {
+	subscription := &SubscriberRouteSubscription{observer: newAccessRouteObserver(logger, bus, access, source, emit)}
+	if bus != nil {
+		subscription.unsubs = []func(){
+			subevents.SessionIPAssigned.Subscribe(bus, func(p *subevents.SessionIPAssignedPayload) {
+				subscription.deliver(func() { subscription.observer.assign(p.Session, p.NetworkLifetime, p.Address, p.FramedRoutes) })
+			}),
+			subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) {
+				subscription.deliver(func() { subscription.observer.withdraw(p.Session, p.NetworkLifetime) })
+			}),
+			redistevents.ReplayRequestEvent.Subscribe(bus, func(p *redistevents.ReplayRequest) {
+				subscription.deliver(func() { subscription.observer.reemitAll(p.ReplayID) })
+			}),
+		}
+	}
+	return subscription
+}
+
+// Stop disables new callbacks, joins readers already admitted and withdraws
+// any contributions they left live. The owning transport MUST drain first
+// and MUST call Stop outside this reader's callbacks.
+func (subscription *SubscriberRouteSubscription) Stop() {
+	subscription.mu.Lock()
+	if subscription.stopped {
+		subscription.mu.Unlock()
+		return
+	}
+	subscription.stopped = true
+	unsubs := subscription.unsubs
+	subscription.unsubs = nil
+	subscription.mu.Unlock()
+	for _, unsub := range unsubs {
+		unsub()
+	}
+	subscription.inFlight.Wait()
+	subscription.observer.withdrawAll()
+}
+
+func (subscription *SubscriberRouteSubscription) deliver(f func()) {
+	subscription.mu.Lock()
+	if subscription.stopped {
+		subscription.mu.Unlock()
+		return
+	}
+	subscription.inFlight.Add(1)
+	subscription.mu.Unlock()
+	defer subscription.inFlight.Done()
+	f()
+}
+
+func newAccessRouteObserver(logger *slog.Logger, bus ze.EventBus, access subscriber.AccessType,
+	source redistevents.ProtocolID, emit *events.Event[*redistevents.RouteChangeBatch],
+) *subscriberRouteObserver {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &subscriberRouteObserver{
-		logger:  logger.With("component", "l2tp-redistribute"),
+		logger:  logger.With("component", string(access)+"-redistribute"),
 		bus:     bus,
-		records: make(map[subscriberid.L2TPBirth]*routeRecord),
+		access:  access,
+		source:  source,
+		emit:    emit,
+		records: make(map[string]*routeRecord),
 	}
 }
 
-// OnSessionIPUp records the new NCP-assigned address and logs the
-// event. IPv4 and IPv6 are tracked side-by-side under the same
-// session record. The actor's captured framed routes are copied on the first
-// call per network lifetime; this observer never rebuilds a metadata key.
-func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framedRoutes []FramedRoute) {
-	if !addr.IsValid() {
-		return
+func (o *subscriberRouteObserver) ownsSession(session subscriber.Session, operation string) bool {
+	if session.AccessType != o.access {
+		return false
 	}
-	if !birth.IsValid() {
-		reportSessionBirthRefusal(o.logger, "route assignment", tunnelID, sessionID)
+	if o.access == subscriber.AccessL2TP && (!session.L2TPBirth.IsValid() || session.L2TPBirth.String() != session.ID) {
+		reportSessionBirthRefusal(o.logger, operation, session.TunnelID, session.SessionID)
+		return false
+	}
+	return subscriber.RequireID(o.logger, session.ID) == nil
+}
+
+// assign tracks each family under the same subscriber ID and copies framed
+// routes from the first address assignment of that network lifetime.
+func (o *subscriberRouteObserver) assign(session subscriber.Session, network l2tpevents.NetworkLifetime, addr netip.Addr, framedRoutes []FramedRoute) {
+	if !addr.IsValid() || !o.ownsSession(session, "route assignment") {
 		return
 	}
 	if len(framedRoutes) > framedRoutesMax {
-		o.reportFramedRouteRefusal(birth, tunnelID, sessionID, len(framedRoutes))
+		o.reportFramedRouteRefusal(session, len(framedRoutes))
 		return
 	}
 	var prev netip.Addr
 	o.mu.Lock()
-	r := o.records[birth]
+	r := o.records[session.ID]
+	if r != nil && r.network.IsValid() && network.IsValid() && r.network != network {
+		o.mu.Unlock()
+		return
+	}
 	if r == nil {
 		instance, err := subscriberRouteSources.next()
 		if err != nil {
 			o.mu.Unlock()
-			o.reportSourceRefusal(birth, tunnelID, sessionID, err)
+			o.reportSourceRefusal(session, err)
 			return
 		}
-		r = &routeRecord{instance: instance, tunnelID: tunnelID, sessionID: sessionID, username: username}
-		o.records[birth] = r
+		r = &routeRecord{instance: instance, network: network, username: session.Username}
+		o.records[session.ID] = r
 		if len(framedRoutes) > 0 {
 			r.framedRoutes = make([]FramedRoute, len(framedRoutes))
 			copy(r.framedRoutes, framedRoutes)
 		}
 	}
-	if username != "" && r.username == "" {
-		r.username = username
+	if session.Username != "" && r.username == "" {
+		r.username = session.Username
 	}
 	if addr.Is4() {
 		prev = r.v4
@@ -146,10 +192,10 @@ func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tu
 	}
 	o.injectedTotal++
 	instance := r.instance
-	username = r.username
+	username := r.username
 	o.mu.Unlock()
-	o.logger.Info("l2tp: subscriber route inject",
-		"session-id", sessionID,
+	o.logger.Info(string(o.access)+": subscriber route inject",
+		"session-id", routeSessionLabel(session),
 		"username", username,
 		"address", addr.String(),
 		"family", familyOf(addr))
@@ -162,50 +208,75 @@ func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tu
 	}
 }
 
-// OnSessionDown clears the session's record and bumps the
-// withdrawn counter once for each family that had been reported.
-// Also withdraws any RADIUS framed routes for this session.
-func (o *subscriberRouteObserver) OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
-	if !birth.IsValid() {
-		reportSessionBirthRefusal(o.logger, "route withdrawal", tunnelID, sessionID)
+// withdraw removes each recorded host route and all captured framed routes
+// for this subscriber and network lifetime.
+func (o *subscriberRouteObserver) withdraw(session subscriber.Session, network l2tpevents.NetworkLifetime) {
+	if !o.ownsSession(session, "route withdrawal") {
 		return
 	}
 	o.mu.Lock()
-	r, ok := o.records[birth]
-	if !ok {
+	r := o.records[session.ID]
+	if r == nil || r.network.IsValid() && network.IsValid() && r.network != network {
 		o.mu.Unlock()
 		return
 	}
-	delete(o.records, birth)
-	withdrawn := 0
+	delete(o.records, session.ID)
+	withdrawn := r.hostRouteCount()
+	o.withdrawnTotal += withdrawn
+	o.mu.Unlock()
+	o.emitRecordRemovals(r)
+	o.logger.Info(string(o.access)+": subscriber routes withdrawn",
+		"session-id", routeSessionLabel(session),
+		"username", r.username,
+		"withdrawn", withdrawn)
+}
+
+func (r *routeRecord) hostRouteCount() uint64 {
+	var count uint64
 	if r.v4.IsValid() {
-		withdrawn++
-		o.withdrawnTotal++
+		count++
 	}
 	if r.v6.IsValid() {
-		withdrawn++
-		o.withdrawnTotal++
+		count++
 	}
-	framedRoutes := r.framedRoutes
+	return count
+}
+
+// withdrawAll runs only after Stop has joined all event callbacks. Detach the
+// records before sending any removals to synchronous EventBus recipients.
+func (o *subscriberRouteObserver) withdrawAll() {
+	o.mu.Lock()
+	records := o.records
+	o.records = nil
+	for _, r := range records {
+		o.withdrawnTotal += r.hostRouteCount()
+	}
 	o.mu.Unlock()
+	for _, r := range records {
+		o.emitRecordRemovals(r)
+	}
+}
+
+func (o *subscriberRouteObserver) emitRecordRemovals(r *routeRecord) {
 	if r.v4.IsValid() {
 		o.emitRemove(r.v4, r.instance)
 	}
 	if r.v6.IsValid() {
 		o.emitRemove(r.v6, r.instance)
 	}
-	if len(framedRoutes) > 0 {
-		o.emitFramedRoutes(redistevents.ActionRemove, framedRoutes, r.instance)
+	if r.framedEmitted {
+		o.emitFramedRoutes(redistevents.ActionRemove, r.framedRoutes, r.instance)
 	}
-	o.logger.Info("l2tp: subscriber routes withdrawn",
-		"session-id", sessionID,
-		"username", r.username,
-		"withdrawn", withdrawn)
 }
 
-// Stats returns a snapshot of the observer's cumulative counters plus
-// the number of sessions currently tracked. Used by the CLI
-// `show l2tp statistics` handler in spec-l2tp-10.
+func routeSessionLabel(session subscriber.Session) uint16 {
+	if session.AccessType == subscriber.AccessPPPoE {
+		return session.PPPoESID
+	}
+	return session.SessionID
+}
+
+// Stats returns the cumulative host route counters and current record count.
 func (o *subscriberRouteObserver) Stats() (injected, withdrawn uint64, active int) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -248,13 +319,17 @@ func (o *subscriberRouteObserver) emitEntries(replayID uint64, fam family.Family
 	}
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
-	b.Protocol = l2tpevents.ProtocolID
+	b.Protocol = o.source
 	b.AFI = uint16(fam.AFI)
 	b.SAFI = uint8(fam.SAFI)
 	b.ReplayID = replayID
 	b.Entries = append(b.Entries, entries...)
-	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
-		o.logger.Warn("l2tp: route-change emit failed", "error", err)
+	if _, err := o.emit.Emit(o.bus, b); err != nil {
+		const problem = "Subscriber route notification failed"
+		const fix = "ze show doctor"
+		o.logger.Warn(problem, "code", report.CodeInternalDefect, "access-type", o.access, "error", err, "fix", fix)
+		report.RaiseWarningFix(string(o.access), report.CodeInternalDefect, "subscriber route publication",
+			problem, fix, map[string]any{"cause": err.Error()})
 	}
 }
 

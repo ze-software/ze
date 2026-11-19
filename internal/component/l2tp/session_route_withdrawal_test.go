@@ -1,18 +1,15 @@
 // Design: docs/architecture/l2tp/subscriber-session-model.md -- the route observer hears a withdrawal for each established session removed
 
-// VALIDATES: the route observer is told to withdraw the subscriber route of
-// every removed session that was established, on the paths that told it
-// nothing before (retention reaping, a tie-breaker loss), and is told nothing
-// for a session removed before it was established, while the bus still
-// carries that session's SessionDown (notifySessionDowns, removeSession).
+// VALIDATES: retention reaping and tie-breaker loss withdraw the original
+// established subscriber's route. A pre-PPP removal still publishes its
+// SessionDown and leaves the other subscriber's route live.
 // PREVENTS: a reaped or tie-breaker-discarded tunnel leaving its subscriber
 // routes injected, and a withdrawal for a session that never ran PPP removing
-// the record of another tunnel's session with the same session ID: the
-// observer keys its records by session ID alone.
+// the record of another admitted session.
 //
 // Method: each test drives one removal path on the ticket paths' reactor,
 // whose tunnel orderTestTID holds the established session orderTestSID, with
-// a route observer that records each withdrawal and a reader that records
+// the real subscriber bridge and route observer, plus a reader that records
 // each session event the bus carries.
 
 package l2tp
@@ -24,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // newReactorWithRecordedWithdrawals builds the ticket paths' reactor with a
@@ -35,7 +33,7 @@ func newReactorWithRecordedWithdrawals(t *testing.T) (*l2tpReactor, *L2TPTunnel,
 	notices := subscribeSessionNoticeLog(bus)
 	r, tun := newReactorForTicketPaths(t, bus)
 	observer := &recordingRouteObserver{}
-	r.routeObserver = observer
+	observer.start(t, bus, r.logger)
 	return r, tun, observer, notices
 }
 
@@ -44,6 +42,7 @@ func newReactorWithRecordedWithdrawals(t *testing.T) (*l2tpReactor, *L2TPTunnel,
 // the route observer to withdraw that session's route.
 func TestRetentionReapWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 	r, tun, observer, _ := newReactorWithRecordedWithdrawals(t)
+	original := observer.seedHostRoute(t, tun.sessions[orderTestSID].Birth(), orderTestTID, orderTestSID)
 	r.tunnelsMu.Lock()
 	tun.state = L2TPTunnelClosed
 	tun.engine.closed = true
@@ -55,6 +54,7 @@ func TestRetentionReapWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 
 	require.Equal(t, [][2]uint16{{orderTestTID, orderTestSID}}, observer.downs(),
 		"the reaped tunnel's established session kept its subscriber route")
+	observer.requireHostWithdrawal(t, original)
 }
 
 // TestTieBreakerLossWithdrawsItsEstablishedSessionRoute validates that a
@@ -65,6 +65,7 @@ func TestRetentionReapWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 // discarded tunnel's downs.
 func TestTieBreakerLossWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 	r, tun, observer, _ := newReactorWithRecordedWithdrawals(t)
+	original := observer.seedHostRoute(t, tun.sessions[orderTestSID].Birth(), orderTestTID, orderTestSID)
 	equalTB := []byte{5, 5, 5, 5, 5, 5, 5, 5}
 	setTieBreaker(r, tun, equalTB)
 
@@ -72,6 +73,7 @@ func TestTieBreakerLossWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 
 	require.Equal(t, [][2]uint16{{orderTestTID, orderTestSID}}, observer.downs(),
 		"the discarded tunnel's established session kept its subscriber route")
+	observer.requireHostWithdrawal(t, original)
 }
 
 // TestSessionRemovedBeforeEstablishedWithdrawsNoRoute validates that a session
@@ -81,17 +83,19 @@ func TestTieBreakerLossWithdrawsItsEstablishedSessionRoute(t *testing.T) {
 func TestSessionRemovedBeforeEstablishedWithdrawsNoRoute(t *testing.T) {
 	const waitingSID uint16 = orderTestSID + 1
 	r, tun, observer, notices := newReactorWithRecordedWithdrawals(t)
+	original := observer.seedHostRoute(t, tun.sessions[orderTestSID].Birth(), orderTestTID, orderTestSID)
+	waiting := &L2TPSession{localSID: waitingSID, remoteSID: waitingSID + 100, state: L2TPSessionWaitConnect}
+	newFixtureL2TPSession(t, waiting)
 	r.tunnelsMu.Lock()
-	tun.sessions[waitingSID] = &L2TPSession{
-		localSID:  waitingSID,
-		remoteSID: waitingSID + 100,
-		state:     L2TPSessionWaitConnect,
-	}
+	tun.sessions[waitingSID] = waiting
 	r.tunnelsMu.Unlock()
 
 	require.NoError(t, r.teardownSessionByID(waitingSID, l2tpevents.TerminateCauseAdminReset))
 
-	require.Empty(t, observer.downs(), "the route observer was told to withdraw a session that never ran PPP")
+	require.Empty(t, actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0),
+		"a session that never ran PPP must not withdraw a route")
 	require.Equal(t, []string{l2tpevents.SessionDownEvent}, notices.of(orderTestTID, waitingSID),
 		"the bus did not carry exactly one SessionDown for the session removed before it was established")
+	observer.replay(t, 7)
+	require.Equal(t, []redistevents.RouteChangeEntry{original}, actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 7))
 }

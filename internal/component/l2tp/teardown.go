@@ -183,9 +183,9 @@ func (r *l2tpReactor) TeardownAllSessions() int {
 
 // deliverSessionDowns delivers every session a teardown removed, one drain's
 // batch at a time, each in the turn of the order ticket the drain stamped on
-// it: the route observer withdraws the subscriber route of each down whose
-// session was established, then one (l2tp, session-down) is published per
-// down. Its input is what removeSession queued, so a teardown path cannot
+// it: one (l2tp, session-down) is published per down. The subscriber bridge
+// forwards it to the original route reader. Its input is what removeSession
+// queued, so a teardown path cannot
 // reach the readers without one and cannot reach them twice. handleLCPDown
 // publishes the only other (l2tp, session-down): the end of a network
 // lifetime of a session that stays.
@@ -223,16 +223,9 @@ func (r *l2tpReactor) deliverSessionDowns(downs []sessionDown) {
 	batch[0].ticket.deliver(func() { r.notifySessionDowns(batch) })
 }
 
-// notifySessionDowns tells the route observer and the readers of
-// (l2tp, session-down) about one drain's batch. Runs inside the batch's turn.
+// notifySessionDowns tells the readers of (l2tp, session-down) about one
+// drain's batch. Runs inside the batch's turn.
 func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
-	if r.routeObserver != nil {
-		for _, d := range batch {
-			if d.established {
-				r.routeObserver.OnSessionDown(d.birth, d.localTID, d.localSID)
-			}
-		}
-	}
 	if r.eventBus == nil {
 		return
 	}

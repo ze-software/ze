@@ -76,11 +76,9 @@ type L2TPSession struct {
 	// CLI snapshot to report uptime. Immutable after creation.
 	createdAt time.Time
 
-	// assignedAddr is the peer IP address the PPP NCP layer negotiated
-	// (IPCP for IPv4, IPv6CP interface-ID for IPv6). Zero-valued until
-	// EventSessionIPAssigned arrives. Populated by handlePPPEvent in
-	// the reactor; the RouteObserver uses this to inject the /32 or
-	// /128 into the protocol RIB.
+	// assignedAddr is the peer IPv4 address PPP IPCP negotiated. It is
+	// zero before the assignment arrives or after that network phase ends.
+	// The reactor sends the original address to the shared route reader.
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	assignedAddr netip.Addr
@@ -343,11 +341,6 @@ type sessionDown struct {
 	cause          l2tpevents.TerminateCause
 	network        l2tpevents.NetworkLifetime
 	counterReceipt ppp.NetworkCounterReceipt
-	// established records that the session had reached established when it
-	// was removed. Only such a session ran PPP, so only it can hold a
-	// subscriber route for the route observer to withdraw. A pre-PPP removal
-	// still publishes its bus notice, but owes no subscriber-route withdrawal.
-	established bool
 	// ticket is the tunnel's order ticket for the drain that returned this
 	// down. Every down of one drain carries the same ticket, and they are
 	// delivered together in its one turn. drainPendingTeardowns sets it; a
@@ -355,9 +348,8 @@ type sessionDown struct {
 	ticket sessionNoticeTicket
 }
 
-// sessionNoticeOrder orders the session notifications of one tunnel: every
-// route-observer call and every (l2tp, session-ip-assigned), session-up and
-// session-down of every session the tunnel ever holds, a reused session ID
+// sessionNoticeOrder orders every (l2tp, session-ip-assigned), session-up and
+// session-down notification of every session the tunnel ever holds, a reused session ID
 // included. tunnelsMu orders the state changes; a path that changed a session
 // and has a notification to deliver takes a ticket while it still holds
 // tunnelsMu, so tickets are issued in the order of the state changes. After it
@@ -525,7 +517,6 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		network:        network,
 		counterReceipt: counterReceipt,
 		cause:          cause,
-		established:    established,
 	})
 	delete(t.sessions, sid)
 }

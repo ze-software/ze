@@ -23,7 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
-	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -85,13 +84,8 @@ type Subsystem struct {
 	kernelBackend     iface.Backend
 	openKernelBackend func(string) (iface.Backend, error)
 	drainDones        []<-chan struct{} // auth + pool drain goroutine completion
-	// routeObserver tracks subscriber routes (session IP-up / down).
-	// One instance per subsystem; installed into every reactor at
-	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
-	routeObserver *subscriberRouteObserver
-	// replayUnsub unsubscribes the redistribute ReplayRequest handler
-	// installed at Start; nil when no bus was provided. Cleared on Stop/unwind.
-	replayUnsub func()
+	// routeSubscriber owns the L2TP route and replay subscriptions.
+	routeSubscriber *SubscriberRouteSubscription
 	// observer tracks per-session events and per-login CQM samples.
 	// Created at Start when CQMEnabled; nil otherwise.
 	observer *Observer
@@ -219,22 +213,12 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", s.params.ReauthInterval)
 	}
 
-	// spec-l2tp-7 Phase 6: register the L2TP redistribute source
-	// (`redistribute l2tp` becomes a valid config knob) and stand up
-	// the per-subsystem route observer. The observer is installed
-	// into every reactor below so session IP-up / session-down
-	// transitions drive subscriber route inject / withdraw.
 	registerL2TPSources()
-	s.routeObserver = newSubscriberRouteObserver(s.logger, bus)
-
-	// Redistribute late-join replay: on a ReplayRequest re-emit the current
-	// subscriber-route set tagged with the echoed ReplayID so a peer that
-	// established after injection receives them (spec-redistribute-late-join-replay).
+	// Subscribe before any listener or PPP worker can publish an assignment.
+	// The route reader remains active until both transport and bridge drain.
 	if bus != nil {
-		obs := s.routeObserver
-		s.replayUnsub = redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
-			obs.reemitAll(r.ReplayID)
-		})
+		s.routeSubscriber = StartSubscriberRouteObserver(s.logger, bus, subscriber.AccessL2TP, l2tpevents.ProtocolID, l2tpevents.RouteChange)
+		s.subBridge = newSubscriberBridge(subscriber.DefaultRegistry, bus, s.logger)
 	}
 
 	// spec-l2tp-9: create the CQM observer when enabled.
@@ -318,10 +302,6 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			CQMEchoInterval:  s.cqmEchoInterval(),
 			Defaults:         s.tunnelDefaults(),
 		})
-		// spec-l2tp-7 Phase 6: install the subsystem's route observer
-		// into every reactor so EventSessionIPAssigned and
-		// EventSessionDown drive inject / withdraw.
-		reactor.setRouteObserver(s.routeObserver)
 		reactor.observer = s.observer
 		// spec-l2tp-8a: install EventBus so reactor can emit
 		// (l2tp, session-down) for pool release.
@@ -474,10 +454,6 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			"poll-interval", pollInterval)
 	}
 
-	if bus != nil {
-		s.subBridge = newSubscriberBridge(subscriber.DefaultRegistry, bus, s.logger)
-	}
-
 	s.started = true
 	// Publish the Service so CLI handlers (internal/component/l2tp/cmd/)
 	// can reach the subsystem without importing it directly. Cleared in
@@ -584,18 +560,11 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
-	if s.replayUnsub != nil {
-		s.replayUnsub()
-		s.replayUnsub = nil
-	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()
 		s.statsPoller = nil
 	}
-	if s.subBridge != nil {
-		s.subBridge.stop()
-		s.subBridge = nil
-	}
+	s.stopSubscriberNotices()
 	s.retainStoppedReactorsLocked()
 	s.retireObserverLocked()
 	if len(s.retiredReactors) == 0 {
@@ -666,18 +635,11 @@ func (s *Subsystem) Stop(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
-	if s.replayUnsub != nil {
-		s.replayUnsub()
-		s.replayUnsub = nil
-	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()
 		s.statsPoller = nil
 	}
-	if s.subBridge != nil {
-		s.subBridge.stop()
-		s.subBridge = nil
-	}
+	s.stopSubscriberNotices()
 	s.retainStoppedReactorsLocked()
 	s.retireObserverLocked()
 	if len(s.retiredReactors) == 0 {

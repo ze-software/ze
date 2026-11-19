@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
@@ -60,6 +61,9 @@ type Subsystem struct {
 	relayWake  chan struct{}
 	drainDones []<-chan struct{}
 	bus        ze.EventBus
+	// routeObserver is owned by the running access lifecycle under lifecycleMu.
+	// It MUST outlive every terminal subscriber notice, including stop retry.
+	routeObserver *l2tp.SubscriberRouteSubscription
 
 	// stop interrupts paced retries and is checked after each receive timeout.
 	// discFD remains open until discovery and PPP event consumers have joined.
@@ -195,6 +199,9 @@ func (s *Subsystem) startLocked(ctx context.Context) (err error) {
 	s.backend = backend
 	s.discFD = fd
 	s.pppDriver = driver
+	s.routeObserver = l2tp.StartSubscriberRouteObserver(
+		s.logger, s.bus, subscriber.AccessPPPoE, routeProtocol, routeChange,
+	)
 
 	s.readDone = make(chan struct{})
 	s.stop = make(chan struct{})
@@ -278,6 +285,10 @@ func (s *Subsystem) stopLocked(ctx context.Context) error {
 	if err := s.closeAdmissions(ctx); err != nil {
 		s.retainedStop = true
 		return err
+	}
+	if s.routeObserver != nil {
+		s.routeObserver.Stop()
+		s.routeObserver = nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -420,12 +431,13 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 			e.Control.Cancel()
 		}
 	case ppp.EventLCPDown:
-		if _, _, found := s.sessionForControl(e.Control, e.SessionID); !found {
+		_, session, found := s.sessionForControl(e.Control, e.SessionID)
+		if !found {
 			e.Control.Cancel()
 			return
 		}
 		if e.NetworkPhase {
-			s.withdrawSubscriber(e.Control, e.SessionID, e.Reason)
+			s.withdrawSubscriber(e.Control, session, e.NetworkLifetime, e.Reason)
 		}
 		if !s.liveAdmission(e.Control, e.SessionID) {
 			e.Cancel()
@@ -573,7 +585,10 @@ func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
 
 	if s.bus != nil {
 		if _, err := subevents.SessionIPAssigned.Emit(s.bus, &subevents.SessionIPAssignedPayload{
-			Session: sess,
+			Session:         sess,
+			Address:         e.Peer,
+			FramedRoutes:    e.FramedRoutes,
+			NetworkLifetime: e.NetworkLifetime,
 		}); err != nil {
 			s.logger.Warn("pppoe: subscriber session-ip-assigned emit failed", "error", err)
 		}
@@ -596,34 +611,33 @@ func (s *Subsystem) onSessionDown(e ppp.EventSessionDown) {
 		e.Control.Cancel()
 		return
 	}
-	if !server.sessions.markPPPTerminal(session, e.Control.Attempt()) {
+	if !server.sessions.publishPPPTerminal(session, e.Control.Attempt(), func() {
+		if s.realmRelay != nil {
+			s.realmRelay.subscriberGone(e.Control.Attempt())
+		}
+		s.withdrawSubscriber(e.Control, session, e.NetworkLifetime, e.Reason)
+	}) {
 		return
 	}
-	if s.realmRelay != nil {
-		s.realmRelay.subscriberGone(e.Control.Attempt())
-	}
-	s.withdrawSubscriber(e.Control, e.SessionID, e.Reason)
 	server.handleSessionDown(session)
 }
 
 // withdrawSubscriber releases a network lifetime without closing its transport.
-func (s *Subsystem) withdrawSubscriber(control ppp.SessionControl, sid uint16, reason string) {
-	_, session, found := s.sessionForControl(control, sid)
-	if !found {
-		return
-	}
+// The caller MUST supply the admission already matched to the original control.
+func (s *Subsystem) withdrawSubscriber(control ppp.SessionControl, session *Session, network l2tpevents.NetworkLifetime, reason string) {
 	s.pendingAuth.Delete(pendingAuthFor(control))
-	s.withdrawSubscriberIdentity(session.SubscriberID, session.AccessIfIndex, sid, reason)
+	s.withdrawSubscriberIdentity(session, network, reason)
 }
 
 // withdrawSubscriberIdentity uses only an identity retained by the exact
 // admission. Rejected attempts have no admitted control.
-func (s *Subsystem) withdrawSubscriberIdentity(id string, ifindex int, sid uint16, reason string) {
+func (s *Subsystem) withdrawSubscriberIdentity(session *Session, network l2tpevents.NetworkLifetime, reason string) {
+	id := session.SubscriberID
 	sess, found := subscriber.DefaultRegistry.Get(id)
 	if !found {
 		sess = subscriber.Session{
 			ID: id, AccessType: subscriber.AccessPPPoE,
-			PPPoESID: sid, AccessIfIndex: ifindex,
+			PPPoESID: session.SID, AccessIfIndex: session.AccessIfIndex,
 		}
 	}
 	wasActive := sess.State == subscriber.StateActive
@@ -634,7 +648,9 @@ func (s *Subsystem) withdrawSubscriberIdentity(id string, ifindex int, sid uint1
 	}
 	if s.bus != nil {
 		if _, err := subevents.SessionDown.Emit(s.bus, &subevents.SessionDownPayload{
-			Session: sess, Reason: reason,
+			Session:         sess,
+			Reason:          reason,
+			NetworkLifetime: network,
 		}); err != nil {
 			s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
 		}

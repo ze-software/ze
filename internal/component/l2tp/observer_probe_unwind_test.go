@@ -46,6 +46,7 @@ func (bus *cqmProbeUnwindBus) Subscribe(namespace, event string, handler func(an
 // MUTATION: returning the probe error without unwind strands the first observer,
 // admits its copied callback and leaves its subscriptions alive after retry.
 func TestObserverProbeRefusalUnwindsBeforeStopAndRetry(t *testing.T) {
+	const subscriptions = 11 // four CQM, four bridge and three route subscriptions
 	// These original package seams and cached environment values are process-wide;
 	// this test deliberately cannot run in parallel.
 	useEnv(t, map[string]string{"ze.l2tp.skip-kernel-probe": "false"})
@@ -66,13 +67,15 @@ func TestObserverProbeRefusalUnwindsBeforeStopAndRetry(t *testing.T) {
 	require.NotNil(t, bus.original, "the observer existed before the actual probe refusal")
 	require.NotNil(t, bus.copiedUp, "the original native subscription supplied this callback")
 	generation := bus.original.generation
+	require.Len(t, bus.unsubs, subscriptions, "the probe refused only after the subscriptions were acquired")
 	assert.Nil(t, root.observer, "failed Start releases its only observer owner before returning")
-	assert.Nil(t, root.replayUnsub, "failed Start releases its replay owner before returning")
+	assert.Nil(t, root.routeSubscriber, "failed Start releases its route and replay subscription owner before returning")
+	assert.Nil(t, root.subBridge, "failed Start releases its subscriber bridge before returning")
 	assert.Equal(t, observerClosed, bus.original.admission)
 	bus.mu.Lock()
 	active := bus.active
 	bus.mu.Unlock()
-	assert.Zero(t, active, "all five partially acquired subscriptions must unwind immediately")
+	assert.Zero(t, active, "all subscriptions acquired before the probe must unwind immediately")
 
 	birth := cqmAPIBirth(t)
 	bus.copiedUp(&l2tpevents.SessionUpPayload{
@@ -98,7 +101,7 @@ func TestObserverProbeRefusalUnwindsBeforeStopAndRetry(t *testing.T) {
 	bus.mu.Lock()
 	active = bus.active
 	bus.mu.Unlock()
-	assert.Equal(t, 9, active, "only the retry's replay, CQM and subscriber bridge subscriptions remain")
+	assert.Equal(t, subscriptions, active, "only the retry's route, CQM and subscriber bridge subscriptions remain")
 	_, err := l2tpevents.EchoRTT.Emit(bus, &l2tpevents.EchoRTTPayload{
 		Birth: birth, SubscriberID: birth.String(), Generation: current.generation,
 		TunnelID: 17, SessionID: 7, Username: "alice", RTT: 11 * time.Millisecond,

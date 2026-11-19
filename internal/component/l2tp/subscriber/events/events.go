@@ -3,6 +3,9 @@
 package events
 
 import (
+	"net/netip"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/events"
 )
@@ -22,12 +25,18 @@ type SessionUpPayload struct {
 }
 
 type SessionDownPayload struct {
-	Session subscriber.Session
-	Reason  string
+	Session         subscriber.Session
+	Reason          string
+	NetworkLifetime l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
 }
 
 type SessionIPAssignedPayload struct {
 	Session subscriber.Session
+	// Address is the address assigned by this notice. An IPv6CP interface ID
+	// can update Session without assigning a routable host address here.
+	Address         netip.Addr                 `json:"address,omitzero"`
+	FramedRoutes    []l2tpevents.FramedRoute   `json:"framed-routes,omitempty"`
+	NetworkLifetime l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
 }
 
 type SessionRateChangePayload struct {

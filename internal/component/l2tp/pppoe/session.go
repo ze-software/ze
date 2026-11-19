@@ -74,7 +74,7 @@ type Session struct {
 	Control ppp.SessionControl
 	// Transfer intent precedes queueing; only the exact terminal consumer ends it.
 	pppTransferred   bool
-	pppTerminal      bool
+	pppTerminal      pppTerminalState
 	pppRelayReleased bool
 	wireEnd          *padtPublication // table.mu; nil until one handler claims this wire end
 	// A refused transfer with unresolved cleanup remains owned by this admission.

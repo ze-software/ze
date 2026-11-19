@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // lockedBuffer serializes writes and reads so a test can race-safely
@@ -1089,15 +1087,9 @@ func buildLogReactorWithClock(t *testing.T, clk *testClock, helloInterval time.D
 	return buildLogReactorWithClockObserver(t, clk, helloInterval, secret, nil)
 }
 
-// buildLogReactorWithClockObserver is buildLogReactorWithClock with a
-// RouteObserver installed. It installs before Start() because that is the
-// setter's contract: SetRouteObserver writes r.routeObserver with no lock and
-// relies on Start()'s goroutine creation to publish the write to the run loop,
-// which reads the field from the reactor goroutine. Installing after Start()
-// is a genuine data race, not a timing flake -- unlike the reload-time setters
-// (setHelloRetries and friends), which take tunnelsMu and are safe any time.
-// A nil observer is a documented no-op, so the wrapper above passes nil.
-func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
+// buildLogReactorWithClockObserver installs the subscriber bridge and route
+// reader before starting the reactor when the test records routes.
+func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterval time.Duration, secret string, obs *recordingRouteObserver) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -1109,7 +1101,11 @@ func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterva
 		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
 		Clock:         clk.now,
 	})
-	r.setRouteObserver(obs)
+	if obs != nil {
+		bus := newSessionOrderBus()
+		obs.start(t, bus, logger)
+		r.SetEventBus(bus)
+	}
 	require.NoError(t, r.Start())
 
 	stop := func() {
@@ -1181,38 +1177,13 @@ func buildZLBAck(destTID, ns, nr uint16) []byte {
 	return pkt
 }
 
-// recordingRouteObserver is a RouteObserver test double that records every
-// OnSessionDown call, so a teardown test can assert the subscriber route was
-// withdrawn.
-type recordingRouteObserver struct {
-	mu   sync.Mutex
-	down [][2]uint16
-}
-
-func (o *recordingRouteObserver) OnSessionIPUp(subscriberid.L2TPBirth, uint16, uint16, string, netip.Addr, []FramedRoute) {
-}
-
-func (o *recordingRouteObserver) OnSessionDown(_ subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	o.down = append(o.down, [2]uint16{tunnelID, sessionID})
-}
-
-func (o *recordingRouteObserver) downs() [][2]uint16 {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	out := make([][2]uint16, len(o.down))
-	copy(out, o.down)
-	return out
-}
-
 // VALIDATES: a peer-initiated tunnel teardown (HELLO exhaustion -> StopCCN)
 // withdraws subscriber routes for the tunnel's established sessions via
-// RouteObserver.OnSessionDown, matching the operator and PPP-event paths.
+// the subscriber bridge, matching the operator and PPP-event paths.
 //
 // PREVENTS: regression of the L2TP boot-evidence failure "subscriber route
 // withdraw was not observed during teardown" -- the reactor's peer paths
-// (handle, handleTick) previously skipped OnSessionDown, leaving the /32
+// (handle, handleTick) previously skipped the route notice, leaving the /32
 // injected after the session was gone.
 func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -1234,13 +1205,14 @@ func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 
 	// Attach an established session so the teardown has a route to withdraw.
 	const sid uint16 = 0x4242
+	session := &L2TPSession{localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()}
+	newFixtureL2TPSession(t, session)
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
-	tunnel.sessions = map[uint16]*L2TPSession{
-		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()},
-	}
+	tunnel.sessions = map[uint16]*L2TPSession{sid: session}
 	tunnel.lastActivity = clk.now().Add(-70 * time.Second)
 	r.tunnelsMu.Unlock()
+	original := spy.seedHostRoute(t, session.Birth(), localTID, sid)
 
 	// First tick sends a HELLO; the peer stays silent.
 	clk.add(65 * time.Second)
@@ -1261,6 +1233,7 @@ func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 	downs := spy.downs()
 	require.Len(t, downs, 1, "peer teardown must withdraw exactly one session route")
 	require.Equal(t, [2]uint16{localTID, sid}, downs[0])
+	spy.requireHostWithdrawal(t, original)
 }
 
 // TestDeadPeerKeepaliveTeardownWithdrawsRoute -- spec-l2tp-dead-peer-detection
@@ -1287,14 +1260,15 @@ func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 	waitForLog(t, logs, "tunnel now established")
 
 	const sid uint16 = 0x4242
+	session := &L2TPSession{localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()}
+	newFixtureL2TPSession(t, session)
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[localTID]
-	tunnel.sessions = map[uint16]*L2TPSession{
-		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: clk.now()},
-	}
+	tunnel.sessions = map[uint16]*L2TPSession{sid: session}
 	// Peer goes silent (no delivered messages, no ACKs): freeze liveness.
 	tunnel.lastLiveness = clk.now()
 	r.tunnelsMu.Unlock()
+	original := spy.seedHostRoute(t, session.Birth(), localTID, sid)
 
 	// One tick at +11s (> 10s dead-peer deadline, << 31s retransmit
 	// exhaustion) must tear the tunnel down via dead-peer detection.
@@ -1312,6 +1286,7 @@ func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 	downs := spy.downs()
 	require.Len(t, downs, 1, "dead-peer teardown must withdraw the session route")
 	require.Equal(t, [2]uint16{localTID, sid}, downs[0])
+	spy.requireHostWithdrawal(t, original)
 	require.Contains(t, logs.String(), "dead peer; keepalive timeout teardown")
 }
 

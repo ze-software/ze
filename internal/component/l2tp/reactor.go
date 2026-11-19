@@ -158,11 +158,6 @@ type l2tpReactor struct {
 	// descriptors on every outcome. The reactor transfers its claim only once.
 	newPPPSession func(pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error)
 
-	// spec-l2tp-7 Phase 6: optional route observer. When set, the
-	// reactor invokes OnSessionIPUp on EventSessionIPAssigned and
-	// OnSessionDown at session teardown time. nil when no observer is
-	// installed (tests, subsystem disabled).
-	routeObserver RouteObserver
 	// observer belongs to this original generation, including retained cleanup.
 	// The subsystem MUST assign it before Start; readers MUST never replace it.
 	observer *Observer

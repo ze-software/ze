@@ -22,8 +22,7 @@ import (
 // MUTATION: route records keyed by TID/SID replace the first listener's address.
 func TestActorRouteKeepsSameTupleOnTwoListenersApart(t *testing.T) {
 	captureBirthSIDDraw(t)
-	bus := &recordingBus{}
-	observer := newSubscriberRouteObserver(nil, bus)
+	observer := newRecordedActorRoutes(t)
 	first := newActorRouteAdmission(t, observer, actorRouteInput{
 		username: "first", address: netip.MustParseAddr("192.0.2.31"),
 	})
@@ -35,14 +34,14 @@ func TestActorRouteKeepsSameTupleOnTwoListenersApart(t *testing.T) {
 	actorRouteEcho(t, first.wire)
 	actorRouteEcho(t, second.wire)
 
-	adds := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 0)
-	removes := actorRouteEntries(t, bus.events(), redistevents.ActionRemove, 0)
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	removes := actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0)
 	require.Len(t, adds, 2)
 	require.ElementsMatch(t, []netip.Prefix{
 		netip.MustParsePrefix("192.0.2.31/32"), netip.MustParsePrefix("192.0.2.32/32"),
 	}, []netip.Prefix{adds[0].Prefix, adds[1].Prefix})
 	require.Empty(t, removes, "another listener's admitted birth cannot replace this address")
-	_, withdrawn, active := observer.Stats()
+	_, withdrawn, active := observer.observer.Stats()
 	require.Zero(t, withdrawn)
 	require.Equal(t, 2, active)
 }
@@ -54,8 +53,7 @@ func TestActorRouteKeepsSameTupleOnTwoListenersApart(t *testing.T) {
 // original profiles; keying their records by that tuple loses the survivor.
 func TestActorRouteCapturesOriginalFramedMetadata(t *testing.T) {
 	captureBirthSIDDraw(t)
-	bus := &recordingBus{}
-	observer := newSubscriberRouteObserver(nil, bus)
+	observer := newRecordedActorRoutes(t)
 	first := newActorRouteAdmission(t, observer, actorRouteInput{
 		username: "first", address: netip.MustParseAddr("192.0.2.41"),
 		framedRoutes: []FramedRoute{{Prefix: netip.MustParsePrefix("198.51.100.0/25"), Metric: 11}},
@@ -65,12 +63,12 @@ func TestActorRouteCapturesOriginalFramedMetadata(t *testing.T) {
 		framedRoutes: []FramedRoute{{Prefix: netip.MustParsePrefix("198.51.100.128/25"), Metric: 22}},
 	})
 	first.reactor.handleLCPDown(first.wire.beginRestart(t))
-	observer.reemitAll(81)
+	observer.replay(t, 81)
 	actorRouteEcho(t, second.wire)
 
-	adds := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 0)
-	removes := actorRouteEntries(t, bus.events(), redistevents.ActionRemove, 0)
-	replayed := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 81)
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	removes := actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0)
+	replayed := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 81)
 	require.Len(t, adds, 4, "each admitted actor must supply its original address and framed route")
 	require.Contains(t, adds, redistevents.RouteChangeEntry{
 		Action: redistevents.ActionAdd, Prefix: netip.MustParsePrefix("198.51.100.0/25"),
@@ -97,22 +95,21 @@ func TestActorRouteCapturesOriginalFramedMetadata(t *testing.T) {
 // MUTATION: routeInstance(TID,SID) aliases both contributions and their removal.
 func TestActorRouteContributionsKeepOriginalBirthTokens(t *testing.T) {
 	captureBirthSIDDraw(t)
-	bus := &recordingBus{}
-	observer := newSubscriberRouteObserver(nil, bus)
+	observer := newRecordedActorRoutes(t)
 	input := actorRouteInput{
 		username: "same-login", address: netip.MustParseAddr("192.0.2.51"),
 	}
 	first := newActorRouteAdmission(t, observer, input)
 	second := newActorRouteAdmission(t, observer, input)
-	observer.reemitAll(91)
+	observer.replay(t, 91)
 	first.reactor.handleLCPDown(first.wire.beginRestart(t))
-	observer.reemitAll(92)
+	observer.replay(t, 92)
 	actorRouteEcho(t, second.wire)
 
-	adds := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 0)
-	removes := actorRouteEntries(t, bus.events(), redistevents.ActionRemove, 0)
-	before := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 91)
-	after := actorRouteEntries(t, bus.events(), redistevents.ActionAdd, 92)
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	removes := actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0)
+	before := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 91)
+	after := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 92)
 	require.Len(t, adds, 2)
 	firstToken, secondToken := adds[0].SourceInstance, adds[1].SourceInstance
 	require.NotZero(t, firstToken)
@@ -154,13 +151,13 @@ type actorRouteAdmission struct {
 // PAP and IPCP. Only the native data plane is the existing pipe-backed owner;
 // this helper claims no kernel-worker or real native-I/O proof. Cleanup MUST
 // close the peer before Driver.Stop joins its owned worker.
-func newActorRouteAdmission(t *testing.T, observer *subscriberRouteObserver, input actorRouteInput) *actorRouteAdmission {
+func newActorRouteAdmission(t *testing.T, observer *recordingRouteObserver, input actorRouteInput) *actorRouteAdmission {
 	t.Helper()
 	reactor := newReactorForSnapshot(t)
 	reactor.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), reactor.logger)
 	require.NoError(t, reactor.listener.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, reactor.listener.Stop()) })
-	reactor.routeObserver = observer
+	reactor.SetEventBus(observer.bus)
 	insertEstablishedTunnel(t, reactor, 17, 27, netip.MustParseAddrPort("127.0.0.1:1701"))
 	tunnel := reactor.tunnelsByLocalID[17]
 	captureBirthAdmit(t, reactor, tunnel, 70)

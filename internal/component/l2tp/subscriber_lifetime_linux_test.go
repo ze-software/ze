@@ -100,7 +100,8 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			bridge := newSubscriberBridge(reg, bus, r.logger)
 			t.Cleanup(bridge.stop)
 			r.eventBus = bus
-			r.routeObserver = newSubscriberRouteObserver(r.logger, bus)
+			reader := StartSubscriberRouteObserver(r.logger, bus, subscriber.AccessL2TP, l2tpevents.ProtocolID, l2tpevents.RouteChange)
+			t.Cleanup(reader.Stop)
 			liveRoutes := make(map[netip.Prefix]bool)
 			var removed []netip.Prefix
 			bus.Subscribe(l2tpevents.Namespace, redistevents.EventType, func(payload any) {
@@ -387,8 +388,8 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	bridge := newSubscriberBridge(reg, bus, r.logger)
 	t.Cleanup(bridge.stop)
 	r.eventBus = bus
-	observer := newSubscriberRouteObserver(r.logger, bus)
-	r.routeObserver = observer
+	reader := StartSubscriberRouteObserver(r.logger, bus, subscriber.AccessL2TP, l2tpevents.ProtocolID, l2tpevents.RouteChange)
+	t.Cleanup(reader.Stop)
 	addr := netip.MustParseAddr("192.0.2.45")
 	reg.Add(&subscriber.Session{
 		ID: id, L2TPBirth: transport.Birth(), AccessType: subscriber.AccessL2TP,
@@ -412,13 +413,13 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 			}
 		}
 	})
-	observer.OnSessionIPUp(transport.Birth(), tid, sid, "old-user", addr, nil)
 	var down []subscriber.Session
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = append(down, p.Session) })
 
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: tid, sessionID: sid})
 	withdrawal := wire.withdraw(t)
 	require.True(t, withdrawal.NetworkPhase)
+	seedL2TPRouteNotice(t, bus, transport.Birth(), tid, sid, addr, withdrawal.NetworkLifetime)
 	r.handlePPPEvent(withdrawal)
 	require.Equal(t, []netip.Prefix{netip.PrefixFrom(addr, 32)}, removed, "LCPDown must publish withdrawal of the existing route")
 	_, ok := reg.Get(id)

@@ -1691,25 +1691,26 @@ kernel-owned route. The next IPCP negotiation can reuse the address on the retai
 ## Redistribute
 
 Ze registers `l2tp` as a redistribution source at subsystem Start.
-When a PPP NCP (IPCP or IPv6CP) completes for a session, the
-subsystem's RouteObserver emits a `(l2tp, route-change)` batch on the
-EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
-prefix. Session-down emits matching remove batches, one per address
-family that was up.
+When IPCP assigns the peer an IPv4 address, the subscriber route observer
+emits a `(l2tp, route-change)` batch with its `/32`. The observer also
+emits the IPv4 and IPv6 framed routes from the subscriber's authorization.
+An LCP network reset or session-down emits the matching withdrawals.
+Use [`import pppoe`](pppoe.md#redistribute-subscriber-routes) to select
+PPPoE subscriber routes separately.
 
 The live record belongs to the original session's complete Birth. Equal tunnel
 and session numbers, including on different listeners, keep separate address
 and framed routes. Removing one Birth leaves the other's routes available
 for replay. A Down for an unknown Birth removes nothing. Framed routes arrive
 from the original actor's captured authorization profile.
-<!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
+<!-- source: internal/component/l2tp/route_observer.go -- records, assign, withdraw, reemitAll -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
 
 One route update accepts at most 64 RADIUS framed routes. An oversized update
 is refused before any route, contribution token or counter changes, including
 when that Birth already has accepted routes. The earlier record and other
 Births remain available for replay. Ze refuses the whole update.
-<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp -->
+<!-- source: internal/component/l2tp/route_observer.go -- assign -->
 <!-- source: internal/component/l2tp/route_source.go -- framedRoutesMax -->
 
 The refusal logs `doctor-l2tp-framed-route-limit` and retains an error event
@@ -1729,7 +1730,7 @@ route lifetime and never recycled within the process. Exhaustion refuses a
 new contribution and raises an internal-defect doctor warning with a restart
 command; it does not reuse another session's token.
 <!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence, next, reportSourceRefusal -->
-<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, OnSessionIPUp, reemitAll -->
+<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, assign, reemitAll -->
 
 The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers

@@ -1,5 +1,5 @@
 // Design: docs/guide/l2tp.md -- independent native subscriber route contributions
-// Related: route_observer.go -- full birth records retain their contribution token
+// Related: route_observer.go -- original subscriber records retain their contribution token
 
 package l2tp
 
@@ -7,16 +7,18 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
-	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 const (
-	framedRoutesMax          = 64
-	codeL2TPFramedRouteLimit = "doctor-l2tp-framed-route-limit"
-	framedRouteLimitFix      = "ze show l2tp sessions"
+	framedRoutesMax           = 64
+	codeL2TPFramedRouteLimit  = "doctor-l2tp-framed-route-limit"
+	framedRouteLimitFix       = "ze show l2tp sessions"
+	codePPPoEFramedRouteLimit = "doctor-pppoe-framed-route-limit"
+	pppoeFramedRouteLimitFix  = "ze show pppoe sessions"
 )
 
 func init() {
@@ -29,6 +31,16 @@ func init() {
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeL2TPFramedRouteLimit}); err != nil {
 		panic("BUG: L2TP framed-route event registration failed: " + err.Error())
+	}
+	if err := diagnostic.Register(diagnostic.CodeMeta{
+		Code: codePPPoEFramedRouteLimit, Title: "PPPoE framed-route update exceeds its limit",
+		Description: fmt.Sprintf("Ze observed more than %d valid framed routes in a RADIUS authorization. The whole route update was refused. Correct the subscriber's RADIUS profile, inspect the current session, then reconnect that subscriber.", framedRoutesMax),
+		Examples:    []string{pppoeFramedRouteLimitFix, "ze show diagnostic " + codePPPoEFramedRouteLimit},
+	}); err != nil {
+		panic("BUG: PPPoE framed-route diagnostic registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codePPPoEFramedRouteLimit}); err != nil {
+		panic("BUG: PPPoE framed-route event registration failed: " + err.Error())
 	}
 }
 
@@ -44,7 +56,7 @@ type routeSourceSequence struct {
 var subscriberRouteSources routeSourceSequence
 
 var errRouteSourceExhausted = opererr.New(
-	"L2TP redistribution source identities are exhausted",
+	"Subscriber redistribution source identities are exhausted",
 	"Ze refused another route contribution instead of reusing an existing source identity",
 	"sudo systemctl restart ze")
 
@@ -60,35 +72,55 @@ func (source *routeSourceSequence) next() (uint32, error) {
 
 // reportSourceRefusal MUST run after releasing the observer's map lock.
 // The allocator only returns a cause; it MUST NOT call reporters under that lock.
-func (o *subscriberRouteObserver) reportSourceRefusal(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, cause error) {
-	id := birth.String() // human/report boundary, never an internal lookup key
-	o.logger.Warn("l2tp: subscriber route contribution refused",
+func (o *subscriberRouteObserver) reportSourceRefusal(session subscriber.Session, cause error) {
+	label, value := routeDiagnosticAttachment(session)
+	o.logger.Warn(string(session.AccessType)+": subscriber route contribution refused",
 		"code", report.CodeInternalDefect,
-		"subscriber-id", id, "tunnel-id", tunnelID, "session-id", sessionID,
+		"subscriber-id", session.ID, label, value, "session-id", routeSessionLabel(session),
 		"error", cause, "fix", errRouteSourceExhausted.Fix())
-	report.RaiseWarningFix(SubsystemName, report.CodeInternalDefect, "subscriber route source",
+	report.RaiseWarningFix(string(session.AccessType), report.CodeInternalDefect, "subscriber route source",
 		errRouteSourceExhausted.Problem()+": "+errRouteSourceExhausted.Why(), errRouteSourceExhausted.Fix(),
-		map[string]any{"subscriber-id": id, "tunnel-id": tunnelID, "session-id": sessionID, "cause": cause.Error()})
+		map[string]any{"subscriber-id": session.ID, label: value, "session-id": routeSessionLabel(session), "cause": cause.Error()})
 }
 
 // reportFramedRouteRefusal MUST run without mu or emitMu held. The caller
 // refuses before any route mutation; reporting does not own cleanup or retry.
 // Safe for concurrent use; the bounded error ring retains immutable context.
-func (o *subscriberRouteObserver) reportFramedRouteRefusal(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, count int) {
-	id := birth.String() // human/report boundary, never an internal lookup key
+func (o *subscriberRouteObserver) reportFramedRouteRefusal(session subscriber.Session, count int) {
+	label, value := routeDiagnosticAttachment(session)
+	location := fmt.Sprintf("L2TP routes refused for subscriber %s (tunnel %d, session %d)", session.ID, session.TunnelID, session.SessionID)
+	fix := framedRouteLimitFix
+	if session.AccessType == subscriber.AccessPPPoE {
+		location = fmt.Sprintf("PPPoE routes refused for subscriber %s (interface index %d, session %d)", session.ID, session.AccessIfIndex, session.PPPoESID)
+		fix = pppoeFramedRouteLimitFix
+	}
 	cause := fmt.Errorf("Ze observed at least %d valid RADIUS framed routes. Maximum is %d", count, framedRoutesMax)
 	failure := opererr.Wrap(cause,
-		fmt.Sprintf("L2TP routes refused for subscriber %s (tunnel %d, session %d)", id, tunnelID, sessionID),
+		location,
 		fmt.Sprintf("The oversized update was not applied. Reduce this subscriber's RADIUS framed-route list to at most %d entries. Inspect the current session and listener before reconnecting the affected subscriber", framedRoutesMax),
-		framedRouteLimitFix)
-	o.logger.Warn(failure.Problem(),
-		"code", codeL2TPFramedRouteLimit,
-		"subscriber-id", id, "tunnel-id", tunnelID, "session-id", sessionID,
+		fix)
+	sid := routeSessionLabel(session)
+	detail := map[string]any{
+		"subscriber-id": session.ID, label: value, "session-id": sid,
+		"cause": cause.Error(), "framed-routes-at-least": count, "limit": framedRoutesMax,
+	}
+	message := report.FitMessage(failure.Problem() + ". " + failure.Why() + ": " + cause.Error())
+	if session.AccessType == subscriber.AccessPPPoE {
+		o.logger.Warn(failure.Problem(), "code", codePPPoEFramedRouteLimit,
+			"subscriber-id", session.ID, label, value, "session-id", sid,
+			"why", failure.Why(), "error", cause, "fix", failure.Fix())
+		report.RaiseErrorFix(string(subscriber.AccessPPPoE), codePPPoEFramedRouteLimit, session.ID, message, failure.Fix(), detail)
+		return
+	}
+	o.logger.Warn(failure.Problem(), "code", codeL2TPFramedRouteLimit,
+		"subscriber-id", session.ID, label, value, "session-id", sid,
 		"why", failure.Why(), "error", cause, "fix", failure.Fix())
-	report.RaiseErrorFix(SubsystemName, codeL2TPFramedRouteLimit, id,
-		report.FitMessage(failure.Problem()+". "+failure.Why()+": "+cause.Error()), failure.Fix(),
-		map[string]any{
-			"subscriber-id": id, "tunnel-id": tunnelID, "session-id": sessionID,
-			"cause": cause.Error(), "framed-routes-at-least": count, "limit": framedRoutesMax,
-		})
+	report.RaiseErrorFix(SubsystemName, codeL2TPFramedRouteLimit, session.ID, message, failure.Fix(), detail)
+}
+
+func routeDiagnosticAttachment(session subscriber.Session) (string, any) {
+	if session.AccessType == subscriber.AccessPPPoE {
+		return "access-ifindex", session.AccessIfIndex
+	}
+	return "tunnel-id", session.TunnelID
 }

@@ -85,15 +85,17 @@ func TestContainedPanicAfterADrainFinishesItsTicket(t *testing.T) {
 // SessionDown.
 func TestContainedPanicAfterADrainDeliversItsDowns(t *testing.T) {
 	bus := newSessionOrderBus()
-	notices := subscribeSessionNoticeLog(bus)
 	r, loser := newReactorForTicketPaths(t, bus)
 	observer := &recordingRouteObserver{}
-	r.routeObserver = observer
+	observer.start(t, bus, r.logger)
+	original := observer.seedHostRoute(t, loser.sessions[orderTestSID].Birth(), orderTestTID, orderTestSID)
+	notices := subscribeSessionNoticeLog(bus)
 
 	driveTieBreakerLossThatPanics(t, r, loser)
 
 	require.Equal(t, [][2]uint16{{orderTestTID, orderTestSID}}, observer.downs(),
 		"the route observer was not told to withdraw the discarded tunnel's established session")
+	observer.requireHostWithdrawal(t, original)
 	require.Equal(t, []string{l2tpevents.SessionDownEvent}, notices.of(orderTestTID, orderTestSID),
 		"the bus did not carry exactly one SessionDown for the discarded tunnel's session")
 }

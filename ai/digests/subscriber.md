@@ -96,10 +96,9 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
     tie-breaker alike, removes sessions through `removeSession` (`session.go`) and
     drains them with `drainPendingTeardowns` under `tunnelsMu`, which takes the
     tunnel's order ticket for the batch. After the unlock `deliverSessionDowns`
-    (`teardown.go`) delivers the batch in that ticket's turn: `notifySessionDowns`
-    has `r.routeObserver.OnSessionDown` withdraw the route of each down whose
-    session was established (`route_observer.go`), then publishes one
-    `(l2tp, session-down)` per down.
+    (`teardown.go`) delivers the batch in that ticket's turn. The subscriber
+    bridge republishes each `(l2tp, session-down)` on the shared topic, and
+    `route_observer.go` withdraws the original subscriber's live contribution.
 
 ### C. Shared PPP negotiation (both transports converge here)
 14. **Dispatch + per-session goroutine.** `Driver.dispatch` (`manager.go`) reads
@@ -230,7 +229,7 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
 | `subscriber_bridge.go` | Bridges L2TP's own EventBus events onto the shared `subscriber` namespace + registry |
 | `handler_registry.go` | L2TP-side `RegisterAuthHandler`/`RegisterPoolHandler`, delegating to `subscriber` |
 | `drain.go` | L2TP-side `startAuthDrain`/`startPoolDrain` (mirrors `pppoe/drain.go`) |
-| `route_observer.go` | `subscriberRouteObserver`: injects/withdraws subscriber /32 routes into redistribute on IP-up/session-down |
+| `route_observer.go` | Each access transport subscribes to assignment and down events, retaining host and framed routes by subscriber ID and network lifetime for its own redistribution source and replay |
 | `ppp/manager.go` | `Driver`: `SessionsIn`/`EventsOut`/`AuthEventsOut`/`IPEventsOut`, per-session goroutine spawn (`dispatch`, `spawnSession`) |
 | `ppp/session_run.go` | Per-session main loop: LCP FSM drive, `afterLCPOpen`, `runAuthPhase` dispatch, frame read/write |
 | `ppp/ncp.go` | `runNCPPhase`: IPCP/IPv6CP FSM driver, `onNCPOpened` (interface programming), `EventSessionIPAssigned` |

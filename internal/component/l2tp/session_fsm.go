@@ -236,7 +236,7 @@ func (t *L2TPTunnel) handleICCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.proxyAuthenResponse = info.proxyAuthenResponse
 
 	// Mirror the proxy-auth identity onto the session's canonical
-	// username field so the CLI snapshot and RouteObserver can read
+	// username field so the CLI snapshot and subscriber notices can read
 	// it without reaching into proxy-specific fields. The auth plugin
 	// (spec-l2tp-8) may later overwrite this with the RADIUS-validated
 	// identity.

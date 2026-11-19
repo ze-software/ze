@@ -10,9 +10,32 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// These adapters let unit fixtures drive route logic directly. Transport
+// integration tests deliver notices through the production bus subscription.
+type RouteObserver interface {
+	OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framedRoutes []FramedRoute)
+	OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16)
+}
+
+func newSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus) *subscriberRouteObserver {
+	return newAccessRouteObserver(logger, bus, subscriber.AccessL2TP, l2tpevents.ProtocolID, l2tpevents.RouteChange)
+}
+
+func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framedRoutes []FramedRoute) {
+	o.assign(subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+		TunnelID: tunnelID, SessionID: sessionID, Username: username}, l2tpevents.NetworkLifetime{}, addr, framedRoutes)
+}
+
+func (o *subscriberRouteObserver) OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
+	o.withdraw(subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+		TunnelID: tunnelID, SessionID: sessionID}, l2tpevents.NetworkLifetime{})
+}
 
 // recordingBus is a minimal ze.EventBus that records all emitted events.
 type recordingBus struct {

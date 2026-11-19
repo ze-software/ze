@@ -148,17 +148,6 @@ func (r *l2tpReactor) setNCPTimeout(d time.Duration) {
 	r.tunnelsMu.Unlock()
 }
 
-// setRouteObserver installs a RouteObserver for this reactor. MUST be
-// called before Start(); the goroutine creation barrier synchronizes
-// the write here with reads in the run loop. Passing nil is a no-op
-// (leaves the existing observer unchanged).
-func (r *l2tpReactor) setRouteObserver(obs RouteObserver) {
-	if obs == nil {
-		return
-	}
-	r.routeObserver = obs
-}
-
 // SetEventBus installs the EventBus for emitting (l2tp, session-down)
 // events. MUST be called before Start().
 func (r *l2tpReactor) SetEventBus(bus ze.EventBus) {

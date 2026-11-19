@@ -6,6 +6,7 @@ package l2tp
 import (
 	"log/slog"
 	"net/netip"
+	"slices"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -45,6 +46,19 @@ func (b *subscriberBridge) stop() {
 		unsub()
 	}
 	b.unsubs = nil
+}
+
+// stopSubscriberNotices releases the subscriptions after the reactors and PPP
+// drivers finish publishing their last session-down notices.
+func (s *Subsystem) stopSubscriberNotices() {
+	if s.subBridge != nil {
+		s.subBridge.stop()
+		s.subBridge = nil
+	}
+	if s.routeSubscriber != nil {
+		s.routeSubscriber.Stop()
+		s.routeSubscriber = nil
+	}
 }
 
 func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
@@ -111,8 +125,9 @@ func (b *subscriberBridge) onSessionDown(p *l2tpevents.SessionDownPayload) {
 	}
 
 	if _, err := subevents.SessionDown.Emit(b.bus, &subevents.SessionDownPayload{
-		Session: sess,
-		Reason:  "session-down",
+		Session:         sess,
+		Reason:          "session-down",
+		NetworkLifetime: p.NetworkLifetime,
 	}); err != nil {
 		b.logger.Warn("l2tp: subscriber session-down emit failed", "error", err)
 	}
@@ -177,7 +192,10 @@ func (b *subscriberBridge) onSessionIPAssigned(p *l2tpevents.SessionIPAssignedPa
 	b.registry.Add(&sess)
 
 	if _, err := subevents.SessionIPAssigned.Emit(b.bus, &subevents.SessionIPAssignedPayload{
-		Session: sess,
+		Session:         sess,
+		Address:         addr,
+		FramedRoutes:    slices.Clone(p.FramedRoutes),
+		NetworkLifetime: p.NetworkLifetime,
 	}); err != nil {
 		b.logger.Warn("l2tp: subscriber session-ip-assigned emit failed", "error", err)
 	}

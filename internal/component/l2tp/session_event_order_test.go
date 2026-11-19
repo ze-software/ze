@@ -32,6 +32,8 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -309,23 +311,6 @@ func ticketCounts(r *l2tpReactor, tun *L2TPTunnel) (issued, finished uint64) {
 	return order.issued, order.finished
 }
 
-// gatedRouteObserver is a route observer that holds an IP-up at its gate and
-// reports each withdrawal to it, before it hands both to the real observer.
-type gatedRouteObserver struct {
-	gate  *sessionOrderGate
-	inner *subscriberRouteObserver
-}
-
-func (o *gatedRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framed []FramedRoute) {
-	o.gate.hold(tunnelID)
-	o.inner.OnSessionIPUp(birth, tunnelID, sessionID, username, addr, framed)
-}
-
-func (o *gatedRouteObserver) OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
-	o.gate.observe("route withdrawal", tunnelID)
-	o.inner.OnSessionDown(birth, tunnelID, sessionID)
-}
-
 // newReactorForEventOrder builds a reactor that publishes on bus and has a
 // listener for the CDN and StopCCN its teardown paths send. The listener is
 // never started, so a send fails and is logged, which no test here reads.
@@ -419,14 +404,16 @@ func TestSessionUpIsPublishedBeforeTheTeardownThatFollowsIt(t *testing.T) {
 
 // TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt proves the route
 // observer is ordered too: an IP-up told after the withdrawal would leave a
-// record, and an injected subscriber route, that nothing removes. The real
-// observer sits behind a wrapper that holds the IP-up.
+// record and an injected subscriber route that nothing removes. The gate
+// holds the real bridge publication just before the route observer receives it.
 func TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt(t *testing.T) {
 	bus := newSessionOrderBus()
 	gate := newSessionOrderGate(t)
-	inner := newSubscriberRouteObserver(slog.Default(), bus)
+	t.Cleanup(subevents.SessionIPAssigned.Subscribe(bus, func(p *subevents.SessionIPAssignedPayload) { gate.hold(p.Session.TunnelID) }))
+	t.Cleanup(subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { gate.observe("route withdrawal", p.Session.TunnelID) }))
+	observer := &recordingRouteObserver{}
+	observer.start(t, bus, slog.Default())
 	r := newReactorForEventOrder(t, bus)
-	r.routeObserver = &gatedRouteObserver{gate: gate, inner: inner}
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
 	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
 	wire.release = gate.open
@@ -442,9 +429,14 @@ func TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt(t *testing.T) {
 	awaitOrderEvent(t, assigned, "the IP-up")
 
 	require.NoError(t, teardownErr)
-	inner.mu.Lock()
-	_, kept := inner.records[wire.startSession.L2TPBirth]
-	inner.mu.Unlock()
+	require.Empty(t, gate.overtakers())
+	adds := actorRouteEntries(t, observer.routes.events(), redistevents.ActionAdd, 0)
+	require.Len(t, adds, 1)
+	require.Equal(t, netip.PrefixFrom(wire.assignment.Peer, 32), adds[0].Prefix)
+	observer.requireHostWithdrawal(t, adds[0])
+	observer.observer.mu.Lock()
+	_, kept := observer.observer.records[wire.startSession.SubscriberID]
+	observer.observer.mu.Unlock()
 	require.False(t, kept,
 		"the route observer still holds session 7 after its teardown: the withdrawal reached it before the IP-up")
 }
@@ -879,7 +871,7 @@ func setTieBreaker(r *l2tpReactor, tun *L2TPTunnel, tb []byte) {
 }
 
 // newReactorForTicketPaths builds an unstarted reactor with the channels the
-// packet and tick paths send on, a route observer and the bus, holding tunnel
+// packet and tick paths send on and the bus, holding tunnel
 // orderTestTID with session orderTestSID established. Its listener is never
 // started, so every send fails and is logged, which no test here reads.
 func newReactorForTicketPaths(t *testing.T, bus ze.EventBus) (*l2tpReactor, *L2TPTunnel) {
@@ -887,7 +879,6 @@ func newReactorForTicketPaths(t *testing.T, bus ze.EventBus) (*l2tpReactor, *L2T
 	ln := newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), slog.Default())
 	r := newL2TPReactor(ln, slog.Default(), reactorParams{Clock: func() time.Time { return time.Unix(1000, 0).UTC() }})
 	r.eventBus = bus
-	r.routeObserver = newSubscriberRouteObserver(slog.Default(), bus)
 	insertEstablishedTunnel(t, r, orderTestTID, 22, orderTestPeer, orderTestSession(orderTestSID, "ppp7"))
 	r.tunnelsMu.Lock()
 	tun := r.tunnelsByLocalID[orderTestTID]

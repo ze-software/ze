@@ -42,7 +42,7 @@ func TestRouteObserverFramedOverflowPreservesUsefulBirths(t *testing.T) {
 			before := routeOverflowEntries(bus.events())
 			require.Len(t, before, 66, "64 framed routes and both original host routes must be useful")
 			observer.mu.Lock()
-			original := observer.records[neighbor]
+			original := observer.records[neighbor.String()]
 			observer.mu.Unlock()
 			observer.OnSessionIPUp(overflow, 64101, 64102, "overflow",
 				netip.MustParseAddr("192.0.2.63"), routeOverflowFrames(65))
@@ -52,7 +52,7 @@ func TestRouteObserverFramedOverflowPreservesUsefulBirths(t *testing.T) {
 			require.Zero(t, withdrawn)
 			require.Equal(t, 2, active)
 			observer.mu.Lock()
-			retained := observer.records[neighbor]
+			retained := observer.records[neighbor.String()]
 			observer.mu.Unlock()
 			require.Same(t, original, retained, "overflow replaced the original route receipt")
 			boundary := len(bus.events())

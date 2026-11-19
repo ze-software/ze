@@ -661,6 +661,48 @@ tests instead.
 | D-14 (recommended 2026-11-15, Thomas has the final say): the subscriber route observer subscribes to `subevents.SessionIPAssigned` and `subevents.SessionDown` and the L2TP reactor's direct calls to it are deleted; PPPoE subscriber routes go out under a new `pppoe` redistribute source registered from the PPPoE package | the PPPoE subsystem calling the observer directly, as the L2TP reactor does; PPPoE routes under the existing `l2tp` source; one renamed `subscriber` source for both | the direct call is the shape root cause 1 names, a consumer wired by hand to one producer, and a second hand-wired producer doubles it; the event path is the one the other migrated consumers take, and deleting the L2TP call keeps one path (`ai/rules/no-layering.md`). A separate source keeps what `redistribute l2tp` means today and lets an operator announce one access type without the other; one shared source would change an existing config's meaning. Constraints the design keeps: the observer is keyed on `subscriber.Session.ID` (D-10) before PPPoE drives it; L2TP's `OnSessionIPUp` runs today inside the tunnel's order ticket, so the bus delivery that replaces it must keep a teardown ordered after the address it withdraws (`docs/architecture/l2tp/subscriber-session-model.md`, "The order of one L2TP session's notifications"); the Framed-Route lookup moves off the uint16 pair with D-10's metadata re-key |
 | Build the renegotiation harness in its own phase before the phases that need it | leave it as a risk row and decide during implementation; accept unit-level proof and record a deferral | the four renegotiation ACs are the core of the spec and unit tests are what missed this defect the first time. Discovering the harness is unreachable after the code has landed is the expensive order; discovering it first stops the spec cheaply |
 
+### D-14 implementation scope approved on 2026-11-19
+
+The owner approved D-14 and its acceptance criterion AC-23. The current
+metadata store and PPP drivers already use the full subscriber ID and exact
+admission controls. Keep the original metadata lookup available to its other
+consumers. For PPPoE routing, carry the Framed-Routes from the accepted auth
+request to its own address assignment. A delayed RADIUS answer held by a
+previous PPPoE admission cannot authorize routes for its successor.
+
+Reuse the subscriber route observer for both transports. Each running transport
+owns its subscription and replay lifetime. The L2TP reactor delivers its
+assignment and teardown through the existing subscriber bridge in the same
+tunnel ticket. The PPPoE observer receives the shared events even when there
+is no L2TP listener. Both observers read the newly assigned address from the
+event. The cumulative subscriber snapshot may also carry an older address
+when IPv6CP supplies only an interface identifier.
+
+| Risk | Control and proof |
+| ---- | ----------------- |
+| Late auth response escapes its original PPPoE admission | Bind the profile to the exact PPP auth request and carry the approved routes in the assignment. Test retired and replacement requests independently |
+| Notification crosses access types or outlives its own network phase | Use the full subscriber ID and original network lifetime with synchronous assignment and down delivery. Exercise equal diagnostic labels, unrelated surviving routes, repeated callbacks and LCP renegotiation |
+| Late peer or reload sees routes under the wrong source | Register `pppoe` for configuration and route events at package initialization, and replay live entries with their original source instances. Exercise both source names independently |
+| Producer can announce before its observer has subscribed or withdraw after it has stopped | Install both subscriptions before starting the workers and keep them through terminal drains. Run a PPPoE-only daemon and retain the existing L2TP route-order proof |
+
+Verify AC-23 with an actual PPPoE session, signed RADIUS authorization and a
+routing peer. Observe both the assigned prefix and the Framed-Route while the
+subscriber is active and each exact withdrawal after it ends. Rerun the
+strict L2TP scale scenario to check the existing source and teardown ordering.
+
+The exact PPPoE auth handoff landed in `807a87e415`. Its test negotiates two
+CHAP/IPCP lifetimes and checks that the retired request cannot stage routes.
+The focused source test passed. In Ze's Linux 7.3 guest, the PPPoE-only
+draft passed with two real subscribers. One BGP peer saw both assigned
+prefixes and both RADIUS Framed-Routes. Each PADT withdrew that subscriber's
+two routes. The control subscriber and its routes survived the first PADT.
+
+Hold the PPPoE SID through terminal publication. The held-Down test fails
+when cleanup can release it before the pool reader returns. Wait for
+in-flight route readers at transport stop, then withdraw any live records
+that belong to the closed observer. This also covers an L2TP teardown notice
+already issued by an external request that has yet to reach the observer.
+
 ## Known Limitations
 - Nothing in the current functional harness can drive a mid-session Configure-Request, which is why building that capability is its own early phase with AC-19. If it cannot be built the spec stops there and the scope returns to the operator; dropping to unit-level proof is not an outcome this spec may choose for itself.
 - **The two SessionDown topics are still two topics.** D-1 moved the address pool onto the subscriber one; `l2tpevents.SessionDown` keeps four subscribers (`cos.cosHandler.onSessionDown`, `l2tp.observer`, `shaper.shaperPlugin.onSessionDown`, `authradius.radiusAcct.onSessionDown`) plus the bridge that produces the subscriber one. Retiring it needs, in order: D-10's metadata re-key, a `SessionCoSChange` topic on the subscriber namespace, the peer address carried through `subscriberBridge.onSessionIPAssigned`, a decision on `EchoRTT` (transport-level, so it stays), and then the reactor emitting the subscriber event directly and the bridge being deleted.

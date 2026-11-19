@@ -552,7 +552,7 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	sess.assignedAddr = netip.Addr{}
 	sess.username = ""
 	cancelSessionTimeouts(sess)
-	if !r.hasSessionNoticeReader() {
+	if r.eventBus == nil {
 		ClearSessionMetadata(subscriberID)
 		r.tunnelsMu.Unlock()
 		return
@@ -571,26 +571,10 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	r.tunnelsMu.Unlock()
 }
 
-// hasSessionNoticeReader reports whether a session notification has anybody
-// to reach: the route observer or the event bus. A path with nobody to reach
-// takes no order ticket.
-func (r *l2tpReactor) hasSessionNoticeReader() bool {
-	if r.routeObserver != nil {
-		return true
-	}
-	return r.eventBus != nil
-}
-
-// notifyNetworkLifetimeDown withdraws the subscriber route of a session whose
-// LCP went down in the network phase, and publishes the (l2tp, session-down)
-// that ends its network lifetime. Runs inside handleLCPDown's ticket turn.
+// notifyNetworkLifetimeDown publishes the (l2tp, session-down) that ends the
+// network lifetime, including routes through the subscriber bridge. Runs
+// inside handleLCPDown's ticket turn.
 func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, subscriberID string, tid, sid uint16, username string, network l2tpevents.NetworkLifetime, terminal l2tpevents.TrafficSample) {
-	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(birth, tid, sid)
-	}
-	if r.eventBus == nil {
-		return
-	}
 	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 		Birth: birth, SubscriberID: subscriberID, Generation: r.params.Generation,
 		TunnelID: tid, SessionID: sid, Username: username,
@@ -602,8 +586,8 @@ func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, su
 }
 
 // handleSessionIPAssigned records the NCP-negotiated peer IP on the
-// session struct, calls RouteObserver.OnSessionIPUp and publishes
-// (l2tp, session-ip-assigned), both in the turn of the tunnel's order ticket
+// session struct and publishes (l2tp, session-ip-assigned), which reaches the
+// route reader through the subscriber bridge, within the tunnel's order ticket
 // it took under tunnelsMu, so a teardown that follows on another goroutine
 // is delivered after them. Called from handlePPPEvent for every
 // EventSessionIPAssigned (once per family per session in dual-stack flows).
@@ -664,21 +648,17 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	pppIface := sess.pppInterface
 	birth := sess.Birth()
 	subscriberID := sess.SubscriberID()
-	var framedRoutes []FramedRoute
-	if meta := LoadSessionMetadata(subscriberID); meta != nil {
-		// This notification owns its immutable value beyond the actor lock.
-		// The observer copies it into its independently retained route record.
-		framedRoutes = slices.Clone(meta.FramedRoutes)
-	}
-	callingNumber := sess.callingNumber
-	tellObserver := r.routeObserver != nil && addr.IsValid()
-	publish := r.eventBus != nil && (addr.IsValid() || ev.InterfaceID != [8]byte{})
-	owed := tellObserver || publish
-	if !owed {
+	if r.eventBus == nil {
 		r.tunnelsMu.Unlock()
 		r.logIPAssigned(ev, username, addr)
 		return
 	}
+	var framedRoutes []FramedRoute
+	if meta := LoadSessionMetadata(subscriberID); meta != nil {
+		// This notification owns its immutable value beyond the actor lock.
+		framedRoutes = slices.Clone(meta.FramedRoutes)
+	}
+	callingNumber := sess.callingNumber
 	// The ticket is the last step under tunnelsMu and its delivery the first
 	// after it, so nothing that can panic runs between the two.
 	ticket := tunnel.issueNoticeTicket()
@@ -686,12 +666,6 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 
 	ticket.deliver(func() {
 		r.logIPAssigned(ev, username, addr)
-		if tellObserver {
-			r.routeObserver.OnSessionIPUp(birth, ev.TunnelID, ev.SessionID, username, addr, framedRoutes)
-		}
-		if !publish {
-			return
-		}
 		peerAddr := ""
 		if addr.IsValid() {
 			peerAddr = addr.String()

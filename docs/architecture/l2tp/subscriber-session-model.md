@@ -125,7 +125,7 @@ the route observer copies it into a record keyed by the complete Birth.
 Address changes, withdrawal and replay use that same record. The observer
 does not rebuild a metadata key from the Birth or wire labels.
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
-<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp, OnSessionDown, reemitAll -->
+<!-- source: internal/component/l2tp/route_observer.go -- assign, withdraw, reemitAll -->
 
 The subscriber bridge and profile readers preserve the supplied ID when
 loading authorization metadata. Session and LCP teardown clear only that ID.
@@ -296,11 +296,12 @@ receive buffer and kernel receive MRU retain the full 1500-octet capacity.
 
 `tunnelsMu` orders every change of an L2TP session's state. A path that changes
 a session and has a notification to deliver takes the tunnel's next order
-ticket while it still holds `tunnelsMu`. A notification is a route observer
-call, or an `(l2tp, session-ip-assigned)`, `session-up` or `session-down`
-event. After the path releases the lock, it waits until every earlier ticket
-of that tunnel has finished, delivers, and then finishes its own ticket. Every
-reader and the route observer therefore receive one session's notifications in
+ticket while it still holds `tunnelsMu`. The notification is an L2TP
+`session-ip-assigned`, `session-up` or `session-down` event. After the path
+releases the lock, it waits for earlier tickets on that tunnel, delivers the
+event synchronously, then finishes its own ticket. The bridge republishes
+assignment and down events to subscriber readers within the same delivery.
+Every reader, including the route observer, receives these notifications in
 the order its state changed, whichever goroutines changed it: the reactor, an
 operator command, a timeout or a CoA Disconnect. The sequence belongs to the
 tunnel, because a tunnel reuses its session IDs. Notifications of different
@@ -319,20 +320,18 @@ waits with it, as it does whenever the reactor publishes to a slow reader
 |--------------|-----------------|--------------|----------------------------------------|
 | Session-down of a removed session | `drainPendingTeardowns`, once for the batch it returns, stamped on each down | `deliverSessionDowns`, one batch per turn | Outbound CDN or StopCCN, kernel teardown |
 | Session-down that ends a network lifetime (LCP down in the network phase) | `handleLCPDown` | `notifyNetworkLifetimeDown` | `ClearSessionMetadata`, then PPP's acknowledgement |
-| IP assigned | `handleSessionIPAssigned` | the same, with the route observer's IP-up | PPP's acknowledgement, which enables forwarding |
+| IP assigned | `handleSessionIPAssigned` | the same, through the subscriber bridge to the route observer | PPP's acknowledgement, which enables forwarding |
 | Session up | `handleSessionUp` | the same | The RADIUS session and idle timeouts |
 
 <!-- source: internal/component/l2tp/session.go -- removeSession, drainPendingTeardowns -->
 <!-- source: internal/component/l2tp/teardown.go -- deliverSessionDowns, notifySessionDowns -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPDown, notifyNetworkLifetimeDown, handleSessionIPAssigned, handleSessionUp -->
 
-Inside a batch's turn, `notifySessionDowns` tells the route observer to
-withdraw the route of each down whose session was established, then publishes
-one session-down per down. A session removed before it was established gets
-its session-down and no withdrawal. Only an established session ran PPP and
-can hold a subscriber route. The observer now selects the complete original
-Birth; wire labels do not select another subscriber's record. The rule that a
-pre-PPP removal owes no route withdrawal remains the same on
+Inside a batch's turn, `notifySessionDowns` publishes one event per removed
+session. The route observer withdraws the record for that original Birth and
+network lifetime if it received an assignment. A session removed before it
+was established gets its session-down, and it has no route record to
+withdraw. This holds on
 every removal path: operator, CoA, timeout, PPP, kernel error, a peer StopCCN
 or CDN, a dead peer, retention reaping and a lost tie breaker.
 
@@ -405,7 +404,8 @@ no answer, native-operation or cleanup authority.
 PPP records the request username only when the authentication handler accepts
 the request. Each IP-assigned event carries that accepted username to the
 transport, which publishes it in the subscriber registry and lifecycle events.
-L2TP also uses it for subscriber routes and accounting. A rejected request
+Both transports use it for subscriber routes. L2TP also uses it for
+accounting. A rejected request
 cannot replace the accepted username. A PPPoE session a realm relay takes
 never reaches the handler: the drain hands it to the L2TP call, PPP records
 no username, and the session is released to the LNS without an
@@ -427,11 +427,29 @@ identity, so replacement admission cannot reuse the previous subscriber.
 <!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, resetNCP -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned, handleLCPDown -->
 
-LCP-down ends the network lifetime without ending the transport. L2TP withdraws
-its subscriber routes. Both transports release the old allocation and
-authorization state before they acknowledge LCP-down. PPP waits for that
-acknowledgment before it can start replacement authentication. Session-down
-remains responsible for the L2TP CDN or PPPoE PADT.
+LCP-down ends the network lifetime without ending the transport. Each
+transport's route observer withdraws that lifetime's routes before the
+transport acknowledges LCP-down. Both transports also release the old
+allocation and authorization state before acknowledgment. PPP waits for it
+before it can start replacement authentication. Session-down remains
+responsible for the L2TP CDN or PPPoE PADT.
+
+L2TP and PPPoE each subscribe to the shared assignment and down events before
+admitting clients. Each observer accepts its own access type and keeps a
+record by subscriber ID and network lifetime. It emits under its own source,
+`l2tp` or `pppoe`, and uses the same contribution token for add, replay and
+withdrawal. When the transport stops, its observer withdraws any contributions
+still retained. PPPoE holds the session ID until its terminal subscribers
+return, so a new worker cannot request an address from the old reservation.
+PPPoE copies the framed routes from the exact accepted
+authentication request into the assignment event. The L2TP actor captures
+its framed routes before releasing its lock and publishes its assignment and
+down notices in ticket order.
+
+<!-- source: internal/component/l2tp/route_observer.go -- StartSubscriberRouteObserver, assign, withdraw, reemitAll -->
+<!-- source: internal/component/l2tp/pppoe/admission_control.go -- publishPPPTerminal -->
+<!-- source: internal/component/l2tp/subscriber_bridge.go -- L2TP subscriber event bridge -->
+<!-- source: internal/component/l2tp/ppp/request.go -- StageFramedRoutes -->
 
 Per-session cancellation still publishes the final session-down event. A stop
 while address publication is pending cannot leave the subscriber registered.

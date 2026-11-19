@@ -247,6 +247,35 @@ owner: `l2tp-auth-radius` claims it when a RADIUS server is configured, and
 therefore authenticates against those users, on PPPoE and on L2TP.
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 
+### Redistribute subscriber routes
+
+Use `import pppoe` to advertise PPPoE subscriber routes through a
+redistribution destination, such as BGP. This works on a PPPoE-only BNG.
+
+```
+redistribute {
+    destination bgp {
+        import pppoe { final accept; }
+    }
+}
+```
+
+When IPCP assigns the subscriber an IPv4 address, Ze publishes its `/32`
+and the IPv4 and IPv6 framed routes from that session's accepted RADIUS
+profile. IPv6CP interface identifiers do not create host routes. An LCP
+network reset or disconnect withdraws the original session's routes. A
+new network lifetime publishes its own address and authorization profile.
+
+Ze refuses the whole route update if the RADIUS profile has more than 64
+valid framed routes. `doctor-pppoe-framed-route-limit` identifies the
+subscriber. Correct its RADIUS profile and use `ze show pppoe sessions` to
+locate the session before reconnecting it.
+
+<!-- source: internal/component/l2tp/pppoe/redistribute.go -- source registration -->
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- onSessionIPAssigned, handlePPPEvent -->
+<!-- source: internal/component/l2tp/route_observer.go -- assign, withdraw, reemitAll -->
+<!-- source: internal/component/l2tp/route_source.go -- reportFramedRouteRefusal -->
+
 ### PPPoE client keepalive and redial
 
 The client's `lcp restart-timer` sets the Configure-Request retransmission

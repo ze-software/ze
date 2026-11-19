@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -67,6 +68,14 @@ type pppAdmission struct {
 	notice        <-chan struct{}
 }
 
+type pppTerminalState uint8
+
+const (
+	pppTerminalPending pppTerminalState = iota
+	pppTerminalDelivering
+	pppTerminalDelivered
+)
+
 // admissionControl captures this owner's resources under the table lock.
 func (st *SessionTable) admissionControl(expected *Session) pppAdmission {
 	st.mu.Lock()
@@ -74,7 +83,7 @@ func (st *SessionTable) admissionControl(expected *Session) pppAdmission {
 	if expected == nil || st.sessions[expected.SID] != expected {
 		return pppAdmission{}
 	}
-	return pppAdmission{opened: expected.Opened, attempt: expected.Attempt, transferred: expected.pppTransferred, terminal: expected.pppTerminal, relayReleased: expected.pppRelayReleased, notice: expected.pppNotice}
+	return pppAdmission{opened: expected.Opened, attempt: expected.Attempt, transferred: expected.pppTransferred, terminal: expected.pppTerminal == pppTerminalDelivered, relayReleased: expected.pppRelayReleased, notice: expected.pppNotice}
 }
 
 // stopPPPAdmission signals only this attempt and its once-bound worker.
@@ -101,15 +110,34 @@ func (s *Subsystem) liveAdmission(control ppp.SessionControl, sid uint16) bool {
 	return st.sessions[sid] == session && session.State != StateTeardown && control.Active()
 }
 
-// markPPPTerminal belongs only to a genuine matched Down or observed refusal.
-// A retained teardown remains selectable until its consumer finishes closeDone.
-func (st *SessionTable) markPPPTerminal(expected *Session, attempt ppp.SessionAttempt) bool {
+// publishPPPTerminal claims the exact original while shared Down is delivered.
+// Close can still gate the wire, but MUST keep this SID until publication
+// returns. The callback runs outside the table lock. Concurrent claims return
+// immediately, and a callback panic leaves this same admission retryable.
+func (st *SessionTable) publishPPPTerminal(expected *Session, attempt ppp.SessionAttempt, publish func()) bool {
 	st.mu.Lock()
-	defer st.mu.Unlock()
-	if expected == nil || st.sessions[expected.SID] != expected || expected.Attempt != attempt || expected.closeStarted || expected.pppTerminal {
+	if expected == nil || st.sessions[expected.SID] != expected || expected.Attempt != attempt ||
+		expected.closeStarted || expected.pppTerminal != pppTerminalPending {
+		st.mu.Unlock()
 		return false
 	}
-	expected.pppTerminal = true
+	expected.pppTerminal = pppTerminalDelivering
+	st.mu.Unlock()
+	delivered := false
+	defer func() { st.finishPPPTerminal(expected, delivered) }()
+	publish()
+	delivered = true
+	return true
+}
+
+func (st *SessionTable) finishPPPTerminal(expected *Session, delivered bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if !delivered {
+		expected.pppTerminal = pppTerminalPending
+		return
+	}
+	expected.pppTerminal = pppTerminalDelivered
 	if expected.pppNotice != nil {
 		select {
 		case <-expected.pppNotice:
@@ -118,7 +146,6 @@ func (st *SessionTable) markPPPTerminal(expected *Session, attempt ppp.SessionAt
 		}
 	}
 	expected.pppRefusal = nil
-	return true
 }
 
 // finishRejectedAdmission does not confuse a missing Control with deletion.
@@ -144,11 +171,13 @@ func (s *Subsystem) finishRejectedAdmission(server *InterfaceServer, session *Se
 			"subscriber", event.Attempt.SubscriberID(), "status", status, "error", err)
 		return
 	}
-	if !server.sessions.markPPPTerminal(session, event.Attempt) {
+	if !server.sessions.publishPPPTerminal(session, event.Attempt, func() {
+		s.pendingAuth.Delete(pendingAuthKey{subscriberID: session.SubscriberID, attempt: session.Attempt})
+		// A refused admission never published an assigned network.
+		s.withdrawSubscriberIdentity(session, l2tpevents.NetworkLifetime{}, event.Reason)
+	}) {
 		return
 	}
-	s.pendingAuth.Delete(pendingAuthKey{subscriberID: session.SubscriberID, attempt: session.Attempt})
-	s.withdrawSubscriberIdentity(session.SubscriberID, session.AccessIfIndex, session.SID, event.Reason)
 	server.handleSessionDown(session)
 }
 
@@ -236,10 +265,11 @@ func (s *Subsystem) finishStoppedAdmission(server *InterfaceServer, session *Ses
 	if status.LeaseAcquired && !status.Released {
 		return errors.New("pppoe: stopped PPP admission release remains unconfirmed")
 	}
-	if !server.sessions.markPPPTerminal(session, owner.attempt) {
-		return nil
-	}
-	s.pendingAuth.Delete(pendingAuthKey{subscriberID: session.SubscriberID, attempt: owner.attempt})
-	s.withdrawSubscriberIdentity(session.SubscriberID, session.AccessIfIndex, session.SID, "PPP driver stopped before terminal delivery")
+	server.sessions.publishPPPTerminal(session, owner.attempt, func() {
+		s.pendingAuth.Delete(pendingAuthKey{subscriberID: session.SubscriberID, attempt: owner.attempt})
+		// The joined worker delivered no terminal epoch. Discovery is stopped
+		// and the captured original admission still owns its subscriber ID.
+		s.withdrawSubscriberIdentity(session, l2tpevents.NetworkLifetime{}, "PPP driver stopped before terminal delivery")
+	})
 	return nil
 }

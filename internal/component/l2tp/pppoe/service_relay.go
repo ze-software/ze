@@ -223,7 +223,8 @@ func (st *SessionTable) beginAdmissionClose(expected *Session) (*Session, remove
 			return nil, removedAdmission{}
 		}
 	}
-	if session.pppTransferred && !session.pppTerminal && !session.pppRelayReleased {
+	if session.pppTerminal == pppTerminalDelivering ||
+		session.pppTransferred && session.pppTerminal != pppTerminalDelivered && !session.pppRelayReleased {
 		return nil, removedAdmission{}
 	}
 	session.closeStarted = true
