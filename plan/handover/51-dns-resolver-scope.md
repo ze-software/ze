@@ -36,8 +36,9 @@ uses it.
   backlog count in rfc/exclusion-evidence-backlog.txt may only fall.
 
 Chosen route (the owner rule requires the annotation to name the role, so keeping
-`{gap}` is not an option): for a document with no RFC 2119 key-words section, let shape
-(a) accept the row's own lowercase level keyword, and let the bound role come from a
+`{gap}` is not an option; and the owner ruled that in an RFC published before RFC 2119,
+"must" is read as MUST and "must not" as MUST NOT, ai/META-DECISIONS.md): for such a
+document, let shape (a) accept the row's own lowercase "must" or "must not", and let the bound role come from a
 role-defining sentence in another section named by a `(Section N)` locator in the
 reason. Code: `notapplicable_roles.go::boundRoleRefusal` and `firstKeyword`,
 `check_evidence.go::roleQuoteGap` and `ownObligationRefusal`, their tests, and

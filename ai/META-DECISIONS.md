@@ -118,6 +118,10 @@ in the spec or commit it applies to.
   applicable) is written only for a role or feature he named, a lower-layer
   requirement still owes a test of what Ze installs, and no annotation class
   is put to him row by row.
+- An RFC published before RFC 2119 defined the BCP 14 keywords states its
+  obligations in lowercase. In such an RFC, "must" is read as MUST and "must
+  not" as MUST NOT, everywhere a keyword is looked for: requirement rows,
+  their levels, and the quotes an annotation carries.
 - A feature an earlier judge or agent declined, with no decision of Thomas's
   behind it, is a gap, not a declined feature.
 - A feature leaves the count as declined only when Thomas said Ze will never
