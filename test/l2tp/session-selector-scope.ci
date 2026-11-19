@@ -1,0 +1,128 @@
+# Test: a bare session ID clears one session, and is refused when two share it.
+# QUESTION:  through the operator's `clear l2tp session id` over SSH, does a
+#            unique bare session ID clear exactly its session; is a bare ID
+#            that two live sessions on different tunnels share refused as
+#            ambiguous, with no effect on either and the qualified clear of
+#            each named; does the qualified form (tunnel-id, listener,
+#            expected-id) clear exactly the one it names; and is an ended
+#            session's expected-id, typed at the coordinates of the live
+#            session that holds its session ID, refused with that session
+#            left up?
+# VALIDATES: spec-l2tp-session-identity-and-publish-stall, readable selectors
+#            (command-dispatch row and the session-selector-scope functional
+#            row): unique bare SID, qualified collision, ambiguity without
+#            effects, stale-target survivor. Real entry points: a LAC over UDP,
+#            kernel PPP, `ze cli` over SSH, a RADIUS server on the wire.
+# PREVENTS:  a bare clear that picks one of two sessions sharing an ID, a
+#            refusal that still tears one down, a qualified clear that ends
+#            its sibling, and a stale expected-id that ends the session now
+#            holding those numbers.
+#
+# Why not a unit test: TestHandleSessionTeardownRefusesAmbiguousSelector,
+# TestL2TPSessionCaptureRefusesEqualSIDAcrossRealTunnels and the real-dispatcher
+# tests in internal/component/l2tp/cmd prove the resolver over test tunnels.
+# Only the daemon joins the L2TP reactor's own allocator, kernel PPP, the
+# command registry over SSH, the subscriber bridge and RADIUS accounting, so
+# only a .ci proves an operator reaches these answers.
+#
+# The collision is real, not staged. Ze draws each local session ID at random
+# and keeps it unique only within its tunnel (allocateSessionID,
+# internal/component/l2tp/session.go), and no config or env knob seeds it. The
+# peer holds 256 calls in wait-connect on one tunnel, then places calls on a
+# second tunnel one at a time, hanging up each whose ID none of the 256 has,
+# until ze's allocator gives one an ID a held call has (expected after about
+# 257 draws, bounded at 4096, where a miss has a chance of about 1e-7). It then
+# hangs up the other held calls, and both calls become PPP sessions. A third
+# PPP session on its own tunnel, opened first, is the unique one; the search
+# never takes its ID.
+#
+# Steps, each judged on state read once after the command answered, because a
+# captured teardown removes the row, publishes the session-down and sends the
+# CDN before the command answers: the unique bare clear; the shared bare clear,
+# refused; the qualified clear of one sharer; the other sharer's coordinates
+# with the ended sharer's expected-id, refused as matching no session; the
+# shared bare clear again, now unique. After each: `show l2tp sessions` lists
+# exactly the live sessions with unchanged births, no live session's link saw
+# a CDN or a terminate, and the RADIUS server holds one Stop with
+# Acct-Terminate-Cause 6 for each cleared session and none for a live one.
+# Every wait is a bounded poll on state, never a sleep.
+#
+# Kernel PPPoL2TP needs CAP_NET_ADMIN, so this test is needs-linux and runs in
+# QEMU as root. ze.l2tp.skip-kernel-probe is deliberately not set.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
+# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
+# reaches through the three ze.ssh.* variables below.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier selector-lns
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.8.1
+            start 10.99.8.10
+            end 10.99.8.12
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/session-selector-scope/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+# 240s bounds the peer's own waits, each a share of this budget, so a stall
+# ends with the peer naming the state that never came.
+cmd=foreground:seq=3:exec=le test fixture l2tp/session-selector-scope $PORT:timeout=240s:exit=0
+expect=exit:code=0
+expect=stdout:pattern=OK: ze gave tunnels [0-9]+ and [0-9]+ the same session ID [0-9]+ after [0-9]+ draws
+expect=stdout:pattern=OK: show l2tp sessions lists session [0-9]+ on tunnels [0-9]+ and [0-9]+ with two births, and session [0-9]+ alone
+expect=stdout:contains=OK: the RADIUS server holds an Accounting-Start for each of the three sessions
+expect=stdout:pattern=OK: the bare unique session ID [0-9]+ cleared only its session
+expect=stdout:pattern=OK: the bare shared session ID [0-9]+ was refused as ambiguous, naming both qualified clears, and both sessions remain
+expect=stdout:pattern=OK: the qualified clear ended only session [0-9]+ on tunnel [0-9]+
+expect=stdout:contains=OK: the ended session's expected-id was refused at the live session's coordinates, which remains
+expect=stdout:pattern=OK: the bare session ID [0-9]+, unique once its sibling ended, cleared the last session
+expect=stdout:contains=OK: the RADIUS server holds one Stop with Acct-Terminate-Cause 6 for each cleared session and none for a live one
