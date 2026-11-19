@@ -204,8 +204,8 @@ func SplitChunks(exchanges []Exchange, group func(Exchange) string) (ChunkSplit,
 			return ChunkSplit{}, fmt.Errorf("chunk %s: %w", chunk.Name, err)
 		}
 		chunk.Size = len(content)
-		for _, exchange := range members[chunk.Name] {
-			chunk.Keys = append(chunk.Keys, exchange.Key)
+		for member := range members[chunk.Name] {
+			chunk.Keys = append(chunk.Keys, members[chunk.Name][member].Key)
 		}
 		split.Contents[chunk.Name] = content
 	}
@@ -272,7 +272,8 @@ func (r Recording) checkParts() error {
 			held[key] = "chunk " + chunk.Name
 		}
 	}
-	for index, fallback := range r.Fallbacks {
+	for index := range r.Fallbacks {
+		fallback := &r.Fallbacks[index]
 		if fallback.Method == "" {
 			return fmt.Errorf("fallback %d names no method", index+1)
 		}

@@ -541,7 +541,7 @@ func TestFleetDemoSortsAndOpensAPanel(t *testing.T) {
 	demo.read("the first row's eye", `(`+eye+`)?.getAttribute('aria-label')`, &label)
 	name, found := strings.CutPrefix(label, "Show the details of ")
 	if !found {
-		t.Fatalf("the eye of the first row is labelled %q", label)
+		t.Fatalf("the eye of the first row is labeled %q", label)
 	}
 	demo.click("the eye of "+name, eye)
 	demo.await("the side panel of "+name, `document.getElementById('fleet-side-panel')?.getAttribute('data-fleet-panel') === 'open' &&

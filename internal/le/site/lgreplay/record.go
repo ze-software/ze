@@ -239,7 +239,7 @@ func (c *crawler) followUps(ctx context.Context, requests []request, exchanges *
 	}
 	// *exchanges grows inside the loop: an answer appended here is read for
 	// its own follow-up requests later in the same loop.
-	for index := 0; index < len(*exchanges); index++ {
+	for index := 0; index < len(*exchanges); index++ { //nolint:intrange // the slice grows inside the loop; a range would fix its length at the start and drop the appended follow-ups
 		parent := (*exchanges)[index]
 		if !isMarkup(parent.ContentType) {
 			continue
