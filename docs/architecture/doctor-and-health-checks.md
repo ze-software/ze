@@ -708,7 +708,11 @@ and answered by its doctor callback, never a `registry.DoctorCheckDef`
 reads the dataplane `runEngine` loaded, which is nil in every other process.
 `ipsec-child-install` is another: it reads the refusal each peer session
 records (`recordChildRefused`), which exists only in the engine's process.
-Neither check probes the host: the TUN device outcome is recorded by the apply
+`ipsec-spd-install` is a third: it reports each operator `vpn ipsec policy`
+entry the dataplane refused when the daemon started, which the start records
+(`installSPDPoliciesAtStart`) instead of refusing the IPsec block. A reload
+never leaves one behind, because a refused entry refuses the commit.
+None of these checks probes the host: the TUN device outcome is recorded by the apply
 (`recordESPFormTUN`), because opening `/dev/net/tun` may create the node.
 A bind probe MUST NOT judge a port
 its own running daemon holds, because inside the daemon that bind fails on
@@ -720,6 +724,8 @@ as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.m
 <!-- source: internal/component/doctor/answer.go -- Answer -->
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks, answerDoctorCheck, answerESPFormFastPath -->
 <!-- source: internal/component/ike/engine/doctor_child_install.go -- childInstallCheckDecl, recordChildRefused -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl, answerSPDInstall -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- installSPDPoliciesAtStart -->
 <!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN -->
 <!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
 <!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->
@@ -1044,6 +1050,31 @@ only the captured session; a stale capture performs no send and raises no event.
 Peer receipt and native PPP cleanup remain separate outcomes.
 <!-- source: internal/component/l2tp/diagnostic_control.go -- reportCapturedControlSendFailure -->
 <!-- source: internal/component/l2tp/teardown.go -- teardownCapturedSession -->
+
+An L2TP message with an AVP Ze could not reveal raises
+`doctor-l2tp-hidden-avp-unrevealed` from `l2tp`, the subject the peer that sent
+it, on the TunnelID=0 SCCRQ path and on an open tunnel alike. The fix follows
+the reason: with no secret, configure `l2tp shared-secret` to the one the peer
+hides AVPs under; on a length mismatch, check that the configured secret
+matches the peer's; for a hidden Random Vector, or a hidden AVP with no Random
+Vector before it, correct the peer, which violates RFC 2661 Section 4.3. The
+warning line carries the code and the peer. A message on an open tunnel is not
+rate-limited, so the event is raised at most once a minute per peer through
+`report.RaiseErrorFixOnce`.
+<!-- source: internal/component/l2tp/hidden.go -- hiddenLeft.log, hiddenRevealFix -->
+<!-- source: internal/component/l2tp/register_hidden_diagnostic.go -- reportHiddenLeft -->
+<!-- test: internal/component/l2tp/register_hidden_diagnostic_test.go TestHiddenLeftCarriesCodeAndRaisesEventForPeer -->
+
+A Framed-Route or Framed-IPv6-Route text in an Access-Accept that Ze cannot
+parse is skipped, and the rest of the authorization applies. The skip raises
+`doctor-radius-framed-route-skipped` from `l2tp-auth-radius`, the subject the
+subscriber's user name, the message the attribute name and the parse error
+only, and the fix `correct the subscriber's RADIUS profile`. A profile repeats
+the bad text on every Access-Accept, so the event is raised at most once a
+minute per subscriber.
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- appendFramedRoutes, reportFramedRouteSkipped -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- init -->
+<!-- test: internal/component/l2tp/plugins/authradius/extract_route_diagnostic_test.go TestFramedRouteSkippedCarriesCodeAndRaisesEventForSubscriber -->
 
 Shared CLI history publishes failed reads and writes as
 `doctor-cli-history-read` and `doctor-cli-history-write`, from `cli-history` on

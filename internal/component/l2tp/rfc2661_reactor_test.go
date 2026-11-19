@@ -297,7 +297,8 @@ func TestReactor_MalformedSCCRQCreatesNoTunnel(t *testing.T) {
 	require.Equal(t, 0, peerMapLen)
 }
 
-// VALIDATES: hidden mandatory AVPs are rejected before any parser treats
+// VALIDATES: a hidden mandatory AVP that reaches parseSCCRQ still hidden
+// (revealHiddenAVPs could not reveal it) is rejected before any parser treats
 // ciphertext as a plaintext value.
 // PREVENTS: a hidden mandatory Host Name AVP from satisfying SCCRQ required
 // fields without decryption.

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_hidden_avp_receive_test.go::TestHiddenAVPsRevealedOnICRQ",
+    "unit-sha": "f7274ce4007cd7ac",
+    "claim-sha": "e37ff7f7c7b073b6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/hidden.go::revealHiddenAVPs",
+    "producer-sha": "932105a7fafc92e7",
+    "break": "body of revealHiddenAVPs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

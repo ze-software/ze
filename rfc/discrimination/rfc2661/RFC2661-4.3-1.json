@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC2661-4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_hidden_avp_receive_test.go::TestHiddenAVPNotRevealedRefusesICRQ",
+    "unit-sha": "415c1f93e0404083",
+    "claim-sha": "0b1a3a8cf355fb39",
+    "route": "revert",
+    "producer": "internal/component/l2tp/hidden.go::revealHiddenAVP",
+    "producer-sha": "5c5f565d33e047e5",
+    "break": "body of revealHiddenAVP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/rfc2661_session_initiator_test.go::TestWriteICCNBodyHiddenAVP33",
     "unit-sha": "d964fb030803f169",

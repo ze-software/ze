@@ -57,9 +57,10 @@ func TestNGHiddenAVPOriginalLengthChecked(t *testing.T) {
 // plaintext: a mandatory hidden AVP is refused, a non-mandatory one skipped,
 // and a plain AVP passed through.
 //
-// Source: accel-ppp-ng a8ca0f3 (T8439). Ze's control-message parsers do not
-// decrypt hidden AVPs inline (HiddenDecrypt has no caller outside tests), so
-// the over-read accel-ppp fixed has no path in Ze; skipHiddenAVP is that path.
+// Source: accel-ppp-ng a8ca0f3 (T8439). Ze reveals hidden AVPs before the
+// parsers run (revealHiddenAVPs, through HiddenDecrypt, whose Original Length
+// check TestNGHiddenAVPOriginalLengthChecked covers), and an AVP it could not
+// reveal reaches its parser still hidden; skipHiddenAVP is that path.
 func TestNGHiddenAVPNeverReadAsPlaintext(t *testing.T) {
 	if skip, err := skipHiddenAVP("ICRQ", AVPAssignedSessionID, FlagHidden|FlagMandatory); !skip || err == nil {
 		t.Fatalf("mandatory hidden AVP: skip %v err %v, want skip with an error", skip, err)

@@ -120,6 +120,14 @@ type l2tpReactor struct {
 	// caller of handle, so it needs no lock.
 	stopCCNLastSent [stopCCNLimitSlots]time.Time
 
+	// hiddenLogLastSent bounds the "hidden AVP left hidden" line a TunnelID=0
+	// SCCRQ earns (revealSCCRQ), with the slots and interval of
+	// stopCCNLastSent but a table of its own: an SCCRQ whose unrevealed AVP
+	// has M=0 draws no StopCCN, so sharing that table would leave its line
+	// unbounded, and a logged line must not use up the StopCCN the same
+	// datagram may still owe. Reactor goroutine only, no lock.
+	hiddenLogLastSent [stopCCNLimitSlots]time.Time
+
 	// Timer channels. Created by the reactor; the tunnelTimer goroutine
 	// is owned by the subsystem, not the reactor, but the reactor creates
 	// the channels at construction time so tests can work without a
@@ -391,7 +399,8 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	// without allocating a tunnel entry or consuming a local TID.
 	var sccrq *sccrqInfo
 	if hdr.TunnelID == 0 {
-		info, perr := parseSCCRQ(payload)
+		// RFC 2661 Section 4.3
+		info, perr := parseSCCRQ(r.revealSCCRQ(pkt.from, payload))
 		if perr != nil {
 			// RFC 2661 Section 7.2.1, idle state: "Receive SCCRQ, not
 			// acceptable | Send StopCCN, Clean up | idle". parseSCCRQ marks
@@ -597,6 +606,45 @@ func stopCCNSlot(a netip.Addr) int {
 		h *= prime64
 	}
 	return int(h % stopCCNLimitSlots)
+}
+
+// revealSCCRQ reveals the hidden AVPs of a TunnelID=0 body under the
+// reactor's global shared secret, the one every answering tunnel
+// authenticates with (L2TPTunnel.sharedSecret). setSharedSecret writes that
+// secret under tunnelsMu, so it is read under the lock, which is taken only
+// when the body carries a hidden AVP: a flood of plain SCCRQs never touches
+// it. Caller MUST NOT hold tunnelsMu.
+//
+// An SCCRQ that wins a tie-break against a tunnel Ze dialed with a
+// per-remote secret is revealed under the global secret too. That is the
+// secret the answering tunnel it opens authenticates with (handleSCCRQ reads
+// defaults.SharedSecret), and finding the dialed tunnel here would mean a walk
+// of every tunnel per unauthenticated datagram.
+//
+// The datagram is unauthenticated and its source spoofable, so the one line
+// an SCCRQ with AVPs left hidden earns is written at most once per
+// stopCCNLimitInterval per source slot (hiddenLogLastSent), the bound
+// answerRefusedSCCRQ puts on the StopCCN. Runs on the reactor goroutine.
+func (r *l2tpReactor) revealSCCRQ(from netip.AddrPort, payload []byte) []byte {
+	if !carriesHiddenAVP(payload) {
+		return payload
+	}
+	r.tunnelsMu.Lock()
+	secret := r.params.Defaults.SharedSecret
+	r.tunnelsMu.Unlock()
+	// RFC 2661 Section 4.3
+	revealed, left := revealHiddenAVPs(payload, secret)
+	if left.count == 0 {
+		return revealed
+	}
+	now := r.params.Clock()
+	slot := stopCCNSlot(from.Addr())
+	if last := r.hiddenLogLastSent[slot]; !last.IsZero() && now.Sub(last) < stopCCNLimitInterval {
+		return revealed
+	}
+	r.hiddenLogLastSent[slot] = now
+	left.log(r.logger, from)
+	return revealed
 }
 
 // answerRefusedSCCRQ replies to an SCCRQ that parseSCCRQ refused, and bounds

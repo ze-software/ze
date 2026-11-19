@@ -1,6 +1,45 @@
 package l2tp
 
-import "testing"
+import (
+	"bytes"
+	"io"
+	"log/slog"
+	"net/netip"
+	"testing"
+)
+
+// FuzzRevealHiddenAVPs feeds arbitrary control-message bodies to the reveal
+// that runs before every parser, with and without a secret. It never panics,
+// never grows the body (a revealed AVP is shorter than its hidden form), and
+// returns a body with no hidden AVP unchanged.
+func FuzzRevealHiddenAVPs(f *testing.F) {
+	var seed [64]byte
+	off := WriteAVPUint16(seed[:], 0, true, AVPMessageType, uint16(MsgICRQ))
+	off += WriteAVPBytes(seed[:], off, true, 0, AVPRandomVector, []byte("0123456789abcdef"))
+	ct := HiddenEncrypt(seed[off+AVPHeaderLen:], AVPCallingNumber, []byte("s"), []byte("0123456789abcdef"), []byte("5550100"))
+	WriteAVPHeader(seed[:], off, FlagMandatory|FlagHidden, 0, AVPCallingNumber, AVPHeaderLen+len(ct))
+	off += AVPHeaderLen + len(ct)
+	f.Add(seed[:off], "s")
+	f.Add(seed[:off], "")
+	f.Add([]byte{0xC0, 0x06, 0, 0, 0, 22}, "s")
+	f.Add([]byte{0xC0, 0x08, 0, 0, 0, 22, 0xFF, 0xFF}, "s")
+	f.Add([]byte{0xC0, 0x05, 0, 0}, "s")
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	f.Fuzz(func(t *testing.T, body []byte, secret string) {
+		in := bytes.Clone(body)
+		out, left := revealHiddenAVPs(body, secret)
+		left.log(logger, netip.MustParseAddrPort("192.0.2.1:1701"))
+		if len(out) > len(body) {
+			t.Fatalf("revealed body grew from %d to %d octets", len(body), len(out))
+		}
+		if !bytes.Equal(body, in) {
+			t.Fatal("revealHiddenAVPs wrote the received body")
+		}
+		if !carriesHiddenAVP(body) && !bytes.Equal(out, body) {
+			t.Fatal("a body with no hidden AVP came back changed")
+		}
+	})
+}
 
 // FuzzHiddenDecrypt ensures HiddenDecrypt never panics or reads out of bounds
 // on arbitrary ciphertext input. Correctness of the recovered plaintext is

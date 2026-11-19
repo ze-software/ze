@@ -7,7 +7,7 @@
     "claim-sha": "beb222c199803e16",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "943dc7389c2d44cb",
+    "producer-sha": "5afea5790d87a8ee",
     "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "337757bfb826ca43",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "943dc7389c2d44cb",
+    "producer-sha": "5afea5790d87a8ee",
     "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -82,7 +82,7 @@ type L2TPTunnel struct {
 	// dials with (empty for answering tunnels and for dials with no secret).
 	// The answering path authenticates every peer with a single global
 	// secret (reactorParams.Defaults.SharedSecret), but an initiator may
-	// dial many remotes each with its own secret, so handleSCCRP prefers
+	// dial many remotes each with its own secret, so sharedSecret prefers
 	// this field over the global default when non-empty.
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu. Set once at dial time.

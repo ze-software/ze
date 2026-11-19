@@ -112,6 +112,16 @@ var (
 	errSCCRQAssignedTunnelIDLen   = &sccrqRejection{Result: resultProtocolError, ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Assigned Tunnel ID AVP must be 2 octets"}
 )
 
+// errSCCRQHiddenNotRevealed reports a mandatory AVP still hidden when
+// parseSCCRQ meets it: revealHiddenAVPs could not reveal it (no shared secret,
+// no Random Vector before it, or a malformed hidden value) and logged why.
+// RFC 2661 Section 7.1: "Thus, if a malformed AVP is received with the M-bit
+// set, the session or tunnel should be terminated with a proper Result or
+// Error Code sent." Error Code 3 is the one the other malformed SCCRQ AVPs
+// carry; the Detail names no reason, because the reason is about ze's
+// configuration and the peer is unauthenticated.
+var errSCCRQHiddenNotRevealed = &sccrqRejection{Result: resultProtocolError, ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ hidden mandatory AVP could not be revealed"}
+
 // errSCCRQProtocolVersionUnsupported reports a Protocol Version AVP that is
 // readable and names a version ze does not speak. RFC 2661 Section 4.4.3 fixes
 // the pair: "The Ver field is a 1 octet unsigned integer containing the value

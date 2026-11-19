@@ -24,11 +24,12 @@ own PPP authentication, was delivered by the closed `spec-home-cpe-14-lac-realm-
 `docs/guide/l2tp.md`, "Relay by realm"), because only that spec creates an
 authentication exchange at the LAC. As LNS, `session_fsm.go::parseICCN` stores the
 Proxy Authen AVPs and nothing authenticates from them (only `sess.username` mirrors
-the name), and `avp.go::skipHiddenAVP` skips a hidden AVP without decrypting it.
+the name). A hidden AVP 33 already reaches `parseICCN` revealed with the tunnel
+secret (`hidden.go::revealHiddenAVPs`), which stores it in `proxyAuthenResponse`.
 RFC 2661 Section 9.5 obliges an LNS that implements proxy authentication to make it
 configurable off. The owner can decline the LNS half in one word, and until he does
 every conditional MUST below is a requirement this spec schedules: consume AVPs 29 to
-33 on the LNS (decrypting a hidden AVP 33 with the tunnel secret), behind a
+33 on the LNS, behind a
 `proxy-authentication` YANG leaf defaulting to off, and re-run PPP authentication
 when off.
 

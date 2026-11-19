@@ -478,6 +478,7 @@ none of them is a defect until this table names the new trigger.
 |---|---|---|
 | A private incoming connection observes an OPEN | Its decoded event must wait for selection, while read and write buffers are reused. The private epoch owns at most one actual sent and one actual received body; selection replays only those observations, without another wire write or counter increment | `(*pendingOpenPublication).retain`, `observedOpen.publish` |
 | A punted PPP DHCPv6 request enters its session worker | The sole PPP reader reuses its receive buffer before the DHCPv6 worker consumes the request. Eight fixed-value slots per session own bounded payloads; outbound UDP and RA bodies copy into the caller-owned complete PPP frame | `(*controlSocket).dispatchDHCPv6`, `writeIPv6Control` |
+| A received L2TP control message carries a hidden AVP | RFC 2661 Section 4.3: the parsers read the revealed value, and a revealed AVP is shorter than its hidden form, so the body is rewritten into one fresh buffer of the body's length. The parsers keep subslices of it after they return, so it is not pooled; the received body is never written. A message with no hidden AVP is not copied | `revealHiddenAVPs` |
 | An attribute enters its pool for the first time | The pool owns the canonical copy, and the wire buffer is reused | `(*shard).intern` |
 | The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
 | The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
@@ -497,6 +498,7 @@ none of them is a defect until this table names the new trigger.
 | An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
 <!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
+<!-- source: internal/component/l2tp/hidden.go -- revealHiddenAVPs -->
 <!-- source: internal/component/bgp/reactor/session_open_publication.go -- pendingOpenPublication.retain, observedOpen.publish -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdUpdateForDestination, fwdSplitParsedUpdate -->
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdRegenerateRawPathIDs -->

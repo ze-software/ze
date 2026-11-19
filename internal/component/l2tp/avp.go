@@ -87,7 +87,9 @@ type AVPFlags uint8
 const (
 	// FlagMandatory reflects the M bit (unrecognized mandatory AVP => tear down).
 	FlagMandatory AVPFlags = 1 << 0
-	// FlagHidden reflects the H bit (value is encrypted, Section 4.3).
+	// FlagHidden reflects the H bit (value is encrypted, Section 4.3). A
+	// control-message parser sees it only on an AVP revealHiddenAVPs could
+	// not reveal; a revealed AVP reaches the parser with H clear.
 	FlagHidden AVPFlags = 1 << 1
 	// FlagReserved indicates that one or more reserved bits were non-zero on
 	// the wire. Per RFC 2661 Section 4.1, the AVP must then be treated as
@@ -186,16 +188,25 @@ func (it *AVPIterator) Next() (vendorID uint16, attrType AVPType, flags AVPFlags
 // Err returns the iteration error, if any. Nil means clean exhaustion.
 func (it *AVPIterator) Err() error { return it.err }
 
-// skipHiddenAVP returns skip=true for every hidden AVP because the control
-// message parsers do not decrypt H-bit values inline. Non-mandatory hidden
-// AVPs are ignored; mandatory hidden AVPs are rejected fail-closed so callers
-// never consume ciphertext as a plaintext value.
+// skipHiddenAVP applies the M-bit rule to an AVP that is still hidden when its
+// parser meets it. revealHiddenAVPs (hidden.go) reveals every hidden AVP it
+// can before a control message reaches its parser, and leaves one hidden only
+// when the tunnel has no shared secret, no Random Vector precedes it, it is a
+// hidden Random Vector, or its hidden value is malformed; it logs which. The
+// value is then ciphertext, so skip=true for every such AVP: no parser reads
+// it. A mandatory one refuses the message, so callers never act on a message
+// missing a value its sender marked mandatory.
+//
+// RFC 2661 Section 7.1: "Thus, if a malformed AVP is received with the M-bit
+// set, the session or tunnel should be terminated with a proper Result or
+// Error Code sent.  If the M-bit is not set, the AVP should be ignored (with
+// the exception of logging a local error message) and the message accepted."
 func skipHiddenAVP(msgName string, attrType AVPType, flags AVPFlags) (bool, error) {
 	if flags&FlagHidden == 0 {
 		return false, nil
 	}
 	if flags&FlagMandatory != 0 {
-		return true, fmt.Errorf("l2tp: hidden mandatory %s AVP type %d rejected", msgName, attrType)
+		return true, fmt.Errorf("l2tp: hidden mandatory %s AVP type %d could not be revealed", msgName, attrType)
 	}
 	return true, nil
 }

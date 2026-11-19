@@ -131,7 +131,55 @@ Random Vector but different attribute types produce different key streams.
 `HiddenEncrypt` and `HiddenDecrypt` take caller-provided scratch buffers.
 The encoder prepends a 2-byte Original Length field before XOR-ing the
 result with the keystream; the decoder reverses this and extracts the
-original value by that length.
+original value by that length, so padding a sender adds is dropped.
+
+### Receiving hidden AVPs
+
+Every received control message passes through `revealHiddenAVPs` before its
+parser runs: `handleMessage` calls it on each delivered message with the
+tunnel's shared secret (`sharedSecret`: the remote's secret for a dialed
+tunnel, else `l2tp shared-secret`), and the reactor calls it on a TunnelID=0
+SCCRQ before `parseSCCRQ`. It rewrites each hidden AVP it can reveal as the
+cleartext AVP (H clear, M kept, the original value), using the Random Vector
+AVP most closely preceding it. A message with no hidden AVP is passed through
+uncopied. The parsers therefore read a hidden Calling Number or Assigned
+Tunnel ID exactly as a cleartext one.
+
+An AVP it cannot reveal stays hidden, and its parser applies the RFC 2661
+Section 7.1 M-bit rule through `skipHiddenAVP`. The message earns one warning
+line, `hidden AVP left hidden`, naming the peer, how many AVPs stayed hidden,
+the first one and its reason, and the fix, under the doctor code
+`doctor-l2tp-hidden-avp-unrevealed`; the same line raises that event on the
+report bus, at most once a minute per peer, so `ze doctor` reports it
+(`reportHiddenLeft`). On a TunnelID=0 SCCRQ, which is
+unauthenticated and may be spoofed, that line is written at most once per
+second per source slot, with the slot hash and interval that bound the
+StopCCN `answerRefusedSCCRQ` sends, in a table of its own.
+
+An SCCRQ is revealed under the global `l2tp shared-secret`, even one from a
+remote Ze dialed with a per-remote secret that wins the tie-break. The
+answering tunnel that SCCRQ opens authenticates with the global secret as
+well, and finding the dialed tunnel would cost a walk of every tunnel per
+unauthenticated datagram. Such a remote's hidden SCCRQ AVPs are revealed only
+when its secret equals the global one.
+
+| Why it stays hidden | M=1 | M=0 |
+|---------------------|-----|-----|
+| No shared secret configured | Session message: CDN, the tunnel stays up. Tunnel message: StopCCN (an SCCRQ gets Result Code 2, Error Code 3) | Ignored, the message accepted |
+| No non-empty Random Vector AVP precedes it | as above | as above |
+| It is itself a Random Vector AVP (Section 4.4.1: never hidden) | as above | as above |
+| Its hidden value is malformed (shorter than 2 octets, or an Original Length past its end, the usual sign of a wrong secret) | as above | as above |
+
+The Message Type AVP is never revealed: the reliable engine refuses a hidden
+one before any parser runs (see "AVP layout").
+<!-- source: internal/component/l2tp/hidden.go -- revealHiddenAVPs, revealHiddenAVP -->
+<!-- source: internal/component/l2tp/avp.go -- skipHiddenAVP -->
+<!-- source: internal/component/l2tp/reactor.go -- revealSCCRQ -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- handleMessage -->
+
+Ze hides one AVP on send: AVP 33 of a PAP realm call, after a Random Vector
+(`iccn_proxy.go`). RFC 2661 makes hiding optional ("This AVP may be hidden"
+on each hideable AVP), so every other AVP is sent in clear.
 
 ## Challenge/response (RFC 2661 Section 4.2)
 

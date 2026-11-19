@@ -18,8 +18,8 @@
     "claim-sha": "0ad32933517ba269",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
-    "producer-sha": "a2d762d78b7d2c53",
-    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "efcedab1f6ba074a",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-10-2",
@@ -29,8 +29,8 @@
     "claim-sha": "852734c48ffeeaea",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
-    "producer-sha": "a2d762d78b7d2c53",
-    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "efcedab1f6ba074a",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-10-2",
@@ -40,8 +40,8 @@
     "claim-sha": "43173f41796bae09",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
-    "producer-sha": "a2d762d78b7d2c53",
-    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "efcedab1f6ba074a",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-10-2",
@@ -95,8 +95,8 @@
     "claim-sha": "0d3856a9628c7f9c",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
-    "producer-sha": "a2d762d78b7d2c53",
-    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "efcedab1f6ba074a",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=stderr:contains=zero Assigned Tunnel ID SCCRQ answered with StopCCN"
   },
   {
@@ -107,8 +107,8 @@
     "claim-sha": "9cc00cde6f7895c5",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
-    "producer-sha": "a2d762d78b7d2c53",
-    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "efcedab1f6ba074a",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=stderr:contains=new tunnel created from SCCRQ"
   }
 ]

@@ -149,8 +149,17 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 	}
 	msgType := MessageType(entry.MessageType)
 	if msgType == MsgSCCRQ {
+		// The reactor revealed and parsed the SCCRQ body before the tunnel
+		// existed; handleSCCRQ reads that result.
 		return t.handleSCCRQ(now, defaults, sccrq)
 	}
+	// RFC 2661 Section 4.3: every handler below parses the body with its
+	// hidden AVPs revealed under this tunnel's shared secret.
+	// The message reached a tunnel the peer opened, so its one line is not
+	// rate-limited, unlike the TunnelID=0 SCCRQ (reactor.revealSCCRQ).
+	revealed, left := revealHiddenAVPs(entry.Payload, t.sharedSecret(defaults))
+	left.log(t.logger, t.peerAddr)
+	entry.Payload = revealed
 	if msgType == MsgSCCRP {
 		return t.handleSCCRP(now, defaults, entry.Payload)
 	}
@@ -474,7 +483,8 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			return sccrqInfo{}, errSCCRQUnknownMandatoryAVP
 		}
 		if skip, err := skipHiddenAVP("SCCRQ", attrType, flags); err != nil {
-			return sccrqInfo{}, err
+			// The reactor answers this one with StopCCN rather than drop it.
+			return sccrqInfo{}, errSCCRQHiddenNotRevealed
 		} else if skip {
 			continue
 		}

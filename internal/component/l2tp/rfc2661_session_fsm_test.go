@@ -611,8 +611,8 @@ func TestSession_UnknownMandatoryAVP(t *testing.T) {
 	}
 }
 
-// VALIDATES: hidden mandatory session AVPs are rejected before use when
-// hidden AVP decryption is not part of the control-message parser.
+// VALIDATES: a hidden mandatory session AVP that reaches the parser still
+// hidden (revealHiddenAVPs could not reveal it) is rejected before use.
 // PREVENTS: a hidden mandatory Proxy Authen Name AVP from being stored as
 // plaintext proxy-auth metadata.
 func TestParseICCN_HiddenMandatoryAVPRejected(t *testing.T) {

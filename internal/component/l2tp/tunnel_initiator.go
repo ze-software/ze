@@ -65,6 +65,19 @@ func (t *L2TPTunnel) initiate(now time.Time, defaults TunnelDefaults, tieBreaker
 	return t.enqueuedSend(wire)
 }
 
+// sharedSecret returns the secret this tunnel authenticates with and that its
+// peer hides AVPs under (RFC 2661 Section 4.3: "The shared secret is the same
+// secret that is used for tunnel authentication (see Section 5.1.1)."). An
+// initiator dialing a specific remote uses that remote's secret; an answering
+// tunnel, or a dial with no per-remote secret, uses the reactor's global
+// default. Empty means no secret is configured.
+func (t *L2TPTunnel) sharedSecret(defaults TunnelDefaults) string {
+	if t.initiatorSecret != "" {
+		return t.initiatorSecret
+	}
+	return defaults.SharedSecret
+}
+
 // handleSCCRP is the wait-ctl-reply -> established transition on the
 // initiator side (RFC 2661 Section 6.2). The peer's SCCRP carries the
 // tunnel ID it assigned for us (Assigned Tunnel ID AVP), which becomes the
@@ -123,13 +136,7 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 	t.peerBearer = sccrp.BearerCapabilities
 	t.peerRecvWindow = sccrp.RecvWindow
 
-	// An initiator dialing a specific remote uses that remote's secret; fall
-	// back to the reactor's global default for a dial with no per-remote
-	// secret (Phase 1 tunnel-level tests take this branch).
-	secret := defaults.SharedSecret
-	if t.initiatorSecret != "" {
-		secret = t.initiatorSecret
-	}
+	secret := t.sharedSecret(defaults)
 
 	// Authenticate the peer to us: verify its response to our Challenge.
 	if t.ourChallenge != nil {
