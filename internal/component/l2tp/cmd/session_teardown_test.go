@@ -3,15 +3,95 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
+
+type sessionTeardownCaptureSpy struct {
+	cqmCommandCapture
+	audits int
+	clears int
+}
+
+func (capture *sessionTeardownCaptureSpy) RecordDisconnect(string, string, uint32) error {
+	capture.audits++
+	return nil
+}
+
+func (capture *sessionTeardownCaptureSpy) Teardown(context.Context, l2tpevents.TerminateCause, string) error {
+	capture.clears++
+	return nil
+}
+
+type sessionTeardownServiceSpy struct {
+	cqmCommandService
+	legacyClears int
+}
+
+func (service *sessionTeardownServiceSpy) TeardownSession(uint16) error {
+	service.legacyClears++
+	return nil
+}
+
+// The operator must be told why the clear refused and how to select one
+// original. A failed capture grants neither audit nor teardown authority.
+func TestHandleSessionTeardownRefusesAmbiguousSelector(t *testing.T) {
+	const staleReference = "l2tp-00000000000000000000000000000003"
+	stale, err := subscriberid.ParseL2TPBirth(staleReference)
+	require.NoError(t, err)
+	bound := netip.MustParseAddrPort("127.0.0.1:1701")
+	for _, test := range []struct {
+		name       string
+		guard      []string
+		birth      subscriberid.L2TPBirth
+		captureErr error
+		problem    string
+	}{
+		{name: "ambiguous", captureErr: l2tp.ErrSessionAmbiguous, problem: "L2TP session ID 7 is ambiguous"},
+		{name: "guarded miss", guard: []string{"expected-id", staleReference}, birth: stale, captureErr: l2tp.ErrSessionNotFound, problem: "L2TP session 7 was not cleared"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			capture := &sessionTeardownCaptureSpy{}
+			service := &sessionTeardownServiceSpy{cqmCommandService: cqmCommandService{
+				fakeService: &fakeService{snapshot: l2tp.Snapshot{Tunnels: []l2tp.TunnelSnapshot{
+					{Sessions: []l2tp.SessionSnapshot{{LocalSID: 7, TunnelLocalTID: 17, Listener: bound}}},
+					{Sessions: []l2tp.SessionSnapshot{{LocalSID: 7, TunnelLocalTID: 18, Listener: bound}}},
+				}}},
+				captured:   capture,
+				captureErr: fmt.Errorf("capture original: %w", test.captureErr),
+			}}
+			publishFake(t, service)
+			ctx := &pluginserver.CommandContext{RequestContext: t.Context()}
+			arguments := append([]string{"7", "reason", "maintenance"}, test.guard...)
+			response, err := handleSessionTeardown(ctx, commandtest.Args(arguments...))
+			require.NoError(t, err)
+			require.Equal(t, plugin.StatusError, response.Status)
+			require.Equal(t, []l2tp.SessionSelector{{SID: 7, Birth: test.birth}}, service.selectors)
+			require.Zero(t, service.unsafeReads)
+			require.Zero(t, service.legacyClears)
+			require.Zero(t, capture.audits)
+			require.Zero(t, capture.clears)
+			require.Equal(t, test.problem, strings.SplitN(response.Error, "\n", 2)[0])
+			require.True(t, strings.HasSuffix(response.Error, "\nfix: show l2tp sessions"), response.Error)
+			if test.name == "ambiguous" {
+				require.Contains(t, response.Error, "clear l2tp session id 7 tunnel-id 17 listener 127.0.0.1:1701")
+				require.Contains(t, response.Error, "clear l2tp session id 7 tunnel-id 18 listener 127.0.0.1:1701")
+			}
+		})
+	}
+}
 
 // TestSessionTeardownArgumentsKeepGuardSeparateFromAudit checks a complete
 // operator request, retaining quoted reason keywords and the following cause.

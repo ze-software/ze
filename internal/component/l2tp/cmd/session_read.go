@@ -44,7 +44,7 @@ func captureSessionRead(service l2tp.Service, arguments []string) (l2tp.Captured
 	if err != nil {
 		if errors.Is(err, l2tp.ErrSessionAmbiguous) {
 			return nil, 0, opererr.Wrap(err, "L2TP session selector is ambiguous",
-				sessionReadCandidates(service, selector), "show l2tp sessions")
+				sessionSelectorCandidates(service, selector, "show"), "show l2tp sessions")
 		}
 		return nil, 0, sessionReadError(err, "The L2TP session could not be selected")
 	}
@@ -57,10 +57,10 @@ func sessionReadError(cause error, problem string) *opererr.Error {
 		"show l2tp sessions")
 }
 
-// sessionReadCandidates describes a fresh inventory only after capture refused.
+// sessionSelectorCandidates describes a fresh inventory only after capture refused.
 // This snapshot is diagnostic input, never a second selection or authorization.
 // Every loop is bounded by the existing live session inventory.
-func sessionReadCandidates(service l2tp.Service, selector l2tp.SessionSelector) string {
+func sessionSelectorCandidates(service l2tp.Service, selector l2tp.SessionSelector, verb string) string {
 	var candidates []string
 	snapshot := service.Snapshot()
 	for tunnelIndex := range snapshot.Tunnels {
@@ -83,7 +83,7 @@ func sessionReadCandidates(service l2tp.Service, selector l2tp.SessionSelector) 
 			if !session.Listener.IsValid() {
 				continue
 			}
-			candidate := fmt.Sprintf("show l2tp session id %d tunnel-id %d listener %s", session.LocalSID, session.TunnelLocalTID, session.Listener)
+			candidate := fmt.Sprintf("%s l2tp session id %d tunnel-id %d listener %s", verb, session.LocalSID, session.TunnelLocalTID, session.Listener)
 			if session.Birth.IsValid() {
 				candidate += " expected-id " + session.Birth.String()
 			}

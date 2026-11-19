@@ -577,6 +577,9 @@ func handleSessionTeardown(ctx *pluginserver.CommandContext, validated command.V
 	}
 	captured, err := svc.CaptureSession(selector)
 	if err != nil {
+		if errors.Is(err, l2tp.ErrSessionAmbiguous) {
+			return sessionTeardownAmbiguity(svc, selector, err), nil
+		}
 		return sessionTeardownFailure(selector.SID, err), nil
 	}
 	if captured == nil {
