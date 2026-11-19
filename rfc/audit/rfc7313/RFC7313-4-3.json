@@ -2,12 +2,12 @@
   "note": "The differentiated action is now asserted on the RIB, which takes it. TestRFC7313SubtypeZeroStartsTheRefresh: body 00 01 00 01 on handleRefreshStructured and event kind refresh on dispatch each yield exactly BoRR, the two IPv4 routes of the Adj-RIB-Out, EoRR (requireBracketedReadvertisement, IPv6 route excluded). TestRFC7313PeerMarkersStartNoRefresh: the same up peer and Adj-RIB-Out with subtype 1 or 2 (both rails) emits nothing. Judge break (overlay, rib_structured.go: subtype != 0 widened to subtype > 2) turned the new negative red and the positive green. Revert records on handleRefreshStructured both polarities. The HEAD reactor tags (NoError/Established for every subtype) remain supplementary and unrecorded. The BoRR/EoRR stale handling itself stays the {gap} rows 4-4/4-5. Independent companion-fixture rejudgment against RFC 7313 Sections 3.2, 4 and 5, every one of the six tagged entries and their assertion-producing helpers. The repaired handler fixture is Established with Enhanced Route Refresh negotiated before subtype 3, 100 and 255 inputs; the narrowed tag correctly asserts only the observed NoError behavior. It cannot by itself establish consumer-action suppression. The row's stronger subtype-action pair remains unchanged: a normal subtype 0 yields exactly the requested family's two routes bracketed by BoRR then EoRR, while peer markers 1 and 2 yield no fresh route-refresh sequence, on both DirectBridge and JSON event rails. The existing reactor marker/unknown units remain supplementary. The exact six-entry population, enforced verdict and existing separate stale-route handling gap qualifications remain unchanged; no new runtime or stale-route conformance is inferred from fixture maintenance.",
   "requirement_sha": "551f4e7a9d5d0c2c",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "229f47592a83c9c4",
-    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "229f47592a83c9c4",
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "9796039ce37162b7",
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "9796039ce37162b7",
     "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "31075046745d98d8",
-    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "aeb6993b67f2a376",
-    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "aeb6993b67f2a376",
-    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "aeb6993b67f2a376"
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "65b78caa8bc5491e",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "65b78caa8bc5491e",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "65b78caa8bc5491e"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "8b53b9ee1343739b",

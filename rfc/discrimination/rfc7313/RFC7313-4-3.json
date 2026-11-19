@@ -7,8 +7,8 @@
     "claim-sha": "e098e90399306e39",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
-    "producer-sha": "aaaaba231975ab79",
-    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "877df789f93608fb",
+    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7313-4-3",
@@ -18,8 +18,8 @@
     "claim-sha": "0c35100ff4231848",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
-    "producer-sha": "aaaaba231975ab79",
-    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "877df789f93608fb",
+    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7313-4-3",

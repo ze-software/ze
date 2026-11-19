@@ -1,18 +1,32 @@
 {
-  "note": "Single-polarity positive, marker accepted (no input selects a re-advertisement without the BoRR; BoRR/EoRR receipt is log-only, RFC7313-4-4/4-5 gaps, so no handling-of-absence negative exists). TestRFC7313BoRRRoutesEoRRInOneSequence asserts [BoRR, route, route, EoRR] on both rails (handleRefresh, handleRefreshStructured) in response to a peer normal ROUTE-REFRESH; observed red with handleRefresh broken. The BoRR is written raw at once and the routes after it, so no queue can put a route ahead of it. Supplementary positives: BoRR subtype encoding (routerefresh_test.go), dispatch to SendBoRR, BoRR-first on both rails (rfc7313_test.go); no records for those.",
+  "code": {
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::consumeRefreshCommand": "aa97c0734b4dab49",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::consumedRefreshRoutes": "7966769529d45d9e",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::parseRefreshCommand": "464ead29b737ee57",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::requireBracketedReadvertisement": "bac24038fe346b37",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::rfc7313SequencedRIB": "b6c9e9629bfa810c",
+    "internal/component/bgp/plugins/rib/rfc7313_test.go::rfc7313ReadyRIB": "5511d15bdf4a2df1",
+    "internal/component/bgp/plugins/rib/rib.go::RIBManager.handleRefresh": "4d28e4db041164b4",
+    "internal/component/bgp/plugins/rib/rib_commands.go::RIBManager.sendRoutes": "88fc4586e864892f",
+    "internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.currentRefreshSession": "e3f099b5ab39201a",
+    "internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.queueSelectedRefresh": "410505828c8ef688",
+    "internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.replayLegacyRefresh": "11a0da438cef20fc",
+    "internal/component/bgp/plugins/rib/rib_structured.go::RIBManager.handleRefreshStructured": "bad55202f3debba4",
+    "internal/component/bgp/plugins/rib/ribout_entry.go::RIBManager.collectRibOutRoutes": "ebeebd48af0bedc9"
+  },
+  "note": "Independent current-source rejudgment against RFC 7313 Sections 3.2 and 4, preserving enforced at the existing peer-requested refresh scope. Read every current tagged root and its actual fixture/observer. The changed RIB roots now first observe a real UP control tuple (PeerOwner 1, DestinationSession 11, attached legacy/non-selected recipient) and preserve that same tuple on JSON and DirectBridge refresh inputs. This repairs admission at the current queueSelectedRefresh/currentRefreshSession boundary; it changes no expected route, family, marker order or absence control. Both rails enter replayLegacyRefresh, which snapshots the existing SENT inventory under peerMu, releases it, then emits BoRR, sendRoutes, EoRR in order. The sequence observer combines marker and update hooks in one ordered log, passes update commands through the actual text/hex/b64 production consumers, rejects EOR and withdrawals, decodes real NLRI family/prefix, and requires exactly 10.0.0.0/24 plus 10.0.1.0/24 with no IPv6 route. The marker-only root separately requires the two exact family markers on both rails; its untagged down-peer/received-BoRR controls remain source-reviewed supplementary controls, not new recorded covers. Subtype pack/unpack and command-dispatch roots remain supplementary encoding/dispatch witnesses, not end-to-end route output. This legacy SENT-inventory path and its hook output do not establish the new ordinary selected-refresh worker's final receipt/Session authority or external acceptance. Separate manuscript gaps for received BoRR/EoRR stale processing and GR/EOR interaction remain untouched. The 4-1 single-positive annotation remains appropriate for the peer-requested clause: each admitted replay brackets its routes with BoRR and there is no alternate re-advertisement input that omits it. Locally initiated refresh is the current separate 4-13 gap, not feature-declined; the old upgrade_reason's feature-declined wording is historical and is not repeated as current fact. Native job-advertiser-rib-refresh-proof-renewal-58f7d364.log184-186 observes the whole sequence root and both rails PASS; replacing handleRefresh with a body panic stops the first JSON-rail invocation at192-206 and records the current positive at213. The panic precedes all sequence assertions and prevents the structured child from running in the broken process. It proves dependence on that producer, not a selective BoRR omission/reordering fault or broken-run structured-rail ordering. The actual clean sequence assertions and straight-line current legacy producer supply the ordering judgment.",
   "requirement_sha": "217c600dede3bfbf",
   "tests": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
-    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "03887458b95e04ff",
-    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "c4733db4c061276f",
+    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "15435ae000a9bf2f",
     "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerBoRR": "bf7992ea6a608871"
   },
   "units": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
-    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "e976b5455ae2814b",
-    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "dd0109500dd02a1f",
+    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "dcc59f1c4ef5444a",
     "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerBoRR": "240b1f83aa9371f3"
   },
-  "upgrade_reason": "The row text changed, not the units: the quote was narrowed to the verbatim peer-requested span, and the 'initiated locally' clause, the only part the earlier weak verdict found unproven, is now RFC7313-4-13 {feature-declined}. Re-read TestRFC7313BoRRRoutesEoRRInOneSequence, rfc7313_test.go, dispatch_test.go and routerefresh_test.go against RFC 7313 Section 4.",
   "verdict": "enforced"
 }
