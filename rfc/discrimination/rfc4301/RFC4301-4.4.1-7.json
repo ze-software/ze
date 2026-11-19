@@ -13,7 +13,7 @@
   {
     "rid": "RFC4301-4.4.1-7",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/spd_edit_integration_linux_test.go::TestRFC4301DiscardHoldsAcrossAnEditedEntry",
+    "unit": "internal/component/ike/engine/rfc4301_spd_edit_integration_linux_test.go::TestRFC4301DiscardHoldsAcrossAnEditedEntry",
     "unit-sha": "28fe37ed272daf0e",
     "claim-sha": "26726a2de19ab9c0",
     "route": "mutant",
