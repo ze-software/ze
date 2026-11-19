@@ -7,13 +7,14 @@
 // Encrypted payload MUST be the last payload in a packet and an Encrypted payload MUST NOT
 // contain another Encrypted payload."
 //
-// METHOD: each test builds one message with the builder directly, for the CBC and the GCM
-// key sets, and reads the fixed header and the SK generic header at their offsets. The inner
-// chain is opened through decryptAndParse, the engine's one opener, by an SA holding the
-// opposite role over the same keys.
+// METHOD: the positives call the builder directly, for the CBC and the GCM key sets: one
+// reads the fixed header and the SK generic header at their offsets, the other asserts the
+// builder's refusal of a nested Encrypted payload. A built inner chain is opened through
+// decryptAndParse by an SA holding the opposite role over the same keys. The negatives hand a
+// receiver the message a non-conforming peer sends, sealed by hand, and read openProtected.
 //
-// PREVENTS: a builder change that leaves octets after the Encrypted payload, or that writes
-// an inner chain holding an Encrypted payload. A one-line break of either shape is caught
+// PREVENTS: a builder change that leaves octets after the Encrypted payload, or that seals
+// an inner chain holding an Encrypted payload when a caller hands it one. A one-line break of either shape is caught
 // here, where the handshake test in rfc7296_encrypt_test.go never reaches its assertion
 // because the peer refuses the message first.
 package engine
@@ -28,7 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// skShapeInner is the inner chain both tests seal: two payloads of different types, so the
+// skShapeInner is the inner chain the two positives seal: two payloads of different types, so the
 // first inner type is known and the inner chain has a payload after its first one.
 func skShapeInner() []wire.PayloadEntry {
 	return []wire.PayloadEntry{
@@ -104,13 +105,17 @@ func TestSKBuiltIsLastOuterPayload(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-3.1-2 positive -- the decrypted inner chain of a message
-// buildEncryptedMessageEx builds from a Delete and a Notify, under the CBC and the GCM key
-// sets, holds exactly those two payloads and no Encrypted payload.
+// RFC requirement: RFC7296-3.1-2 positive -- buildEncryptedMessageEx, under the CBC and the
+// GCM key sets, refuses with errNestedSKBuild an inner chain that holds an Encrypted payload
+// after a Delete, and returns no octets; a Delete then a Notify, with no Encrypted payload,
+// is sealed and opens to exactly those two payloads, none of them an Encrypted payload.
 //
-// The count check keeps the absence meaningful: a chain the opener read only part of would
-// also hold no Encrypted payload.
-func TestSKBuiltInnerChainHoldsNoSK(t *testing.T) {
+// The refusal is the test that matters for a MUST NOT: a builder that never meets a nested
+// Encrypted payload in its input would pass a test that only reads what it built. The
+// control keeps the refusal tied to the nested payload rather than to the keys or the
+// exchange, and its second payload makes the builder chain one inner payload to the next,
+// so a builder that types a link as SK on its own is caught too.
+func TestSKBuildRefusesANestedEncryptedPayload(t *testing.T) {
 	for _, ks := range skShapeKeySets {
 		t.Run(ks.name, func(t *testing.T) {
 			sender := ks.mk(t)
@@ -118,26 +123,82 @@ func TestSKBuiltInnerChainHoldsNoSK(t *testing.T) {
 			receiver := *sender // the same keys, the opposite role (role_direction_test.go)
 			receiver.IsInitiator = false
 
-			inner := skShapeInner()
-			raw, err := buildEncryptedMessageEx(sender, inner, 1, wire.ExchangeInformational, wire.FlagInitiator)
+			raw, err := buildEncryptedMessageEx(sender, skNestedInner(), 1, wire.ExchangeInformational,
+				wire.FlagInitiator)
+			if !errors.Is(err, errNestedSKBuild) {
+				t.Errorf("buildEncryptedMessageEx(Delete, SK) = %d octets, err %v; want errNestedSKBuild: "+
+					"an Encrypted payload MUST NOT contain another Encrypted payload", len(raw), err)
+			}
+			if raw != nil {
+				t.Errorf("buildEncryptedMessageEx returned %d octets with its refusal", len(raw))
+			}
+
+			control := skShapeInner()
+			raw, err = buildEncryptedMessageEx(sender, control, 1, wire.ExchangeInformational, wire.FlagInitiator)
 			if err != nil {
-				t.Fatalf("buildEncryptedMessageEx: %v", err)
+				t.Fatalf("control: buildEncryptedMessageEx(Delete, Notify) = %v", err)
 			}
 			opened, err := decryptAndParse(&receiver, parseMsg(t, raw), raw)
 			if err != nil {
-				t.Fatalf("open the built message: %v", err)
+				t.Fatalf("control: open the built message: %v", err)
 			}
 			for i := range opened {
 				if _, ok := opened[i].Payload.(*wire.PayloadSK); ok {
-					t.Errorf("inner payload %d is an Encrypted payload; an Encrypted payload "+
-						"must not contain another", i)
+					t.Errorf("control: inner payload %d is an Encrypted payload; an Encrypted "+
+						"payload must not contain another", i)
 				}
 			}
-			if len(opened) != len(inner) {
-				t.Errorf("inner chain holds %d payloads, want %d", len(opened), len(inner))
+			if len(opened) != 2 {
+				t.Fatalf("control: inner chain holds %d payloads, want 2 (Delete, Notify)", len(opened))
+			}
+			if _, ok := opened[0].Payload.(*wire.PayloadDelete); !ok {
+				t.Errorf("control: inner payload 0 is %T, want *wire.PayloadDelete", opened[0].Payload)
+			}
+			if _, ok := opened[1].Payload.(*wire.PayloadNotify); !ok {
+				t.Errorf("control: inner payload 1 is %T, want *wire.PayloadNotify", opened[1].Payload)
 			}
 		})
 	}
+}
+
+// skNestedInner is the inner chain a peer that nests SK would seal: a Delete, then an
+// Encrypted payload.
+func skNestedInner() []wire.PayloadEntry {
+	return []wire.PayloadEntry{
+		{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}},
+		{Payload: &wire.PayloadSK{CipherText: []byte{0xde, 0xad, 0xbe, 0xef}}},
+	}
+}
+
+// skSealInnerUnchecked seals inner under sender's keys the way buildEncryptedMessageEx does,
+// without its refusal of a nested Encrypted payload, so a test can build the message a
+// non-conforming peer sends. It chains the generic headers as the builder does and hands the
+// octets to the same CBC or AEAD sealer.
+func skSealInnerUnchecked(t *testing.T, sender *SA, inner []wire.PayloadEntry) []byte {
+	t.Helper()
+	buf := make([]byte, 4096)
+	off := 0
+	for i := range inner {
+		var gh wire.GenericHeader
+		if i+1 < len(inner) {
+			gh.NextPayload = inner[i+1].Payload.Type()
+		}
+		ghOff := off
+		off += wire.GenericHeaderLen
+		bodyLen := inner[i].Payload.WriteTo(buf, off)
+		off += bodyLen
+		gh.Length = uint16(wire.GenericHeaderLen + bodyLen)
+		gh.WriteTo(buf, ghOff)
+	}
+	seal := buildSKMessageCBCWithMsgID
+	if sender.Proposal.Encryption.IsAEAD {
+		seal = buildSKMessageAEADWithMsgID
+	}
+	raw, err := seal(sender, buf[:off], inner[0].Payload.Type(), 1, wire.ExchangeInformational, wire.FlagInitiator)
+	if err != nil {
+		t.Fatalf("seal the inner chain: %v", err)
+	}
+	return raw
 }
 
 // skTrailedGCMMessage seals, under sender's GCM keys, a message whose Encrypted payload is
@@ -228,7 +289,8 @@ func skTrailedGCMMessageWithoutTrailer(t *testing.T, sender *SA) []byte {
 // RFC requirement: RFC7296-3.1-2 negative -- a message whose decrypted inner chain carries an
 // Encrypted payload after a Delete, under the CBC and the GCM key sets, is refused by
 // openProtected as an authenticated chain that does not parse (errInnerChain), not opened
-// and not dropped as unauthenticated.
+// and not dropped as unauthenticated. The message is sealed by skSealInnerUnchecked, since
+// Ze's own builder refuses to write it; the same sealer's Delete alone opens.
 func TestSKNestedInTheInnerChainIsRefused(t *testing.T) {
 	for _, ks := range skShapeKeySets {
 		t.Run(ks.name, func(t *testing.T) {
@@ -237,14 +299,7 @@ func TestSKNestedInTheInnerChainIsRefused(t *testing.T) {
 			receiver := *sender
 			receiver.IsInitiator = false
 
-			nested := []wire.PayloadEntry{
-				{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}},
-				{Payload: &wire.PayloadSK{CipherText: []byte{0xde, 0xad, 0xbe, 0xef}}},
-			}
-			raw, err := buildEncryptedMessageEx(sender, nested, 1, wire.ExchangeInformational, wire.FlagInitiator)
-			if err != nil {
-				t.Fatalf("buildEncryptedMessageEx: %v", err)
-			}
+			raw := skSealInnerUnchecked(t, sender, skNestedInner())
 			inner, dropped, err := openProtected(&receiver, parseMsg(t, raw), raw, testReaderReason,
 				slogutil.DiscardLogger())
 			if dropped {
@@ -253,6 +308,13 @@ func TestSKNestedInTheInnerChainIsRefused(t *testing.T) {
 			if !errors.Is(err, errInnerChain) {
 				t.Errorf("openProtected = (%d inner, err %v), want errInnerChain: an Encrypted payload "+
 					"MUST NOT contain another Encrypted payload", len(inner), err)
+			}
+
+			control := skSealInnerUnchecked(t, sender, skNestedInner()[:1])
+			if opened, dropped, err := openProtected(&receiver, parseMsg(t, control), control,
+				testReaderReason, slogutil.DiscardLogger()); dropped || err != nil || len(opened) != 1 {
+				t.Fatalf("control: the same sealer's Delete alone = (%d inner, dropped %v, err %v), "+
+					"want it opened", len(opened), dropped, err)
 			}
 		})
 	}

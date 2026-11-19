@@ -2,20 +2,20 @@
   {
     "rid": "RFC7296-3.1-2",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuiltInnerChainHoldsNoSK",
-    "unit-sha": "160ed453c304420e",
-    "claim-sha": "7d614ca6920aae2c",
+    "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuildRefusesANestedEncryptedPayload",
+    "unit-sha": "7037cf6b89fd5317",
+    "claim-sha": "8da4400445866d02",
     "route": "mutant",
     "producer": "internal/component/ike/engine/auth.go::buildEncryptedMessageEx",
-    "producer-sha": "a8f79798b6df3df3",
-    "break": "line 277: \"innerPayloads[i+1].Payload.Type()\" -\u003e \"wire.PayloadTypeSK\""
+    "producer-sha": "a9c7f579a54e9329",
+    "break": "line 278: \"; nested {\" -\u003e \"; false \u0026\u0026 nested {\""
   },
   {
     "rid": "RFC7296-3.1-2",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKNestedInTheInnerChainIsRefused",
-    "unit-sha": "2bbfc3a2ac63d7ff",
-    "claim-sha": "2c34ff435ad7f21e",
+    "unit-sha": "bb1f1d3ca0913779",
+    "claim-sha": "972b186b5472c1ca",
     "route": "mutant",
     "producer": "internal/component/ike/engine/protected_input.go::openProtected",
     "producer-sha": "766ce920ad573b2f",

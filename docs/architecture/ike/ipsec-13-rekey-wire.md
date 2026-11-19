@@ -33,7 +33,12 @@ handling one home.
 
 **SK framing is generalized, not duplicated.** `buildEncryptedMessageEx` takes
 the exchange type and the flags and parameterizes the existing AEAD and CBC
-sealer. The IKE_AUTH callers keep a wrapper.
+sealer. The IKE_AUTH callers keep a wrapper. Because every protected message
+is sealed there, it is also where RFC 7296 Section 3.1 is kept on the sending
+side: the Encrypted payload it writes is the only outer payload, and it refuses
+an inner chain that holds an Encrypted payload (`errNestedSKBuild`) rather than
+seal one. The receiving side of the same rule is `openProtected`
+(`docs/architecture/ike/ipsec-14-responder.md`).
 
 <!-- source: internal/component/ike/engine/auth.go -- buildEncryptedMessage, buildEncryptedMessageEx -->
 

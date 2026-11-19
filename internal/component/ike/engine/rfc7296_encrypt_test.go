@@ -84,19 +84,14 @@ func cbcSKPair(t *testing.T) (sender, receiver *SA) {
 	return ini, resp
 }
 
-// RFC requirement: RFC7296-3.1-1 positive -- the Encrypted payload is the last payload in every
-// message ze sends. writeAuthHeaderWithMsgID writes the fixed header with NextPayload SK, and
-// then exactly one SK generic header (auth.go:618-635). An SK message therefore parses to a
-// single payload with nothing after it.
-// RFC requirement: RFC7296-3.1-2 positive -- an Encrypted payload never contains another. The SK
-// generic header's Next Payload names the FIRST INNER payload type. The inner chain that
-// ParsePayloadChain recovers holds no SK payload (chain.go:10).
+// TestSKIsLastAndNeverNested checks the IKE_AUTH request and response of a real PSK handshake:
+// each parses to a single outer Encrypted payload, and its decrypted inner chain is non-empty
+// and holds no Encrypted payload. An unencrypted IKE_SA_INIT from the same engine is the
+// control that the single-payload count comes from the builder, not the parser.
 //
-// RFC requirement: RFC7296-3.1-1 negative -- the single-payload shape belongs to the builder, not to
-// the parser. An unencrypted IKE_SA_INIT built by the same engine DOES carry several payloads,
-// so the SK message's payload count of one is meaningful.
-// RFC requirement: RFC7296-3.1-2 negative -- the inner chain is a real chain. It holds several
-// payloads of other types, so the absence of a nested SK is not the absence of inner content.
+// RFC 7296 Section 3.1 (RFC7296-3.1-1, RFC7296-3.1-2) is proven in rfc7296_sk_shape_test.go,
+// where each clause has a recorded break on both sides of the wire; this handshake check
+// carries no tag of its own.
 func TestSKIsLastAndNeverNested(t *testing.T) {
 	ini, resp, _ := establishPSK(t)
 

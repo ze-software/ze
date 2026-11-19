@@ -250,10 +250,15 @@ func buildEncryptedMessage(sa *SA, innerPayloads []wire.PayloadEntry, messageID 
 	return buildEncryptedMessageEx(sa, innerPayloads, messageID, wire.ExchangeIKEAuth, wire.FlagInitiator)
 }
 
+// errNestedSKBuild is the refusal buildEncryptedMessageEx returns for an inner chain that
+// holds an Encrypted payload. It names a Ze defect in the caller, never peer input.
+var errNestedSKBuild = errors.New("ike: refusing to seal an Encrypted payload inside an Encrypted payload")
+
 // buildEncryptedMessageEx serializes inner payloads into an encrypted SK message
 // for an arbitrary exchange type and header flags. CREATE_CHILD_SA rekey requests
 // and responses reuse the same SK wrapping as IKE_AUTH, differing only in the
-// header ExchangeType and the Response flag.
+// header ExchangeType and the Response flag. It refuses an inner chain that holds an
+// Encrypted payload (errNestedSKBuild).
 func buildEncryptedMessageEx(sa *SA, innerPayloads []wire.PayloadEntry, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	// RFC 7296 Section 2.8: "When the lifetime of a Security Association expires, the
 	// Security Association MUST NOT be used." Every message this node protects with the
@@ -262,6 +267,17 @@ func buildEncryptedMessageEx(sa *SA, innerPayloads []wire.PayloadEntry, messageI
 	// it looks once a second and a send can be reached between two of its ticks.
 	if sa.lifetimeExpired(time.Now()) {
 		return nil, errSAExpired
+	}
+
+	// RFC 7296 Section 3.1: "An Encrypted payload MUST be the last payload in a packet and
+	// an Encrypted payload MUST NOT contain another Encrypted payload."
+	// Every protected message is sealed here, so this is the one place that can refuse to
+	// emit a nested one, whatever a caller hands in. The outer half needs no check: the SK
+	// payload this function writes is the only outer payload and its Length runs to the end.
+	for i := range innerPayloads {
+		if _, nested := innerPayloads[i].Payload.(*wire.PayloadSK); nested {
+			return nil, errNestedSKBuild
+		}
 	}
 
 	const maxInnerSize = 65536

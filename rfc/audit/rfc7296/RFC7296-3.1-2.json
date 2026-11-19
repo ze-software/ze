@@ -1,13 +1,13 @@
 {
-  "note": "IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard",
+  "note": "Both halves of the MUST NOT, each at Ze's single choke point (buildEncryptedMessageEx seals every protected message, openProtected opens every one; no other non-test caller of the sealers or of decryptSKPayload). Positive: the builder refuses a Delete+SK inner chain with errNestedSKBuild and returns nil, under CBC and GCM, and a Delete+Notify control seals and opens to exactly those two payloads, so the refusal is tied to the nested SK. Negative: a peer-sealed Delete+SK chain (skSealInnerUnchecked, same sealers, no builder check) is not dropped as unauthenticated and is refused with errInnerChain, while the same sealer's Delete alone opens. The negative asserts errInnerChain rather than errNestedSK, but its mutant record (nested check disabled turns it red) shows ParsePayloadChain accepts the nested SK, so the refusal is this rule's. Both polarities carry mutant records against their producers.",
   "requirement_sha": "91df2a46a9386eaa",
   "tests": {
-    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "10094853fa461fff",
-    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "10094853fa461fff"
+    "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuildRefusesANestedEncryptedPayload": "6ab1dc6b48ef7841",
+    "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKNestedInTheInnerChainIsRefused": "6ab1dc6b48ef7841"
   },
   "units": {
-    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "359f0099d0ac11d4",
-    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "359f0099d0ac11d4"
+    "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKBuildRefusesANestedEncryptedPayload": "6d32c7d60be4422d",
+    "internal/component/ike/engine/rfc7296_sk_shape_test.go::TestSKNestedInTheInnerChainIsRefused": "9163797c08bd3c3e"
   },
   "verdict": "enforced"
 }
