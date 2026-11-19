@@ -25,22 +25,22 @@
     "rid": "RFC4271-4.3-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute",
-    "unit-sha": "aecd8436a9057386",
+    "unit-sha": "6fedad02fcd22478",
     "claim-sha": "030a4761f11b89e5",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib.go::handleReceivedPool",
-    "producer-sha": "cefe489a47664538",
-    "break": "line 1267: \"if len(nlriBytes) \u003e 0 {\" -\u003e \"if len(nlriBytes) \u003e 0 \u0026\u0026 string(event.GetRawWithdrawnBytes(fam)) != string(nlriBytes) {\""
+    "producer-sha": "f16bf0e6d25ade13",
+    "break": "line 1356: \"if len(nlriBytes) \u003e 0 {\" -\u003e \"if len(nlriBytes) \u003e 0 \u0026\u0026 string(event.GetRawWithdrawnBytes(fam)) != string(nlriBytes) {\""
   },
   {
     "rid": "RFC4271-4.3-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute",
-    "unit-sha": "6f487ec109341e7f",
+    "unit-sha": "e5676c299accf4ac",
     "claim-sha": "aa2f5852cd7f7005",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleReceivedStructured",
-    "producer-sha": "a25767ebf126fc4e",
-    "break": "line 300: \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 {\" -\u003e \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 \u0026\u0026 string(wdData) != string(nlriData) {\""
+    "producer-sha": "85348282741cb6dc",
+    "break": "line 364: \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 {\" -\u003e \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 \u0026\u0026 string(wdData) != string(nlriData) {\""
   }
 ]

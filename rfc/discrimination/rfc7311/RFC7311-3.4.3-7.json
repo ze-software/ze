@@ -3,7 +3,7 @@
     "rid": "RFC7311-3.4.3-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
-    "unit-sha": "4db65b7c577f418e",
+    "unit-sha": "c14fed84c43cc029",
     "claim-sha": "d65cce7b2e637479",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection",
@@ -14,12 +14,12 @@
     "rid": "RFC7311-3.4.3-7",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
-    "unit-sha": "4db65b7c577f418e",
+    "unit-sha": "c14fed84c43cc029",
     "claim-sha": "ebf483f8f4a79a25",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "line 1071: \"return bestChangeEntry{}, false\" -\u003e \"return bestChangeEntry{}, true\""
+    "producer-sha": "184a3ec3f6b97352",
+    "break": "line 1165: \"return bestChangeEntry{}, false\" -\u003e \"return bestChangeEntry{}, true\""
   },
   {
     "rid": "RFC7311-3.4.3-7",

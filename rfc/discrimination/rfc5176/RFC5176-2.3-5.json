@@ -3,12 +3,12 @@
     "rid": "RFC5176-2.3-5",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed",
-    "unit-sha": "5463cad5d45adb7c",
+    "unit-sha": "f492e643e09b9a86",
     "claim-sha": "909d5b457fee042f",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
     "producer-sha": "f754405f54ce41e1",
-    "break": "line 798: \"return coaChange{}, cause\" -\u003e \"return change, 0\""
+    "break": "line 823: \"return coaChange{}, cause\" -\u003e \"return change, 0\""
   },
   {
     "rid": "RFC5176-2.3-5",
@@ -58,12 +58,12 @@
     "rid": "RFC5176-2.3-5",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification",
-    "unit-sha": "986713c545175d8c",
+    "unit-sha": "61670cfce6469802",
     "claim-sha": "4605bd9fc9636e39",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
     "producer-sha": "d3c60711cf64c92d",
-    "break": "line 350: \"if !supported[pkt.Attrs[i].Type] {\" -\u003e \"if false \u0026\u0026 !supported[pkt.Attrs[i].Type] {\""
+    "break": "line 352: \"if !supported[pkt.Attrs[i].Type] {\" -\u003e \"if false \u0026\u0026 !supported[pkt.Attrs[i].Type] {\""
   },
   {
     "rid": "RFC5176-2.3-5",

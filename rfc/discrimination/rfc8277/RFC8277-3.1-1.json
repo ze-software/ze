@@ -3,29 +3,29 @@
     "rid": "RFC8277-3.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable",
-    "unit-sha": "c8443968505ca5dc",
+    "unit-sha": "18a0ed27afd3ed44",
     "claim-sha": "3a4c98bbae69a33e",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesForLocked",
-    "producer-sha": "4f2385e607096ff3",
-    "break": "line 1274: \"c.entry, c.labelHandle = path.Entry, path.Labels\" -\u003e \"c.entry, c.labelHandle = path.Entry, path.Labels; if labels := pool.ResolveLabels(path.Labels); len(labels) \u003e 0 { c.LocalPref = ^uint32(0) - labels[0] }\""
+    "producer-sha": "81529a73009b1ee5",
+    "break": "line 1440: \"c.entry, c.labelHandle = path.Entry, path.Labels\" -\u003e \"c.entry, c.labelHandle = path.Entry, path.Labels; if labels := pool.ResolveLabels(path.Labels); len(labels) \u003e 0 { c.LocalPref = ^uint32(0) - labels[0] }\""
   },
   {
     "rid": "RFC8277-3.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc8277_addpath_opaque_best_per_route_test.go::TestAddPathOpaqueMixedModeMeetInOneElection",
-    "unit-sha": "88949d2def177a4b",
+    "unit-sha": "7f0785841d08bfc6",
     "claim-sha": "d38556c35ba9a470",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherKeyCandidatesForLocked",
-    "producer-sha": "efe67a2bf6d51e16",
-    "break": "line 1325: \"for peer, peerRIB := range r.bgpPeers {\" -\u003e \"for peer, peerRIB := range r.bgpPeers { if len(candidates) != 0 { break }\""
+    "producer-sha": "2e1d8c02c47a4d74",
+    "break": "line 1494: \"for owner, peerRIB := range r.bgpPeers {\" -\u003e \"for owner, peerRIB := range r.bgpPeers { if len(candidates) != 0 { break }\""
   },
   {
     "rid": "RFC8277-3.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable",
-    "unit-sha": "2cd3f8c9c42c7800",
+    "unit-sha": "5483fd819f49fbc5",
     "claim-sha": "0a7fa01e80e19c04",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
@@ -36,12 +36,12 @@
     "rid": "RFC8277-3.1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable",
-    "unit-sha": "2cd3f8c9c42c7800",
+    "unit-sha": "5483fd819f49fbc5",
     "claim-sha": "f71e815fc5d0eed1",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesForLocked",
-    "producer-sha": "4f2385e607096ff3",
-    "break": "line 1274: \"c.entry, c.labelHandle = path.Entry, path.Labels\" -\u003e \"c.entry, c.labelHandle = path.Entry, path.Labels; if labels := pool.ResolveLabels(path.Labels); len(labels) \u003e 0 { c.LocalPref = ^uint32(0) - labels[0] }\""
+    "producer-sha": "81529a73009b1ee5",
+    "break": "line 1440: \"c.entry, c.labelHandle = path.Entry, path.Labels\" -\u003e \"c.entry, c.labelHandle = path.Entry, path.Labels; if labels := pool.ResolveLabels(path.Labels); len(labels) \u003e 0 { c.LocalPref = ^uint32(0) - labels[0] }\""
   },
   {
     "rid": "RFC8277-3.1-1",

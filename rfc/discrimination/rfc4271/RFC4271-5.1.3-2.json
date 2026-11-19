@@ -3,33 +3,33 @@
     "rid": "RFC4271-5.1.3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopDoesNotShadowASoundAlternative",
-    "unit-sha": "7cc9fbae44a7737c",
+    "unit-sha": "778dec647422dff4",
     "claim-sha": "20773d5c6794851f",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::candidateAdmitted",
     "producer-sha": "e0548f32728da0aa",
-    "break": "line 1401: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"nh.IsValid()\""
+    "break": "line 1575: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"nh.IsValid()\""
   },
   {
     "rid": "RFC4271-5.1.3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled",
-    "unit-sha": "378b1ae6af6bbc83",
+    "unit-sha": "4dfdfae0df7bec5c",
     "claim-sha": "2dd46ff6177e9176",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::candidateAdmitted",
     "producer-sha": "e0548f32728da0aa",
-    "break": "line 1401: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"false\""
+    "break": "line 1575: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"false\""
   },
   {
     "rid": "RFC4271-5.1.3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled",
-    "unit-sha": "378b1ae6af6bbc83",
+    "unit-sha": "4dfdfae0df7bec5c",
     "claim-sha": "96fee42b9412f7f6",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::candidateAdmitted",
     "producer-sha": "e0548f32728da0aa",
-    "break": "line 1401: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"nh.IsValid()\""
+    "break": "line 1575: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"nh.IsValid()\""
   }
 ]

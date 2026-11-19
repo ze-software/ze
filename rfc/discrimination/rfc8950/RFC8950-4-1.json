@@ -3,7 +3,7 @@
     "rid": "RFC8950-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
-    "unit-sha": "5c5a22c48dac4131",
+    "unit-sha": "5e58e9ac911dc9ae",
     "claim-sha": "857a23a194752ceb",
     "route": "mutant",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
@@ -14,7 +14,7 @@
     "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
-    "unit-sha": "5c5a22c48dac4131",
+    "unit-sha": "5e58e9ac911dc9ae",
     "claim-sha": "a66dedb312bfa883",
     "route": "mutant",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
@@ -91,12 +91,12 @@
     "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy",
-    "unit-sha": "cd70dd22e30e9c78",
+    "unit-sha": "2a91e75afe374089",
     "claim-sha": "fc36c98485ec3d56",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
     "producer-sha": "a48dfc4d7335e606",
-    "break": "line 1780: \"addr = nh.Addr\" -\u003e \"addr = nh.Addr; if addr.Is6() \u0026\u0026 addr.IsLinkLocalUnicast() { phantomCaps := []capability.Capability{\u0026capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}, \u0026capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6}}}, \u0026capability.LinkLocalNextHop{}}; forged := capability.Negotiate(phantomCaps, phantomCaps, capability.PeerIdentity{LocalASN: p.settings.LocalAS, PeerASN: p.settings.PeerAS, Internal: p.settings.IsIBGP()}); p.negotiated.Store(NewNegotiatedCapabilities(forged)); p.sendCtx.Store(bgpctx.FromNegotiatedSend(forged)); session.negotiated = forged }\""
+    "break": "line 1852: \"addr = nh.Addr\" -\u003e \"addr = nh.Addr; if addr.Is6() \u0026\u0026 addr.IsLinkLocalUnicast() { phantomCaps := []capability.Capability{\u0026capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}, \u0026capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6}}}, \u0026capability.LinkLocalNextHop{}}; forged := capability.Negotiate(phantomCaps, phantomCaps, capability.PeerIdentity{LocalASN: p.settings.LocalAS, PeerASN: p.settings.PeerAS, Internal: p.settings.IsIBGP()}); p.negotiated.Store(NewNegotiatedCapabilities(forged)); p.sendCtx.Store(bgpctx.FromNegotiatedSend(forged)); session.negotiated = forged }\""
   },
   {
     "rid": "RFC8950-4-1",

@@ -69,12 +69,12 @@
     "rid": "RFC5176-3.3-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn",
-    "unit-sha": "c9cf3ad890c9d2df",
+    "unit-sha": "8147fc3aef662ddc",
     "claim-sha": "6ade0d61bc8516fe",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
-    "producer-sha": "4d2c21aa782de973",
-    "break": "line 730: \"len(nasPortAttr) != 4\" -\u003e \"len(nasPortAttr) == 4\""
+    "producer-sha": "86e72c485ba26764",
+    "break": "line 757: \"len(nasPortAttr) != 4\" -\u003e \"len(nasPortAttr) == 4\""
   },
   {
     "rid": "RFC5176-3.3-1",

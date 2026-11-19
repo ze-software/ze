@@ -3,12 +3,12 @@
     "rid": "RFC6811-2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go::TestBatchValidateTypedMatchesString",
-    "unit-sha": "f29d7d3142cee527",
+    "unit-sha": "fe9e8e94dac7c399",
     "claim-sha": "657dc7de0efee23f",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/adj_rib_in/rib_validation.go::promoteToInstalled",
     "producer-sha": "f7b73d644c9f9023",
-    "break": "line 47: \"pr.route.ValidationState = validationState\" -\u003e \"pr.route.ValidationState = ValidationValid\""
+    "break": "line 46: \"pr.route.ValidationState = validationState\" -\u003e \"pr.route.ValidationState = ValidationValid\""
   },
   {
     "rid": "RFC6811-2-1",

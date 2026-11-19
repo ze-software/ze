@@ -69,12 +69,12 @@
     "rid": "RFC5176-2.3-6",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange",
-    "unit-sha": "5ac71558aeb4e2db",
+    "unit-sha": "d314baa29d869dd5",
     "claim-sha": "f8cedeb61f127efa",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
-    "producer-sha": "60a918d72529a0a9",
-    "break": "line 524: \"radius.CodeCoANAK\" -\u003e \"radius.CodeCoAACK\""
+    "producer-sha": "c71fff29b1e6a62d",
+    "break": "line 547: \"radius.CodeCoANAK\" -\u003e \"radius.CodeCoAACK\""
   },
   {
     "rid": "RFC5176-2.3-6",

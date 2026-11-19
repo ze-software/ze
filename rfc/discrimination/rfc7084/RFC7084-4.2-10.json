@@ -1,35 +1,35 @@
 [
   {
     "rid": "RFC7084-4.2-10",
-    "polarity": "positive",
-    "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
-    "unit-sha": "415cc3d532b7855d",
-    "claim-sha": "195686baff3ad080",
-    "route": "mutant",
-    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::leaveOpenedIPCP",
-    "producer-sha": "e18d066b8ddce06a",
-    "break": "line 142: \"return s.waitForIPCP()\" -\u003e \"return errors.New(\\\"pppoe-client: IPCP left Opened\\\")\""
-  },
-  {
-    "rid": "RFC7084-4.2-10",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
-    "unit-sha": "415cc3d532b7855d",
+    "unit-sha": "2a02b29495b2206f",
     "claim-sha": "557ea362d7f23f3e",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::ncpsRemaining",
     "producer-sha": "a1ce200dfb96ee33",
-    "break": "line 253: \"if !s.ipcpStopped {\" -\u003e \"if true || !s.ipcpStopped {\""
+    "break": "line 254: \"if !s.ipcpStopped {\" -\u003e \"if true || !s.ipcpStopped {\""
+  },
+  {
+    "rid": "RFC7084-4.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
+    "unit-sha": "2a02b29495b2206f",
+    "claim-sha": "195686baff3ad080",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::leaveOpenedIPCP",
+    "producer-sha": "e18d066b8ddce06a",
+    "break": "line 143: \"return s.waitForIPCP()\" -\u003e \"return errors.New(\\\"pppoe-client: IPCP left Opened\\\")\""
   },
   {
     "rid": "RFC7084-4.2-10",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3NCPIndependence",
-    "unit-sha": "a65baadfceaad5a2",
+    "unit-sha": "d40ebf0b1dde075e",
     "claim-sha": "8fde8b53a4c0b817",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::applyIPv6CP",
-    "producer-sha": "21fd790554618f09",
-    "break": "line 565: \"s.setIPv6Mode(ppp.NPModeDrop)\" -\u003e \"s.setIPv4Mode(ppp.NPModeDrop)\""
+    "producer-sha": "34e7188335981fec",
+    "break": "line 605: \"s.setIPv6Mode(pppkernel.NPModeDrop)\" -\u003e \"s.setIPv4Mode(pppkernel.NPModeDrop)\""
   }
 ]
