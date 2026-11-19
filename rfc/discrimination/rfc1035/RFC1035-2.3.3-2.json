@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-2.3.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_QueryNameCasePreservedInTheReply",
+    "unit-sha": "cb8dfc52f171b135",
+    "claim-sha": "a8aad9ceb6f9c7e4",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "93efe337a73bd924",
+    "break": "line 259: \"recordRR(q.Name, rec)\" -\u003e \"recordRR(fqdn(q.Name), rec)\""
+  },
+  {
+    "rid": "RFC1035-2.3.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_QueryNameCasePreservedInTheReply",
+    "unit-sha": "cb8dfc52f171b135",
+    "claim-sha": "2715c1652440bfba",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::resolveHost",
+    "producer-sha": "c503e6e284af5d70",
+    "break": "line 120: \"hs.Hosts[fqdn(name)]\" -\u003e \"hs.Hosts[name]\""
+  }
+]

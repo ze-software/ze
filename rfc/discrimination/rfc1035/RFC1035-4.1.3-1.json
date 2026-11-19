@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount",
+    "unit-sha": "0b2923be5d86e87a",
+    "claim-sha": "136e9ec1c03720a8",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::hdr",
+    "producer-sha": "98fd897ff4d5459e",
+    "break": "line 146: \"Ttl: ttl}\" -\u003e \"Ttl: uint32(uint16(ttl))}\""
+  },
+  {
+    "rid": "RFC1035-4.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount",
+    "unit-sha": "0b2923be5d86e87a",
+    "claim-sha": "31e2b24343301472",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseHost",
+    "producer-sha": "c4fcfc800e930cba",
+    "break": "line 420: \"ttl = t\" -\u003e \"if t != 0 { ttl = t }\""
+  }
+]

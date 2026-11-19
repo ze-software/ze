@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-2.3.4-2",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/rfc1035_handler_test.go::TestRFC1035_UDPReplyBoundedAndTruncated",
+    "unit-sha": "843caf8339521d13",
+    "claim-sha": "1785a7f402b830a2",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::udpReplyLimit",
+    "producer-sha": "7966d31c013ea892",
+    "break": "line 169: \"limit := dns.MinMsgSize\" -\u003e \"limit := dns.MinMsgSize * 2\""
+  },
+  {
+    "rid": "RFC1035-2.3.4-2",
+    "polarity": "negative",
+    "unit": "internal/core/dnsserver/rfc1035_handler_test.go::TestRFC1035_UDPReplyBoundedAndTruncated",
+    "unit-sha": "843caf8339521d13",
+    "claim-sha": "0a53dce4da4f6469",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Answer = msg.Answer[:min(len(msg.Answer), 2)]\""
+  }
+]

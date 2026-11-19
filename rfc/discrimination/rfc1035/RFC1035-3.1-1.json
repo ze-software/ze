@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_name_limits_test.go::TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot",
+    "unit-sha": "600000edfac318f5",
+    "claim-sha": "452b23aa12327fdf",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/msg.go::packDomainName",
+    "producer-sha": "0dc1ee46f2052e98",
+    "break": "line 313: \"msg[off] = byte(labelLen)\" -\u003e \"msg[off] = byte(labelLen + 1)\""
+  },
+  {
+    "rid": "RFC1035-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_name_limits_test.go::TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot",
+    "unit-sha": "600000edfac318f5",
+    "claim-sha": "ffc9f5669b8b807d",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/msg.go::packDomainName",
+    "producer-sha": "0dc1ee46f2052e98",
+    "break": "line 313: \"msg[off] = byte(labelLen)\" -\u003e \"msg[off] = byte(5)\""
+  }
+]

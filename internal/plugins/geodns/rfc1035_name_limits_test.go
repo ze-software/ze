@@ -7,6 +7,7 @@
 package geodns
 
 import (
+	"bytes"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -186,15 +187,21 @@ func TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot(t *testing.T) {
 		// RFC requirement: RFC1035-3.1-2 positive -- "Since every domain name ends
 		// with the null label of the root, a domain name is terminated by a length
 		// byte of zero."
-		if wire[next-1] != 0 {
-			t.Errorf("name %q does not end in a zero length octet, it ends in %#02x", name, wire[next-1])
+		expected := rfc1035NameEncoding(name)
+		if len(wire) < 12+len(expected) || !bytes.Equal(wire[12:12+len(expected)], expected) {
+			t.Errorf("name %q is packed as % x, want % x ending in the zero length octet of the root",
+				name, wire[12:min(len(wire), 12+len(expected))], expected)
+		}
+		if next != 12+len(expected) {
+			t.Errorf("name %q ends at offset %d, want %d", name, next, 12+len(expected))
 		}
 		// RFC requirement: RFC1035-3.1-2 negative -- the zero length byte
 		// terminates the name, so it appears nowhere before the root. An empty
 		// label mid-name would end the name early for every reader.
-		for i, l := range labels {
-			if l == "" {
-				t.Errorf("name %q carries an empty label at index %d, which would terminate the name early", name, i)
+		for off := 12; off < len(wire) && off < 12+len(expected)-1; off += int(wire[off]) + 1 {
+			if wire[off] == 0 {
+				t.Errorf("name %q carries a zero length octet at offset %d, before the root", name, off)
+				break
 			}
 		}
 	}
@@ -210,6 +217,23 @@ func TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot(t *testing.T) {
 	if len(shortLabels) == len(longLabels) {
 		t.Fatalf("both names walked to %d labels, so the encoding was not exercised at two shapes", len(shortLabels))
 	}
+}
+
+// rfc1035NameEncoding builds the wire form RFC 1035 Section 3.1 gives an
+// absolute name, from the name string alone and without the producer or
+// walkName: each non-empty label as one length octet followed by its octets,
+// then the single zero length octet of the root. The empty string a trailing
+// "." splits into is the root itself, not a label.
+func rfc1035NameEncoding(name string) []byte {
+	var out []byte
+	for label := range strings.SplitSeq(name, ".") {
+		if label == "" {
+			continue
+		}
+		out = append(out, byte(len(label)))
+		out = append(out, label...)
+	}
+	return append(out, 0)
 }
 
 // walkName reads the name at off in wire as RFC 1035 section 3.1 defines it and

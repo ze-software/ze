@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_RDLengthCountsTheRDataOctets",
+    "unit-sha": "f7d737d440e3003d",
+    "claim-sha": "0d40a32aedae8457",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/msg.go::packRR",
+    "producer-sha": "3ff8eb62c6e71b32",
+    "break": "line 603: \"uint16(rdlength)\" -\u003e \"uint16(rdlength + 1)\""
+  },
+  {
+    "rid": "RFC1035-4.1.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_RDLengthCountsTheRDataOctets",
+    "unit-sha": "f7d737d440e3003d",
+    "claim-sha": "409ab49c29feab0f",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/msg.go::packRR",
+    "producer-sha": "3ff8eb62c6e71b32",
+    "break": "line 603: \"uint16(rdlength)\" -\u003e \"uint16(min(rdlength, 16))\""
+  }
+]

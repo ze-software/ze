@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-3.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_name_limits_test.go::TestRFC1035_ConfiguredNameBoundedTo255WireOctets",
+    "unit-sha": "021e573b160dfe55",
+    "claim-sha": "0e0a746ade5bf79b",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::checkName",
+    "producer-sha": "2bb29c3e67838c08",
+    "break": "line 92: \"n \u003e maxNameOctets\" -\u003e \"n \u003e maxNameOctets+1\""
+  },
+  {
+    "rid": "RFC1035-3.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_name_limits_test.go::TestRFC1035_ConfiguredNameBoundedTo255WireOctets",
+    "unit-sha": "021e573b160dfe55",
+    "claim-sha": "0aab19d5cbb66cfd",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::checkName",
+    "producer-sha": "2bb29c3e67838c08",
+    "break": "line 92: \"n \u003e maxNameOctets\" -\u003e \"n \u003e= maxNameOctets\""
+  }
+]

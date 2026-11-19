@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+    "unit-sha": "dad641b6b0c23a44",
+    "claim-sha": "db6d34230e648b93",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/zmsg.go::A.pack",
+    "producer-sha": "7479c71704d1b3b6",
+    "break": "line 10: \"packDataA(rr.A, msg, off)\" -\u003e \"packDomainName(rr.Hdr.Name, msg, off, compression, compress)\""
+  },
+  {
+    "rid": "RFC1035-4.1.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+    "unit-sha": "dad641b6b0c23a44",
+    "claim-sha": "25078886719e0681",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Answer = msg.Answer[:min(len(msg.Answer), 2)]\""
+  }
+]

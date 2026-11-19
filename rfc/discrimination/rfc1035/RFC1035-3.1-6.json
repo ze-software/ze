@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-3.1-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly",
+    "unit-sha": "b831cdb5828331f6",
+    "claim-sha": "8371a5b9d56f8885",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::fqdn",
+    "producer-sha": "dc774730e1e1a9b2",
+    "break": "line 501: \"strings.ToLower(strings.TrimSpace(s))\" -\u003e \"strings.Map(func(r rune) rune { if r \u003e= 0x40 \u0026\u0026 r \u003c 0x60 { return r + 0x20 }; return r }, strings.TrimSpace(s))\""
+  },
+  {
+    "rid": "RFC1035-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly",
+    "unit-sha": "b831cdb5828331f6",
+    "claim-sha": "465e3507532d5cf2",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::resolveHost",
+    "producer-sha": "c503e6e284af5d70",
+    "break": "line 120: \"hs.Hosts[fqdn(name)]\" -\u003e \"hs.Hosts[name]\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_negative_test.go::TestRFC1035_ResponseCodeByNameAndClient",
+    "unit-sha": "0bc7cce9fb055057",
+    "claim-sha": "1ae4f51f53c85f04",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "93efe337a73bd924",
+    "break": "line 287: \"msg.Rcode = dns.RcodeNameError\" -\u003e \"msg.Rcode = dns.RcodeSuccess\""
+  },
+  {
+    "rid": "RFC1035-4.1.1-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_negative_test.go::TestRFC1035_ResponseCodeByNameAndClient",
+    "unit-sha": "0bc7cce9fb055057",
+    "claim-sha": "b2423ed2fdecd89a",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "93efe337a73bd924",
+    "break": "line 263: \"if !added {\" -\u003e \"if !added { missing = true\""
+  }
+]

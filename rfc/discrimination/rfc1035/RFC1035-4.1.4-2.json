@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+    "unit-sha": "dad641b6b0c23a44",
+    "claim-sha": "357b0d5f4e4761f2",
+    "route": "mutant",
+    "producer": "vendor/github.com/miekg/dns/msg.go::packDomainName",
+    "producer-sha": "0dc1ee46f2052e98",
+    "break": "line 337: \"uint16(pointer^0xC000)\" -\u003e \"uint16((pointer-12)^0xC000)\""
+  },
+  {
+    "rid": "RFC1035-4.1.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_CompressionPointersInATruncatedDatagram",
+    "unit-sha": "dad641b6b0c23a44",
+    "claim-sha": "7e803bf5bd388872",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::shapeAuthoritative",
+    "producer-sha": "8bfb49657cfb493c",
+    "break": "line 220: \"msg.Compress = false\" -\u003e \"msg.Compress = true\""
+  }
+]

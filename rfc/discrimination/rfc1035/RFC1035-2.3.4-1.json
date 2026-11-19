@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-2.3.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive",
+    "unit-sha": "f7f2043ddb2aab9b",
+    "claim-sha": "623b5b825b15fd80",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseTTL",
+    "producer-sha": "c0738ec276eeb37b",
+    "break": "line 493: \"n \u003e maxTTL\" -\u003e \"n \u003e maxTTL+1\""
+  },
+  {
+    "rid": "RFC1035-2.3.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc1035_rr_test.go::TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive",
+    "unit-sha": "f7f2043ddb2aab9b",
+    "claim-sha": "2069c039cb87a1f1",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/config.go::parseTTL",
+    "producer-sha": "c0738ec276eeb37b",
+    "break": "line 493: \"n \u003e maxTTL\" -\u003e \"n \u003e= maxTTL\""
+  }
+]
