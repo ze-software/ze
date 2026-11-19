@@ -149,11 +149,11 @@ func GenerateFromTopology(topology *Topology) ([]PeerProfile, error) {
 // kind has no answer and is an error.
 func (k SessionKind) internal() (bool, error) {
 	switch k {
-	case SessionInternal:
+	case SessionKindInternal:
 		return true, nil
-	case SessionExternal:
+	case SessionKindExternal:
 		return false, nil
-	case SessionUnspecified:
+	case SessionKindUnspecified:
 		// The refusal below answers for it: the model left the kind unset.
 	}
 	return false, fmt.Errorf("session kind %d is neither internal nor external: the model must set it", k)

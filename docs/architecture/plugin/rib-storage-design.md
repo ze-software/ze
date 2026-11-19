@@ -2889,11 +2889,19 @@ not tell, where `false` would claim it lost. Sent rows carry none either.
 `markReadAt` stamps the buffered rows with one reading of the route clock, and
 `writeRouteAge` writes `age`: a JSON number, the whole seconds from the route's
 `ChangedAt` to that reading. The reading is taken after the walk, so it is
-never earlier than a time one of the walked entries holds. `show bgp rib best`
-rows read the clock when `bestSource.Next` resolves the entry. A row whose
+never earlier than a time one of the walked entries holds. A row whose
 route holds no reading carries no `age`, and sent rows carry none: an
 Adj-RIB-Out copy keeps no time. The member is additive, so a reader that does
 not know it is unaffected.
+
+**A best row carries no `age`**, in the walk `show bgp rib best` answers with
+and under its `json` terminal alike. The RIB records when the winning route's
+attributes last changed. It does not record when that route became the best
+one: a route unchanged for a week becomes best the second a better one is
+withdrawn. One `age` on a best row would be read as the time the path has been
+best, which the RIB cannot state, so `bestSource.Next` takes no reading of the
+route clock and the row has no member. The age of the winning route is on its
+received row.
 <!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- markReadAt, writeRouteAge, rowKeyAge -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- LookupRetained -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource, applyBestStages -->

@@ -67,7 +67,8 @@ type RouteItem struct {
 	// readAt is the route clock reading taken when the source read InEntry.
 	// The row's age is the time from InEntry.ChangedAt to it (writeRouteAge).
 	// A source sets it after its walk (markReadAt); unset, the row carries no
-	// `age` member.
+	// `age` member. bestSource leaves it unset on purpose: a best row has no
+	// age (bestSource.Next).
 	readAt storage.RouteTime
 }
 

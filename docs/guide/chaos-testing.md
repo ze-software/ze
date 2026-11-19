@@ -202,14 +202,16 @@ route collector.
 The test fixture `plugin/lg-simulated-network` runs five routers and six
 external neighbours this way and compares the looking glass with the model. It
 needs no loopback alias: each speaker reaches Ze on a listen port of its own,
-and Ze knows the session by the address its config gives the peer.
+and Ze knows the session by the address its config gives the peer. A second
+fixture, `plugin/lg-simulated-unchanged-next-hop`, runs a small network written
+by hand in which one border router keeps the next hop its neighbour sent.
 
 `./le chaos run` does not take a topology: it starts from `--seed` and
 `--peers`. The design is in
 [the chaos architecture page](../architecture/chaos-web-dashboard.md#simulated-network-topology).
 <!-- source: internal/chaos/scenario/generator.go -- GenerateFromTopology -->
 <!-- source: internal/chaos/peer/sender.go -- BuildAnnouncement -->
-<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetwork -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetworkFixture -->
 
 ## Fault Types
 

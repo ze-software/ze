@@ -100,6 +100,15 @@ func (p TopologyParams) validate() error {
 
 // topologyInsidePrefix is the prefix a generated network originates inside the
 // AS. The prefixes announced from outside are the /24s of 198.18.0.0/16.
+//
+// Both come from 198.18.0.0/15, the range RFC 2544 reserves for benchmarking,
+// and not from the documentation ranges. IPv4 has three documentation blocks,
+// each a /24 (RFC 5737: 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24), and a
+// caller gives the speakers their addresses from those. A generated network
+// announces up to topologyRoutesMax /24s, which three /24s cannot hold, and
+// carving them into longer prefixes would show a looking glass routes no
+// operator accepts from a neighbour. The benchmarking range is routed nowhere
+// on the Internet, so no generated prefix is a real network.
 var topologyInsidePrefix = netip.PrefixFrom(netip.AddrFrom4([4]byte{198, 19, 0, 0}), 24)
 
 func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
@@ -153,14 +162,14 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 			Address:       links[index],
 			AS:            neighbourAS[index],
 			Border:        borders[border],
-			BorderNextHop: NextHopSelf,
+			BorderNextHop: NextHopPolicySelf,
 		}
 	}
 
-	far := farASNumbers(params.LocalAS)
+	remote := remoteASNumbers(params.LocalAS)
 	for index := range params.Prefixes {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{198, 18, byte(index), 0}), 24)
-		rng.Shuffle(len(far), func(i, j int) { far[i], far[j] = far[j], far[i] })
+		rng.Shuffle(len(remote), func(i, j int) { remote[i], remote[j] = remote[j], remote[i] })
 		first := rng.Intn(params.Neighbours)
 
 		// The first prefix has two exits, the second one, the rest either.
@@ -174,17 +183,17 @@ func generateTopologySpec(params TopologyParams) (TopologySpec, error) {
 		if exits == 1 {
 			// Zero, one or two AS numbers beyond the neighbour.
 			neighbours[first].Announces = append(neighbours[first].Announces,
-				NeighbourRoute{Prefix: prefix, ASPathBeyond: slices.Clone(far[:rng.Intn(3)])})
+				NeighbourRoute{Prefix: prefix, ASPathBeyond: slices.Clone(remote[:rng.Intn(3)])})
 			continue
 		}
 		// Two exits on two border routers, toward one origin AS, each through
 		// its own transit AS or straight to the origin.
 		second := neighbourOnOtherBorder(rng, neighbours, first)
-		origin := far[0]
+		origin := remote[0]
 		neighbours[first].Announces = append(neighbours[first].Announces,
-			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, far[1], origin)})
+			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[1], origin)})
 		neighbours[second].Announces = append(neighbours[second].Announces,
-			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, far[2], origin)})
+			NeighbourRoute{Prefix: prefix, ASPathBeyond: pathToOrigin(rng, remote[2], origin)})
 	}
 	return TopologySpec{LocalAS: params.LocalAS, Routers: routers, Neighbours: neighbours}, nil
 }
@@ -205,17 +214,17 @@ func consecutiveAddresses(first netip.Addr, count int) ([]netip.Addr, error) {
 	return addresses, nil
 }
 
-// farASNumbers returns the AS numbers a generated path holds beyond a
+// remoteASNumbers returns the AS numbers a generated path holds beyond a
 // neighbour: the documentation range 64496 to 64511, without the local AS.
 // The neighbours take theirs from the private range, so the two never collide.
-func farASNumbers(localAS uint32) []uint32 {
-	far := make([]uint32, 0, 16)
+func remoteASNumbers(localAS uint32) []uint32 {
+	remote := make([]uint32, 0, 16)
 	for as := uint32(64496); as <= 64511; as++ {
 		if as != localAS {
-			far = append(far, as)
+			remote = append(remote, as)
 		}
 	}
-	return far
+	return remote
 }
 
 // neighbourOnOtherBorder picks a neighbour attached to another border router

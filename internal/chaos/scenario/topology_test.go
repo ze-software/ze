@@ -48,11 +48,11 @@ func handTopologySpec() TopologySpec {
 		},
 		Neighbours: []TopologyNeighbour{
 			{
-				Address: handTransitA, AS: 65101, Border: handBorder1, BorderNextHop: NextHopSelf,
+				Address: handTransitA, AS: 65101, Border: handBorder1, BorderNextHop: NextHopPolicySelf,
 				Announces: []NeighbourRoute{{Prefix: handTwoExits, ASPathBeyond: []uint32{65201}}},
 			},
 			{
-				Address: handTransitB, AS: 65102, Border: handBorder2, BorderNextHop: NextHopSelf,
+				Address: handTransitB, AS: 65102, Border: handBorder2, BorderNextHop: NextHopPolicySelf,
 				Announces: []NeighbourRoute{
 					{Prefix: handOneExit},
 					{Prefix: handTwoExits, ASPathBeyond: []uint32{65201}},
@@ -119,7 +119,7 @@ func TestTopologySameSeedSameNetwork(t *testing.T) {
 	var routers, neighbours int
 	for _, speaker := range first.Speakers() {
 		switch speaker.Session {
-		case SessionInternal:
+		case SessionKindInternal:
 			routers++
 			for _, prefix := range first.Prefixes() {
 				firstTrace, err := first.Trace(speaker.Address, prefix)
@@ -128,9 +128,9 @@ func TestTopologySameSeedSameNetwork(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, firstTrace, secondTrace, "trace of %s from %s", prefix, speaker.Address)
 			}
-		case SessionExternal:
+		case SessionKindExternal:
 			neighbours++
-		case SessionUnspecified:
+		case SessionKindUnspecified:
 			assert.Failf(t, "unspecified session", "speaker %s has no session kind", speaker.Address)
 		}
 	}
@@ -213,23 +213,23 @@ func TestRouterAnnouncesItsBestExit(t *testing.T) {
 			name:    "paths of equal length",
 			beyondA: []uint32{65201},
 			choices: []choice{
-				{handBorder1, handBorder1, viaA, ChoiceExternalOverInternal},
-				{handBorder2, handBorder2, viaB, ChoiceExternalOverInternal},
+				{handBorder1, handBorder1, viaA, ChoiceReasonExternalOverInternal},
+				{handBorder2, handBorder2, viaB, ChoiceReasonExternalOverInternal},
 				// The two exits rank equal for the reflector: the lower address wins.
-				{handReflector, handBorder1, viaA, ChoiceLowerPeerAddress},
-				{handClient, handReflector, viaA, ChoiceOnlyRoute},
+				{handReflector, handBorder1, viaA, ChoiceReasonLowerPeerAddress},
+				{handClient, handReflector, viaA, ChoiceReasonOnlyRoute},
 			},
 		},
 		{
 			name:    "a longer path through transitA",
 			beyondA: []uint32{65301, 65201},
 			choices: []choice{
-				{handBorder1, handBorder2, viaB, ChoiceShorterASPath},
-				// border1 prefers border2's route and so advertises none inside:
+				{handBorder1, handBorder2, viaB, ChoiceReasonShorterASPath},
+				// border1 prefers border2's route and so announces none inside:
 				// border2 and the reflector each hold one route.
-				{handBorder2, handBorder2, viaB, ChoiceOnlyRoute},
-				{handReflector, handBorder2, viaB, ChoiceOnlyRoute},
-				{handClient, handReflector, viaB, ChoiceOnlyRoute},
+				{handBorder2, handBorder2, viaB, ChoiceReasonOnlyRoute},
+				{handReflector, handBorder2, viaB, ChoiceReasonOnlyRoute},
+				{handClient, handReflector, viaB, ChoiceReasonOnlyRoute},
 			},
 		},
 	}
@@ -268,7 +268,7 @@ func TestExternalNeighbourKeepsItsNextHop(t *testing.T) {
 	assert.Equal(t, Speaker{
 		Address: handTransitA,
 		AS:      65101,
-		Session: SessionExternal,
+		Session: SessionKindExternal,
 		Announcements: []Announcement{
 			{Prefix: handTwoExits, NextHop: handTransitA, ASPath: []uint32{65101, 65201}},
 		},
@@ -277,7 +277,7 @@ func TestExternalNeighbourKeepsItsNextHop(t *testing.T) {
 	assert.Equal(t, Speaker{
 		Address: handTransitB,
 		AS:      65102,
-		Session: SessionExternal,
+		Session: SessionKindExternal,
 		Announcements: []Announcement{
 			{Prefix: handTwoExits, NextHop: handTransitB, ASPath: []uint32{65102, 65201}},
 			{Prefix: handOneExit, NextHop: handTransitB, ASPath: []uint32{65102}},
@@ -299,7 +299,7 @@ func TestTopologyHasMultiHopTrace(t *testing.T) {
 
 		routers := map[netip.Addr]bool{}
 		for _, speaker := range topology.Speakers() {
-			if speaker.Session == SessionInternal {
+			if speaker.Session == SessionKindInternal {
 				routers[speaker.Address] = true
 			}
 		}
@@ -346,28 +346,28 @@ func TestTraceOfHandCheckedPrefix(t *testing.T) {
 			End:     TraceEndExitOwnAddress,
 			NextHop: handBorder1,
 			ASPath:  []uint32{65101, 65201},
-			Reason:  ChoiceOnlyRoute,
+			Reason:  ChoiceReasonOnlyRoute,
 		},
 		handReflector: {
 			Routers: []netip.Addr{handReflector, handBorder1},
 			End:     TraceEndExitOwnAddress,
 			NextHop: handBorder1,
 			ASPath:  []uint32{65101, 65201},
-			Reason:  ChoiceLowerPeerAddress,
+			Reason:  ChoiceReasonLowerPeerAddress,
 		},
 		handBorder1: {
 			Routers: []netip.Addr{handBorder1},
 			End:     TraceEndExitOwnAddress,
 			NextHop: handBorder1,
 			ASPath:  []uint32{65101, 65201},
-			Reason:  ChoiceExternalOverInternal,
+			Reason:  ChoiceReasonExternalOverInternal,
 		},
 		handBorder2: {
 			Routers: []netip.Addr{handBorder2},
 			End:     TraceEndExitOwnAddress,
 			NextHop: handBorder2,
 			ASPath:  []uint32{65102, 65201},
-			Reason:  ChoiceExternalOverInternal,
+			Reason:  ChoiceReasonExternalOverInternal,
 		},
 	}
 	for router, trace := range want {
@@ -419,7 +419,7 @@ func TestTraceEndsWhereThePrefixOriginates(t *testing.T) {
 // PREVENTS: an unchanged external next hop read as a broken chain.
 func TestTraceLeavesTowardExternalAddress(t *testing.T) {
 	spec := handTopologySpec()
-	spec.Neighbours[1].BorderNextHop = NextHopUnchanged
+	spec.Neighbours[1].BorderNextHop = NextHopPolicyUnchanged
 	topology, err := NewTopology(spec)
 	require.NoError(t, err)
 
@@ -430,7 +430,7 @@ func TestTraceLeavesTowardExternalAddress(t *testing.T) {
 		End:     TraceEndExitExternalAddress,
 		NextHop: handTransitB,
 		ASPath:  []uint32{65102},
-		Reason:  ChoiceOnlyRoute,
+		Reason:  ChoiceReasonOnlyRoute,
 	}, exit)
 
 	// The reflector still rewrites what it reflects, and passes the collector
@@ -442,7 +442,7 @@ func TestTraceLeavesTowardExternalAddress(t *testing.T) {
 		End:     TraceEndExitExternalAddress,
 		NextHop: handTransitB,
 		ASPath:  []uint32{65102},
-		Reason:  ChoiceOnlyRoute,
+		Reason:  ChoiceReasonOnlyRoute,
 	}, fromClient)
 }
 
@@ -493,8 +493,8 @@ func TestNewTopologyRefusesInvalidSpec(t *testing.T) {
 		},
 		{
 			"no next-hop policy",
-			func(spec *TopologySpec) { spec.Neighbours[0].BorderNextHop = NextHopUnspecified },
-			"set BorderNextHop to NextHopSelf or NextHopUnchanged",
+			func(spec *TopologySpec) { spec.Neighbours[0].BorderNextHop = NextHopPolicyUnspecified },
+			"set BorderNextHop to NextHopPolicySelf or NextHopPolicyUnchanged",
 		},
 		{
 			"an unknown next-hop policy",

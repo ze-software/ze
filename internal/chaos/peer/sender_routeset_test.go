@@ -62,9 +62,9 @@ func TestRouteSetUpdateBytesEBGP(t *testing.T) {
 
 	want := updateHex(
 		bgpMarker, "0033", "02", // length 51, type UPDATE
-		"0000",     // no withdrawn route
-		"0018",     // 24 bytes of path attributes
-		"40010100", // ORIGIN IGP
+		"0000",                                   // no withdrawn route
+		"0018",                                   // 24 bytes of path attributes
+		"40010100",                               // ORIGIN IGP
 		"40020A", "0202", "0000FE4D", "0000FBF4", // AS_PATH: one AS_SEQUENCE of 65101 64500
 		"400304", "C0000201", // NEXT_HOP 192.0.2.1
 		"18C61200", // 198.18.0.0/24
@@ -97,9 +97,9 @@ func TestRouteSetUpdateBytesIBGP(t *testing.T) {
 	require.NoError(t, err)
 	wantLearned := updateHex(
 		bgpMarker, "003A", "02", // length 58, type UPDATE
-		"0000",     // no withdrawn route
-		"001F",     // 31 bytes of path attributes
-		"40010100", // ORIGIN IGP
+		"0000",                                   // no withdrawn route
+		"001F",                                   // 31 bytes of path attributes
+		"40010100",                               // ORIGIN IGP
 		"40020A", "0202", "0000FE4D", "0000FBF4", // AS_PATH: 65101 64500, no 65000 before it
 		"400304", "0A000003", // NEXT_HOP 10.0.0.3
 		"400504", "00000064", // LOCAL_PREF 100
@@ -114,10 +114,10 @@ func TestRouteSetUpdateBytesIBGP(t *testing.T) {
 	require.NoError(t, err)
 	wantOriginated := updateHex(
 		bgpMarker, "0030", "02", // length 48, type UPDATE
-		"0000",     // no withdrawn route
-		"0015",     // 21 bytes of path attributes
-		"40010100", // ORIGIN IGP
-		"400200",   // empty AS_PATH
+		"0000",               // no withdrawn route
+		"0015",               // 21 bytes of path attributes
+		"40010100",           // ORIGIN IGP
+		"400200",             // empty AS_PATH
 		"400304", "0A000002", // NEXT_HOP 10.0.0.2
 		"400504", "00000064", // LOCAL_PREF 100
 		"18C61300", // 198.19.0.0/24

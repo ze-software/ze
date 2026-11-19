@@ -792,7 +792,7 @@ network. Both return a `Topology`, which is immutable.
 | Part of the spec | What it states |
 |------------------|----------------|
 | `TopologyRouter` | The loopback, which is also the session address with the collector and the BGP identifier. The clients it reflects routes for. The prefixes it originates |
-| `TopologyNeighbour` | Its address and AS, the border router it is attached to, what that border router writes as next hop on its routes (`NextHopSelf` or `NextHopUnchanged`), and the prefixes it announces with the AS path beyond its own AS |
+| `TopologyNeighbour` | Its address and AS, the border router it is attached to, what that border router writes as next hop on its routes (`NextHopPolicySelf` or `NextHopPolicyUnchanged`), and the prefixes it announces with the AS path beyond its own AS |
 
 The iBGP sessions follow from the routers. A client holds one session, with its
 reflector. Every router that is no client holds a session with every other such
@@ -888,10 +888,26 @@ addresses.
 The test fixture `plugin/lg-simulated-network` runs this. It builds the model, reserves the
 listen ports, starts `ze -` on the generated config, runs one simulator per
 speaker, waits until each has sent End-of-RIB, and then compares the looking
-glass with the model: the peers page with each speaker's route count, and the
-search of each prefix with the speakers announcing it.
+glass with the model: the peers page with each speaker's route count, the
+search of each prefix with the speakers announcing it, the AS path graph of
+each prefix with the ASes and the steps of the announced paths, the next-hop
+graph with each speaker's next hop and the egress marks, and the trace graph
+with the model's trace from every router.
+
+A run takes a plan: a topology and the questions asked of it
+(`lgSimulatedRunNetworkPlan`). The second fixture,
+`plugin/lg-simulated-unchanged-next-hop`, runs a network written by hand
+(`lgNextHopUnchangedSpec`): three routers and two external neighbours, where one
+border router keeps the next hop its neighbour sent and the other rewrites it.
+The generated network cannot hold the first case, because its border routers
+always rewrite. The fixture compares every walk with the model, compares both
+prefixes with lines written by hand, and fails unless a walk left the AS
+toward an external address.
 <!-- source: internal/chaos/scenario/config.go -- GenerateConfig, ConfigParams -->
-<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetwork, lgSimulatedNetworkChecks -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetworkFixture, lgSimulatedNetworkChecks, lgSimulatedRunNetworkPlan -->
+<!-- source: internal/test/fixture/lg_simulated_graphs.go -- lgSimulatedASPathGraph, lgSimulatedNextHopGraph -->
+<!-- source: internal/test/fixture/lg_simulated_trace.go -- lgSimulatedTraceGraph, lgSimulatedTraceCompare -->
+<!-- source: internal/test/fixture/lg_simulated_next_hop_unchanged.go -- lgNextHopUnchangedSpec, lgNextHopUnchangedTraceGraph -->
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- listenerPeerKey -->
 
 ## Implementation Phases

@@ -38,11 +38,11 @@ type Sender struct {
 	builder *message.UpdateBuilder
 	nextHop netip.Addr
 
-	// routeSetGiven says the peer announces a given route set. It is the one
-	// test of the mode: given is empty for an empty set and for no set alike.
-	routeSetGiven bool
-	// given maps each prefix of the route set to its announcement.
-	given map[netip.Prefix]scenario.Announcement
+	// routeSetMode says the peer announces a given route set. It is the one
+	// test of the mode: announcements is empty for an empty set and for no set alike.
+	routeSetMode bool
+	// announcements maps each prefix of the route set to its announcement.
+	announcements map[netip.Prefix]scenario.Announcement
 }
 
 // NewSender creates a new Sender with the given config.
@@ -54,10 +54,10 @@ func NewSender(cfg SenderConfig) *Sender {
 	if cfg.RouteSet == nil {
 		return sender
 	}
-	sender.routeSetGiven = true
-	sender.given = make(map[netip.Prefix]scenario.Announcement, len(cfg.RouteSet.Announcements))
+	sender.routeSetMode = true
+	sender.announcements = make(map[netip.Prefix]scenario.Announcement, len(cfg.RouteSet.Announcements))
 	for _, announcement := range cfg.RouteSet.Announcements {
-		sender.given[announcement.Prefix] = announcement
+		sender.announcements[announcement.Prefix] = announcement
 	}
 	return sender
 }
@@ -120,7 +120,7 @@ func (s *Sender) announcementProblem(announcement scenario.Announcement) error {
 // the set, so a set it accepts is one BuildRoute answers for whole. A sender
 // with no route set has none.
 func (s *Sender) RouteSetProblem() error {
-	for _, announcement := range s.given {
+	for _, announcement := range s.announcements {
 		if _, err := s.BuildAnnouncement(announcement); err != nil {
 			return err
 		}
@@ -135,8 +135,8 @@ func (s *Sender) RouteSetProblem() error {
 // prefix, and a prefix the set does not hold gives nil: the peer has no route
 // to announce for it.
 func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
-	if s.routeSetGiven {
-		announcement, held := s.given[prefix]
+	if s.routeSetMode {
+		announcement, held := s.announcements[prefix]
 		if !held {
 			return nil
 		}

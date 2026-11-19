@@ -1963,6 +1963,9 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
              changed; an equal re-announcement keeps it growing. Absent when the RIB
              holds no time for the route, and on advertised rows
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
+    best row: no age, with or without the json terminal. The RIB records when the
+             winning route last changed, not when it became best; the age is on
+             that route's received row
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out <selector> [family <family>] # Resend Adj-RIB-Out (* for all, optional family)

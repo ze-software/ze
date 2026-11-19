@@ -160,7 +160,7 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 	assert.NotContains(t, config, "export")
 	for index, speaker := range topology.Speakers() {
 		block := peerBlock(t, config, index)
-		assert.Equal(t, speaker.Session == SessionExternal, strings.Contains(block, importPolicy), "speaker %d (%s)", index, speaker.Address)
+		assert.Equal(t, speaker.Session == SessionKindExternal, strings.Contains(block, importPolicy), "speaker %d (%s)", index, speaker.Address)
 	}
 
 	// The config of a chaos run against a route server is left without one.

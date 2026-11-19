@@ -26,12 +26,12 @@ const (
 type SessionKind uint8
 
 const (
-	// SessionUnspecified is the zero value and never a valid session.
-	SessionUnspecified SessionKind = iota
-	// SessionInternal is an iBGP session: the speaker is a router of the AS.
-	SessionInternal
-	// SessionExternal is an eBGP session: the speaker is an external neighbour.
-	SessionExternal
+	// SessionKindUnspecified is the zero value and never a valid session.
+	SessionKindUnspecified SessionKind = iota
+	// SessionKindInternal is an iBGP session: the speaker is a router of the AS.
+	SessionKindInternal
+	// SessionKindExternal is an eBGP session: the speaker is an external neighbour.
+	SessionKindExternal
 )
 
 // NextHopPolicy says what a border router writes as next hop on a route it
@@ -39,12 +39,12 @@ const (
 type NextHopPolicy uint8
 
 const (
-	// NextHopUnspecified is the zero value. NewTopology refuses it.
-	NextHopUnspecified NextHopPolicy = iota
-	// NextHopSelf rewrites the next hop to the border router's own loopback.
-	NextHopSelf
-	// NextHopUnchanged keeps the external neighbour's address.
-	NextHopUnchanged
+	// NextHopPolicyUnspecified is the zero value. NewTopology refuses it.
+	NextHopPolicyUnspecified NextHopPolicy = iota
+	// NextHopPolicySelf rewrites the next hop to the border router's own loopback.
+	NextHopPolicySelf
+	// NextHopPolicyUnchanged keeps the external neighbour's address.
+	NextHopPolicyUnchanged
 )
 
 // TraceEnd says how a trace leaves the routers of the AS.
@@ -57,10 +57,12 @@ const (
 	// hop on a route learned outside. It is the exit.
 	TraceEndExitOwnAddress
 	// TraceEndExitExternalAddress: the last router's next hop is the address of
-	// no router of the AS. The trace leaves the AS there, toward that address.
+	// no router of the AS, and its route has an AS path. The trace leaves the
+	// AS there, toward that address.
 	TraceEndExitExternalAddress
 	// TraceEndOriginInside: the last router's route has an empty AS path. The
-	// prefix originates inside the AS, at that router.
+	// prefix originates inside the AS, at that router, whatever next hop the
+	// route carries: an empty AS path is asked before the next hop (traceEnd).
 	TraceEndOriginInside
 )
 
@@ -68,20 +70,20 @@ const (
 type ChoiceReason uint8
 
 const (
-	// ChoiceUnspecified is the zero value and never a stated reason.
-	ChoiceUnspecified ChoiceReason = iota
-	// ChoiceOnlyRoute: the router holds one route for the prefix.
-	ChoiceOnlyRoute
-	// ChoiceShorterASPath: the chosen route has fewer AS numbers in its path.
-	ChoiceShorterASPath
-	// ChoiceOriginatedHere: the router originates the prefix itself.
-	ChoiceOriginatedHere
-	// ChoiceExternalOverInternal: equal path lengths, and the chosen route was
+	// ChoiceReasonUnspecified is the zero value and never a stated reason.
+	ChoiceReasonUnspecified ChoiceReason = iota
+	// ChoiceReasonOnlyRoute: the router holds one route for the prefix.
+	ChoiceReasonOnlyRoute
+	// ChoiceReasonShorterASPath: the chosen route has fewer AS numbers in its path.
+	ChoiceReasonShorterASPath
+	// ChoiceReasonOriginatedHere: the router originates the prefix itself.
+	ChoiceReasonOriginatedHere
+	// ChoiceReasonExternalOverInternal: equal path lengths, and the chosen route was
 	// learned from an external neighbour while the other came from inside.
-	ChoiceExternalOverInternal
-	// ChoiceLowerPeerAddress: the two best routes rank equal, and the chosen one
+	ChoiceReasonExternalOverInternal
+	// ChoiceReasonLowerPeerAddress: the two best routes rank equal, and the chosen one
 	// was learned from the speaker with the lower address.
-	ChoiceLowerPeerAddress
+	ChoiceReasonLowerPeerAddress
 )
 
 // TopologySpec describes a network: the routers of one AS and the external
@@ -165,8 +167,10 @@ type Trace struct {
 	Routers []netip.Addr
 	End     TraceEnd
 	// NextHop is the next hop the last router announces: its own loopback when
-	// End is TraceEndExitOwnAddress or TraceEndOriginInside, the external
-	// address when End is TraceEndExitExternalAddress.
+	// End is TraceEndExitOwnAddress, the external address when End is
+	// TraceEndExitExternalAddress. When End is TraceEndOriginInside it is the
+	// next hop of the originated route, which is the router's own loopback in
+	// every network NewTopology builds.
 	NextHop netip.Addr
 	// ASPath is the AS path of the last router's route.
 	ASPath []uint32
@@ -275,7 +279,7 @@ func NewTopology(spec TopologySpec) (*Topology, error) {
 
 	routers := make([]Speaker, len(model.loopbacks))
 	for router, loopback := range model.loopbacks {
-		routers[router] = Speaker{Address: loopback, AS: spec.LocalAS, Session: SessionInternal}
+		routers[router] = Speaker{Address: loopback, AS: spec.LocalAS, Session: SessionKindInternal}
 	}
 	for _, prefix := range topology.prefixes {
 		chosen, err := model.converge(prefix, learned.candidates[prefix])
@@ -285,7 +289,7 @@ func NewTopology(spec TopologySpec) (*Topology, error) {
 		for router, loopback := range model.loopbacks {
 			route := chosen[router].route
 			routers[router].Announcements = append(routers[router].Announcements,
-				Announcement{Prefix: prefix, NextHop: route.announced, ASPath: route.asPath})
+				Announcement{Prefix: prefix, NextHop: route.nextHop, ASPath: route.asPath})
 			trace, err := model.trace(router, prefix, chosen)
 			if err != nil {
 				return nil, err
@@ -311,12 +315,12 @@ const (
 // modelRoute is one route a router holds for one prefix.
 type modelRoute struct {
 	asPath []uint32
-	// announced is the next hop the router writes when it announces the route
+	// nextHop is the next hop the router writes when it announces the route
 	// as its own choice: its loopback on a route it originates, its loopback
 	// or the neighbour's address on a route learned outside, by the border's
 	// policy, and the next hop it received on a route learned inside.
-	announced netip.Addr
-	source    routeSource
+	nextHop netip.Addr
+	source  routeSource
 	// from is the address of the speaker the route was learned from, and the
 	// router's own loopback on a route it originates.
 	from netip.Addr
@@ -330,15 +334,15 @@ type selection struct {
 	found  bool
 }
 
-// noReflector marks a router that is the client of no reflector.
-const noReflector = -1
+// reflectorNone marks a router that is the client of no reflector.
+const reflectorNone = -1
 
 // topologyModel holds the routers of a validated spec and their iBGP sessions.
 type topologyModel struct {
 	loopbacks []netip.Addr
 	routerOf  map[netip.Addr]int
 	// reflectorOf holds, for each router, the index of the reflector it is a
-	// client of, or noReflector.
+	// client of, or reflectorNone.
 	reflectorOf []int
 }
 
@@ -365,7 +369,7 @@ func newTopologyModel(spec TopologySpec) (*topologyModel, error) {
 		}
 		model.routerOf[router.Loopback] = index
 		model.loopbacks = append(model.loopbacks, router.Loopback)
-		model.reflectorOf = append(model.reflectorOf, noReflector)
+		model.reflectorOf = append(model.reflectorOf, reflectorNone)
 	}
 	for reflector, router := range spec.Routers {
 		for _, client := range router.Clients {
@@ -378,7 +382,7 @@ func newTopologyModel(spec TopologySpec) (*topologyModel, error) {
 		if len(router.Clients) == 0 {
 			continue
 		}
-		if model.reflectorOf[index] != noReflector {
+		if model.reflectorOf[index] != reflectorNone {
 			return nil, fmt.Errorf(
 				"topology: reflector %s is itself a client of %s, and the model holds one level of reflection: remove it from that client list",
 				router.Loopback, model.loopbacks[model.reflectorOf[index]])
@@ -396,7 +400,7 @@ func (m *topologyModel) addClient(reflector int, client netip.Addr) error {
 	if index == reflector {
 		return fmt.Errorf("topology: reflector %s lists itself as a client: remove it from its own list", client)
 	}
-	if m.reflectorOf[index] != noReflector {
+	if m.reflectorOf[index] != reflectorNone {
 		return fmt.Errorf("topology: router %s is listed as a client of %s and of %s: keep it in one client list",
 			client, m.loopbacks[m.reflectorOf[index]], m.loopbacks[reflector])
 	}
@@ -429,9 +433,9 @@ func (l *learnedRoutes) addOriginated(model *topologyModel, spec TopologySpec) e
 		}
 		for _, prefix := range router.Originates {
 			l.add(len(model.loopbacks), prefix, index, modelRoute{
-				announced: router.Loopback,
-				source:    sourceOriginated,
-				from:      router.Loopback,
+				nextHop: router.Loopback,
+				source:  sourceOriginated,
+				from:    router.Loopback,
 			})
 		}
 	}
@@ -457,18 +461,18 @@ func (l *learnedRoutes) addNeighbours(model *topologyModel, spec TopologySpec) (
 		}
 		addresses[neighbour.Address] = true
 
-		announced := neighbour.Address
-		if neighbour.BorderNextHop == NextHopSelf {
-			announced = neighbour.Border
+		nextHop := neighbour.Address
+		if neighbour.BorderNextHop == NextHopPolicySelf {
+			nextHop = neighbour.Border
 		}
-		speaker := Speaker{Address: neighbour.Address, AS: neighbour.AS, Session: SessionExternal}
+		speaker := Speaker{Address: neighbour.Address, AS: neighbour.AS, Session: SessionKindExternal}
 		for _, route := range neighbour.Announces {
 			asPath := append([]uint32{neighbour.AS}, route.ASPathBeyond...)
 			l.add(len(model.loopbacks), route.Prefix, border, modelRoute{
-				asPath:    asPath,
-				announced: announced,
-				source:    sourceExternal,
-				from:      neighbour.Address,
+				asPath:  asPath,
+				nextHop: nextHop,
+				source:  sourceExternal,
+				from:    neighbour.Address,
 			})
 			l.announcers[route.Prefix] = append(l.announcers[route.Prefix], neighbour.Address)
 			// The neighbour announces on its own session with its own address:
@@ -508,14 +512,14 @@ func (m *topologyModel) validateNeighbour(localAS uint32, neighbour TopologyNeig
 			neighbour.Address, neighbour.Border)
 	}
 	switch neighbour.BorderNextHop {
-	case NextHopSelf, NextHopUnchanged:
-	case NextHopUnspecified:
+	case NextHopPolicySelf, NextHopPolicyUnchanged:
+	case NextHopPolicyUnspecified:
 		return 0, fmt.Errorf(
-			"topology: external neighbour %s does not say what its border router writes as next hop: set BorderNextHop to NextHopSelf or NextHopUnchanged",
+			"topology: external neighbour %s does not say what its border router writes as next hop: set BorderNextHop to NextHopPolicySelf or NextHopPolicyUnchanged",
 			neighbour.Address)
 	default:
 		// The spec is caller input, so a value outside the named set is refused.
-		return 0, fmt.Errorf("topology: external neighbour %s has BorderNextHop %d, which is no known policy: use NextHopSelf or NextHopUnchanged",
+		return 0, fmt.Errorf("topology: external neighbour %s has BorderNextHop %d, which is no known policy: use NextHopPolicySelf or NextHopPolicyUnchanged",
 			neighbour.Address, neighbour.BorderNextHop)
 	}
 	prefixes := make([]netip.Prefix, 0, len(neighbour.Announces))
@@ -569,7 +573,7 @@ func comparePrefixes(a, b netip.Prefix) int {
 
 // converge computes every router's chosen route for one prefix. Each round
 // lets every router choose among what it learned itself and what its iBGP
-// peers advertised from the round before, until a round changes nothing.
+// peers announced from the round before, until a round changes nothing.
 //
 // A route travels at most one session per round, and the longest way through
 // one level of reflection is client, reflector, reflector, client. The round
@@ -582,9 +586,9 @@ func (m *topologyModel) converge(prefix netip.Prefix, learned [][]modelRoute) ([
 		for router := range next {
 			candidates := slices.Clone(learned[router])
 			for peer := range current {
-				advertised, sent := m.advertisement(peer, router, current[peer])
+				peerRoute, sent := m.announcementTo(peer, router, current[peer])
 				if sent {
-					candidates = append(candidates, advertised)
+					candidates = append(candidates, peerRoute)
 				}
 			}
 			next[router] = selectBest(candidates)
@@ -612,7 +616,7 @@ func selectionsEqual(a, b selection) bool {
 	if a.reason != b.reason {
 		return false
 	}
-	if a.route.announced != b.route.announced {
+	if a.route.nextHop != b.route.nextHop {
 		return false
 	}
 	if a.route.source != b.route.source {
@@ -633,15 +637,15 @@ func (m *topologyModel) peered(a, b int) bool {
 	if m.reflectorOf[b] == a {
 		return true
 	}
-	if m.reflectorOf[a] != noReflector {
+	if m.reflectorOf[a] != reflectorNone {
 		return false
 	}
-	return m.reflectorOf[b] == noReflector
+	return m.reflectorOf[b] == reflectorNone
 }
 
-// advertisement returns the route router `from` sends to its iBGP peer `to`
+// announcementTo returns the route router `from` sends to its iBGP peer `to`
 // when chosen is its choice, and false when it sends none.
-func (m *topologyModel) advertisement(from, to int, chosen selection) (modelRoute, bool) {
+func (m *topologyModel) announcementTo(from, to int, chosen selection) (modelRoute, bool) {
 	if from == to {
 		return modelRoute{}, false
 	}
@@ -651,7 +655,7 @@ func (m *topologyModel) advertisement(from, to int, chosen selection) (modelRout
 	if !m.peered(from, to) {
 		return modelRoute{}, false
 	}
-	nextHop := chosen.route.announced
+	nextHop := chosen.route.nextHop
 	switch chosen.route.source {
 	case sourceOriginated, sourceExternal:
 		// A route the router did not learn from iBGP goes to every iBGP peer.
@@ -669,10 +673,10 @@ func (m *topologyModel) advertisement(from, to int, chosen selection) (modelRout
 		panic("BUG: a chosen route has no source")
 	}
 	return modelRoute{
-		asPath:    chosen.route.asPath,
-		announced: nextHop,
-		source:    sourceInternal,
-		from:      m.loopbacks[from],
+		asPath:  chosen.route.asPath,
+		nextHop: nextHop,
+		source:  sourceInternal,
+		from:    m.loopbacks[from],
 	}, true
 }
 
@@ -700,7 +704,7 @@ func selectBest(candidates []modelRoute) selection {
 		return selection{}
 	}
 	slices.SortFunc(candidates, compareRoutes)
-	reason := ChoiceOnlyRoute
+	reason := ChoiceReasonOnlyRoute
 	if len(candidates) > 1 {
 		reason = choiceReason(candidates[0], candidates[1])
 	}
@@ -734,24 +738,39 @@ func compareRoutes(a, b modelRoute) int {
 // second. best MUST sort before second.
 func choiceReason(best, second modelRoute) ChoiceReason {
 	if len(best.asPath) < len(second.asPath) {
-		return ChoiceShorterASPath
+		return ChoiceReasonShorterASPath
 	}
 	if best.source == second.source {
-		return ChoiceLowerPeerAddress
+		return ChoiceReasonLowerPeerAddress
 	}
 	switch best.source {
 	case sourceOriginated:
-		return ChoiceOriginatedHere
+		return ChoiceReasonOriginatedHere
 	case sourceExternal:
-		return ChoiceExternalOverInternal
+		return ChoiceReasonExternalOverInternal
 	case sourceInternal, sourceUnspecified:
 		// Neither sorts ahead of another source: the BUG below.
 	}
 	panic("BUG: the best route does not rank ahead of the runner-up")
 }
 
+// traceEnd names how a trace ends at the router whose route is route. exit is
+// the end the next hop alone gives: the router's own address, or an address
+// outside the AS.
+//
+// An empty AS path decides first, whatever the next hop is: the prefix then
+// originates inside the AS at this router, and there is no exit to name. The
+// looking glass draws its trace by the same rule, so a route with an empty AS
+// path and a next hop outside the AS ends origin-inside on both sides.
+func traceEnd(route modelRoute, exit TraceEnd) TraceEnd {
+	if len(route.asPath) == 0 {
+		return TraceEndOriginInside
+	}
+	return exit
+}
+
 // trace follows the chosen routes of one prefix from router start: each
-// router's announced next hop names the next router, until it names the router
+// router's next hop names the next router, until it names the router
 // itself or no router of the AS. The visited guard bounds the walk by the
 // number of routers.
 func (m *topologyModel) trace(start int, prefix netip.Prefix, chosen []selection) (Trace, error) {
@@ -762,11 +781,11 @@ func (m *topologyModel) trace(start int, prefix netip.Prefix, chosen []selection
 		visited[router] = true
 		crossed = append(crossed, m.loopbacks[router])
 		route := chosen[router].route
-		trace := Trace{Routers: crossed, NextHop: route.announced, ASPath: route.asPath, Reason: chosen[start].reason}
+		trace := Trace{Routers: crossed, NextHop: route.nextHop, ASPath: route.asPath, Reason: chosen[start].reason}
 
-		next, isRouter := m.routerOf[route.announced]
+		next, isRouter := m.routerOf[route.nextHop]
 		if !isRouter {
-			trace.End = TraceEndExitExternalAddress
+			trace.End = traceEnd(route, TraceEndExitExternalAddress)
 			return trace, nil
 		}
 		if next != router {
@@ -777,10 +796,7 @@ func (m *topologyModel) trace(start int, prefix netip.Prefix, chosen []selection
 			router = next
 			continue
 		}
-		trace.End = TraceEndExitOwnAddress
-		if len(route.asPath) == 0 {
-			trace.End = TraceEndOriginInside
-		}
+		trace.End = traceEnd(route, TraceEndExitOwnAddress)
 		return trace, nil
 	}
 	return Trace{}, fmt.Errorf("topology: the trace of prefix %s from %s does not end within %d routers",

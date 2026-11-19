@@ -66,10 +66,6 @@ type bestSource struct {
 	// release, so a row is encoded from attributes that cannot be freed under it.
 	held      storage.RouteEntry
 	heldValid bool
-
-	// routeClock is the RIB's route clock, read when Next resolves an item's
-	// entry so the row's age is the route's age at that read.
-	routeClock routeClock
 }
 
 // bestRouteKey builds the lookup key used by the reason terminal's
@@ -241,7 +237,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		return entries[i].item.Prefix < entries[j].item.Prefix
 	})
 
-	return &bestSource{entries: entries, routeClock: r.routeClock}
+	return &bestSource{entries: entries}
 }
 
 // Next resolves the item's pool entry and RETAINS it, so every consumer
@@ -257,6 +253,12 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 // the row then carries the prefix and its winner with no attributes. That is the
 // price of not holding a lock across the answer, and it is a state only a
 // concurrent withdrawal reaches.
+//
+// A best row carries no `age`, in the walk and under the `json` terminal alike.
+// The RIB records when the winning route's attributes last changed and never
+// when that route became the best one, and a reader of a best row would take one
+// number for the second. So Next takes no reading of the route clock, and
+// writeRouteAge then writes nothing for the item.
 func (s *bestSource) Next() (RouteItem, bool) {
 	s.release()
 	if s.idx >= len(s.entries) {
@@ -272,9 +274,9 @@ func (s *bestSource) Next() (RouteItem, bool) {
 			s.held, s.heldValid = held, true
 			item.HasInEntry = true
 			item.InEntry = held
-			// Read after the lookup, so the reading is never earlier than
-			// the time the entry holds.
-			item.readAt = s.routeClock.now()
+			// The guard that keeps `age` off a best row: with no reading the
+			// row has no age to write (RouteTime.AgeAt).
+			item.readAt = storage.RouteTimeUnrecorded
 		}
 	}
 	return item, true
@@ -717,6 +719,8 @@ func (w *bestRowWriter) record(item RouteItem) rpc.RowRecord {
 
 // bestResultFor is the value one best-path item renders to. It reads the item's
 // pool entry, so it MUST run while that entry is retained (bestSource.Next).
+// It writes no age, as the `json` terminal writes none for a best row
+// (bestSource.Next says why).
 func bestResultFor(item RouteItem) bestResult {
 	br := bestResult{
 		Family:         item.Family.String(),
