@@ -371,11 +371,35 @@ func (acts *personActs) readCarried(deletion, value string, malformed func()) {
 // readPersonActs hands the problem on as a refusal, so the cause reaches the
 // operator. Not safe for concurrent use.
 type answering struct {
-	root     string
-	cache    *commitCache
-	acts     *personActs
-	patchIDs map[string]string
-	problems []string
+	root          string
+	cache         *commitCache
+	acts          *personActs
+	patchIDs      map[string]string
+	taggedChanges map[string]taggedUnitAnswer
+	problems      []string
+}
+
+// taggedUnitAnswer retains the changed units or the exact read failure for one
+// immutable commit. It records no obligation's decision or diagnostic.
+type taggedUnitAnswer struct {
+	units []string
+	err   error
+}
+
+// changedUnits reads each immutable commit at most once during this answering.
+// The map is bounded by the distinct commits this debt derivation examines and
+// dies with it. Callers MUST treat the returned units as read-only; each caller
+// still judges its own obligation and reports a cached failure for that ask.
+func (a *answering) changedUnits(facts commitFacts) ([]string, error) {
+	if answer, read := a.taggedChanges[facts.SHA]; read {
+		return answer.units, answer.err
+	}
+	units, err := changedTaggedUnits(a.root, facts)
+	if a.taggedChanges == nil {
+		a.taggedChanges = make(map[string]taggedUnitAnswer)
+	}
+	a.taggedChanges[facts.SHA] = taggedUnitAnswer{units: units, err: err}
+	return units, err
 }
 
 // unreadProblem names an obligation subject on commit that could not be
@@ -411,7 +435,7 @@ func (a *answering) answered(commit string, kind owedItemKind, subject string) b
 		if a.acts.approved[approvalAnswerKey(commit, subject)] {
 			return true
 		}
-		changed, err := changedTaggedUnits(a.root, facts)
+		changed, err := a.changedUnits(facts)
 		if err != nil {
 			a.problems = append(a.problems, unreadProblem(commit, subject, err))
 			return false
@@ -484,7 +508,7 @@ func (a *answering) carriedItems(carried carriedTrailer) []owedItem {
 		open.Subject = stem
 		return []owedItem{open}
 	}
-	units, err := changedTaggedUnits(a.root, facts)
+	units, err := a.changedUnits(facts)
 	if err != nil {
 		a.problems = append(a.problems, unreadProblem(matched, carried.reason, err))
 		return []owedItem{open}

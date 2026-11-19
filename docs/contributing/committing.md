@@ -523,6 +523,13 @@ Nothing is written: no commit carries a debt file.
 <!-- source: internal/le/commit/push.go -- debtReport, headline -->
 <!-- source: internal/le/commit/verification.go -- VerificationState.label -->
 
+Each command derives the debt afresh. Within that one derivation, RFC
+obligations on the same immutable commit share its changed-unit read,
+including a read failure. Each obligation still receives its own decision and
+diagnostic. The saved read ends with the command; it is never kept on disk or
+reused by a later command.
+<!-- source: internal/le/commit/owed_trailers.go -- answering, changedUnits, answered, carriedItems -->
+
 The keywords `unverified` and `missing-full-verify-ok` were removed and are
 refused saying nothing replaces them, because no commit or push owes a local
 verify; `push` on `create` was removed and is refused naming
