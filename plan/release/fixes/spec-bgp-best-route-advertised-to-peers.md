@@ -12,7 +12,7 @@
 | Handoff | `tmp/session/2026-11-14-210034/state/session-state-bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md` |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Bucket: `plan/release/fixes/`. `plan/README.md` puts incorrect shipped
 behaviour there, routing defects named, and `post-release/features/` holds
@@ -79,7 +79,7 @@ Thomas also ruled how far the requirement reaches (Q-5 below): it binds
 learned routes carried by ordinary selected output, and leaves local origins
 and explicit route-server and reflector roles on today's default.
 
-### Implementation progress, 2026-11-18
+### Implementation progress, 2026-11-19
 
 This spec remains **in progress**. All 27 acceptance criteria remain in scope;
 the entries below distinguish landed work from source integration and proof.
@@ -100,7 +100,10 @@ Those commits do not close the spec or claim release readiness.
 | Cached-write settlement primitives | Committed in `bc88d02701e58c7d6c0d51d9f0c870d205eb977a` | Both standalone roots passed with race detection. Removing the nil-cause guard fails the same regression; the healthy source passed again afterward. Engine and SDK adoption remain part of the integration |
 | Internal source/owner metadata fields | Committed in `a3db9f5f1447cd830583ddb49af63a005049287b` | All 254 roots across BGP types and WireUpdate passed with race detection. These fields grant no authority and do not by themselves prove actual capture or output |
 | Registered route/marker variants and recovery grammar | Implemented in the combined working tree | Three route/marker roots and four recovery roots passed after fixture repairs; final source-fault and integration checks remain owed |
-| Real GR/RTR/ordinary-recipient scenario | All four lifecycle runs and 80 internal-purge stress iterations passed; four scenarios remain drafts | All four scenarios passed the complete real socket/RTR lifecycle, including the unchanged 45-second expiry timer. All six GR source-command cuts produced meaningful failures. The other three stress batches, final producing-code proof and promotion remain owed |
+| Real GR/RTR/ordinary-recipient scenario | All four scenarios promoted; each passed 80 stress invocations, 320 in total | The complete real socket/RTR lifecycle passed with the unchanged 45-second expiry timer. All six GR source-command cuts and both internal/forked purge publication proofs produced meaningful failures. Both expiry publication proofs remain owed: the internal attempt stopped at Fleet UI compilation before any scenario ran; the forked proof was not attempted under the same blocker |
+| Owner-scoped selected refresh completion | Test companions committed in `305be7110c` | All 14 scoped roots passed with race detection; four producing-code cuts reached meaningful failures. Scoped RIB lint still has 46 findings; this test publication closes no acceptance criterion |
+| Auxiliary source output leases and captured SENT provenance | Test companions committed in `e28d1fb0c2`, `8f19a1e20b` and `5d8b28ffc7` | All ten selected RIB roots and the standalone reactor and server roots passed with race detection. Four producing-code walks exposed unknown-completion acceptance, retained completed-batch references and lost original SENT session provenance |
+| GR fixture migration and semantic RFC record renewal | All 65 selected roots across the eight-carrier group passed with race detection | All six planned semantic records are observed: RFC4724-4.2-11 positive/negative for EOR purge and family scoping, RFC4724-4.2-7 positive/negative for expiry and timely reconnect, and RFC4724-4.2-8 positive/negative for absent and preserved forwarding state. The separate untagged writer-lock producer cut also reached its own assertion failure. This finite run is not full-package qualification or RFC conformance |
 | Process-safe RPKI validation batches | Committed in `58a6160f69`; original codec companion committed in `743252a277` | Four scoped regression roots passed with race detection. Both SDK transports reach the registered receive-store command owner, preserving original identities, cancellation, publication debt and terminal-owner refusal. Actual forked purge and expiry then passed after a temporary concurrent build failure cleared |
 | Captured-forward channel accounting | Committed in `2865747eb8` | All four new admitted/refused stored/cached debt cells passed with race detection. The original RS destination-owner test still fails its final causal marker in both attribute cases; this accounting repair does not establish that it is fixed |
 | Unconfirmed accepted-redistribution cleanup | Committed in `d6459f7412` | All 35 consumer-package roots passed with race detection, including failed replacement, exact predecessor cleanup and immutable replay. This preserves BGP accepted-input records; it does not add an upstream checked-withdrawal receipt |
@@ -110,6 +113,12 @@ Those commits do not close the spec or claim release readiness.
 The current execution evidence and exact source-review pins stay in the session
 state file named above. No acceptance criterion is marked complete solely
 because its source has been applied or committed.
+
+The positive EOR record's first baseline failed to compile
+because concurrent PPPoE fields were missing. Its retry passed the healthy
+question and failed its own purge assertion under the producer mutation; the
+negative record separately passed healthy and failed its whole-source-purge
+prohibition under mutation. The initial build failure earns no behavioral proof.
 
 After the narrow rerun passed nine selected RS roots and fifteen selected RIB
 roots, the broader race run completed with the following results:
@@ -181,12 +190,16 @@ reruns remain owed. That run did not reach the large-event root. Its isolated
 170,000-route race run passed, so the earlier full-run timeout remains under
 investigation rather than being declared resolved.
 
-The real GR/RTR draft now reaches retained-route advertisement, withdrawal
-and restoration on recipient TCP. Its purge stimulus used a selecting-RIB
-command that does not own passive validation cleanup. The independently
-reviewed correction reconnects with GR state preserved and sends real
-End-of-RIB, requiring passive removal while the successor is still open.
-Execution of that correction and all four complete variants remains owed.
+The four promoted GR/RTR scenarios cover retained-route advertisement,
+withdrawal and restoration on recipient TCP. Purge reconnects with GR state
+preserved and sends real End-of-RIB, requiring passive removal while the
+successor is still open. Each internal/forked purge and expiry variant passed
+80 stress invocations. The internal and forked purge publication proofs each
+passed their healthy scenario and failed the same socket assertion under the
+producing-code cut. The internal expiry proof had no baseline because Fleet
+UI compilation failed; the forked expiry proof was not attempted under that
+unchanged blocker. This build failure provides no behavioral proof, and both
+expiry publication proofs remain owed.
 
 ### Observed evidence
 

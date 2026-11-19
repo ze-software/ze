@@ -20,24 +20,27 @@ import (
 
 // rfc9494Down delivers a TCP-failure session-down for testPeer on one of the two
 // production event paths: the JSON handler or the structured (DirectBridge) one.
-func rfc9494Down(gp *grPlugin, structured bool) {
+func rfc9494Down(t testing.TB, gp *grPlugin, structured bool) {
+	t.Helper()
 	if structured {
-		gp.handleStructuredEvent(&rpc.StructuredEvent{PeerAddress: testPeer,
-			EventType: rpc.EventKindState, State: rpc.SessionStateDown, Reason: "tcp-failure"})
+		require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{
+			PeerAddress: testPeer, PeerOwner: 701, ConnectionID: 41,
+			EventType: rpc.EventKindState, State: rpc.SessionStateDown, Reason: rpc.ReasonTCPFailure,
+		}))
 		return
 	}
-	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+	require.NoError(t, gp.handleEvent(`{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"41","message":{"type":"state"},"peer":{"remote":{"address":"`+testPeer+`","as":65001}},"state":"down","reason":"tcp-failure"}}`))
 }
 
-// declareLocalLLGR records that Ze's own OPEN to testPeer carried the LLGR Capability
+// declareLocalLLGR records that the explicit original source's own OPEN carried the LLGR Capability
 // for families, which is what the operator's long-lived-stale-time puts there. Without
 // it a received LLGR family is ignored (RFC 9494 Section 5, exchangedLLGRLocked).
-func declareLocalLLGR(gp *grPlugin, families ...family.Family) {
+func declareLocalLLGR(gp *grPlugin, source grSource, families ...family.Family) {
 	declared := make(map[family.Family]bool, len(families))
 	for _, f := range families {
 		declared[f] = true
 	}
-	gp.recordSentLLGR(testPeer, declared)
+	gp.recordSentLLGR(source, declared)
 }
 
 // rfc9494Paths names the two session-down paths every test below runs on.
@@ -54,7 +57,7 @@ var rfc9494Paths = []struct {
 // is re-established, the stale routes for an AFI/SAFI MUST be retained", and "if the
 // Restart Time is zero and the Long-Lived Stale Time is nonzero, only the procedures
 // particular to LLGR would apply". The session-down sequence (purge the previous cycle's
-// stale routes, retain, mark stale) runs first; the LLGR entry then removes the NO_LLGR
+// stale routes when present, retain, mark stale) runs first; the LLGR entry then removes the NO_LLGR
 // routes, attaches LLGR_STALE (wire value ffff0006) and raises the stale level to 2. No
 // command after that purges or releases the retained routes.
 // PREVENTS: the LLGR entry firing inside onSessionDown, before the session-down sequence,
@@ -68,22 +71,22 @@ func TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod(t *testing.T) {
 	for _, path := range rfc9494Paths {
 		t.Run(path.name, func(t *testing.T) {
 			gp, rib := newGRWithRealRIB(t)
-			gp.peerCaps[testPeer] = testCap(0, famIPv4)
-			gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+			gp.peerCaps[rib.source.owner] = testCap(0, famIPv4)
+			gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
 			}}
-			declareLocalLLGR(gp, family.IPv4Unicast)
+			declareLocalLLGR(gp, rib.source, family.IPv4Unicast)
 			rib.received("18c63364", grReceivedAttrs)
 			rib.received("18c63365", grReceivedAttrs+"c00804ffff0007")
 			require.Len(t, rib.routes("198.51.101.0/24"), 1)
 
-			rfc9494Down(gp, path.structured)
+			rfc9494Down(t, gp, path.structured)
 
 			rib.down()
 			rib.requireStale("198.51.100.0/24", 2)
 			require.Contains(t, rib.communities("198.51.100.0/24"), uint32(0xffff0006))
 			require.Empty(t, rib.routes("198.51.101.0/24"))
-			assert.True(t, gp.state.peerActive(testPeer), "the received route remains retained for LLST")
+			assert.True(t, gp.state.peerActive(rib.source), "the received route remains retained for LLST")
 		})
 	}
 }
@@ -101,19 +104,19 @@ func TestRFC9494BothTimesZeroRetainsNothing(t *testing.T) {
 	for _, path := range rfc9494Paths {
 		t.Run(path.name, func(t *testing.T) {
 			gp, rib := newGRWithRealRIB(t)
-			gp.peerCaps[testPeer] = testCap(0, famIPv4)
-			gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+			gp.peerCaps[rib.source.owner] = testCap(0, famIPv4)
+			gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 0},
 			}}
-			declareLocalLLGR(gp, family.IPv4Unicast)
+			declareLocalLLGR(gp, rib.source, family.IPv4Unicast)
 			rib.received("18c63364", grReceivedAttrs)
 			require.Len(t, rib.routes("198.51.100.0/24"), 1)
 
-			rfc9494Down(gp, path.structured)
+			rfc9494Down(t, gp, path.structured)
 
 			rib.down()
 			require.Empty(t, rib.routes("198.51.100.0/24"))
-			assert.False(t, gp.state.peerActive(testPeer), "no LLST timer is armed for a zero Long-Lived Stale Time")
+			assert.False(t, gp.state.peerActive(rib.source), "no LLST timer is armed for a zero Long-Lived Stale Time")
 		})
 	}
 }
@@ -135,13 +138,13 @@ func TestRFC9494BothTimesZeroRetainsNothing(t *testing.T) {
 // RFC requirement: RFC9494-4.2-2 positive -- a nonzero received LLST bounds the second period; the route is present at LLGR entry and absent after its timer fires.
 func TestRFC9494RestartTimeThenLongLivedStaleTime(t *testing.T) {
 	gp, rib := newGRWithRealRIB(t)
-	gp.peerCaps[testPeer] = testCap(1, famIPv4)
-	gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+	gp.peerCaps[rib.source.owner] = testCap(1, famIPv4)
+	gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 		{Family: family.IPv4Unicast, ForwardState: true, LLST: 1},
 	}}
-	declareLocalLLGR(gp, family.IPv4Unicast)
+	declareLocalLLGR(gp, rib.source, family.IPv4Unicast)
 	rib.received("18c63364", grReceivedAttrs)
-	rfc9494Down(gp, false)
+	rfc9494Down(t, gp, false)
 	rib.down()
 	rib.requireStale("198.51.100.0/24", 1)
 	require.NotContains(t, rib.communities("198.51.100.0/24"), uint32(0xffff0006))
@@ -152,7 +155,7 @@ func TestRFC9494RestartTimeThenLongLivedStaleTime(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "the Restart Time elapsed and the retained route never entered LLGR")
 
 	gp.state.mu.Lock()
-	state := gp.state.peers[testPeer]
+	state := gp.state.peers[rib.source.owner]
 	require.NotNil(t, state, "the peer must still be retained at LLGR entry")
 	_, armed := state.llgrFamilies[family.IPv4Unicast]
 	gp.state.mu.Unlock()
@@ -188,21 +191,20 @@ func TestRFC9494DelayedDownPreservesLLSTDeadlines(t *testing.T) {
 			t.Run(path.name+"/"+tc.name, func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					gp, rib := newGRWithRealRIB(t)
-					gp.peerCaps[testPeer] = testCap(tc.restart, famIPv4, famIPv6)
-					gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+					gp.peerCaps[rib.source.owner] = testCap(tc.restart, famIPv4, famIPv6)
+					gp.peerLLGRCaps[rib.source.owner] = &llgrPeerCap{connectionID: rib.source.connectionID, Families: []llgrCapFamily{
 						{Family: family.IPv4Unicast, ForwardState: true, LLST: 2},
 						{Family: family.IPv6Unicast, ForwardState: true, LLST: 4},
 					}}
-					declareLocalLLGR(gp, family.IPv4Unicast, family.IPv6Unicast)
+					declareLocalLLGR(gp, rib.source, family.IPv4Unicast, family.IPv6Unicast)
 					rib.received("18c63364", grReceivedAttrs)
-					rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+					rib.receivedIPv6(grReceivedAttrs)
 					require.Len(t, rib.routes("2001:db8::/32"), 1)
 					gp.dispatchHook = func(command string, args ...string) {
-						if command == "request bgp rib purge-stale" {
-							if len(args) == 1 {
-								// Advance the fake clock while the initial DOWN dispatch is pending.
-								<-time.After(tc.delay)
-							}
+						if command == "request bgp rib source retain-routes" {
+							require.Equal(t, []string{"owner", "701", "connection", "41", "on-down", "families", "ipv4/unicast", "ipv6/unicast"}, args)
+							// Advance time while the actual first DOWN dispatch is pending.
+							<-time.After(tc.delay)
 						}
 						rib.command(command, args...)
 					}
@@ -222,16 +224,16 @@ func TestRFC9494DelayedDownPreservesLLSTDeadlines(t *testing.T) {
 							if time.Now().Before(entry.deadline) {
 								rib.requireStale(entry.prefix, 2)
 								require.Contains(t, rib.communities(entry.prefix), uint32(0xffff0006))
-								assert.True(t, gp.state.familyRetained(testPeer, entry.family))
+								assert.True(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), entry.family))
 							} else {
 								require.Empty(t, rib.routes(entry.prefix), "the original LLST deadline elapsed")
-								assert.False(t, gp.state.familyRetained(testPeer, entry.family))
+								assert.False(t, gp.state.familyRetained(grFixtureSource(t, testPeer, 701, 41), entry.family))
 							}
 						}
 					}
 
 					// RFC 9494 Section 4.2.
-					rfc9494Down(gp, path.structured)
+					rfc9494Down(t, gp, path.structured)
 					synctest.Wait()
 					rib.down()
 					checkRoutes()
@@ -247,7 +249,7 @@ func TestRFC9494DelayedDownPreservesLLSTDeadlines(t *testing.T) {
 						synctest.Wait()
 						checkRoutes()
 					}
-					assert.False(t, gp.state.peerActive(testPeer), "the last absolute LLST deadline releases the peer")
+					assert.False(t, gp.state.peerActive(rib.source), "the last absolute LLST deadline releases the peer")
 				})
 			})
 		}

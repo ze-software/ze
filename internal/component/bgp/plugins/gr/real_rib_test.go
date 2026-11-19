@@ -1,10 +1,12 @@
+// Design: docs/guide/graceful-restart.md -- registered received-route lifecycle.
+// Related: internal/test/pluginengine/pluginengine.go -- actual SDK startup and source leases.
 package gr
 
 import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,101 +18,53 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/test/pluginengine"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// realGRRIB runs the registered RIB engine and consumes GR's production command
-// boundary. Assertions read the RIB's stored routes, not copies of those commands.
+// realGRRIB runs the registered RIB engine on its actual SDK transport. Each
+// received physical source has a fixture-issued receipt, which the RIB MUST
+// acquire and retain through the real SDK before physical cleanup can use it.
+// Tests MUST let t.Cleanup stop GR timers, release RIB routes and join the SDK.
 type realGRRIB struct {
-	t   *testing.T
-	ctx context.Context
-	mux *rpc.MuxConn
+	t       *testing.T
+	ctx     context.Context
+	engine  *pluginengine.Engine
+	source  grSource
+	session uint64
+	receipt uint64
+	message uint64
 }
 
 func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	engine, plugin := net.Pipe()
-	mux := rpc.NewMuxConn(rpc.NewConn(engine, engine))
-	r := &realGRRIB{t: t, ctx: ctx, mux: mux}
-	finished := make(chan struct{})
-	go func() { defer close(finished); registry.Lookup("bgp-rib").RunEngine(plugin) }()
-	t.Cleanup(func() {
-		cancel()
-		if err := mux.Close(); err != nil {
-			t.Errorf("close RIB mux: %v", err)
-		}
-		if err := plugin.Close(); err != nil {
-			t.Errorf("close RIB plugin pipe: %v", err)
-		}
-		<-finished
-	})
-	next := func() *rpc.Request {
-		select {
-		case request := <-mux.Requests():
-			require.NotNil(t, request)
-			return request
-		case <-ctx.Done():
-			t.Fatal("RIB engine startup timed out")
-			return nil
-		}
-	}
-	request := next()
-	require.NoError(t, mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
-	_, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", &rpc.ConfigureInput{})
-	require.NoError(t, err)
-	request = next()
-	require.NoError(t, mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
-	_, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", &rpc.ShareRegistryInput{})
-	require.NoError(t, err)
-	request = next()
-	require.NoError(t, mux.SendOK(ctx, request.ID))
-	go func() {
-		for request := range mux.Requests() {
-			// bgp-rib emits its best-change and replay events through the
-			// SDK. No subscriber exists in this harness, so the emit reaches
-			// nobody: it is answered with zero deliveries, as an engine with
-			// no subscriber answers it.
-			if request.Method == rpc.MethodEmitEvent {
-				if err := mux.SendResult(ctx, request.ID, &rpc.EmitEventOutput{}); err != nil && ctx.Err() == nil {
-					t.Errorf("answer RIB emit-event: %v", err)
-				}
-				continue
-			}
-			// Peer-UP reports initial replay completion through dispatch-command.
-			// Command answers need a record terminator, not an RPC "ok" line.
-			if request.Method != "ze-plugin-engine:dispatch-command" {
-				t.Errorf("unexpected RIB host RPC %q", request.Method)
-				_ = mux.SendError(ctx, request.ID, "unexpected RIB host RPC")
-				continue
-			}
-			if err := rpc.WriteDocumentAnswer(mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{}, nil); err != nil && ctx.Err() == nil {
-				t.Errorf("answer RIB host command: %v", err)
-			}
-		}
-	}()
+	t.Cleanup(cancel)
+	registered := registry.Lookup("bgp-rib")
+	require.NotNil(t, registered)
+	engine := pluginengine.Start(t, pluginengine.TransportWire, registered.RunEngine)
+	source := grFixtureSource(t, testPeer, 701, 41)
+	r := &realGRRIB{t: t, ctx: ctx, engine: engine, source: source, session: 141}
+	r.receipt = engine.IssueSource(source.peer(), source.owner)
 	gp, _ := newRecordedGRPlugin()
-	gp.dispatchHook = func(command string, args ...string) {
-		r.command(command, args...)
-	}
+	gp.recordSentLLGR(source, nil)
+	gp.dispatchHook = func(command string, args ...string) { r.command(command, args...) }
 	t.Cleanup(func() {
-		gp.state.removePeer(testPeer)
+		gp.state.removePeer(source.grPeer)
+		// This explicit operator cleanup is deliberately peer-wide within the
+		// isolated fixture. GR itself always uses original physical commands.
 		r.command("request bgp rib release-routes", testPeer)
 	})
-	// Received UPDATEs belong to an established session. RIB tears down on
-	// the UP->DOWN edge, not an initial/repeated DOWN notification.
+	// Receive-only attachment records the original live source, without
+	// manufacturing an output recipient or an initial replay obligation.
 	r.up(testPeer)
 	return gp, r
 }
 
 func (r *realGRRIB) command(command string, args ...string) json.RawMessage {
 	r.t.Helper()
-	answer, err := r.mux.CallAnswer(r.ctx, "ze-plugin-callback:execute-command", &rpc.ExecuteCommandInput{Command: command, Peer: "*", Args: args})
+	data, err := r.engine.ExecutePeer(r.ctx, command, args, "*")
 	require.NoError(r.t, err)
-	data, err := rpc.CollapseAnswer(answer)
-	require.NoError(r.t, err)
-	require.NoError(r.t, answer.Err())
-	require.Equal(r.t, rpc.VerdictDone, answer.Verdict(), answer.Message())
 	return data
 }
 
@@ -118,44 +72,76 @@ func (r *realGRRIB) event(event map[string]any) {
 	r.t.Helper()
 	encoded, err := json.Marshal(event)
 	require.NoError(r.t, err)
-	_, err = r.mux.CallRPC(r.ctx, "ze-plugin-callback:deliver-event", &rpc.DeliverEventInput{Event: string(encoded)})
-	require.NoError(r.t, err)
+	require.NoError(r.t, r.engine.Deliver(r.ctx, string(encoded)))
 }
 
 func (r *realGRRIB) received(wire, attributes string) {
 	r.t.Helper()
+	r.receivedFamily(family.IPv4Unicast, wire, attributes, "192.0.2.1")
+}
+
+// receivedIPv6 supplies a received path, rather than the unrelated manual
+// forwarding slot whose unrecorded source cannot be retained by GR.
+func (r *realGRRIB) receivedIPv6(attributes string) {
+	r.t.Helper()
+	r.receivedFamily(family.IPv6Unicast, "2020010db8", attributes, "::1")
+}
+
+func (r *realGRRIB) receivedFamily(selected family.Family, wire, attributes, nextHop string) {
+	r.t.Helper()
 	raw, err := hex.DecodeString(wire)
 	require.NoError(r.t, err)
-	items, err := nlrisplit.Split(family.IPv4Unicast, raw, false)
+	items, err := nlrisplit.Split(selected, raw, false)
 	require.NoError(r.t, err)
 	prefixes := make([]string, 0, len(items))
 	for _, item := range items {
-		prefix, ok := nlri.WirePrefixToKey(item, family.IPv4Unicast)
+		prefix, ok := nlri.WirePrefixToKey(item, selected)
 		require.True(r.t, ok)
 		prefixes = append(prefixes, prefix.String())
 	}
-	// A format=full UPDATE carries both decoded family operations and raw
-	// bytes. The consumer intentionally admits no route without an operation.
-	// An UPDATE arrives only on an established session, so its peer object
-	// carries the negotiated remote AS (format.peerMap); bgp-rib drops one
-	// that does not.
+	r.message++
 	r.event(map[string]any{
-		"type": "update",
-		"peer": map[string]any{"remote": map[string]any{"address": testPeer, "as": 65001}},
-		"raw":  map[string]any{"attributes": attributes, "nlri": map[string]string{"ipv4/unicast": wire}},
-		"nlri": map[string]any{"ipv4/unicast": []map[string]any{{"action": "add", "next-hop": "192.0.2.1", "nlri": prefixes}}},
+		"type": "update", "peer-owner": r.source.owner,
+		"connection-id": strconv.FormatUint(r.source.connectionID, 10),
+		"msg-id":        r.message, "source-receipt": r.receipt, "source-policy-epoch": uint64(5),
+		"peer": map[string]any{"remote": map[string]any{"address": r.source.peer(), "as": 65001}, "local": map[string]any{"as": 65000}},
+		"raw":  map[string]any{"attributes": attributes, "nlri": map[string]string{selected.String(): wire}},
+		"nlri": map[string]any{selected.String(): []map[string]any{{"action": "add", "next-hop": nextHop, "nlri": prefixes}}},
 	})
 	for _, prefix := range prefixes {
 		require.Len(r.t, r.routes(prefix), 1, "received UPDATE must enter actual storage before lifecycle assertions")
 	}
 }
 
-func (r *realGRRIB) up(peer string) {
-	r.event(map[string]any{"type": "state", "state": "up", "peer": map[string]any{"remote": map[string]any{"address": peer}}})
+func (r *realGRRIB) state(state, reason string) {
+	r.event(map[string]any{
+		"type": "state", "state": state, "reason": reason,
+		"peer-owner": r.source.owner, "connection-id": strconv.FormatUint(r.source.connectionID, 10),
+		"destination-session": strconv.FormatUint(r.session, 10),
+		"peer":                map[string]any{"remote": map[string]any{"address": r.source.peer(), "as": 65001}, "local": map[string]any{"as": 65000}},
+	})
 }
 
-func (r *realGRRIB) down() {
-	r.event(map[string]any{"type": "state", "state": "down", "peer": map[string]any{"remote": map[string]any{"address": testPeer}}})
+func (r *realGRRIB) up(peer string) {
+	r.t.Helper()
+	require.Equal(r.t, r.source.peer(), peer, "UP must name the fixture's explicit source")
+	r.state("up", rpc.ReasonAttached)
+}
+
+func (r *realGRRIB) down() { r.state("down", rpc.ReasonTCPFailure) }
+
+// reconnect installs exactly the explicitly supplied successor actor. The
+// caller MUST give its newly captured physical source and independent UP token;
+// this fixture MUST issue a fresh receipt before delivering any successor input.
+func (r *realGRRIB) reconnect(source grSource, session uint64) {
+	r.t.Helper()
+	require.Equal(r.t, r.source.owner, source.owner)
+	require.NotEqual(r.t, r.source.connectionID, source.connectionID)
+	require.Positive(r.t, session)
+	require.NotEqual(r.t, r.session, session)
+	r.source, r.session = source, session
+	r.receipt = r.engine.IssueSource(source.peer(), source.owner)
+	r.up(source.peer())
 }
 
 func (r *realGRRIB) routes(prefix string) []map[string]any {

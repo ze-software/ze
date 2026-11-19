@@ -14,22 +14,22 @@
     "rid": "RFC4724-4.2-8",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes",
-    "unit-sha": "e3c6dc7a5ba2987e",
+    "unit-sha": "8ebf7fa7a4f78b7f",
     "claim-sha": "c0e1839ae4d92e79",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-    "producer-sha": "6d6a59547a1817ac",
-    "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "15ea6fb7eca95bf0",
+    "break": "line 365: \"newCap == nil\" -\u003e \"true || newCap == nil\""
   },
   {
     "rid": "RFC4724-4.2-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily",
-    "unit-sha": "08b39b9062390913",
+    "unit-sha": "33541abbc378403d",
     "claim-sha": "1841d76ee75c3e9b",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/gr/gr.go::forgetGRCapability",
-    "producer-sha": "f2f626609337d487",
-    "break": "body of forgetGRCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
+    "producer-sha": "15ea6fb7eca95bf0",
+    "break": "line 330: \"m.mu.Lock()\" -\u003e \"if source.connectionID != 0 { return grSource{}, nil, false }; m.mu.Lock()\""
   }
 ]

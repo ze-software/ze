@@ -44,9 +44,8 @@ func (d *dispatchRecorder) all() []string {
 func newRecordedGRPlugin() (*grPlugin, *dispatchRecorder) {
 	rec := &dispatchRecorder{}
 	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		removedPeers: make(map[string]bool),
+		peerCaps:     make(map[uint64]*grPeerCap),
+		peerLLGRCaps: make(map[uint64]*llgrPeerCap),
 		dispatchHook: rec.hook(),
 	}
 	gp.wireStateCallbacks()
@@ -77,11 +76,11 @@ func TestRFC4724SessionDownRetainsAndMarksRoutesStale(t *testing.T) {
 			if both {
 				cap.Families = append(cap.Families, famIPv6)
 			}
-			gp.peerCaps[testPeer] = cap
+			gp.peerCaps[rib.source.owner] = cap
 			rib.received("18c63364", grReceivedAttrs)
-			rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+			rib.receivedIPv6(grReceivedAttrs)
 			require.Len(t, rib.routes("2001:db8::/32"), 1)
-			gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+			gp.handleStateEvent(rib.source, map[string]any{"state": "down", "reason": "tcp-failure"})
 			rib.down()
 			rib.requireStale("198.51.100.0/24", 1)
 			if both {
@@ -101,7 +100,7 @@ func TestRFC4724SessionDownWithoutCapabilityRetainsNothing(t *testing.T) {
 	gp, rib := newGRWithRealRIB(t)
 	rib.received("18c63364", grReceivedAttrs)
 	require.Len(t, rib.routes("198.51.100.0/24"), 1)
-	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+	gp.handleStateEvent(rib.source, map[string]any{"state": "down", "reason": "tcp-failure"})
 	rib.down()
 	require.Empty(t, rib.routes("198.51.100.0/24"))
 }
@@ -119,13 +118,13 @@ func TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking(t *testing.T) {
 		t.Run(path.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				gp, rib := newGRWithRealRIB(t)
-				gp.peerCaps[testPeer] = testCap(0, famIPv4)
+				gp.peerCaps[rib.source.owner] = testCap(0, famIPv4)
 				rib.received("18c63364", grReceivedAttrs)
 
 				var rec dispatchRecorder
 				record := rec.hook()
 				gp.dispatchHook = func(command string, args ...string) {
-					if command == "request bgp rib purge-stale" {
+					if command == "request bgp rib source retain-routes" {
 						// A prematurely armed zero timer would finish before retain.
 						synctest.Wait()
 					}
@@ -134,16 +133,15 @@ func TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking(t *testing.T) {
 				}
 
 				// RFC 4724 Section 4.2.
-				rfc9494Down(gp, path.structured)
+				rfc9494Down(t, gp, path.structured)
 				synctest.Wait()
 				require.Equal(t, []string{
-					"request bgp rib purge-stale " + testPeer,
-					"request bgp rib retain-routes " + testPeer + " on-down ipv4/unicast",
-					"request bgp rib mark-stale " + testPeer + " 0",
-					"request bgp rib release-routes " + testPeer,
+					"request bgp rib source retain-routes owner 701 connection 41 on-down families ipv4/unicast",
+					"request bgp rib source mark-stale owner 701 connection 41 restart-time 0",
+					"request bgp rib source release-routes owner 701 connection 41",
 				}, rec.all())
 				require.Empty(t, rib.routes("198.51.100.0/24"), "GR expiry must delete the retained route")
-				assert.False(t, gp.state.peerActive(testPeer))
+				assert.False(t, gp.state.peerActive(rib.source))
 				rib.down()
 				require.Empty(t, rib.routes("198.51.100.0/24"), "RIB DOWN must not restore retention")
 			})
@@ -169,12 +167,13 @@ func TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking(t *testing.T) {
 // RFC requirement: RFC4724-4.2-3 positive -- a GR-capable peer's session drop marks
 // stale exactly the address families its Graceful Restart Capability carried.
 func TestRFC4724RetentionCoversEveryAdvertisedFamily(t *testing.T) {
-	mgr := newGRStateManager(nil)
+	source := grFixtureSource(t, testPeer, 701, 41)
+	mgr := grFixtureState(t, source, nil)
 
-	require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4, famIPv6), nil, false))
+	require.True(t, mgr.onSessionDown(source, testCap(120, famIPv4, famIPv6), nil, false))
 
 	mgr.mu.Lock()
-	state := mgr.peers[testPeer]
+	state := mgr.peers[source.owner]
 	require.NotNil(t, state)
 	stale := make(map[family.Family]bool, len(state.staleFamilies))
 	maps.Copy(stale, state.staleFamilies)
@@ -198,7 +197,7 @@ func TestRFC4724RetentionCoversEveryAdvertisedFamily(t *testing.T) {
 // stale routes of that AFI/SAFI from the neighbor that it is retaining."
 //
 // VALIDATES: onLLGRFamilyExpired (gr.go wireStateCallbacks) turns the expiry into
-// "request bgp rib purge-stale <peer> <family>", which is the command that performs
+// "request bgp rib source purge-stale owner <id> connection <id> family <family>", which performs
 // the deletion. TestRIBPurgeStaleFamilyCommand (plugins/rib) proves that command
 // deletes the family's stale routes and leaves the other family alone.
 // PREVENTS: the expiry firing into a callback nobody wired. Emptying that one
@@ -209,6 +208,8 @@ func TestRFC4724RetentionCoversEveryAdvertisedFamily(t *testing.T) {
 // still down deletes that family's retained stale routes, and only that family's.
 func TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes(t *testing.T) {
 	gp, rec := newRecordedGRPlugin()
+	source := grFixtureSource(t, testPeer, 701, 41)
+	t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
 
 	// restart-time 0 enters the LLGR period at once, so the 1-second LLST timer is
 	// armed now. ipv6's LLST is long enough that it cannot elapse during the test.
@@ -218,15 +219,15 @@ func TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes(t *testing.T) {
 			{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600},
 		},
 	}
-	gp.state.onSessionDown(testPeer, testCap(0, famIPv4, famIPv6), llgrCap, false)
+	gp.state.onSessionDown(source, testCap(0, famIPv4, famIPv6), llgrCap, false)
 
-	wantPurge := "request bgp rib purge-stale " + testPeer + " " + family.IPv4Unicast.String()
+	wantPurge := "request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv4Unicast.String()
 	require.Eventually(t, func() bool {
 		return slices.Contains(rec.all(), wantPurge)
 	}, 5*time.Second, 20*time.Millisecond,
 		"the ipv4 Long-Lived Stale Time elapsed and its stale routes were never deleted")
 
 	assert.NotContains(t, rec.all(),
-		"request bgp rib purge-stale "+testPeer+" "+family.IPv6Unicast.String(),
+		"request bgp rib source purge-stale owner 701 connection 41 family "+family.IPv6Unicast.String(),
 		"ipv6's Long-Lived Stale Time has not elapsed, so its stale routes must still be retained")
 }

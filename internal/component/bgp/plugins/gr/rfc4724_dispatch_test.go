@@ -16,7 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // rfc4724RetainingPlugin builds a plugin with the production callbacks whose peer advertised
@@ -26,11 +28,46 @@ import (
 func rfc4724RetainingPlugin(t *testing.T, cap *grPeerCap) (*grPlugin, func() []string) {
 	t.Helper()
 	gp, rec := newRecordedGRPlugin()
-	gp.peerCaps[testPeer] = cap
-	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+	source := grFixtureSource(t, testPeer, 701, 41)
+	t.Cleanup(func() { gp.state.removePeer(source.grPeer) })
+	rfc4724OpenSource(t, gp, source, cap)
+	gp.handleStateEvent(source, map[string]any{"state": "down", "reason": "tcp-failure"})
 	before := len(rec.all())
-	require.Equal(t, 3, before, "the session-down sequence purges, retains and marks stale")
+	require.Equal(t, 2, before, "the first DOWN retains and marks its original connection; it has no prior stale cycle to purge")
 	return gp, func() []string { return rec.all()[before:] }
+}
+
+// rfc4724OpenSource supplies the given GR capability through the actual sent
+// and received OPEN handlers. Each caller MUST provide its explicit original
+// or successor physical source; this helper MUST preserve its family/F facts.
+func rfc4724OpenSource(t *testing.T, gp *grPlugin, source grSource, cap *grPeerCap) {
+	t.Helper()
+	families := make([][4]byte, 0, len(cap.Families))
+	for _, item := range cap.Families {
+		flags := byte(0)
+		if item.ForwardState {
+			flags = 0x80
+		}
+		families = append(families, [4]byte{byte(item.Family.AFI >> 8), byte(item.Family.AFI), byte(item.Family.SAFI), flags})
+	}
+	body := buildOpenBody(buildCapabilityParam(buildGRCapTLV(0, cap.RestartTime, families)))
+	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
+		require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{
+			EventType: rpc.EventKindOpen, PeerAddress: source.peer(), PeerOwner: source.owner,
+			ConnectionID: source.connectionID, Direction: direction,
+			RawMessage: &bgptypes.RawMessage{RawBytes: body},
+		}))
+	}
+}
+
+// rfc4724ReconnectSource establishes a distinct physical connection of the
+// same original configured Peer before an EOR or reconnection assertion.
+func rfc4724ReconnectSource(t *testing.T, gp *grPlugin, cap *grPeerCap) grSource {
+	t.Helper()
+	successor := grFixtureSource(t, testPeer, 701, 42)
+	rfc4724OpenSource(t, gp, successor, cap)
+	gp.handleStateEvent(successor, map[string]any{"state": "up"})
+	return successor
 }
 
 // rfc4724EOR is the End-of-RIB event payload handleEOREvent reads.
@@ -44,18 +81,21 @@ func rfc4724EOR(fam family.Family) map[string]any {
 // VALIDATES: RFC 4724 Section 4.2 -- "Once the End-of-RIB marker for an address family is
 // received from the peer, it MUST immediately remove any routes from the peer that are still
 // marked as stale for that address family." handleEOREvent dispatches
-// "request bgp rib purge-stale <peer> ipv4/unicast" at once; TestRIBPurgeStaleFamilyCommand
+// "request bgp rib source purge-stale owner <id> connection <id> family ipv4/unicast"
+// at once; TestGRSourceCommandsPreserveOtherPhysicalRoutes
 // (plugins/rib) proves that command removes the family's stale routes.
 // PREVENTS: onEORReceived answering true while no RIB command is sent.
 //
+// MUTATION: omit the original-source purge dispatch from handleEOREvent.
 // RFC requirement: RFC4724-4.2-11 positive -- an End-of-RIB for IPv4 unicast from a peer whose routes are retained as stale dispatches exactly one command, purge-stale for that peer and IPv4 unicast, before the handler returns.
 func TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes(t *testing.T) {
 	gp, sent := rfc4724RetainingPlugin(t, testCap(120, famIPv4, famIPv6))
 
-	gp.handleEOREvent(testPeer, rfc4724EOR(family.IPv4Unicast))
+	successor := rfc4724ReconnectSource(t, gp, testCap(120, famIPv4, famIPv6))
+	gp.handleEOREvent(successor, rfc4724EOR(family.IPv4Unicast))
 
 	assert.Equal(t, []string{
-		"request bgp rib purge-stale " + testPeer + " " + family.IPv4Unicast.String(),
+		"request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv4Unicast.String(),
 	}, sent(), "End-of-RIB removes the stale routes of its own family")
 }
 
@@ -68,17 +108,19 @@ func TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes(t *testing.T) {
 // PREVENTS: a purge of the whole peer on the first End-of-RIB, which deletes the routes of
 // families whose End-of-RIB has not arrived.
 //
+// MUTATION: omit the family argument from handleEOREvent and purge the whole source.
 // RFC requirement: RFC4724-4.2-11 negative -- the IPv4 unicast End-of-RIB never dispatches a purge for IPv6 unicast or for the whole peer, and an End-of-RIB for IPv4 multicast, a family the peer did not retain, dispatches nothing.
 func TestRFC4724EndOfRIBLeavesOtherFamiliesStale(t *testing.T) {
 	gp, sent := rfc4724RetainingPlugin(t, testCap(120, famIPv4, famIPv6))
 
-	gp.handleEOREvent(testPeer, rfc4724EOR(family.IPv4Unicast))
-	gp.handleEOREvent(testPeer, rfc4724EOR(family.IPv4Multicast))
+	successor := rfc4724ReconnectSource(t, gp, testCap(120, famIPv4, famIPv6))
+	gp.handleEOREvent(successor, rfc4724EOR(family.IPv4Unicast))
+	gp.handleEOREvent(successor, rfc4724EOR(family.IPv4Multicast))
 
 	got := sent()
-	assert.NotContains(t, got, "request bgp rib purge-stale "+testPeer+" "+family.IPv6Unicast.String(),
+	assert.NotContains(t, got, "request bgp rib source purge-stale owner 701 connection 41 family "+family.IPv6Unicast.String(),
 		"IPv6 unicast has not sent its End-of-RIB, so its stale routes stay")
-	assert.NotContains(t, got, "request bgp rib purge-stale "+testPeer,
+	assert.NotContains(t, got, "request bgp rib source purge-stale owner 701 connection 41",
 		"an End-of-RIB never purges the whole peer")
 	assert.Len(t, got, 1, "only the IPv4 unicast End-of-RIB dispatches a command")
 }
@@ -89,16 +131,17 @@ func TestRFC4724EndOfRIBLeavesOtherFamiliesStale(t *testing.T) {
 // VALIDATES: RFC 4724 Section 4.2 -- "If the session does not get re-established within the
 // 'Restart Time' that the peer advertised previously, the Receiving Speaker MUST delete all
 // the stale routes from the peer that it is retaining." The production timer callback
-// (onTimerExpired) dispatches "request bgp rib release-routes <peer>", the command that
+// (onTimerExpired) dispatches "request bgp rib source release-routes owner <id> connection <id>", the command that
 // deletes every retained route of the peer (rib_commands.go).
 // PREVENTS: the timer firing into a callback that deletes nothing.
 //
+// MUTATION: omit the source release dispatch from releaseRoutes.
 // RFC requirement: RFC4724-4.2-7 positive -- with a Restart Time of 1 second and no re-establishment, the plugin dispatches release-routes for the peer once the time elapses.
 func TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes(t *testing.T) {
 	_, sent := rfc4724RetainingPlugin(t, testCap(1, famIPv4, famIPv6))
 
 	require.Eventually(t, func() bool {
-		return slices.Contains(sent(), "request bgp rib release-routes "+testPeer)
+		return slices.Contains(sent(), "request bgp rib source release-routes owner 701 connection 41")
 	}, 5*time.Second, 20*time.Millisecond, "the Restart Time elapsed and the stale routes were kept")
 }
 
@@ -111,11 +154,13 @@ func TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes(t *testing.T) {
 // PREVENTS: a Restart Time timer that keeps running after re-establishment and deletes the
 // routes the restarting peer is about to refresh.
 //
+// MUTATION: ignore successor reestablishment so the original Restart Time still expires.
 // RFC requirement: RFC4724-4.2-7 negative -- re-established within a 1-second Restart Time with F set for both families, nothing is dispatched during the following 2 seconds: no release-routes, no purge-stale.
 func TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes(t *testing.T) {
 	gp, sent := rfc4724RetainingPlugin(t, testCap(1, famIPv4, famIPv6))
 
-	gp.handleStateEvent(testPeer, map[string]any{"state": "up"})
+	rfc4724ReconnectSource(t, gp, testCap(1, famIPv4, famIPv6))
+	// sleep(timer): wait past the original one-second Restart Time to expose a late release after reconnection.
 	time.Sleep(2 * time.Second)
 
 	assert.Empty(t, sent(), "a session re-established in time keeps its routes")
@@ -130,17 +175,18 @@ func TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes(t *testing.T) {
 // the Graceful Restart Capability is not received in the re-established session at all, then
 // the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is
 // retaining for that address family." handleStateEvent dispatches purge-stale for exactly the
-// families concerned when the "up" event arrives; TestRIBPurgeStaleFamilyCommand (plugins/rib)
+// families concerned when the "up" event arrives; TestGRSourceCommandsPreserveOtherPhysicalRoutes (plugins/rib)
 // proves the command removes them.
 // PREVENTS: onSessionReestablished answering the right families while nothing is purged.
 //
 // Each case delivers the re-established session's OPEN through handleEvent, the production
 // path, so the capability the "up" event reads is the one that OPEN left behind.
 //
+// MUTATION: ignore successor reestablishment so missing forwarding-state families stay stale.
 // RFC requirement: RFC4724-4.2-8 positive -- on re-establishment after an OPEN delivered through handleEvent, the plugin dispatches purge-stale for IPv4 unicast when its F bit is clear, for IPv6 unicast when the new capability omits it, and for both families when the OPEN carries only capability 65 and no Graceful Restart Capability.
 func TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily(t *testing.T) {
-	purgeIPv4 := "request bgp rib purge-stale " + testPeer + " " + family.IPv4Unicast.String()
-	purgeIPv6 := "request bgp rib purge-stale " + testPeer + " " + family.IPv6Unicast.String()
+	purgeIPv4 := "request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv4Unicast.String()
+	purgeIPv6 := "request bgp rib source purge-stale owner 701 connection 41 family " + family.IPv6Unicast.String()
 	cases := []struct {
 		name string
 		caps string // the capabilities array of the re-established session's OPEN
@@ -156,12 +202,18 @@ func TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily(t *testing.T)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gp, sent := rfc4724RetainingPlugin(t, testCap(120, famIPv4, famIPv6))
-			open := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},` +
+			successor := grFixtureSource(t, testPeer, 701, 42)
+			require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{
+				EventType: rpc.EventKindOpen, PeerAddress: successor.peer(), PeerOwner: successor.owner,
+				ConnectionID: successor.connectionID, Direction: rpc.DirectionSent,
+				RawMessage: &bgptypes.RawMessage{RawBytes: buildOpenBody(nil)},
+			}))
+			open := `{"type":"bgp","bgp":{"peer-owner":701,"connection-id":"42","message":{"type":"open","direction":"received"},` +
 				`"peer":{"remote":{"address":"` + testPeer + `","as":65001}},` +
 				`"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":` + tc.caps + `}}}`
 			require.NoError(t, gp.handleEvent(open))
 
-			gp.handleStateEvent(testPeer, map[string]any{"state": "up"})
+			gp.handleStateEvent(successor, map[string]any{"state": "up"})
 
 			assert.ElementsMatch(t, tc.want, sent(), "exactly the families without preserved forwarding state are purged")
 		})
@@ -177,11 +229,12 @@ func TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily(t *testing.T)
 // PREVENTS: a purge of every family on re-establishment, which deletes the routes the peer
 // preserved forwarding state for.
 //
+// MUTATION: treat every successor capability as absent and purge families whose F bits are set.
 // RFC requirement: RFC4724-4.2-8 negative -- re-established with F set for IPv4 and IPv6 unicast, the plugin dispatches no purge-stale at all.
 func TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes(t *testing.T) {
 	gp, sent := rfc4724RetainingPlugin(t, testCap(120, famIPv4, famIPv6))
 
-	gp.handleStateEvent(testPeer, map[string]any{"state": "up"})
+	rfc4724ReconnectSource(t, gp, testCap(120, famIPv4, famIPv6))
 
 	assert.Empty(t, sent(), "F set for every family: nothing is purged on re-establishment")
 }

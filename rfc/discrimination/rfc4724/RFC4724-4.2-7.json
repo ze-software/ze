@@ -36,23 +36,23 @@
     "rid": "RFC4724-4.2-7",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes",
-    "unit-sha": "eda5d2fa6459bb7b",
+    "unit-sha": "5415a917c6dc9c96",
     "claim-sha": "cb0b653665d1c218",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-    "producer-sha": "6d6a59547a1817ac",
-    "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "15ea6fb7eca95bf0",
+    "break": "line 330: \"m.mu.Lock()\" -\u003e \"if source.connectionID != 0 { return grSource{}, nil, false }; m.mu.Lock()\""
   },
   {
     "rid": "RFC4724-4.2-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes",
-    "unit-sha": "3c574d4d21c87ddb",
+    "unit-sha": "b4287643e9ec7b9c",
     "claim-sha": "45cf567665f72a7a",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/gr/gr.go::onTimerExpired",
-    "producer-sha": "80d310ef185f745b",
-    "break": "body of onTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::releaseRoutes",
+    "producer-sha": "86bd14497d4604a3",
+    "break": "line 750: \"gp.dispatchSource(source, \\\"request bgp rib source release-routes\\\")\" -\u003e \"_ = source\""
   },
   {
     "rid": "RFC4724-4.2-7",

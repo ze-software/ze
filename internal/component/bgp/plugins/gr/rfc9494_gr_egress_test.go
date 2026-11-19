@@ -21,7 +21,7 @@ import (
 // reactor supplies it per destination via dest.LocalAS, so tests set that field
 // on the destination PeerFilterInfo instead. The mutex stands in for grPlugin.mu,
 // which the production state shares with the map's writers.
-func newTestEgressState(llgrPeers map[string]*llgrPeerCap) *egressFilterState {
+func newTestEgressState(llgrPeers map[uint64]*llgrPeerCap) *egressFilterState {
 	return &egressFilterState{
 		mu:           new(sync.Mutex),
 		peerLLGRCaps: llgrPeers,
@@ -33,14 +33,14 @@ func newTestEgressState(llgrPeers map[string]*llgrPeerCap) *egressFilterState {
 // VALIDATES: AC-7: non-stale route passes through without modification.
 // PREVENTS: Filter incorrectly acting on normal routes.
 func TestLLGREgressFilter_NonStale(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
-		"10.0.0.1": {}, // One peer has LLGR caps
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
+		101: {connectionID: 55}, // One peer has LLGR caps
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	// No meta["stale"] => non-stale route, should pass through.
@@ -81,9 +81,9 @@ func TestLLGREgressFilter_StaleDepreferencesRegardlessOfActiveCount(t *testing.T
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	// iBGP: dest.PeerAS == dest.LocalAS, and NOT in peerLLGRCaps (non-LLGR).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	// iBGP: the actual IsIBGP fact is true, and this owner is not in peerLLGRCaps.
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -102,8 +102,8 @@ func TestLLGREgressFilter_FreshRouteIsTheOnlyFastPath(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	var mods filterapi.ModAccumulator
 
 	// No "stale" key: a normal, non-readvertised route.
@@ -124,9 +124,9 @@ func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	// EBGP: dest.PeerAS (65001) != dest.LocalAS (65000).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -160,9 +160,9 @@ func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.
 func TestLLGREgressFilter_NilStateWithdrawsEBGP(t *testing.T) {
 	setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	// EBGP: dest.PeerAS (65001) != dest.LocalAS (65000).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -188,9 +188,9 @@ func TestLLGREgressFilter_NilStateWithdrawsEBGP(t *testing.T) {
 func TestLLGREgressFilter_NilStateDepreferencesIBGP(t *testing.T) {
 	setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	// IBGP: dest.PeerAS (65000) == dest.LocalAS (65000).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	// IBGP: the actual IsIBGP fact is true for this internal session.
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -224,8 +224,8 @@ func TestLLGREgressFilter_NilStateDepreferencesIBGP(t *testing.T) {
 func TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute(t *testing.T) {
 	setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	accept := LLGREgressFilter(src, dest, nil, map[string]any{}, &mods)
@@ -313,8 +313,8 @@ func TestLLGREgressFilterWarnsWhenStateMissing(t *testing.T) {
 	egressStateMissingWarned.Store(false)
 	setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	meta := map[string]any{"stale": uint8(2)}
 
 	var mods filterapi.ModAccumulator
@@ -342,14 +342,14 @@ func TestLLGREgressFilterWarnsWhenStateMissing(t *testing.T) {
 // peerLLGRCaps it has been received, so LLGREgressFilter returns before the
 // withdraw and depreference branches and leaves the accumulator empty.
 func TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
-		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
+		102: {connectionID: 55, Families: []llgrCapFamily{{LLST: 3600}}},
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -374,14 +374,14 @@ func TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer(t *testing.T) {
 // LLGR-capable neighbor: that same early return leaves the accumulator empty, so the depreference
 // applies only to the partial-deployment path.
 func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
-		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
+		102: {connectionID: 55, Families: []llgrCapFamily{{LLST: 3600}}},
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -401,15 +401,15 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 // isIBGP test fails and it converts the announce to a withdrawal with mods.SetWithdraw
 // (internal/component/bgp/plugins/gr/gr_egress.go).
 func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	// EBGP: dest.PeerAS (65001) != dest.LocalAS (65000).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -437,15 +437,15 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 // mods.Op(attrCodeLocalPref, AttrModSet, localPrefZero), the localPrefZero package var
 // (internal/component/bgp/plugins/gr/gr_egress.go).
 func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
 		// 10.0.0.2 NOT in peerLLGRCaps => non-LLGR
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	// IBGP: dest.PeerAS (65000) == dest.LocalAS (65000).
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	// IBGP: the actual IsIBGP fact is true for this internal session.
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
@@ -480,39 +480,37 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	assert.True(t, hasLocalPrefSet, "should set LOCAL_PREF=0 (attr code 5)")
 }
 
-// TestLLGREgressIBGPClassification is the wiring test for the local-AS fix
-// (plan/spec-fixit-local-asn-config-key.md AC-3). It proves the LLGR egress
-// filter classifies iBGP vs eBGP from the reactor-supplied dest.LocalAS, NOT
-// from a config-parsed value that was always 0. With the old bug (localAS==0),
-// no real peer classified as iBGP and every stale iBGP route was wrongly
-// withdrawn; here the same AS on both sides must take the NO_EXPORT branch.
+// TestLLGREgressIBGPClassification preserves the original local-AS regression
+// outcomes with the reactor's explicit session classification. IsIBGP, rather
+// than re-comparing these ASNs, selects the RFC 9494 Section 4.6 procedure.
+// The migration-versus-external case lives in gr_owner_egress_test.go.
 func TestLLGREgressIBGPClassification(t *testing.T) {
 	// 10.0.0.2 not LLGR-capable so classification is exercised.
-	state := newTestEgressState(map[string]*llgrPeerCap{})
+	state := newTestEgressState(map[uint64]*llgrPeerCap{})
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
 	meta := map[string]any{"stale": uint8(2)}
 
-	// Case 1: iBGP (dest.PeerAS == dest.LocalAS): NO_EXPORT + LOCAL_PREF=0, no withdraw.
-	ibgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	// Case 1: explicitly internal session: NO_EXPORT + LOCAL_PREF=0, no withdraw.
+	ibgp := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	var ibgpMods filterapi.ModAccumulator
 	assert.True(t, LLGREgressFilter(src, ibgp, nil, meta, &ibgpMods), "iBGP stale route accepted")
 	assert.False(t, ibgpMods.IsWithdraw(), "iBGP stale route must NOT be withdrawn (RFC 9494 4.5.3)")
 	assert.GreaterOrEqual(t, ibgpMods.Len(), 2, "iBGP stale route gets NO_EXPORT + LOCAL_PREF=0")
 
-	// Case 2: eBGP (dest.PeerAS != dest.LocalAS): withdrawal.
-	ebgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	// Case 2: explicitly external session: withdrawal.
+	ebgp := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var ebgpMods filterapi.ModAccumulator
 	assert.True(t, LLGREgressFilter(src, ebgp, nil, meta, &ebgpMods), "eBGP stale route accepted (converted to withdrawal)")
 	assert.True(t, ebgpMods.IsWithdraw(), "eBGP stale route withdrawn")
 
 	// Regression guard: the old bug used a captured local AS of 0, so an iBGP
 	// peer whose AS is 65000 would compare 65000 == 0 and fall to the eBGP
-	// withdrawal branch. A dest.LocalAS of 0 must therefore classify a
-	// nonzero-AS peer as eBGP (withdraw), never iBGP.
-	zeroLocal := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 0}
+	// withdrawal branch. Keep that withdrawal control, with IsIBGP false:
+	// the filter reads the explicit classification, not the zero local ASN.
+	zeroLocal := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 0}
 	var zeroMods filterapi.ModAccumulator
 	assert.True(t, LLGREgressFilter(src, zeroLocal, nil, meta, &zeroMods), "route accepted")
 	assert.True(t, zeroMods.IsWithdraw(), "peer with LocalAS==0 must not be misread as iBGP")
@@ -527,8 +525,8 @@ func TestLLGREgressFilter_NilMeta(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
 	var mods filterapi.ModAccumulator
 
 	accept := LLGREgressFilter(src, dest, nil, nil, &mods)
@@ -561,13 +559,13 @@ func TestLLGREgressFilter_NilMeta(t *testing.T) {
 // without -race, and it is not decoration: it proves the writers really write.
 // If decodeLLGR rejected llgrCapBytes, or the filter stopped reading the
 // writers' map, the concurrent phase would still pass while exercising nothing.
+// MUTATION: ignore every recorded capability in hasLLGR; the capable serial tail must fail.
 func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 	gp := &grPlugin{
-		peerCaps:     make(map[string]*grPeerCap),
-		peerLLGRCaps: make(map[string]*llgrPeerCap),
-		removedPeers: make(map[string]bool),
+		peerCaps:     make(map[uint64]*grPeerCap),
+		peerLLGRCaps: make(map[uint64]*llgrPeerCap),
 	}
-	gp.state = newGRStateManager(func(string) {})
+	gp.state = newGRStateManager(func(grSource) {})
 	setEgressState(&egressFilterState{mu: &gp.mu, peerLLGRCaps: gp.peerLLGRCaps})
 	defer setEgressState(nil)
 
@@ -575,9 +573,13 @@ func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 	// (RFC 9494 Section 3) wrapped in its code/length header.
 	llgrCapBytes := []byte{71, 7, 0x00, 0x01, 0x01, 0x80, 0x00, 0x0e, 0x10}
 	const peerAddr = "10.0.0.2"
+	peerSource, sourceErr := newGRSource(peerAddr, 102, 55)
+	if sourceErr != nil {
+		t.Fatal(sourceErr)
+	}
 
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr(peerAddr), PeerAS: 65001, LocalAS: 65000}
+	src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr(peerAddr), PeerAS: 65001, LocalAS: 65000}
 	meta := map[string]any{"stale": uint8(2)}
 
 	var wg sync.WaitGroup
@@ -590,8 +592,8 @@ func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 		})
 		wg.Go(func() { // writer: the peer flapping
 			for range 500 {
-				gp.extractGRCaps(peerAddr, llgrCapBytes, false)
-				gp.onPeerRemoved(peerAddr)
+				gp.extractGRCaps(peerSource, llgrCapBytes, false)
+				gp.onPeerRemoved(peerSource.grPeer)
 			}
 		})
 	}
@@ -600,13 +602,13 @@ func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 	// Serial tail. The state holds gp.peerLLGRCaps by reference, so the map the
 	// flapping wrote is the map the filter reads, and each writer's effect on the
 	// filter's answer is now checkable with nothing else running.
-	gp.extractGRCaps(peerAddr, llgrCapBytes, false)
+	gp.extractGRCaps(peerSource, llgrCapBytes, false)
 	var capable filterapi.ModAccumulator
 	LLGREgressFilter(src, dest, nil, meta, &capable)
 	assert.False(t, capable.IsWithdraw(), "RFC 9494 Section 4.3: an LLGR-capable EBGP peer keeps the stale route")
 	assert.Equal(t, 0, capable.Len(), "the EBGP path adds no attribute op")
 
-	gp.onPeerRemoved(peerAddr)
+	gp.onPeerRemoved(peerSource.grPeer)
 	var incapable filterapi.ModAccumulator
 	LLGREgressFilter(src, dest, nil, meta, &incapable)
 	assert.True(t, incapable.IsWithdraw(), "RFC 9494 Section 4.3: a stale route is withdrawn from an EBGP peer that sent no LLGR Capability")
@@ -620,8 +622,8 @@ func TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock(t *testing.T) {
 // It reads only; the concurrent WRITER case is
 // TestLLGREgressFilterReadsPeerCapsUnderTheWritersLock above.
 func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
-	state := newTestEgressState(map[string]*llgrPeerCap{
-		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
+	state := newTestEgressState(map[uint64]*llgrPeerCap{
+		102: {connectionID: 55, Families: []llgrCapFamily{{LLST: 3600}}},
 	})
 	setEgressState(state)
 	defer setEgressState(nil)
@@ -632,8 +634,8 @@ func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-			dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501, LocalAS: 64500}
+			src := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 101, Address: netip.MustParseAddr("10.0.0.1")}
+			dest := filterapi.PeerFilterInfo{ConnectionID: 55, PeerOwner: 102, Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501, LocalAS: 64500}
 			var mods filterapi.ModAccumulator
 			meta := map[string]any{"stale": uint8(2)}
 			if !LLGREgressFilter(src, dest, nil, meta, &mods) {

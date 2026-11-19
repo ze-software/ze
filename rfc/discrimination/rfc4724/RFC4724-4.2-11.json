@@ -3,22 +3,22 @@
     "rid": "RFC4724-4.2-11",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale",
-    "unit-sha": "b837b57d99d9227b",
+    "unit-sha": "4b21d2fad2ef85f6",
     "claim-sha": "e311953135ffa5fa",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleEOREvent",
-    "producer-sha": "927d0e3bb8ee86bc",
-    "break": "body of handleEOREvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "df6d046fd6663335",
+    "break": "line 733: \"gp.dispatchSource(retainedSource, \\\"request bgp rib source purge-stale\\\", \\\"family\\\", famStr)\" -\u003e \"gp.dispatchSource(retainedSource, \\\"request bgp rib source purge-stale\\\")\""
   },
   {
     "rid": "RFC4724-4.2-11",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes",
-    "unit-sha": "c615fccb72547600",
+    "unit-sha": "31e5818aae9d78df",
     "claim-sha": "b07b1ddc920bda7e",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleEOREvent",
-    "producer-sha": "927d0e3bb8ee86bc",
-    "break": "body of handleEOREvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "df6d046fd6663335",
+    "break": "line 733: \"gp.dispatchSource(retainedSource, \\\"request bgp rib source purge-stale\\\", \\\"family\\\", famStr)\" -\u003e \"_ = retainedSource\""
   }
 ]
