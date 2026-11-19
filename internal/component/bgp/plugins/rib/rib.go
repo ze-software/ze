@@ -889,9 +889,8 @@ func runRIBPlugin(conn net.Conn) int {
 	r.startRecoveryRemovals(ctx, r.sendRecoveryRemoval)
 	defer r.shutdownReceivedSources()
 	err = p.Run(ctx, &sdk.Registration{
-		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
-		// that changes it, for the config transaction (config_tx.go).
-		WantsConfig:         []string{configRootBGP},
+		// Receive BGP policy and system distances at Stage 2 and on reload.
+		WantsConfig:         []string{configRootBGP, "rib"},
 		Commands:            commandDecls(),
 		Dissemination:       disseminationDecls(),
 		SignalsSessionReady: true,

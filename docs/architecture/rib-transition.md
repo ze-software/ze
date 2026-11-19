@@ -164,6 +164,12 @@ facts with its learned winner.
 <!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- newOriginContribution, originPreferenceLocked, electOriginLocked -->
 <!-- source: internal/component/bgp/plugins/rib/rib_origin_preferences.go -- parseOriginPreferences, installOriginPreferences -->
 
+Internal and forked RIB processes request the `bgp` and `rib` configuration
+roots. A reload of either root keeps the installed settings from the other.
+Removing `rib` restores the default distances through the config transaction.
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+<!-- source: internal/component/bgp/plugins/rib/config_tx.go -- newConfigTx, parseRIBConfigSections -->
+
 ### Target: API Program Owns RIB
 
 ```

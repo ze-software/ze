@@ -9,15 +9,14 @@ package rib
 
 import (
 	"reflect"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// ribConfig is every leaf of the bgp subtree the rib reads: the selection
-// rules (maximum-paths, relax-as-path, the RFC 7999 honoring rules) and the
-// AS notation it renders paths in.
+// ribConfig holds the BGP settings and the system distance table the RIB reads.
 type ribConfig struct {
 	maximumPaths uint32
 	relaxASPath  bool
@@ -42,13 +41,26 @@ func unconfiguredRIB() ribConfig {
 // (SetConfigTree), and a second writer could leave a rolled-back candidate's
 // notation in force.
 func (r *RIBManager) newConfigTx(recordsNotation bool) *sdk.ConfigTx[ribConfig] {
-	install := func(cfg ribConfig) error {
-		return r.installConfig(cfg, recordsNotation)
+	initial := unconfiguredRIB()
+	var running atomic.Pointer[ribConfig]
+	parse := func(sections []sdk.ConfigSection) (ribConfig, bool, error) {
+		if current := running.Load(); current != nil {
+			return parseRIBConfigSections(*current, sections)
+		}
+		return parseRIBConfig(sections)
 	}
-	return sdk.NewConfigTx(unconfiguredRIB(), parseRIBConfig, install)
+	install := func(cfg ribConfig) error {
+		if err := r.installConfig(cfg, recordsNotation); err != nil {
+			return err
+		}
+		// Publish one immutable base for the next changed-root delivery.
+		running.Store(&cfg)
+		return nil
+	}
+	return sdk.NewConfigTx(initial, parse, install)
 }
 
-// parseRIBConfig reads the rib's config from the bgp section of one delivery.
+// parseRIBConfig reads the first delivery over the default BGP and RIB settings.
 // It changes no state, so a refused verify and a CLI validate leave the
 // running rib as it was.
 //
@@ -57,9 +69,18 @@ func (r *RIBManager) newConfigTx(recordsNotation bool) *sdk.ConfigTx[ribConfig] 
 // discard traffic, and a rejected edit that silently keeps running with the
 // old answer is the worst of the three outcomes.
 func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
+	return parseRIBConfigSections(unconfiguredRIB(), sections)
+}
+
+// parseRIBConfigSections applies each delivered root to the installed base.
+// Omitted roots keep their settings. An empty delivered root resets its settings.
+func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribConfig, bool, error) {
 	distances, readDistances, distanceError := parseOriginPreferences(sections)
 	if distanceError != nil {
 		return ribConfig{}, false, distanceError
+	}
+	if readDistances {
+		cfg.distances = distances
 	}
 	for _, section := range sections {
 		if section.Root != configRootBGP {
@@ -69,8 +90,6 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 		if !ok {
 			return ribConfig{}, false, errRibInvalidBgpConfigJson
 		}
-		var cfg ribConfig
-		cfg.distances = distances
 		var err error
 		cfg.maximumPaths, cfg.relaxASPath, err = extractMultipathConfig(bgpCfg)
 		if err != nil {
@@ -91,8 +110,6 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 		return cfg, true, nil
 	}
 	if readDistances {
-		cfg := unconfiguredRIB()
-		cfg.distances = distances
 		return cfg, true, nil
 	}
 	return ribConfig{}, false, nil
