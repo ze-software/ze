@@ -24,6 +24,7 @@ require (
 	github.com/cilium/ebpf v0.22.0
 	github.com/cloudflare/circl v1.6.5
 	github.com/creack/pty v1.1.24
+	github.com/cyphar/filepath-securejoin v0.7.0
 	github.com/gaissmai/bart v0.30.0
 	github.com/gofrs/flock v0.13.2
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4
@@ -32,6 +33,7 @@ require (
 	github.com/golangci/golangci-lint/v2 v2.15.0
 	github.com/google/nftables v0.3.0
 	github.com/insomniacslk/dhcp v0.0.0-20261014062924-c6bb46ad3f3a
+	github.com/klauspost/compress v1.20.3
 	github.com/mdlayher/genetlink v1.4.0
 	github.com/mdlayher/netlink v1.11.2
 	github.com/mdlayher/packet v1.2.0
@@ -63,7 +65,7 @@ require (
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.47.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	golang.org/x/tools v0.52.0
 	golang.org/x/tools/gopls v0.24.0 // first Go 1.27-compatible revision after v0.23.0
 	golang.org/x/vuln v1.9.0
@@ -143,7 +145,6 @@ require (
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/curioswitch/go-reassign v0.3.0 // indirect
-	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/daixiang0/gci v0.14.0 // indirect
 	github.com/dave/dst v0.28.0 // indirect
 	github.com/denis-tingaikin/go-header v0.5.0 // indirect
@@ -206,7 +207,6 @@ require (
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kisielk/errcheck v1.30.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
-	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/kulti/thelper v0.7.1 // indirect
 	github.com/kunwardeep/paralleltest v1.0.16 // indirect
 	github.com/ldez/exptostd v0.4.5 // indirect
