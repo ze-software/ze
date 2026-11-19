@@ -977,6 +977,14 @@ packet whose Ze address is outside the local selectors; a protocol-0 bypass
 above it may not be overridden for every triggering packet, but it is for
 some.
 
+**Owner decision, 2026-11-19: the kernel honours an operator discard.** K1 (the
+state-scope patch) is extended so the reverse ICMP-error check never overrides
+an operator DISCARD entry, and the commit refusal `refuseICMPCheckDiscard` is
+removed. A discard entry beside a peer with the default `icmp-error-check` is
+then accepted and drops what it names, ICMP included. `refuseICMPErrorBypass`
+is not part of this decision and stays. Until that change lands, the paragraph
+above describes the tree.
+
 A `vti bind` peer is skipped by both. Its policies carry the xfrm interface's
 if_id, and an operator entry if_id 0. The reverse lookup of
 `icmp_route_lookup` and `icmpv6_route_lookup` is `xfrm_lookup`, which is
@@ -990,6 +998,13 @@ at Error level under `config-plugin-verify`, the code under which the
 `config-semantics` doctor check reports it: that check runs every plugin's
 offline verifier over the running configuration, so the IPsec plugin carries
 no doctor check of its own for it.
+
+**Owner decision, 2026-11-19: start-up never refuses the IPsec block.** A boot
+configuration that holds a conflict a commit would refuse is kept, and so is an
+SPD entry that fails to install at boot: Ze installs what it can, logs each
+problem at Error, and `ze doctor` reports the conflict and the command that
+fixes it. The door's trap records why: an earlier start-time refusal left a box
+with no tunnels at all.
 
 <!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, verifyICMPOverlap, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
@@ -1261,6 +1276,16 @@ released by the IKE engine. The
 engine records whether configuration reached the SPD writers (`spdApplied`);
 an SDK startup failure before it removes nothing, so a pre-existing policy it
 never managed survives.
+
+**Owner decision, 2026-11-19: the IKE bypass is per socket.** Ze's IKE bypass
+becomes per-socket XFRM policies on Ze's own IKE sockets, as strongSwan does,
+and the node-wide any-address UDP port 500 and 4500 bypass (`ikeBypassPolicies`,
+`installIKEBypass`) is removed. The node-wide out entry can also match a packet
+forwarded from a protected host with source port 500 or 4500, and send it in
+clear where the tunnel should carry it. A per-socket policy matches
+only traffic of the socket it is set on, so it exempts Ze's own IKE and nothing
+it forwards. Until that change lands, the BYPASS row of the table above and the
+lifetime paragraph describe the tree.
 
 BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
 neither names a mode, a tunnel endpoint pair or a reqid, and both are built

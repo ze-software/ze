@@ -8,7 +8,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-01 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -80,6 +80,31 @@ Step two, in his words:
 
 This spec is step two. The intent to send an upstream patch is part of the ruling. This
 spec must keep it, and no phase can drop it.
+
+### Amended scope, 2026-11-19: port ranges
+
+This item moved here from the Work Not Done table of
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md`, because it works the same
+mechanism: the kernel selector's port and its separate port mask.
+
+RFC 4301 Section 4.4.1.1 says: "Each of these selectors has a list of ranges of
+values." Ze accepts ANY or one port in an operator SPD entry
+(`internal/component/ike/ipsec/spd_policy.go::parseSPDPort`), and ANY, OPAQUE or one
+port in a configured traffic selector
+(`internal/component/ike/ipsec/traffic_selector.go::parsePortSelector`). Every other
+range is refused. `ipsec.PortSelector` has those three forms only, so negotiation
+(`engine/ts_narrow.go::intersectPort`) and the Child SA policy builder
+(`engine/child.go::selectorPort`) carry no range either. The refusal meets "never
+widened" and leaves `RFC4301-4.4.1.1-1` a gap.
+
+The dataplane can already carry an explicit port mask: `dataplane.PortMatch` holds a
+port and a mask, and the vendored `selFromPolicy` sends an explicit
+`DstPortMask` or `SrcPortMask` as given, which is how an ICMP code range reaches the
+kernel as mask-aligned blocks (`spdICMPMatches`). A port range is programmed the same
+way: the smallest set of mask-aligned port blocks that covers exactly the range, one
+policy per block. A range the backend cannot program exactly stays refused at commit
+and is never widened. The item is a missing feature, so it waits until after the
+first release with the rest of this spec. AC-14 is its criterion.
 
 ## Required Reading
 
@@ -428,6 +453,7 @@ reader usually loses the read half, and the read half is what blocks the proof.
 | AC-11 | `go mod vendor` runs and the local patch is not re-applied | The marker test fails and names the re-apply command |
 | AC-12 | The VPP backend receives an opaque port match | It expresses the match, or it refuses at `ze config verify` with an error naming the backend |
 | AC-13 | The full change is reverted and the QEMU test runs | The QEMU test fails. A green test over a reverted change proves nothing |
+| AC-14 | An operator SPD entry and a configured traffic selector each name a port range that is neither ANY nor one port, such as 1024 to 2047 and 1000 to 1999, and are committed; a peer proposes a selector with a port range (amended scope, 2026-11-19) | The commit succeeds. The kernel holds the smallest set of mask-aligned port blocks that covers exactly each range, read back with each block's port and mask. A packet on a port inside the range takes the entry's or the Child SA's disposition, and one on the port just outside each end does not. A proposed range is intersected as a range and answered with the result. A range a backend cannot program exactly is refused at commit with the backend named, never widened. The port-range part of the `RFC4301-4.4.1.1-1` gap text is removed |
 
 ## End-to-End User Stories
 
