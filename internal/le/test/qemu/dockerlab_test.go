@@ -109,8 +109,8 @@ func TestDockerLabHostLeTargetsTheForwardedSocket(t *testing.T) {
 	if got := strings.Join(lab, " "); got != "env IPSEC_INTEROP_SCENARIO=mobike-initiator /ze/le test integration interop-ipsec" {
 		t.Errorf("lab argv %q", got)
 	}
-	environ := dockerLabEnviron([]string{"HOME=/h", "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock"}, "/ze/tmp/qemu/docker-lab-1/docker.sock")
-	if !slices.Contains(environ, "DOCKER_HOST=unix:///ze/tmp/qemu/docker-lab-1/docker.sock") || slices.Contains(environ, "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock") {
+	environ := dockerLabEnviron([]string{"HOME=/h", "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock"}, "/run/user/1000/zdl-1/docker.sock")
+	if !slices.Contains(environ, "DOCKER_HOST=unix:///run/user/1000/zdl-1/docker.sock") || slices.Contains(environ, "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock") {
 		t.Errorf("environ %q does not name the forwarded socket alone", environ)
 	}
 	if _, err := dockerLabEnvironment("FOO=bar", false); err == nil {
@@ -178,7 +178,7 @@ while :; do sleep 0.1; done
 // a leftover listing that never runs after an interrupt, and an interrupt
 // that ends the run with exit 0.
 func TestDockerLabForwardsOneInterruptThenStopsTheVM(t *testing.T) {
-	run, tree, logPath := fakeDockerLabRun(t)
+	run, _, logPath := fakeDockerLabRun(t)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -207,7 +207,7 @@ func TestDockerLabForwardsOneInterruptThenStopsTheVM(t *testing.T) {
 	if len(events) != 5 {
 		t.Fatalf("events %q, want check, lab, teardown, listing, qemu stopped", events)
 	}
-	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
+	socket := "DOCKER_HOST=unix://" + filepath.Join(run.ops.Getenv("XDG_RUNTIME_DIR"), "zdl-")
 	for i, want := range []string{"le setup docker kernel check ze /ze " + socket, "le test lab " + socket, "le teardown", "listing", "qemu stopped"} {
 		if !strings.HasPrefix(events[i], want) {
 			t.Errorf("event %d = %q, want it to start %q", i, events[i], want)
@@ -221,14 +221,29 @@ func TestDockerLabForwardsOneInterruptThenStopsTheVM(t *testing.T) {
 // log it writes to.
 func fakeDockerLabRun(t *testing.T) (*Run, string, string) {
 	t.Helper()
-	tree, err := os.MkdirTemp("/tmp", "zdl") // short: the socket path must fit sun_path
+	return fakeDockerLabRunAt(t, "")
+}
+
+// fakeDockerLabRunAt is fakeDockerLabRun with the checkout at nested, a
+// relative path under the fixture's directory, so a test can make the
+// checkout's path as long as it needs. The forwarded socket's base,
+// XDG_RUNTIME_DIR in run.ops.Getenv, is a short directory of its own.
+func fakeDockerLabRunAt(t *testing.T, nested string) (*Run, string, string) {
+	t.Helper()
+	root, err := os.MkdirTemp("/tmp", "zdl") // under /tmp: the fake guest's share root
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(tree) }) //nolint:errcheck // test cleanup
-	if err := os.Mkdir(filepath.Join(tree, "tmp"), 0o700); err != nil {
+	t.Cleanup(func() { os.RemoveAll(root) }) //nolint:errcheck // test cleanup
+	tree := filepath.Join(root, nested)
+	if err := os.MkdirAll(filepath.Join(tree, "tmp"), 0o700); err != nil {
 		t.Fatal(err)
 	}
+	socketBase, err := os.MkdirTemp("/tmp", "zds") // short: the socket path must fit sun_path
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(socketBase) }) //nolint:errcheck // test cleanup
 	bin := t.TempDir()
 	for name, body := range map[string]string{runQEMUBinary("amd64"): fakeDockerLabQEMU, sshProgram: fakeDockerLabSSH} {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o700); err != nil { //nolint:gosec // an executable test fixture
@@ -243,11 +258,17 @@ func fakeDockerLabRun(t *testing.T) (*Run, string, string) {
 	t.Setenv("LOG", logPath)
 
 	run := NewRun(tree, RunOptions{Memory: "512", CPUs: "1", Boot: 10 * time.Second, Timeout: time.Minute, SSHPort: 2222, HardwareOnly: true})
-	// The fake guest mounts nothing; the tree sits under /tmp for sun_path.
+	// The fake guest mounts nothing; the tree sits under /tmp, a share root.
 	run.shareMountRoots = append(run.shareMountRoots, "/tmp")
 	run.ops.GOARCH = "amd64"
 	run.ops.Accelerator = func() string { return acceleratorKVM }
 	run.ops.Sleep = func(context.Context, time.Duration) error { return nil }
+	run.ops.Getenv = func(name string) string {
+		if name == "XDG_RUNTIME_DIR" {
+			return socketBase
+		}
+		return os.Getenv(name)
+	}
 	run.ops.Run = func(_ context.Context, spec commandSpec) (commandResult, error) {
 		if spec.Name == "ssh-keygen" {
 			key := spec.Args[len(spec.Args)-1]
@@ -273,7 +294,7 @@ func fakeDockerLabRun(t *testing.T) (*Run, string, string) {
 // PREVENTS: an empty lab running `le` bare, which lists actions and exits 0,
 // read as a passing lab.
 func TestDockerLabWithoutALabEndsAtTheCheck(t *testing.T) {
-	run, tree, logPath := fakeDockerLabRun(t)
+	run, _, logPath := fakeDockerLabRun(t)
 	report, err := run.dockerLab(t.Context(), dockerLabRequest{image: "/img", linuxZe: "/ze"})
 	if err != nil {
 		t.Fatalf("dockerLab: %v", err)
@@ -282,7 +303,7 @@ func TestDockerLabWithoutALabEndsAtTheCheck(t *testing.T) {
 		t.Errorf("report %+v: want the check's exit 0, not interrupted", report)
 	}
 	events := strings.Split(strings.TrimSpace(readLog(t, logPath)), "\n")
-	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
+	socket := "DOCKER_HOST=unix://" + filepath.Join(run.ops.Getenv("XDG_RUNTIME_DIR"), "zdl-")
 	if len(events) == 0 || !strings.HasPrefix(events[0], "le setup docker kernel check ze /ze "+socket) {
 		t.Fatalf("events %q, want the kernel check first", events)
 	}
@@ -293,6 +314,111 @@ func TestDockerLabWithoutALabEndsAtTheCheck(t *testing.T) {
 	}
 	if events[len(events)-1] != "qemu stopped" {
 		t.Errorf("events %q, want the VM stopped last", events)
+	}
+}
+
+// VALIDATES: a checkout whose path leaves the old in-checkout socket,
+// tmp/qemu/docker-lab-<n>/docker.sock, above unixSocketPathMax no longer
+// refuses: the run reaches the host le's check with DOCKER_HOST on a socket
+// in a private directory under XDG_RUNTIME_DIR, and removes that directory
+// and the checkout's run directory when it returns.
+// METHOD: dockerLab over the fakes of TestDockerLabForwardsOneInterruptThenStopsTheVM
+// with the checkout nested deep enough that the old socket path is too long,
+// reading the event log and both directories afterwards.
+// PREVENTS: docker-lab refusing to start from a .claude/worktrees/ checkout,
+// where ai/owner/machines.md requires cross-machine work to run.
+func TestDockerLabRunsFromALongCheckoutPath(t *testing.T) {
+	run, tree, logPath := fakeDockerLabRunAt(t, strings.Repeat("a-long-checkout-directory/", 5))
+	if old := filepath.Join(tree, "tmp", "qemu", "docker-lab-4294967295", "docker.sock"); len(old) <= unixSocketPathMax {
+		t.Fatalf("the fixture checkout %s is too short to prove anything: the old socket %s is %d bytes", tree, old, len(old))
+	}
+	report, err := run.dockerLab(t.Context(), dockerLabRequest{image: "/img", linuxZe: "/ze"})
+	if err != nil {
+		t.Fatalf("dockerLab from a %d-byte checkout: %v", len(tree), err)
+	}
+	if report.CheckExit != 0 {
+		t.Errorf("report %+v: want the check's exit 0", report)
+	}
+	socketBase := run.ops.Getenv("XDG_RUNTIME_DIR")
+	events := strings.Split(strings.TrimSpace(readLog(t, logPath)), "\n")
+	socket := "DOCKER_HOST=unix://" + filepath.Join(socketBase, "zdl-")
+	if !strings.HasPrefix(events[0], "le setup docker kernel check ze /ze "+socket) || !strings.HasSuffix(events[0], "/docker.sock") {
+		t.Fatalf("events %q, want the kernel check first, on a socket under %s", events, socketBase)
+	}
+	if entries, err := os.ReadDir(socketBase); err != nil || len(entries) != 0 {
+		t.Errorf("socket base %s holds %v (err %v) after the run, want the run's socket directory removed", socketBase, entries, err)
+	}
+	entries, err := os.ReadDir(run.vmRecordDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "docker-lab-") && entry.IsDir() {
+			t.Errorf("run directory %s left behind", entry.Name())
+		}
+	}
+}
+
+// VALIDATES: the socket's directory is made private (0700) under
+// XDG_RUNTIME_DIR, else TMPDIR, else /tmp; and a base so long the socket
+// path cannot fit refuses, naming the variable and the command that fixes it
+// on the last line, and hands back the directory it made for removal.
+// METHOD: dockerLabSocketBase over fake environments, then dockerLabSocket
+// under a short base and under a base nested past unixSocketPathMax.
+// PREVENTS: a socket path ssh cannot bind reached only after the VM boots,
+// and a refusal that names no fix.
+func TestDockerLabSocketDirectory(t *testing.T) {
+	for _, env := range []struct{ xdg, tmp, variable, base string }{
+		{"/run/user/1000", "/var/tmp", "XDG_RUNTIME_DIR", "/run/user/1000"},
+		{"", "/var/tmp", "TMPDIR", "/var/tmp"},
+		{"", "", "TMPDIR", "/tmp"},
+	} {
+		variable, base := dockerLabSocketBase(func(name string) string {
+			switch name {
+			case "XDG_RUNTIME_DIR":
+				return env.xdg
+			case "TMPDIR":
+				return env.tmp
+			}
+			return ""
+		})
+		if variable != env.variable || base != env.base {
+			t.Errorf("XDG_RUNTIME_DIR=%q TMPDIR=%q: base %s from %s, want %s from %s", env.xdg, env.tmp, base, variable, env.base, env.variable)
+		}
+	}
+
+	run, _, _ := fakeDockerLabRun(t)
+	socket, dir, err := run.dockerLabSocket()
+	if err != nil {
+		t.Fatalf("dockerLabSocket under a short base: %v", err)
+	}
+	if filepath.Dir(socket) != dir || filepath.Dir(dir) != run.ops.Getenv("XDG_RUNTIME_DIR") {
+		t.Errorf("socket %s in %s, want docker.sock in a directory under %s", socket, dir, run.ops.Getenv("XDG_RUNTIME_DIR"))
+	}
+	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0o700 {
+		t.Errorf("socket directory %s: %v, err %v; want mode 0700", dir, info, err)
+	}
+
+	long := filepath.Join(run.ops.Getenv("XDG_RUNTIME_DIR"), strings.Repeat("a-long-runtime-directory/", 5))
+	if err := os.MkdirAll(long, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	run.ops.Getenv = func(name string) string {
+		if name == "XDG_RUNTIME_DIR" {
+			return long
+		}
+		return ""
+	}
+	_, dir, err = run.dockerLabSocket()
+	if err == nil {
+		t.Fatal("a socket path above unixSocketPathMax was accepted")
+	}
+	if dir == "" || filepath.Dir(dir) != long {
+		t.Errorf("refusal handed back directory %q, want the one it made under %s for the caller to remove", dir, long)
+	}
+	lines := strings.Split(err.Error(), "\n")
+	if !strings.Contains(lines[0], "XDG_RUNTIME_DIR="+long) || lines[len(lines)-1] != "  XDG_RUNTIME_DIR=/tmp ./le test qemu docker-lab <same arguments>" {
+		t.Errorf("refusal %q: want the variable on the first line and the fix command alone on the last", err)
 	}
 }
 

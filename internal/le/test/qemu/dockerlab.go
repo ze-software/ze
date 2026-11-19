@@ -425,7 +425,13 @@ func (r *Run) dockerLab(ctx context.Context, request dockerLabRequest) (DockerLa
 		return report, err
 	}
 	report.Accelerator, report.Console = vm.accelerator, vm.console
-	socket := filepath.Join(dir, "docker.sock")
+	socket, socketDir, err := r.dockerLabSocket()
+	if socketDir != "" {
+		defer r.ops.FS.RemoveAll(socketDir) //nolint:errcheck // a per-run directory; the next run makes its own
+	}
+	if err != nil {
+		return report, err
+	}
 
 	stopVMOnce, err := r.dockerLabBoot(vm, dir)
 	if err != nil {
@@ -466,10 +472,49 @@ func (r *Run) dockerLab(ctx context.Context, request dockerLabRequest) (DockerLa
 	return report, nil
 }
 
+// dockerLabSocket creates the run's private directory for the forwarded
+// Docker socket, mode 0700, and answers the socket's path and that directory.
+// The caller MUST remove the directory when it is not empty, error or not.
+// The directory sits under a short base (dockerLabSocketBase), never under
+// the checkout: a unix socket path holds at most unixSocketPathMax bytes, and
+// a checkout under .claude/worktrees/, where ai/owner/machines.md puts
+// cross-machine work, already leaves too few of them.
+func (r *Run) dockerLabSocket() (string, string, error) {
+	variable, base := dockerLabSocketBase(r.ops.Getenv)
+	dir, err := r.ops.FS.MkdirTemp(base, "zdl-")
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create the directory for the forwarded Docker socket under %s (%s): %w."+
+			" Fix: set %s to a writable directory and rerun:\n  %s=/tmp ./le test qemu docker-lab <same arguments>",
+			base, variable, err, variable, variable)
+	}
+	socket := filepath.Join(dir, "docker.sock")
+	if len(socket) > unixSocketPathMax {
+		return "", dir, fmt.Errorf("the forwarded Docker socket %s is %d bytes, above the %d a unix socket path holds,"+
+			" so ssh cannot create it; its directory comes from %s=%s."+
+			" Fix: set %s to a directory at least %d bytes shorter and rerun:\n  %s=/tmp ./le test qemu docker-lab <same arguments>",
+			socket, len(socket), unixSocketPathMax, variable, base, variable, len(socket)-unixSocketPathMax, variable)
+	}
+	return socket, dir, nil
+}
+
+// dockerLabSocketBase answers where the forwarded socket's directory is made,
+// and the variable that named it: XDG_RUNTIME_DIR when set (the user's private
+// runtime directory on Linux), else TMPDIR, else /tmp, the same fallback as
+// os.TempDir on Unix.
+func dockerLabSocketBase(getenv func(string) string) (string, string) {
+	if dir := getenv("XDG_RUNTIME_DIR"); dir != "" {
+		return "XDG_RUNTIME_DIR", dir
+	}
+	if dir := getenv("TMPDIR"); dir != "" {
+		return "TMPDIR", dir
+	}
+	return "TMPDIR", "/tmp"
+}
+
 // dockerLabPrepare answers the VM to boot and the run's directory under the
-// checkout's tmp/qemu, holding the run's ssh key, the cidata volume, the
-// forwarded socket and QEMU's diagnostics. The caller MUST remove the
-// directory when it is not empty, error or not.
+// checkout's tmp/qemu, holding the run's ssh key, the cidata volume and QEMU's
+// diagnostics. The caller MUST remove the directory when it is not empty,
+// error or not.
 func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation string) (dockerLabVM, string, error) {
 	vm := dockerLabVM{goarch: r.ops.GOARCH, image: image, memory: r.Options.Memory, cpus: r.Options.CPUs}
 	if _, err := r.ops.Look(runQEMUBinary(vm.goarch)); err != nil {
@@ -500,12 +545,6 @@ func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation strin
 	dir, err := r.ops.FS.MkdirTemp(parent, "docker-lab-")
 	if err != nil {
 		return vm, "", fmt.Errorf("create the docker-lab directory under %s: %w", parent, err)
-	}
-	if r.Options.Kernel == "" {
-		if socket := filepath.Join(dir, "docker.sock"); len(socket) > unixSocketPathMax {
-			return vm, dir, fmt.Errorf("the forwarded Docker socket %s is %d bytes, above the %d a unix socket path holds."+
-				" Fix: run from a checkout whose path is at least %d bytes shorter", socket, len(socket), unixSocketPathMax, len(socket)-unixSocketPathMax)
-		}
 	}
 	key := filepath.Join(dir, "id_ed25519")
 	generated, err := r.runCommand(ctx, commandSpec{

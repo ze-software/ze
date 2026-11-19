@@ -824,9 +824,14 @@ The Docker lab branch then:
 1. cross-builds the linux `ze` the kernel check probes with
    (`tmp/qemu/linux-<arch>/ze`, daemon feature tags, through job admission);
 2. creates a per-run directory `tmp/qemu/docker-lab-<n>/` holding an ed25519
-   key `ssh-keygen` makes for the run and the cidata volume, and refuses when
-   the forwarded socket's path there would be longer than the 103 bytes a unix
-   socket path holds;
+   key `ssh-keygen` makes for the run and the cidata volume, then a private
+   directory (mode 0700) for the forwarded socket, `zdl-<n>/` under
+   `$XDG_RUNTIME_DIR` when it is set, else `$TMPDIR`, else `/tmp`. The socket
+   lives outside the checkout because a unix socket path holds 103 bytes, and
+   a checkout under `.claude/worktrees/` leaves too few of them
+   (`dockerLabSocket`). A base so long that the socket path would not fit
+   refuses before the VM boots, naming the variable to point at a shorter
+   directory;
 3. writes the cidata volume: an ISO 9660 image labelled `cidata` holding
    Lima's `lima.env`, `meta-data`, `user-data` and `boot.sh`, the files the
    image's boot reads (`dockerhost.ParseCidata`). The user is `ze` (uid 1001,
@@ -865,7 +870,7 @@ The Docker lab branch then:
    the console, because the run directory holding that log is removed when the
    run returns (`dockerLabBootFailure`);
 6. forwards the guest's `/var/run/docker.sock` with `ssh -N -L` to
-   `tmp/qemu/docker-lab-<n>/docker.sock`, created mode 0600
+   `docker.sock` in that private directory, created mode 0600
    (`StreamLocalBindMask=0177`; any other mode refuses the run);
 7. runs, on the host, `./le setup docker kernel check ze <linux ze>` with
    `DOCKER_HOST` naming that socket, and, when it passes and a `lab` is named,
@@ -876,7 +881,8 @@ The Docker lab branch then:
    `ze-interop-retained:` image tags (the DUT image kept under its cache tag is
    allowed to stay). The line reads `docker-lab: left behind: none`, or the
    list, or `unknown` when dockerd does not answer the listing;
-9. stops the ssh forward, then the VM, and removes the per-run directory.
+9. stops the ssh forward, then the VM, and removes the socket's directory and
+   the per-run directory.
 
 The exit status is 1 for an interrupted run, else the check's when it failed,
 else the lab's.
