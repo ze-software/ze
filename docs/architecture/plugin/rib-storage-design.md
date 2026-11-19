@@ -266,8 +266,13 @@ An empty selection still reports readiness through that worker. A source-only
 observer or explicit-role recipient keeps the legacy state behavior and starts
 no ordinary worker. DOWN cancels and joins only the worker named by its captured
 connection token, even when delivery no longer marks that process eligible.
+If the join deadline expires, the destination remains owed until its worker
+finishes. The worker releases its own session and any obsolete scoped selection
+once the last writer for that scope has joined.
 The worker never discovers authority by trying a selected RPC; the engine's
 final writer independently checks permission on every operation.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- destinationDown, destinationFinished -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- pruneDisconnectedOriginsLocked -->
 
 A targeted `state` up with reason `export-policy` asks only the existing ordinary
 owner to re-evaluate current learned selections on the same captured Session.

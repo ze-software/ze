@@ -393,13 +393,6 @@ func (d *selectedDispatch) destinationDown(ctx context.Context, peer netip.Addr,
 	d.mu.Unlock()
 	select {
 	case <-destination.done:
-		d.mu.Lock()
-		if d.destinations[id] == destination {
-			delete(d.destinations, id)
-		}
-		d.signalLocked()
-		d.signalReportLocked()
-		d.mu.Unlock()
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("selected output to %s Session %d did not retire: %w; inspect the destination and retry its removal", peer, session, ctx.Err())
@@ -433,7 +426,7 @@ func (d *selectedDispatch) stop(ctx context.Context) error {
 }
 
 func (d *selectedDispatch) run(destination *selectedDestination) {
-	defer close(destination.done)
+	defer d.destinationFinished(destination)
 	for {
 		select {
 		case <-destination.ctx.Done():
@@ -527,6 +520,21 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 			}
 		}
 	}
+}
+
+// destinationFinished releases only this worker's Session before waking any
+// joiner. The worker still owns cleanup if the caller's DOWN deadline elapsed.
+func (d *selectedDispatch) destinationFinished(destination *selectedDestination) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	id := selectedDestinationID{peer: destination.peer, session: destination.session}
+	if d.destinations[id] == destination {
+		delete(d.destinations, id)
+		d.pruneDisconnectedOriginsLocked(originScope{peer: destination.peer, owner: destination.owner})
+		d.signalChangeLocked()
+		d.signalReportLocked()
+	}
+	close(destination.done)
 }
 
 func selectedDispatchRetry(destination *selectedDestination) bool {

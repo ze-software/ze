@@ -149,8 +149,12 @@ func (d *selectedDispatch) electOriginLocked(scope originScope, key advertiseKey
 // reelectOriginLocked publishes a winner or preference-generation renewal. Its immutable
 // scoped revision is read by dispatch, refresh and CurrentSelection together.
 func (d *selectedDispatch) reelectOriginLocked(scope originScope, key advertiseKey, renew bool) error {
-	winner := d.electOriginLocked(scope, key)
 	previous, scoped := d.scoped[scope][key]
+	if scoped && !d.scopeHasOriginLocked(scope, key) && !d.scopeHasDestinationLocked(scope) {
+		d.clearOriginSelectionLocked(scope, key)
+		return nil
+	}
+	winner := d.electOriginLocked(scope, key)
 	if !renew {
 		if scoped {
 			if previous.candidate == winner {
@@ -164,10 +168,7 @@ func (d *selectedDispatch) reelectOriginLocked(scope originScope, key advertiseK
 		return err
 	}
 	if winner == nil {
-		delete(d.scoped[scope], key)
-		if len(d.scoped[scope]) == 0 {
-			delete(d.scoped, scope)
-		}
+		d.clearOriginSelectionLocked(scope, key)
 	} else {
 		next := *winner
 		next.wire.Revision = uint64(d.cut)
@@ -178,6 +179,44 @@ func (d *selectedDispatch) reelectOriginLocked(scope originScope, key advertiseK
 	}
 	d.queueOriginKeyLocked(scope, key)
 	return nil
+}
+
+func (d *selectedDispatch) clearOriginSelectionLocked(scope originScope, key advertiseKey) {
+	delete(d.scoped[scope], key)
+	if len(d.scoped[scope]) == 0 {
+		delete(d.scoped, scope)
+	}
+}
+
+func (d *selectedDispatch) scopeHasOriginLocked(scope originScope, key advertiseKey) bool {
+	for _, members := range d.origins[key] {
+		if members[scope] != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *selectedDispatch) scopeHasDestinationLocked(scope originScope) bool {
+	for id, destination := range d.destinations {
+		if id.peer == scope.peer && destination.owner == scope.owner {
+			return true
+		}
+	}
+	return false
+}
+
+// An active Session may still need a scoped fallback's newer revision. After
+// the last writer joins, later Sessions can use the common learned revision.
+func (d *selectedDispatch) pruneDisconnectedOriginsLocked(scope originScope) {
+	if len(d.scoped[scope]) == 0 || d.scopeHasDestinationLocked(scope) {
+		return
+	}
+	for key := range d.scoped[scope] {
+		if !d.scopeHasOriginLocked(scope, key) {
+			d.clearOriginSelectionLocked(scope, key)
+		}
+	}
 }
 
 func (d *selectedDispatch) queueOriginKeyLocked(scope originScope, key advertiseKey) {
