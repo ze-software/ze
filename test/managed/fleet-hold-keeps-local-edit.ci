@@ -4,7 +4,7 @@
 #           send keep it when it connects to a hub that holds another one,
 #           stay connected and tell the hub, while a device nobody changed
 #           still follows its hub across a restart?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-3, AC-4,
+#           (spec-fleet-6-config-freeze, AC-3, AC-4,
 #           AC-5, AC-9, AC-18, user stories 1 and 6;
 #           docs/architecture/fleet-config.md, "The baseline and the hold".)
 # WHY NOT A UNIT TEST: the answer is a path across two daemons and their

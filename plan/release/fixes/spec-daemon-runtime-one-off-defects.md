@@ -221,6 +221,8 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `unwired-feature` | 2026-11-11 | plugin `Completable` commands get no Tab completion: `WireArgCompletion` and `commandRows` cover builtins only |
 | `field-carries-two-meanings` | 2026-11-15 | plugin `Completable` completion request is an `ExecuteCommand`, indistinguishable from running the command |
 | `production-function-only-tests-call` | 2026-11-11 | `ipc.Authenticate`, `authenticateWithName` test-only, still accept an empty expected token |
+| `session-up-before-its-subscriber` | 2026-11-19 | hub start publishes the data RPC target before `ServesClient`: a declared client's config import, restore or SSH session is refused as "serves no managed client" until the managed server runs |
+| `supplied-path-outranks-the-configured-store` | 2026-11-19 | `resolve.StoreDir` resolves a bare config name to the working directory and ignores `ze.config.dir` |
 
 ## Rows found already fixed
 

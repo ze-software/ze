@@ -4,7 +4,7 @@
 #           its hub connection at once, so that the hub sees the session end,
 #           and leave the device running its configuration and open to a
 #           local change?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-10, user
+#           (spec-fleet-6-config-freeze, AC-10, user
 #           story 1; docs/guide/fleet-config.md, "Leave and Rejoin the Fleet".)
 # WHY NOT A UNIT TEST: the answer is what two daemons see. The command reaches
 #           the device's daemon over SSH, the daemon stops its hub client, and

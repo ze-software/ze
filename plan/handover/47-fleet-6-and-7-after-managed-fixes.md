@@ -10,7 +10,7 @@ assumption in either spec.
 
 | Spec | Path | Status | What it is |
 |------|------|--------|------------|
-| fleet-6 | `plan/release/fixes/spec-fleet-6-config-freeze.md` | skeleton, P0, release fix | Freeze operator edits on a managed device, `ze fleet disable/enable/status` with immediate sever, persisted baseline and a reconnect hold that marks the device `diverged` instead of overwriting a local emergency edit |
+| fleet-6 | `spec-fleet-6-config-freeze` (closed 2026-11-19; its design is `docs/architecture/fleet-config.md`) | skeleton, P0, release fix | Freeze operator edits on a managed device, `ze fleet disable/enable/status` with immediate sever, persisted baseline and a reconnect hold that marks the device `diverged` instead of overwriting a local emergency edit |
 | fleet-7 | `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` | skeleton, P3, post-release | Resolve a `diverged` device: `config-push` up-verb, diff at the hub, adopt or revert. Depends on fleet-6 |
 
 Umbrella: `plan/post-release/features/spec-fleet-0-umbrella.md`, "Direction

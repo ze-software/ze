@@ -4,7 +4,7 @@
 #           differs from its baseline, report doctor-managed-diverged with its
 #           fix, with the daemon stopped and with it running, and say nothing
 #           of the same difference on a device that is not managed?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-8;
+#           (spec-fleet-6-config-freeze, AC-8;
 #           docs/architecture/doctor-and-health-checks.md, "External plugin
 #           and managed fleet checks".)
 # WHY NOT A UNIT TEST: the question is whether the check runs in the report an

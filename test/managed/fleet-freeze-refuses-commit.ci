@@ -5,7 +5,7 @@
 #           running daemon and on its stopped store, while a push from its
 #           hub still applies, and accept the same change once it left the
 #           fleet?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-16, AC-17,
+#           (spec-fleet-6-config-freeze, AC-16, AC-17,
 #           user story 2; docs/architecture/fleet-config.md, "The freeze".)
 # WHY NOT A UNIT TEST: the answer is a path across commands, a daemon and its
 #           store. TestFreezeRefusesOperatorStaging proves that the store's

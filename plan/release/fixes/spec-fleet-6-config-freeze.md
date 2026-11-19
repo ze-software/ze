@@ -236,9 +236,9 @@ verbs and their envelopes are unchanged.
 | A-2 | The plain read of the configuration name and the store's active-version read answer the same bytes on a stored-source daemon | `extractManagedClientConfig` uses the plain read; the reload promotes through the version pointers | The hold and the doctor check disagree. One helper computes the active hash for every reader | `TestActiveHashOneHelper`: client, doctor and status agree after a push | confirmed, run 2026-11-19: `TestActiveHashOneHelper` and `TestActiveHashReadsThePointedVersion` green. Reading: `storage` `promoteVersionLocked` writes the promoted bytes to the configuration name after it moves the active pointer, so the two reads agree after a push. The exception: that mirror write may fail and is only logged, and a raw write of the configuration key with the daemon stopped changes the plain read and not the pointed version the daemon boots (`storage.ReadActiveConfig`). All readers still agree with each other through `managed.ActiveVersion`; in the first case the device re-applies its hub's configuration at the next fetch, in the second it holds on a configuration the daemon does not run |
 | A-3 | Every machine writer of a device's own configuration is one of: the hub push, the confirmed-commit revert (running and at boot), the signal reload, the boot record, schema recovery | Write census of 2026-11-18, thirty routes, read not run | A managed device refuses its own push or its own recovery | AC-13: a test drives each on a managed store | confirmed, run 2026-11-19: `TestMachineWritersOnManagedStore` and `fleet-freeze-refuses-commit.ci` (a hub push still applies on a frozen device) green. Reading: every non-test caller of the store's staging functions was listed with `gopls references`. The machine writers are `applyManagedPush`, `confirmRevert`, `publishRecoveredConfig` (schema recovery and, through `restoreConfirmOnStart`, the boot revert), `initializeConfigSource` (the explicit-file arm of the boot record) and `stageSIGHUPCandidate`, and no other was found. The stored-source boot record uses `storage.EnsureActiveVersion`, which stages no candidate and so never met the freeze |
 | A-4 | A daemon-stopped tool that opens the store can tell the device's own configuration by the instance name key, as `internal/core/resolve` `DefaultConfig` does | `DefaultConfig`; stopped tools do not bind a config source | The freeze does not apply to stopped tools, or freezes the wrong name | `TestFreezeScopeStoppedTool`: own name refused, another name admitted | confirmed, run 2026-11-19: `TestFreezeScopeStoppedTool`, `TestFreezeReadsTheNameFirst` green. Reading: the name rule moved to `storage.InstanceConfigName`, which `resolve.DefaultConfig` and the freeze (`storage` `ownConfigNameLocked`) both call. Two limits found: an explicit blob artifact is never frozen (`isBlobArtifact`), and `storage.ImportConfig` of a name the store does not hold yet writes the key without staging, so it is not refused |
-| A-5 | The reload's last step can fail after the candidate is promoted, leaving the configuration active and the push reported as failed | Read in `runReloadContext`; the condition was not determined | None for safety: the next fetch sends the active hash, the hub answers `current`, and the baseline is set | `TestCurrentAnswerSetsBaseline` | not settled by reading, outcome proven by run 2026-11-19 (`TestCurrentAnswerSetsBaseline`, `TestHoldEndedOnCurrentTellsTheHub` green): the promotion is not called from `cmd/ze/hub/main_reload.go` by name and the failing step was not found. The outcome is covered either way: a push reported as failed writes no baseline (`applyManagedPush`), and the next fetch sends the active hash, so `current` records it (`managed` `settleBaseline`). Test run owed |
+| A-5 | The reload's last step can fail after the candidate is promoted, leaving the configuration active and the push reported as failed | Read in `runReloadContext`; the condition was not determined | None for safety: the next fetch sends the active hash, the hub answers `current`, and the baseline is set | `TestCurrentAnswerSetsBaseline` | confirmed at closure by reading, outcome proven by run 2026-11-19 (`TestCurrentAnswerSetsBaseline`, `TestHoldEndedOnCurrentTellsTheHub` green). `cmd/ze/hub/main_reload.go` `runReloadContext` promotes through `promoteReloadCandidate` (`promoteConfigCandidate` for a commit) and then returns `acceptReload(true)`, the acceptance `pluginserver.Server.DeferReloadAcceptance` hands it, which returns an error of its own: a push can be reported failed with its configuration already active. The outcome is covered: such a push writes no baseline (`applyManagedPush` calls `recordPushBaseline` only on a nil reload), and the next fetch sends the active hash, so `current` records it (`managed` `settleBaseline`) |
 | A-6 | Cancelling the client's own context ends a live connection promptly | `notificationLoop` selects on the context | `request fleet disable` is not prompt | `TestOwnerStopEndsLiveConnection` | confirmed, run 2026-11-19: `TestOwnerStopEndsLiveConnection` and `fleet-disable-severs.ci` green. Reading: `managed` `runConnection` passes the context to the dial, the handshake, the ping sender and `notificationLoop`, which selects on it, and `RunManagedClient` returns on `ctx.Err()` before any backoff. A client inside `OnCommit` ends only when the reload returns (R-6) |
-| A-7 | `ze config edit` against a stopped managed store starts a full managed daemon, so its commit meets the freeze and is refused with the same message | `runStoredEditor` starts a plain `ze start`; read, not run | The operator gets a different or missing refusal | `fleet-freeze-refuses-commit.ci`, stopped-daemon step | not settled (open for closure: no test drives `ze config edit` against a stopped managed store; the freeze test proves the stopped `ze config import` and `ze data import` routes instead): `internal/component/config/cli` `runStoredEditor` starts an ephemeral daemon and opens an SSH session to it, and a session commit stages through `storage.WriteCandidateVersionWithGuard`, which the freeze guards. Whether that daemon starts as a managed one and serves SSH on a device whose configuration declares no listener was not read to the end and not run. The stopped-daemon step of `fleet-freeze-refuses-commit.ci` drives `ze data import` and `ze config rollback`, not `ze config edit` |
+| A-7 | `ze config edit` against a stopped managed store starts a full managed daemon, so its commit meets the freeze and is refused with the same message | `runStoredEditor` starts a plain `ze start`; read, not run | The operator gets a different or missing refusal | `fleet-freeze-refuses-commit.ci`, stopped-daemon step | confirmed at closure by reading, not run (no test drives `ze config edit` against a stopped managed store; `fleet-freeze-refuses-commit.ci` drives the stopped `ze config import` and `ze data import` routes, and the running rollback RPC). The path, read to the end: `internal/component/config/cli/cmd_edit.go` `runStoredEditor` finds no daemon (`probeDaemonSSH`) and calls `startEphemeralDaemon`, which runs `ze start` with `ZE_SSH_EPHEMERAL` and `ZE_CONFIG_DIR` set to the store folder. `cmd/ze/ze_core_start.go` `cmdStart` binds the store to its stored configuration (`storage.BindConfigSource(..., ConfigSourceStored)`) before it tests `isManaged`, so the daemon is a managed start (`cmdStartManaged` -> `hub.RunWithManagedClient` -> `runYANGConfig`). Both SSH starts of `runYANGConfig` (the no-BGP branch in `cmd/ze/hub/main.go`, the BGP branch in `infra_setup.go`) listen on `127.0.0.1:0` when `ze.ssh.ephemeral` is set and the configuration declares no listener. The session's commit, `internal/component/cli/editor_commit.go` `commitSessionCandidate`, stages through `storage.WriteCandidateVersionWithGuard`, whose `refuseFrozenConfigLocked` takes the stored arm of `configFrozen` and refuses with `ErrConfigFrozen`. The operator sees the freeze's problem, reason and fix (`request fleet disable`, last) under the editor's `write candidate:` prefix, as on every route that prefixes its first line. One side effect: the ephemeral daemon is a full managed start, so it connects to the hub while the editor is open, and a hub push it receives then is applied |
 | A-8 | No reader depends on the wording of a failed acknowledgement's error | `handleRequest` stores and shows it | A hold is misread on the hub | The census search above; `TestHubRecordsHoldRefusal` | confirmed, run 2026-11-19: `TestHubRecordsHoldRefusal` and `fleet-hold-keeps-local-edit.ci` (the hub lists the hold text) green. Reading: `managed_serve.go` `handleRequest` passes `ack.Error` to `recordRejected` and to one log attribute and compares nothing in it; no hub code changed for the hold |
 
 ### Risks
@@ -440,7 +440,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 | 13 | Route metadata keys added/changed? | No | No route metadata |
 | 14 | Prometheus counters added/changed? | No | None added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The command inventory: `docs/guide/command-reference.md` and the `wire-methods.snapshot` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/release/fixes/spec-fleet-6-config-freeze.md`. Known now: `docs/architecture/fleet-config.md` anchors `client.go`, `ze_core_start.go`, `managed.go` and `session_factory.go`; `docs/architecture/doctor-and-health-checks.md` anchors the managed doctor; `docs/architecture/zefs-format.md` anchors `pkg/zefs/keys.go` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/release/fixes/spec-fleet-6-config-freeze.md`. Known now: `docs/architecture/fleet-config.md` anchors `client.go`, `ze_core_start.go`, `managed.go` and `session_factory.go`; `docs/architecture/doctor-and-health-checks.md` anchors the managed doctor; `docs/architecture/zefs-format.md` anchors `pkg/zefs/keys.go`. Found at closure by the same command, declared by `// Design:` headers of changed files: `docs/architecture/hub-architecture.md` (`cmd/ze/hub/main.go`, `main_reload.go`, `session_factory.go`, `storage/source.go`): its shutdown paragraph ("The hub also cancels and joins the complete outbound managed client") stays true and now names the owner (`managedClientOwner.shutdown`, anchor added at closure); its `update data config` paragraph stays true, the session editor's refusal of an undeclared client is in `docs/architecture/fleet-config.md`. `docs/architecture/system-architecture.md` (`cmd/ze/ze_core_start.go`, `internal/plugins/init/main.go`): unaffected, it names no managed start, no baseline and no fleet command (`grep -n -i 'managed\|fleet\|baseline' docs/architecture/system-architecture.md` answers nothing) |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/fleet-config.md` "Troubleshooting" and "What the Client Keeps in Its Store" gain the new commands and the new key |
 
 ## Implementation Steps
@@ -500,7 +500,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 | Baseline integrity | The baseline is written only where a hub configuration became active or the hub answered `current`. No command writes it. `update data key` can, with the edit section, as it can write the flag today |
 | Freeze fail direction | A flag that cannot be read refuses the write |
 | Refusal content | The hold text sent to the hub carries two hashes and no configuration content or secret |
-| Client configuration access on a hub | The session editor authorizes no config-mode verb against the profile. That defect is recorded in Known Limitations and is not changed here: the declared-client refusal of AC-20 is not an authorization check and must not be read as one |
+| Client configuration access on a hub | The declared-client refusal of AC-20 is not an authorization check and must not be read as one (`undeclaredClientSessionRefusal` reads no profile and no user). Authorization of the SSH session editor's config-mode verbs is `spec-ssh-editor-authorization`'s, landed in `cc07d52edb`: `cmd/ze/hub/session_factory.go` `buildSessionModelFactory` installs `sessionConfigAuthorizer` on every editor model, judging each config permission in the edit section and failing closed with no authorizer |
 
 ### Failure Routing
 
@@ -542,9 +542,9 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 - Resolving a diverged device from the hub is `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md`. Until then: to keep the device's change, import the device's configuration on the hub as that client's configuration, and the hold ends at the next fetch. To discard it, run `request fleet disable`, roll the device back to the version it received from the hub, and run `request fleet enable`.
 - The hold is shown on the hub as a refused configuration. Its own cause and code on the hub belong to fleet-7.
 - Raw key writes, a full-store restore and a rename with the daemon stopped are not frozen. The hold covers them (D-5).
-- The SSH session editor does not consult the authorization profile. `cmd/ze/hub/session_factory.go` `buildSessionModelFactory` gives the authorizer to the operational command executor only, and `internal/component/cli` authorizes nothing, so a user whose profile denies the edit section can enter config mode and commit, on the daemon's own configuration and on any stored one, a hub's client configurations included. The web editor (`authorizeWebConfigMutation`), the API sessions and the SSH upload do check. This exists with or without fleets, is not changed here, and is `plan/release/fixes/spec-ssh-editor-authorization.md`, approved by the owner as a skeleton on 2026-11-19. Read at source, not run.
-- During daemon start, between the first publication of the data RPC target and its re-publication once the managed server runs, a session or an import naming a declared client's configuration is refused as "this daemon serves no managed client". The import has had the same window since before this spec; the hub guard shares it (`cmd/ze/hub/main.go`, `InstallDataRPC`). Found in review round 1, 2026-11-19.
-- A bare configuration name given to `ze config edit`, `ze config rollback` or `ze config history` outside the store folder fails with "no configuration store" even when `ze.config.dir` is set: `internal/core/resolve` `StoreDir` lets any supplied path, a bare name included, outrank the environment. A bare name is also how a loose file in the working directory is named, and 35 callers share the rule, so changing it is a resolution decision for the owner, not a fix inside this spec. The guide tells the operator to type these commands in the store folder. Found while fixing the hub editor test, 2026-11-19.
+- The SSH session editor now consults the authorization profile: `spec-ssh-editor-authorization` landed it in `cc07d52edb` (`cmd/ze/hub/session_factory.go` `sessionConfigAuthorizer`, installed by `buildSessionModelFactory` on every editor model), so a user whose profile denies the edit section can no longer commit a hub's client configuration through it. Read at source at closure; that spec's own tests are its evidence.
+- During daemon start, between the first publication of the data RPC target and its re-publication once the managed server runs, a session or an import naming a declared client's configuration is refused as "this daemon serves no managed client". The import has had the same window since before this spec; the hub guard shares it (`cmd/ze/hub/main.go`, `InstallDataRPC`). Found in review round 1, 2026-11-19. Recorded as an open row in `plan/journal/session-up-before-its-subscriber.md` (2026-11-19), owned by `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` (Work Not Done).
+- A bare configuration name given to `ze config edit`, `ze config rollback` or `ze config history` outside the store folder fails with "no configuration store" even when `ze.config.dir` is set: `internal/core/resolve` `StoreDir` lets any supplied path, a bare name included, outrank the environment. A bare name is also how a loose file in the working directory is named, and 35 callers share the rule, so the fix needs a resolution design of its own and is too big for this spec. The guide tells the operator to type these commands in the store folder. Found while fixing the hub editor test, 2026-11-19. Recorded as an open row in `plan/journal/supplied-path-outranks-the-configured-store.md` (2026-11-19), owned by `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` (Work Not Done).
 
 ## Checklist
 
@@ -667,3 +667,185 @@ above. Each replaces what the skeleton above says where the two differ.
 | D-6 | A managed device with no stored baseline | It is clean: it applies the hub config as today and records the baseline from then on. `ze init --managed --force` returns a device to that state | Nothing in the skeleton |
 | D-7 | What rejoin does on a running daemon | A daemon that started managed owns its hub client: leave stops it at once and rejoin starts it again, with no restart. A daemon that started unmanaged sets the flag and says the hub connection starts at the next `ze start` | R-2 of the skeleton, which left it open |
 | D-8 | Command spelling | `request fleet disable`, `request fleet enable`, `show fleet status`. `request` because the command ends or starts a session as well as storing a value; `disable` and `enable` as `request peer <selector> disable` and `enable` already use them | `ze fleet disable`, `ze fleet enable`, `ze fleet status` |
+
+## Implementation Summary
+
+### What Was Implemented
+- Baseline and hold: `internal/component/managed/baseline.go` (`ActiveVersion`, `BaselineVersion`, `StoreBaseline`, `RecordActiveAsBaseline`, `Diverged`, `BaselineAccess`); `client.go` `fetchAgainstBaseline`, `settleBaseline`, `holdFetched`, `refuseUncompared`; baseline written by `cmd/ze/hub/managed.go` `recordPushBaseline` and `cmd/ze/ze_core_start.go` `cacheFirstConfig`; key `pkg/zefs/keys.go` `KeyManagedBaseVersion`; doctor check `managed/doctor.go` `managedDivergedDoctorCheck` under `doctor-managed-diverged`.
+- Leave and rejoin: `cmd/ze/hub/managed_owner.go` `managedClientOwner` (`startWith`, `stopWith`, `join`, `shutdown`, `state`), wired in `runYANGConfig`; `managed/cmd_fleet.go` `request fleet disable`, `request fleet enable` (builtin RPCs `ze-managed:fleet-disable`, `ze-managed:fleet-enable` plus local routes) and `show fleet status` (local-data); YANG `ze-managed-cmd.yang`.
+- Freeze: `internal/component/config/storage/freeze.go` (`refuseFrozenConfigLocked`, `configFrozen`, `OwnConfigFrozen`, `FreezeRefusal`, `ErrConfigFrozen`), asked by `pointer.go` `WriteCandidateVersionWithGuard`; machine entry `StageMachineCandidate` for `applyManagedPush`, `confirmRevert`, `publishRecoveredConfig`, `initializeConfigSource`; `StageSourceCandidate` for the signal reload. The refusal is kept whole by `daemonConfigImportRefusal`, `configRollbackRefusal`, `storedRollbackRefusal` and `configMutationOwner.Upload`.
+- Hub guard: `cmd/ze/hub/session_factory.go` `undeclaredClientSessionRefusal` over `storagecli.UnservedClientConfigRefusal`.
+
+### Bugs Found/Fixed
+- A hold ended by `current` sent no acknowledgement, so the hub kept listing the device: fixed in `fetchAgainstBaseline` (`TestHoldEndedOnCurrentTellsTheHub`, `fleet-hold-clears-on-match.ci`).
+- Review round 1: disable and enable raced (owner `op` lock, `TestOwnerFlagAndClientAgree`); status blocked behind a disable (`stopping` slot, `TestOwnerStateAnswersWhileStopWaits`); `frozen` true on a file-bound daemon (`OwnConfigFrozen`, `TestFleetStatusFrozenFollowsTheHandle`); wrappers replaced the freeze's fix (`FreezeRefusal`, `TestDaemonImportKeepsTheStoresFix` and siblings); the builder read the mirror (`TestManagedClientBuiltFromThePointedVersion`); flag read before name (`TestFreezeReadsTheNameFirst`); doctor fix named no client (`TestDivergedDoctorFixNamesTheClient`); enable's builder failure answered "next ze start" (`TestFleetEnableAnswersWhatFailed`).
+- Review round 2: the SSH upload rewrapped the freeze refusal (`39b72f9ccf`, `TestUploadOnManagedDeviceAnswersTheFreeze`).
+
+### Documentation Updates
+- `docs/architecture/fleet-config.md` ("The baseline and the hold", "The freeze", client-side storage, the hub-side editor paragraph), `docs/guide/fleet-config.md` ("Leave and Rejoin the Fleet", "When a Client Refuses Your Change", "When a Client Holds", troubleshooting, store keys), `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/storage-backends.md`, `docs/architecture/zefs-format.md`, `docs/architecture/api/commands.md`, `docs/guide/command-reference.md`, `ai/digests/hub-engine.md`, `features/fleet-management.md`: committed in `c9fbf8964c`..`7a7ae9c827`, each claim anchored.
+- At closure: `docs/architecture/hub-architecture.md` shutdown paragraph names the owner (anchor `cmd/ze/hub/managed_owner.go -- managedClientOwner, shutdown`).
+- `./le doc check all` at closure: Pre-Commit Verification, Documentation Verified.
+
+### Deviations from Plan
+- `internal/plugins/init/main.go` is unchanged: `--managed --force` publishes a fresh tree (`storage.ReplacePopulated`), so the baseline goes with it; `TestInitForceRemovesBaseline` pins AC-21.
+- `show fleet status` is local-data and registers no RPC, so `wire-methods.snapshot` gained two rows, not three.
+- The active configuration is the version the daemon runs (`storage.ReadActiveConfig`), not the plain configuration key (main-thread design change after phase 2A).
+- The hub-push wiring row names `fleet-hold-keeps-local-edit.ci`; `config-push-transactional.ci` was not extended.
+- The functional test plan said `fleet-freeze-refuses-commit` drives `ze config edit` stopped; it drives `ze config import` and `ze data import` stopped, because a stopped `ze config rollback <N> <file>` edits the loose file and never stages the store. A-7 is settled by reading.
+- The SSH config upload (`cmd/ze/hub/config_upload.go`) gained the freeze pass-through, on a route the plan said would not be edited: it rewrapped the refusal under another fix.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The stopped-daemon step of the freeze test used `ze config rollback 1 <file>` | With no store open it edits the loose file (`cmdRollbackThrough` -> `cli.NewLooseFileEditor`) and exits 0 | Draft run red | Step replaced by `ze config import --dir`, which stages the store |
+| approach | The hub editor test typed `ze config edit client-edge-99.conf` outside the store folder | `resolve.StoreDir` resolves a bare name to the working directory | Draft run red, "no configuration store" | Test runs in the hub's store folder; defect recorded in `plan/journal/supplied-path-outranks-the-configured-store.md` |
+| approach | Pages said the hub keeps the `holding:` row after a hold ends | `handleRequest` clears a refusal only on an `ok:true` ack, which the end of a hold did not send | Phase 2B reading | Product fixed (`fetchAgainstBaseline` acks), pages corrected |
+| approach | The Known Limitations line said the SSH editor ignores the authorization profile | `spec-ssh-editor-authorization` landed `sessionConfigAuthorizer` in `cc07d52edb` while this spec was open | Closure re-read of `session_factory.go` | Line and security row rewritten |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Baseline and hold | Done | `internal/component/managed/client.go` `fetchAgainstBaseline`; `baseline.go` | |
+| 2. Leave and rejoin, status | Done | `cmd/ze/hub/managed_owner.go`; `internal/component/managed/cmd_fleet.go` | |
+| 3. Freeze | Done | `internal/component/config/storage/freeze.go`; `pointer.go` `WriteCandidateVersionWithGuard` | |
+| 4. Hub guard on the session editor | Done | `cmd/ze/hub/session_factory.go` `undeclaredClientSessionRefusal` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBaselineWrittenAfterPush`, `TestBaselineUnchangedWhenPushFails`, `fleet-hold-keeps-local-edit.ci` | |
+| AC-2 | Done | `TestBaselineWrittenOnFirstStart` | |
+| AC-3 | Done | `TestBaselineStableAcrossRestart`, `fleet-hold-keeps-local-edit.ci` (restart step) | |
+| AC-4 | Done | `TestFetchHoldsWhenActiveDiffersFromBaseline`, `TestHoldAcknowledgesRefusalAndKeepsConnection`, `fleet-hold-keeps-local-edit.ci` | Heartbeats not asserted: nothing observes them without waiting on time |
+| AC-5 | Done | `fleet-hold-keeps-local-edit.ci` `requireHoldsAcrossHubChange` | |
+| AC-6 | Done | `TestCurrentAnswerSetsBaseline`, `fleet-hold-clears-on-match.ci` | |
+| AC-7 | Done | `TestNoBaselineAppliesAsToday`, `fleet-hold-keeps-local-edit.ci` first step | |
+| AC-8 | Done | `TestDivergedDoctorCheck`, `TestDivergedDoctorSilentWhenUnmanaged`, `fleet-diverged-doctor.ci` | |
+| AC-9 | Done | `TestHubRecordsHoldRefusal`, `fleet-hold-keeps-local-edit.ci`, `fleet-hold-clears-on-match.ci` (cleared) | |
+| AC-10 | Done | `TestFleetDisableStoresFlagThenStops`, `TestOwnerStopEndsLiveConnection`, `fleet-disable-severs.ci` | |
+| AC-11 | Done | `TestFleetEnableStartsClient`, `TestOwnerStartAfterStop`, `TestOwnerStartsWhenBootHadNoHubBlock`, `fleet-enable-rejoins.ci` | |
+| AC-12 | Done | `TestFleetEnableOnUnmanagedStart`, `fleet-status.ci` (`not-started`) | |
+| AC-13 | Done | `TestFleetEnableRefusesWithoutHubBlock`, `TestFleetDisableNeedsNoHub`, `fleet-enable-rejoins.ci` | |
+| AC-14 | Done | `TestFleetLocalRouteStoresFlagWithoutDaemon`, `TestFleetLocalRouteSendsBusyStoreToDaemon`, `fleet-enable-rejoins.ci` | |
+| AC-15 | Done | `TestFleetStatusStoreOnly`, `TestFleetStatusDaemonRouteReportsClientState`, `TestClientReportsHoldToItsOwner`, `fleet-status.ci` | |
+| AC-16 | Done | `TestFreezeRefusesOperatorStaging`, `TestUploadOnManagedDeviceAnswersTheFreeze`, `fleet-freeze-refuses-commit.ci` | Session, web and API commits reach the same staging step; driven end to end through the import, the rollback RPC and the stopped import |
+| AC-17 | Done | `TestFreezeAdmitsMachineEntry`, `TestMachineWritersOnManagedStore`, `fleet-freeze-refuses-commit.ci` (the push applies) | |
+| AC-18 | Done | `fleet-hold-keeps-local-edit.ci` (raw pointer write with the flag true throughout) | |
+| AC-19 | Done | `TestManagedHubImportsDeclaredClientConfig`, `TestFreezeAdmitsOtherConfig` | |
+| AC-20 | Done | `TestSessionEditorRefusesUndeclaredClient`, `TestSessionEditorOpensDeclaredClient`, `fleet-hub-editor-declared.ci` | |
+| AC-21 | Done | `TestInitForceRemovesBaseline` | |
+| AC-22 | Done | `TestFreezeScopeStoppedTool`, `TestFleetStatusStoreOnly`, `TestDivergedDoctorSilentWhenUnmanaged` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The five `client_hold_test.go` tests | Done | `internal/component/managed/client_hold_test.go` | plus `TestHoldEndedOnCurrentTellsTheHub`, `TestFirstBaselineSendsNoAck` and two store-failure tests |
+| `TestBaselineWrittenAfterPush`, `TestBaselineUnchangedWhenPushFails` | Done | `cmd/ze/hub/managed_test.go` | |
+| `TestBaselineWrittenOnFirstStart`, `TestBaselineStableAcrossRestart` | Done | `cmd/ze/ze_core_start_bootstrap_test.go` | |
+| `TestActiveHashOneHelper` | Done | `internal/component/managed/baseline_test.go` | plus `TestActiveHashReadsThePointedVersion` |
+| `TestDivergedDoctorCheck`, `TestDivergedDoctorSilentWhenUnmanaged` | Done | `internal/component/managed/doctor_test.go` | |
+| `TestHubRecordsHoldRefusal` | Done | `internal/component/plugin/server/managed_serve_test.go` | |
+| The five `TestOwner...` tests | Done | `cmd/ze/hub/managed_owner_test.go` | plus `TestOwnerFlagAndClientAgree`, `TestOwnerStateAnswersWhileStopWaits` |
+| The four `cmd_fleet_test.go` tests | Done | `internal/component/managed/cmd_fleet_test.go`, `cmd_fleet_change_test.go` | |
+| The six `freeze_test.go` tests | Done | `internal/component/config/storage/freeze_test.go` | |
+| `TestManagedHubImportsDeclaredClientConfig` | Done | `cmd/ze/hub/managed_hub_freeze_test.go` | |
+| `TestMachineWritersOnManagedStore` | Done | `cmd/ze/hub/managed_machine_writers_test.go` | |
+| `TestSessionEditorRefusesUndeclaredClient`, `TestSessionEditorOpensDeclaredClient` | Done | `cmd/ze/hub/session_factory_test.go` | |
+| `TestInitForceRemovesBaseline` | Done | `internal/plugins/init/managed_hub_test.go` | |
+| The eight functional tests | Done | `test/managed/fleet-*.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file of Files to Modify and Files to Create | Done | except `internal/plugins/init/main.go`: Changed, not needed (Deviations) |
+| `cmd/ze/hub/config_upload.go`, `config_source.go`, `internal/component/config/storage/config_name.go`, `publication_intent.go`, `internal/core/resolve/resolve.go`, `storage/cli/data_rpc_rollback.go`, `config/cli/cmd_rollback.go` | Changed | Added: the machine entries, the shared name rule, the shared key read and the refusal pass-throughs |
+
+### Audit Summary
+- **Total items:** 4 requirements, 22 AC, 33 planned tests, the planned files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (`internal/plugins/init/main.go` unchanged; files added), recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A managed device does not lose a local change on reconnect (baseline and hold) | functional, whole path | `test/managed/fleet-hold-keeps-local-edit.ci`: a raw active-pointer write with the flag true, then the device connects to a hub holding another configuration and keeps its own, and the hub's `show doctor` lists the hold; red with the `Diverged` branch of `fetchAgainstBaseline` removed (round 1 handoff). 80 stress iterations, no failure |
+| The hold ends when hub and device agree | functional | `test/managed/fleet-hold-clears-on-match.ci`: importing the device's configuration on the hub ends the hold and clears the hub's row |
+| An operator can leave and rejoin the fleet at runtime | functional | `test/managed/fleet-disable-severs.ci` (the hub sees the session end, a commit is then accepted), `test/managed/fleet-enable-rejoins.ci` (the same process reconnects and follows) |
+| The freeze refuses a local change and names the fix | negative | `test/managed/fleet-freeze-refuses-commit.ci`: the running import and rollback RPC and the stopped import refused with `fix: request fleet disable` last, a hub push still applies; `TestUploadOnManagedDeviceAnswersTheFreeze` red/green proven |
+| The hub's session editor refuses an undeclared client | negative | `test/managed/fleet-hub-editor-declared.ci`, `TestSessionEditorRefusesUndeclaredClient`; a declared client's configuration opens |
+| Status is reported on every surface | functional | `test/managed/fleet-status.ci` (daemon running and stopped, managed and not); `test/ui/pipe-local-command.ci` 72/72 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Resolution of a diverged device from the hub (diff, adopt, revert, the hold's own hub-side cause) | Outside this spec by D-4; built on the baseline and hold delivered here | `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` |
+| The declared-client guard's startup window (open row `plan/journal/session-up-before-its-subscriber.md`, 2026-11-19) | Pre-existing on the import; fixing it reorders the hub's start publication, a design of its own | `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` |
+| `resolve.StoreDir` resolving a bare name to the working directory (open row `plan/journal/supplied-path-outranks-the-configured-store.md`, 2026-11-19) | Pre-existing; 35 callers share the rule, so the fix needs a resolution design | `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-6-config-freeze-1ecdeafe-7c8e-4b32-a486-fac3ee6445a8.md` (16 files: this spec and every file commit A carries) |
+| `./le spec review check` | clean, 2026-11-19 at closure, over the same 16 files |
+| Rounds | 4: rounds 1-3 during implementation, round 4 at closure, clean |
+| Reviewer lenses used | Round 1 logic, wiring and security over the whole diff; round 2 the fixes and the operator routes; round 3 the SSH upload fix; round 4 (closure, a context that wrote none of it) wiring, guard audit, goroutine lifecycle, style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Disable and enable raced: flag true with the client stopped | `cmd/ze/hub/managed_owner.go` | `op` lock across write and act (`startWith`, `stopWith`) |
+| 2 | ISSUE | `show fleet status` blocked behind a disable | `managed_owner.go` `join` | Join outside `mu`, `stopping` slot |
+| 3 | ISSUE | `frozen` reported true on a file-bound daemon | `cmd_fleet.go` `readFleetStatus` | `storage.OwnConfigFrozen` |
+| 4 | ISSUE | Three wrappers replaced the freeze's fix line | `data_rpc_config.go`, `data_rpc_rollback.go`, `cmd_rollback.go` | `storage.FreezeRefusal` pass-through |
+| 5 | ISSUE | The builder read the mirror, enable read the pointed version | `ze_core_start.go` `extractManagedClientConfig` | `storage.ReadActiveConfig` |
+| 6 | ISSUE | A bad flag on a stopped store refused every client import | `freeze.go` | Name read first (`unboundConfigFrozen`) |
+| 7 | ISSUE | The SSH upload rewrapped the freeze refusal | `cmd/ze/hub/config_upload.go` `Upload` | `39b72f9ccf` |
+
+### Round 4 (closure)
+0 BLOCKER, 0 ISSUE. Style pass run over every changed Go file: the two `panic("BUG: ...")` added (`configFrozen` on an unknown source mode, `RunWithManagedClient` with a nil builder) guard states only a Ze defect reaches, with no socket input on the path; the owner's goroutine has one owner that cancels and joins it, and its doc comments state both sides. NOTEs, fixed in one edit: the Known Limitations SSH-editor line and the security row were stale; A-5 and A-7 settled by reading.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/managed/baseline.go`, `cmd_fleet.go`, `yang/ze-managed-cmd.yang`, `internal/component/config/storage/freeze.go`, `cmd/ze/hub/managed_owner.go` | Yes | `ls` at closure, 2026-11-19 |
+| The eight `test/managed/fleet-*.ci` | Yes | `ls test/managed/fleet-*.ci` lists all eight |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-22 | Each demonstrated by the tests of the audit table | Main-thread runs 2026-11-19: managed suite 25/25; each new `.ci` 80 stress iterations; packages managed, config/storage, storage/cli, cmd/ze and the hub fleet tests green; the closure re-run is an owed command |
+| AC-16 | The staging step asks the freeze | `pointer.go` `WriteCandidateVersionWithGuard` calls `refuseFrozenConfigLocked` before `stageCandidateLocked` (read at closure) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Each Wiring Test row | The `.ci` the row names | Yes: each file exists under `test/managed/` and passed in the 25/25 managed run of 2026-11-19 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestBaselineStableAcrossRestart`, `fleet-hold-keeps-local-edit.ci` |
+| A-2 | confirmed | `TestActiveHashOneHelper`, `TestActiveHashReadsThePointedVersion` |
+| A-3 | confirmed | `TestMachineWritersOnManagedStore`; the caller census of the freeze phase |
+| A-4 | confirmed | `TestFreezeScopeStoppedTool`, `TestFreezeReadsTheNameFirst` |
+| A-5 | confirmed | `runReloadContext` returns `acceptReload(true)` after `promoteReloadCandidate`; `TestCurrentAnswerSetsBaseline` |
+| A-6 | confirmed | `TestOwnerStopEndsLiveConnection`, `fleet-disable-severs.ci` |
+| A-7 | confirmed | By reading: `startEphemeralDaemon` -> managed `ze start` bound `ConfigSourceStored` -> ephemeral SSH -> `commitSessionCandidate` -> `WriteCandidateVersionWithGuard` -> `ErrConfigFrozen` |
+| A-8 | confirmed | `TestHubRecordsHoldRefusal`; `handleRequest` compares nothing in `ack.Error` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `./le doc check all` and `./le spec citation anchors` at closure | 2026-11-19 at closure: `./le spec citation` OK; `./le spec citation anchors` no longer reports an unnamed design document; `./le doc check all` red only on other sessions' surfaces (the wiki catalog drift on `clear bgp rib out-excluding-owner`, the `ze-bgp:rib-source-*` and `ze-cos:cleanup` handler contract, help-shape rules, stale anchors into `web/fleetui`, `l2tp` and `rib`), none naming a managed or fleet command, page or source | Yes |
+| `docs/architecture/hub-architecture.md` shutdown paragraph | `runYANGConfig` defers `clientOwner.shutdown()`; `managedClientOwner.shutdown` sets `ended` and joins | Yes |
+| `docs/architecture/system-architecture.md` unaffected | It names no managed start, baseline or fleet command | Yes |

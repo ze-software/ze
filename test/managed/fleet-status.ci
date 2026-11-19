@@ -6,7 +6,7 @@
 #           hashes, whether they differ), answer from the store when no daemon
 #           runs, and draw the running daemon's answer, with the state of its
 #           hub client, when one does?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-15, AC-22;
+#           (spec-fleet-6-config-freeze, AC-15, AC-22;
 #           docs/architecture/api/commands.md, "Local-data commands".)
 # WHY NOT A UNIT TEST: the question is which process answers. The local route
 #           reaches a running daemon over its SSH listener with the credential

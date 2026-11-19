@@ -4,7 +4,7 @@
 #           fleet back on its hub with no restart, so that it takes what the
 #           hub changed meanwhile, and does the command refuse a device whose
 #           configuration names no hub, and store the flag when no daemon runs?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-11, AC-13,
+#           (spec-fleet-6-config-freeze, AC-11, AC-13,
 #           AC-14, user story 3; docs/guide/fleet-config.md, "Leave and Rejoin
 #           the Fleet".)
 # WHY NOT A UNIT TEST: the answer is a path across two daemons. The daemon

@@ -3,7 +3,7 @@
 # QUESTION: does a managed device that holds stop holding once its hub is
 #           given the configuration the device runs, keep running it, and
 #           does the hub stop listing it as refusing?
-#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-6, AC-9,
+#           (spec-fleet-6-config-freeze, AC-6, AC-9,
 #           user story 4; docs/guide/fleet-config.md, "When a Client Holds".)
 # WHY NOT A UNIT TEST: the answer is a path across two daemons and three
 #           commands. `ze data import` beside the running hub writes the

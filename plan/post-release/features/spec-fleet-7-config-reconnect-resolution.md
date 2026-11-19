@@ -19,7 +19,7 @@
 5. `internal/component/managed/client.go` -- `FetchConfig`, `SendConfigAck`, `OnCommit`
 6. `internal/component/plugin/server/managed.go` -- `HandleConfigFetch`, `BuildConfigChanged`, `connected`
 7. `internal/component/config/diff/` -- diff engine reused by the resolution UI
-8. `spec-fleet-6-config-freeze.md` -- provides the persisted baseline, the dirty check, the hold, and the `diverged` state this spec resolves
+8. `docs/architecture/fleet-config.md`, "The baseline and the hold" (built by `spec-fleet-6-config-freeze`, closed 2026-11-19) -- provides the persisted baseline, the dirty check, the hold, and the `diverged` state this spec resolves
 9. `spec-fleet-1-device-registry.md` -- where the `diverged` device state is surfaced
 
 ## Task
@@ -332,7 +332,7 @@ concerns.
 | Verdict | REWORK |
 | Evidence: nothing landed | `pkg/fleet/envelope.go` holds four verbs and none carries a config upstream. No `diverged` state exists in `internal/component/managed` or `internal/component/plugin/server` |
 | Evidence: targets gone | `internal/component/config/diff/` has never existed. `internal/component/plugin/server/registry.go` does not exist: fleet-1 is a skeleton. `plugin/server/managed.go` is `ManagedConfigService`, fetch and hashing; the one hub dispatch is `managed_serve.go` `handleRequest`, a switch over `config-fetch`, `config-ack` and `ping` |
-| Evidence: the dependency is unbuilt and is being redesigned | `plan/release/fixes/spec-fleet-6-config-freeze.md` carries a REWORK disposition of the same date. The baseline, the hold and how the hub learns `diverged` are not settled |
+| Evidence: the dependency is unbuilt and is being redesigned | `spec-fleet-6-config-freeze` (closed 2026-11-19) carried a REWORK disposition of the same date. The baseline, the hold and how the hub learns `diverged` are not settled |
 | Evidence: the candidate pointer is the wrong home | `storage.WriteCandidateVersionWithGuard` (`internal/component/config/storage/pointer.go`) refuses with `ErrCandidateExists` while a candidate is staged, and `restoreConfigLocked` (`restore.go`), the body of `RestoreConfig` and `CommitConfigWithGuard`, stages one first. A pushed config held in that pointer would block every editor commit, import and restore of that client's config, under a refusal that tells the operator to discard a staged change |
 | Evidence: the hub keeps nothing about a client | `ManagedServer.conns`, `pending` and the doctor record of `managed_doctor.go` are in memory. The `config-ack` arm of `handleRequest` logs and updates the doctor record, and stores no version |
 | Evidence: the web view moved | The umbrella's Direction Update of 2026-11-18 gives every fleet web view to the `fleet-ui` set (`spec-fleet-ui-6-config-rollout-audit-admin.md`). This spec keeps the data, the protocol and the commands |

@@ -374,10 +374,14 @@ In-process storage guards are released before plugin callbacks run. The lifetime
 <!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
 
 The hub also cancels and joins the complete outbound managed client, because its
-callbacks can read or write storage before reload admission. It retains the
+callbacks can read or write storage before reload admission. A managed start
+holds that client in one owner, which `request fleet disable` and `enable` also
+stop and start; at shutdown the owner joins the running client and refuses
+every later start. It retains the
 managed server and joins its active config requests and notifications through
 `Stop`. Both owners finish before the hub returns its store to the launcher.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, shutdown -->
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- Stop -->
 
