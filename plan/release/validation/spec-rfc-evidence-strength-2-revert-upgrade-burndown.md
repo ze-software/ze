@@ -17,6 +17,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Own the required release-evidence slice of this programme. The release population is requirement-level: behavior of a shipped capability, accepted configuration, a public support claim, and evidence used to justify any of them. A partially implemented RFC does not exempt its shipped subset. Missing optional capabilities and systematic expansion beyond that population belong only to the companion. Preserve every permanent requirement id, existing tag, disposition, evidence record and historical count; reconcile the dated populations before execution. No defect in a shipped producer, known unsound proof, or missing required proof may be assigned to the optional slice merely because it was found during a corpus walk. This planning split changes no RFC verdict or permission to weaken a claim. Child 1’s pilot measurements are a scheduling prerequisite for either tranche. D-4 remains binding: a demonstrated weak test is strengthened under the recorded approval process, never silently grandfathered by this move.
 
+A stale record re-taken by `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md` (AC-28) takes the `mutant` route wherever gomu can mutate its producer, so it already pays that unit's upgrade. This spec's backlog is what `./le rfc check` reports after those re-takes, and it never re-records a unit that spec re-took on the mutant route.
+
 ## Acceptance Criteria
 
 The original criterion ids are retained below for this file’s slice only. Cross-cutting criteria are partitioned by the ownership table; the companion owns the other portion, not a duplicate implementation.

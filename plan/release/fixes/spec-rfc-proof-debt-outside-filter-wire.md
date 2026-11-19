@@ -49,7 +49,28 @@ grew because no commit was refused for staling a record. Commit 6eec153998
 added that refusal (`rfc check` in `./le commit create`), so the set shrinks
 from here and only this spec's re-takes, plus records other sessions have
 already re-taken, move it. Rows another spec owns stay with that spec, see
-AC-33.
+AC-33. RFC4271-9.2-2 and RFC4271-9.2-3 fall to AC-28 and AC-30: their owner,
+`spec-bgp-best-route-advertised-to-peers`, closed in 56fb8b5663 with both
+records stale and both verdicts naming a producer the code map no longer
+holds.
+
+Progress at 2026-11-19 (`./le rfc check` at HEAD 56fb8b5663: 898 violations,
+470 stale records, 240 SHIFTED and 164 STALE verdicts): AC-3 is met (the file
+was renamed in 58d47a9f96), AC-25 and AC-26 pass, and `./le rfc check` no
+longer names the rows of AC-1, AC-2, AC-9 to AC-15, AC-17, AC-20, AC-21 and
+AC-23. Still named: RFC2545-3-2 and 3-3 (AC-4 to AC-7), RFC4659-3.2.1.1-3
+(AC-8), RFC1661-5.8-2 (AC-16), RFC2516-x-9 (AC-18), RFC4271-5.1.4-1 (AC-19),
+RFC8907-8.3-4 (AC-22), RFC1997-Well-1 (AC-24), and every row of AC-28 to
+AC-32.
+
+Each record is taken once. AC-28's re-takes use the `mutant` route where
+gomu can mutate the producer, so they also pay the revert-to-mutant upgrade
+`spec-rfc-evidence-strength-2-revert-upgrade-burndown.md` owes for the same
+unit, instead of a revert re-take that spec would redo. AC-4 to AC-6 run
+after `spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md` lands its fix,
+because that fix changes the RFC 2545 next-hop path both arms of
+`checkRFC2545NextHops` test; if that spec re-takes them under the commit
+gate, AC-4 to AC-6 are met by its records.
 
 This spec also owns the document-author evidence finding below. Its correction
 needs a separate design review before implementation; the existing ready work
@@ -226,12 +247,12 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 | AC-24 | SHIFTED audit RFC1997-Well-1, cause c782411791 (`checkNoExportBoundary` moved, byte-identical) | `./le rfc reseal stem rfc1997` re-stamps it; `./le rfc check` no longer names it |
 | AC-25 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures`, which hit its 10-minute limit under load | Run alone on a quiet host through `./le job run label rfc-selftest command go test -count=1 -run TestRFCSelftestRealTreeRowReportsOwnedCheckFailures -timeout 30m ./internal/le/rfc/`. A pass in time records the earlier red as load; a failing assertion is a defect fixed at its producer; a run that still exceeds 10 minutes alone is a defect in the test's cost, fixed so it completes inside its limit without dropping what it asserts |
 | AC-26 | `TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog`, failing deterministically | `./le job run label rfc-prior command go test -count=1 -run TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog ./internal/le/rfc/` passes after the prior-evidence reader is fixed, and the run is red with the fix reverted |
-| AC-28 | Every discrimination record `./le rfc check` names as unit-changed, claim-changed or producer-changed at HEAD, outside AC-33's rows | Each is re-taken by `./le rfc record` on its recorded route against the unit and producer as they are, and observed red; a record whose break no longer reddens its unit is a finding on that test (the test or the producer is fixed here, through `ze-test-judge` where a test changes), never a hand-written record. Settled when `./le rfc check` names no such record |
-| AC-29 | Every SHIFTED audit verdict `./le rfc check` names at HEAD | `./le rfc reseal stem <stem>` for each stem it names; settled when `./le rfc check` names no SHIFTED verdict |
-| AC-30 | Every STALE audit verdict `./le rfc check` names at HEAD, outside AC-33's rows | Re-made by an independent `/ze-rfc-audit` agent (R-2), stamped with `audit-stamp ... mode rejudge`; a `weak` or `wrong` verdict sends its test or producer back to be fixed here. Settled when `./le rfc check` names no STALE verdict |
+| AC-28 | Every discrimination record `./le rfc check` names as unit-changed, claim-changed or producer-changed at HEAD, outside the rows AC-1 to AC-24 and AC-33 already name | Each is re-taken once, by `./le rfc record`, against the unit and producer as they are, and observed red. The route is `mutant` wherever gomu can mutate the producer (`./le rfc discriminate stem <stem>` proposes the candidates), and `revert` only where it cannot, so the re-take also pays the unit's upgrade owed under `spec-rfc-evidence-strength-2-revert-upgrade-burndown.md` and no record is taken twice; a record whose break no longer reddens its unit is a finding on that test (the test or the producer is fixed here, through `ze-test-judge` where a test changes), never a hand-written record. Settled when `./le rfc check` names no such record |
+| AC-29 | Every SHIFTED audit verdict `./le rfc check` names at HEAD, outside AC-24 | `./le rfc reseal stem <stem>` for each stem it names; settled when `./le rfc check` names no SHIFTED verdict |
+| AC-30 | Every STALE audit verdict `./le rfc check` names at HEAD, outside the rows AC-7 to AC-23 and AC-33 already name | Re-made by an independent `/ze-rfc-audit` agent (R-2), stamped with `audit-stamp ... mode rejudge`; a `weak` or `wrong` verdict sends its test or producer back to be fixed here. Settled when `./le rfc check` names no STALE verdict |
 | AC-31 | Every record `./le rfc check` names as producer-gone | The function that now holds the removed producer's code is named from `git log -S` of the removal, the record is re-taken against it, and observed red; where no function holds it, the tag's claim no longer has a producer and goes to `ze-test-judge` with the evidence. Settled when `./le rfc check` names no producer-gone record |
-| AC-32 | Rows no spec owned at the CI run: RFC4271-5-3 and RFC4271-5-4 (no negative test since 6c22530c23 removed four negative tags, its body carrying `RFC-approval-owed:` for three units), RFC8955-4-3 and RFC9252-3.3-2 (partial scope with no current verified mutant or revert), and RFC4271-9.2-2 and RFC4271-9.2-3, whose owner `spec-bgp-best-route-advertised-to-peers` closed in 56fb8b5663 with both rows' records stale and both verdicts naming a producer the code map no longer holds | RFC 4271 9.2-2 and 9.2-3: records re-taken under AC-28 and verdicts re-judged under AC-30 against their current producers. RFC 4271 5-3 and 5-4: a negative test that takes the case just outside each clause (`ai/META-DECISIONS.md`, "Test changes"), tagged and recorded, plus the owed judge verdicts; `{single-polarity}` is not used where a negative exists. RFC 8955 and 9252: a fresh record for each partial scope. Settled when `./le rfc check` names none of these rows |
-| AC-33 | Rows another spec owns | Left to it, and not counted against this spec: RFC7752-3.4-1 and RFC9552-5.5-1 (`spec-bgp-next-hop-auto-rewrites-for-ebgp.md` AC-12); RFC2545-3-3's partial scope (AC-5, AC-6 here and `spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md`); the filter-wire umbrella's rows. A row whose owning spec closes without clearing it falls to this spec |
+| AC-32 | Rows no spec owned at the CI run: RFC4271-5-3 and RFC4271-5-4 (no negative test since 6c22530c23 removed four negative tags, its body carrying `RFC-approval-owed:` for three units), RFC8955-4-3 and RFC9252-3.3-2 (partial scope with no current verified mutant or revert) | RFC 4271 5-3 and 5-4: a negative test that takes the case just outside each clause (`ai/META-DECISIONS.md`, "Test changes"), tagged and recorded, plus the owed judge verdicts; `{single-polarity}` is not used where a negative exists. RFC 8955 and 9252: a fresh record for each partial scope. Settled when `./le rfc check` names none of these rows |
+| AC-33 | Rows another spec owns | Left to it, and not counted against this spec: RFC7752-3.4-1 and RFC9552-5.5-1 (`spec-bgp-next-hop-auto-rewrites-for-ebgp.md` AC-12); the filter-wire umbrella's rows. A row whose owning spec closes without clearing it falls to this spec |
 | AC-34 | Closure | `./le rfc check` at HEAD names no stale record, no SHIFTED and no STALE verdict outside AC-33, and the commit-time refusal of 6eec153998 is still registered (`TestCommitGateIsRegistered`) |
 | AC-27 (research amendment; design pending) | Explicit raw UPDATE body/full forms carrying valid labeled VPNv6 NLRI, with and without negotiated AFI 2 / SAFI 128 | The source finding below is decided by final emitted bytes with actual family capabilities and matching AS_PATH width. A useful negotiated VPNv6 route and same-session IPv4 control prevent blanket refusal from passing. Any confirmed capability-admission defect is fixed here after design review; mandatory level and applicability remain unchanged, and independent rejudgment follows observed results. |
 
@@ -318,7 +339,7 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
    - Verify: each record observes its red; `./le rfc check` drops the row
 3. **Phase: Audits** -- AC-7 to AC-24, one independent `/ze-rfc-audit` agent per stem, rfc2328 after phase 2
    - Verify: stamped with `mode rejudge`; a `weak` or `wrong` verdict sends its test or producer back to be fixed in this spec
-4. **Phase: Interop records** -- AC-4, AC-5, AC-6, when the owner reports a quiet host
+4. **Phase: Interop records** -- AC-4, AC-5, AC-6, after `spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md` lands its fix, when the owner reports a quiet host
    - Verify: scenario red with the break, the image rebuilt; `./le rfc check` drops all RFC 2545 lines
 5. **Phase: Reseal** -- AC-29, mechanical and first among the backlog phases because it runs no test
    - Verify: `./le rfc check` names no SHIFTED verdict
