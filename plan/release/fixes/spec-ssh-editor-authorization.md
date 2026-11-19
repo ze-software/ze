@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P0 |
 | Release reason | A fail-open boundary: a user whose profile denies configuration changes can commit one through the SSH session editor. |
@@ -516,3 +516,145 @@ test's configuration (see the note under the Acceptance Criteria).
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-ssh-editor-authorization.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Implementation commit cc07d52edb; the end-to-end `.ci` landed in b70affcb3a.
+- `internal/component/cli/config_permission.go`: `configPermissions`, `ConfigPermission`, `authorizeConfigVerb`, `configRefusal`. The gate runs in `dispatchCommandWords` (`model_commands.go`) after the `top <command>` recursion and the pipe split (which takes `show` alone, `dispatchWithPipe`), before the verb switch.
+- `cli.Model.SetConfigAuthorizer` (`model.go`); `sessionConfigAuthorizer` in `cmd/ze/hub/session_factory.go` binds the connection's authorizer through `sshSessionPolicy`, judged with `isReadOnly=false`, the name appended for a named stored configuration.
+- The nine strings live in `internal/component/plugin/types.go` (`ConfigAuth*`, `ConfigAuthStrings`); `api.ConfigAuth*` and the four web literals are gone; the web terminal's `terminalAuthCommand` reads `cli.ConfigPermission`.
+- `unknownMatchEntries` / `matchesConfigPermission` (`internal/component/config/infra/authz.go`) for AC-15.
+
+### Bugs Found/Fixed
+- The RBAC guide's sample `operator` profile matched nothing Ze authorizes (`configure`, `commit`); now `config`. Covered by the operator case of `TestSSHEditorAuthorizesConfigVerbsOverPTY`.
+- A profile written as documented warned at load (AC-15); covered by the three `TestUnknownMatchEntries*` tests.
+
+### Documentation Updates
+- `docs/guide/authorization.md` ("Configuration mode", anchors `config_permission.go -- ConfigPermission`, `authz.go -- unknownMatchEntries, matchesConfigPermission`, `session_factory.go -- buildSessionModelFactory`, `service_ssh.go -- sshSessionPolicy`), `docs/guide/operator-access-rbac.md`, `docs/guide/config-editor.md`, `docs/architecture/hub-architecture.md`, `docs/architecture/config/yang-config-design.md`, `docs/architecture/api/architecture.md`, `docs/architecture/cli/error-surface.md`, `docs/architecture/web-interface.md`, `docs/architecture/appliance/remote-operations.md`, `ai/digests/cli-editor.md`, `ai/digests/api-ipc.md`, all in cc07d52edb.
+- `./le doc check all`: source anchors of the edited pages resolve (main thread, 2026-11-19).
+
+### Deviations from Plan
+- A-4 broken: `cli` may not import `api` (`docs/architecture/core-design.md` section 19), so the strings moved to `internal/component/plugin/types.go`, the fallback the spec named.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: the strings could stay in `api` | The tier table forbids `cli` importing `api` | Tier check during implementation | Fallback taken (Deviations); no rule change, the tier table already says it |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Config-mode action authorized per verb against the profile | Done | `internal/component/cli/model_commands.go` `dispatchCommandWords` → `config_permission.go` `authorizeConfigVerb` | |
+| Same strings as web terminal, web editor, API | Done | `internal/component/plugin/types.go` `ConfigAuth*`; `web/cli_terminal.go` `terminalAuthCommand`; `web/handler_config.go` | |
+| Refusal in the dispatcher's access-control wording | Done | `config_permission.go` `configRefusal` wraps `pluginserver.ErrUnauthorized` | |
+| Named stored configuration authorized with the name appended | Done | `cmd/ze/hub/session_factory.go` `namedConfig`; `authorizeConfigVerb` | |
+| RBAC guide sample corrected | Done | `docs/guide/operator-access-rbac.md` | |
+| Profile entries for config strings do not warn (AC-15) | Done | `internal/component/config/infra/authz.go` `matchesConfigPermission` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSSHEditorAuthorizesConfigVerbsOverPTY`, `TestEditorGateRefusesBeforeHandler`, `TestEditorGateLeavesNavigationUngated`, `test/plugin/session-editor-authorization.ci` | |
+| AC-2 | Done | `TestSSHEditorAuthorizesConfigVerbsOverPTY`, `session-editor-authorization.ci` | |
+| AC-3 | Done | `TestEditorGateRefusesBeforeHandler` (operational shortcut), PTY test | |
+| AC-4 | Done | `TestEditorGateRefusesBeforeHandler` (`top set`, `top top set`), PTY test | |
+| AC-5 | Done | `TestEveryMutatingEditorVerbHasAPermission`, `TestTerminalAuthCommandReadsSharedMapping` | |
+| AC-6 | Done | PTY test admin case, `session-editor-authorization.ci` | |
+| AC-7 | Done | PTY test per-verb profile case | |
+| AC-8 | Done | `TestSSHEditorAuthorizesNamedConfigurationOverPTY`, `TestEditorGateAppendsConfigurationName` | |
+| AC-9 | Done | `TestSSHEditorAuthorizesNamedConfigurationOverPTY` | |
+| AC-10 | Done | PTY test, no `system.authorization` subtest | |
+| AC-11 | Done | `TestSessionFactoryFailsClosedWithoutAuthorizer` | |
+| AC-12 | Done | `TestEditorWithoutAuthorizerKeepsEveryVerb`; the attached console and `-f`/`--backup` install no authorizer (`newSessionEditor` untouched) | |
+| AC-13 | Done | `TestConfirmedRollbackSurvivesLostPermission` | |
+| AC-14 | Done | PTY test operator case | |
+| AC-15 | Done | `TestUnknownMatchEntriesKnowsConfigPermissions`, `...ReportsUnknownEntry`, `...NeedsWordBoundary` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Five `config_permission_test.go` tests | Done | `internal/component/cli/config_permission_test.go` | |
+| `TestSessionFactoryFailsClosedWithoutAuthorizer` | Done | `cmd/ze/hub/session_factory_test.go` | |
+| `TestTerminalAuthCommandReadsSharedMapping` | Done | `internal/component/web/cli_terminal_test.go` | |
+| Three `TestUnknownMatchEntries*` | Done | `internal/component/config/infra/authz_match_test.go` | |
+| Three PTY tests | Done | `cmd/ze/hub/session_authz_test.go` (`ze_ssh`) | |
+| `test/plugin/session-editor-authorization.ci` | Done | promoted, b70affcb3a | |
+| `test/plugin/rbac-ssh-only-enforced.ci` header | Done | cc07d52edb | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every Files to Modify and Files to Create entry | Done | All in `git show --stat cc07d52edb`, the `.ci` in b70affcb3a |
+
+### Audit Summary
+- **Total items:** 6 requirements, 15 AC, 15 tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (A-4 fallback, in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A denied user cannot change or commit through the SSH session editor | functional, over the whole path | `test/plugin/session-editor-authorization.ci` against a running daemon: viewer refused `config set` and `config commit`, running config keeps 1.2.3.4; red with the factory's `SetConfigAuthorizer` call removed, green restored; not reproduced as a failure in 80 runs under load |
+| Same strings on every surface | unit over the shared table | `TestTerminalAuthCommandReadsSharedMapping`, `TestEveryMutatingEditorVerbHasAPermission` |
+| Named configuration authorized with its name | functional, real SSH server | `TestSSHEditorAuthorizesNamedConfigurationOverPTY`, red with the factory call removed |
+| Security negative: no authorizer fails closed | negative test | `TestSessionFactoryFailsClosedWithoutAuthorizer`, red with the factory call removed |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is done. The editor Update/command race and the unwired built-in profiles were found, are not this spec's goal, and are owned journal rows | `plan/release/fixes/spec-web-cli-config-one-off-defects.md` (journal `per-request-state-on-a-shared-object` 2026-11-19); `plan/release/fixes/spec-wire-or-delete-unreached-code.md` (journal `unwired-feature` 2026-09-05) |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ssh-editor-authorization-acca8b4e-5491-46a3-a893-5f2d3908e305.md` (`./le spec review record`, verdict CLEAN, over this spec and `plan/.citation-baseline`) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and logic (every mutation path into the editor: `dispatchCommandWords`, `dispatchWithPipe`, `cmdTop`, `commitConfirmed`, `rollbackConfirmed`, `cmdAbort`), security (fail-closed `sshSessionPolicy`, name validation in `parseSessionRequest`, word-boundary matching), style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE | | |
+
+### Run 1 (independent closure review, 2026-11-19)
+- Pre-checks: `./le test weakened check base cc07d52edb~1` reports no finding in any file of this spec (169 findings, all other sessions' files); `./le repo check` reports none in this spec's files.
+- NOTE 1: a refused SSH editor change writes no audit entry. The web refusal (`authorizeWebConfigMutation`) writes none either, so the surfaces agree; not a goal of this spec.
+- NOTE 2: `ConfigPermission` returns `(string, bool)` where the empty string could carry "ungated". Kept: the named `gated` result is the guard `ai/rules/principles.md` asks to be named rather than an empty string relied on.
+- NOTE 3: a configuration name may contain a space (`parseSessionRequest` refuses only `/`, `\`, CR, LF, NUL and invalid paths). The extra word can only narrow what a deny entry covers on that name's own file, never widen an allow, because the authorizer matches a prefix at a word boundary.
+- Style pass over every changed Go file: no `panic()`, no unbounded loop (the `ConfigAuthStrings` walk is nine entries), names say what the value is, no new lifecycle.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/cli/config_permission.go`, `config_permission_test.go`, `cmd/ze/hub/session_authz_test.go`, `internal/component/config/infra/authz_match_test.go`, `test/plugin/session-editor-authorization.ci` | Yes | each defines the tests named above (grep `func Test...` at closure); the `.ci` is 4.7K, no draft left under `test/draft/plugin/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-15 | Implemented and tested | Every named test exists at closure (grep); runs green in the main checkout as cc07d52edb's message records (cli, web, api, api/rest, api/grpc, plugin, config/infra packages; hub authorization tests 3x under -race); red proofs for the PTY tests and the `.ci` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Running daemon, SSH editor via `le test fixture plugin/session-editor` | `test/plugin/session-editor-authorization.ci` | Read at closure: viewer and admin sessions through the daemon's SSH server, assertions on the refusal text and `show bgp` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-3, A-5 | confirmed | Risks & Assumptions table |
+| A-4 | broken | Fallback taken, Mistake Log and Deviations |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide permission table | `configPermissions` in `config_permission.go` lists the same thirteen verbs and eight strings | Yes |
+| `match config` covers no operational command | before AC-15 an entry `config` warned, so no builtin command path starts with `config` (`unknownMatchEntries` first loop) | Yes |
+| Feature list (checklist row 1) | No `features/` entry names the SSH editor's authorization surfaces (`grep -ril authoriz features/`: rest-grpc-api, tacacs-aaa, radius-admin-aaa, route-policy, rfc-7999-blackhole, none about the editor) | No update owed |
