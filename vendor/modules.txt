@@ -113,10 +113,10 @@ github.com/MirrexOne/unqueryvet/pkg/config
 ## explicit; go 1.23.0
 github.com/OpenPeeDeeP/depguard/v2
 github.com/OpenPeeDeeP/depguard/v2/internal/utils
-# github.com/a-h/parse v0.0.0-20250122154542-74294addb73e
-## explicit; go 1.18
+# github.com/a-h/parse v0.0.42
+## explicit; go 1.26.0
 github.com/a-h/parse
-# github.com/a-h/templ v0.3.1100
+# github.com/a-h/templ v0.3.1118
 ## explicit; go 1.26.0
 github.com/a-h/templ
 github.com/a-h/templ/cmd/templ
