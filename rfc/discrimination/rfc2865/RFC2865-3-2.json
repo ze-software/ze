@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2865-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom",
+    "unit-sha": "0ada3d0374161863",
+    "claim-sha": "7b1bf2893bced967",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::RandomAuthenticator",
+    "producer-sha": "37b0d311b70a0961",
+    "break": "line 50: \"rand.Read(auth[:])\" -\u003e \"rand.Read(auth[:0])\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2865-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword",
+    "unit-sha": "3cc293a0eeb2b5d3",
+    "claim-sha": "2374f0a080d71cb9",
+    "route": "mutant",
+    "producer": "internal/component/radius/attr.go::EncodeUserPassword",
+    "producer-sha": "f045c834d05b11ca",
+    "break": "line 22: \"padLen += 16 - padLen%16\" -\u003e \"padLen += 0\""
+  }
+]

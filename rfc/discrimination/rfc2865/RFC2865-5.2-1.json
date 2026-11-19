@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock",
+    "unit-sha": "fbac4e6b02f6fdc1",
+    "claim-sha": "a7f4087c0f5a2821",
+    "route": "mutant",
+    "producer": "internal/component/radius/attr.go::EncodeUserPassword",
+    "producer-sha": "f045c834d05b11ca",
+    "break": "line 49: \"h.Write(result[blockStart-16 : blockStart])\" -\u003e \"h.Write(authenticator[:])\""
+  },
+  {
+    "rid": "RFC2865-5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret",
+    "unit-sha": "d433d7ed0959289f",
+    "claim-sha": "9f67917ffaab8537",
+    "route": "mutant",
+    "producer": "internal/component/radius/attr.go::EncodeUserPassword",
+    "producer-sha": "f045c834d05b11ca",
+    "break": "line 35: \"h.Write(secret)\" -\u003e \"h.Write(nil)\""
+  }
+]

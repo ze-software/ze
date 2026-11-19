@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-3-3",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorCoversEveryNamedField",
+    "unit-sha": "aa3edf87debd394c",
+    "claim-sha": "81d8eb74272ef657",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
+    "producer-sha": "d3ec3b01205d9529",
+    "break": "line 201: \"subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) == 1\" -\u003e \"subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) \u003e= 0\""
+  },
+  {
+    "rid": "RFC2865-3-3",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorMatchesTheFormula",
+    "unit-sha": "dcef307ec3c0fb10",
+    "claim-sha": "df2f400e82e161a6",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::ResponseAuthenticator",
+    "producer-sha": "1ef5981ea536843e",
+    "break": "line 180: \"h.Write(attrs)\" -\u003e \"h.Write(nil)\""
+  }
+]
