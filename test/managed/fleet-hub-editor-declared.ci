@@ -1,0 +1,42 @@
+# Test: a hub's session editor refuses a client no serving block declares
+#
+# QUESTION: does `ze config edit client-<name>.conf`, typed beside a running
+#           hub, refuse the config of a client no serving block declares, and
+#           still open and commit the config of a declared client that is not
+#           connected?
+#           (docs/architecture/fleet-config.md, "Config Storage (Hub Side)".)
+# WHY NOT A UNIT TEST: the answer is a path across the local command, the SSH
+#           session and the hub. `ze config edit` names the config in the
+#           session request, the hub's session factory asks the managed server
+#           the hub started which clients its config declares, and the refusal
+#           has to come back through the SSH channel as the text and the exit
+#           code the operator sees. TestSessionEditorRefusesUndeclaredClient
+#           proves the factory with a predicate the test installs, and not that
+#           the hub installs one before a session can open.
+#
+# VALIDATES: spec-fleet-6 AC-20. On a hub that declares edge-01 and whose store
+#            holds client-edge-01.conf and client-edge-99.conf, the editor on
+#            client-edge-99.conf exits non-zero before drawing anything, naming
+#            the config, the missing client entry under plugin hub server and
+#            the fix `ze config edit`. The editor on client-edge-01.conf opens
+#            with no client daemon running, and the router-id committed there
+#            becomes the hub's active version of that config.
+# PREVENTS: a session editor that records a version of a config no client ever
+#           fetches, and a guard that turns into a connected-only rule and
+#           refuses to provision a client that has never connected.
+#
+# $PORT is the hub's SSH, $PORT2 its plugin transport and $PORT3 its managed
+# listener. The one daemon is `ze start`, launched by the fixture in a store of
+# its own, because the client configs are imported before it starts. Both
+# editors are typed in the hub's store folder: `ze config edit <name>` opens
+# the store of the folder its path names (resolve.StoreDir), and dials the
+# hub's SSH address from the environment.
+#
+# The assertions are compiled because the verdicts are a PTY transcript and
+# the hub's own store: internal/test/fixture/misc_fixture_managed_hub_editor.go.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-hub-editor-declared $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: the hub's session editor refused an undeclared client and committed a declared one that is not connected

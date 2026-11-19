@@ -1,0 +1,46 @@
+# Test: a hold ends when the hub is given the configuration the device runs
+#
+# QUESTION: does a managed device that holds stop holding once its hub is
+#           given the configuration the device runs, keep running it, and
+#           does the hub stop listing it as refusing?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-6, AC-9,
+#           user story 4; docs/guide/fleet-config.md, "When a Client Holds".)
+# WHY NOT A UNIT TEST: the answer is a path across two daemons and three
+#           commands. `ze data import` beside the running hub writes the
+#           client's configuration, the hub notifies the connected device, the
+#           device fetches with the hash of what it runs, the hub answers that
+#           it holds the same, and the device's store then has to say so to
+#           `show fleet status` and `ze doctor`. TestCurrentAnswerSetsBaseline
+#           proves the last step over a stub hub, and not that the hub's hash
+#           of an imported file equals the device's hash of the same file.
+#           TestHoldEndedOnCurrentTellsTheHub proves the device acknowledges,
+#           and not that a real hub then drops the row an operator reads.
+#
+# VALIDATES: a device that took its hub's configuration, was then given
+#            another one with its daemon stopped, and holds: the hub's
+#            `show doctor` lists the refusal, `show fleet status` beside the
+#            device reports diverged true and `ze doctor` beside it reports
+#            doctor-managed-diverged. After `ze data import` of the device's
+#            configuration on the hub, `show fleet status` reports diverged
+#            false with the baseline hash equal to the active hash, the device
+#            still runs its own configuration, `ze doctor` no longer reports
+#            doctor-managed-diverged, and the hub's `show doctor` no longer
+#            lists the refusal it listed while the device held.
+# PREVENTS: a hold with no way out short of provisioning the device again; a
+#           hub and a device that hash the same configuration differently, so
+#           the hold never ends; a device that applies something when the hub
+#           agrees with it; a hub that keeps reporting a device as holding
+#           after its operator resolved the hold.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener. The device runs no SSH listener,
+# so `show fleet status` and `ze doctor` beside it answer from its store.
+#
+# The assertions are compiled because the verdicts are two stores and four
+# command answers: internal/test/fixture/misc_fixture_managed_fleet_hold.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-hold-clears-on-match $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: a holding managed device stopped holding once its hub was given the configuration it runs

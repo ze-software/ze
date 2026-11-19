@@ -1,0 +1,44 @@
+# Test: show fleet status with the daemon stopped and running, managed and not
+#
+# QUESTION: does `ze cli -c "show fleet status"`, on a store `ze init --managed`
+#           seeded, report where the device stands with its hub (managed,
+#           frozen, the hub its config declares, the baseline and active
+#           hashes, whether they differ), answer from the store when no daemon
+#           runs, and draw the running daemon's answer, with the state of its
+#           hub client, when one does?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-15, AC-22;
+#           docs/architecture/api/commands.md, "Local-data commands".)
+# WHY NOT A UNIT TEST: the question is which process answers. The local route
+#           reaches a running daemon over its SSH listener with the credential
+#           `ze init` stored, and the daemon serves the same handler through
+#           its dispatcher. TestFleetStatusStoreOnly proves the store facts
+#           and the routing over a stub ask, and nothing about a real `ze`
+#           process finding a real daemon, or about the daemon's dispatcher
+#           serving the command at all.
+#
+# VALIDATES: four answers of the same command: daemon stopped and managed
+#            (daemon-answered false; client, connection and holding all
+#            no-daemon; no baseline, not diverged), daemon running and managed
+#            with a baseline written that differs from the active hash
+#            (daemon-answered true, diverged true, the same active hash,
+#            client running, connection not-connected, holding not-holding),
+#            then the device with its managed flag set to false, stopped
+#            (the three fields no-daemon) and running (managed false, frozen
+#            false, the hub block still reported, client not-started,
+#            connection not-connected, holding not-holding).
+# PREVENTS: a status that needs a running daemon; a local answer read from the
+#           store beside a running daemon; a daemon that does not serve the
+#           command; an absent baseline read as diverged; a daemon that cannot
+#           say what its hub client is doing; a diverged store reported as a
+#           held fetch when no fetch was answered.
+#
+# $PORT is the device's own plugin transport. $PORT2 is the hub port its config
+# names: nothing binds it, so the managed client runs and never connects, which
+# is the client state the running managed daemon has to report. $PORT3 is the daemon's SSH listener, the address
+# `ze init` stores and `ze cli` dials.
+
+option=timeout:value=150s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-status -plugin-port $PORT -hub-port $PORT2 -ssh-port $PORT3:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: show fleet status answered the store facts with the daemon stopped and running, managed and not

@@ -1,0 +1,42 @@
+# Test: ze doctor reports a managed device whose configuration is not its hub's
+#
+# QUESTION: does `ze doctor`, on a managed device whose active configuration
+#           differs from its baseline, report doctor-managed-diverged with its
+#           fix, with the daemon stopped and with it running, and say nothing
+#           of the same difference on a device that is not managed?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-8;
+#           docs/architecture/doctor-and-health-checks.md, "External plugin
+#           and managed fleet checks".)
+# WHY NOT A UNIT TEST: the question is whether the check runs in the report an
+#           operator gets. TestDivergedDoctorCheck calls the check with a store
+#           it built. This test has `ze doctor` find the check in the registry
+#           of the real binary, open the store `ze init --managed` seeded,
+#           and, with a daemon running, draw the daemon's own report, where
+#           the same check has to be handed the daemon's store.
+#
+# VALIDATES: four reports of `ze doctor --json` on one store. Managed with no
+#            baseline: no doctor-managed-diverged row. Managed with a baseline
+#            that differs from the active hash, daemon stopped: one such row,
+#            a warning that says the configuration differs from the last one
+#            its hub sent, names the baseline, and gives both fixes (the
+#            import on the hub, `request fleet disable` on the device). The
+#            same with the daemon running and answering: the same one row.
+#            The managed flag set to false: no such row.
+# PREVENTS: a hold the operator of the device cannot see; a check that reports
+#            only while the daemon is stopped, or only while it runs; a device
+#            outside any fleet warned about a local change.
+#
+# $PORT is the device's own plugin transport. $PORT2 is the hub port its
+# config names: nothing binds it, so each silent report still carries
+# doctor-hub-unreachable, which shows it read this device's configuration.
+# $PORT3 is the daemon's SSH listener, the address `ze init` stores and
+# `ze doctor` dials.
+#
+# The assertions are compiled because the verdicts are rows of a JSON report:
+# internal/test/fixture/misc_fixture_managed_fleet_doctor.go.
+
+option=timeout:value=150s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-diverged-doctor -plugin-port $PORT -hub-port $PORT2 -ssh-port $PORT3:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: ze doctor reported doctor-managed-diverged with its fix on a managed device, daemon stopped and running

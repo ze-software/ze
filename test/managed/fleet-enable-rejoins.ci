@@ -1,0 +1,53 @@
+# Test: request fleet enable puts a device that left the fleet back on its hub
+#
+# QUESTION: does `request fleet enable` put a managed device that left the
+#           fleet back on its hub with no restart, so that it takes what the
+#           hub changed meanwhile, and does the command refuse a device whose
+#           configuration names no hub, and store the flag when no daemon runs?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-11, AC-13,
+#           AC-14, user story 3; docs/guide/fleet-config.md, "Leave and Rejoin
+#           the Fleet".)
+# WHY NOT A UNIT TEST: the answer is a path across two daemons. The daemon
+#           that stopped its hub client has to build a new one from the
+#           configuration it runs now, connect to a real hub, fetch and apply,
+#           in the process that was started before the leave.
+#           TestFleetEnableStartsClient and TestOwnerStartAfterStop prove the
+#           start over a stub client and no hub, and
+#           TestFleetLocalRouteStoresFlagWithoutDaemon proves the stopped
+#           route over a store a test opened, not the one a real `ze` finds.
+#
+# VALIDATES: a device that followed its hub leaves with `request fleet
+#            disable`, and the hub's copy of its configuration changes. After
+#            `request fleet enable` the flag is true, the same `ze start`
+#            process logs a second connection, the hub's log counts one more
+#            session, the device runs the hub's new configuration with its
+#            baseline equal to it, and `show fleet status` reports client
+#            running, connection connected, not diverged. A second `request
+#            fleet enable` answers that the client already runs. The device
+#            leaves again and is given a configuration with no hub block:
+#            `request fleet enable` is refused, naming the problem with
+#            `ze init --managed --force` on the last line, and the flag stays
+#            false. With the daemon stopped, `ze request fleet enable` gives
+#            the same refusal. Given a configuration that names the hub,
+#            `ze request fleet enable` and `ze request fleet disable` each
+#            store the flag and say that no daemon runs, and the `ze start`
+#            that follows an enable connects to the hub.
+# PREVENTS: a rejoin that needs a restart; a rejoin that reuses the client the
+#           daemon built at boot; a device that rejoins and does not take its
+#           hub's change; a managed device with no hub to follow; a leave or a
+#           rejoin that needs a running daemon.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener. The device serves SSH on a port
+# the driver reserves, so `ze cli` and `ze data import` beside it reach its
+# daemon.
+#
+# The assertions are compiled because the verdicts are two daemons' states,
+# two stores and a dozen command answers:
+# internal/test/fixture/misc_fixture_managed_fleet_leave.go.
+
+option=timeout:value=400s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-enable-rejoins $PORT $PORT2 $PORT3:timeout=400s
+expect=exit:code=0
+expect=stderr:contains=OK: request fleet enable put a managed device back on its hub with no restart

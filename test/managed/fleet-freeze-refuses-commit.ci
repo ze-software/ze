@@ -1,0 +1,49 @@
+# Test: a managed device refuses a local change to its own configuration
+#
+# QUESTION: does a managed device refuse an operator's change to its own
+#           configuration, naming `request fleet disable`, through its
+#           running daemon and on its stopped store, while a push from its
+#           hub still applies, and accept the same change once it left the
+#           fleet?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-16, AC-17,
+#           user story 2; docs/architecture/fleet-config.md, "The freeze".)
+# WHY NOT A UNIT TEST: the answer is a path across commands, a daemon and its
+#           store. TestFreezeRefusesOperatorStaging proves that the store's
+#           staging step refuses, on a store a test seeds. It does not prove
+#           that `ze data import`, `ze config import` and the rollback request
+#           reach that step on
+#           a device `ze init --managed` provisioned and a hub configured,
+#           that the refusal comes back to the operator with its fix on the
+#           last line, or that the hub's push takes the other entry on the
+#           same daemon.
+#
+# VALIDATES: on a running managed device, `ze data import` of its own
+#            configuration and `request data config rollback` both fail with
+#            "the configuration was not changed: this device is managed by a
+#            hub" and `fix: request fleet disable` on the last line, and the
+#            store's keys of that configuration and its active bytes are
+#            unchanged. A `ze data import` on the hub is then applied by the
+#            device. With the daemon stopped, `ze data import` and
+#            `ze config import --yes` of the device's own stored configuration
+#            fail the same way and change nothing. (`ze config rollback <N>
+#            <file>` with no daemon rolls back the disk file it names, never
+#            the store, so it is not a route the freeze guards.)
+#            After `request fleet disable` on the restarted device, the same
+#            import becomes the configuration the device runs.
+# PREVENTS: a local change a hub push later overwrites with no warning; a
+#           refusal that leaves a candidate, so the next hub push fails; a
+#           managed device that refuses its own hub; a freeze with no exit.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener. The device skips the hub's
+# certificate check: test/managed/managed-hub-ca-trust.ci proves the trust.
+#
+# The assertions are compiled because the verdicts are the device's store and
+# the text of four refusals:
+# internal/test/fixture/misc_fixture_managed_fleet_freeze.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-freeze-refuses-commit $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: a managed device refused a local change to its configuration, running and stopped, naming request fleet disable

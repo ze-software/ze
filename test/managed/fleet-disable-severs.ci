@@ -1,0 +1,53 @@
+# Test: request fleet disable takes a connected managed device out of the fleet at once
+#
+# QUESTION: does `request fleet disable` on a connected managed device close
+#           its hub connection at once, so that the hub sees the session end,
+#           and leave the device running its configuration and open to a
+#           local change?
+#           (plan/release/fixes/spec-fleet-6-config-freeze.md, AC-10, user
+#           story 1; docs/guide/fleet-config.md, "Leave and Rejoin the Fleet".)
+# WHY NOT A UNIT TEST: the answer is what two daemons see. The command reaches
+#           the device's daemon over SSH, the daemon stops its hub client, and
+#           the hub's managed listener has to read the close of a real TLS
+#           session. TestFleetDisableStoresFlagThenStops proves the order of
+#           the two acts over a stub target, and TestOwnerStopEndsLiveConnection
+#           proves the client's goroutine returns. Neither holds a hub, and
+#           neither then changes the device through an operator's own command.
+#
+# VALIDATES: a device that took its hub's configuration and reports client
+#            running, connection connected. `request fleet disable` answers
+#            that the hub connection was closed. The hub's own log then counts
+#            every session of that client as ended, with none admitted since.
+#            meta/instance/managed holds false, and `show fleet status` from
+#            the device's daemon reports managed false, client stopped,
+#            connection not-connected, holding not-holding. The device still
+#            runs the configuration its hub gave it and keeps its baseline. A
+#            second `request fleet disable` answers that there was no client
+#            to stop. `ze data import` beside the device then gives it another
+#            configuration, which becomes the one it runs. After that the
+#            device has not tried its hub again and the hub has admitted no
+#            new session.
+# PREVENTS: a leave that only stores a flag and keeps the hub connection until
+#           the hub's timeout for a silent client; a device that reconnects
+#           after it left; a leave that stops or changes the device's
+#           configuration; a device that left the fleet and still cannot be
+#           changed.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener. The device serves SSH on a port
+# the driver reserves, so `ze cli` and `ze data import` beside it reach its
+# daemon.
+#
+# The hub's view is read from the lines its managed listener writes when it
+# admits a client and when that session ends. The wait for the close is on
+# those lines, never on elapsed time: its budget is 10 seconds, far inside the
+# 90 seconds after which the hub gives up on a silent client.
+#
+# The assertions are compiled because the verdicts are two daemons' states and
+# six command answers: internal/test/fixture/misc_fixture_managed_fleet_leave.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-disable-severs $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: request fleet disable closed the hub connection of a managed device at once
