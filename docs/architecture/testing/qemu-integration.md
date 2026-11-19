@@ -1948,6 +1948,13 @@ an `integration`-tagged test file from the tree and fails when one is absent
 from that list; `TestEveryNamedIntegrationPackageExists` fails on a named
 package that is not in the tree. Read the Go list rather than a copy of it.
 
+The PPPoE VPP provider is included for its control-link namespace readback
+proof. That test creates an owned Linux namespace and dummy device; it does
+not start VPP. The integration phase supplies the real Linux namespace and
+netlink privileges, so this proof belongs in the guest alongside the kernel
+provider.
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/prepare_integration_linux_test.go -- TestNativeVPPAccessControlReadbackKeepsCallerNamespace -->
+
 <!-- source: internal/le/test/qemu/alltests.go -- integrationPackages -->
 <!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestEveryIntegrationPackageIsNamed, TestEveryNamedIntegrationPackageExists -->
 

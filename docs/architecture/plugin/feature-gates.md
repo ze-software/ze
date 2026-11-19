@@ -460,12 +460,13 @@ builds `ze_core ze_web` and requires a web symbol and no fleet symbol.
 ship is linked by a tag the manifest does not declare. `zetest` links the
 test-only plugins into the functional-test daemon
 (`cmd/ze/plugins_zetest.go`). `ze_fleet_ui_sample` links the sample data
-source of the fleet interface (`cmd/ze/hub/register_fleet_ui_sample.go`), and
-only a review build names it. Neither package carries a source build tag: the
-tagged blank import is the gate, so the packages still compile, lint and test
-with the tree. `TestShippedZeLinksNoFleetSample` lists the dependencies of
-every shipped flavor and refuses the sample package, and
-`TestFleetSampleTagLinksTheSample` proves the tag links it. Such a tag joins
+source of the fleet interface, through its registration sub-package
+`fleetui/sample/register` (`cmd/ze/hub/register_fleet_ui_sample.go`), and only
+a review build names it. None of these packages carries a source build tag:
+the tagged blank import is the gate, so the packages still compile, lint and
+test with the tree. `TestShippedZeLinksNoFleetSample` lists the dependencies of
+every shipped flavor and refuses the sample package and its registration, and
+`TestFleetSampleTagLinksTheSample` proves the tag links both. Such a tag joins
 the `capability` flavor of the lint matrix, or the file that names it is
 linted by no pass.
 <!-- source: cmd/ze/hub/register_fleet_ui_sample.go -- the tagged blank import -->

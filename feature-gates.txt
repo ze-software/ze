@@ -250,9 +250,11 @@ ze_radius  internal/component/l2tp/plugins/authradius
 # discovers it (it registers web routes, not a plugin), so the hub links it from
 # the hand-written cmd/ze/hub/register_fleet_ui.go, guarded
 # //go:build ze_web && ze_fleet_ui. Its routes mount only when a data source is
-# registered. The sample source under fleetui/sample is linked by the tag
-# ze_fleet_ui_sample, which is deliberately NOT a row here: every tag in this
-# file is set by every shipped build, and sample data must never ship.
+# registered. The sample source under fleetui/sample registers nothing itself:
+# fleetui/sample/register makes it the build's source, and the hub links that
+# under the tag ze_fleet_ui_sample, which is deliberately NOT a row here: every
+# tag in this file is set by every shipped build, and sample data must never
+# ship.
 ze_fleet_ui  internal/component/web/fleetui
 
 # MRT routing-information export (RFC 6396) is a BGP plugin under ze_bgp, with

@@ -612,6 +612,22 @@ selected by `INET_ESP` through `XFRM_ESP` in Linux 7.3.
 <!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmTransformKernel -->
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
+Scoped IPsec SAs also require the carried state-scope, fragment-context and
+fragment-guard patches. The runtime fragment and manifest require built-in
+`CONFIG_XFRM_FRAGMENT_GUARD`; its Kconfig dependency requires built-in IPv6
+and netfilter, and selects both family defrag implementations as built-ins.
+The compiled runtime floor does not independently require this guard symbol.
+Before every scoped SA installation, the dataplane reads the live namespace's
+capability receipt and requires the exact ABI, 64-selector limit and feature
+bits 0 through 3. A kernel with only part of that support cannot install a
+scoped SA, even when its configuration passed the build's checks.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_XFRM_FRAGMENT_GUARD -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_XFRM_FRAGMENT_GUARD -->
+<!-- source: gokrazy/kernel/patches/series -- state-scope, fragment-context and fragment-guard patches -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- XFRM_FRAGMENT_GUARD -->
+<!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->
+
 PWM fan control requires built-in `CONFIG_SENSORS_PWM_FAN`, with `CONFIG_HWMON`
 and `CONFIG_PWM` built in. The runtime fragment requests all three, and the
 manifest checks their emitted values. The compiled floor also requires the fan
