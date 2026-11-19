@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4303-3.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault",
+    "unit-sha": "9ad03e0109a3be08",
+    "claim-sha": "2a19117fc9d60a4b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+    "producer-sha": "9475156f5bedb5b6",
+    "break": "line 690: \"Dir:      dataplane.SADirOut,\" -\u003e \"Dir: dataplane.SADirOut, ReplayWin: replayWindow,\""
+  }
+]

@@ -7,7 +7,7 @@
     "claim-sha": "773ccfb2656aca25",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "0c882b938c258e96",
+    "producer-sha": "ff2b495eb4b26154",
     "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "aa8c8a3585408062",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "0c882b938c258e96",
+    "producer-sha": "ff2b495eb4b26154",
     "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

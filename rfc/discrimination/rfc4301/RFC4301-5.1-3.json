@@ -7,8 +7,8 @@
     "claim-sha": "af194c31e46bb0e5",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "0c882b938c258e96",
-    "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 312: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
   },
   {
     "rid": "RFC4301-5.1-3",
@@ -18,8 +18,8 @@
     "claim-sha": "e9be50bd67329f39",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "0c882b938c258e96",
-    "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 312: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
   },
   {
     "rid": "RFC4301-5.1-3",
@@ -29,8 +29,8 @@
     "claim-sha": "947cd96d335869d2",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "0c882b938c258e96",
-    "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 312: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
   },
   {
     "rid": "RFC4301-5.1-3",
