@@ -40,7 +40,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    gate `validateBackendGate` (`firewall/engine.go`, `firewall/engine.go`), structural/cross-reference
    checks `ValidateTables` (`validate.go`, `firewall/engine.go`: term non-emptiness, Jump/Goto
    target chains, FlowOffload flowtable refs, `MatchInSet` field/family compatibility via
-   `validateSetFieldMatch` `validate.go`), and an optional per-backend `RunVerifier`
+   `validateSetFieldMatch` `validate.go`). With backend `nft`, the same table walk
+   checks NAT chain declarations, target families and action placement. A regular
+   chain's action is checked against every base chain that reaches it through
+   `jump` or `goto`. Verification then calls the optional per-backend `RunVerifier`
    (`backend.go`, `firewall/engine.go`).
 6. **Global options → sysctl bridge.** `ExtractGlobalOptions` maps `firewall/global-options`
    leaves (`all-ping`, `syn-cookies`, `source-validation`, …) to sysctl key/value pairs;

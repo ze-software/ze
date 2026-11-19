@@ -292,7 +292,7 @@ func Table() []Action {
 		{
 			Verb:    "firewall",
 			Does:    doesRun,
-			Argv:    goTest("120s", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
+			Argv:    goTest("120s", "./internal/component/firewall", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
 			Summary: "test the nft firewall backend and CoPP",
 			Why: "the nft firewall backend against a real nftables ruleset, and the CoPP" +
 				" chain policing a SYN flood through it. Needs CAP_NET_ADMIN",

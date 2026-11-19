@@ -318,6 +318,7 @@ var integrationPackages = []string{
 	"./internal/component/bgp/reactor/...",
 	"./internal/component/bfd",
 	"./internal/plugins/fib/kernel/...",
+	"./internal/component/firewall",
 	"./internal/plugins/firewall/nft/...",
 	"./internal/plugins/firewall/vpp/...",
 	"./internal/plugins/traffic/vpp/...",

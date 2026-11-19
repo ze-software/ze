@@ -299,7 +299,7 @@ func VerifyConfig(sections []sdk.ConfigSection) error {
 // parseAndVerifyFirewallSections parses one delivery onto base, the running
 // config (nil for boot and offline validate), and refuses what the backend
 // cannot apply exactly: the firewall tables and the helper tables are judged
-// by ValidateTables and by the selected backend's verifier together, so a
+// by configured-table validation and by the selected backend's verifier, so a
 // backend with no conntrack helper (vpp) refuses a listed helper at verify,
 // before anything is applied.
 func parseAndVerifyFirewallSections(sections []sdk.ConfigSection, base *firewallConfig) (*firewallConfig, error) {
@@ -324,19 +324,26 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection, base *firewall
 	if cfg.Backend == "" {
 		return nil, errFirewallNoBackendConfiguredAndNo
 	}
-	if err := refuseReservedTableNames(cfg.Tables); err != nil {
+	if err := validateConfiguredFirewallTables(cfg); err != nil {
 		return nil, err
-	}
-	if err := ValidateTables(cfg.Tables); err != nil {
-		return nil, err
-	}
-	if err := ValidateTables(cfg.HelperTables); err != nil {
-		return nil, fmt.Errorf("system conntrack module: %w", err)
 	}
 	if err := RunVerifier(cfg.Backend, cfg.desiredTables()); err != nil {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func validateConfiguredFirewallTables(cfg *firewallConfig) error {
+	if err := refuseReservedTableNames(cfg.Tables); err != nil {
+		return err
+	}
+	if err := validateTables(cfg.Tables, cfg.Backend == "nft"); err != nil {
+		return err
+	}
+	if err := ValidateTables(cfg.HelperTables); err != nil {
+		return fmt.Errorf("system conntrack module: %w", err)
+	}
+	return nil
 }
 
 // setLogger stores the engine-provided logger for package-level use.
@@ -437,14 +444,8 @@ func runEngine(conn net.Conn) int {
 				return err
 			}
 		}
-		if err := refuseReservedTableNames(cfg.Tables); err != nil {
+		if err := validateConfiguredFirewallTables(cfg); err != nil {
 			return err
-		}
-		if err := ValidateTables(cfg.Tables); err != nil {
-			return err
-		}
-		if err := ValidateTables(cfg.HelperTables); err != nil {
-			return fmt.Errorf("system conntrack module: %w", err)
 		}
 
 		// Without a `firewall {}` block the OS default backend is the one

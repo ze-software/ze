@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -185,6 +185,48 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 ## Implementation Steps
 1. Read each producer at HEAD; move a fixed row to "Rows found already fixed".
 2. Red test, fix, green, page edit, journal cell closed with the commit.
+
+### AC-33 design and verification
+
+The owner approved work on the design presented on 2026-11-19. The entry
+point is `ze config validate`, which dispatches the firewall section to
+`VerifyConfig`. The running config verifier and startup use the same parsed
+table model. Select the NAT placement check with the configured `nft` backend
+and run it in `validateAction`. Check base `nat` chain declarations even when
+the chain contains no terms. Keep VPP's existing backend verifier in charge
+of its own NAT placement rules.
+
+An nft backend verifier over the entire merged table set could also run this
+check, but it would bring already-registered contributions into this change
+and repeat validation work. Checking the configured tables extends the
+existing action checks with one backend selection. It adds no kernel call or
+wire field. For a regular chain, apply the action's hook mask and required
+chain type to every base chain that reaches it using `chainReaches`. Each walk
+is bounded by the configured chain graph and runs only during verification.
+
+| Risk | Early signal | Control |
+| ---- | ------------ | ------- |
+| A legal entry path hides an illegal path to the same helper | A shared helper validates when one entry chain uses `filter` or has the wrong hook | Test one legal and one illegal path, reached through both `jump` and `goto`, then prove the corresponding two-legal-path table installs |
+| Linux rules affect VPP or reject a valid corner of the nft rules | The VPP path refuses a hook it previously accepted, or the verifier rejects `snat` at `input`, a single-family target in `inet`, or a regular chain with no entry path | Verify those controls alongside the rejected cases and apply the accepted nft configurations in the guest |
+| An empty invalid `nat` base chain bypasses the action check | A forward hook or priority at the connection-tracking boundary validates with no term | Validate chain declarations independently and test the priority boundary on each side |
+
+| Proof | Entry point and observed result |
+| ----- | ------------------------------- |
+| `TestVerifyConfigNftNATPlacement` | Operator firewall JSON through the registered `VerifyConfig` hook. Each refusal names the incorrect setting and its remedy. The neighbouring valid cases verify successfully |
+| `TestNftNATPlacementIntegration` | The same matrix runs in an isolated namespace. Refused configurations reach no apply. Accepted configurations install through the registered nft backend and read back from the kernel |
+| `test/firewall/firewall-nft-nat-placement.ci` | `ze config validate -` prints the shared-chain refusal with its remedy and accepts the corrected config |
+
+The firewall guide documents the placement and the earlier error. The firewall
+flow digest records where the backend selection reaches validation. The guest
+test joins the existing firewall integration group and QEMU package population.
+
+**AC-33 verified on 2026-11-19.** The initial config verifier run accepted all 25 invalid cases and passed the
+18 valid controls. After the fix, the same 43 cases passed in Ze's arm64 Linux
+7.3 guest. The invalid cases left the ruleset empty and the backend unloaded.
+The valid cases installed and read back with the expected chains, hooks and
+NAT expressions. The CLI wiring proof exercises a DNAT helper reached through
+`jump` and `goto`, then corrects the offending entry chain and validates again.
+The draft passed all 80 executions under load before promotion.
 
 ## Owned journal rows
 

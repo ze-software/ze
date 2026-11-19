@@ -1,0 +1,67 @@
+# Test: Does ze config validate reject a DNAT helper reached from a filter
+# base chain and accept the same config when both entry chains use type nat?
+# VALIDATES: spec-network-services-one-off-defects AC-33.
+# The firewall unit tests call VerifyConfig directly. This test checks that
+# the public CLI parses the operator config, dispatches it, and prints the
+# placement error and its remedy. Verification uses no kernel operations.
+
+stdin=refused:refused=config-plugin-verify:terminator=EOF_REFUSED
+firewall {
+	backend nft;
+	table nat_placement {
+		family ip;
+		chain incoming {
+			type nat;
+			hook prerouting;
+			priority 0;
+			policy accept;
+			term enter { then { jump translate; } }
+		}
+		chain outgoing {
+			type filter;
+			hook output;
+			priority 0;
+			policy accept;
+			term enter { then { goto translate; } }
+		}
+		chain translate {
+			term to_lan { then { dnat { to "192.0.2.20"; } } }
+		}
+	}
+}
+EOF_REFUSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=refused:exit=1
+expect=stdout:contains=Firewall table "nat_placement" chain "translate" term "to_lan" cannot use dnat
+expect=stdout:contains=Base chain "outgoing" has type filter at hook output
+expect=stdout:contains=every reaching base chain has type nat and hook output or prerouting
+expect=stdout:contains=edit firewall table nat_placement chain translate term to_lan
+
+stdin=accepted:terminator=EOF_ACCEPTED
+firewall {
+	backend nft;
+	table nat_placement {
+		family ip;
+		chain incoming {
+			type nat;
+			hook prerouting;
+			priority 0;
+			policy accept;
+			term enter { then { jump translate; } }
+		}
+		chain outgoing {
+			type nat;
+			hook output;
+			priority 0;
+			policy accept;
+			term enter { then { goto translate; } }
+		}
+		chain translate {
+			term to_lan { then { dnat { to "192.0.2.20"; } } }
+		}
+	}
+}
+EOF_ACCEPTED
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=accepted:exit=0
+expect=stdout:contains=configuration valid

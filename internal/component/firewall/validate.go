@@ -16,13 +16,16 @@ import (
 // before reload.
 const ifaceNameMaxLen = 15
 
-// ValidateTables runs every verify-time check that does not need the kernel:
+// ValidateTables runs the shared structural checks that do not need a selected backend:
 // per-item Validate, term non-emptiness, cross-references (Jump / Goto target
 // chains, FlowOffload flowtable, MatchInSet named set), and the "exact or
 // reject" guards on actions the backend cannot yet program exactly
-// (SetDSCP on non-IPv4 tables, named Counter). Callers are OnConfigVerify and
-// OnConfigure; everything the backend touches at Apply must pass here first.
+// (SetDSCP on non-IPv4 tables, named Counter).
 func ValidateTables(tables []Table) error {
+	return validateTables(tables, false)
+}
+
+func validateTables(tables []Table, nftNATPlacement bool) error {
 	for i := range tables {
 		tbl := &tables[i]
 		if err := tbl.Validate(); err != nil {
@@ -50,8 +53,13 @@ func ValidateTables(tables []Table) error {
 			if err := ch.Validate(); err != nil {
 				return fmt.Errorf("table %q: %w", tbl.Name, err)
 			}
+			if nftNATPlacement && ch.IsBase && ch.Type == ChainNAT {
+				if err := validateNftNATBaseChain(tbl, ch); err != nil {
+					return err
+				}
+			}
 			for k := range ch.Terms {
-				if err := validateTerm(tbl, ch, &ch.Terms[k], chainNames, setNames, flowtableNames); err != nil {
+				if err := validateTerm(tbl, ch, &ch.Terms[k], chainNames, setNames, flowtableNames, nftNATPlacement); err != nil {
 					return err
 				}
 			}
@@ -90,7 +98,7 @@ func collectFlowtableNames(t *Table) map[string]bool {
 	return m
 }
 
-func validateTerm(tbl *Table, ch *Chain, term *Term, chains map[string]bool, sets map[string]SetType, flowtables map[string]bool) error {
+func validateTerm(tbl *Table, ch *Chain, term *Term, chains map[string]bool, sets map[string]SetType, flowtables map[string]bool, nftNATPlacement bool) error {
 	if err := ValidateName(term.Name); err != nil {
 		return fmt.Errorf("table %q chain %q: term: %w", tbl.Name, ch.Name, err)
 	}
@@ -104,7 +112,7 @@ func validateTerm(tbl *Table, ch *Chain, term *Term, chains map[string]bool, set
 		}
 	}
 	for _, a := range term.Actions {
-		if err := validateAction(tbl, ch, term, a, chains, flowtables); err != nil {
+		if err := validateAction(tbl, ch, term, a, chains, flowtables, nftNATPlacement); err != nil {
 			return err
 		}
 	}
@@ -440,8 +448,12 @@ func validateInterfaceName(tbl *Table, ch *Chain, term *Term, leaf, name string)
 	return nil
 }
 
-func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtables map[string]bool) error {
+func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtables map[string]bool, nftNATPlacement bool) error {
 	switch v := a.(type) {
+	case SNAT, DNAT, Masquerade, Redirect:
+		if nftNATPlacement {
+			return validateNftNATAction(tbl, ch, term, a)
+		}
 	case Jump:
 		if !chains[v.Target] {
 			return fmt.Errorf("table %q chain %q term %q: jump target chain %q not defined in table",
