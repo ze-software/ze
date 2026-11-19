@@ -290,10 +290,10 @@ func firstStartProvision(ctx context.Context, base, name string, pluginPort int,
 		envTestBGPPort: strconv.Itoa(pluginPort + 1000),
 		// Bounds the first fetch and each later attempt. Ten seconds leaves a
 		// loaded machine room for a loopback handshake.
-		"ze.managed.connect.timeout": "10s",
+		envManagedConnectTimeout: "10s",
 		// The verdict reads this subsystem's INFO line, so its level is stated
 		// here and not left to what the runner's environment carries.
-		"ze.log.hub.managed": "info",
+		envLogHubManaged: logLevelInfo,
 	})
 
 	input := "admin\nsecret123\n127.0.0.1\n2222\n" + name + "\n" + hubAddress + "\n" + firstStartClientSecret + "\n"

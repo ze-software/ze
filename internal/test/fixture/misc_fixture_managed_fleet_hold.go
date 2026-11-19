@@ -236,7 +236,7 @@ func fleetHoldRun(ctx context.Context, name string, args []string, deviceServesS
 	// The leave and rejoin verdicts read the lines the hub's managed listener
 	// writes for each session it opens and closes, so their level is stated
 	// here and not left to what the runner's environment carries.
-	hub.env = childEnvironment(hub.env, map[string]string{"ze.log.hub": "info"})
+	hub.env = childEnvironment(hub.env, map[string]string{"ze.log.hub": logLevelInfo})
 	s := &fleetHoldScenario{
 		hub:         hub,
 		managedPort: managedPort,
@@ -272,7 +272,7 @@ func fleetHoldRun(ctx context.Context, name string, args []string, deviceServesS
 	}
 	// The verdicts read this subsystem's INFO and WARN lines, so its level is
 	// stated here and not left to what the runner's environment carries.
-	device.env = childEnvironment(device.env, map[string]string{"ze.log.hub.managed": "info"})
+	device.env = childEnvironment(device.env, map[string]string{envLogHubManaged: logLevelInfo})
 	if err := caTrustImportConfig(ctx, device, caTrustClientName+".conf", s.config(restoreClientBootRouterID)); err != nil {
 		return err
 	}

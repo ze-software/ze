@@ -100,10 +100,10 @@ func managedCachedBootHubDownDriver(ctx context.Context, args []string) (retErr 
 		envTestBGPPort: strconv.Itoa(*pluginPort + 1000),
 		// One second bounds each attempt, so a dial that hangs still fails
 		// inside the retry budget. A refused loopback dial fails at once.
-		"ze.managed.connect.timeout": "1s",
+		envManagedConnectTimeout: "1s",
 		// The assertion reads this subsystem's WARN line, so its level is
 		// stated here and not left to what the runner's environment carries.
-		"ze.log.hub.managed": "warn",
+		envLogHubManaged: "warn",
 	})
 
 	initInput := "admin\nsecret123\n127.0.0.1\n2222\n" + cachedBootClientName + "\n"

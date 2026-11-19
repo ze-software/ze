@@ -83,6 +83,14 @@ type fleetStatusAnswer struct {
 // The managed daemon MUST report a hub client that runs with no connection and
 // holds nothing, because its hub never answers, and the unmanaged daemon MUST
 // report that it started none.
+
+// The environment knobs the managed drivers set on their daemons, named once
+// so the drivers cannot drift apart on a spelling.
+const (
+	envManagedConnectTimeout = "ze.managed.connect.timeout"
+	envLogHubManaged         = "ze.log.hub.managed"
+)
+
 func managedFleetStatusDriver(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("managed/fleet-status", flag.ContinueOnError)
 	pluginPort := flags.Int("plugin-port", 0, "the device's own plugin transport port")
@@ -228,7 +236,7 @@ func fleetStatusSeed(ctx context.Context, prefix string, pluginPort, hubPort, ss
 			envReadyFile:   readyPath,
 			envTestBGPPort: strconv.Itoa(pluginPort + 1000),
 			// A refused loopback dial fails at once; one second bounds one that hangs.
-			"ze.managed.connect.timeout": "1s",
+			envManagedConnectTimeout: "1s",
 		}),
 		dir:        dir,
 		readyPath:  readyPath,

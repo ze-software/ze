@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
@@ -51,7 +52,15 @@ func hubFreezeImport(t *testing.T) func(name, text string) *zePlugin.Response {
 		handler := registration.Handler
 		return func(name, text string) *zePlugin.Response {
 			t.Helper()
-			validated := commandtest.Args("name", name, "content", base64.StdEncoding.EncodeToString([]byte(text)))
+			// The tokens are judged against a name and a content leaf, as the
+			// dispatcher judges them against ze-data-cmd.yang, so the handler
+			// finds each value under its keyword.
+			defs := []command.ArgDef{
+				commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{})),
+				commandtest.Must(command.NewStringArg("content", nil, nil, command.ArgOptions{})),
+			}
+			validated, err := command.ValidateArgs([]string{"name", name, "content", base64.StdEncoding.EncodeToString([]byte(text))}, defs, nil)
+			require.NoError(t, err)
 			response, err := handler(&pluginserver.CommandContext{}, validated)
 			require.NoError(t, err)
 			return response
