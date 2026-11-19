@@ -11,7 +11,7 @@ go 1.27.4
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.1
 	charm.land/ssh v0.4.3
 	charm.land/wish/v2 v2.0.5
 	filippo.io/mlockexe v1.0.0
