@@ -78,10 +78,10 @@ func heldParams(t *testing.T, version, text string) json.RawMessage {
 	return encoded
 }
 
-// sendHeld runs the config-held arm for client name with text.
-func sendHeld(t *testing.T, s *ManagedServer, mc *rpc.MuxConn, name, text string) {
+// sendHeld runs the config-held arm for client edge-01 with text.
+func sendHeld(t *testing.T, s *ManagedServer, mc *rpc.MuxConn, text string) {
 	t.Helper()
-	s.handleConfigHeld(name, mc, &rpc.Request{ID: 1, Method: fleet.VerbConfigHeld,
+	s.handleConfigHeld("edge-01", mc, &rpc.Request{ID: 1, Method: fleet.VerbConfigHeld,
 		Params: heldParams(t, fleet.VersionHash([]byte(text)), text)})
 }
 
@@ -96,7 +96,7 @@ func TestHeldArmWritesRecordUnderAuthName(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
 
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 
 	record, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestHeldArmRefusesOversize(t *testing.T) {
 
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", over)
+	sendHeld(t, s, mc, over)
 	_, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
 	assert.False(t, held, "a refused copy was written")
@@ -160,6 +160,26 @@ func TestHeldUploadMalformedRefused(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not parse")
 }
 
+// TestHeldUploadRefusalQuotesNoConfiguration proves the refusal of a copy the
+// hub cannot parse carries none of the configuration's text: the parser's
+// refusal names what it refused, and that refusal reaches the hub's log, the
+// client and the hold ack the hub shows in show doctor, while the text
+// carries the client's secrets.
+//
+// VALIDATES: the Security Review "Secret exposure" row (closure review).
+// PREVENTS: a secret of a client's configuration printed by show doctor.
+//
+// MUTATION: wrap checkHeldConfig's error into takeHeld's refusal (%w) and
+// this fails.
+func TestHeldUploadRefusalQuotesNoConfiguration(t *testing.T) {
+	const secret = "s3cr3tmarker"
+	text := secret + " " + secret + ";\n"
+	_, err := takeHeld(heldParams(t, fleet.VersionHash([]byte(text)), text), time.Now())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not parse")
+	assert.NotContains(t, err.Error(), secret)
+}
+
 // TestHeldUploadUncheckedPluginSection proves a section of an external plugin
 // the hub holds no schema of is kept, with the plugin noted.
 //
@@ -184,10 +204,10 @@ func TestHeldUploadUncheckedPluginSection(t *testing.T) {
 func TestHeldArmReplacesRecord(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	newer := "\n\n\n"
 
-	sendHeld(t, s, mc, "edge-01", newer)
+	sendHeld(t, s, mc, newer)
 
 	record, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
@@ -226,9 +246,9 @@ func (r *heldRaceStore) AcquireLock(name string) (storage.WriteGuard, error) {
 func TestHeldClearKeepsRecordWrittenAfterRead(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	newer := "\n\n\n"
-	race := &heldRaceStore{Storage: store, before: func() { sendHeld(t, s, mc, "edge-01", newer) }}
+	race := &heldRaceStore{Storage: store, before: func() { sendHeld(t, s, mc, newer) }}
 
 	require.NoError(t, newHeldRecords(race).clear("edge-01"))
 
@@ -261,7 +281,7 @@ func TestHeldRecordDecodeStrict(t *testing.T) {
 func TestFetchAnswersHeldVersion(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	restarted := newManagedConfigService(func(string) ([]byte, error) { return []byte(heldHubText), nil })
 	restarted.records = newHeldRecords(store)
 
@@ -279,7 +299,7 @@ func TestFetchAnswersHeldVersion(t *testing.T) {
 func TestFetchCurrentClearsRecord(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 
 	resp, err := s.svc.HandleConfigFetch("edge-01", fleet.ConfigFetchRequest{Version: fleet.VersionHash([]byte(heldHubText))})
 	require.NoError(t, err)
@@ -299,7 +319,7 @@ func TestFetchCurrentClearsRecord(t *testing.T) {
 func TestAckOKClearsRecord(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 
 	s.handleConfigAck("edge-01", fleet.ConfigAck{Version: fleet.VersionHash([]byte(heldHubText)), OK: true}, fleet.VersionHash([]byte(heldHubText)))
 
@@ -320,7 +340,7 @@ func TestHoldingAckWithRecordClearsRefusal(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
 	s.doctor.recordRejected("edge-01", ManagedRejectConfigRejected, "an earlier refusal")
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 
 	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, fleet.VersionHash([]byte(heldClientText)))
 
@@ -343,7 +363,7 @@ func TestHoldingAckWithRecordClearsRefusal(t *testing.T) {
 func TestHoldingAckWithOlderRecordRecordsText(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	newer := fleet.VersionHash([]byte(heldClientText + "# edited again\n"))
 
 	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: the copy was not sent"}, newer)
@@ -427,7 +447,7 @@ func TestFetchOffersDiscardOnlyForDAndV(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store := heldTestStore(t)
 			s, mc := heldTestServer(t, store)
-			sendHeld(t, s, mc, "edge-01", heldClientText)
+			sendHeld(t, s, mc, heldClientText)
 			decideRevert(t, store, "edge-01", fleet.VersionHash([]byte(heldHubText)))
 
 			assert.Equal(t, tc.want, fetchDiscard(t, store, tc.hubText, tc.version))
@@ -445,7 +465,7 @@ func TestFetchOffersDiscardOnlyForDAndV(t *testing.T) {
 func TestFetchOffersNoDiscardWithoutDecision(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 
 	assert.Empty(t, fetchDiscard(t, store, heldHubText, fleet.VersionHash([]byte(heldClientText))))
 }
@@ -462,10 +482,10 @@ func TestFetchOffersNoDiscardWithoutDecision(t *testing.T) {
 func TestHeldArmReplacesAndDropsDecision(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	decideRevert(t, store, "edge-01", fleet.VersionHash([]byte(heldHubText)))
 
-	sendHeld(t, s, mc, "edge-01", "\n\n\n")
+	sendHeld(t, s, mc, "\n\n\n")
 
 	record, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
@@ -484,7 +504,7 @@ func TestHeldArmReplacesAndDropsDecision(t *testing.T) {
 func TestHeldRecordKeepsDecision(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	decideRevert(t, store, "edge-01", fleet.VersionHash([]byte(heldHubText)))
 
 	record, held, err := ReadHeldRecord(store, "edge-01")
@@ -535,7 +555,7 @@ func TestHoldingAckAfterFetchOfNewerEditClearsRefusal(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
 	s.mFetch = metrics.NopRegistry{}.CounterVec("fetch", "fetch", []string{"result"})
-	sendHeld(t, s, mc, "edge-01", heldClientText)
+	sendHeld(t, s, mc, heldClientText)
 	s.doctor.recordRejected("edge-01", ManagedRejectConfigRejected, "an earlier refusal")
 	newer := heldClientText + "\n"
 	newerVersion := fleet.VersionHash([]byte(newer))

@@ -240,11 +240,11 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		mConnected: reg.Gauge("ze_managed_clients_connected",
 			"Number of managed fleet clients currently connected to the hub."),
 		mFetch: reg.CounterVec("ze_managed_config_fetch_total",
-			"Managed config-fetch requests served, by result (served|current|error).", []string{"result"}),
+			"Managed config-fetch requests served, by result (served|current|error).", []string{managedMetricResult}),
 		mPushed: reg.Counter("ze_managed_config_changed_pushed_total",
 			"config-changed notifications pushed to connected managed clients."),
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
-			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{"result"}),
+			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
 	}, nil
 }
 
@@ -861,3 +861,6 @@ func ClientNameFromConfigKey(key string) (string, bool) {
 	}
 	return name, true
 }
+
+// managedMetricResult is the label of the managed counters that count by outcome.
+const managedMetricResult = "result"

@@ -108,7 +108,7 @@ Custom Objects support. Not specs yet; the owner decides whether they become ske
 - [ ] `plan/post-release/features/spec-irr-apply-policy.md` (status ready) - immediate/delay/scheduled/operator, shrink threshold, held/apply/dismiss commands
   → Decision: NetBox reuses the same policy, not a copy (`ai/rules/principles.md`, every fact once). See "Apply policy: one mechanism".
   → Constraint: that spec names the shared locations, and this spec only points to them: the decision and the window check in `internal/core/applypolicy`, the `apply` grouping in `internal/component/config/yang/modules/ze-apply-policy.yang`, and `system apply-policy shrink-threshold` in `ze-system-conf.yang`, all added by that spec. The verbs are `update ... apply`, `clear ... held`, `show ... held`; the alert is `report.RaiseWarning` / `ClearWarning` plus a Prometheus gauge.
-- [ ] `plan/post-release/features/spec-fleet-2-config-templates.md` (skeleton), `plan/post-release/features/spec-fleet-5-staged-rollout.md` (skeleton), `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` (skeleton)
+- [ ] `plan/post-release/features/spec-fleet-2-config-templates.md` (skeleton), `plan/post-release/features/spec-fleet-5-staged-rollout.md` (skeleton), `spec-fleet-7-config-reconnect-resolution` (skeleton)
   → Constraint: fleet-2 plans hub-side rendering inside `HandleConfigFetch` with Go `text/template` and "No external data sources". Two hub-side producers of the served config would be two declarations of one fact; the served config must have one composition point that both feed (R-9, Q-10): the served-config provider ("Served-config provider").
   → Constraint: fleet-7 "Adopt (router wins)" copies a router's config into the hub's authoritative copy. Adopting must never turn a NetBox-owned entry into an operator-authored one (R-10).
 - [ ] `ai/rules/config.md`, `ai/patterns/config-option.md`
@@ -192,6 +192,22 @@ NetBox paths are relative to `https://raw.githubusercontent.com/netbox-community
 - `config-ack ok:false` raises a hub warning in addition to the log line.
 - The router's editor refuses edits under generated entries.
 - Operator-authored keys starting with a registered generated-key prefix (`nb-`, registered by the netbox plugin) are refused, by generic config validation, in every list whose entries use the `generated` grouping.
+
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-19 by the closure of spec-fleet-7-config-reconnect-resolution,
+which had to touch this spec for a citation. The rows restate the Current
+Behavior section above; they are not a design review, which stays the owner's.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Managed config serving | `internal/component/plugin/server/managed.go` `HandleConfigFetch` | Reads, hashes and answers `current` or the client's whole config | Extends: a NetBox-enabled client is served the composed config instead |
+| Managed protocol | `pkg/fleet/envelope.go` | Five verbs since fleet-7 added `config-held` (this spec's "four verbs" predates it) | Does not apply: no new verb |
+| Hub write observer | `cmd/ze/hub/managed_server.go` (`SetWriteObserver` to `NotifyConfigChanged`) | Notifies a client when its config file is written | Extends: a composed config change notifies the same way |
+| BGP group resolution | `internal/component/bgp/config/resolve.go` `ResolveBGPTree` | Deep-merges groups into peers | Does not apply: a generated peer is an ordinary peer |
+| Editor writes | `internal/component/cli/editor_commands.go` `Editor.SetValue`, `Editor.DeleteValue` | Every CLI and web edit goes through them | Extends: refuses edits under generated entries |
+| Hub warnings | `internal/core/report/report.go` `RaiseWarning`, `ClearWarning` | Raise and clear operator warnings | Extends: `netbox-unbound-selectors` and the `config-ack ok:false` warning |
+| Doctor registry | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck` | Registers `ze doctor` checks | Extends: the netbox checks register here |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

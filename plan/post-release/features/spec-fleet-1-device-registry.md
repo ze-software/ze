@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-7-config-reconnect-resolution.md (the held record, `KeyConfigHeld`, `HeldClients`, uncommitted in another session on 2026-11-19) |
+| Depends | spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the held record, `KeyConfigHeld`, `HeldClients`, documented in `docs/architecture/fleet-config.md`, "The hub's copy of a hold") |
 | Phase | 1/9 of spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Design tier | development tier |
@@ -19,7 +19,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Re-read after compaction:** this file, `docs/architecture/fleet-config.md`,
 `docs/architecture/fleet-interface.md`, `spec-fleet-0-umbrella.md` (its three
 Direction Update sections), `spec-fleet-ui-2-estate-tree-and-device-tables.md`,
-`spec-fleet-7-config-reconnect-resolution.md`.
+`spec-fleet-7-config-reconnect-resolution`.
 
 ## Task
 
@@ -639,7 +639,7 @@ answers every method today) registers itself as every part from
 | `ActivityPart` | `Alarms(ctx)` → `[]Alarm`, at most `AlarmsMax` (1,024); `AlarmHistory(ctx, device)` → `[]AlarmEvent`, at most `AlarmHistoryMax` (512), newest first; `Tasks(ctx)` → `[]Task`, at most `TasksMax` (512), newest first; `Task(ctx, id)` → `TaskDetail`, each answer at most `TaskAnswerBytesMax` (16,384), an unknown id wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
 | `DeviceConfigPart` | `DeviceConfig(ctx, device)` → `DeviceConfig`, `Text` at most `ConfigTextBytesMax` (1 MiB) | `plan/post-release/features/spec-fleet-2-config-templates.md` (the source comment names `fleet-1` and `fleet-2`; the owner gave `fleet-1` the estate part only, so `fleet-2`, which renders what the hub serves, owns it) |
 | `ConfigHistoryPart` | `ConfigVersions(ctx, device)` → `[]ConfigVersion`, at most `ConfigVersionsMax` (100), newest first; `ConfigText(ctx, device, version)` → text, at most `ConfigTextBytesMax`, an unknown version wraps `ErrObjectUnknown`; `AuditEntries(ctx)` → `[]AuditEntry`, at most `AuditEntriesMax` (1,000), newest first | `plan/post-release/features/spec-fleet-3-audit-trail.md` |
-| `DivergencePart` | `Divergence(ctx, device)` → `Divergence`, texts at most `ConfigTextBytesMax`; a device that is not diverged wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` |
+| `DivergencePart` | `Divergence(ctx, device)` → `Divergence`, texts at most `ConfigTextBytesMax`; a device that is not diverged wraps `ErrObjectUnknown` | `spec-fleet-7-config-reconnect-resolution` |
 | `RolloutPart` | `Rollouts(ctx)` → `[]Rollout`, at most `RolloutsMax` (128), newest first; `Rollout(ctx, name)` → `RolloutDetail`, at most `RolloutBatchesMax` (100) batches, an unknown name wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-5-staged-rollout.md` |
 | `TemplatePart` | `Templates(ctx)` → `[]Template`, at most `TemplatesMax` (256) | `plan/post-release/features/spec-fleet-2-config-templates.md` |
 | `AccessPart` | `AccessProfiles(ctx)` → `[]AccessProfile`, at most `AccessProfilesMax` (64) | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` (the source comment names `fleet-1`; the access administration page is `fleet-ui-6`'s) |

@@ -521,8 +521,11 @@ The hub takes the name from the authenticated session. It refuses, with the
 `config-held-refused` code and nothing written, a copy larger than 1 MiB
 decoded (checked on the encoded length first), a copy whose bytes do not hash
 to the version it names, and a copy that does not parse with the hub's
-schema. A section of an external plugin the hub did not start is accepted,
-and the plugin is noted in the record. The record is one JSON value under
+schema. The refusal of a copy that does not parse carries none of the
+parser's words, because they can quote the configuration and its secrets,
+and the refusal reaches the hub's log, the client and the client's hold
+ack, which `show doctor` prints. A section of an external plugin the hub did
+not start is accepted, and the plugin is noted in the record. The record is one JSON value under
 `meta/config/client-<name>.conf/held` (`version`, `config`, `edited-at`,
 `received-at`, `unchecked-plugins`, and `revert` once a revert is decided),
 written under the writer lock of `client-<name>.conf`, and a newer copy
@@ -534,7 +537,7 @@ client's next copy replaces it. Each copy counts in
 `ze_managed_config_held_total{result}` (`stored`, `refused`).
 <!-- source: internal/component/plugin/server/managed_held.go -- handleConfigHeld, takeHeld, checkHeldConfig, heldRecords, ReadHeldRecord -->
 <!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
-<!-- test: internal/component/plugin/server/managed_held_test.go TestHeldArmWritesRecordUnderAuthName, TestHeldArmRefusesOversize, TestHeldArmRefusesHashMismatch, TestHeldUploadMalformedRefused, TestHeldUploadUncheckedPluginSection, TestHeldArmReplacesRecord, TestHeldRecordDecodeStrict, TestFetchAnswersHeldVersion -->
+<!-- test: internal/component/plugin/server/managed_held_test.go TestHeldArmWritesRecordUnderAuthName, TestHeldArmRefusesOversize, TestHeldArmRefusesHashMismatch, TestHeldUploadMalformedRefused, TestHeldUploadRefusalQuotesNoConfiguration, TestHeldUploadUncheckedPluginSection, TestHeldArmReplacesRecord, TestHeldRecordDecodeStrict, TestFetchAnswersHeldVersion -->
 
 The record is removed when the hub answers `current` to that client, when
 the client acknowledges a configuration with `ok:true` (either proves the hub

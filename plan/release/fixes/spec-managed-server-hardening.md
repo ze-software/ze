@@ -7,7 +7,7 @@
 | Release reason | Trust repairs are historical; the owned live-writer and config-change delivery remainder must remain visible. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-11-19 |
 | Blocker | Owner choice for the AC-4 in-daemon client-config writer |
 
 ## Post-Compaction Recovery
@@ -38,6 +38,19 @@ operator-reachable writer described below.
 3. **Two-instance daemon `.ci`.** Add a `test/managed/*.ci` that runs a real `ze` hub serving a
    real `ze` managed client end-to-end (fetch + config-changed), complementing the Go integration
    test `cmd/ze/hub/managed_server_test.go` which exercises `startManagedServer` directly.
+4. **Device-side guards of config fetch and change delivery (added 2026-11-19 by the closure of
+   spec-fleet-7-config-reconnect-resolution).** Two defects of the managed client, both one half
+   of a pair fleet-7 guarded on its other half (Owned journal rows): an ordinary hub push on a
+   device that is not holding overwrites a local commit that lands during its fetch, because only
+   the revert stages through the under-lock check (`ClientConfig.OnRevert`,
+   `storage.StageMachineCandidateOver`); and `FetchConfig` carries no deadline, unlike the
+   bounded `config-held` and `config-ack`, so a hub that never answers a fetch holds the device's
+   notification loop. Each needs a design of its own: the push must carry the version it was
+   decided over through `OnCommit`'s callers, and the fetch bound must admit a 16 MiB answer while
+   the loop stays answerable within the hub's `ManagedPushTimeout`. Note for AC-4: fleet-7's
+   `test/managed/fleet-divergence-adopt.ci` drives `config-changed` from a write through the
+   running hub (`update fleet divergence name <client> adopt version <hash>`), an operator-reachable
+   writer, so the AC-4 blocker below should be judged again.
 
 ### Certificate decision (2026-08-29)
 
@@ -148,6 +161,14 @@ an indefinite block.
 | AC-2 | Managed client with a wrong/absent trust anchor and `tls-insecure` off | Connection refused (verification fails), not silently accepted |
 | AC-3 | A `server` block declares both a shared secret (plugins) and `client` entries | `ze doctor` reports a collision/misconfiguration code |
 | AC-4 | Real `ze` hub + real `ze` client | End-to-end `config-fetch` + `config-changed` through both daemons |
+| AC-5 | A managed device that is not holding takes an ordinary hub push while a local commit lands between its fetch and its stage | The push stages nothing over the newer local commit; the device holds and sends its copy, as a holding device does |
+| AC-6 | A hub that keeps the connection and its pings alive but never answers a `config-fetch`, at connect and on the notification loop | The fetch ends at its deadline, the loop answers the next `config-changed` before the hub's push bound, and the connection is kept or ended as the existing fetch-failure path documents |
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `plan/journal/guard-added-to-one-half-of-a-pair.md` | 2026-11-19 | Managed device apply of an ordinary hub push (`applyFetched`, `OnCommit`): no under-lock check |
+| `plan/journal/guard-added-to-one-half-of-a-pair.md` | 2026-11-19 | Managed device `config-fetch` round-trip (`FetchConfig`): no deadline |
 
 ## 🧪 TDD Test Plan
 

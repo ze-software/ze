@@ -457,13 +457,23 @@ func takeHeld(params json.RawMessage, receivedAt time.Time) (HeldRecord, error) 
 	}
 	unchecked, err := checkHeldConfig(string(data))
 	if err != nil {
-		return HeldRecord{}, fmt.Errorf("the copy does not parse as a configuration: %w", err)
+		// The parser's refusal is dropped, never wrapped: it can quote the
+		// configuration (a refused leaf value and its fix line), which carries
+		// the client's secrets, and this refusal reaches the hub's log, the
+		// client, and the hold ack the hub then shows in show doctor. The show
+		// drops it for the same reason (divergenceParseRefusal).
+		return HeldRecord{}, errHeldUnparsed
 	}
 	return HeldRecord{
 		version: version, config: data, editedAt: held.EditedAt,
 		receivedAt: receivedAt, unchecked: unchecked,
 	}, nil
 }
+
+// errHeldUnparsed is the refusal of a copy whose text the hub's parser
+// refuses. It carries no part of the parser's refusal (takeHeld).
+var errHeldUnparsed = errors.New("the copy does not parse as a configuration on this hub; " +
+	"the parser's refusal is not repeated because it can quote the configuration, which carries secrets")
 
 // heldOversize is the refusal of a copy larger than fleet.HeldConfigMax.
 func heldOversize(size int) error {

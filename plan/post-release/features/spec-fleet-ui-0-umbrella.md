@@ -74,7 +74,7 @@ Back-end work the interface needs, owned by the `fleet` set:
 | `plan/post-release/features/spec-fleet-4-inventory-health.md` | Inventory and health per device. Dashboards, alarms and the System tab read it |
 | `plan/post-release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The relay every device tab and the per-device CLI use |
-| `plan/post-release/features/spec-fleet-2-config-templates.md`, `spec-fleet-3-audit-trail.md`, `spec-fleet-5-staged-rollout.md`, `spec-fleet-7-config-reconnect-resolution.md` | The data behind the config, rollout and audit pages of `fleet-ui-6` |
+| `plan/post-release/features/spec-fleet-2-config-templates.md`, `spec-fleet-3-audit-trail.md`, `spec-fleet-5-staged-rollout.md`, `spec-fleet-7-config-reconnect-resolution` | The data behind the config, rollout and audit pages of `fleet-ui-6` |
 
 ### Prototype first, then functional
 
