@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9069-x-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity",
+    "unit-sha": "bb911dcf746e0053",
+    "claim-sha": "97258589b1121d41",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "line 154: \"PeerAS:    id.asn,\" -\u003e \"PeerAS:    uint32(uint16(id.asn)),\""
+  },
+  {
+    "rid": "RFC9069-x-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader",
+    "unit-sha": "3c9c1d07581b6047",
+    "claim-sha": "bd292ffef4386ef3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "line 154: \"PeerAS:    id.asn,\" -\u003e \"PeerAS:    uint32(uint16(id.asn)),\""
+  },
+  {
+    "rid": "RFC9069-x-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven",
+    "unit-sha": "369a259b6452d5ba",
+    "claim-sha": "8df609630a8c437f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "line 154: \"PeerAS:    id.asn,\" -\u003e \"PeerAS:    4200000001,\""
+  }
+]

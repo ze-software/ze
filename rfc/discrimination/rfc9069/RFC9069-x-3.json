@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-x-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM",
+    "unit-sha": "be24b17ee68907e6",
+    "claim-sha": "9e079455f29888c0",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::ensureLocRIBPeerUp",
+    "producer-sha": "d556037e1e0efef2",
+    "break": "line 848: \"err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open, tlvs)\" -\u003e \"err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, func() []byte { r := append([]byte(nil), open...); r[20] ^= 1; return r }(), tlvs)\""
+  }
+]

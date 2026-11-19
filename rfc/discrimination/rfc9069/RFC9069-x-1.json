@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader",
+    "unit-sha": "3c9c1d07581b6047",
+    "claim-sha": "d9a9a344d41de273",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "line 153: \"Flags:     0,\" -\u003e \"Flags:     0x40,\""
+  }
+]

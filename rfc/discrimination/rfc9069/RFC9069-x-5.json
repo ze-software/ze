@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader",
+    "unit-sha": "3c9c1d07581b6047",
+    "claim-sha": "e5c0776cd1ef5128",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "line 152: \"PeerType:  PeerTypeLocRIB,\" -\u003e \"PeerType:  PeerTypeLocRIB, Address: [16]byte{15: 1},\""
+  }
+]

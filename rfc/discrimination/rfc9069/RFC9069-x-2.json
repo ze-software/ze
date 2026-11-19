@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-x-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance",
+    "unit-sha": "3c2f3296c7994a20",
+    "claim-sha": "112eaaf67366474d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::ensureLocRIBPeerUp",
+    "producer-sha": "d556037e1e0efef2",
+    "break": "line 845: \"claimed := ss.locRIBUpSent.CompareAndSwap(false, true)\" -\u003e \"claimed := ss.locRIBUpSent.CompareAndSwap(false, true) || true\""
+  }
+]
