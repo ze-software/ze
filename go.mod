@@ -39,7 +39,7 @@ require (
 	github.com/mdlayher/packet v1.2.0
 	github.com/miekg/dns v1.1.73
 	github.com/moby/patternmatcher v0.6.1
-	github.com/moby/sys/user v0.4.1
+	github.com/moby/sys/user v0.5.0
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
