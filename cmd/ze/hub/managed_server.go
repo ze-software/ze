@@ -71,7 +71,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		},
 		// The same store keeps the copy each holding client sends of its
 		// configuration, beside that client's configuration.
-		Store: store,
+		Store:   store,
 		Metrics: registry.GetMetricsRegistry(),
 		// The resolver and the authority are both injected because pki imports
 		// plugin/server. A named certificate wins and fails closed when it does

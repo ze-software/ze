@@ -45,7 +45,7 @@ const (
 	// The words of held-by-hub and revert-offered before the hub answered a
 	// fetch of this run of the hub client, or with no hub client at all.
 	fleetStatusNotFetched = "not-fetched"
-	fleetStatusPollDelay     = 250 * time.Millisecond
+	fleetStatusPollDelay  = 250 * time.Millisecond
 	// The hub allows its plugins 30 seconds to complete startup
 	// (cmd/ze/hub/main.go, WaitForStartupComplete).
 	fleetStatusReadyAttempts = 300

@@ -1,0 +1,37 @@
+# Test: a configuration imported on a running hub reaches its connected device
+#
+# QUESTION: does `ze data import client-edge-01.conf` beside a running hub,
+#           with edge-01 connected, make edge-01 fetch and apply the new
+#           configuration on the session it already holds?
+#           (spec-managed-server-hardening, AC-4; docs/guide/fleet-config.md,
+#           "Change a Client's Configuration".)
+# WHY NOT A UNIT TEST: the change crosses two daemons. The import goes
+#           through the hub daemon's store, the store's write observer pushes
+#           config-changed over the TLS session, the device fetches, applies
+#           through its own daemon's reload and acknowledges. The unit tests
+#           prove each hop over one process, not that a real import reaches a
+#           real device without a reconnect.
+#
+# VALIDATES: edge-01 takes the hub's configuration and records it as its
+#            baseline. `ze data import` of a changed client-edge-01.conf beside
+#            the running hub answers that it imported the key. Within 10 s
+#            edge-01's `show fleet status` reports the imported bytes' hash as
+#            both active-hash and baseline-hash, with diverged false. The hub
+#            logs one `managed client applied config` line for edge-01 with
+#            that hash, and exactly one `managed client connected` line and no
+#            `managed client disconnected` line for edge-01.
+# PREVENTS: an import that writes the hub's store and tells nobody; a device
+#           that only learns of the change by reconnecting; a push applied
+#           without its baseline recorded.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the device's status
+# and the hub's log: internal/test/fixture/misc_fixture_managed_config_change_live.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-config-change-live $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: a configuration imported on the running hub reached its connected device
