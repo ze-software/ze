@@ -77,7 +77,7 @@
     },
     "interop.protocols.pppoe": {
       "category": "committed-data",
-      "value": 16,
+      "value": 17,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
     },
     "interop.protocols.radius": {
@@ -107,12 +107,12 @@
     },
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 414,
+      "value": 415,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 414,
+      "value": 415,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.suite_count": {
@@ -137,7 +137,7 @@
     },
     "interop.suites.interop-pppoe": {
       "category": "committed-data",
-      "value": 16,
+      "value": 17,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.suites.interop-radius": {
@@ -167,32 +167,32 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 12385,
+      "value": 13079,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 12425,
+      "value": 13127,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 1048,
+      "value": 1056,
       "source": "go list ./..., keeping the packages git holds a file for"
     },
     "repo.go_source_lines": {
       "category": "committed-data",
-      "value": 1841902,
+      "value": 1918385,
       "source": "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies"
     },
     "repo.go_test_lines": {
       "category": "committed-data",
-      "value": 2232134,
+      "value": 2320662,
       "source": "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies"
     },
     "repo.go_vendor_lines": {
       "category": "committed-data",
-      "value": 2063172,
+      "value": 2063615,
       "source": "activity Go inventory: tracked vendor Go files, including comments and blank lines"
     }
   },
