@@ -36,8 +36,9 @@ func portScopedBypasses(policies []dataplane.SPParams) []dataplane.SPParams {
 
 // VALIDATES: RFC4301-7.4-2. Every port-scoped BYPASS entry Ze can install is confined
 // to the two directions in which the Linux stack completes fragment reassembly before
-// the XFRM policy check reads the ports. Ze installs no forward-direction bypass, and
-// the forward path is the one place the check classifies a non-initial fragment.
+// the XFRM policy check reads the ports. Ze projects an operator entry into the forward
+// direction only when both its ports are any (spdEntryPolicies, D-3), and the forward
+// path is the one place the check classifies a non-initial fragment.
 //
 // THE KERNEL HALF, read in Linux v6.8 and not inferred:
 //
@@ -78,7 +79,8 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 
 	// The producer: an operator entry that asks for every direction the grammar
 	// offers, with a port on each side, which is the widest port-scoped bypass a
-	// configuration can express.
+	// configuration can express, read through the set the reconciler installs on a
+	// dataplane with a forward lookup (XFRM), transit projection included.
 	_, local, err := net.ParseCIDR("192.0.2.0/24")
 	if err != nil {
 		t.Fatalf("parse local prefix: %v", err)
@@ -87,7 +89,7 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse remote prefix: %v", err)
 	}
-	all = append(all, spdPolicyParams(ipsec.SPDPolicy{
+	all = append(all, spdEntryPolicies(&forwardPolicyDP{spdDP: newSPDDP()}, ipsec.SPDPolicy{
 		Name:         "pass-mgmt",
 		Action:       dataplane.SPActionBypass,
 		Order:        1000,

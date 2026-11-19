@@ -14,12 +14,12 @@
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
-    "unit-sha": "94df83f374593d73",
+    "unit-sha": "73d0bb046da8a8a8",
     "claim-sha": "1ec0d3daa6eb0788",
     "route": "revert",
-    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
-    "producer-sha": "09525a3dcbb72c53",
-    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/spd_policy.go::spdEntryHasTransit",
+    "producer-sha": "ac36d16a5809f613",
+    "break": "body of spdEntryHasTransit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.4-2",
