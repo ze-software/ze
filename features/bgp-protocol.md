@@ -11,14 +11,23 @@
 | Scope gaps | RFC 4271 iBGP MED re-advertisement (plan/release/fixes/spec-rfc4271-med-ibgp-readvertisement.md), RFC 4724 RFC 6793 and RFC 8654 obligations the ledger marks Partial, RFC 7606 gap row in rfc/short/rfc7606.md |
 | Level | experimental |
 | Components | internal/component/bgp, cmd/ze, internal/component/config/infra |
-| Real-path tests | test/plugin/bgp-update-delay.ci, test/plugin/bgp-update-delay-converges.ci, test/plugin/bgp-update-delay-validation.ci, test/ui/bgp-update-delay-command.ci, test/plugin/rfc8212-ebgp-no-import-policy.ci, test/plugin/rfc8212-ebgp-no-export-policy.ci, test/plugin/rfc8212-ibgp-no-policy-unchanged.ci, test/reload/rfc8212-explicit-policy-reload.ci, test/plugin/bgp-delay-open.ci, test/plugin/bgp-delay-open-bfd-strict.ci, test/plugin/role-incoming-open-isolation.ci, test/plugin/role-incoming-open-isolation-forked.ci, test/plugin/incoming-preopen-update-isolation.ci, test/plugin/incoming-open-learned-isolation.ci, test/plugin/incoming-open-learned-isolation-forked.ci |
-| Interop | bgp/bgp-update-delay-frr, bgp/bgp-ebgp-ipv4-frr, bgp/bgp-ibgp-frr, bgp/bgp-ebgp-gobgp, bgp/bgp-routes-from-bird, bgp/bgp-rfc8212-default-reject-frr, bgp/bgp-delayopen-frr |
+| Real-path tests | test/plugin/bgp-update-delay.ci, test/plugin/bgp-update-delay-converges.ci, test/plugin/bgp-update-delay-validation.ci, test/ui/bgp-update-delay-command.ci, test/plugin/rfc8212-ebgp-no-import-policy.ci, test/plugin/rfc8212-ebgp-no-export-policy.ci, test/plugin/rfc8212-ibgp-no-policy-unchanged.ci, test/reload/rfc8212-explicit-policy-reload.ci, test/plugin/bgp-delay-open.ci, test/plugin/bgp-delay-open-bfd-strict.ci, test/plugin/role-incoming-open-isolation.ci, test/plugin/role-incoming-open-isolation-forked.ci, test/plugin/incoming-preopen-update-isolation.ci, test/plugin/incoming-open-learned-isolation.ci, test/plugin/incoming-open-learned-isolation-forked.ci, test/plugin/bgp-best-route-transit-default.ci, test/plugin/bgp-best-route-needs-export-policy.ci, test/plugin/bgp-best-route-refresh-selected.ci |
+| Interop | bgp/bgp-update-delay-frr, bgp/bgp-ebgp-ipv4-frr, bgp/bgp-ibgp-frr, bgp/bgp-ebgp-gobgp, bgp/bgp-routes-from-bird, bgp/bgp-rfc8212-default-reject-frr, bgp/bgp-delayopen-frr, bgp/bgp-best-route-transit-frr, bgp/bgp-best-route-transit-bird |
 | RFCs | rfc4271, rfc4760, rfc6793, rfc4724, rfc7606, rfc8654, rfc8212 |
 | Docs | docs/features/bgp-protocol.md |
 | Doc review | 2026-10-19: re-read after the 2026-10-19 docs/features/bgp-protocol.md edits, which added the two RFC 9774 AS_SET rows and the draft-ietf-idr-linklocal-capability 32-octet next-hop row; no claim here names AS_PATH segments or a 32-octet next hop, so the earlier review stands. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; 2026-10-07 review otherwise stands |
 | Defect review | 2026-10-07: plan/release/fixes/spec-rfc4271-med-ibgp-readvertisement.md open; spec-rfc-verdict-fix-bgp open; journal helper-bypassed-by-an-open-coded-copy forward-rail rows taken as open |
 
 ## Description
+
+For ordinary BGP transit, attach the same `bgp-rib` process to the source and
+destination peers. Ze advertises the selected learned route to each destination
+whose export policy accepts it. On a new session or a route refresh, Ze sends
+the current exportable selection. [Ordinary transit configuration](../docs/guide/route-reflection.md#without-route-reflection)
+<!-- source: internal/component/plugin/server/dissemination_validate.go -- ValidateDisseminationBindings -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
 
 `bgp peer <address> timer delay-open <seconds>` holds the local OPEN until the
 remote OPEN arrives or the configured 1–240 second timer expires. Zero disables

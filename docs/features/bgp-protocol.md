@@ -232,6 +232,28 @@ Together they are the complete installed next-hop set.
 <!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
 
+### Ordinary BGP transit
+
+The source and destination peers explicitly attach the same `bgp-rib` process.
+The source grants received UPDATEs and session state. The destination grants
+permission to send UPDATEs and to receive session state, refresh requests, and
+sent UPDATE events. The [ordinary transit guide](../guide/route-reflection.md#without-route-reflection)
+shows the attachments.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
+<!-- source: internal/component/plugin/server/dissemination_validate.go -- validateDisseminationProcess -->
+
+Ze advertises the selected learned route when the destination's configured
+export policy accepts it. This applies to internal and external peers. A new
+session receives the current exportable selection, and a negotiated route
+refresh resends the selection for the requested address family. Ze replaces
+or withdraws earlier advertisements as selection or export eligibility changes.
+
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
+
 ### Startup convergence hold (`update-delay`)
 
 `bgp update-delay max-delay <seconds>` holds the first advertisement of a
