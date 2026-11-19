@@ -161,7 +161,7 @@ func TestRegisteredRadiusRemovalApplyDoesNotWaitForAccounting(t *testing.T) {
 	// synchronous Stop, so the regression cannot strand its registered engine.
 	// The Stop leaves on the accountant's own client, so that is the one closed.
 	acctInstance.mu.Lock()
-	client := acctInstance.client
+	client := acctInstance.endpoint.client
 	acctInstance.mu.Unlock()
 	t.Cleanup(func() { _ = client.Close() })
 	for id := uint16(1); id <= 3; id++ {
@@ -227,7 +227,7 @@ func TestRegisteredRadiusCommittedRetirementKeepsNewProvider(t *testing.T) {
 	// The retirement under test is the accountant's: its client carries the
 	// held Stop, and the authentication client is closed at removal.
 	acctInstance.mu.Lock()
-	oldClient := acctInstance.client
+	oldClient := acctInstance.endpoint.client
 	acctInstance.mu.Unlock()
 	lifecycleSessionUp(t, bus, 1)
 	start := capture.waitN(t, 1)[0]

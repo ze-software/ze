@@ -7,8 +7,8 @@
     "claim-sha": "56a21fe181030ada",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::interimLoop",
-    "producer-sha": "7ed87440651761b0",
-    "break": "line 638: \"a.sendAcctInterimUpdate(c, sess, nid, src)\" -\u003e \"go a.sendAcctInterimUpdate(c, sess, nid, src)\""
+    "producer-sha": "3d93cb7a72925d98",
+    "break": "line 805: \"a.sendAcctInterimUpdate(sess)\" -\u003e \"go a.sendAcctInterimUpdate(sess)\""
   },
   {
     "rid": "RFC2869-2.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "e0d2dff6fff6e7fd",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::interimLoop",
-    "producer-sha": "7ed87440651761b0",
-    "break": "line 637: \"if c != nil {\" -\u003e \"if c == nil {\""
+    "producer-sha": "3d93cb7a72925d98",
+    "break": "line 805: \"a.sendAcctInterimUpdate(sess)\" -\u003e \"_ = sess\""
   }
 ]

@@ -75,6 +75,8 @@ func rfc2869InterimHarness(t *testing.T, serverAddr string, timeout time.Duratio
 		peerAddr:   "10.0.0.1",
 		acctSessID: "sess-interim",
 		startTime:  time.Now(),
+		// Every record leaves through the endpoint the session started under.
+		endpoint: acct.endpoint,
 	}
 	return acct, sess
 }

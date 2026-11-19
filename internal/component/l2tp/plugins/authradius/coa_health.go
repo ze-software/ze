@@ -8,8 +8,6 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/health"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -48,37 +46,10 @@ func recordCoAHealth(session *subscriber.Session, err error) {
 		coaHealthFix, map[string]any{"error": err.Error()})
 }
 
-func checkCoAHealth(name string) ([]rpc.DoctorCheckDiagnostic, error) {
-	if name != coaHealthCheckName {
-		return nil, opererr.New("Unknown RADIUS runtime check "+name,
-			"The provider only declares its dynamic authorization backend check", "show doctor")
-	}
-	var findings []rpc.DoctorCheckDiagnostic
-	for _, issue := range report.Warnings() {
-		if issue.Source != Name {
-			continue
-		}
-		if issue.Code != diagnostic.CodeDoctorRADIUSCoAApply {
-			continue
-		}
-		message := issue.Subject + ": " + issue.Message
-		if cause, found := issue.Detail["error"].(string); found {
-			message += ": " + cause
-		}
-		findings = append(findings, rpc.DoctorCheckDiagnostic{
-			Code: issue.Code, Severity: string(diagnostic.SeverityWarning), Message: message, Fix: issue.Fix,
-		})
-	}
-	if len(findings) != 0 {
-		return findings, nil
-	}
-	// An evicted warning is unknown, never evidence that the backend recovered.
-	status, reason := report.HealthProbeDegraded(diagnostic.CodeDoctorRADIUSCoAApply)()
-	if status != health.StatusHealthy {
-		return []rpc.DoctorCheckDiagnostic{{Code: diagnostic.CodeDoctorRADIUSCoAApply,
-			Severity: string(diagnostic.SeverityWarning), Message: reason, Fix: "show warnings"}}, nil
-	}
-	return findings, nil
+// checkCoAHealth answers the runtime check coaHealthDeclaration declares;
+// checkRuntimeHealth routes the callback to it.
+func checkCoAHealth() []rpc.DoctorCheckDiagnostic {
+	return retainedFindings(diagnostic.CodeDoctorRADIUSCoAApply)
 }
 
 func subscribeCoAHealth(bus ze.EventBus) func() {

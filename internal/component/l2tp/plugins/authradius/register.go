@@ -102,7 +102,7 @@ func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
 	p := sdk.NewWithConn(Name, conn)
-	p.OnDoctorCheck(checkCoAHealth)
+	p.OnDoctorCheck(checkRuntimeHealth)
 	defer func() {
 		if err := p.Close(); err != nil {
 			logger().Debug("plugin close error", "error", err)
@@ -263,7 +263,7 @@ func runPlugin(conn net.Conn) int {
 		}
 		verified = false
 		acctInstance.mu.Lock()
-		previousAccounting = acctInstance.client != nil
+		previousAccounting = acctInstance.endpoint != nil
 		acctInstance.mu.Unlock()
 		previousAcceptance = awaitingAcceptance
 		previousAccepted = false
@@ -305,7 +305,7 @@ func runPlugin(conn net.Conn) int {
 		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
-		DoctorChecks: []rpc.DoctorCheckDecl{coaHealthDeclaration()},
+		DoctorChecks: runtimeCheckDeclarations(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
@@ -385,13 +385,12 @@ func activateRadiusConfig(cfg *radiusConfig, dispatch coaCommandDispatch) error 
 	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
 		return authInstance.handle(req, respond)
 	})
-	oldAcctClient := acctInstance.setClient(acctClient, cfg.NASIdentifier, cfg.AcctInterval, acctPrimaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	// The accountant owns the accounting client from here, and closes the one
+	// it replaces once the sessions that started under it have sent their Stops.
+	acctInstance.setClient(acctClient, cfg.NASIdentifier, cfg.AcctInterval, acctPrimaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	acctInstance.setExclusions(cfg.Exclusions)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
-	}
-	if oldAcctClient != nil {
-		oldAcctClient.Close() //nolint:errcheck // best-effort on replaced client
 	}
 	logger().Info("l2tp-auth-radius: configured",
 		"servers", len(cfg.Servers), "timeout", cfg.Timeout)

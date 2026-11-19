@@ -170,16 +170,17 @@ func TestRFC2866AcctFailureKeepsSession(t *testing.T) {
 		acctSessID: "1-2-1",
 		startTime:  time.Now(),
 		cancel:     cancel,
+		endpoint:   acct.endpoint,
 	}
 	acct.mu.Lock()
-	acct.sessions[sessionKey{1, 2}] = sess
+	acct.sessions[sessionKey{tunnelID: 1, sessionID: 2}] = sess
 	acct.mu.Unlock()
 
 	// Synchronous Accounting-Start that fails against the silent server.
-	acct.sendAcctStart(acct.client, sess, "nas1", nil)
+	acct.sendAcctStart(sess)
 
 	acct.mu.Lock()
-	_, stillTracked := acct.sessions[sessionKey{1, 2}]
+	_, stillTracked := acct.sessions[sessionKey{tunnelID: 1, sessionID: 2}]
 	acct.mu.Unlock()
 	if !stillTracked {
 		t.Fatal("accounting Start failure tore down the tracked session")
@@ -194,27 +195,28 @@ func TestRFC2866AcctFailureKeepsSession(t *testing.T) {
 // Session teardown is driven only by the
 // session-down lifecycle event, and a failing Accounting-Stop does not block it: the
 // session is removed and its context canceled even though the accounting exchange fails.
+//
+// The session runs its real accounting task against the silent server, so its
+// Start and its Stop are both attempted and both fail; the task still finishes.
 func TestRFC2866SessionTeardownIndependentOfAccounting(t *testing.T) {
 	acct := newDeadServerAcct(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	sess := &acctSession{
 		tunnelID:   3,
 		sessionID:  4,
 		username:   "bob",
 		acctSessID: "3-4-1",
 		startTime:  time.Now(),
-		cancel:     cancel,
 	}
+	ctx := startAccountingTask(t, acct, sess)
 	acct.mu.Lock()
-	acct.sessions[sessionKey{3, 4}] = sess
+	acct.sessions[sessionKey{tunnelID: 3, sessionID: 4}] = sess
 	acct.mu.Unlock()
 
 	acct.onSessionDown(&events.SessionDownPayload{TunnelID: 3, SessionID: 4})
 
 	acct.mu.Lock()
-	_, stillTracked := acct.sessions[sessionKey{3, 4}]
+	_, stillTracked := acct.sessions[sessionKey{tunnelID: 3, sessionID: 4}]
 	acct.mu.Unlock()
 	if stillTracked {
 		t.Fatal("session-down did not remove the session")
@@ -224,6 +226,36 @@ func TestRFC2866SessionTeardownIndependentOfAccounting(t *testing.T) {
 	default:
 		t.Fatal("session-down did not cancel the session context")
 	}
+	select {
+	case <-sess.finished:
+	case <-time.After(2 * acctRecordBound):
+		t.Fatal("the accounting task did not finish after its Stop failed")
+	}
+}
+
+// startAccountingTask gives a hand-built record the accounting task a real
+// session runs: it sends through acct's endpoint and finishes after its Stop.
+// It answers the session's context, which ending the session cancels.
+func startAccountingTask(t *testing.T, acct *radiusAcct, sess *acctSession) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	sess.cancel = cancel
+	sess.endpoint = acct.endpoint
+	sess.endpoint.acquire()
+	sess.ended = make(chan struct{})
+	sess.finished = make(chan struct{})
+	go acct.runAccounting(ctx, sess, time.Hour)
+	return ctx
+}
+
+// withoutAccountingTask readies a hand-built record that no accounting task
+// sends for, such as an issued Acct-Session-Id a CoA test seeds: ending it
+// sends nothing, and retirement finds no task to wait for.
+func withoutAccountingTask(sess *acctSession) {
+	sess.ended = make(chan struct{})
+	sess.finished = make(chan struct{})
+	close(sess.finished)
 }
 
 // capturedAccountant answers an accountant whose client sends to a capture

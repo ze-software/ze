@@ -26,6 +26,7 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -65,19 +66,36 @@ var acctBootRandom = func(random []byte) {
 // config reload move the text mid-session, and the text is what a billing
 // system joins the Start, Interim and Stop records by. It is stored for the
 // same reason acctSessID is.
+//
+// endpoint is the accounting configuration current when the session started.
+// Every record of the session leaves through it, so a reload that moves
+// accounting to another server or NAS identity leaves the Start, the Interims
+// and the Stop on the one server that holds the session's record.
 type acctSession struct {
 	birth     subscriberid.L2TPBirth
 	tunnelID  uint16
 	sessionID uint16
 	username  string
 	peerAddr  string // Updated and read under radiusAcct.mu.
-	// terminateCause is why this session ended. It is written after
-	// construction by the caller that claims the session for teardown.
-	// onSessionDown and Stop claim the session out of radiusAcct.sessions
-	// under radiusAcct.mu, and exactly one can, so no second goroutine
-	// writes it. The interim loop never reads it: buildAcctPacket reads it
-	// inside the Acct-Status-Type Stop branch alone.
-	terminateCause l2tpevents.TerminateCause
+	endpoint  *acctEndpoint
+	// terminateCause, finalDuration and the final counters describe the end
+	// of service. end writes them, and the caller that claims the session for
+	// teardown is the only caller of end: onSessionDown and retirement claim
+	// the session out of radiusAcct.sessions under radiusAcct.mu, and exactly
+	// one can. Closing ended publishes them to the accounting task, which
+	// reads them only after ended is closed. The interim loop never reads
+	// them: buildAcctPacket reads them inside the Acct-Status-Type Stop
+	// branch alone.
+	terminateCause     l2tpevents.TerminateCause
+	finalDuration      uint32
+	finalAt            time.Time
+	finalAtValid       bool
+	finalCounters      acctCounters
+	finalCountersValid bool
+	ended              chan struct{}
+	// finished closes when the accounting task has sent the Stop, or given up
+	// on it, and released its endpoint.
+	finished chan struct{}
 	// callingStationID is the L2TP Calling Number AVP of this session, which
 	// every record reports as Calling-Station-Id (RFC 2865 Section 5.31). It
 	// is stored for the same reason nasPortID is: the value is a property of
@@ -145,6 +163,56 @@ func (s *acctSession) counterDelta() (acctCounters, bool) {
 	}, true
 }
 
+// end records the end of service and hands the Accounting-Stop to the
+// session's accounting task, without waiting for any RADIUS server. The
+// caller MUST have claimed the session by removing it from the accountant's
+// map, so end runs once per session.
+//
+// The hand-over is deferred, so a Ze defect met while capturing the end still
+// releases the task to send the Stop with what was captured: the end of
+// service is never lost, and retirement never waits on a task that cannot
+// move.
+func (s *acctSession) end(cause l2tpevents.TerminateCause) {
+	defer close(s.ended)
+	defer s.cancel()
+	s.captureEnd(cause)
+}
+
+// captureEnd records what the Stop reports about the end of service. The
+// elapsed time, the instant and the counters are read here, when service
+// ends, rather than when the task sends: the task may still be waiting for the
+// session's Start or Interim to be acknowledged, and by then the PPP interface
+// can be gone. RFC 2866 Section 5.7: "This attribute indicates how many
+// seconds the user has received service for, and can only be present in
+// Accounting-Request records where the Acct-Status-Type is set to Stop."
+//
+// The instant and the counters are read inside the accounting panic boundary,
+// because both reach seams and the interface backend. A defect there leaves
+// the cause and the elapsed time recorded and marks the rest unavailable, so
+// the Stop omits them rather than reporting a zero.
+func (s *acctSession) captureEnd(cause l2tpevents.TerminateCause) {
+	s.terminateCause = cause
+	s.finalDuration = uint32(time.Since(s.startTime).Seconds())
+	describe := func() taskguard.Context { return sessionUnit(s.tunnelID, s.sessionID) }
+	defer accountingTask.Contain(describe, nil)
+	// RFC 2869 Section 5.3: "This attribute is included in an
+	// Accounting-Request packet to record the time that this event occurred on
+	// the NAS, in seconds since January 1, 1970 00:00 UTC."
+	s.finalAt, s.finalAtValid = acctNow(), true
+	s.finalCounters, s.finalCountersValid = s.counterDelta()
+}
+
+// eventTime answers the instant one record reports as its Event-Timestamp. A
+// Stop reports the end of service captureEnd recorded, which can be earlier
+// than the moment the task sends it; the other records report now. It answers
+// false when the end of service was not recorded.
+func (s *acctSession) eventTime(statusType uint8) (time.Time, bool) {
+	if statusType == radius.AcctStatusStop {
+		return s.finalAt, s.finalAtValid
+	}
+	return acctNow(), true
+}
+
 // subscriberIPv4 parses a session's assigned address and returns its four
 // octets. It reports false for an empty value, an unparseable value, and an
 // IPv6 address. RFC 2865 Section 5.8 gives Framed-IP-Address four octets, so
@@ -168,7 +236,76 @@ func splitGigawords(bytes uint64) (octets, gigawords uint32) {
 	return uint32(bytes & 0xFFFFFFFF), uint32(bytes >> 32)
 }
 
+// acctEndpoint is one installed accounting configuration: the client, the
+// NAS identity every record reports, and the server address the metrics name.
+// A session holds the endpoint current when it started until its Stop is
+// sent. A reload installs a new endpoint and retires the old one, and the last
+// session to release a retired endpoint closes its client, so a reload never
+// closes a client a session still needs for its Stop.
+//
+// The fields above mu never change after construction. Safe for concurrent use.
+type acctEndpoint struct {
+	client        *radius.Client
+	nasID         string
+	sourceAddress net.IP
+	serverAddr    string
+
+	mu       sync.Mutex
+	sessions int  // sessions holding this endpoint
+	retired  bool // the accountant installed another endpoint or stopped
+}
+
+// acquire records one more session sending through e. The session MUST call
+// release once its Stop is sent or abandoned.
+func (e *acctEndpoint) acquire() {
+	e.mu.Lock()
+	e.sessions++
+	e.mu.Unlock()
+}
+
+// release ends one session's use of e. It MUST be paired with acquire.
+func (e *acctEndpoint) release() {
+	e.mu.Lock()
+	e.sessions--
+	closeNow := e.retired && e.sessions == 0
+	e.mu.Unlock()
+	if closeNow {
+		e.close()
+	}
+}
+
+// retire marks e as replaced. Its client closes now if no session holds it,
+// or when the last session releases it.
+func (e *acctEndpoint) retire() {
+	e.mu.Lock()
+	e.retired = true
+	closeNow := e.sessions == 0
+	e.mu.Unlock()
+	if closeNow {
+		e.close()
+	}
+}
+
+// close releases the client's socket. Client.Close is idempotent, so a forced
+// close at the retirement bound and the last release can both call it.
+func (e *acctEndpoint) close() {
+	if err := e.client.Close(); err != nil {
+		logger().Warn("l2tp-auth-radius: closing a retired accounting client failed",
+			"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+			"server", e.serverAddr, "error", err)
+	}
+}
+
 // radiusAcct manages RADIUS accounting lifecycle.
+//
+// endpoint is the accounting configuration new sessions start under, nil when
+// no RADIUS accounting is configured.
+//
+// sessions holds the records of sessions still delivering service. ending
+// holds the sessions whose service ended while their task still sends the
+// Stop: onSessionDown moves a record from one to the other, and the task
+// removes it when it finishes. Retirement takes both, so shutdown waits for a
+// Stop already handed over as well as for the Stops it hands over itself.
 //
 // interval is the acct-interval config leaf, zero when the operator set none.
 // It is not a cadence on its own: acctInterval turns it and the Access-Accept
@@ -176,20 +313,23 @@ func splitGigawords(bytes uint64) (octets, gigawords uint32) {
 type radiusAcct struct {
 	mu              sync.Mutex
 	sessions        map[sessionKey]*acctSession
-	client          *radius.Client
+	ending          map[*acctSession]struct{}
+	endpoint        *acctEndpoint
 	accepting       bool
-	nasID           string
-	sourceAddress   net.IP
 	interval        time.Duration
 	nextSess        atomic.Uint32
 	bootTagMint     sync.Once
 	bootTag         [bootTagOctets]byte
-	serverAddr      string
 	nasPortIDFormat string
 	exclusions      attributeExclusions
 }
 
+// sessionKey names one accounting record by the session's whole identity. A
+// tunnel reuses its session IDs, so two sessions can hold the same wire labels
+// while both are live: the birth keeps their records apart, and a Down for one
+// cannot end the other's record.
 type sessionKey struct {
+	birth     subscriberid.L2TPBirth
 	tunnelID  uint16
 	sessionID uint16
 }
@@ -197,6 +337,7 @@ type sessionKey struct {
 func newRADIUSAcct() *radiusAcct {
 	return &radiusAcct{
 		sessions: make(map[sessionKey]*acctSession),
+		ending:   make(map[*acctSession]struct{}),
 	}
 }
 
@@ -209,18 +350,25 @@ func newRADIUSAcct() *radiusAcct {
 // acct-interval leaf gives the Access-Accept the cadence back, for every session
 // that starts after it. An "install only a positive value" guard would refuse
 // that reload and keep the removed value forever.
-func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) *radius.Client {
+//
+// The accountant owns c from here: the replaced endpoint is retired, and its
+// client closes once the last session that started under it has sent its Stop.
+// A nil c installs no endpoint and stops new sessions from accounting.
+func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) {
+	var installed *acctEndpoint
+	if c != nil {
+		installed = &acctEndpoint{client: c, nasID: nasID, sourceAddress: sourceAddr, serverAddr: serverAddr}
+	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	old := a.client
-	a.client = c
-	a.accepting = c != nil
-	a.nasID = nasID
-	a.sourceAddress = sourceAddr
-	a.serverAddr = serverAddr
+	old := a.endpoint
+	a.endpoint = installed
+	a.accepting = installed != nil
 	a.nasPortIDFormat = nasPortIDFormat
 	a.interval = interval
-	return old
+	a.mu.Unlock()
+	if old != nil {
+		old.retire()
+	}
 }
 
 // pauseAdmissions leaves live accounting untouched until removal commits.
@@ -325,14 +473,12 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	if err := subscriber.RequireID(logger(), payload.SubscriberID); err != nil {
 		return
 	}
-	key := sessionKey{payload.TunnelID, payload.SessionID}
+	key := sessionKey{birth: payload.Birth, tunnelID: payload.TunnelID, sessionID: payload.SessionID}
 	a.mu.Lock()
-	client := a.client
-	nasID := a.nasID
-	srcAddr := a.sourceAddress
+	endpoint := a.endpoint
 	configured := a.interval
 	portIDFormat := a.nasPortIDFormat
-	if !a.accepting || client == nil {
+	if !a.accepting || endpoint == nil {
 		a.mu.Unlock()
 		return
 	}
@@ -365,10 +511,13 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		peerAddr:         payload.PeerAddr,
 		callingStationID: payload.CallingStationID,
 		acctSessID:       acctSessID,
-		nasPortID:        resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
+		nasPortID:        resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: endpoint.nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
 		pppInterface:     payload.PppInterface,
+		endpoint:         endpoint,
 		startTime:        time.Now(),
 		cancel:           cancel,
+		ended:            make(chan struct{}),
+		finished:         make(chan struct{}),
 	}
 	// The channel is disconnected while NCP assigns addresses. A replacement
 	// lifetime therefore starts from the retained unit's last traffic totals.
@@ -380,94 +529,113 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		sess.counterBase = base
 	}
 
+	endpoint.acquire()
 	a.sessions[key] = sess
 	a.mu.Unlock()
 
-	go a.runAccounting(ctx, client, sess, nasID, srcAddr, interval)
+	go a.runAccounting(ctx, sess, interval)
 }
 
-// runAccounting is one session's accounting task: its Accounting-Start, then
-// one Interim-Update per interval until the session's context ends. It owns the
-// session's goroutine for that lifetime, and onSessionDown ends it by
-// canceling ctx.
+// acctRecordBound is how long one accounting record may wait for a server's
+// acknowledgement, retransmissions included, before the task gives it up.
+const acctRecordBound = 10 * time.Second
+
+// runAccounting is one session's accounting task, and the only sender of the
+// session's records: its Accounting-Start, one Interim-Update per interval
+// until the session's context ends, then its Accounting-Stop once end hands
+// the end of service over. One goroutine sends all three kinds, so the Stop
+// leaves only after the Start and every Interim have been acknowledged or
+// given up, and the publisher of the session's Down never waits for a RADIUS
+// server. The task closes sess.finished after it releases the endpoint.
 //
-// Its panic boundary is the accounting task. A Ze defect met here ends this
-// session's Start and Interim-Update records only: the session stays up and in
-// a.sessions, and every other session's task runs on. The Accounting-Stop is
-// left to onSessionDown, because RFC 2866 Section 2 ties it to the end of
-// service, which a defect in the accounting task is not: "At the end of
-// service delivery the client will generate an Accounting Stop packet
-// describing the type of service that was delivered and optionally statistics
-// such as elapsed time, input and output octets, or input and output packets."
-// A Stop sent here would close the server's record of a session still
-// delivering service, and onSessionDown would then send a second one.
-func (a *radiusAcct) runAccounting(ctx context.Context, client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP, interval time.Duration) {
+// Two panic boundaries split the task. A Ze defect met in the Start or the
+// Interim loop ends those records only: the session stays up and in
+// a.sessions, every other session's task runs on, and this task still waits
+// for the end of service and sends the Stop. RFC 2866 Section 2 ties the Stop
+// to the end of service, which a defect in the accounting task is not: "At
+// the end of service delivery the client will generate an Accounting Stop
+// packet describing the type of service that was delivered and optionally
+// statistics such as elapsed time, input and output octets, or input and
+// output packets." A Stop sent at the panic would close the server's record
+// of a session still delivering service.
+func (a *radiusAcct) runAccounting(ctx context.Context, sess *acctSession, interval time.Duration) {
+	defer close(sess.finished)
+	defer sess.endpoint.release()
+	defer a.forgetEnding(sess)
+
+	a.containAccounting(sess, func() {
+		a.sendAcctStart(sess)
+		a.interimLoop(ctx, nil, sess, "", nil, interval)
+	})
+	<-sess.ended
+	a.containAccounting(sess, func() {
+		a.sendAcctStop(sess)
+	})
+}
+
+// forgetEnding removes a finished task's session from the sessions whose Stop
+// is still owed. After a retirement took the set, the delete finds nothing,
+// and the retirement waits on the task's finished channel instead.
+func (a *radiusAcct) forgetEnding(sess *acctSession) {
+	a.mu.Lock()
+	delete(a.ending, sess)
+	a.mu.Unlock()
+}
+
+// containAccounting runs one part of a session's accounting task inside the
+// accounting panic boundary.
+func (a *radiusAcct) containAccounting(sess *acctSession, part func()) {
 	describe := func() taskguard.Context { return sessionUnit(sess.tunnelID, sess.sessionID) }
 	defer accountingTask.Contain(describe, nil)
-
-	a.sendAcctStart(client, sess, nasID, sourceAddr)
-	a.interimLoop(ctx, client, sess, nasID, sourceAddr, interval)
+	part()
 }
 
+// onSessionDown claims the session's record and hands its Accounting-Stop to
+// the session's accounting task. It returns without waiting for a RADIUS
+// server, because it runs on the publisher of the Down, which can be the
+// L2TP reactor: a silent accounting server MUST NOT stop the control packets
+// of every other tunnel.
 func (a *radiusAcct) onSessionDown(payload *l2tpevents.SessionDownPayload) {
-	key := sessionKey{payload.TunnelID, payload.SessionID}
+	key := sessionKey{birth: payload.Birth, tunnelID: payload.TunnelID, sessionID: payload.SessionID}
 
 	a.mu.Lock()
 	sess, ok := a.sessions[key]
 	if ok {
 		delete(a.sessions, key)
+		a.ending[sess] = struct{}{}
 	}
-	client := a.client
-	nasID := a.nasID
-	srcAddr := a.sourceAddress
 	a.mu.Unlock()
 
 	if !ok {
 		return
 	}
-	sess.cancel()
-	if client == nil {
-		return
-	}
-	// This goroutine owns sess now: the delete above took it out of the map,
-	// so no other caller reaches it.
-	sess.terminateCause = payload.Cause
-	a.sendAcctStop(client, sess, nasID, srcAddr)
+	// This goroutine is the only caller of end for sess: the delete above
+	// took it out of the live sessions, so no other caller claims it.
+	sess.end(payload.Cause)
 }
 
-func (a *radiusAcct) sendAcctStart(client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
-	a.mu.Lock()
-	sAddr := a.serverAddr
-	a.mu.Unlock()
-	incAcctSent(sAddr, sAddr)
-	pkt := a.buildAcctPacket(sess, nasID, sourceAddr, radius.AcctStatusStart, 0)
-	a.sendAcctPacket(client, pkt, "start", sess)
+func (a *radiusAcct) sendAcctStart(sess *acctSession) {
+	endpoint := sess.endpoint
+	incAcctSent(endpoint.serverAddr, endpoint.serverAddr)
+	pkt := a.buildAcctPacket(sess, endpoint.nasID, endpoint.sourceAddress, radius.AcctStatusStart, 0)
+	a.sendAcctPacket(endpoint.client, pkt, "start", sess)
 }
 
-func (a *radiusAcct) sendAcctStop(client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	a.sendAcctStopContext(ctx, client, sess, nasID, sourceAddr)
+// sendAcctStop sends the record end captured. It MUST run after sess.ended
+// is closed.
+func (a *radiusAcct) sendAcctStop(sess *acctSession) {
+	endpoint := sess.endpoint
+	incAcctSent(endpoint.serverAddr, endpoint.serverAddr)
+	pkt := a.buildAcctPacket(sess, endpoint.nasID, endpoint.sourceAddress, radius.AcctStatusStop, sess.finalDuration)
+	a.sendAcctPacket(endpoint.client, pkt, "stop", sess)
 }
 
-func (a *radiusAcct) sendAcctStopContext(ctx context.Context, client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
-	a.mu.Lock()
-	sAddr := a.serverAddr
-	a.mu.Unlock()
-	incAcctSent(sAddr, sAddr)
+func (a *radiusAcct) sendAcctInterimUpdate(sess *acctSession) {
+	endpoint := sess.endpoint
+	incInterimSent(endpoint.serverAddr, endpoint.serverAddr)
 	duration := uint32(time.Since(sess.startTime).Seconds())
-	pkt := a.buildAcctPacket(sess, nasID, sourceAddr, radius.AcctStatusStop, duration)
-	a.sendAcctPacketContext(ctx, client, pkt, "stop", sess)
-}
-
-func (a *radiusAcct) sendAcctInterimUpdate(client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
-	a.mu.Lock()
-	sAddr := a.serverAddr
-	a.mu.Unlock()
-	incInterimSent(sAddr, sAddr)
-	duration := uint32(time.Since(sess.startTime).Seconds())
-	pkt := a.buildAcctPacket(sess, nasID, sourceAddr, radius.AcctStatusInterimUpdate, duration)
-	a.sendAcctPacket(client, pkt, "interim", sess)
+	pkt := a.buildAcctPacket(sess, endpoint.nasID, endpoint.sourceAddress, radius.AcctStatusInterimUpdate, duration)
+	a.sendAcctPacket(endpoint.client, pkt, "interim", sess)
 }
 
 // buildAcctPacket assembles one Accounting-Request for a session.
@@ -499,9 +667,12 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 	// the NAS, in seconds since January 1, 1970 00:00 UTC." The same section
 	// gives the Value field as "four octets encoding an unsigned integer",
 	// which is what AttrUint32 writes. The uint32 conversion is the RFC's own
-	// width, so the attribute wraps in 2106 as every RADIUS client does.
+	// width, so the attribute wraps in 2106 as every RADIUS client does. A Stop
+	// whose end of service was not recorded omits it rather than send 1970.
+	if at, ok := sess.eventTime(statusType); ok {
+		attrs = append(attrs, radius.Attr{Type: radius.AttrEventTimestamp, Value: radius.AttrUint32(uint32(at.Unix()))})
+	}
 	attrs = append(attrs,
-		radius.Attr{Type: radius.AttrEventTimestamp, Value: radius.AttrUint32(uint32(acctNow().Unix()))},
 		radius.Attr{Type: radius.AttrAcctStatusType, Value: radius.AttrUint32(uint32(statusType))},
 		radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString(sess.acctSessID)},
 		radius.Attr{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},
@@ -533,7 +704,7 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 
 	if statusType == radius.AcctStatusStop || statusType == radius.AcctStatusInterimUpdate {
 		attrs = append(attrs, radius.Attr{Type: radius.AttrAcctSessionTime, Value: radius.AttrUint32(sessionTime)})
-		if delta, ok := sess.counterDelta(); ok {
+		if delta, ok := sess.recordCounters(statusType); ok {
 			inOct, inGiga := splitGigawords(delta.rxBytes)
 			outOct, outGiga := splitGigawords(delta.txBytes)
 			attrs = append(attrs,
@@ -583,25 +754,36 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 	}
 }
 
-func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	a.sendAcctPacketContext(ctx, client, pkt, purpose, sess)
+// recordCounters answers the counters one record reports. A Stop reports the
+// counters end read at the end of service; an Interim reads them now.
+func (s *acctSession) recordCounters(statusType uint8) (acctCounters, bool) {
+	if statusType == radius.AcctStatusStop {
+		return s.finalCounters, s.finalCountersValid
+	}
+	return s.counterDelta()
 }
 
-func (a *radiusAcct) sendAcctPacketContext(ctx context.Context, client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
-
+// sendAcctPacket sends one record and waits, at most acctRecordBound, for its
+// acknowledgement. A record no server acknowledged is logged with the
+// Acct-Session-Id a billing operator searches for, and the session goes on.
+func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
+	ctx, cancel := context.WithTimeout(context.Background(), acctRecordBound)
+	defer cancel()
 	_, err := client.SendToServers(ctx, pkt)
 	if err != nil {
 		// RFC 2866: accounting failures MUST NOT tear down sessions.
-		logger().Warn("l2tp-auth-radius: accounting "+purpose+" failed",
-			"tunnel", sess.tunnelID, "session", sess.sessionID, "error", err)
+		logger().Warn("l2tp-auth-radius: accounting "+purpose+" not acknowledged",
+			"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+			"tunnel", sess.tunnelID, "session", sess.sessionID,
+			"acct-session-id", sess.acctSessID, "error", err)
 	}
+	recordAccountingOutcome(sess, purpose, err)
 }
 
 // interimLoop sends one interim Accounting-Request per interval until the
 // session's context ends. interval is what acctInterval answered for this
-// session, and the caller MUST keep it above zero.
+// session, and the caller MUST keep it above zero. Every Interim leaves
+// through the session's own endpoint, as its Start did.
 func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *acctSession, _ string, _ net.IP, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -615,81 +797,116 @@ func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *ac
 			// interval leaves the ticker ready as well as ctx.Done, and select
 			// picks between two ready cases at random, so a loop whose session
 			// has ended starts another generation every second time it wakes.
-			// onSessionDown cancels this context and then sends the session's
-			// Accounting-Stop, so that generation is an interim record landing
-			// after the Stop. RFC 2869 Section 2.1: "Note that all information
-			// in an interim message is cumulative". The server then records
-			// counters for a session it has already closed.
+			// end cancels this context at the end of service, and the task
+			// sends the Stop once this loop returns, so that generation would
+			// delay the Stop behind a record of service that has ended. RFC
+			// 2869 Section 2.1: "Note that all information in an interim
+			// message is cumulative". The Interim would report counters past
+			// the end the Stop reports.
 			if ctx.Err() != nil {
 				return
 			}
-			// Read current client/nasID/sourceAddr on each iteration so reload
-			// takes effect without restarting the loop.
-			a.mu.Lock()
-			if ctx.Err() != nil {
-				a.mu.Unlock()
-				return
-			}
-			c := a.client
-			nid := a.nasID
-			src := a.sourceAddress
-			a.mu.Unlock()
-			if c != nil {
-				a.sendAcctInterimUpdate(c, sess, nid, src)
-			}
+			a.sendAcctInterimUpdate(sess)
 		}
 	}
 }
 
-// detach transfers the old client and sessions to one retirement owner. New
-// configuration can use this accountant immediately without sharing its client
-// with the worker that sends the old records.
-func (a *radiusAcct) detach() *radiusAcct {
+// acctRetirement is the claim retirement takes on the accountant's endpoint,
+// its live sessions and the sessions whose Stop is still being sent. Its live
+// sessions are no longer in any accountant's map, so stopDetached is the only
+// caller that ends them.
+type acctRetirement struct {
+	endpoint *acctEndpoint
+	sessions map[sessionKey]*acctSession
+	ending   map[*acctSession]struct{}
+}
+
+// detach transfers the current endpoint and live sessions to one retirement
+// owner. New configuration can use this accountant immediately without sharing
+// its client with the tasks that send the old records. The caller MUST call
+// stopDetached on the answer.
+func (a *radiusAcct) detach() *acctRetirement {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.client == nil && len(a.sessions) == 0 {
+	if a.endpoint == nil && len(a.sessions) == 0 && len(a.ending) == 0 {
 		return nil
 	}
-	retired := &radiusAcct{
-		sessions:      a.sessions,
-		client:        a.client,
-		nasID:         a.nasID,
-		sourceAddress: a.sourceAddress,
-		serverAddr:    a.serverAddr,
-		exclusions:    a.exclusions,
-	}
+	retired := &acctRetirement{endpoint: a.endpoint, sessions: a.sessions, ending: a.ending}
 	a.sessions = make(map[sessionKey]*acctSession)
-	a.client = nil
+	a.ending = make(map[*acctSession]struct{})
+	a.endpoint = nil
 	a.accepting = false
-	for _, sess := range retired.sessions {
-		sess.cancel()
-	}
 	return retired
 }
 
-// Stop ends accounting and releases the client. Retirement shares one network
-// deadline across all records, including when the server never answers.
+// Stop ends accounting: every live session's Stop is sent, and every client
+// is released. Retirement shares one bound across all records, including
+// when the server never answers.
 func (a *radiusAcct) Stop() {
 	if retired := a.detach(); retired != nil {
 		retired.stopDetached()
 	}
 }
 
-func (a *radiusAcct) stopDetached() {
-	if a.client == nil {
+// stopDetached ends every retired session, waits for their tasks to send
+// their Stops, and releases the endpoints. It MUST be called once, on the
+// answer of detach.
+//
+// The tasks share one bound, acctRecordBound. A task still waiting at the
+// bound has an endpoint whose server has not answered; closing that endpoint's
+// client ends the exchange at once, so the task records the Stop as not
+// acknowledged, by name, and finishes. Retirement never answers before every
+// task has finished, so the client of a later configuration is never shared
+// with a record of this one.
+func (r *acctRetirement) stopDetached() {
+	if r.endpoint != nil {
+		r.endpoint.retire()
+	}
+	for _, sess := range r.sessions {
+		// RFC 2866 Section 5.10 value 7: administrator ending NAS service.
+		sess.end(l2tpevents.TerminateCauseAdminReboot)
+		r.ending[sess] = struct{}{}
+	}
+	late := r.awaitTasks(acctRecordBound)
+	if len(late) == 0 {
 		return
 	}
-	defer func() { _ = a.client.Close() }()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for _, sess := range a.sessions {
-		if ctx.Err() != nil {
-			return
-		}
-		// RFC 2866 Section 5.10 value 7: administrator ending NAS service.
-		sess.terminateCause = l2tpevents.TerminateCauseAdminReboot
-		a.sendAcctStopContext(ctx, a.client, sess, a.nasID, a.sourceAddress)
+	logger().Warn("l2tp-auth-radius: accounting retirement reached its bound; abandoning the unacknowledged Stops",
+		"code", diagnostic.CodeDoctorRADIUSAccountingUnacknowledged,
+		"sessions", len(late), "bound", acctRecordBound)
+	for _, sess := range late {
+		sess.endpoint.close()
 	}
+	for _, sess := range late {
+		<-sess.finished
+	}
+}
+
+// awaitTasks waits, at most bound in total, for the task of every session
+// whose Stop is owed to finish, and answers the sessions whose task had not
+// finished by then.
+func (r *acctRetirement) awaitTasks(bound time.Duration) []*acctSession {
+	expiry := time.NewTimer(bound)
+	defer expiry.Stop()
+	expired := false
+	var late []*acctSession
+	for sess := range r.ending {
+		if expired {
+			select {
+			case <-sess.finished:
+			default:
+				late = append(late, sess)
+			}
+			continue
+		}
+		select {
+		case <-sess.finished:
+		case <-expiry.C:
+			expired = true
+			late = append(late, sess)
+		}
+	}
+	return late
 }
 
 // terminateCauseOrNASError answers the value a Stop record reports.

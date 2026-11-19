@@ -158,9 +158,8 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 		if c := authInstance.swapClient(nil, "", "", nil, ""); c != nil {
 			c.Close() //nolint:errcheck // test cleanup
 		}
-		if c := acctInstance.setClient(nil, "", 0, "", nil, ""); c != nil {
-			c.Close() //nolint:errcheck // test cleanup
-		}
+		// The accountant owns its client and closes the replaced one.
+		acctInstance.setClient(nil, "", 0, "", nil, "")
 		if previousHandler == nil {
 			l2tp.UnregisterAuthHandler()
 			return

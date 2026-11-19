@@ -342,6 +342,8 @@ func TestBuildAcctPacketGigawords(t *testing.T) {
 		acctSessID:   "1-3-1",
 		pppInterface: "ppp1",
 	}
+	// A Stop reports the counters read when service ended.
+	sess.captureEnd(events.TerminateCauseUserRequest)
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStop, 120)
 
@@ -475,7 +477,7 @@ func TestAcctSessionPppInterface(t *testing.T) {
 	capture.waitN(t, 1) // wait for start
 
 	acct.mu.Lock()
-	sess, ok := acct.sessions[sessionKey{1, 10}]
+	sess, ok := acct.sessions[sessionKey{tunnelID: 1, sessionID: 10}]
 	acct.mu.Unlock()
 
 	if !ok {
@@ -517,6 +519,8 @@ func TestAcctPacketCarriesEventTimestamp(t *testing.T) {
 
 	acct := newRADIUSAcct()
 	sess := &acctSession{username: "grace", acctSessID: "1-7-1"}
+	// A Stop reports the instant service ended, read under the same clock.
+	sess.captureEnd(events.TerminateCauseUserRequest)
 
 	for _, statusType := range []uint8{radius.AcctStatusStart, radius.AcctStatusInterimUpdate, radius.AcctStatusStop} {
 		pkt := acct.buildAcctPacket(sess, "nas1", nil, statusType, 0)

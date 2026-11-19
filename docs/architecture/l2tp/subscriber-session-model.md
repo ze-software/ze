@@ -308,11 +308,27 @@ tunnel, because a tunnel reuses its session IDs. Notifications of different
 tunnels do not wait for each other.
 
 No lock is held while a reader runs. A slow reader delays only the later
-notifications of its own tunnel, and the goroutine that carries them. RADIUS
-accounting is the slowest: it sends Accounting-Stop synchronously, bounded at
-10 seconds. When the waiting goroutine is the reactor's own, packet processing
-waits with it, as it does whenever the reactor publishes to a slow reader
-(`plan/journal/slow-reader-stalls-a-shared-goroutine.md`).
+notifications of its own tunnel, and the goroutine that carries them. When the
+waiting goroutine is the reactor's own, packet processing waits with it, as it
+does whenever the reactor publishes to a slow reader
+(`plan/journal/slow-reader-stalls-a-shared-goroutine.md`), so no reader waits
+for a remote server inside a delivery.
+
+RADIUS accounting answers a session-down without waiting for its server. The
+callback reads the session's elapsed time and counters, which a Stop reports
+about the end of service, and hands the Stop to the session's own accounting
+task. That one task sends the session's Start, its Interim-Updates and then its
+Stop, so the Stop leaves only after every earlier record was acknowledged or
+given up, each record bounded at 10 seconds. A session keeps the accounting
+server and NAS identity it started under: a reload moves new sessions to the
+new configuration, and the replaced client closes once the last session that
+started under it has sent its Stop. Shutdown and the removal of RADIUS
+configuration hand every live session an Administrative Reboot Stop and wait,
+within one shared 10-second bound, for every owed Stop; at the bound they close
+the clients still waiting, and each abandoned Stop is logged with its
+Acct-Session-Id.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionDown, runAccounting, acctEndpoint, stopDetached -->
 
 <!-- source: internal/component/l2tp/session.go -- sessionNoticeOrder, sessionNoticeTicket, issueNoticeTicket, awaitTurn, deliver -->
 

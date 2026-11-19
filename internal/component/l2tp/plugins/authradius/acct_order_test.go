@@ -31,9 +31,10 @@ import (
 // SessionIPAssigned before it is proven in
 // internal/component/l2tp/session_event_order_test.go, and through the
 // daemon by test/l2tp/session-clear-leaves-no-subscriber.ci. Nor does it
-// assert the order of the two records on the wire: onSessionDown sends the
-// Stop synchronously while runAccounting sends the Start from its own
-// goroutine, so either may arrive first.
+// assert the order of the two records on the wire: the session's one
+// accounting task sends both, Start first, and
+// TestAccountingDownReturnsWhileStartAwaitsRadius in acct_original_task_test.go
+// proves that order against a held Start.
 //
 // The behavior is preserved, not new: the test passes before and after the
 // reactor's order fix.

@@ -142,7 +142,8 @@ func seedCoAAccountingIdentity(t *testing.T, accounting *acctSession) {
 	_, cancel := context.WithCancel(t.Context())
 	accounting.cancel = cancel
 	accounting.startTime = time.Now()
-	key := sessionKey{tunnelID: accounting.tunnelID, sessionID: accounting.sessionID}
+	withoutAccountingTask(accounting)
+	key := sessionKey{birth: accounting.birth, tunnelID: accounting.tunnelID, sessionID: accounting.sessionID}
 	acctInstance.mu.Lock()
 	previous := acctInstance.sessions[key]
 	acctInstance.sessions[key] = accounting

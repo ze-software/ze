@@ -201,6 +201,7 @@ type orderedAccountingServer struct {
 	releaseOnce sync.Once
 	earlyStop   bool     // guarded by capture.mu
 	nasIDs      []string // guarded by capture.mu
+	eventTimes  [][]byte // Event-Timestamp values in wire order, guarded by capture.mu
 }
 
 func (server *orderedAccountingServer) release() {
@@ -281,7 +282,7 @@ func newOrderedAccountingServer(t *testing.T, heldStatus uint8) (*orderedAccount
 				if errors.Is(readErr, net.ErrClosed) {
 					return
 				}
-				if timeout, ok := readErr.(net.Error); ok {
+				if timeout, ok := errors.AsType[net.Error](readErr); ok {
 					if !timeout.Timeout() {
 						t.Error(readErr)
 						return
@@ -318,6 +319,7 @@ func newOrderedAccountingServer(t *testing.T, heldStatus uint8) (*orderedAccount
 			kind := uint8(binary.BigEndian.Uint32(status))
 			server.capture.mu.Lock()
 			server.nasIDs = append(server.nasIDs, string(packet.FindAttr(radius.AttrNASIdentifier)))
+			server.eventTimes = append(server.eventTimes, append([]byte(nil), packet.FindAttr(radius.AttrEventTimestamp)...))
 			if kind == radius.AcctStatusStop {
 				if len(pending) != 0 {
 					server.earlyStop = true

@@ -159,8 +159,8 @@ func TestRADIUSAccountingPanicContained(t *testing.T) {
 	}
 	t.Cleanup(crashlog.SetCrashDirForTest(t.TempDir()))
 
-	acct, capture := capturedAccountant(t)
-	acct.bootTagMint.Do(acct.mintBootTag)
+	// The seam is installed before the accountant, so its restoration is the
+	// later cleanup: the accounting tasks that read it are joined first.
 	var armed atomic.Bool
 	saved := acctNow
 	acctNow = func() time.Time {
@@ -170,6 +170,8 @@ func TestRADIUSAccountingPanicContained(t *testing.T) {
 		return time.Now()
 	}
 	t.Cleanup(func() { acctNow = saved })
+	acct, capture := capturedAccountant(t)
+	acct.bootTagMint.Do(acct.mintBootTag)
 	armed.Store(true)
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
