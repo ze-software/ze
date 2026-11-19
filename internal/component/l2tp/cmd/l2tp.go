@@ -608,7 +608,7 @@ func handleSessionTeardown(ctx *pluginserver.CommandContext, validated command.V
 		result["reason"] = request.reason
 	}
 	if request.cause != 0 {
-		result["cause"] = int(request.cause)
+		result["cause"] = request.cause
 	}
 	return jsonResponse("l2tp session teardown", result)
 }
