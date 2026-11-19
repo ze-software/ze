@@ -2,6 +2,7 @@
 // Related: graph_nexthop.go -- Next-hop graph data model
 // Related: layout.go -- AS path graph layout (parallel implementation)
 // Related: handler_graph.go -- Graph HTTP handler
+// Related: layout_trace.go -- Trace graph layout, drawn with this file's writers
 
 package lg
 
@@ -107,15 +108,10 @@ func formatNextHopNodeLabel(n NextHopNode) string {
 	return n.Address
 }
 
-// renderNextHopGraphSVG renders the next-hop graph as an SVG string.
-func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
-	var sb textbuf.Buffer
-
-	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, //nolint:errcheck // buffer output
-		layout.Width, layout.Height, layout.Width, layout.Height)
-	sb.WriteString("\n")
-
-	sb.WriteString(`<style>
+// routerGraphStyle is the style block of a drawing whose nodes are routers:
+// the next-hop graph and the trace graph (layout_trace.go). A router
+// that is an exit carries the class "egress" beside "node".
+const routerGraphStyle = `<style>
 .node rect { fill: var(--node-fill, #f0f4f8); stroke: var(--node-stroke, #4a90d9); stroke-width: 2; rx: 6; }
 .node rect:hover { fill: var(--node-fill-hover, #dce8f5); stroke: var(--node-stroke-hover, #2a6cb8); }
 .node text { font-family: monospace; font-size: 12px; fill: var(--node-text, #333); }
@@ -124,8 +120,19 @@ func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 .egress rect:hover { fill: var(--egress-fill-hover, #c8e6c9); stroke: var(--egress-stroke-hover, #388e3c); }
 .edge line { stroke: var(--edge-stroke, #999); stroke-width: 1.5; }
 .edge polygon { fill: var(--edge-stroke, #999); }
-</style>`)
-	sb.WriteString("\n")
+</style>`
+
+// Classes of a router node (routerGraphStyle).
+const (
+	routerNodeClass       = "node"
+	routerNodeEgressClass = "node egress"
+)
+
+// renderNextHopGraphSVG renders the next-hop graph as an SVG string.
+func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
+	var sb textbuf.Buffer
+
+	writeRouterGraphOpen(&sb, layout.Width, layout.Height)
 
 	// Render edges first (behind nodes).
 	for _, e := range g.Edges {
@@ -134,20 +141,7 @@ func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 		if !fromOK || !toOK {
 			continue
 		}
-
-		x1 := fromPos.X + fromPos.Width
-		y1 := fromPos.Y + fromPos.Height/2
-		x2 := toPos.X
-		y2 := toPos.Y + toPos.Height/2
-
-		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2) //nolint:errcheck // buffer output
-
-		arrowSize := 8
-		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`, //nolint:errcheck // buffer output
-			x2, y2,
-			x2-arrowSize, y2-arrowSize/2,
-			x2-arrowSize, y2+arrowSize/2)
-		sb.WriteString("</g>\n")
+		writeRouterGraphEdge(&sb, fromPos, toPos)
 	}
 
 	// Render nodes.
@@ -157,32 +151,99 @@ func renderNextHopGraphSVG(g *nextHopGraph, layout *nextHopLayout) string {
 			continue
 		}
 
-		class := "node"
+		class := routerNodeClass
 		if n.Egress {
-			class = "node egress"
+			class = routerNodeEgressClass
 		}
 
-		label := formatNextHopNodeLabel(n)
-		maxChars := (pos.Width - nodePadding*2) / charWidthApprox
-		if maxChars > 0 && len(label) > maxChars {
-			var tb textbuf.Buffer
-			label = tb.Str(label[:maxChars-1]).Str("\u2026").String()
-		}
-
-		fmt.Fprintf(&sb, `<g class="%s">`, class)                        //nolint:errcheck // buffer output
-		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`, //nolint:errcheck // buffer output
-			pos.X, pos.Y, pos.Width, pos.Height)
-		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="label">%s</text>`, //nolint:errcheck // buffer output
-			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
-			template.HTMLEscapeString(label))
-		fmt.Fprintf(&sb, `<title>%s%s</title>`, //nolint:errcheck // buffer output
-			template.HTMLEscapeString(n.Address),
-			template.HTMLEscapeString(nextHopTooltipName(n.Name)))
-		sb.WriteString("</g>\n")
+		var tooltip textbuf.Buffer
+		tooltip.Str(n.Address).Str(nextHopTooltipName(n.Name))
+		writeRouterGraphNode(&sb, class, formatNextHopNodeLabel(n), tooltip.String(), pos)
 	}
 
-	sb.WriteString("</svg>")
+	writeRouterGraphClose(&sb)
 	return sb.String()
+}
+
+// writeRouterGraphOpen writes the opening <svg> tag of a drawing of the given
+// size and routerGraphStyle. The caller MUST call writeRouterGraphClose after
+// the last element.
+func writeRouterGraphOpen(sb *textbuf.Buffer, width, height int) {
+	fmt.Fprintf(sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, //nolint:errcheck // buffer output
+		width, height, width, height)
+	sb.WriteString("\n")
+	sb.WriteString(routerGraphStyle)
+	sb.WriteString("\n")
+}
+
+// writeRouterGraphClose closes the drawing. It MUST be called after
+// writeRouterGraphOpen, once, as the last write.
+func writeRouterGraphClose(sb *textbuf.Buffer) {
+	sb.WriteString("</svg>")
+}
+
+// routerGraphLine is one line of text under the nodes of a drawing: the
+// baseline a layout pass computed for it, and its text.
+type routerGraphLine struct {
+	Y    int
+	Text string
+}
+
+// writeRouterGraphLines writes a group of text lines under the nodes, each at
+// the left padding and at its own baseline. The text is escaped here. A line
+// carries its own font and takes the page's text color, as the empty graph
+// does (graph_empty.templ), because it is outside any node.
+//
+// The writer is here, with the other writers of a router drawing, so that the
+// one file that builds this markup in Go stays the one the markup guard names
+// (markup_check_test.go, lgMarkupExempt).
+func writeRouterGraphLines(sb *textbuf.Buffer, class string, lines []routerGraphLine) {
+	fmt.Fprintf(sb, `<g class="%s">`, class) //nolint:errcheck // buffer output
+	sb.WriteString("\n")
+	for _, line := range lines {
+		fmt.Fprintf(sb, `<text x="%d" y="%d" font-family="monospace" font-size="%d" fill="currentColor">%s</text>`, //nolint:errcheck // buffer output
+			graphPadding, line.Y, fontSize, template.HTMLEscapeString(line.Text))
+		sb.WriteString("\n")
+	}
+	sb.WriteString("</g>\n")
+}
+
+// writeRouterGraphEdge writes one arrow from the right side of a node to the
+// left side of another.
+func writeRouterGraphEdge(sb *textbuf.Buffer, from, to Position) {
+	x1 := from.X + from.Width
+	y1 := from.Y + from.Height/2
+	x2 := to.X
+	y2 := to.Y + to.Height/2
+
+	fmt.Fprintf(sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2) //nolint:errcheck // buffer output
+
+	arrowSize := 8
+	fmt.Fprintf(sb, `<polygon points="%d,%d %d,%d %d,%d"/>`, //nolint:errcheck // buffer output
+		x2, y2,
+		x2-arrowSize, y2-arrowSize/2,
+		x2-arrowSize, y2+arrowSize/2)
+	sb.WriteString("</g>\n")
+}
+
+// writeRouterGraphNode writes one node: its box, its label cut to the box, and
+// its tooltip. label and tooltip are escaped here, so a caller passes operator
+// text (a range name, an AS name) as it is.
+func writeRouterGraphNode(sb *textbuf.Buffer, class, label, tooltip string, pos Position) {
+	maxChars := (pos.Width - nodePadding*2) / charWidthApprox
+	if maxChars > 0 && len(label) > maxChars {
+		var tb textbuf.Buffer
+		label = tb.Str(label[:maxChars-1]).Str("\u2026").String()
+	}
+
+	fmt.Fprintf(sb, `<g class="%s">`, class)                        //nolint:errcheck // buffer output
+	fmt.Fprintf(sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`, //nolint:errcheck // buffer output
+		pos.X, pos.Y, pos.Width, pos.Height)
+	fmt.Fprintf(sb, `<text x="%d" y="%d" class="label">%s</text>`, //nolint:errcheck // buffer output
+		pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
+		template.HTMLEscapeString(label))
+	fmt.Fprintf(sb, `<title>%s</title>`, template.HTMLEscapeString(tooltip)) //nolint:errcheck // buffer output
+	sb.WriteString("</g>\n")
 }
 
 // nextHopTooltipName formats the name portion of a next-hop tooltip.

@@ -19,7 +19,7 @@ module ze-lg-conf {
 
         container looking-glass {
             description "The container holds the enable switch, the listen endpoints, the
-                         TLS switch and the bearer token.";
+                         TLS switch, the bearer token and the named next-hop ranges.";
             ze:help "Looking glass HTTP server settings.";
 
             leaf enabled {
@@ -97,6 +97,44 @@ module ze-lg-conf {
 
                 ze:help "Bearer token checked on every /api/ and /lg/ route (ze.looking-glass.token).";
 
+            }
+
+            list next-hop-range {
+                key "prefix";
+                max-elements 256;
+                description "Each entry gives a name to one range of next-hop addresses, such
+                             as an exchange LAN or a transit link. The looking glass shows the
+                             name beside a next hop inside the range, in the route table and
+                             in the next-hop graph. When several ranges hold a next hop, the
+                             longest prefix names it. A next hop in no range shows its address
+                             alone: Ze derives no name from DNS or from a peer. The prefix is
+                             the key, so one range has one name, and one name may label
+                             several ranges, for example the IPv4 and IPv6 LANs of one
+                             exchange. The list holds 256 entries at most and has no
+                             environment variable.";
+                ze:help "Names shown beside the next hops of an address range.";
+
+                leaf prefix {
+                    type zt:ip-prefix;
+                    description "The prefix is the key of the entry, so a second entry for the
+                                 same prefix is refused. A next hop is named by the entry with
+                                 the longest prefix that contains it, so a /32 or a /128 names
+                                 one router.";
+                    ze:help "Next-hop range in CIDR (e.g. 198.51.100.0/24, 2001:db8:100::/64).";
+                }
+
+                leaf name {
+                    type string {
+                        length "1..64";
+                        pattern '[A-Za-z0-9][A-Za-z0-9._-]*';
+                    }
+                    mandatory true;
+                    description "The name is shown on a public page, so it takes 1 to 64
+                                 characters from A-Z a-z 0-9 . _ - and starts with a letter or a
+                                 digit. An entry with no name is refused, because it would
+                                 label nothing.";
+                    ze:help "Name shown beside a next hop in this range (e.g. ams-ix-lan).";
+                }
             }
         }
     }

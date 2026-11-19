@@ -37,6 +37,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -109,6 +110,13 @@ type LGConfig struct {
 	// `Authorization: Bearer <Token>`; see auth.go.
 	Token string
 
+	// NextHopRanges names ranges of next-hop addresses, keyed by the range
+	// with its host bits cleared (zeconfig.ExtractLGNextHopRanges). The route
+	// table and the next-hop graph show the name of the most specific range
+	// beside a next hop inside it. Nil names nothing. UpdateNextHopRanges
+	// replaces the list on a running server.
+	NextHopRanges map[netip.Prefix]string
+
 	// Logger is the structured logger for the LG server.
 	// If nil, the package-level lg logger is used.
 	Logger *slog.Logger
@@ -144,6 +152,12 @@ type LGServer struct {
 	dispatch    CommandDispatcher
 	decorateASN ASNDecorator
 	sseClients  atomic.Int32 // concurrent SSE connection counter
+
+	// nextHopRanges is the list of named next-hop ranges every page reads. A
+	// reload replaces the pointer whole (UpdateNextHopRanges), so a reader
+	// sees the old list or the new one. A nil pointer names nothing: it is
+	// the state of a server no list was stored in.
+	nextHopRanges atomic.Pointer[nextHopRanges]
 }
 
 // NewLGServer creates a new looking glass HTTP server from the given configuration.
@@ -183,6 +197,11 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		}
 	}
 
+	ranges, rangesErr := newNextHopRanges(cfg.NextHopRanges)
+	if rangesErr != nil {
+		return nil, rangesErr
+	}
+
 	mux := http.NewServeMux()
 	configured := append([]string(nil), cfg.ListenAddrs...)
 
@@ -218,6 +237,8 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 			ErrorLog: stdlog.New(io.Discard, "", 0),
 		},
 	}
+
+	s.nextHopRanges.Store(ranges)
 
 	if tlsCfg != nil {
 		s.server.TLSConfig = tlsCfg

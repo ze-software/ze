@@ -40,7 +40,9 @@ expect=html:not-contains=stream-error
 # stream row and not the banner.
 action=wait:ms=8000
 expect=html:contains=<tr class="stream-error">
-expect=html:contains=<td colspan="10">show bgp: engine error
+# The span is the peer table's column count (peersColumns,
+# internal/component/lg/view.go): twelve since the two session history columns.
+expect=html:contains=<td colspan="12">show bgp: engine error
 expect=html:contains=the engine failed or refused this command, so there is no answer to show
 expect=html:contains=fix: ze show log recent level warn component lg.server</td>
 expect=html:not-contains=bgp engine unavailable

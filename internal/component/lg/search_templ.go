@@ -107,7 +107,7 @@ func searchForm(v searchView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" placeholder=\"64500 64501\"></div><div class=\"search-field\"><label for=\"community\">Community</label> <input type=\"text\" id=\"community\" name=\"community\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" placeholder=\"64500 64501\" title=\"AS numbers separated by spaces, matched as a run anywhere in the path. A leading ^ anchors the run at the start of the path, and a $ after the last AS number anchors it at the end: 64501$ lists the routes AS 64501 originates.\"></div><div class=\"search-field\"><label for=\"community\">Community</label> <input type=\"text\" id=\"community\" name=\"community\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

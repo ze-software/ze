@@ -876,13 +876,24 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 			continue
 		}
 
+		// The age is read once, by the reader the route table uses, so the
+		// page and the API agree on which rows have one.
+		age := routeAgeFrom(route)
+
 		bwRoute := map[string]any{
 			"network":       getStr(route, "prefix"),
 			"gateway":       getStr(route, "next-hop"),
 			"metric":        getNum(route, "med"),
 			"interface":     "",
 			"from_protocol": peerName,
-			"age":           getNum(route, "age"),
+			// `age` is mandatory in the contract, so a row with no reading
+			// still carries the member, as 0, and age_available says that
+			// zero is a placeholder. bgp-rib writes no `age` on a sent row or
+			// a best path row. This is the trade Section 7.2 of
+			// docs/architecture/api/birdwatcher-compat.md records for the
+			// route counts, applied to the age in its Section 6.2.
+			"age":           age.seconds,
+			"age_available": age.known,
 			"learnt_from":   getStr(route, "peer-address"),
 			"primary":       getBool(route, "best"),
 			"bgp": map[string]any{

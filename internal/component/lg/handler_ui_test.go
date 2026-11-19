@@ -16,12 +16,12 @@ import (
 
 // testServer returns a minimal LGServer for unit tests (no decorator).
 func testServer() *LGServer {
-	return &LGServer{}
+	return &LGServer{logger: slogutil.DiscardLogger()}
 }
 
 // testServerWithDecorator returns an LGServer with an ASN decorator for testing.
 func testServerWithDecorator(fn ASNDecorator) *LGServer {
-	return &LGServer{decorateASN: fn}
+	return &LGServer{decorateASN: fn, logger: slogutil.DiscardLogger()}
 }
 
 // errTestEngineDown is what the stubbed dispatcher below fails with.
@@ -201,6 +201,230 @@ func TestExtractPeers(t *testing.T) {
 		peers := srv.extractPeers(ze)
 		if len(peers) != 1 {
 			t.Errorf("expected 1 peer (skip non-map), got %d", len(peers))
+		}
+	})
+}
+
+// TestExtractPeersReadsHistory proves the peer table reads the session history
+// the engine answers, and never turns a value the engine did not send into one.
+//
+// VALIDATES: `state-changed`, `last-error` and `connections-dropped` of a
+// summary row reach the peerRow; a count of zero the engine sent is the known
+// count 0 and renders "0"; a row with none of the three keys has an empty
+// time, an empty error and the unknown count, whose cell renders empty
+// (spec-lg-peer-history-origin-search-and-named-nodes AC-1, AC-3).
+// PREVENTS: a session that drops every hour looking like one that has been up
+// for an hour, and a row whose count the engine did not answer showing "0",
+// which reads as "never dropped".
+func TestExtractPeersReadsHistory(t *testing.T) {
+	srv := testServer()
+
+	rowOf := func(t *testing.T, peer map[string]any) peerRow {
+		t.Helper()
+		peers := srv.extractPeers(map[string]any{"peers": []any{peer}})
+		if len(peers) != 1 {
+			t.Fatalf("expected 1 peer, got %d", len(peers))
+		}
+		return peers[0]
+	}
+	cellsOf := func(t *testing.T, row peerRow) string {
+		t.Helper()
+		body, err := renderToString(peersTableBody([]peerRow{row}))
+		if err != nil {
+			t.Fatalf("peersTableBody: %v", err)
+		}
+		return body
+	}
+
+	t.Run("three keys reach the row", func(t *testing.T) {
+		// The engine's JSON reaches the looking glass decoded, so the count
+		// is a float64 (handleBgpSummary writes a uint32).
+		row := rowOf(t, map[string]any{
+			"address":             "192.0.2.1",
+			"state":               "idle",
+			"state-changed":       "2026-07-15T10:30:00Z",
+			"last-error":          "Cease/Administrative Shutdown",
+			"connections-dropped": float64(1234),
+		})
+		if row.StateChanged != "2026-07-15T10:30:00Z" {
+			t.Errorf("StateChanged = %q, want the engine's time", row.StateChanged)
+		}
+		if row.LastError != "Cease/Administrative Shutdown" {
+			t.Errorf("LastError = %q, want the engine's text", row.LastError)
+		}
+		if want := (connectionsDropped{count: 1234, known: true}); row.ConnectionsDropped != want {
+			t.Errorf("ConnectionsDropped = %+v, want %+v", row.ConnectionsDropped, want)
+		}
+		body := cellsOf(t, row)
+		for _, cell := range []string{
+			`<td class="state-changed">2026-07-15T10:30:00Z</td>`,
+			`<td class="connections-dropped">1,234</td>`,
+		} {
+			if !strings.Contains(body, cell) {
+				t.Errorf("row does not hold %s: %s", cell, body)
+			}
+		}
+		// The last error has no column: the peer header shows it.
+		if strings.Contains(body, "Cease/Administrative Shutdown") {
+			t.Errorf("the last error is in the table row: %s", body)
+		}
+	})
+
+	t.Run("a zero the engine sent is a count", func(t *testing.T) {
+		row := rowOf(t, map[string]any{"address": "192.0.2.1", "connections-dropped": float64(0)})
+		if want := (connectionsDropped{count: 0, known: true}); row.ConnectionsDropped != want {
+			t.Errorf("ConnectionsDropped = %+v, want %+v", row.ConnectionsDropped, want)
+		}
+		if body := cellsOf(t, row); !strings.Contains(body, `<td class="connections-dropped">0</td>`) {
+			t.Errorf("a peer that never dropped does not show 0: %s", body)
+		}
+	})
+
+	t.Run("a missing key stays empty", func(t *testing.T) {
+		row := rowOf(t, map[string]any{
+			"address": "192.0.2.1", "remote-as": float64(65001),
+			"state": "established", "uptime": "1h0m0s",
+		})
+		if row.StateChanged != "" || row.LastError != "" {
+			t.Errorf("history invented for a row without it: changed %q, error %q", row.StateChanged, row.LastError)
+		}
+		if row.ConnectionsDropped != (connectionsDropped{}) {
+			t.Errorf("ConnectionsDropped = %+v, want the unknown count", row.ConnectionsDropped)
+		}
+		body := cellsOf(t, row)
+		for _, cell := range []string{
+			`<td class="state-changed"></td>`,
+			`<td class="connections-dropped"></td>`,
+		} {
+			if !strings.Contains(body, cell) {
+				t.Errorf("row does not hold the empty cell %s: %s", cell, body)
+			}
+		}
+		// The other columns are still filled.
+		for _, cell := range []string{"<td>192.0.2.1</td>", `<td class="state">established</td>`, "<td>1h 0m 0s</td>"} {
+			if !strings.Contains(body, cell) {
+				t.Errorf("row lost %s: %s", cell, body)
+			}
+		}
+	})
+
+	t.Run("a value that is no count is unknown", func(t *testing.T) {
+		for _, value := range []any{float64(-1), float64(1.5), "three"} {
+			row := rowOf(t, map[string]any{"address": "192.0.2.1", "connections-dropped": value})
+			if row.ConnectionsDropped != (connectionsDropped{}) {
+				t.Errorf("connections-dropped %v read as %+v, want the unknown count", value, row.ConnectionsDropped)
+			}
+		}
+	})
+}
+
+// TestPeerStreamCarriesHistory proves one live stream message holds the same
+// history cells as the page, so an open page learns of a drop.
+//
+// VALIDATES: peerStreamBody, the producer of each /lg/events message, renders
+// the drop count and the time of the last change the engine answers at that
+// tick (spec-lg-peer-history-origin-search-and-named-nodes AC-2).
+// PREVENTS: history shown on a page load and frozen until the next reload.
+func TestPeerStreamCarriesHistory(t *testing.T) {
+	t.Parallel()
+
+	dropped := 1
+	srv := testServerWithDispatch(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+		summary := `{"peers":[{"address":"192.0.2.1","state":"established",` +
+			`"state-changed":"2026-07-15T10:30:00Z","last-error":"Cease/Peer De-configured",` +
+			`"connections-dropped":` + strconv.Itoa(dropped) + `}]}`
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(summary)), nil
+	})
+
+	for _, want := range []string{"1", "2"} {
+		body, err := srv.peerStreamBody()
+		if err != nil {
+			t.Fatalf("peerStreamBody: %v", err)
+		}
+		if cell := `<td class="connections-dropped">` + want + `</td>`; !strings.Contains(body, cell) {
+			t.Errorf("stream message does not hold %s: %s", cell, body)
+		}
+		if cell := `<td class="state-changed">2026-07-15T10:30:00Z</td>`; !strings.Contains(body, cell) {
+			t.Errorf("stream message does not hold %s: %s", cell, body)
+		}
+		dropped++
+	}
+}
+
+// TestPeersTableRowsMatchTheHeader proves a peer row and the stream's reason
+// row both cover the columns the header names.
+//
+// VALIDATES: a peersTableBody row holds one cell per entry of peersColumns,
+// and peersStreamError spans that many columns.
+// PREVENTS: a column added to the rows and not to the header, or a reason row
+// that stops short of the table's edge after a column was added (R-8).
+func TestPeersTableRowsMatchTheHeader(t *testing.T) {
+	t.Parallel()
+
+	row, err := renderToString(peersTableBody([]peerRow{{Address: "192.0.2.1"}}))
+	if err != nil {
+		t.Fatalf("peersTableBody: %v", err)
+	}
+	if cells := strings.Count(row, "<td"); cells != len(peersColumns) {
+		t.Errorf("a peer row holds %d cells and the header names %d columns: %s", cells, len(peersColumns), row)
+	}
+
+	reason, err := renderToString(peersStreamError("engine unavailable"))
+	if err != nil {
+		t.Fatalf("peersStreamError: %v", err)
+	}
+	if span := `colspan="` + strconv.Itoa(len(peersColumns)) + `"`; !strings.Contains(reason, span) {
+		t.Errorf("the reason row does not carry %s: %s", span, reason)
+	}
+}
+
+// TestPeerInfoFromReadsHistory proves the peer header, the detail a peer row
+// opens, carries the session history and the last error.
+//
+// VALIDATES: peerInfoFrom reads the three history keys, and
+// peerRoutesContent shows the last error text, the time and the count; a
+// summary row without them renders no history span at all
+// (spec-lg-peer-history-origin-search-and-named-nodes AC-1, AC-3).
+// PREVENTS: the reason a session closed being nowhere on the looking glass,
+// and "Drops 0" on a peer whose count the engine did not answer.
+func TestPeerInfoFromReadsHistory(t *testing.T) {
+	t.Parallel()
+
+	headerOf := func(t *testing.T, peer map[string]any) string {
+		t.Helper()
+		body, err := renderToString(peerRoutesContent(peerRoutesView{Address: "192.0.2.1", Peer: peerInfoFrom(peer)}))
+		if err != nil {
+			t.Fatalf("peerRoutesContent: %v", err)
+		}
+		return body
+	}
+
+	t.Run("history shown", func(t *testing.T) {
+		t.Parallel()
+		body := headerOf(t, map[string]any{
+			"address": "192.0.2.1", "state": "idle",
+			"state-changed":       "2026-07-15T10:30:00Z",
+			"last-error":          "Cease/Administrative Shutdown",
+			"connections-dropped": float64(2),
+		})
+		for _, want := range []string{
+			`<span class="peer-info-last-error">Last error: Cease/Administrative Shutdown</span>`,
+			`<time>2026-07-15T10:30:00Z</time>`,
+			`<span class="peer-info-connections-dropped">Drops 2</span>`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("peer header does not hold %s: %s", want, body)
+			}
+		}
+	})
+
+	t.Run("no history, no span", func(t *testing.T) {
+		t.Parallel()
+		body := headerOf(t, map[string]any{"address": "192.0.2.1", "state": "established"})
+		for _, absent := range []string{"peer-info-last-error", "peer-info-connections-dropped", "peer-info-state-changed"} {
+			if strings.Contains(body, absent) {
+				t.Errorf("peer header shows %s for a peer without history: %s", absent, body)
+			}
 		}
 	})
 }
@@ -773,20 +997,65 @@ func TestSearchSendsEnginePathGrammar(t *testing.T) {
 	}
 }
 
+// TestSearchSendsTheEndAnchor proves the search page sends a $ typed after
+// the last AS number as the engine's end anchor, and lists what it matches.
+//
+// VALIDATES: `65002$` and `^65001 65002$` are sent after `path` with the $
+// kept after the last number, and the fake, matching as matchASPath does,
+// lists the route whose path is 65001 then 65002 for both; `65001$` leaves it
+// out, because the route crosses 65001 and is originated by 65002, and so does
+// `^65001$`, because the path is longer than that one AS
+// (spec-lg-peer-history-origin-search-and-named-nodes AC-4, AC-5).
+// PREVENTS: "originated by" refused at the page while the engine can answer
+// it. The same question through a real bgp-rib is test/plugin/lg-origin-search.ci.
+func TestSearchSendsTheEndAnchor(t *testing.T) {
+	cases := []struct {
+		name, aspath, command string
+		listed                bool
+	}{
+		{"origin", "65002$", "show bgp rib received path 65002$", true},
+		{"crossed, not originated", "65001$", "show bgp rib received path 65001$", false},
+		{"exact path", "^65001 65002$", "show bgp rib received path ^65001,65002$", true},
+		{"exact path, one AS short", "^65001$", "show bgp rib received path ^65001$", false},
+		{"run at the end", "65001,65002$", "show bgp rib received path 65001,65002$", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, commands := lookupRequest(t, "/lg/search", url.Values{"aspath": {tc.aspath}}.Encode())
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+			}
+			rib := ribCommands(commands)
+			if len(rib) != 1 || rib[0] != tc.command {
+				t.Fatalf("rib commands = %q, want [%q]", rib, tc.command)
+			}
+			body := rec.Body.String()
+			if strings.Contains(body, `class="error-banner"`) {
+				t.Fatalf("search for %q answered an error: %s", tc.aspath, body)
+			}
+			if listed := strings.Contains(body, "<td>10.0.0.0/24</td>"); listed != tc.listed {
+				t.Errorf("search for %q lists the route of path 65001 65002: %v, want %v", tc.aspath, listed, tc.listed)
+			}
+		})
+	}
+}
+
 // TestSearchRefusesUnsupportedPathCharacters proves the page refuses an AS
 // path the engine cannot match, before anything reaches bgp-rib, and says
 // what the field takes.
 //
-// VALIDATES: an end anchor, an alternation, a wildcard, a class, a
-// repetition and an AS number past 4294967295 are each answered by the error
-// banner naming the value, stating that the field takes AS numbers separated
-// by spaces with an optional leading ^, and ending on a valid example; no
-// `show bgp rib` command is sent.
+// VALIDATES: an end anchor typed twice, one typed before the number, an
+// alternation, a wildcard, a class, a repetition and an AS number past
+// 4294967295 are each answered by the error banner naming the value, stating
+// that the field takes AS numbers separated by spaces with an optional
+// leading ^, and ending on a valid example; no `show bgp rib` command is sent.
+// One $ directly after the last AS number is the end anchor the engine reads,
+// so it is no longer in this list (TestSearchSendsTheEndAnchor).
 // PREVENTS: a regular expression accepted by the page and refused by the
 // engine as "invalid ASN", which names the wrong problem
 // (spec-lg-search-matches-what-the-pages-promise AC-10).
 func TestSearchRefusesUnsupportedPathCharacters(t *testing.T) {
-	for _, aspath := range []string{"65001$", "(65001|65002)", "65001.*", "[0-9]", "65001+", "4294967296"} {
+	for _, aspath := range []string{"65001$$", "$65001", "(65001|65002)", "65001.*", "[0-9]", "65001+", "4294967296"} {
 		t.Run(aspath, func(t *testing.T) {
 			rec, commands := lookupRequest(t, "/lg/search", url.Values{"aspath": {aspath}}.Encode())
 			if rib := ribCommands(commands); len(rib) != 0 {

@@ -6,9 +6,12 @@
 #            for "65001 65002" lists 10.30.1.0/24 and 10.30.2.0/24 and leaves
 #            out the reverse order; asked for "^65001" it lists 10.30.1.0/24
 #            and 10.30.4.0/24, the paths starting with 65001; asked for
-#            "^65001 65002" it lists 10.30.1.0/24; asked for "65001$" it
+#            "^65001 65002" it lists 10.30.1.0/24; asked for "65001$$" it
 #            answers the error banner that names the value, the form the
-#            field takes, and the example 65001 65002.
+#            field takes, and the example 65001 65002. One $ after the last
+#            AS number is the end anchor bgp-rib reads, which
+#            lg-origin-search.ci asks; the second $ is a character the engine
+#            has no grammar for.
 # PREVENTS: the page sending a spaced AS path as several tokens, which
 #           bgp-rib refuses as an unknown keyword, and accepting characters
 #           the engine cannot match
@@ -105,4 +108,4 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 # The fixture prints this only after every search answered as expected; a
 # failed one returns an error, which the runner reads as the test's failure.
-expect=stderr:pattern=OK: AS path searches listed the routes of the run and refused the end anchor
+expect=stderr:pattern=OK: AS path searches listed the routes of the run and refused the end anchor typed twice

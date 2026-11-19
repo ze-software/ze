@@ -111,11 +111,18 @@ var lgGoldenSpec = golden.Spec{
 			})},
 		},
 	}},
-	"route_table.templ": {{
-		Name:     "routeResults",
-		Fixture:  "route_results",
-		Variants: lgRouteResultsVariants(),
-	}},
+	"route_table.templ": {
+		{Name: "routeResults", Fixture: "route_results", Variants: lgRouteResultsVariants()},
+		// The two branches of the one component every next hop cell renders
+		// through: a next hop inside a range the operator named shows the name
+		// beside the address, and one in no named range shows the address
+		// alone. The route fixtures above carry no name, so without the first
+		// variant no capture would hold the name span.
+		{Name: "nextHopText", Fixture: "next_hop_text", Variants: []golden.Variant{
+			{Name: "named", Data: nextHopText("198.51.100.7", "ixp-lan-a")},
+			{Name: "unnamed", Data: nextHopText("198.51.100.7", "")},
+		}},
+	},
 	"search.templ": {
 		{Name: "searchPage", Fixture: "search", Variants: lgSearchVariants(searchPage)},
 		{Name: "searchForm", Fixture: "search_form", Variants: lgSearchVariants(searchForm)},
@@ -144,7 +151,9 @@ func lgRawComponent(markup string) templ.Component {
 }
 
 // lgPeerRows reproduces the rows extractPeers builds. The two differ in
-// RemoteASName and State so both branches of each conditional render.
+// RemoteASName and State so both branches of each conditional render, and in
+// session history: the first carries all three values and the second none, so
+// the capture holds a filled history cell and an empty one, never a zero.
 func lgPeerRows() []peerRow {
 	return []peerRow{
 		{
@@ -152,7 +161,10 @@ func lgPeerRows() []peerRow {
 			State: "established", Uptime: "3h12m4s",
 			RoutesReceived: "1200", RoutesAccepted: "1180", RoutesSent: "42",
 			UpdatesReceived: "9000", UpdatesSent: "12",
-			Description: "transit",
+			Description:        "transit",
+			StateChanged:       "2026-07-15T10:30:00Z",
+			ConnectionsDropped: connectionsDropped{count: 3, known: true},
+			LastError:          "Cease/Administrative Shutdown",
 		},
 		{
 			Address: "2001:db8::1", RemoteAS: "64501", RemoteASName: "",
@@ -237,9 +249,14 @@ func lgPeerRoutesVariants(render func(peerRoutesView) templ.Component) []golden.
 		{Name: "routes", Data: render(peerRoutesView{
 			layoutView: base,
 			Address:    "192.0.2.1",
+			// This header carries the session history and the one below
+			// none, so both branches of each history span are captured.
 			Peer: &peerInfoRow{
 				State: "established", RemoteAS: "64500",
 				RemoteASName: "Example Transit", Description: "transit",
+				StateChanged:       "2026-07-15T10:30:00Z",
+				ConnectionsDropped: connectionsDropped{count: 3, known: true},
+				LastError:          "Cease/Administrative Shutdown",
 			},
 			RoutesReceived: "2",
 			RoutesSent:     "5",

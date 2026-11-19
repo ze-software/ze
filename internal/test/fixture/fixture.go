@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
@@ -137,6 +138,18 @@ func Run(args []string) int {
 		os.Stderr.WriteString(err.Error() + "\n") //nolint:errcheck // stderr is the report; nothing is left to tell if it fails
 		return 1
 	}
+	// The process that started this fixture owns its stderr, so the fixture
+	// writes there directly from here on. crashlog.Init pointed os.Stderr at a
+	// pipe two goroutines of THIS process copy on, and a fixture that asks the
+	// daemon it runs inside to stop is killed by that stop, at once where the
+	// platform gives no exit grace (plugin/process/exitwait_other.go). A
+	// verdict still in that queue then dies with the process: on 2026-11-18
+	// test/draft/plugin/lg-aspath-search.ci lost its OK line that way, once in
+	// 35 loaded runs, with the daemon's exit code 0 and no failure line. A
+	// direct write is in the daemon's pipe when it returns, and the daemon
+	// reads that pipe to its end after the kill (process.go, monitorCmd).
+	// Before the driver, so no logger it builds holds the pipe this closes.
+	crashlog.Flush()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// The caller has already removed the quotes: a .ci exec= value is split by

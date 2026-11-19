@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"sync"
 
@@ -43,6 +44,18 @@ type Reconfigurable interface {
 // (//go:build ze_web).
 type tlsUpdatable interface {
 	UpdateTLSCertificate(certPEM, keyPEM []byte) error
+}
+
+// nextHopRangesUpdatable is implemented by a server that can replace, whole
+// and without rebinding, the names an operator gave to ranges of next-hop
+// addresses. Declared here for the reason tlsUpdatable is: always-on hub code
+// hands the reloaded list to the looking glass without importing the
+// compile-out-able lg package (//go:build ze_lg). The list crosses the seam as
+// a standard-library type, keyed by the range, so one range has one name.
+type nextHopRangesUpdatable interface {
+	// UpdateNextHopRanges installs ranges and answers the call that puts the
+	// list it replaced back, for a reload that is rolled back after it.
+	UpdateNextHopRanges(ranges map[netip.Prefix]string) (restore func(), err error)
 }
 
 // authReporter is implemented by a server whose request gate follows live
@@ -88,10 +101,13 @@ type listenerMigrator struct {
 	webTLS tlsUpdatable
 	lg     Reconfigurable
 	lgTLS  tlsUpdatable
-	mcp    Reconfigurable
-	rest   Reconfigurable
-	grpc   Reconfigurable
-	logger *slog.Logger
+	// lgNextHopRanges is the running looking glass as the holder of the named
+	// next-hop ranges. Nil while no looking glass runs.
+	lgNextHopRanges nextHopRangesUpdatable
+	mcp             Reconfigurable
+	rest            Reconfigurable
+	grpc            Reconfigurable
+	logger          *slog.Logger
 
 	// ssh is set from the infrastructure hook (setupInfraHook), which runs
 	// during plugin startup on another goroutine than the reload workers, so
@@ -271,6 +287,36 @@ func (m *listenerMigrator) setLG(s Reconfigurable) {
 // tlsUpdatable (not *lg.LGServer) so always-on code never imports the lg
 // package, the same reason setLG takes Reconfigurable.
 func (m *listenerMigrator) setLGTLS(s tlsUpdatable) { m.lgTLS = s }
+
+// setLGNextHopRanges updates the looking glass's named-range reference. Takes
+// nextHopRangesUpdatable (not *lg.LGServer) for the reason setLGTLS takes
+// tlsUpdatable.
+func (m *listenerMigrator) setLGNextHopRanges(s nextHopRangesUpdatable) { m.lgNextHopRanges = s }
+
+// updateLGNextHopRanges hands the named next-hop ranges of the reloaded config
+// to the running looking glass, which replaces its list whole: a page read
+// after this call shows the new names, on the listener that was already
+// serving. Callers MUST pass what zeconfig.ExtractLGNextHopRanges answered for
+// the reloaded tree; nil clears the list, which is what a config that names no
+// range asks for.
+//
+// With no handle no looking glass is running, so no page shows a name and
+// there is nothing to replace. That is not a setting dropped in silence: a
+// looking glass that starts later reads the same list at its start.
+//
+// restore puts back the list this call replaced. It is never nil when err is
+// nil, and the reload calls it when a later step fails, so a reload that is
+// rolled back leaves the names of the configuration that stays in force.
+func (m *listenerMigrator) updateLGNextHopRanges(ranges map[netip.Prefix]string) (restore func(), err error) {
+	if m.lgNextHopRanges == nil {
+		return func() {}, nil
+	}
+	restore, err = m.lgNextHopRanges.UpdateNextHopRanges(ranges)
+	if err != nil {
+		return nil, fmt.Errorf("looking glass next-hop ranges: %w", err)
+	}
+	return restore, nil
+}
 
 // updateLGCertificate re-resolves certName in the PKI store and installs the
 // resulting chain on the running looking glass, without rebinding its

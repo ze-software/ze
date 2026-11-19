@@ -30,7 +30,7 @@ templ searchForm(v searchView) {
 			</div>
 			<div class="search-field">
 				<label for="aspath">AS Path</label>
-				<input type="text" id="aspath" name="aspath" value={ v.ASPath } placeholder="64500 64501">
+				<input type="text" id="aspath" name="aspath" value={ v.ASPath } placeholder="64500 64501" title="AS numbers separated by spaces, matched as a run anywhere in the path. A leading ^ anchors the run at the start of the path, and a $ after the last AS number anchors it at the end: 64501$ lists the routes AS 64501 originates.">
 			</div>
 			<div class="search-field">
 				<label for="community">Community</label>

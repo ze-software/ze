@@ -178,16 +178,22 @@ func TestParsePrefixLookupRefusesUnsafeInput(t *testing.T) {
 // grammar and nothing else, and writes it in the engine's form.
 //
 // VALIDATES: AS numbers separated by spaces, commas or both, with one
-// optional leading ^, become the comma form bgp-rib's validatePathPattern and
-// matchASPath read (internal/component/bgp/plugins/rib/rib_pipeline.go),
+// optional leading ^ and one optional $ directly after the last number,
+// become the comma form bgp-rib's validatePathPattern and matchASPath read
+// (parsePathPattern, internal/component/bgp/plugins/rib/rib_pipeline.go),
 // every AS number written back as asplain; the AS number bound holds at
 // 4294967295. Every other value is refused with an operator error naming the
 // value, the form the field takes, and a valid example on the last line.
 // PREVENTS: a spaced path sent as several tokens the engine answers with
 // "unknown keyword", and a regular-expression character the page accepted
 // and the engine refused as an invalid ASN. The old check isValidASPathPattern
-// accepted "65001.*", "^65001$", "65001|65002", "(65001)+" and "[0-9]": the
-// engine matches none of them, so each is now refused at the page.
+// accepted "65001.*", "65001|65002", "(65001)+" and "[0-9]": the engine
+// matches none of them, so each is refused at the page.
+//
+// The end anchor is the engine's since 2026-11-18: one $ directly after the
+// last AS number. The accepted rows carry it, and the refused rows carry every
+// other place a $ can be typed, each of which the engine refuses as well
+// (`$`, `^$`, `65001$$`, `$65001`, `65001$,65002`, `65001 $`, `65001,$`).
 //
 // The accepted outputs are the engine's input. lg imports no RIB package, so
 // this table cannot be fed to validatePathPattern from here; the agreement is
@@ -206,6 +212,12 @@ func TestParseASPathPattern(t *testing.T) {
 		{"asdot spelling", "1.10 65002", "65546,65002"},
 		{"zero", "0", "0"},
 		{"last valid as number", "4294967295", "4294967295"},
+		{"end anchor", "65001$", "65001$"},
+		{"both anchors on one number", "^65001$", "^65001$"},
+		{"both anchors on a run", "^65010 65001$", "^65010,65001$"},
+		{"end anchor in the engine comma form", "65010,65001$", "65010,65001$"},
+		{"end anchor after an asdot number", "65002 1.10$", "65002,65546$"},
+		{"end anchor with surrounding spaces", "  65001$ ", "65001$"},
 	}
 	for _, tt := range accepted {
 		t.Run(tt.name, func(t *testing.T) {
@@ -213,8 +225,8 @@ func TestParseASPathPattern(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parseASPathPattern(%q) refused: %v", tt.input, err)
 			}
-			if pattern.engine != tt.engine {
-				t.Errorf("parseASPathPattern(%q) = %q, want %q", tt.input, pattern.engine, tt.engine)
+			if pattern.engineText != tt.engine {
+				t.Errorf("parseASPathPattern(%q) = %q, want %q", tt.input, pattern.engineText, tt.engine)
 			}
 		})
 	}
@@ -223,8 +235,15 @@ func TestParseASPathPattern(t *testing.T) {
 		name, input, problem string
 	}{
 		{"regex dot star", "65001.*", "holds 65001.*, which is not an AS number"},
-		{"regex anchors", "^65001$", "holds 65001$, which is not an AS number"},
-		{"end anchor", "65001$", "holds 65001$, which is not an AS number"},
+		{"regex anchors with the end anchor doubled", "^65001$$", "holds 65001$$, which is not an AS number"},
+		{"end anchor doubled", "65001$$", "holds 65001$$, which is not an AS number"},
+		{"end anchor before the number", "$65001", "holds $65001, which is not an AS number"},
+		{"end anchor before the last number", "65001$ 65002", "holds 65001$, which is not an AS number"},
+		{"end anchor between two numbers", "65001 $ 65002", "holds $, which is not an AS number"},
+		{"end anchor apart from the last number", "65001 $", "holds $, which is not an AS number"},
+		{"end anchor after a comma", "65001,$", "holds $, which is not an AS number"},
+		{"end anchor alone", "$", "holds $, which is not an AS number"},
+		{"both anchors and no number", "^$", "holds $, which is not an AS number"},
 		{"regex alternation", "65001|65002", "holds 65001|65002, which is not an AS number"},
 		{"regex grouping", "(65001)+", "holds (65001)+, which is not an AS number"},
 		{"grouped alternation", "(65001|65002)", "holds (65001|65002), which is not an AS number"},
@@ -248,7 +267,7 @@ func TestParseASPathPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pattern, err := parseASPathPattern(tt.input)
 			if err == nil {
-				t.Fatalf("parseASPathPattern(%q) = %q, want a refusal", tt.input, pattern.engine)
+				t.Fatalf("parseASPathPattern(%q) = %q, want a refusal", tt.input, pattern.engineText)
 			}
 			message := err.Error()
 			if !strings.Contains(message, tt.problem) {
@@ -256,6 +275,9 @@ func TestParseASPathPattern(t *testing.T) {
 			}
 			if !strings.Contains(message, "separated by spaces") || !strings.Contains(message, "a leading ^ anchors") {
 				t.Errorf("refusal %q does not name the form the field takes", message)
+			}
+			if !strings.Contains(message, "a $ directly after the last AS number anchors it at the end") {
+				t.Errorf("refusal %q does not name the end anchor the field takes", message)
 			}
 			lines := strings.Split(message, "\n")
 			if last := lines[len(lines)-1]; last != "fix: "+asPathPatternExample {

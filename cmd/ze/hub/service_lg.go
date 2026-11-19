@@ -34,6 +34,11 @@ type lgService struct {
 
 func (lgService) Name() string { return "looking-glass" }
 
+// The reload migrator replaces the named next-hop ranges through this seam. A
+// change to the method on *lg.LGServer that broke it would otherwise leave
+// the registration hook (register_lg.go) as the only place that noticed.
+var _ nextHopRangesUpdatable = lgService{}
+
 // buildLGService builds and starts the looking-glass HTTP server from deps. It
 // returns a nil Service (not an error) when lg is not configured or fails to
 // start -- preserving the prior best-effort, non-fatal behavior of
@@ -68,6 +73,9 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 		ListenAddrs: deps.LGAddrs,
 		TLS:         useTLS,
 		Token:       deps.LGToken,
+		// The names an operator gave to next-hop ranges. A reload replaces
+		// them through lgService.UpdateNextHopRanges (listener_migrate.go).
+		NextHopRanges: deps.LGNextHopRanges,
 		// The unified dispatcher is passed through directly; the lg server
 		// renders each typed response at its edge with a zero-value caller.
 		Dispatch: dispatch,

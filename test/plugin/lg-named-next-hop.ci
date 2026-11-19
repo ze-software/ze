@@ -1,0 +1,176 @@
+# Test: a named next-hop range labels the next hop in the route table and the next-hop graph, and a reload renames it
+# QUESTION: does a `next-hop-range` an operator wrote in the config reach the
+#           looking glass pages, and does a reload replace it on the listener
+#           that is already serving?
+# VALIDATES: with `next-hop-range 198.51.100.0/24 { name ixp-lan-a }` in the
+#            looking glass container (internal/component/lg/yang/ze-lg-conf.yang)
+#            and a route whose next hop is 198.51.100.7, POST /lg/search shows
+#            ixp-lan-a in that route's row, and GET /lg/graph in next-hop mode,
+#            text form, carries name=ixp-lan-a on the node 198.51.100.7
+#            (spec-lg-peer-history-origin-search-and-named-nodes AC-10). A
+#            route whose next hop is 203.0.113.9, in no named range, shows no
+#            name in either place. The fixture then writes the same config
+#            with the range named ixp-lan-b, asks the daemon to reload, and
+#            reads both places again ON THE CONNECTION IT OPENED BEFORE THE
+#            RELOAD: they show ixp-lan-b and no longer ixp-lan-a, and an
+#            answer on that connection is an answer from the same listener
+#            (AC-13).
+# PREVENTS: a next-hop graph of bare addresses, where an operator cannot tell
+#           an exchange LAN from a transit link, and names read once at start,
+#           so that a reload changes the list and the page keeps the old one.
+#
+# WHY A FUNCTIONAL TEST: the name travels from the config file through the
+# hub's extraction (cmd/ze/hub/service_lg.go, buildLGService) and its reload
+# path to the server that renders the page. A package test of the looking
+# glass starts from a list already in memory, so it cannot see a list that
+# never left the config tree or a reload that rebuilt the listener.
+#
+# NO SLEEP: the fixture (internal/test/fixture/lg_named_next_hop.go) waits for
+# the reload through `show reload-status`, until the generation advanced and
+# the outcome reads applied, then reads the pages once.
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=60s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+# The config the fixture writes over ze-bgp.conf before it asks for the
+# reload. It differs from the first config in one value: the name of the range.
+tmpfs=ze-renamed.conf:mode=644:terminator=EOF_RENAMED
+plugin {
+	external lg-named-next-hop {
+		run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+		next-hop-range 198.51.100.0/24 {
+			name ixp-lan-b
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_RENAMED
+
+# The config the daemon starts with. The runner writes the first daemon's
+# config to ze-bgp.conf in the test directory, beside ze-renamed.conf, and the
+# fixture runs there.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-named-next-hop {
+		run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+		next-hop-range 198.51.100.0/24 {
+			name ixp-lan-a
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=55s
+expect=exit:code=0
+# The fixture prints this only after both names were read where expected; a
+# failed check returns an error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: next hop 198\.51\.100\.7 was named ixp-lan-a in the route table and the next-hop graph, and ixp-lan-b after the reload on the same listener

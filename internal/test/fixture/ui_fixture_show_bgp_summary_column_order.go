@@ -18,7 +18,7 @@ import (
 )
 
 var bgpSummaryPeerOrder = []string{
-	columnAddress, columnName, "description", columnRemoteAS, "peer-type",
+	columnAddress, columnName, "description", columnGroup, columnRemoteAS, "peer-type",
 	columnState, columnUptime, "state-changed", "last-error",
 	"routes-received", "routes-accepted", "routes-sent",
 	"updates-received", "updates-sent",
@@ -224,8 +224,11 @@ system {
 	if len(header) == 0 || header[0] != columnAddress {
 		return fmt.Errorf("the peer row must lead with the peer it is about: %q", header)
 	}
-	if len(header) <= 5 || header[5] != columnState {
-		return fmt.Errorf("state must be the sixth column, not buried: %q", header)
+	// Six columns say which peer this is: address, name, description, group,
+	// remote-as and peer-type. Both peers sit in the group transit, so the
+	// group column is present, and state is the first column after them.
+	if len(header) <= 6 || header[6] != columnState {
+		return fmt.Errorf("state must be the seventh column, directly after the six that identify the peer, not buried: %q", header)
 	}
 	if header[len(header)-1] != columnConnectionsDropped {
 		return fmt.Errorf("the fault counter must come last: %q", header)

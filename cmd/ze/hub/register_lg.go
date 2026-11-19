@@ -29,6 +29,9 @@ func init() {
 		if !ok {
 			panic("BUG: the looking-glass migrator hook got a service buildLGService did not build")
 		}
+		// The named next-hop ranges are replaced on reload whatever the
+		// transport, so this handle is set before the TLS gate below.
+		lm.setLGNextHopRanges(lgSvc)
 		if !lgSvc.ServesTLS() {
 			return
 		}

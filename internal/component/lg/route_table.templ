@@ -33,16 +33,23 @@ templ routeResults(v searchView) {
 				<button class="graph-mode-btn" data-mode="nexthop" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=nexthop" } hx-target="#graph-container" hx-swap="innerHTML">
 					Next Hop
 				</button>
+				<button class="graph-mode-btn" data-mode="trace" data-prefix={ v.Prefix } hx-get={ "/lg/graph?prefix=" + v.Prefix + "&mode=trace" } hx-target="#graph-container" hx-swap="innerHTML">
+					Trace
+				</button>
 			</div>
 			<div id="graph-container">
 				<span class="spinner"></span> Loading topology...
 			</div>
 		}
+		// The Age cell is the last one, and the only one with a class: it holds
+		// the age as a reader takes it ("3m 12s") and, in data-seconds, the
+		// exact seconds bgp-rib answered. It is empty, with no data-seconds,
+		// for a route whose age the engine did not send, and never shows 0.
 		<table class="route-table">
 			<thead>
 				<tr>
 					<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
-					<th>Local Pref</th><th>MED</th><th>Peer</th>
+					<th>Local Pref</th><th>MED</th><th>Peer</th><th>Age</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -61,17 +68,36 @@ templ routeResults(v searchView) {
 							}
 						</td>
 						<td>{ r.Prefix }</td>
-						<td>{ r.NextHop }</td>
+						<td>
+							@nextHopText(r.NextHop, r.NextHopName)
+						</td>
 						<td>{ formatASPath(r.ASPath) }</td>
 						<td>{ r.Origin }</td>
 						<td>{ formatNum(r.LocalPreference) }</td>
 						<td>{ formatNum(r.MED) }</td>
 						<td>{ r.PeerAddress }</td>
+						<td
+							class="route-age"
+							if r.Age.Seconds() != "" {
+								data-seconds={ r.Age.Seconds() }
+							}
+						>{ r.Age.Text() }</td>
 					</tr>
 				}
 			</tbody>
 		</table>
 	} else if v.Error == "" {
 		<p class="empty-state">No routes found. Try a different query.</p>
+	}
+}
+
+// nextHopText is a next hop and, when the operator named the range it is in
+// (environment looking-glass next-hop-range), that name after it, a space between the two. A next hop
+// in no named range shows its address alone.
+templ nextHopText(address, name string) {
+	if name != "" {
+		{ address } <span class="next-hop-name">{ name }</span>
+	} else {
+		{ address }
 	}
 }

@@ -14,6 +14,7 @@ header: X-Ze-Version: <VERSION>
   "routes": [
     {
       "age": 0,
+      "age_available": false,
       "bgp": {
         "as_path": [],
         "communities": null,

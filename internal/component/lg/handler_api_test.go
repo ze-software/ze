@@ -23,7 +23,7 @@ import (
 const realSummaryJSON = `{` +
 	`"router-id":"10.0.0.1","local-as":65000,"uptime":"1h2m3s",` +
 	`"peers-configured":1,"peers-established":1,"peers":[{` +
-	`"address":"192.0.2.1","name":"peer1","description":"transit",` +
+	`"address":"192.0.2.1","name":"peer1","description":"transit","group":"upstreams",` +
 	`"remote-as":65001,"peer-type":"external","state":"established",` +
 	`"state-changed":"2026-07-15T10:30:00Z","last-error":"Cease/Administrative Shutdown",` +
 	`"uptime":"6m10s","updates-received":10,"updates-sent":5,` +

@@ -22,7 +22,7 @@ type nextHopGraph struct {
 // NextHopNode represents a router in the forwarding topology.
 type NextHopNode struct {
 	Address string // Router IP address.
-	Name    string // Router name from decorator.
+	Name    string // Operator's name for the range Address is in, "" for none (nexthop_ranges.go).
 	Egress  bool   // True when this router learned the route externally (peer == next-hop).
 	Layer   int    // Hop depth (0 = egress, increasing toward source).
 }

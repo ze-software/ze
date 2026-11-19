@@ -10,10 +10,15 @@ templ peerRoutesPage(v peerRoutesView) {
 	@peerRoutesContent(v)
 }
 
-// peerRoutesContent is the peer header, the received and sent route counts
+// peerRoutesContent is the peer header with the peer's description and its
+// group, each shown only when it is not empty, the session history (the time of
+// the last state change, the number of drops and the last error, each shown
+// only when the engine sent it), the received and sent route counts
 // side by side, the prefix-length summary of the received routes and their
 // rows. A peer with more routes than maxDisplayRoutes gets the summary and no
-// rows. A count the engine could not answer renders as an empty cell.
+// rows. A count the engine could not answer renders as an empty cell, and so
+// does the age of a route whose row carries none (the Age cell, as in
+// routeResults).
 templ peerRoutesContent(v peerRoutesView) {
 	if v.Peer != nil {
 		<div class="peer-info">
@@ -27,6 +32,18 @@ templ peerRoutesContent(v peerRoutesView) {
 			</span>
 			if v.Peer.Description != "" {
 				<span class="peer-info-desc">{ v.Peer.Description }</span>
+			}
+			if v.Peer.Group != "" {
+				<span class="peer-info-group">Group { v.Peer.Group }</span>
+			}
+			if v.Peer.StateChanged != "" {
+				<span class="peer-info-state-changed">Last change <time>{ v.Peer.StateChanged }</time></span>
+			}
+			if v.Peer.ConnectionsDropped.Text() != "" {
+				<span class="peer-info-connections-dropped">Drops { v.Peer.ConnectionsDropped.Text() }</span>
+			}
+			if v.Peer.LastError != "" {
+				<span class="peer-info-last-error">Last error: { v.Peer.LastError }</span>
 			}
 			<a href={ "/lg/peer/" + v.Address + "/download" } class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
 		</div>
@@ -61,7 +78,7 @@ templ peerRoutesContent(v peerRoutesView) {
 			<thead>
 				<tr>
 					<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
-					<th>Local Pref</th><th>MED</th>
+					<th>Local Pref</th><th>MED</th><th>Age</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -80,11 +97,19 @@ templ peerRoutesContent(v peerRoutesView) {
 							}
 						</td>
 						<td>{ r.Prefix }</td>
-						<td>{ r.NextHop }</td>
+						<td>
+							@nextHopText(r.NextHop, r.NextHopName)
+						</td>
 						<td>{ formatASPath(r.ASPath) }</td>
 						<td>{ r.Origin }</td>
 						<td>{ formatNum(r.LocalPreference) }</td>
 						<td>{ formatNum(r.MED) }</td>
+						<td
+							class="route-age"
+							if r.Age.Seconds() != "" {
+								data-seconds={ r.Age.Seconds() }
+							}
+						>{ r.Age.Text() }</td>
 					</tr>
 				}
 			</tbody>

@@ -1,0 +1,116 @@
+# Test: the looking glass API and its route table answer how long ago a route
+#       last changed
+# QUESTION: is the birdwatcher `age` of a route the time since bgp-rib last
+#           stored a change to it, and never a constant, and does the route
+#           table show the same age?
+# VALIDATES: against the real bgp-rib, with 10.50.1.0/24 stored once,
+#            GET /api/looking-glass/routes/prefix (transformRoutes,
+#            internal/component/lg/handler_api.go) answers an `age` that
+#            grows to 4 seconds and more
+#            (spec-lg-peer-history-origin-search-and-named-nodes AC-7). The
+#            search page (routeResults, route_table.templ) lists that route
+#            with an Age cell whose data-seconds lies between the API's answer
+#            before the page was read and its answer after (AC-7). The
+#            same route announced again with equal attributes keeps an age at
+#            least as large, and the route announced with another AS path
+#            answers an age no larger than the seconds since that change
+#            (AC-8).
+# PREVENTS: a mandatory API field that always reads zero, which a client
+#           cannot tell from a route learned this second, and an age that a
+#           route refresh resets, which makes a stable route look new.
+#
+# WHY A FUNCTIONAL TEST: the looking glass copies `age` from the row bgp-rib
+# writes, and its package tests feed it a row written by hand. Only the real
+# plugin proves that a stored route carries a time and that the row holds it
+# under the key the transform reads.
+#
+# NO SLEEP: the fixture (internal/test/fixture/lg_route_age.go) reads the API
+# until the age reaches 4, a bounded poll over the value under test. The two
+# verdicts after it compare ages with each other and with the time the fixture
+# measured around its own change, so a slow machine cannot turn a kept age
+# into a restarted one: a run too slow to tell them apart fails saying so.
+#
+# NOT COVERED HERE: the wording of the Age cell ("3m 12s"), which
+# TestFormatElapsed owns, and a row with no age, which bgp-rib writes only for
+# a sent route or a best path row (TestRouteRowsLeaveAMissingAgeEmpty,
+# TestTransformRoutesAgeAvailability, internal/component/lg).
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-route-age {
+		run "le test fixture plugin/lg-route-age"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=exit:code=0
+# The fixture prints this only after the three ages read as expected; a failed
+# read returns an error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: the API age of 10\.50\.1\.0/24 grew to
+# AC-7, the page half: printed only after the Age cell's seconds were read
+# between two API answers.
+expect=stderr:pattern=OK: the route table showed 10\.50\.1\.0/24 as

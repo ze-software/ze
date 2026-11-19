@@ -4,13 +4,17 @@
 // Related: graph_nexthop.go -- Next-hop graph data model and construction
 // Related: layout.go -- AS path graph layout and SVG rendering
 // Related: layout_nexthop.go -- Next-hop graph layout and SVG rendering
+// Related: graph_trace.go -- Trace graph data model, walk and text form
+// Related: layout_trace.go -- Trace graph layout and SVG rendering
 
 package lg
 
 import (
 	"fmt"
 	"net/http"
+	"net/netip"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -21,6 +25,7 @@ const maxGraphNodes = 100
 const (
 	graphModeASPath  = "aspath"
 	graphModeNextHop = "nexthop"
+	graphModeTrace   = "trace"
 	graphFormatSVG   = "svg"
 	graphFormatText  = "text"
 )
@@ -29,7 +34,9 @@ const (
 // Query parameters:
 //   - prefix (required): a prefix with its length, or a bare address, which
 //     draws every route whose prefix contains it.
-//   - mode: "aspath" (default) for AS path topology, "nexthop" for internal forwarding.
+//   - mode: "aspath" (default) for AS path topology, "nexthop" for internal
+//     forwarding, "trace" for the trace from each router of the AS to the
+//     origin AS.
 //   - format: "svg" (default) for SVG image, "text" for deterministic text output.
 func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
@@ -50,8 +57,11 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	if mode == "" {
 		mode = graphModeASPath
 	}
-	if mode != graphModeASPath && mode != graphModeNextHop {
-		http.Error(w, "mode must be aspath or nexthop", http.StatusBadRequest)
+	switch mode {
+	case graphModeASPath, graphModeNextHop, graphModeTrace:
+	default:
+		// The mode is text from the URL: any other word is refused.
+		http.Error(w, graphModeRefusal(mode).Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -73,11 +83,15 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	}
 	routes := extractRoutes(zeData)
 
-	if mode == graphModeNextHop {
+	switch mode {
+	case graphModeNextHop:
 		s.handleNextHopGraph(w, routes, format)
-		return
+	case graphModeTrace:
+		s.handleTraceGraph(w, routes, format)
+	default:
+		// handleGraph refused every word but the three above.
+		s.handleASPathGraph(w, routes, format)
 	}
-	s.handleASPathGraph(w, routes, format)
 }
 
 // handleASPathGraph renders the AS path topology graph.
@@ -107,6 +121,7 @@ func (s *LGServer) handleASPathGraph(w http.ResponseWriter, routes []any, format
 // handleNextHopGraph renders the next-hop forwarding topology graph.
 func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, format string) {
 	graph := buildNextHopGraph(routes)
+	s.nameNextHopNodes(graph)
 
 	if len(graph.Nodes) == 0 {
 		writeEmpty(w, format, "No routes found")
@@ -124,6 +139,87 @@ func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, forma
 
 	layout := computeNextHopLayout(graph)
 	writeSVG(w, renderNextHopGraphSVG(graph, layout))
+}
+
+// handleTraceGraph renders the trace: from each router of the AS,
+// through the routers its BGP next hops name, to the exit, then the AS path.
+//
+// routes is the answer of the one RIB query handleGraph made. The routers of
+// the AS come from the peer summary the peers page already reads, so the mode
+// adds no RIB query and no command.
+func (s *LGServer) handleTraceGraph(w http.ResponseWriter, routes []any, format string) {
+	summary, failure := s.ask(cmdBGPOverview)
+	if failure != nil {
+		// As for the RIB query: a refusal is not a graph with no router.
+		http.Error(w, engineRefusal(failure).Error(), failure.status)
+		return
+	}
+
+	routers, err := traceRoutersFrom(summary)
+	if err != nil {
+		// A summary that cannot tell a router of the AS from a neighbour would
+		// draw a wrong exit, so the trace is refused and never drawn partly.
+		// The refusal carries the whole reason to the reader, and names the
+		// command that shows the summary, so this line is a record of the
+		// refused request and no problem site of its own: it logs at Info.
+		s.logger.Info("trace refused: the peer summary does not name the routers of the AS",
+			"command", cmdBGPOverview, "reason", err.Error())
+		http.Error(w, traceSummaryRefusal(err).Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	graph := buildTraceGraph(routes, routers)
+	if message, isUndrawn := graph.undrawn(); isUndrawn {
+		writeEmpty(w, format, message)
+		return
+	}
+
+	names := s.traceNames()
+	if format == graphFormatText {
+		writeText(w, renderTraceGraphText(graph, names))
+		return
+	}
+
+	writeSVG(w, renderTraceGraphSVG(graph, computeTraceLayout(graph, names), names))
+}
+
+// graphModeRefusal is the operator error a `mode` that names no graph answers.
+// It repeats the word, lists the three modes, and shows a valid one.
+func graphModeRefusal(mode string) *opererr.Error {
+	return opererr.New(
+		"mode "+mode+" is not a graph mode",
+		"the graph is drawn as "+graphModeASPath+" (the AS paths), "+graphModeNextHop+
+			" (the routers and their egress) or "+graphModeTrace+
+			" (from each router of the AS to the origin AS)",
+		"mode="+graphModeASPath,
+	)
+}
+
+// traceSummaryFix is the fix the refusal below names: the command whose
+// answer the trace could not read, where each peer's type and address show.
+const traceSummaryFix = "ze " + cmdBGPOverview
+
+// traceSummaryRefusal is the operator error the trace mode answers when the
+// peer summary does not say which peers are routers of the AS. err MUST be
+// the error traceRoutersFrom returned. Its first line holds the whole reason,
+// so the log holds no more than the reader was told.
+func traceSummaryRefusal(err error) *opererr.Error {
+	return opererr.New(
+		cmdBGPOverview+": "+err.Error(),
+		"the trace tells a router of the AS from an external neighbour by each peer's "+
+			"peer-type and address, so without them it would state a wrong exit",
+		traceSummaryFix,
+	)
+}
+
+// traceNames answers the names the trace graph labels its nodes with: the
+// operator's named range for a router or next-hop address, and the AS name
+// decorator the AS path graph uses for an AS.
+func (s *LGServer) traceNames() traceNames {
+	return traceNames{
+		address: func(address netip.Addr) string { return s.nextHopName(address.String()) },
+		as:      func(number uint32) string { return s.resolveASN(textbuf.StringInt(int64(number))) },
+	}
 }
 
 // decorateGraphNodes resolves ASN names for all graph nodes via the decorator.

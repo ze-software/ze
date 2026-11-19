@@ -16,6 +16,7 @@ package hub
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
@@ -79,6 +80,11 @@ type serviceDeps struct {
 	// type crosses this boundary); the factory resolves it through
 	// pki.ServerTLSMaterial.
 	LGCertificate string
+	// LGNextHopRanges names ranges of next-hop addresses for the looking glass,
+	// keyed by the range (zeconfig.ExtractLGNextHopRanges). It is read whether
+	// or not the config says `enabled true`. A standard-library type, so no lg
+	// type crosses this boundary. Nil names nothing.
+	LGNextHopRanges map[netip.Prefix]string
 
 	// Web resolved bindings. These stay generic: no internal/component/web type
 	// crosses the always-on registry boundary.

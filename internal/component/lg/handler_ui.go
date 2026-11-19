@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"sort"
@@ -138,7 +139,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		lookup.appendTo(&tb)
 	}
 	if aspath != "" {
-		tb.Str(" path ").Str(pattern.engine)
+		tb.Str(" path ").Str(pattern.engineText)
 	}
 	if community != "" {
 		tb.Str(" community ").Str(community)
@@ -154,7 +155,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		routes = routes[:maxSearchResults]
 	}
 
-	rows := routeRows(routes)
+	rows := s.routeRowsWithNextHopNames(routes)
 
 	v := searchView{
 		layoutView: searchLayout,
@@ -278,7 +279,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
 		routeData, routeFailure := s.ask(tb.Reset().Str("show bgp rib received peer ").Str(address).String())
 		if routeFailure == nil {
-			v.Routes = routeRows(extractRoutes(routeData))
+			v.Routes = s.routeRowsWithNextHopNames(extractRoutes(routeData))
 		} else {
 			v.Error = routeFailure.message()
 		}
@@ -408,12 +409,96 @@ func peerInfoFrom(peer map[string]any) *peerInfoRow {
 		RemoteAS:     getStr(peer, "remote-as"),
 		RemoteASName: getStr(peer, "remote-as-name"),
 		Description:  getStr(peer, "description"),
+		// The group is a key of its own: `description` is the peer's label.
+		Group: getStr(peer, fieldGroup),
+		// The same three keys extractPeers reads for the table row.
+		StateChanged:       getStr(peer, fieldStateChanged),
+		ConnectionsDropped: connectionsDroppedFrom(peer),
+		LastError:          getStr(peer, fieldLastError),
 	}
+}
+
+// The session history keys of a peer summary row
+// (bgp/plugins/cmd/peer/summary.go, handleBgpSummary).
+const (
+	fieldStateChanged       = "state-changed"
+	fieldLastError          = "last-error"
+	fieldConnectionsDropped = "connections-dropped"
+)
+
+// fieldGroup is the name of the peer's group in a peer summary row. The row
+// always carries it, empty for a peer in no group, beside `description`, which
+// is the label the operator wrote on the peer (summary.go, handleBgpSummary).
+const fieldGroup = "group"
+
+// connectionsDroppedFrom reads how often a peer's session dropped from its summary
+// row. A row with no `connections-dropped` key, or with a value that is not a
+// whole count, answers the unknown count, which renders an empty cell: the
+// page never shows a zero the engine did not send.
+func connectionsDroppedFrom(peer map[string]any) connectionsDropped {
+	count, ok := wholeNumber(peer, fieldConnectionsDropped)
+	if !ok {
+		return connectionsDropped{}
+	}
+
+	return connectionsDropped{count: count, known: true}
+}
+
+// fieldAge is the member of a `show bgp rib` row that holds the whole seconds
+// since the route last changed (bgp/plugins/rib/rib_route_age.go,
+// writeRouteAge). bgp-rib writes it on a received row whose change time it
+// holds, and writes no member otherwise: a sent row and a best path row carry
+// none. For a best path row, bgp-rib records when the winning route last
+// changed, not when it became best, so it writes no age there, in the walk and
+// under `| json` alike.
+const fieldAge = "age"
+
+// routeAgeFrom reads a route's age from its RIB row. A row with no `age`
+// member, or with a value that is not a whole number of seconds, answers the
+// unknown age: the page renders an empty cell for it and the API says the age
+// is not available, and neither shows a zero the engine did not send.
+func routeAgeFrom(route map[string]any) routeAge {
+	seconds, ok := wholeNumber(route, fieldAge)
+	if !ok {
+		return routeAge{}
+	}
+
+	return routeAge{seconds: seconds, known: true}
+}
+
+// wholeNumberMax is the largest value wholeNumber reads: 2^53, the last float64
+// below which every whole number is exact. The engine's JSON reaches the
+// looking glass as float64, so a larger value is not a count it can state.
+const wholeNumberMax = 1 << 53
+
+// wholeNumber reads a non-negative whole number from an engine row. It answers
+// false for a missing key, a value that is no number, a negative one, a
+// fraction and a value above wholeNumberMax: the caller then has no reading,
+// which it MUST NOT show as zero.
+func wholeNumber(row map[string]any, key string) (uint64, bool) {
+	n, ok := numValue(row, key)
+	if !ok {
+		return 0, false
+	}
+	if n < 0 {
+		return 0, false
+	}
+	if n > wholeNumberMax {
+		return 0, false
+	}
+	if n != math.Trunc(n) {
+		return 0, false
+	}
+
+	return uint64(n), true
 }
 
 // routeRows types the decoded RIB JSON extractRoutes yields. The API handlers
 // keep the untyped form, because they serialize it back to JSON. Only the
 // browser view is typed.
+//
+// It leaves NextHopName empty: the names are the server's, so the handlers
+// call routeRowsWithNextHopNames (nexthop_ranges.go), which fills it.
 func routeRows(routes []any) []routeRow {
 	if len(routes) == 0 {
 		return nil
@@ -438,6 +523,7 @@ func routeRows(routes []any) []routeRow {
 			Communities:         scalarList(rm["community"]),
 			LargeCommunities:    scalarList(rm["large-community"]),
 			ExtendedCommunities: scalarList(rm["extended-community"]),
+			Age:                 routeAgeFrom(rm),
 		})
 	}
 
@@ -576,7 +662,7 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 
 	v := routeDetailView{Prefix: prefix}
 	if route != nil {
-		if rows := routeRows([]any{route}); len(rows) == 1 {
+		if rows := s.routeRowsWithNextHopNames([]any{route}); len(rows) == 1 {
 			v.Route = &rows[0]
 		}
 	}
@@ -722,6 +808,14 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 			UpdatesReceived: getStr(peer, "updates-received"),
 			UpdatesSent:     getStr(peer, "updates-sent"),
 			Description:     getStr(peer, "description"),
+			// The group is a key of its own: `description` is the peer's
+			// label, which may be empty.
+			Group: getStr(peer, fieldGroup),
+			// Session history, as the engine answers it. A key the engine
+			// did not send leaves its cell empty.
+			StateChanged:       getStr(peer, fieldStateChanged),
+			ConnectionsDropped: connectionsDroppedFrom(peer),
+			LastError:          getStr(peer, fieldLastError),
 		})
 	}
 

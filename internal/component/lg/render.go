@@ -62,11 +62,19 @@ func formatUptime(v string) string {
 		return v
 	}
 
-	total := int(d.Seconds())
+	total := int64(d.Seconds())
 	if total < 0 {
 		total = -total
 	}
 
+	return formatElapsed(uint64(total))
+}
+
+// formatElapsed writes a number of whole seconds as the page shows an elapsed
+// time, with its two or three largest units: "42s", "3m 12s", "2h 5m 3s",
+// "4d 3h 0m". It is the one rendering of the peer table's uptime and of a
+// route's age.
+func formatElapsed(total uint64) string {
 	days := total / 86400
 	hours := (total % 86400) / 3600
 	mins := (total % 3600) / 60

@@ -27,6 +27,11 @@ templ helpPage() {
 			<h3>Next Hop Graph</h3>
 			<p>Internal forwarding view. Which routers point to which egress. Green nodes are egress points.</p>
 		</div>
+		<div class="help-card" data-help="trace">
+			<div class="help-icon">&#128739;</div>
+			<h3>Trace Graph</h3>
+			<p>From each router of the AS, through the routers its BGP next hops name, to the exit, then the AS path to the origin.</p>
+		</div>
 		<div class="help-card" data-help="detail">
 			<div class="help-icon">&#128196;</div>
 			<h3>Route Detail</h3>
@@ -50,8 +55,16 @@ templ helpPage() {
 			accepted route count, and remote AS. Rows are colour-coded by state.
 		</p>
 		<p>
+			<strong>Last Change</strong> is the time the session last changed state, and
+			<strong>Drops</strong> is how often it has dropped, as the router counts it. Uptime
+			alone hides a session that keeps dropping: these two show it. A cell is empty
+			when the router sent no value, and is never a zero the router did not send.
+		</p>
+		<p>
 			Click a peer row to navigate to its route table where you can browse
-			all received prefixes, or download them as JSON.
+			all received prefixes, or download them as JSON. The header above that
+			table repeats the last change and the drops, and shows the last error
+			of the session: the reason it last closed.
 		</p>
 	</template>
 	<template id="help-search">
@@ -66,12 +79,23 @@ templ helpPage() {
 		<p>
 			<strong>AS Path</strong> -- AS numbers separated by spaces (<code>65001 65002</code>),
 			matched as a run anywhere in the path: 65001 directly followed by 65002. A leading
-			<code>^</code> anchors the run at the start of the path (<code>^65001</code>). Other
-			pattern characters, such as <code>$</code>, <code>|</code> or brackets, are refused.
+			<code>^</code> anchors the run at the start of the path (<code>^65001</code>). A
+			<code>$</code> directly after the last AS number anchors it at the end:
+			<code>65001$</code> lists the routes AS 65001 originates, prepended or not, and
+			<code>^65010 65001$</code> lists the routes whose path is exactly those two AS
+			numbers. Other pattern characters, such as <code>|</code> or brackets, are refused.
 		</p>
 		<p><strong>Community</strong> -- standard format <code>ASN:value</code>.</p>
 		<p><strong>Family</strong> -- IPv4 Unicast, IPv6 Unicast, or All.</p>
 		<p>All non-empty fields must match (AND logic).</p>
+		<p>
+			<strong>Age</strong>, the last column of a route table, is how long ago the route
+			last changed, as the router counts it: when it was first learned, or when one of
+			its attributes changed. The same route announced again unchanged keeps its age.
+			A cell is empty when the router sent no age, and is never a zero the router did
+			not send. Ages start again when the router restarts, because it learns every
+			route again.
+		</p>
 	</template>
 	<template id="help-aspath">
 		<p>
@@ -88,10 +112,34 @@ templ helpPage() {
 		</p>
 		<p>Useful for spotting asymmetric forwarding or overloaded egress points.</p>
 	</template>
+	<template id="help-trace">
+		<p>
+			Click <strong>Trace</strong> to follow a prefix from inside the network to its origin.
+			A walk starts at each router of the AS that sent a route for the prefix. It reads that
+			router's next hop, moves to the router whose session address that is, and repeats. A
+			router whose next hop is its own address is the exit, highlighted green as in the next
+			hop graph. A next hop that is the address of no router of the AS is the neighbour the
+			walk leaves the AS toward. From there the graph draws the AS path of the exit route, the
+			origin AS on the right.
+		</p>
+		<p>
+			Under the graph, one line per router states how its walk ended: where it leaves the AS,
+			that the prefix originates inside the AS, that the walk would loop, that the looking
+			glass holds no route from the router a next hop names, that it holds several routes
+			from one router, or that it cannot read the route. A walk never ends without its line.
+		</p>
+		<p class="trace-note">{ traceNote }</p>
+		<p>
+			A router is matched to a next hop by the address of its session with this looking
+			glass. A router that writes another of its addresses as next hop is read as a neighbour
+			outside the AS.
+		</p>
+	</template>
 	<template id="help-detail">
 		<p>
 			Expanding a route shows all BGP attributes: origin, local preference, MED,
-			communities, extended communities, large communities, originator ID, and cluster list.
+			communities, extended communities, large communities, originator ID, and cluster list. It
+			also shows the route's age, when the router sent one.
 		</p>
 	</template>
 	<template id="help-dark">

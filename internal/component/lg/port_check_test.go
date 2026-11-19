@@ -111,42 +111,92 @@ const (
 	lgPortPrefixRefusal = "an invalid prefix is refused with an operator error that names the value and a fix"
 )
 
+// The nine below are one spec, spec-lg-peer-history-origin-search-and-named-nodes,
+// and each names what one of its features put on a page that the pre-port page
+// did not hold. A capture is given only the reasons its own bytes show.
+const (
+	// lgPortPeerHistoryColumns covers every capture of the peers table with
+	// its header: peersColumns (view.go) gained two entries.
+	lgPortPeerHistoryColumns = "the peers table has a Last Change and a Drops column"
+	// lgPortPeerHistoryCells covers every capture holding a peer row. The row
+	// gained the two cells of those columns, empty when the engine sent no
+	// value, and its description cell gained a class.
+	lgPortPeerHistoryCells = "each peer row holds a state-changed and a connections-dropped cell, and its description cell carries the peer-description class"
+	// lgPortPeerHeaderHistory covers the peer page whose header names a peer
+	// with history. peerRoutesContent (peer_routes.templ) writes each span
+	// only when the engine sent its value.
+	lgPortPeerHeaderHistory = "the peer page header shows the session's last change and its drops, and its last error when it has one"
+	// lgPortRouteAge covers every capture holding a route table: both tables
+	// end on an Age header and each row on a route-age cell, empty when the
+	// engine sent no age.
+	lgPortRouteAge = "the route table ends on an Age column"
+	// lgPortRouteDetailSpan covers the route detail row, which spans the
+	// columns of the table it opens in.
+	lgPortRouteDetailSpan = "the route detail row spans nine columns, the route table's count with Age"
+	// lgPortTraceButton covers the result panel of a search that names a
+	// prefix.
+	lgPortTraceButton = "the result panel offers a third graph button, Trace"
+	// lgPortASPathTitle covers every capture holding the search form.
+	lgPortASPathTitle = "the AS path input states its form in a title, the $ after the last AS number included"
+	// lgPortFeatureHelp covers the help page.
+	lgPortFeatureHelp = "the help page describes the Last Change and Drops columns, the $ end anchor of an AS path, the route age and the trace graph"
+	// lgPortAPIAgeAvailable covers every API answer that lists routes.
+	// transformRoutes (handler_api.go) writes age_available beside age, false
+	// for a row the engine sent no age for, so a 0 is never read as measured.
+	lgPortAPIAgeAvailable = "each route carries age_available beside age, false where the engine sent no age"
+)
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
 
-	"help.html": lgPortSearchHelp,
+	"help.html": lgPortSearchHelp + ", " + lgPortFeatureHelp,
 
-	"peers--empty.html":         lgPortSSEAttribute,
-	"peers--full.html":          lgPortSSEAttribute,
-	"peers_content--empty.html": lgPortSSEAttribute,
-	"peers_content--full.html":  lgPortSSEAttribute,
+	"peers--empty.html":           lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns,
+	"peers--full.html":            lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"peers_content--empty.html":   lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns,
+	"peers_content--full.html":    lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"peers_table_body--full.html": lgPortPeerHistoryCells,
 
 	"peer_routes--empty.html":           lgPortPeerCounts,
-	"peer_routes--routes.html":          lgPortPeerCounts,
+	"peer_routes--routes.html":          lgPortPeerCounts + ", " + lgPortPeerHeaderHistory + ", " + lgPortRouteAge,
 	"peer_routes--summary.html":         lgPortPeerCounts,
 	"peer_routes_content--empty.html":   lgPortPeerCounts,
-	"peer_routes_content--routes.html":  lgPortPeerCounts,
+	"peer_routes_content--routes.html":  lgPortPeerCounts + ", " + lgPortPeerHeaderHistory + ", " + lgPortRouteAge,
 	"peer_routes_content--summary.html": lgPortPeerCounts,
 
-	"route_results--routes.html": lgPortGraphHandler,
-	"search--filled.html":        lgPortGraphHandler,
+	"route_detail--found.html":   lgPortRouteDetailSpan,
+	"route_detail--missing.html": lgPortRouteDetailSpan,
+
+	"route_results--no-prefix.html": lgPortRouteAge,
+	"route_results--routes.html":    lgPortGraphHandler + ", " + lgPortTraceButton + ", " + lgPortRouteAge,
+
+	"search--blank.html":       lgPortASPathTitle,
+	"search--filled.html":      lgPortGraphHandler + ", " + lgPortASPathTitle + ", " + lgPortTraceButton + ", " + lgPortRouteAge,
+	"search_form--blank.html":  lgPortASPathTitle,
+	"search_form--filled.html": lgPortASPathTitle,
 }
 
 var lgPortHandlers = map[string]string{
-	"api-protocols-bgp.txt": lgPortCountsReadable,
-	"api-routes-export.txt": lgPortExportScope,
-	"api-status.txt":        lgPortStatusCommands,
+	"api-protocols-bgp.txt":   lgPortCountsReadable,
+	"api-routes-bmp.txt":      lgPortAPIAgeAvailable,
+	"api-routes-export.txt":   lgPortExportScope + ", " + lgPortAPIAgeAvailable,
+	"api-routes-peer.txt":     lgPortAPIAgeAvailable,
+	"api-routes-prefix.txt":   lgPortAPIAgeAvailable,
+	"api-routes-protocol.txt": lgPortAPIAgeAvailable,
+	"api-routes-search.txt":   lgPortAPIAgeAvailable,
+	"api-status.txt":          lgPortStatusCommands,
 
-	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
-	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPrefixRefusal,
-	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
+	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPrefixRefusal + ", " + lgPortASPathTitle,
+	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
 
-	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
-	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortSearchHelp,
-	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts,
-	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
-	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
+	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortSearchHelp + ", " + lgPortFeatureHelp,
+	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts + ", " + lgPortPeerHeaderHistory + ", " + lgPortRouteAge,
+	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute + ", " + lgPortPeerHistoryColumns + ", " + lgPortPeerHistoryCells,
+	"ui-route-detail.txt":        lgPortRouteDetailSpan,
+	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortASPathTitle,
 }
 
 // TestLGTemplPortFidelity compares every captured unit against the bytes it

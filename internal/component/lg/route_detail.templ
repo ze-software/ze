@@ -2,16 +2,22 @@
 
 package lg
 
-// routeDetail is the attribute panel a route row expands into.
+// routeDetail is the attribute panel a route row expands into. It spans the
+// nine columns of the search table, the wider of the two tables it opens in.
+// The age is shown only when the engine sent one, with its exact seconds in
+// data-seconds.
 templ routeDetail(v routeDetailView) {
 	<tr class="route-detail">
-		<td colspan="8">
+		<td colspan="9">
 			<div class="detail-panel">
 				if v.Route != nil {
 					<h3>Route Detail: { v.Prefix }</h3>
 					<dl>
 						<dt>Prefix</dt><dd>{ v.Route.Prefix }</dd>
-						<dt>Next Hop</dt><dd>{ v.Route.NextHop }</dd>
+						<dt>Next Hop</dt>
+						<dd>
+							@nextHopText(v.Route.NextHop, v.Route.NextHopName)
+						</dd>
 						<dt>Origin</dt><dd>{ v.Route.Origin }</dd>
 						<dt>AS Path</dt><dd>{ formatASPath(v.Route.ASPath) }</dd>
 						<dt>Local Preference</dt><dd>{ formatNum(v.Route.LocalPreference) }</dd>
@@ -20,6 +26,9 @@ templ routeDetail(v routeDetailView) {
 						<dt>Large Communities</dt><dd>{ formatCommunities(v.Route.LargeCommunities) }</dd>
 						<dt>Extended Communities</dt><dd>{ formatCommunities(v.Route.ExtendedCommunities) }</dd>
 						<dt>Peer</dt><dd>{ v.Route.PeerAddress }</dd>
+						if v.Route.Age.Seconds() != "" {
+							<dt>Age</dt><dd class="route-age" data-seconds={ v.Route.Age.Seconds() }>{ v.Route.Age.Text() }</dd>
+						}
 					</dl>
 				} else {
 					<p>Route not found</p>

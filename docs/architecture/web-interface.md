@@ -1242,6 +1242,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 | `handler_ui.go` | HTMX pages (peers, lookup, search), SSE events, asset serving |
 | `handler_graph.go` | AS path topology SVG endpoint |
 | `graph.go` | Graph data model (nodes/edges from AS paths), prepending dedup |
+| `graph_trace.go` | Trace: each router's chain of BGP next hops to its exit, then the exit route's AS path, with its text form |
 | `layout.go` | Layered layout algorithm, SVG rendering |
 | `render.go` | templ component rendering, page vs fragment detection |
 | `view.go` | One named view-model struct per page, which the components take |
@@ -1278,6 +1279,30 @@ certificate keeps serving. The contract every PKI-serving listener follows is
 `docs/architecture/pki/tls-listeners.md`.
 
 <!-- source: internal/component/lg/server.go -- getCertificate, UpdateTLSCertificate -->
+
+### LG Named Next-Hop Ranges
+
+An operator names ranges of next-hop addresses in
+`environment looking-glass next-hop-range`. The names are the only source of a
+next hop's name: nothing is derived from DNS, a peer or the address.
+
+| Step | Where | What it does |
+|------|-------|--------------|
+| Read | `zeconfig.ExtractLGNextHopRanges` | Answers the list as `map[netip.Prefix]string`, keyed by the range with its host bits cleared. It takes no `enabled` answer, so the names cannot be gated on that leaf. It refuses two entries for one range, more than 256 entries, and an entry with no name, each as an operator error. It also refuses a range written as an IPv4-mapped IPv6 prefix, such as `::ffff:198.51.100.0/120`: the looking glass reads an IPv4-mapped next hop as its IPv4 address, so only the IPv4 range holds it, and the refusal names that range (`198.51.100.0/24` here, from `lgMappedRangeAsIPv4`). `newNextHopRanges` refuses the same range at the server |
+| Validate | `validateNextHopRanges`, registered as the tree validator `lg-next-hop-range` | Calls the reader, so a commit, `ze config validate`, a start and a reload refuse the same lists. The 256 bound is enforced here because the schema walk does not reach `environment` |
+| Start | `runYANGConfig`, `serviceDeps.LGNextHopRanges`, `buildLGService` | Hands the map to `lg.LGConfig.NextHopRanges` |
+| Hold | `LGServer.nextHopRanges`, an atomic pointer to an immutable list sorted longest prefix first | `nameOf` scans it linearly, bounded by 256, and the first range that holds the address is the most specific one |
+| Reload | `listenerMigrator.updateLGNextHopRanges` through the `nextHopRangesUpdatable` interface | Calls `LGServer.UpdateNextHopRanges`, which builds a new list and swaps the pointer. No listener is rebound. Always-on hub code names no `lg` type: the map is a standard-library type. The call answers a `restore` function that puts back the list it replaced. `runReloadContext` runs it for every reload that does not end applied, so a reload that is rolled back after the names changed leaves the names of the configuration that stays in force |
+| Render | `routeRowsWithNextHopNames` for the route tables and the route detail, `nameNextHopNodes` for the next-hop graph | The templ component `nextHopText` writes the name beside the address, escaped by templ. The SVG label and tooltip are escaped by `renderNextHopGraphSVG`, and the text form carries `name=` |
+
+The peers page reads two keys of the summary row apart: `description`, the
+peer's own label, and `group`. The description is a column, and the group is
+the tooltip of that cell and an entry of the peer header.
+
+<!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges, lgMappedRangeAsIPv4 -->
+<!-- source: internal/component/lg/nexthop_ranges.go -- newNextHopRanges, nameOf, UpdateNextHopRanges, routeRowsWithNextHopNames, nameNextHopNodes, validateNextHopRanges -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- nextHopRangesUpdatable, updateLGNextHopRanges -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext, restoreLGNextHopRanges -->
 
 ### LG Refused Requests
 
@@ -1319,9 +1344,116 @@ case-sensitive.
 /lg/peer/{address}                     Routes the peer sent Ze, with the received and sent counts side by side (HTML)
 /lg/route/detail                       Route detail fragment (HTMX)
 /lg/graph?prefix=X                     AS path topology (SVG)
+/lg/graph?prefix=X&mode=nexthop        Next-hop forwarding topology (SVG)
+/lg/graph?prefix=X&mode=trace         Trace: routers of the AS, then the AS path (SVG)
+/lg/graph?prefix=X&mode=M&format=text  The same graph as deterministic text, for tests
 /lg/events                             SSE peer state stream
 /lg/assets/                            Static CSS/JS
 ```
+
+### LG Trace Graph
+
+The trace answers one question the two other graphs leave to the
+reader: which routers of the AS a prefix crosses, where it leaves, and what
+it crosses outside. It is built from two answers the looking glass already
+reads and from nothing else: the rows of the one `received` query for the
+prefix, and the peer summary.
+
+`traceRoutersFrom` reads the routers of the AS from the summary: the peers
+whose row says `peer-type` `internal`, each known by its session address with
+Ze. The engine derives `peer-type` from the local AS of the peer's own
+session. The summary's top-level `local-as` is the global local AS, which is
+0 when the configuration states the local AS on each peer, so the looking
+glass never compares with it. A summary that cannot say so (a row with no
+`peer-type`, or with a value that is neither `internal` nor `external`) is
+refused, because the walk would read a router as an external neighbour.
+
+`buildTraceGraph` starts one walk at each router that sent a row, for each
+prefix the answer holds. A router's row for a prefix is its chosen route,
+because a router sends the collector its one best path. Each step reads that
+route's next hop, and every walk ends with one stated end:
+
+| The last router's route | End | What is drawn |
+|-------------------------|-----|---------------|
+| Next hop is another router of the AS, not yet crossed | The walk moves to it | An edge between the two routers |
+| Next hop is its own address | `exit-own-address` | An edge from that router to the first AS of its path, then the AS chain |
+| Next hop is no router's address | `exit-external-address` | An edge to that address, from it to the first AS, then the AS chain. The neighbour needs no session with Ze |
+| Either exit, with an empty AS path | `origin-inside` | No AS: the prefix originates inside the AS at that router |
+| Next hop is a router the walk already crossed | `loop` | The edge that closes the loop |
+| The router was named as next hop and sent no row for the prefix | `no-route` | The router, and nothing after it |
+| The router sent rows for the prefix that differ (ADD-PATH) | `several-routes` | The router, and nothing after it: a received row carries no mark of the router's own best path, so the walk picks none. Its line says "ends at <router>: Ze holds several routes from it for the prefix and no row says which one it chose" |
+| The row carries a next hop or an AS path that the walk cannot read | `route-unreadable` | The router, and nothing after it. Its line says "ends at <router>: Ze holds a route from it, and its next hop or its AS path cannot be read" |
+
+The crossed-router check bounds a walk by the number of routers of the AS, so
+there is no hop limit. A router is matched to a next hop by its session
+address: a router that writes another of its addresses as next hop is read as
+an external address. The trace follows BGP next hops only. The IGP's hops
+between two consecutive next hops are not in any row, and `traceNote`
+is the one sentence the page and its help show about it.
+
+`traceGraph.undrawn` applies the node cap of the other graphs
+(`maxGraphNodes`) to routers, external next hops and ASes together.
+`renderTraceGraphText` writes the nodes, the edges, then one `trace` line per
+walk, each group sorted, so two requests on the same state give the same text:
+
+```
+trace ipv4/unicast 198.18.0.0/24 198.51.100.4 routers=198.51.100.4,198.51.100.3,198.51.100.1 end=exit-own-address next-hop=198.51.100.1 as-path=65101,64500 says: leaves the AS at 198.51.100.1, which announces its own address as next hop
+```
+
+The node cap does not bound the walks. A lookup by a bare address answers
+every covering prefix, and each one is walked from every router that sent it,
+so a graph under the cap can hold thousands of walks. The text form lists the
+first 100 (`traceWalksListedMax`), in the graph's own order, and then states
+how many it left out, in one last line:
+
+```
+unlisted traces=140 says: 140 more traces are not listed: the list stops at 100 lines. Ask for one prefix with its length to see its traces.
+```
+
+Every walk still gives its nodes and edges to the graph, listed or not. A
+graph of 100 walks or fewer writes no such line.
+
+<!-- source: internal/component/lg/graph_trace.go -- traceRoutersFrom, buildTraceGraph, traceWalkFrom, traceWalk.statement, traceGraph.undrawn, traceGraph.listedWalks, traceUnlistedSentence, renderTraceGraphText, traceNote -->
+
+`handleGraph` serves it as the third value of `mode`: `/lg/graph?prefix=X&mode=trace`.
+`handleTraceGraph` takes the rows of the one RIB query `handleGraph` made for
+every mode and asks the peer summary (`show bgp`), so the mode adds no RIB
+query and no command. Its answers:
+
+| Request | Answer |
+|---------|--------|
+| `format=text` | `renderTraceGraphText`, with a `name=` on a router or next hop inside a named range and on an AS the AS name decorator knows (`LGServer.traceNames`) |
+| `format=svg`, the default | `renderTraceGraphSVG` over `computeTraceLayout` |
+| No router of the AS sent a route, or more than `maxGraphNodes` nodes | The message of `traceGraph.undrawn`, in the format asked for, as the other modes answer. With no walk, the message (`traceCounts.noTrace`) starts "No trace: " and says which fact left nothing to draw: "this looking glass has a session with no router of the AS (a peer with an internal session)", "the query answered no route for this prefix", or "no route the query answered came from a router of the AS (a peer with an internal session)". It ends with the three counts, as ". Peers: 11, routers of the AS: 0, routes answered: 9." It names no command, because the page is public and its reader cannot run one |
+| The RIB query or the summary failed | `engineRefusal`, with the failure's status (502 or 503), as the other modes answer |
+| The summary does not say which peers are routers of the AS | 503 with `traceSummaryRefusal`: a trace drawn from it would state a wrong exit. The visitor reads the whole reason: the first line is `show bgp: ` and the error of `traceRoutersFrom`, the second says "the trace tells a router of the AS from an external neighbour by each peer's peer-type and address, so without them it would state a wrong exit", and the fix names `ze show bgp`, the command whose answer the trace could not read. The log line is at `Info`, never `Warn`: it records a refused request whose reader was told everything, and it is no problem site of its own |
+| A `mode` that is none of the three | `graphModeRefusal`, an operator error |
+
+`computeTraceLayout` places the nodes in columns in the direction of the
+walk. A router sits in the column of the furthest place any walk reaches it
+at, so the starting routers are on the left and the exit on the right of the
+routers. The external next hops follow in one column, then each AS in the
+column of its furthest place in an exit route's path, the origin AS last. The
+drawing is written with the next-hop graph's writers and style
+(`writeRouterGraphOpen`, `writeRouterGraphEdge`, `writeRouterGraphNode`,
+`routerGraphStyle` in `layout_nexthop.go`), which escape every label, and an
+exit router carries the `egress` class the next-hop graph gives an egress.
+Under the nodes the drawing writes one line per walk, with the sentence of its
+end (`traceWalk.statement`), then `traceNote`: the drawing shows where
+a walk went, and only its line says why it ended, so no walk ends silently.
+The drawing lists the same first 100 walks as the text form
+(`traceGraph.listedWalks`). When it left walks out, the line after them is the
+sentence of the text form's `unlisted traces=` line (`traceUnlistedSentence`):
+"140 more traces are not listed: the list stops at 100 lines. Ask for one
+prefix with its length to see its traces."
+
+The search result panel offers the mode as the third button of
+`graph-controls` (`route_table.templ`, **Trace**), and the help page carries
+`traceNote` in the panel of its **Trace Graph** card (`help.templ`).
+
+<!-- source: internal/component/lg/handler_graph.go -- handleGraph, handleTraceGraph, traceSummaryRefusal, LGServer.traceNames -->
+<!-- source: internal/component/lg/layout_trace.go -- computeTraceLayout, renderTraceGraphSVG, traceEndLines -->
+<!-- source: internal/component/lg/layout_nexthop.go -- writeRouterGraphOpen, writeRouterGraphEdge, writeRouterGraphNode, routerGraphStyle -->
 
 ### LG Data Access
 
@@ -1343,16 +1475,62 @@ parsed value reaches the command line. The contract is Section 3.3 of
 
 The AS path field of the search page goes through `parseASPathPattern`. It
 takes AS numbers separated by spaces, commas or both, in any of the three
-RFC 5396 spellings `asn.Parse` reads, with one optional leading `^`. It sends
-them after bgp-rib's `path` filter in the engine's one grammar: asplain
+RFC 5396 spellings `asn.Parse` reads, with one optional leading `^` and one
+optional `$` directly after the last AS number. It sends them after bgp-rib's
+`path` filter in the engine's one grammar, `[^] <asn>[,<asn>...] [$]`: asplain
 numbers joined by commas, matched as a contiguous run anywhere in the path,
-anchored at its start by the `^`. Every other character (`$`, `|`, brackets,
-`*`, `+`, `?`, `_`, `-`) and a field with no AS number are refused at the page
+anchored at its start by the `^` and at its end by the `$`, so `65001$` asks
+for the routes 65001 originates and `^65010 65001$` is sent as
+`^65010,65001$`, the path that is exactly those two numbers. The page reads
+the `$` where the engine's `parsePathPattern` reads it and nowhere else: a
+`$` in any other place (`65001$$`, `$65001`, `65001 $`) stays part of its
+token, which is then no AS number. Every other character (`|`, brackets,
+`*`, `+`, `?`, `_`, `-`) and a field with no AS number, `^$` included, are
+refused at the page
 with an operator error naming the value and the form. The dispatcher's
 tokenizer keeps a double-quoted value as one token, but the engine's
 `validatePathPattern` reads commas only, so a spaced value would be refused
 even quoted: the page writes the comma form.
 <!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
+
+The peers page shows session history from three keys `show bgp` already
+answers for each peer: `state-changed`, `connections-dropped` and `last-error`.
+`extractPeers` copies them into `peerRow`, and `peerInfoFrom` into the peer
+header above a peer's routes. The table has a column for the first two, with
+the cell classes `state-changed` and `connections-dropped`, and the header of
+`/lg/peer/{address}` shows all three: the last error has no column because
+its text is long. `handleUIEvents` pushes the same rows (`peerStreamBody`), so
+the columns of an open page follow the sessions.
+
+The looking glass computes nothing from these values, and it keeps an absent
+value apart from a zero. The drop count is a `connectionsDropped`, whose zero value
+is "the engine sent no count" and renders an empty cell, and only
+`connectionsDroppedFrom` builds a known count. A hand-written `0` for a row whose
+key is missing would read as "never dropped". The header of the table is one
+list, `peersColumns`, and the row the stream sends when the engine cannot
+answer spans its length, so a new column cannot leave that row short.
+<!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom, connectionsDroppedFrom, peerStreamBody -->
+<!-- source: internal/component/lg/view.go -- peerRow, connectionsDropped, peersColumns -->
+
+A route's age follows the same rule. `bgp-rib` writes `age`, the whole seconds
+since it last stored a change to the route, on each received row whose change
+time it holds, and writes no member on a sent row or a best path row.
+`routeAgeFrom` is the one reader of that member: `routeRows` calls it for the
+route tables and the route detail, and `transformRoutes` for the API, so the
+page and the API agree on which rows have an age. Its result is a `routeAge`,
+whose zero value is "the engine sent no age". A known age renders as
+`<td class="route-age" data-seconds="192">3m 12s</td>`, the last cell of a
+route row: the text comes from `formatElapsed`, which also words the Uptime
+column, and `data-seconds` holds the exact value. An unknown age renders an
+empty cell with no `data-seconds`, and no Age entry in the route detail. The
+API keeps its mandatory `age` member and adds `age_available`
+(`docs/architecture/api/birdwatcher-compat.md`, Section 6.2). The looking
+glass reads no clock for this: an age is the engine's answer at the moment of
+the query.
+<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom, wholeNumber, routeRows -->
+<!-- source: internal/component/lg/view.go -- routeRow, routeAge -->
+<!-- source: internal/component/lg/render.go -- formatElapsed -->
+<!-- source: internal/component/lg/handler_api.go -- transformRoutes -->
 
 ### LG JSON Convention Exception
 

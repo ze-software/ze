@@ -584,6 +584,14 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
+	// The named next-hop ranges of the looking glass, read by the reader the
+	// startup path uses, whatever the `enabled` leaf says. A list the reader
+	// refuses stops the reload here, before anything is applied.
+	lgNextHopRanges, lgNextHopRangesErr := zeconfig.ExtractLGNextHopRanges(parsedTree)
+	if lgNextHopRangesErr != nil {
+		return restorePKIAfter(priorPKI, clearCandidate, fmt.Errorf("reload: %w", lgNextHopRangesErr))
+	}
+
 	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
 		return withUnwind(err,
 			unwindStep{unwindPKIRestore, restorePKI(priorPKI)}, unwindStep{unwindCandidateCleanup, clearCandidate()})
@@ -712,11 +720,18 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		restoreIdentity = stageAPIAuthentication()
 	}
 	restoreListeners := noListenerRestore
+	// restoreLGNextHopRanges puts back the names the looking glass showed
+	// before this reload replaced them. It does nothing until the list is
+	// replaced, and it runs for every reload that does not end applied: a
+	// candidate whose promotion fails is rolled back after the names changed,
+	// and the page must not keep the names of a config that is not in force.
+	restoreLGNextHopRanges := func() {}
 	reloadApplied := false
 	defer func() {
 		if reloadApplied {
 			return
 		}
+		restoreLGNextHopRanges()
 		if restoreErr := restoreListeners(); restoreErr != nil {
 			slogutil.Logger("hub.reload").Error("listener rollback failed", "error", restoreErr)
 			return
@@ -743,6 +758,18 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		err := lm.updateWebCertificate(webCertName)
 		if err == nil {
 			err = lm.updateLGCertificate(lgCertName)
+		}
+		// Last of the three, and only for a reload that parsed a tree: a
+		// reload with no tree says nothing about the list, and handing the
+		// looking glass an empty one would erase the names it shows.
+		// The names it replaced go back when a later step fails: the deferred
+		// rollback above calls restoreLGNextHopRanges.
+		if err == nil && parsedTree != nil {
+			var restore func()
+			restore, err = lm.updateLGNextHopRanges(lgNextHopRanges)
+			if err == nil {
+				restoreLGNextHopRanges = restore
+			}
 		}
 		if err != nil {
 			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)

@@ -1,0 +1,123 @@
+# Test: the looking glass peers page shows session history, and its live stream follows it
+# QUESTION: after a real session dropped, does an operator read on /lg/peers
+#           how often it dropped, when it last changed and why it closed, and
+#           does the page they keep open learn of the next drop?
+# VALIDATES: one peer, the scripted test peer, closes its session with a
+#            NOTIFICATION as soon as the first End-of-RIB arrives. Once the
+#            session is back, GET /lg/peers (handleUIPeers and extractPeers,
+#            internal/component/lg/handler_ui.go) shows in the peer's row the
+#            `state-changed` time and a `connections-dropped` count of 1, both
+#            equal to what `show bgp` answers, and the row or the page it opens,
+#            /lg/peer/127.0.0.1, shows the `last-error` text `show bgp` answers
+#            (spec-lg-peer-history-origin-search-and-named-nodes AC-1).
+#            The fixture then opens /lg/events as an open page does, announces
+#            one route, which the peer answers with a second NOTIFICATION, and
+#            reads stream messages until one carries the peer's row with a
+#            count of 2 (handleUIEvents and peerStreamBody, AC-2).
+# PREVENTS: a session that drops every hour looking like one that has been up
+#           for an hour, because the page reads uptime and none of the history
+#           keys the engine publishes.
+#
+# WHY A FUNCTIONAL TEST: the package tests feed extractPeers a summary written
+# by hand. Only a real session proves that the keys the reactor fills when a
+# peer sends a NOTIFICATION are the ones the page reads, and that the stream
+# sends the row again after the count moved.
+#
+# THE PAGE CONTRACT THIS TEST READS: the two history cells of a peer row are
+# <td class="state-changed"> and <td class="connections-dropped">. The class
+# is what tells the drop count from the other numbers of the row.
+#
+# NO SLEEP: the first drop is the peer's, on the first End-of-RIB. The fixture
+# (internal/test/fixture/lg_peer_history.go) waits on `show bgp` for one drop
+# and a second End-of-RIB on the wire, which is the session back up, and that
+# state holds until the fixture itself announces the route that triggers the
+# second drop. The page is therefore read over a state that does not move.
+
+# ze-peer: two sessions. The first ends on the End-of-RIB. The second ends on
+# the UPDATE the fixture sends once the stream is open.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=70s
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=notification:conn=1:seq=2:text=Peer Reset
+
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
+action=notification:conn=2:seq=3:text=Peer Reset
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-peer-history {
+		run "le test fixture plugin/lg-peer-history"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
+		attach process lg-peer-history {
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+# The fixture prints this only after the page showed the first drop and the
+# stream carried the second; a failed check returns an error, which the runner
+# reads as the test's failure.
+expect=stderr:pattern=OK: the peers page showed one drop, its time .* and the last error .*, and the live stream carried the second drop

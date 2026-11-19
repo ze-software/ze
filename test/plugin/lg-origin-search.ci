@@ -1,0 +1,106 @@
+# Test: Looking glass lists the routes an AS originates, with an AS path anchored at the end
+# QUESTION: does `$` after the last AS number, typed in the search page, reach
+#           bgp-rib as an end anchor and list only the paths that end there?
+# VALIDATES: against the real bgp-rib, with one peer holding 10.40.1.0/24
+#            (AS path 65010 65001), 10.40.2.0/24 (65001 65002), 10.40.3.0/24
+#            (64999 65010 65001) and 10.40.4.0/24 (65010 65001 65001 65001),
+#            the search page (handleUISearch,
+#            internal/component/lg/handler_ui.go) asked for "65001$" lists
+#            10.40.1.0/24, 10.40.3.0/24 and 10.40.4.0/24, the prepended path
+#            included, and leaves out 10.40.2.0/24, which crosses 65001 and is
+#            originated by 65002; asked for "^65010 65001$" it lists
+#            10.40.1.0/24 alone, and leaves out the longer path and the
+#            prepended path that both hold the pair
+#            (spec-lg-peer-history-origin-search-and-named-nodes AC-4, AC-5,
+#            AC-6).
+# PREVENTS: "originated by" and "exactly this path" being questions the
+#           looking glass cannot ask, because nothing anchors the end of a
+#           pattern.
+#
+# WHY A FUNCTIONAL TEST: the page's check (parseASPathPattern) cannot call the
+# engine's validatePathPattern, because the looking glass imports no RIB
+# package. Only the real plugin proves that the form the page writes for an
+# end anchor is the one matchASPath reads, and that the anchor leaves out the
+# crossing route.
+#
+# WHY A PLUGIN-DRIVEN HTTP CHECK (not an http= directive): the assertion is
+# the set of rows each search lists, absences included. The native fixture
+# (internal/test/fixture/lg_origin_search.go) injects the routes, asks each
+# question, and returns an error naming the rows it got when they differ.
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Pass the looking-glass listen port ($PORT2) to the plugin process.
+option=env:var=ZE_LG_PORT:value=$PORT2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-origin-search {
+		run "le test fixture plugin/lg-origin-search"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The fixture prints this only after both searches listed the expected rows; a
+# failed one returns an error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: end-anchored AS path searches listed the routes 65001 originates and left out the route that crosses it

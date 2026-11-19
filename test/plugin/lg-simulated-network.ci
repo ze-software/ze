@@ -1,0 +1,77 @@
+# Test: The looking glass of a route collector shows a generated network whose speakers hold real BGP sessions
+# QUESTION: when five simulated routers of one AS and six external neighbours
+#           each hold a real BGP session to ze and announce the routes a
+#           topology model computed for them, do the peers page, the search
+#           page and the trace graph answer what the model computed?
+# VALIDATES: after every speaker sent its routes and its End-of-RIB, the peers
+#            page (GET /lg/peers, internal/component/lg/handler_ui.go) lists
+#            every router and every external neighbour as an established
+#            session with the route count the model computed for it
+#            (spec-lg-peer-history-origin-search-and-named-nodes AC-19); the
+#            search page (POST /lg/search) asked for each prefix of the model
+#            lists one row per speaker announcing it, with the next hop and the
+#            AS path the model computed, and the external neighbours among the
+#            rows are the model's announcers (AC-20).
+# PREVENTS: a looking glass proven only on rows typed by hand and injected into
+#           the RIB through a command, where no session exists, the per-peer
+#           counts are never exercised, and the next-hop-self relations are a
+#           person's work.
+#
+# WHY A FUNCTIONAL TEST: the unit tests prove the model
+# (internal/chaos/scenario/topology_test.go), the bytes of a route built from a
+# given next hop and AS path (internal/chaos/peer/sender_routeset_test.go) and
+# the conversion of the model to peer profiles
+# (internal/chaos/scenario/generator_topology_test.go). None of them proves
+# that ze accepts those sessions, stores those routes per peer, and that the
+# looking glass reads them back with the same next hop and path.
+#
+# WHY THE FIXTURE STARTS ZE (no stdin=ze-bgp block): the daemon's config has one
+# peer per speaker of the model, so it does not exist before the model is
+# built. The native fixture (internal/test/fixture/lg_simulated_network.go)
+# builds the model, writes the config from it (scenario.GenerateConfig), starts
+# `ze -` on it, then runs one peer simulator per speaker. Typing the eleven
+# peers here would be a second copy of the model.
+#
+# ADDRESSES AND PORTS: the speakers' addresses are documentation ranges, and no
+# speaker connects from its own address. Each one reaches ze on a listen port
+# of its own, which the fixture reserves past the three ports of this test, and
+# ze knows the session by the address its config gives the peer. So the test
+# needs no loopback alias and runs on Linux and macOS alike.
+#
+# EXPECTED VALUES: every value compared with a page comes from the model at run
+# time. Beside them, the fixture checks three prefixes against what the
+# generator states it builds for every seed, with no value taken from the model
+# (lgSimulatedHandChecked): 198.18.0.0/24 has two exits, 198.18.1.0/24 has one,
+# and 198.19.0.0/24 originates inside the AS.
+#
+# THE AS PATH AND NEXT-HOP GRAPHS: for every prefix of the model, GET /lg/graph
+# in the aspath mode and in the nexthop mode, in their text forms. The ASes and
+# the steps between them are compared with the paths the model's speakers
+# announce, and each speaker's next hop and the egress marks with their
+# announcements (lgSimulatedASPathGraph, lgSimulatedNextHopGraph in
+# internal/test/fixture/lg_simulated_graphs.go). The prefix that originates
+# inside the AS has no AS to draw, and its AS path graph must be the empty
+# answer. The layer of a node is the drawing's arrangement and is not compared.
+#
+# THE TRACE GRAPH: for every prefix of the model, GET /lg/graph in the trace
+# mode and its text form is compared with Topology.Trace for every router: the
+# routers crossed in order, the end, the exit next hop and the AS path (AC-21,
+# lgSimulatedTraceGraph in internal/test/fixture/lg_simulated_trace.go). The
+# fields are compared, never the sentence after `says:`. The run fails unless
+# the network held a walk across three routers (the reflector's client, AC-24),
+# a prefix with one exit where every walk ends at it (AC-22), and the prefix
+# that originates inside the AS (AC-30).
+
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture plugin/lg-simulated-network $PORT $PORT2:timeout=90s
+expect=exit:code=0
+# Each line is printed only after its comparison held; a failed one returns an
+# error, which the runner reads as the test's failure.
+expect=stderr:pattern=OK: every simulated speaker is established with the route count the model computed
+expect=stderr:pattern=OK: every search listed the announcers and the paths the model computed
+expect=stderr:pattern=OK: every AS path graph held the ASes and the steps of the paths the model computed
+expect=stderr:pattern=OK: every next-hop graph held each speaker's next hop and the egress marks the model computed
+expect=stderr:pattern=OK: every trace graph traced each router as the model computed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

@@ -121,10 +121,15 @@ func lgCoveringCompare(question string, got, want map[string][]string) error {
 }
 
 // lgCoveringCell is one cell of the search page's route table
-// (internal/component/lg/route_table.templ). A row holds eight: the best
-// marker, the prefix, the next hop, the AS path, the origin, the local
-// preference, the MED and the peer.
-var lgCoveringCell = regexp.MustCompile(`<td>([^<]*)</td>`)
+// (internal/component/lg/route_table.templ), with or without attributes. A
+// row holds lgCoveringRowCells of them: the best marker, the prefix, the next
+// hop, the AS path, the origin, the local preference, the MED, the peer and
+// the age. The age is the last one, so the cells before it keep their index.
+var lgCoveringCell = regexp.MustCompile(`<td[^>]*>([^<]*)</td>`)
+
+// lgCoveringRowCells is the number of cells of one route row of the search
+// page, the length of the header route_table.templ writes.
+const lgCoveringRowCells = 9
 
 // lgCoveringSearchRows posts one search and answers the prefixes it listed,
 // grouped by next hop in the order the page listed them.
@@ -145,8 +150,8 @@ func lgCoveringSearchRows(ctx context.Context, base, value string) (map[string][
 	rows := map[string][]string{}
 	for _, row := range strings.Split(body[start:start+end], "<tr")[1:] {
 		cells := lgCoveringCell.FindAllStringSubmatch(row, -1)
-		if len(cells) != 8 {
-			return nil, fmt.Errorf("covering: search for %s rendered a row with %d cells, want 8: %.300q", value, len(cells), row)
+		if len(cells) != lgCoveringRowCells {
+			return nil, fmt.Errorf("covering: search for %s rendered a row with %d cells, want %d: %.300q", value, len(cells), lgCoveringRowCells, row)
 		}
 		rows[cells[2][1]] = append(rows[cells[2][1]], cells[1][1])
 	}

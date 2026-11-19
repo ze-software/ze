@@ -3993,6 +3993,39 @@ An external geodns plugin process cannot read the in-process store: a
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate (one rotation seam per listener) -->
 <!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
 
+### Named next-hop ranges of the looking glass
+
+`environment looking-glass next-hop-range <prefix> { name <name> }` gives a
+name to one range of next-hop addresses. The looking glass shows the name
+beside a next hop inside the range, in its route tables and in its next-hop
+graph.
+
+```
+environment {
+    looking-glass {
+        next-hop-range 198.51.100.0/24 {
+            name ams-ix-lan
+        }
+    }
+}
+```
+
+| Rule | Behavior |
+|------|----------|
+| Key | The prefix, IPv4 or IPv6. Two entries for one range are refused at commit with the line that removes the second, also when they are written differently, as `198.51.100.1/24` and `198.51.100.0/24` |
+| Name | Mandatory, 1 to 64 characters from `A-Z a-z 0-9 . _ -`, starting with a letter or a digit |
+| Count | 256 entries at most |
+| Lookup | The longest prefix that holds a next hop names it. A next hop in no range has no name |
+| Reload | The list is replaced whole on the running looking glass, with no rebind |
+| `enabled` | Read whether or not the block says `enabled true`. No environment variable |
+
+The guide to the pages is [Looking Glass](looking-glass.md), "Names for next
+hops and peers".
+
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- list next-hop-range -->
+<!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGNextHopRanges (the reload seam) -->
+
 ### Named Listeners
 
 Every service that accepts inbound connections models its listen endpoints

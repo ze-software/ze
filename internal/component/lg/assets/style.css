@@ -163,6 +163,8 @@ tbody tr.best-route { background: var(--best-bg); }
 .peer-info span { white-space: nowrap; }
 .peer-info-desc { color: var(--th-text); font-style: italic; }
 .peer-info-count { font-weight: 600; }
+.peer-info-group, .peer-info-state-changed, .peer-info-connections-dropped { color: var(--th-text); }
+.peer-info .peer-info-last-error { color: var(--state-down); white-space: normal; }
 .btn-download { margin-left: auto; padding: 0.3rem 0.8rem; background: var(--btn-bg); color: #fff; border-radius: 4px; font-size: 0.8rem; text-decoration: none; white-space: nowrap; }
 .btn-download:hover { background: var(--btn-hover); color: #fff; text-decoration: none; }
 
@@ -209,6 +211,9 @@ tbody tr.best-route { background: var(--best-bg); }
 
 /* ASN name */
 .asn-name { color: var(--th-text); font-size: 0.8rem; margin-left: 0.3rem; }
+.next-hop-name { color: var(--th-text); font-size: 0.8rem; }
+td.state-changed, td.connections-dropped, .route-age { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.peer-description { color: var(--th-text); max-width: 24rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* BMP peers section */
 .bmp-peers-table { border-left: 3px solid var(--state-unknown); }

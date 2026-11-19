@@ -288,7 +288,8 @@ Every routes endpoint MUST return an array of route objects under `routes`.
 | `metric` | number | MULTI_EXIT_DISC. MUST be present |
 | `interface` | string | MUST be present. Ze MUST report the empty string: it does not attribute a route to an interface on this surface |
 | `from_protocol` | string | The learning session. The server MUST substitute the peer address when one is known |
-| `age` | number | Seconds. MUST be present |
+| `age` | number | Whole seconds since the route last changed. MUST be present. See Section 6.2 |
+| `age_available` | bool | Whether `age` is a reading. See Section 6.2. This member is Ze's own and MUST NOT be expected from upstream |
 | `learnt_from` | string | Peer address. MUST be present |
 | `primary` | bool | Whether this is the best path. MUST be present. Every row of `routes/table/{family}` is `true`, because that endpoint answers only best paths. The received endpoints (`routes/protocol/{name}`, `routes/peer/{peer}`, `routes/prefix`, `routes/search`) read the `best` member of each `bgp-rib` row: `true` on the path the election recorded as its prefix's winner, `false` on every other path. A row of a family whose winner the RIB keys by wire NLRI (VPN, EVPN and the other non-CIDR families) carries no `best`, and `routes/export/{name}` rows are sent routes, which never carry one: `primary` is then `false` |
 | `bgp` | object | MUST be present, as below |
@@ -308,6 +309,55 @@ Every routes endpoint MUST return an array of route objects under `routes`.
 
 The server MUST emit `communities` and `large_communities` in the shapes above.
 A client MUST NOT assume a flat list.
+
+### 6.2 Route age and its availability
+
+`age` is the number of whole seconds since `bgp-rib` last stored a change to
+the route: since it was first learned, or since an announcement changed one of
+its attributes. An announcement with equal attributes leaves it alone. The
+server MUST copy the seconds the engine answered and MUST NOT compute an age
+itself.
+
+`bgp-rib` holds that time for the routes a peer sent, and writes it as the
+`age` member of each such row when it answers. It writes no `age` on a row it
+has no reading for:
+
+| Endpoint | Rows | `age` in the engine's row |
+|----------|------|---------------------------|
+| `routes/protocol/{name}`, `routes/peer/{peer}`, `routes/prefix`, `routes/search` | Received routes | Present |
+| `routes/export/{name}` | Routes Ze sent | Absent: the time a route was sent is not recorded |
+| `routes/table/{family}` | Best paths | Absent: `bgp-rib` writes no `age` on a best path row, in the walk and under `\| json` alike. It records when the winning route last changed, not when it became best. |
+
+The server MUST emit `age` on every route object, including one built from a
+row with no reading, in which case it MUST be `0`. This follows the owner
+decision Section 7.2 records for the route counts: on this compatibility
+surface a member a client expects is kept, and the truth travels beside it.
+
+Because that zero is not a measurement, the server MUST also emit
+`age_available`:
+
+- It MUST be `true` only when the engine's row carried an age the server could
+  read as a whole number of seconds, zero included: a route stored this second
+  has a true age of `0`.
+- It MUST be `false` when `age` is the placeholder.
+- The server MUST derive it from the VALUE, not from the presence of the key:
+  a member holding a string, a negative number or a fraction is no reading.
+- A client that shows an age MUST consult it, and MUST NOT read an `age` of `0`
+  alone as "learned this second".
+
+The route table of the UI reads the row through the same function, and shows
+an empty cell where the API answers `age_available: false`.
+
+An age MUST be expected to start again from zero when the daemon restarts: Ze
+keeps the time in memory and learns every route again. An age is therefore at
+most the time since the daemon started.
+
+Before 2026-11-18 the RIB kept no time for a route and wrote no `age`, and the
+server read the missing member as `0`: every route of every endpoint answered
+`age: 0`, with nothing to tell it from a measurement.
+<!-- source: internal/component/lg/handler_api.go -- transformRoutes -->
+<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom, wholeNumber -->
+<!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge -->
 
 ## 7. Route counts and their availability
 
@@ -396,6 +446,7 @@ exactly these differences.
 | 3 | `routes_filtered` is always `0` and `routes/filtered/{name}` is always empty | Yes, Section 7.3 |
 | 4 | `interface` is always empty | Yes, Section 6 |
 | 5 | `api.result_from_cache` is always `false` | Yes, Section 4 |
+| 6 | `age` is `0` with `age_available` `false` on sent routes and best-path rows, and every age starts again when the daemon restarts | Yes, Section 6.2 |
 
 ## 9. Testing
 
@@ -430,7 +481,10 @@ with the plugin's meaning: `covering`, the rows whose prefix contains the
 address, the most specific first within each peer; `exact`, the rows of that
 one prefix; `prefix`, the rows whose prefix text starts with the value; and
 `path` and `aspath`, the rows `matchASPath` keeps, the `path` value checked as
-`validatePathPattern` checks it. It refuses `covering` and `exact` where the
+`validatePathPattern` checks it: a run anywhere in the path, at its start
+after a leading `^`, at its end before a `$` that directly follows the last
+AS number, and the whole path between both. A `$` anywhere else is refused,
+as `parsePathPattern` refuses it. It refuses `covering` and `exact` where the
 plugin does: on `show bgp rib best`, on every scope but `received`, together,
 and with a value that is not the address or the masked prefix each takes. A
 fake that accepted a keyword and returned its fixed rows would list a route
@@ -440,6 +494,18 @@ plugin that ignored it. `test/plugin/lg-covering-lookup.ci` drives the real
 their order on the search page and on both endpoints of Section 3.3, a
 `192.0.0.0/2` and `192.0.0.0/24` pair included. `test/plugin/lg-aspath-search.ci`
 drives it with routes whose AS paths hold a run, its reverse and an anchor,
-and checks what the search page lists for each.
-<!-- source: internal/component/lg/ribfake_test.go -- fakeRIBPipeline, fakeRowSelected, fakeSelectedAnswer -->
+and checks what the search page lists for each. `test/plugin/lg-origin-search.ci`
+does the same for the end anchor: routes one AS originates behind one AS,
+behind two and prepended, and a route that only crosses it.
+
+`TestTransformRoutesAgeAvailability` (`internal/component/lg/route_age_test.go`)
+feeds `transformRoutes` rows with an age, with an age of zero and with none,
+and reads `age` and `age_available` of each. `test/plugin/lg-route-age.ci`
+drives the real `bgp-rib`: the `age` of a stored route grows, survives an
+equal announcement, starts again after a changed one, and the route table
+shows the same seconds.
+
+The AS path is a field of the search page only. No endpoint of Section 3
+takes one, so the end anchor adds nothing to this API.
+<!-- source: internal/component/lg/ribfake_test.go -- fakeRIBPipeline, fakeRowSelected, fakeSelectedAnswer, fakePathPatternBody, fakeMatchASPath -->
 <!-- source: internal/component/lg/handler_ui.go -- normalizeBestPathRows -->

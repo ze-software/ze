@@ -890,6 +890,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// cannot serve different certificates from one config; it reads the env var
 	// first and reports no name for a plaintext looking glass.
 	lgCertificate := lgCertificateName(loadResult.Tree)
+	// The names of next-hop ranges are read whatever said START and whatever
+	// the `enabled` leaf says: a looking glass started by ze.looking-glass.enabled
+	// or ze.looking-glass.listen shows them too. The reader takes no `enabled`
+	// answer, so the names cannot be gated on it, and the reload path calls the
+	// same reader (main_reload.go).
+	lgNextHopRanges, lgNextHopRangesErr := zeconfig.ExtractLGNextHopRanges(loadResult.Tree)
+	if lgNextHopRangesErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", lgNextHopRangesErr)
+		return 1
+	}
 	// No looking-glass block at all, so nothing named an address: bind the same
 	// default extractServerList synthesizes for a block that names no server.
 	if lgEnabledByEnv && len(lgAddrs) == 0 {
@@ -1654,23 +1664,24 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
 	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
 	builtServices := buildServices(&serviceDeps{
-		Store:          store,
-		ConfigPath:     configPath,
-		Resolvers:      resolvers,
-		Dispatch:       webDispatch,
-		Streams:        zePlugin.CommandStreamHandlers{Dispatch: serverStreamDispatcher(apiServer), Admit: serverStreamAdmission(apiServer)},
-		LGAddrs:        lgAddrs,
-		LGTLS:          lgTLS,
-		LGTLSExplicit:  lgTLSSet,
-		LGToken:        lgToken,
-		LGCertificate:  lgCertificate,
-		WebEnabled:     webEnabled,
-		WebAddrs:       webAddrs,
-		InsecureWeb:    insecureWeb,
-		WebCertificate: webCertificate,
-		Authorizer:     liveAAABundleAuthorizer{},
-		Recorder:       auditLog,
-		ConfigOwner:    sessionMutations,
+		Store:           store,
+		ConfigPath:      configPath,
+		Resolvers:       resolvers,
+		Dispatch:        webDispatch,
+		Streams:         zePlugin.CommandStreamHandlers{Dispatch: serverStreamDispatcher(apiServer), Admit: serverStreamAdmission(apiServer)},
+		LGAddrs:         lgAddrs,
+		LGTLS:           lgTLS,
+		LGTLSExplicit:   lgTLSSet,
+		LGToken:         lgToken,
+		LGCertificate:   lgCertificate,
+		LGNextHopRanges: lgNextHopRanges,
+		WebEnabled:      webEnabled,
+		WebAddrs:        webAddrs,
+		InsecureWeb:     insecureWeb,
+		WebCertificate:  webCertificate,
+		Authorizer:      liveAAABundleAuthorizer{},
+		Recorder:        auditLog,
+		ConfigOwner:     sessionMutations,
 		// The zefs break-glass account is read once above. The accepted merged
 		// generation is the authentication source; a reload candidate in
 		// ConfigProvider cannot invalidate a session or admit a login before the

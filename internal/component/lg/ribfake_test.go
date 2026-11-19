@@ -364,11 +364,38 @@ func fakeExactExample(value string) string {
 	return "10.0.0.0/8"
 }
 
+// fakePathPatternBody answers the AS numbers part of a path value, without
+// its anchors, and whether a $ closed it. The engine reads the end anchor
+// once, directly after the last AS number (parsePathPattern,
+// internal/component/bgp/plugins/rib/rib_pipeline.go), so a $ anywhere else,
+// or one that follows no digit, is the refusal.
+func fakePathPatternBody(pattern string) (body string, endAnchored bool, refusal string) {
+	body, endAnchored = strings.CutSuffix(strings.TrimPrefix(pattern, "^"), "$")
+	if strings.Contains(body, "$") {
+		return "", false, "invalid end anchor in path pattern: " + pattern
+	}
+	if !endAnchored {
+		return body, false, ""
+	}
+	if body == "" {
+		return "", false, "invalid end anchor in path pattern: " + pattern
+	}
+	if last := body[len(body)-1]; last < '0' || last > '9' {
+		return "", false, "invalid end anchor in path pattern: " + pattern
+	}
+	return body, true, ""
+}
+
 // fakePathPatternRefusal checks a path value as validatePathPattern does:
 // one optional leading ^, then AS numbers joined by commas, each read by
-// asn.Parse, empty pieces skipped.
+// asn.Parse, empty pieces skipped, then one optional $ directly after the
+// last AS number.
 func fakePathPatternRefusal(pattern string) string {
-	for piece := range strings.SplitSeq(strings.TrimPrefix(pattern, "^"), ",") {
+	body, _, refusal := fakePathPatternBody(pattern)
+	if refusal != "" {
+		return refusal
+	}
+	for piece := range strings.SplitSeq(body, ",") {
 		piece = strings.TrimSpace(piece)
 		if piece == "" {
 			continue
@@ -381,13 +408,18 @@ func fakePathPatternRefusal(pattern string) string {
 }
 
 // fakeMatchASPath keeps a row as matchASPath does: the pattern's AS numbers
-// as a contiguous run anywhere in the path, or at its start after a leading
-// ^. A pattern holding no AS number keeps every row; one holding an AS number
-// asn.Parse refuses keeps none.
+// as a contiguous run anywhere in the path, at its start after a leading ^,
+// at its end before a closing $, or as the whole path between both. A pattern
+// holding no AS number keeps every row; one holding an AS number asn.Parse
+// refuses, or a misplaced $, keeps none.
 func fakeMatchASPath(path []uint32, pattern string) bool {
 	anchored := strings.HasPrefix(pattern, "^")
+	body, endAnchored, refusal := fakePathPatternBody(pattern)
+	if refusal != "" {
+		return false
+	}
 	var needles []uint32
-	for piece := range strings.SplitSeq(strings.TrimPrefix(pattern, "^"), ",") {
+	for piece := range strings.SplitSeq(body, ",") {
 		piece = strings.TrimSpace(piece)
 		if piece == "" {
 			continue
@@ -401,8 +433,14 @@ func fakeMatchASPath(path []uint32, pattern string) bool {
 	if len(needles) == 0 {
 		return true
 	}
+	if anchored && endAnchored {
+		return slices.Equal(path, needles)
+	}
 	if anchored {
 		return len(path) >= len(needles) && slices.Equal(path[:len(needles)], needles)
+	}
+	if endAnchored {
+		return len(path) >= len(needles) && slices.Equal(path[len(path)-len(needles):], needles)
 	}
 	for start := 0; start+len(needles) <= len(path); start++ {
 		if slices.Equal(path[start:start+len(needles)], needles) {

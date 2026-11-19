@@ -324,6 +324,52 @@ func TestFormatNextHopNodeLabel(t *testing.T) {
 	}
 }
 
+// TestNextHopNameMostSpecificWins asks which range names a next hop that
+// several ranges contain (AC-11): the one with the longest prefix, whatever
+// the order the ranges were given in. A next hop in no range has no name, in
+// the lookup and on the graph node, whose text form then carries no name=
+// field (AC-10).
+func TestNextHopNameMostSpecificWins(t *testing.T) {
+	srv := namedRangesServer(t,
+		"198.51.0.0/16", "ixp",
+		"198.51.100.200/32", "rs1",
+		"198.51.100.0/24", "ixp-lan",
+		"2001:db8::/32", "ixp-v6",
+		"2001:db8:100::/64", "ixp-lan-v6",
+		"0.0.0.0/0", "anywhere-v4",
+	)
+	for nextHop, want := range map[string]string{
+		"198.51.100.200":      "rs1",
+		"198.51.100.7":        "ixp-lan",
+		"198.51.7.7":          "ixp",
+		"203.0.113.9":         "anywhere-v4",
+		"::ffff:198.51.100.7": "ixp-lan",
+		"2001:db8:100::7":     "ixp-lan-v6",
+		"2001:db8:200::7":     "ixp-v6",
+		"2001:db9::1":         "",
+		"":                    "",
+		"not-an-address":      "",
+	} {
+		if got := srv.nextHopName(nextHop); got != want {
+			t.Errorf("next hop %q is named %q, want %q", nextHop, got, want)
+		}
+	}
+
+	lanOnly := namedRangesServer(t, "198.51.100.0/24", "ixp-lan-a")
+	graph := buildNextHopGraph([]any{
+		map[string]any{"peer-address": "198.51.100.7", "next-hop": "198.51.100.7"},
+		map[string]any{"peer-address": "203.0.113.9", "next-hop": "203.0.113.9"},
+	})
+	lanOnly.nameNextHopNodes(graph)
+	text := renderNextHopGraphText(graph)
+	if !strings.Contains(text, "node 198.51.100.7 layer=0 egress name=ixp-lan-a\n") {
+		t.Errorf("the node in the named range carries no name: %s", text)
+	}
+	if !strings.Contains(text, "node 203.0.113.9 layer=0 egress\n") {
+		t.Errorf("the node in no range is not shown by its address alone: %s", text)
+	}
+}
+
 func TestNextHopTooltipName(t *testing.T) {
 	// VALIDATES: tooltip formatting.
 	if got := nextHopTooltipName(""); got != "" {

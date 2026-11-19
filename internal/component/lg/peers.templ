@@ -2,6 +2,8 @@
 
 package lg
 
+import "strconv"
+
 //ze:page
 // peersPage is the BGP peer dashboard.
 templ peersPage(v peersView) {
@@ -16,6 +18,7 @@ templ peersPage(v peersView) {
 }
 
 // peersContent is the peer table. Its body is swapped by server-sent events.
+// The header is peersColumns (view.go), one entry per cell of a row.
 //
 // The stream sends UNNAMED messages: htmx 4 swaps one of those into the
 // element carrying hx-sse:connect and only dispatches a named event, which
@@ -27,8 +30,9 @@ templ peersContent(v peersView) {
 	<table class="peers-table">
 		<thead>
 			<tr>
-				<th>Peer</th><th>Remote AS</th><th>State</th><th>Uptime</th>
-				<th>Received</th><th>Accepted</th><th>Sent</th><th>Updates In</th><th>Updates Out</th><th>Description</th>
+				for _, column := range peersColumns {
+					<th>{ column }</th>
+				}
 			</tr>
 		</thead>
 		<tbody hx-sse:connect="/lg/events" hx-swap="innerHTML swapEmpty:true">@peersTableBody(v.Peers)</tbody>
@@ -36,6 +40,13 @@ templ peersContent(v peersView) {
 }
 
 // peersTableBody is the row set handleUIEvents pushes over SSE.
+//
+// The two session history cells carry a class, state-changed and
+// connections-dropped, which is how a reader tells the drop count from the
+// other numbers of the row. Each is empty when the engine sent no value: an
+// absent drop count is never shown as a zero. The last error has no column,
+// because its text is long: the peer header a row opens shows it
+// (peerRoutesContent).
 templ peersTableBody(rows []peerRow) {
 	for _, p := range rows {
 		<tr class={ stateClass(p.State) } hx-get={ "/lg/peer/" + p.Address } hx-target="#peer-detail" hx-swap="innerHTML" hx-sync="#peer-detail:replace" hx-indicator="#peer-detail">
@@ -49,12 +60,19 @@ templ peersTableBody(rows []peerRow) {
 			</td>
 			<td class="state">{ p.State }</td>
 			<td>{ formatUptime(p.Uptime) }</td>
+			<td class="state-changed">{ p.StateChanged }</td>
+			<td class="connections-dropped">{ p.ConnectionsDropped.Text() }</td>
 			<td>{ formatNum(p.RoutesReceived) }</td>
 			<td>{ formatNum(p.RoutesAccepted) }</td>
 			<td>{ formatNum(p.RoutesSent) }</td>
 			<td>{ formatNum(p.UpdatesReceived) }</td>
 			<td>{ formatNum(p.UpdatesSent) }</td>
-			<td>{ p.Description }</td>
+			<td
+				class="peer-description"
+				if p.Group != "" {
+					title={ "Group " + p.Group }
+				}
+			>{ p.Description }</td>
 		</tr>
 	}
 }
@@ -62,10 +80,12 @@ templ peersTableBody(rows []peerRow) {
 // peersStreamError is the body the event stream sends when the engine cannot
 // answer. The stream carries one kind of message, so the reason travels inside
 // the table body rather than in a second event: the operator reads it where the
-// rows would be, and the next good tick replaces it with rows again.
+// rows would be, and the next good tick replaces it with rows again. The cell
+// spans every column of peersColumns, so it follows the table when a column is
+// added.
 templ peersStreamError(message string) {
 	<tr class="stream-error">
-		<td colspan="10">{ message }</td>
+		<td colspan={ strconv.Itoa(len(peersColumns)) }>{ message }</td>
 	</tr>
 }
 

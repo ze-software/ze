@@ -42,21 +42,24 @@ var lgASPathSearchWant = []struct {
 	{"^65001 65002", []string{prefix30First}},
 }
 
-// lgASPathSearchRefused is the AS path the page refuses, the end anchor the
-// engine has no grammar for, and the lines its banner must carry.
-const lgASPathSearchRefused = "65001$"
+// lgASPathSearchRefused is the AS path the page refuses, and the lines its
+// banner must carry. One $ after the last AS number is the end anchor bgp-rib
+// reads since 2026-11-18 (lg_origin_search.go asks it); a second $ is a
+// character the engine has no grammar for, as the single one was before.
+const lgASPathSearchRefused = "65001$$"
 
 var lgASPathSearchRefusal = []string{
-	`class="error-banner">AS path 65001$ holds 65001$, which is not an AS number`,
+	`class="error-banner">AS path 65001$$ holds 65001$$, which is not an AS number`,
 	"separated by spaces",
 	"a leading ^ anchors the run at the start of the path",
+	"a $ directly after the last AS number anchors it at the end",
 	"fix: 65001 65002",
 }
 
 // lgASPathSearch injects routes with chosen AS paths, then asks the search
 // page for AS paths typed with spaces and with an anchor, checks the routes
-// each one lists, and checks that an end anchor is refused with the form the
-// field takes.
+// each one lists, and checks that an end anchor typed twice is refused with
+// the form the field takes.
 func lgASPathSearch(ctx context.Context, _ []string) error {
 	return observe09(ctx, "lg-aspath", func(ctx context.Context, p *sdk.Plugin) error {
 		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
@@ -98,7 +101,10 @@ func lgASPathSearch(ctx context.Context, _ []string) error {
 				return fmt.Errorf("aspath: search for %q does not answer %q: %.600q", lgASPathSearchRefused, line, body)
 			}
 		}
-		fmt.Fprintln(os.Stderr, "OK: AS path searches listed the routes of the run and refused the end anchor")
+		// The line still opens as test/plugin/lg-aspath-search.ci expects it,
+		// so that test reads its verdict before and after its header is
+		// brought to the doubled anchor.
+		fmt.Fprintln(os.Stderr, "OK: AS path searches listed the routes of the run and refused the end anchor typed twice")
 		return nil
 	})
 }
@@ -133,8 +139,8 @@ func lgASPathSearchRows(aspath, body string) ([]string, error) {
 	prefixes := []string{}
 	for _, row := range strings.Split(body[start:start+end], "<tr")[1:] {
 		cells := lgCoveringCell.FindAllStringSubmatch(row, -1)
-		if len(cells) != 8 {
-			return nil, fmt.Errorf("aspath: search for %q rendered a row with %d cells, want 8: %.300q", aspath, len(cells), row)
+		if len(cells) != lgCoveringRowCells {
+			return nil, fmt.Errorf("aspath: search for %q rendered a row with %d cells, want %d: %.300q", aspath, len(cells), lgCoveringRowCells, row)
 		}
 		prefixes = append(prefixes, cells[1][1])
 	}
