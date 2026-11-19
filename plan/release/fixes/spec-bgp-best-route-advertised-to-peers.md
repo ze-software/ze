@@ -113,6 +113,8 @@ Those commits do not close the spec or claim release readiness.
 | Existing route-server fast-path permission control | The updated case passed 80 stress invocations and a fresh post-promotion run | Both destinations prove they are established before the source sends. The granted recipient receives the original expected UPDATE. The engine records the exact cached handback refusal for the denied recipient |
 | Policy removal rollback, AC-23 | Socket regression committed in `2f127b0278` | The learned route returned after the failed apply. The API route remained installed without a duplicate announcement. Disabling the journal undo failed at the restored learned-route check |
 | Attachment isolation, AC-24 | The draft passed 80 stress executions and the promoted test passed on a fresh daemon | Both live peers received useful ordinary output. The unattached process saw no peer UPDATEs. The receive-only process saw source UPDATEs. The daemon refused each process's sends to both peers |
+| Scoped ordinary wire regressions, AC-1 to AC-4 and AC-6 | All seven original socket regressions passed in `job-advertiser-bgp-core-and-forwardability-controls-ab66c9c9.log` | The original connections saw the elected winner, replacement and withdrawal. The useful controls covered external-to-internal export, internal split horizon, and explicit denial of the selected route |
+| Ordinary transit RFC evidence, AC-1 | `710dee74b9` adds an independently rejudged RFC4271-9.2-7 positive for ordinary initial IPv4 output | Both RIB placements passed. Removing selected publication prevented the internal recipient UPDATE after election and stopped the forked RIB before election could be observed. The two existing route-server proofs remain |
 | Attachment grants, AC-25 | Validate and candidate commit tests in `483ca1bc0a`. Three daemon startup refusals in `6f1b436d3e`. Completed-grant refresh case promoted | Each startup case passed 80 stress invocations and a fresh post-promotion run. The completed graph passed 80 stress invocations and a fresh post-promotion run. In both RIB placements, a late peer received the elected route, sent a real ROUTE-REFRESH, and received the same route on its original socket without a new source UPDATE |
 | Default AIGP without ordinary transit, AC-26 | The two-peer config passed validation and both editor commit paths. Its partial-RIB comparison was refused | `bgp-best-route-api-only.ci` observed both received routes in Adj-RIB-In and useful API announcements on both original sockets, with no learned route passed between them. The draft passed 80 stress invocations, and the promoted test passed on a fresh daemon |
 | Process-safe RPKI validation batches | Committed in `58a6160f69`; original codec companion committed in `743252a277` | Four scoped regression roots passed with race detection. Both SDK transports reach the registered receive-store command owner, preserving original identities, cancellation, publication debt and terminal-owner refusal. Actual forked purge and expiry then passed after a temporary concurrent build failure cleared |
@@ -120,7 +122,7 @@ Those commits do not close the spec or claim release readiness.
 | Unconfirmed accepted-redistribution cleanup | Committed in `d6459f7412` | All 35 consumer-package roots passed with race detection, including failed replacement, exact predecessor cleanup and immutable replay. This preserves BGP accepted-input records; it does not add an upstream checked-withdrawal receipt |
 | Forwarding fixture qualification | 35 of 50 scoped roots passed; 15 failed; no race reported | The failures reach cached forwarding with a source that the engine refuses as not established. The exact tests and native log remain in the session record. This result does not establish RFC conformance or close an acceptance criterion |
 | FRR and BIRD user-outcome scenarios | Both native scenarios passed healthy, failed at the intended recipient check with publication disabled, and passed again on a clean rebuild | Both healthy recipients saw the winner, its backup, and the final withdrawal. The control route stayed present, the excluded route stayed out, and the original sessions survived. With selected publication disabled, FRR returned an empty recipient table and BIRD reported no control route |
-| Netlab migration, Q-6 | Template and three reference configs migrated to ordinary selected output | Netlab 26.10 regenerated the three configs. Linux accepted all three, and the existing daemon profile test passed config validation, SSH login and the exact peer-list query. The reference topology's live adjacency and traffic run remains owed |
+| Netlab migration, Q-6 | The template and all three reference configs use ordinary selected output. The live Linux reference lab passed and cleaned up | Netlab 26.10 regenerated the configs. Linux accepted all three, and the daemon profile passed validation, SSH login and the peer query. The live run proved the expected BGP, OSPF, IS-IS and BFD adjacencies, both kernel static routes and all six sourced loopback pings. `job-advertiser-netlab-live-transit-5d32ed9f.log` records `clean true`, exit 0 and no remaining containers or VM |
 
 The current execution evidence and exact source-review pins stay in the session
 state file named above. No acceptance criterion is marked complete solely
@@ -1410,30 +1412,21 @@ checks still owed.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC4271OrdinarySelectedWinnerReachesPeer` | `reactor/rfc4271_selected_advertisement_test.go` | Initial selected output; losing candidate remains stored but is not advertised | Initial output red, current 3734c8a8 log |
-| `TestRFC4271OrdinarySelectedReplacementLifecycle` | same | Better replacement, retained fallback after withdrawal, final withdrawal exactly once | Initial output red; later assertions not reached |
-| `TestRFC4271OrdinaryUnchangedWinnerIsNotReadvertised` | same | Useful initial winner survives identical receipt and losing-candidate churn without duplicate output | Initial output red; later assertions not reached |
-| `TestRFC4271OrdinarySelectedExportDenialWithdraws` | same | Initial exportable winner, then denied global winner removes old advertisement without loser promotion | Initial output red; later assertions not reached |
-| `TestRFC4271OrdinarySelectedMEDChangeReachesPeer` | `reactor/rfc4271_selected_boundaries_test.go` | Initial useful output followed by MED-only replacement | Initial output red; later assertions not reached |
-| `TestRFC4271OrdinarySelectedIBGPSplitHorizon` | same | Permitted eBGP control and external recipient output survive iBGP-to-iBGP suppression | Initial output red; later assertions not reached |
-| `TestRFC8212OrdinarySelectedAbsentExportPolicyWithholdsRoute` | same | Explicitly accepting recipient gets subject/marker while policy-absent eBGP recipient gets neither | Initial output red; later assertions not reached |
+| `TestRFC4271OrdinarySelectedWinnerReachesPeer` | `reactor/rfc4271_selected_advertisement_test.go` | Initial selected output; losing candidate remains stored but is not advertised | Scoped socket test passed |
+| `TestRFC4271OrdinarySelectedReplacementLifecycle` | same | Better replacement, retained fallback after withdrawal, final withdrawal exactly once | Scoped socket test passed |
+| `TestRFC4271OrdinaryUnchangedWinnerIsNotReadvertised` | same | Useful initial winner survives identical receipt and losing-candidate churn without duplicate output | Scoped socket test passed |
+| `TestRFC4271OrdinarySelectedExportDenialWithdraws` | same | Initial exportable winner, then denied global winner removes old advertisement without loser promotion | Scoped socket test passed |
+| `TestRFC4271OrdinarySelectedMEDChangeReachesPeer` | `reactor/rfc4271_selected_boundaries_test.go` | Initial useful output followed by MED-only replacement | Scoped socket test passed |
+| `TestRFC4271OrdinarySelectedIBGPSplitHorizon` | same | Permitted eBGP control and external recipient output survive iBGP-to-iBGP suppression | Scoped socket test passed |
+| `TestRFC8212OrdinarySelectedAbsentExportPolicyWithholdsRoute` | same | Explicitly accepting recipient gets subject/marker while policy-absent eBGP recipient gets neither | Scoped socket test passed |
 
-These seven fixtures currently start RIB and Adj-RIB-In SDK consumers
-explicitly. When production grant checking and role discovery are implemented, route
-their startup and permission setup through that production mechanism; do not
-grant an artificial sender privilege just to turn the socket assertions green.
-Any test/setup edit that changes what the fixture proves requires an independent
-`ze-test-judge` verdict. Keep the actual storage, reachability, selection and
-useful-output controls, and join the new dispatcher before negative observations.
-
-Q-5 changes what these fixtures owe. A probe whose recipient is internal
-(`TestRFC4271OrdinarySelectedIBGPSplitHorizon`'s internal recipient, and any
-of the other six that use one) now needs a configured accepting export policy
-on that recipient before its useful-output control can pass. Adding it is a
-setup change the independent judge rules on, with the others. The RFC 8212
-probe keeps its external recipients and its tag scope: the internal case is an
-owner decision, not an RFC 8212 requirement, and its test carries no RFC 8212
-claim.
+These seven fixtures use production grant checking and role discovery for the
+RIB and Adj-RIB-In SDK consumers. Their independently reviewed setup preserves
+received-route storage, actual next-hop resolution, selection, useful output,
+and completion before negative observations. Internal recipients of useful
+learned output have an accepting export policy. The RFC 8212 probe retains its
+external recipients and its original claim. The internal learned-route
+restriction has separate policy and diagnostic coverage.
 
 Additional regression names below are proposed, not existing tests. Every
 negative observation follows useful output and joins the work it observes.
