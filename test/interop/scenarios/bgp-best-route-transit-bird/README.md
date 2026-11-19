@@ -13,8 +13,7 @@ C remains useful through all three phases. Every negative table verdict
 requires C's actual route and exact AS_PATH; an empty query cannot pass.
 
 The checker uses native route withdrawal controls, never an injected candidate
-or private reactor call. The extra backup/sink roles use the exact-scenario
-peer-preparation registry. Main still owes native runs and producing-code
-RED/REPAIR/GREEN proof; this description records assertions, not a result.
+or private reactor call. The peer-preparation registry starts the backup and
+sink for this scenario.
 
 Run: `INTEROP_SCENARIO=bgp-best-route-transit-bird ./le test integration interop`.
