@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth",
+    "unit-sha": "a2f69bd9a6d06b79",
+    "claim-sha": "986699c9c17ce007",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 182: \"!radius.VerifyCoARequestAuth(data, secret)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5176-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerUnknownSession",
+    "unit-sha": "799dddd89720c956",
+    "claim-sha": "4bc5ad02cdec847a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 182: \"!radius.VerifyCoARequestAuth(data, secret)\" -\u003e \"true\""
+  }
+]

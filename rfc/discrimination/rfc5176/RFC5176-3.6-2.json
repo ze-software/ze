@@ -3,22 +3,22 @@
     "rid": "RFC5176-3.6-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly",
-    "unit-sha": "96a313bcfb876406",
+    "unit-sha": "43176d20a59d36b2",
     "claim-sha": "2551cb297f9f49af",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
-    "producer-sha": "f754405f54ce41e1",
-    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::sessionSelectorsMatch",
+    "producer-sha": "28c6fbdefee07efb",
+    "break": "line 687: \"case radius.AttrAcctSessionID:\" -\u003e \"case radius.AttrAcctSessionID, radius.AttrVendorSpecific:\""
   },
   {
     "rid": "RFC5176-3.6-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity",
-    "unit-sha": "17c27c03fe2d530e",
+    "unit-sha": "1e05835fc3386464",
     "claim-sha": "81d51f16826d2115",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
-    "producer-sha": "e4e2644e7cdfd24e",
-    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "4f9ac94418a46e92",
+    "break": "line 757: \"acctSessID == nil \u0026\u0026 userName == nil \u0026\u0026 len(nasPortAttr) != 4\" -\u003e \"acctSessID == nil \u0026\u0026 userName == nil \u0026\u0026 len(nasPortAttr) != 4 \u0026\u0026 pkt.FindAttr(radius.AttrVendorSpecific) == nil\""
   }
 ]

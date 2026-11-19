@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.5-4",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorCoversEveryNamedField",
+    "unit-sha": "0a61a76a523ea439",
+    "claim-sha": "0621aa5a002eeafc",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::AccountingRequestAuth",
+    "producer-sha": "c27afd65de139492",
+    "break": "line 533: \"h.Write(buf[:4])\" -\u003e \"h.Write([]byte{buf[0], 0, buf[2], buf[3]})\""
+  },
+  {
+    "rid": "RFC5176-3.5-4",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorMatchesTheFormula",
+    "unit-sha": "4a01da38e70a2758",
+    "claim-sha": "7787ab77d0cc07ad",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::AccountingRequestAuth",
+    "producer-sha": "c27afd65de139492",
+    "break": "line 535: \"h.Write(zeros[:])\" -\u003e \"h.Write(buf[4:HeaderLen]); _ = zeros\""
+  }
+]

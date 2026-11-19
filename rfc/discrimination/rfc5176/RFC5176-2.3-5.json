@@ -69,22 +69,22 @@
     "rid": "RFC5176-2.3-5",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed",
-    "unit-sha": "274039c0fd0cd29e",
+    "unit-sha": "e7afa596aefab240",
     "claim-sha": "f29abd222fdf7748",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
     "producer-sha": "d3c60711cf64c92d",
-    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 352: \"!supported[pkt.Attrs[i].Type]\" -\u003e \"false \u0026\u0026 !supported[pkt.Attrs[i].Type]\""
   },
   {
     "rid": "RFC5176-2.3-5",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed",
-    "unit-sha": "274039c0fd0cd29e",
+    "unit-sha": "e7afa596aefab240",
     "claim-sha": "f1a460e7fbd41f21",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
     "producer-sha": "d3c60711cf64c92d",
-    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 352: \"!supported[pkt.Attrs[i].Type]\" -\u003e \"!supported[pkt.Attrs[i].Type] || true\""
   }
 ]

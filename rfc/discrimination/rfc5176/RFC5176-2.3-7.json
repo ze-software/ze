@@ -25,22 +25,22 @@
     "rid": "RFC5176-2.3-7",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed",
-    "unit-sha": "f1b08e10eb8d50e6",
+    "unit-sha": "457b00b86dc6af8f",
     "claim-sha": "18dedaef6449a619",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
-    "producer-sha": "e4e2644e7cdfd24e",
-    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "76b3cabfc4507c42",
+    "break": "line 724: \"len(sessions) \u003e 1\" -\u003e \"len(sessions) \u003e 2\""
   },
   {
     "rid": "RFC5176-2.3-7",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed",
-    "unit-sha": "f1b08e10eb8d50e6",
+    "unit-sha": "457b00b86dc6af8f",
     "claim-sha": "dc48d280f21e8daa",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
-    "producer-sha": "e4e2644e7cdfd24e",
-    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "76b3cabfc4507c42",
+    "break": "line 724: \"len(sessions) \u003e 1\" -\u003e \"len(sessions) \u003e 0\""
   }
 ]

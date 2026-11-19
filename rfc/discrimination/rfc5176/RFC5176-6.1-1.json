@@ -3,22 +3,22 @@
     "rid": "RFC5176-6.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded",
-    "unit-sha": "529a92ac65086a58",
+    "unit-sha": "9e53758fd1417705",
     "claim-sha": "3fea1b1c4b3d6ee6",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::isAllowedSource",
     "producer-sha": "a5b8b7057562626a",
-    "break": "body of isAllowedSource replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 418: \"allowed.Equal(ip)\" -\u003e \"allowed.Equal(ip) || true\""
   },
   {
     "rid": "RFC5176-6.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded",
-    "unit-sha": "529a92ac65086a58",
+    "unit-sha": "9e53758fd1417705",
     "claim-sha": "88c49da89d46e6a0",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::isAllowedSource",
     "producer-sha": "a5b8b7057562626a",
-    "break": "body of isAllowedSource replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 418: \"allowed.Equal(ip)\" -\u003e \"allowed.Equal(ip) \u0026\u0026 false\""
   }
 ]

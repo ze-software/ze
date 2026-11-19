@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator",
+    "unit-sha": "f6ef5e91b6fc2938",
+    "claim-sha": "3225d665060d9d25",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
+    "producer-sha": "6885d3789f404708",
+    "break": "line 240: \"AccountingRequestAuth(data[:pktLen], pktLen, secret)\" -\u003e \"AccountingRequestAuth(func() []byte { b := append([]byte(nil), data[:pktLen]...); if off, present, _ := messageAuthenticatorValueOffset(b); present { clear(b[off : off+AuthenticatorLen]) }; return b }(), pktLen, secret)\""
+  },
+  {
+    "rid": "RFC5176-3.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder",
+    "unit-sha": "3510e89f5f612b36",
+    "claim-sha": "9b7a28494e93ecb3",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
+    "producer-sha": "6885d3789f404708",
+    "break": "line 240: \"AccountingRequestAuth(data[:pktLen], pktLen, secret)\" -\u003e \"AccountingRequestAuth(func() []byte { b := append([]byte(nil), data[:pktLen]...); if off, present, _ := messageAuthenticatorValueOffset(b); present { clear(b[off : off+AuthenticatorLen]) }; return b }(), pktLen, secret)\""
+  }
+]

@@ -20,5 +20,27 @@
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
     "producer-sha": "5cb45118c8d7ef1d",
     "break": "body of admitRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream",
+    "unit-sha": "2880ac4c132c85ec",
+    "claim-sha": "c6373291a8d02532",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
+    "producer-sha": "0d846f2a2cf75b97",
+    "break": "line 304: \"clear(buf[4 : 4+AuthenticatorLen])\" -\u003e \"_ = buf[4 : 4+AuthenticatorLen]\""
+  },
+  {
+    "rid": "RFC5176-3.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields",
+    "unit-sha": "1b59cd2402bc6908",
+    "claim-sha": "3d155728d2414cac",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
+    "producer-sha": "0d846f2a2cf75b97",
+    "break": "line 304: \"clear(buf[4 : 4+AuthenticatorLen])\" -\u003e \"_ = buf[4 : 4+AuthenticatorLen]\""
   }
 ]

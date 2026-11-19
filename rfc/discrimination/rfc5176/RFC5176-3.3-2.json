@@ -25,22 +25,22 @@
     "rid": "RFC5176-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified",
-    "unit-sha": "fb522946c584c965",
+    "unit-sha": "45ecbf8c72a28237",
     "claim-sha": "76f39e0585b5f537",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
     "producer-sha": "09a96dfe030559de",
-    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 942: \"|| req.Attrs[i].Type == radius.AttrState\" -\u003e \"|| false\""
   },
   {
     "rid": "RFC5176-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified",
-    "unit-sha": "fb522946c584c965",
+    "unit-sha": "45ecbf8c72a28237",
     "claim-sha": "fcc2376f46802a94",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
     "producer-sha": "09a96dfe030559de",
-    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 947: \"wireBuf := radius.Bufs.Get()\" -\u003e \"wireBuf := radius.Bufs.Get(); if req.FindAttr(radius.AttrState) == nil { resp.Attrs = append(resp.Attrs, radius.Attr{Type: radius.AttrState, Value: []byte{0}}) }\""
   }
 ]

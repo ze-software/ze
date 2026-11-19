@@ -3,22 +3,22 @@
     "rid": "RFC5176-6.3-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside",
-    "unit-sha": "270ed86001a44c1f",
+    "unit-sha": "0321e8716811576c",
     "claim-sha": "8fb88b5801aa18eb",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::eventTimestampState",
-    "producer-sha": "d2f71c474bc3e807",
-    "break": "body of eventTimestampState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::pruneReplayLocked",
+    "producer-sha": "6752df858e30e312",
+    "break": "line 1060: \"now.Sub(entry.seen) \u003e coaReplayWindow\" -\u003e \"now.Sub(entry.seen) \u003e 2*coaReplayWindow\""
   },
   {
     "rid": "RFC5176-6.3-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside",
-    "unit-sha": "1575fede0e5fd130",
+    "unit-sha": "4e1d4db853cb0a49",
     "claim-sha": "2773464efc39570f",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
-    "producer-sha": "f5d7923607ecf9e8",
-    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::pruneReplayLocked",
+    "producer-sha": "6752df858e30e312",
+    "break": "line 1060: \"now.Sub(entry.seen) \u003e coaReplayWindow\" -\u003e \"now.Sub(entry.seen) \u003e coaReplayWindow/2\""
   }
 ]

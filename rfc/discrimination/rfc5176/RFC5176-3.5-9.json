@@ -3,12 +3,12 @@
     "rid": "RFC5176-3.5-9",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK",
-    "unit-sha": "86cb45a4245b43d2",
+    "unit-sha": "d936b914c01c7e88",
     "claim-sha": "0b1cefb98233060f",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "c790b6874df23e48",
-    "break": "line 461: \"radius.ErrorCauseResourcesUnavailable\" -\u003e \"radius.ErrorCauseSessionNotRemovable\""
+    "producer-sha": "0c10cd18a01493f0",
+    "break": "line 483: \"radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable\" -\u003e \"radius.CodeCoANAK, radius.ErrorCauseSessionNotRemovable\""
   },
   {
     "rid": "RFC5176-3.5-9",
@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableOnlyInADisconnectNAK",
     "unit-sha": "4853a72ad90fb9b5",
     "claim-sha": "c9805e64403f3402",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-    "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+    "producer-sha": "0c10cd18a01493f0",
+    "break": "line 483: \"radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable\" -\u003e \"radius.CodeCoANAK, radius.ErrorCauseSessionNotRemovable\""
   }
 ]

@@ -3,22 +3,54 @@
     "rid": "RFC5176-2.3-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
-    "unit-sha": "f1fa34d78e3e42d2",
+    "unit-sha": "d2531588da29ddf6",
     "claim-sha": "3f2f84ff8d2e0986",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
-    "producer-sha": "5cb45118c8d7ef1d",
-    "break": "body of admitRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
+    "producer-sha": "6885d3789f404708",
+    "break": "line 240: \"data[:pktLen], pktLen\" -\u003e \"data, len(data)\""
   },
   {
     "rid": "RFC5176-2.3-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
-    "unit-sha": "f1fa34d78e3e42d2",
+    "unit-sha": "d2531588da29ddf6",
     "claim-sha": "1d88625089bff3ba",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
-    "producer-sha": "5cb45118c8d7ef1d",
-    "break": "body of admitRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
+    "producer-sha": "6885d3789f404708",
+    "break": "line 237: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
+    "paired": [
+      {
+        "producer": "internal/component/radius/packet.go::Decode",
+        "producer-sha": "1cfcbbae411360f3",
+        "break": "line 121: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\""
+      },
+      {
+        "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
+        "producer-sha": "0d846f2a2cf75b97",
+        "break": "line 288: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
+        "break": "line 237: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
+        "seconds": 4,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.707s"
+      },
+      {
+        "producer": "internal/component/radius/packet.go::Decode",
+        "break": "line 121: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
+        "seconds": 5,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.675s"
+      },
+      {
+        "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
+        "break": "line 288: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
+        "seconds": 7,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.712s"
+      }
+    ]
   }
 ]

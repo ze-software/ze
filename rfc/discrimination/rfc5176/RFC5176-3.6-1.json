@@ -3,22 +3,22 @@
     "rid": "RFC5176-3.6-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly",
-    "unit-sha": "2e2e3d456ec2ccb3",
+    "unit-sha": "b56de59ea1fb6325",
     "claim-sha": "cdbf046027a181a0",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSubscriberSession",
-    "producer-sha": "10fb6dd4e87e1619",
-    "break": "body of findSubscriberSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
+    "producer-sha": "f754405f54ce41e1",
+    "break": "line 834: \"case radius.AttrFilterID:\" -\u003e \"case radius.AttrFilterID, radius.AttrUserName:\""
   },
   {
     "rid": "RFC5176-3.6-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly",
-    "unit-sha": "2e2e3d456ec2ccb3",
+    "unit-sha": "b56de59ea1fb6325",
     "claim-sha": "0e58616a529661d6",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSubscriberSession",
-    "producer-sha": "10fb6dd4e87e1619",
-    "break": "body of findSubscriberSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
+    "producer-sha": "f754405f54ce41e1",
+    "break": "line 843: \"!change.hasRate \u0026\u0026 change.cosProfile == \\\"\\\"\" -\u003e \"false\""
   }
 ]

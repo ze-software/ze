@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go::TestRFC5176ListenerAcceptsConformantMessageAuthenticator",
+    "unit-sha": "30486760efadaf75",
+    "claim-sha": "0a9468926957a696",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 214: \"hasMessageAuthenticator \u0026\u0026 !radius.VerifyCoAMessageAuthenticator(data, secret)\" -\u003e \"hasMessageAuthenticator\""
+  },
+  {
+    "rid": "RFC5176-3.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go::TestRFC5176ListenerDiscardsWrongMessageAuthenticator",
+    "unit-sha": "ea435963db23458b",
+    "claim-sha": "84a57e1ae51784ae",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 214: \"!radius.VerifyCoAMessageAuthenticator(data, secret)\" -\u003e \"false\""
+  }
+]

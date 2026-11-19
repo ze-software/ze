@@ -3,22 +3,22 @@
     "rid": "RFC5176-2.2-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed",
-    "unit-sha": "b43785416ea9340c",
+    "unit-sha": "df00cdea1d9eafb6",
     "claim-sha": "45ad208ebd34ffcd",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-    "producer-sha": "c790b6874df23e48",
-    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::answerRequest",
+    "producer-sha": "98ab9d5cca188aff",
+    "break": "line 264: \"pkt.FindAttr(radius.AttrServiceType) != nil\" -\u003e \"true\""
   },
   {
     "rid": "RFC5176-2.2-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed",
-    "unit-sha": "aa811659ca7c3f0b",
+    "unit-sha": "bd152567e25a5d49",
     "claim-sha": "af69f11532db9897",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::answerRequest",
     "producer-sha": "98ab9d5cca188aff",
-    "break": "body of answerRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 264: \"pkt.FindAttr(radius.AttrServiceType) != nil\" -\u003e \"false\""
   }
 ]

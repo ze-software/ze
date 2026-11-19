@@ -3,22 +3,22 @@
     "rid": "RFC5176-2.3-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SharedSecretChosenBySourceAddress",
-    "unit-sha": "66ee6f3edce63d10",
+    "unit-sha": "4e1becb806f45ee5",
     "claim-sha": "6de59f156ab0ac1a",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::secretForSource",
     "producer-sha": "45ea7af2ca765866",
-    "break": "body of secretForSource replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 394: \"; ok {\" -\u003e \"; ok \u0026\u0026 false {\""
   },
   {
     "rid": "RFC5176-2.3-4",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SharedSecretChosenBySourceAddress",
-    "unit-sha": "66ee6f3edce63d10",
+    "unit-sha": "4e1becb806f45ee5",
     "claim-sha": "9db22f8c7fe43657",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::secretForSource",
-    "producer-sha": "45ea7af2ca765866",
-    "break": "body of secretForSource replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 181: \"cl.secretForSource(from.IP)\" -\u003e \"func() []byte { if radius.VerifyCoARequestAuth(data, cl.cfg.DefaultSecret) { return cl.cfg.DefaultSecret }; return cl.secretForSource(from.IP) }()\""
   }
 ]
