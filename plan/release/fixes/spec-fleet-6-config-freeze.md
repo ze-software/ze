@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P0 |
 | Release reason | Fleet reconnect must not silently overwrite emergency device configuration. |
@@ -10,6 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
+| Implementation tier | development tier |
 | Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`. Then read this
@@ -391,7 +392,6 @@ verbs and their envelopes are unchanged.
 - `docs/architecture/zefs-format.md` - the new key
 - `docs/guide/command-reference.md`, `docs/architecture/api/commands.md` - the three commands
 - `features/fleet-management.md` - the real-path tests
-- `plan/post-release/features/spec-fleet-0-umbrella.md` - D-2 and D-4 in the direction update
 
 ## Files to Create
 - `internal/component/managed/baseline.go` - the active-hash helper, baseline read and write
@@ -463,7 +463,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 5. **Phase: Hub guard**
    - Tests: `TestSessionEditorRefusesUndeclaredClient`, `TestSessionEditorOpensDeclaredClient`, `fleet-hub-editor-declared.ci`
    - Files: `session_factory.go`
-   - Verify: AC-20. The umbrella's direction update records D-2 and D-4
+   - Verify: AC-20
 
 ### Critical Review Checklist
 
@@ -541,7 +541,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 - Resolving a diverged device from the hub is `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md`. Until then: to keep the device's change, import the device's configuration on the hub as that client's configuration, and the hold ends at the next fetch. To discard it, run `request fleet disable`, roll the device back to the version it received from the hub, and run `request fleet enable`.
 - The hold is shown on the hub as a refused configuration. Its own cause and code on the hub belong to fleet-7.
 - Raw key writes, a full-store restore and a rename with the daemon stopped are not frozen. The hold covers them (D-5).
-- The SSH session editor does not consult the authorization profile. `cmd/ze/hub/session_factory.go` `buildSessionModelFactory` gives the authorizer to the operational command executor only, and `internal/component/cli` authorizes nothing, so a user whose profile denies the edit section can enter config mode and commit, on the daemon's own configuration and on any stored one, a hub's client configurations included. The web editor (`authorizeWebConfigMutation`), the API sessions and the SSH upload do check. This exists with or without fleets, is not changed here, and is owed a release fix spec of its own, named here when the owner has approved it. Read at source on 2026-11-19, not run.
+- The SSH session editor does not consult the authorization profile. `cmd/ze/hub/session_factory.go` `buildSessionModelFactory` gives the authorizer to the operational command executor only, and `internal/component/cli` authorizes nothing, so a user whose profile denies the edit section can enter config mode and commit, on the daemon's own configuration and on any stored one, a hub's client configurations included. The web editor (`authorizeWebConfigMutation`), the API sessions and the SSH upload do check. This exists with or without fleets, is not changed here, and is `plan/release/fixes/spec-ssh-editor-authorization.md`, approved by the owner as a skeleton on 2026-11-19. Read at source, not run.
 
 ## Checklist
 

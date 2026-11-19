@@ -108,8 +108,8 @@ remain visible in the release rollup. This umbrella stays in `plan/`.
 | 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
 | 4 | `plan/post-release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
 | 5 | `plan/post-release/features/spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
-| 6 | `plan/release/fixes/spec-fleet-6-config-freeze.md` | Freeze operator config edits (single-writer); hub-side connected-only guard; persisted baseline + reconnect hold (no silent stomp); `ze fleet disable/enable/status` with immediate sever | - |
-| 7 | `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` | Resolve a `diverged` device: `config-push` up-verb (existing TLS), commit-style diff (Local=hub, Remote=router), adopt/revert | fleet-6 |
+| 6 | `plan/release/fixes/spec-fleet-6-config-freeze.md` | Persisted baseline and reconnect hold (no silent stomp); `request fleet disable` and `enable` with immediate sever, `show fleet status`; best-effort freeze of operator edits on a managed device; declared-client guard on every hub writer. See the Direction Update of 2026-11-19 | - |
+| 7 | `plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md` | Resolve a `diverged` device: an up-verb on the existing TLS channel, a diff at the hub (Local=hub, Remote=router), adopt or revert, and its own per-client record of the pushed config. Carries a REWORK disposition; its design waits for fleet-6 | fleet-6 |
 
 Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates). Phases 6 and 7 are the direction update below: 6 (freeze, persisted baseline, safe reconnect hold) depends on nothing new and is safe to land first; 7 (diverged-config resolution) depends on 6 and surfaces through the fleet-1 dashboard.
 
@@ -180,6 +180,26 @@ The command answers the interface reads are proposed by the sample answers of
 `plan/post-release/features/spec-fleet-ui-1-interactive-prototype.md`. They are
 input to the design of `fleet-1`, `fleet-4`, `fleet-8` and `fleet-9`: a child
 that settles a different answer shape changes the samples in the same work.
+
+### Direction Update (2026-11-19): fleet-6 Redesigned, Single-Writer Relaxed
+
+`fleet-6` and `fleet-7` were judged against `main` on 2026-11-18 and both were
+REWORK; each spec carries its disposition. `fleet-6` was redesigned and
+approved by the owner. Where this section and the Direction Update of
+2026-06-26 differ, this one holds.
+
+| Topic | Decision |
+|-------|----------|
+| Hub writes while a device is away | Allowed. The hub may always write the config of a client it declares. The "hub frozen for that device" half of the single-writer model is dropped: it forbade provisioning a client, whose first config is written before it ever connects, and the delivery of a change to a client that is away. A hub and a departed device can therefore both change a config, and `fleet-7`'s diff resolves it |
+| What keeps a local edit | The baseline and the reconnect hold, on the device. The freeze is best effort: about thirty routes write a device's config, so it tells the operator early and the hold is the guarantee |
+| Baseline key | `meta/managed/base-version`. `meta/instance/managed/base-version` cannot exist: `meta/instance/managed` is a value, and the store refuses a key below a value |
+| A device with no baseline | Clean: it follows its hub as before and records a baseline from then on |
+| Commands | `request fleet disable`, `request fleet enable`, `show fleet status`, through the daemon on every surface with a local route. Not `ze fleet ...` |
+| Rejoin | Live after a live leave. A daemon started unmanaged connects at its next start |
+| A managed device whose config names no hub | Stays frozen; `request fleet disable` is the exit and needs no hub |
+| How the hub learns of a hold | In `fleet-6`, through the existing refused acknowledgement, with no change to `pkg/fleet`. `fleet-7` gives the hold its own cause |
+| `diverged` record on the hub | `fleet-7` keeps its own per-client record of the config a device pushed up; its presence is the flag. It does not wait for `fleet-1`, which later reads that record. This replaces "`fleet-1` gains a `diverged` device state ... consumed by `fleet-7`" above |
+| `fleet-5` | Unchanged in effect: a staged rollout still targets connected devices, because that is where it can observe the result, not because the hub may not write for an absent one |
 
 ### Relationship to Existing Specs
 
