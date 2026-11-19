@@ -62,6 +62,7 @@ func otcFilterDecls() []sdk.FilterDecl {
 				fieldRaw,
 				policyview.FieldPeerName.String(), policyview.FieldPeerGroup.String(),
 				policyview.FieldPeerAddress.String(), policyview.FieldPeerAS.String(),
+				policyview.FieldIBGP.String(),
 			},
 			Sets:    []string{fieldOTC.String(), fieldSrcRole.String(), fieldSrcPeerRole.String()},
 			OnError: sdk.OnErrorReject,
@@ -73,6 +74,7 @@ func otcFilterDecls() []sdk.FilterDecl {
 				fieldRaw, fieldSrcRole.String(),
 				policyview.FieldPeerName.String(), policyview.FieldPeerGroup.String(),
 				policyview.FieldPeerAddress.String(), policyview.FieldLocalAS.String(),
+				policyview.FieldPeerAS.String(), policyview.FieldIBGP.String(),
 				policyview.FieldSourcePeerName.String(), policyview.FieldSourcePeerGroup.String(),
 				policyview.FieldSourcePeerAddress.String(),
 			},
@@ -243,8 +245,8 @@ type otcSession struct {
 // once by resolveOTCReaders from init, after the src-role metadata field is
 // registered.
 var otcReaders struct {
-	peerName, peerGroup, peerAddress, peerAS, localAS policyview.Reader
-	sourceName, sourceGroup, sourceAddress, srcRole   policyview.Reader
+	peerName, peerGroup, peerAddress, peerAS, localAS, ibgp policyview.Reader
+	sourceName, sourceGroup, sourceAddress, srcRole         policyview.Reader
 }
 
 func resolveOTCReaders() {
@@ -253,6 +255,7 @@ func resolveOTCReaders() {
 	otcReaders.peerAddress = mustOTCReader(policyview.FieldPeerAddress)
 	otcReaders.peerAS = mustOTCReader(policyview.FieldPeerAS)
 	otcReaders.localAS = mustOTCReader(policyview.FieldLocalAS)
+	otcReaders.ibgp = mustOTCReader(policyview.FieldIBGP)
 	otcReaders.sourceName = mustOTCReader(policyview.FieldSourcePeerName)
 	otcReaders.sourceGroup = mustOTCReader(policyview.FieldSourcePeerGroup)
 	otcReaders.sourceAddress = mustOTCReader(policyview.FieldSourcePeerAddress)
@@ -283,7 +286,7 @@ func readOTCSession(route *sdk.FilterRoute) (otcSession, error) {
 
 func viewOTCSession(view *policyview.View) (otcSession, error) {
 	var s otcSession
-	var errs [9]error
+	var errs [10]error
 	var value policyview.Value
 	value, errs[0] = view.Read(otcReaders.peerName)
 	s.peer.Name = value.Text()
@@ -303,6 +306,8 @@ func viewOTCSession(view *policyview.View) (otcSession, error) {
 	s.source.Address = value.Address()
 	value, errs[8] = view.Read(otcReaders.srcRole)
 	s.srcRole, s.srcRoleSet = value.Text(), value.Present()
+	value, errs[9] = view.Read(otcReaders.ibgp)
+	s.peer.IsIBGP = value.Flag()
 	if err := errors.Join(errs[:]...); err != nil {
 		return otcSession{}, fmt.Errorf("bgp-role: OTC: the session cannot be read: %w", err)
 	}
@@ -323,6 +328,7 @@ type otcFieldsJSON struct {
 	PeerAddress   string  `json:"peer-address"`
 	PeerAS        uint32  `json:"peer-as"`
 	LocalAS       uint32  `json:"local-as"`
+	IBGP          bool    `json:"ibgp"`
 	SourceName    string  `json:"source-peer-name"`
 	SourceGroup   string  `json:"source-peer-group"`
 	SourceAddress string  `json:"source-peer-address"`
@@ -347,7 +353,7 @@ func fieldsOTCSession(raw []byte) (otcSession, error) {
 	s := otcSession{
 		peer: filterapi.PeerFilterInfo{
 			Name: fields.PeerName, GroupName: fields.PeerGroup, Address: peerAddress,
-			PeerAS: fields.PeerAS, LocalAS: fields.LocalAS,
+			PeerAS: fields.PeerAS, LocalAS: fields.LocalAS, IsIBGP: fields.IBGP,
 		},
 		source: filterapi.PeerFilterInfo{
 			Name: fields.SourceName, GroupName: fields.SourceGroup, Address: sourceAddress,

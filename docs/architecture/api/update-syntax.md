@@ -1073,9 +1073,19 @@ send bgp upstream1 update text mp l2vpn/evpn eor
 
 Raw is an explicit diagnostic injection operation. The peer must attach the
 program with `send [ raw ]`; no other send type permits it. Raw UPDATE requests
-are not duplicate-suppressed, but the existing AIGP origination policy,
-negotiated PATHS-LIMIT filtering and Label-Index Reserved/Flags normalization
-still apply. PATHS-LIMIT can refuse malformed input before any bytes are sent.
+are not duplicate-suppressed. Recognized locally originated UPDATEs, in body
+and full-packet form, obey RFC 4271 Section 5.1.3: an announcement is withheld
+when its next hop is the recipient's own address. This refusal preserves
+original explicit withdrawals and permitted routes in other families. The
+existing AIGP origination policy, negotiated PATHS-LIMIT filtering and
+Label-Index Reserved/Flags normalization still apply. PATHS-LIMIT can refuse
+malformed input before any bytes are sent.
+<!-- source: internal/component/bgp/reactor/session_aigp.go -- writeOriginatedRawUpdate, writeOriginatedPeerOwnUpdate -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
+
+Configured IPv6 interface zones remain part of the transport and peer identity;
+next-hop admission compares address bytes without the zone.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- nextHopValue.has -->
 
 The encoding is `hex` or `b64`, the data is always supplied, and the message type
 takes the `type` keyword in front of it. The model declares all three

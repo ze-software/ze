@@ -551,25 +551,25 @@ func redirectNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulato
 	return address == f.addr.Unmap().WithZone("")
 }
 
-// originatedNextHopIsPeerOwn asks the SAME question of a route Ze ORIGINATES,
-// which is the case RFC 4271 Section 5.1.3 names in so many words:
+// originatedNextHopIsPeerOwn checks the direct single-route announce writer.
+// RFC 4271 Section 5.1.3 states:
 //
 //	"A route originated by a BGP speaker SHALL NOT be advertised to a peer
 //	 using an address of that peer as NEXT_HOP."
 //
-// egressNextHopIsPeerOwn above covers the RELAYED route, where the hazard
-// arrives as a third-party next hop Section 5.1.3 case 2 permits. This function
-// covers the originated one, where the address comes from Ze's own configuration
-// or from a plugin. Between them the two cover every route Ze advertises.
+// egressNextHopIsPeerOwn checks relayed routes. This helper serves only the
+// direct single-announcement writer. The general typed and raw origination
+// writers call nextHopValue.has in their own final admission guards.
+// All compare the address offered to the destination with that peer's address.
 //
-// IT READS THE BUILT BODY RATHER THAN ANY PRODUCER'S TYPED VALUE, and that is
-// the whole point of asking it here. Five rails originate a NEXT_HOP today:
-// configured static routes and default-originate (peer_initial_sync.go), the RIB
-// op-queue drain (peer_rib_routes.go), the announce batch and the RFC 9494 stale
-// re-advertise (reactor_api_batch.go). Each resolves its address differently and
-// each already refuses a next hop it cannot ENCODE, so a per-rail copy of this
-// question would be five copies to keep in step and a sixth rail would be born
-// without it. One question at the write boundary cannot be forgotten.
+// This helper reads the built body after the direct announcement writer's
+// export chain, rather than trusting its RouteSpec's next hop. Static routes,
+// default-originate, RIB drains, announce batches and stale re-advertise use
+// writeUpdateGated's typed admission. Raw body and full-packet commands use
+// writeOriginatedRawUpdate, which preserves permitted withdrawals and family
+// siblings when it withholds a peer-own announcement. These paths share
+// nextHopValue.has to compare wire-address identity, while retaining their
+// own encoding, policy and buffer-ownership boundaries.
 //
 // A withdrawal and an End-of-RIB marker reach this with no NEXT_HOP and no
 // MP_REACH_NLRI, so they answer false without a special case.
@@ -685,12 +685,16 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // Under next hop unchanged or auto, applyFactsNextHop records nothing. A
 // speaker-owned global introduced by policy still needs the configured own
 // Link-Local on a common subnet, and a received pair must lose its Link-Local
-// outside that subnet. The last MP_REACH_NLRI Set wins over basePayload.
+// outside that subnet. The last nonempty MP_REACH_NLRI Set wins only when its
+// width can be materialized; an unsupported final Set retains basePayload.
 //
 // For the plain forms the destination and effective Global must belong to ONE
 // connected prefix (RFC 2545 Section 3). For VPN-IPv6 the destination alone must
 // share a connected prefix with the speaker, wherever the Global is (RFC 4659
-// Section 3.2.1.1; linkLocalConditionFor). Source-peer membership cannot
+// Section 3.2.1.1; linkLocalConditionFor): "The link-local address shall be
+// included in the Next Hop field if and only if the advertising BGP speaker
+// shares a common subnet with the peer the route is being advertised to
+// [BGP-IPv6]." Source-peer membership cannot
 // substitute for either. A nil scope has read no interface table and proves no
 // common subnet, so the Link-Local is removed.
 //
@@ -726,76 +730,82 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		return
 	}
 	field := payloadMPNextHopField(basePayload)
+	var selected []byte
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrMPReachNLRI) {
 			continue
 		}
 		if op.Action == filterapi.AttrModSet {
-			field = op.Buf
+			if len(op.Buf) != 0 {
+				selected = op.Buf
+			}
 		}
 	}
 	profile := attribute.MPNextHopProfile(attribute.AFI(baseFamily.AFI), attribute.SAFI(baseFamily.SAFI))
-	if profile.IPv6Roles && !slices.Contains(profile.Lengths, len(field)) {
-		// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
-		// Preserve a wrong-width field instead of hiding it by RD stripping.
+	// Match mpReachNextHopHandler: an unsupported last nonempty Set keeps
+	// the received field, rather than reviving an earlier valid replacement.
+	if profile.AdmitsNextHopOctets(len(selected)) {
+		field = selected
+	}
+	if profile.IPv6Roles {
+		if !profile.AdmitsNextHopOctets(len(field)) {
+			// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
+			// Preserve a wrong-width field instead of hiding it by RD stripping.
+			return
+		}
+	}
+	hops, err := profile.DecodeNextHopField(attribute.AFI(baseFamily.AFI), field)
+	if err != nil {
+		return
+	}
+	addresses := hops.Slice()
+	if len(addresses) == 0 {
 		return
 	}
 	condition := linkLocalConditionFor(baseFamily)
-	var globalOctets int
-	switch len(field) {
-	case 16:
+	global := addresses[0].Unmap()
+	if len(addresses) == 1 {
 		if !profile.IPv6Roles {
+			if !profile.RDPerAddress {
+				return
+			}
+		}
+		// Codec-only unprefixed compatibility is not permission to add an RD
+		// or reinterpret a received field when constructing its second unit.
+		if len(field) != profile.NextHopOctets(addresses[0]) {
 			return
 		}
-		// RFC 2545 Section 3: append the next-hop entity's own Link-Local on
-		// the common subnet: the speaker's configured one after its own
-		// global, another router's from the neighbor table after its global.
-		ll := egressLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap(), condition)
+		if profile.RDPerAddress {
+			if [attribute.RDSize]byte(field[:attribute.RDSize]) != ([attribute.RDSize]byte{}) {
+				return
+			}
+		}
+		// RFC 2545 Section 3; RFC 4659 Section 3.2.1.1: use the family's
+		// common-subnet condition and the next-hop entity's own Link-Local.
+		ll := egressLinkLocal(dest, facts, global, condition)
 		if !ll.IsValid() {
 			return
 		}
-		var pair [32]byte
-		copy(pair[:16], field)
-		address := ll.As16()
-		copy(pair[16:], address[:])
-		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
-		return
-	case 24: // RD(8) + Global(16)
-		if !slices.Contains(profile.Lengths, vpnNextHopPairOctets) {
-			return
-		}
-		// RFC 4659 Section 3.2.1.1: "The link-local address shall be included
-		// in the Next Hop field if and only if the advertising BGP speaker
-		// shares a common subnet with the peer the route is being advertised
-		// to [BGP-IPv6]." The sentence names the peer alone, so condition is
-		// the peer-only one even for a Global off that subnet, and RD+Global
-		// is raised to the 48-octet RD+Global, RD+Link-Local form. The second
-		// RD is zero: the section says each address's "8-octet RD is set to zero".
-		if [8]byte(field[:8]) != ([8]byte{}) {
-			return
-		}
-		ll := egressLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap(), condition)
-		if !ll.IsValid() {
+		pairOctets := profile.NextHopLen(addresses[0], ll)
+		if !profile.AdmitsNextHopOctets(pairOctets) {
 			return
 		}
 		var pair [vpnNextHopPairOctets]byte
-		copy(pair[:24], field)
-		address := ll.As16()
-		copy(pair[32:], address[:])
-		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
-		return
-	case 32: // Global(16) + Link-Local(16)
-		globalOctets = 16
-	case 48: // RD(8) + Global(16), RD(8) + Link-Local(16)
-		globalOctets = 24
-	default:
+		copy(pair[:], field)
+		// RFC 2545 Section 3; RFC 4659 Section 3.2.1.1. Retain the raw first
+		// unit and let the profile write only the added address and its RD.
+		profile.WriteNextHops(pair[:], len(field), ll, netip.Addr{})
+		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:pairOctets])
 		return
 	}
-	second := netip.AddrFrom16([16]byte(field[len(field)-16:])).Unmap()
+	// Complete-field decoding has exactly two equally framed IPv6 units.
+	// Trim by raw unit count so received RDs and generic fallback framing stay
+	// byte-identical, including codec-only unprefixed VPN fields.
+	globalOctets := len(field) / len(addresses)
+	second := addresses[1].Unmap()
 	if !second.Is6() || !second.IsLinkLocalUnicast() {
 		return
 	}
-	global := netip.AddrFrom16([16]byte(field[globalOctets-16 : globalOctets])).Unmap()
 	if (nextHopValue{mp: global, mpLL: second}).has(facts.addr) {
 		return
 	}

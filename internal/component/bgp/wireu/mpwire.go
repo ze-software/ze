@@ -127,6 +127,7 @@ func (m MPReachWire) NextHop() netip.Addr {
 	afi := attribute.AFI(m.AFI())
 	profile := attribute.MPNextHopProfile(afi, attribute.SAFI(m.SAFI()))
 	hops, err := profile.DecodeNextHops(afi, m.NextHopBytes())
+	// refuse-by-default: guards netip.Addr.IsValid -- an invalid address names failed decoding and cannot be mistaken for a usable next hop
 	if err != nil {
 		return netip.Addr{}
 	}

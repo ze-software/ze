@@ -525,6 +525,10 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	if !isPayloadUnicast(payload) {
 		return true
 	}
+	if privateOTCLeavesPublicAS(dest, payload) {
+		recordDrop(dropPrivateOTC, dest.Address, "")
+		return false
+	}
 
 	srcCfg, _ := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
 	destCfg, destCapRole := getFilterConfig(dest.Address.String(), dest.Name, dest.GroupName)
@@ -695,6 +699,57 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	}
 
 	return true
+}
+
+// privateOTCLeavesPublicAS identifies the Internet-facing boundary from the
+// session's typed facts and a Private Use OTC. It does not infer session kind
+// from ASN equality: a local-AS migration can remain an internal session.
+// RFC 9234 Section 5: "On egress from the Internet-facing AS, the OTC
+// Attribute MUST NOT contain a value other than the Internet-facing ASN."
+// Refusing the route, rather than changing OTC, also preserves Section 5's
+// "Once the OTC Attribute has been set, it MUST be preserved unchanged
+// (this also applies to an AS Confederation)."
+func privateOTCLeavesPublicAS(dest filterapi.PeerFilterInfo, payload []byte) bool {
+	if dest.IsIBGP {
+		return false
+	}
+	if dest.LocalAS == 0 {
+		return false
+	}
+	if dest.PeerAS == 0 {
+		return false
+	}
+	if otcPrivateASN(dest.LocalAS) {
+		return false
+	}
+	if otcPrivateASN(dest.PeerAS) {
+		return false
+	}
+	if !payloadAdvertisesNLRI(payload) {
+		return false
+	}
+	value, present, malformed := findOTC(extractAttrsFromPayload(payload))
+	if !present {
+		return false
+	}
+	if malformed {
+		return false
+	}
+	return otcPrivateASN(value)
+}
+
+// otcPrivateASN tests RFC 6996 Section 5's two inclusive Private Use ranges:
+// 64512 through 65534 and 4200000000 through 4294967294.
+func otcPrivateASN(value uint32) bool {
+	if value >= 64512 {
+		if value <= 65534 {
+			return true
+		}
+	}
+	if value >= 4200000000 {
+		return value <= 4294967294
+	}
+	return false
 }
 
 // otcAttrModHandler is the AttrModHandler for OTC (type 35).

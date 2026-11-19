@@ -58,6 +58,7 @@ func validateLinkLocalNextHopPair(data []byte) *RFC7606ValidationResult {
 		}
 	}
 	hops, err := profile.DecodeNextHops(afi, data[4:4+nhLen])
+	// refuse-by-default: guards ValidateUpdateRFC7606Peer -- known bad widths already reset; an unmodeled field gives this pair-only check no verdict
 	if err != nil {
 		// An unmodeled field has no decoded IPv6 pair. Known width and
 		// envelope errors already have their RFC7606 verdict.

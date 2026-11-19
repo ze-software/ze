@@ -33,6 +33,7 @@ const (
 	dropMalformedOTC                   // OTC length != 4: treat-as-withdraw
 	// Egress: the route is not advertised to this destination peer.
 	dropOTCPresent // route carries OTC and the destination is a Provider/Peer/RS
+	dropPrivateOTC // a Private Use OTC would leave a public AS toward another public AS
 	dropSourceRole // Gao-Rexford: Provider/Peer/RS-learned route toward a Provider/Peer/RS
 	dropExportSet  // operator export policy: destination role not in the export set
 	// dropRoleUnrecorded: the export set excluded this destination, and this
@@ -48,13 +49,14 @@ const (
 	dropReasonCount // sentinel: array length, never a real reason
 )
 
-// Label values. Bounded and compile-time constant, so cardinality is flat: six
+// Label values. Bounded and compile-time constant, so cardinality is flat: seven
 // series per metric, never per-peer. Peer identity belongs in the log line, not
 // in a label (the as112 metrics note gives the same reasoning for client IPs).
 const (
 	reasonLabelLeak           = "leak"
 	reasonLabelMalformedOTC   = "malformed-otc"
 	reasonLabelOTCPresent     = "otc-present"
+	reasonLabelPrivateOTC     = "private-otc"
 	reasonLabelSourceRole     = "source-role"
 	reasonLabelExportSet      = "export-set"
 	reasonLabelRoleUnrecorded = "role-unrecorded"
@@ -64,6 +66,7 @@ var dropReasonLabels = [dropReasonCount]string{
 	dropLeak:           reasonLabelLeak,
 	dropMalformedOTC:   reasonLabelMalformedOTC,
 	dropOTCPresent:     reasonLabelOTCPresent,
+	dropPrivateOTC:     reasonLabelPrivateOTC,
 	dropSourceRole:     reasonLabelSourceRole,
 	dropExportSet:      reasonLabelExportSet,
 	dropRoleUnrecorded: reasonLabelRoleUnrecorded,
