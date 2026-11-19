@@ -3,44 +3,44 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame",
-    "unit-sha": "a04c65a540f317d8",
+    "unit-sha": "e6f14d63643eb23e",
     "claim-sha": "483845944469c318",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
+    "producer-sha": "a27cf1e2ff6f0929",
     "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt",
-    "unit-sha": "a4aaa69c036bc4fb",
+    "unit-sha": "d3e13ee5523b6e07",
     "claim-sha": "c42d540febbf9d28",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
+    "producer-sha": "a27cf1e2ff6f0929",
     "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDWithdrawCarriesTheAnnouncedValue",
-    "unit-sha": "4c42b7999ee06b17",
+    "unit-sha": "512b1fb9a4272f85",
     "claim-sha": "b1f38cf941036479",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
+    "producer-sha": "a27cf1e2ff6f0929",
     "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDsFreedOnRelayedWithdraw",
-    "unit-sha": "524c59239fe9cd11",
+    "unit-sha": "cd6fd6dba71ff59b",
     "claim-sha": "22c7340b50ccf897",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
+    "producer-sha": "a27cf1e2ff6f0929",
     "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -69,23 +69,23 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDFiniteNamespace",
-    "unit-sha": "dc9294d2f591773f",
+    "unit-sha": "0cbb2bf6442d9d6f",
     "claim-sha": "55d7f12184fd4974",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::mintLocked",
     "producer-sha": "fbc69456b83d81e5",
-    "break": "body of mintLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of mintLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDFiniteNamespace",
-    "unit-sha": "dc9294d2f591773f",
+    "unit-sha": "0cbb2bf6442d9d6f",
     "claim-sha": "72782c1aacae797a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::mintLocked",
     "producer-sha": "fbc69456b83d81e5",
-    "break": "body of mintLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of mintLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
@@ -113,12 +113,12 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDStableForEachDestination",
-    "unit-sha": "7ab0c5f4c3927fcc",
+    "unit-sha": "c6514386d1b2cdb5",
     "claim-sha": "cab37148bde5cd45",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a27cf1e2ff6f0929",
+    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
@@ -135,23 +135,23 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go::TestForwardPathIDMPGeneration",
-    "unit-sha": "185308ca86db372e",
+    "unit-sha": "ef9642b12ecc0eba",
     "claim-sha": "6e127fb1c9d37123",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a27cf1e2ff6f0929",
+    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go::TestForwardPathIDMPGeneration",
-    "unit-sha": "185308ca86db372e",
+    "unit-sha": "ef9642b12ecc0eba",
     "claim-sha": "95ee061b9940b3a4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a27cf1e2ff6f0929",
+    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
@@ -168,23 +168,23 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources",
-    "unit-sha": "25f9b6338f43c354",
+    "unit-sha": "2d38fc9771b54f12",
     "claim-sha": "d4009dda7c9d96c0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a27cf1e2ff6f0929",
+    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed",
-    "unit-sha": "407d361c7cb488cc",
+    "unit-sha": "1f69d9c77b711c69",
     "claim-sha": "dd4e365c9e19edec",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::releasePath",
-    "producer-sha": "4f2a19f2e85bf8ba",
-    "break": "body of releasePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "02950b9cce474bdf",
+    "break": "body of releasePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-2-2",

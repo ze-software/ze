@@ -25,23 +25,23 @@
     "rid": "RFC5575-4-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
-    "unit-sha": "c247795a2ec65e7f",
+    "unit-sha": "ab0ca6dd920bbdab",
     "claim-sha": "84ddc6229c7f223b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
     "producer-sha": "d4ad07c1e061d239",
-    "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5575-4-8",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
-    "unit-sha": "c247795a2ec65e7f",
+    "unit-sha": "ab0ca6dd920bbdab",
     "claim-sha": "667a76bd942d8b30",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-    "producer-sha": "b59ad9e10bf3fe7a",
-    "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f845ef09d7592096",
+    "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5575-4-8",

@@ -14,11 +14,11 @@
     "rid": "RFC8955-6-5",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes",
-    "unit-sha": "aa35e4074fcd07f8",
+    "unit-sha": "eb51e425054af4b9",
     "claim-sha": "bc1bf2bc576ef3f2",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "184a3ec3f6b97352",
+    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

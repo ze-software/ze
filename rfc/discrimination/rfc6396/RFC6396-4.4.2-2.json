@@ -3,12 +3,12 @@
     "rid": "RFC6396-4.4.2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis",
-    "unit-sha": "360de3cf4230caec",
+    "unit-sha": "ec8de363f7726739",
     "claim-sha": "8448f0768b0de878",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
     "producer-sha": "d4c65db515532f20",
-    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC6396-4.4.2-2",

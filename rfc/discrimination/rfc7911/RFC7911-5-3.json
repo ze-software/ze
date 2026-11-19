@@ -25,11 +25,11 @@
     "rid": "RFC7911-5-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit",
-    "unit-sha": "ad3fb9eef8bf3332",
+    "unit-sha": "dd6dff9a30c66997",
     "claim-sha": "0e223e5ee4210dd9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-    "producer-sha": "b1884940483a7a78",
-    "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "46b79738a3236d93",
+    "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
