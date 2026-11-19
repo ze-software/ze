@@ -19,18 +19,22 @@ See [BGP Policy](bgp-policy.md) for the filters.
 <!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 
-Set references (`@DstBypass`, `@SrcBypass`) must be defined in the
-`firewall` config section. See [Firewall Guide](firewall.md) for set
-syntax.
+A `@set` reference (for example `@DstBypass`) passes validation but fails
+when the rules are applied: the policy-routing nftables table does not carry
+the sets defined in the `firewall` section, and nftables resolves a set only
+inside its own table. Until policy routing carries those sets, write the
+addresses inline, as the example below does.
+<!-- source: internal/plugins/policyroute/translate.go -- translate -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerMatchInSet -->
 
 ```
 policy {
     route surfprotect {
-        interface "l2tp*";
+        interface "ppp*";
 
         rule bypass-dst {
             from {
-                destination-address @DstBypass;
+                destination-address 192.0.2.0/24;
                 destination-port 80,443;
                 protocol tcp;
             }
@@ -42,7 +46,7 @@ policy {
             from {
                 destination-port 80,443;
                 protocol tcp;
-                source-address @SrcBypass;
+                source-address 198.51.100.80/29;
             }
             then {
                 accept;
@@ -119,7 +123,7 @@ list mixes `eth1` and `ppp*`. A VyOS `l2tp*` match converts to `ppp*`.
 ```
 policy {
     route example {
-        interface "l2tp*";
+        interface "ppp*";
         interface eth1;
         ...
     }
@@ -157,8 +161,8 @@ listed.
 
 | Keyword | Description | Example |
 |---------|-------------|---------|
-| `source-address` | Source IP prefix or `@set` reference | `10.0.0.0/8`, `@AllowedSrc` |
-| `destination-address` | Destination IP prefix or `@set` reference | `0.0.0.0/0`, `@DstBypass` |
+| `source-address` | Source IP prefix (a `@set` reference fails at apply today) | `10.0.0.0/8` |
+| `destination-address` | Destination IP prefix (a `@set` reference fails at apply today) | `0.0.0.0/0` |
 | `source-port` | Source port or port range | `1024-65535` |
 | `destination-port` | Destination port, range, or list | `80,443` |
 | `protocol` | L4 protocol name | `tcp`, `udp`, `icmp`, `icmpv6`, `gre`, `esp`, `ah`, `ospf`, `vrrp`, `sctp` |
