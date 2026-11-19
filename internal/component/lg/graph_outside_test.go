@@ -182,9 +182,53 @@ func TestNextHopGraphKeepsAnAddressThatIsNoPeer(t *testing.T) {
 	}
 }
 
+// VALIDATES: an external peer with no `remote-as` (a dynamic peer whose OPEN
+// has not arrived, which the engine writes without the field) refuses nothing:
+// the next-hop graph and the trace are drawn as without it, the AS of each
+// known external peer is drawn, and the AS-less peer's address is nowhere.
+// PREVENTS: one host of a dynamic range that opens TCP and holds back its OPEN
+// taking the next-hop graph down with a 503 for every reader.
+func TestNextHopGraphLeavesOutAPeerWithNoASYet(t *testing.T) {
+	const pending = "192.0.2.77"
+	engine := lgGraphTwoExits()
+	engine.summary = strings.TrimSuffix(engine.summary, "]}") +
+		`,{"address":"` + pending + `","name":"dynamic","description":"","group":"dyn",` +
+		`"peer-type":"external","state":"active","connections-dropped":0}]}`
+
+	want := "mode nexthop\n" +
+		"node 198.51.100.4 layer=2\n" +
+		"node 198.51.100.3 layer=1\n" +
+		"node 198.51.100.1 layer=0 egress\n" +
+		"node 198.51.100.2 layer=0 egress\n" +
+		"node AS65101 layer=0 outside\n" +
+		"node AS65102 layer=0 outside\n" +
+		"edge 198.51.100.3 -> 198.51.100.1\n" +
+		"edge 198.51.100.4 -> 198.51.100.3\n"
+	if got := outsideTestAnswer(t, engine, "&mode=nexthop&format=text"); got != want {
+		t.Errorf("text =\n%s\nwant\n%s", got, want)
+	}
+
+	answers := map[string]string{
+		"next-hop drawing": outsideTestAnswer(t, engine, "&mode=nexthop"),
+		"trace text":       outsideTestAnswer(t, engine, "&mode=trace&format=text"),
+		"trace drawing":    outsideTestAnswer(t, engine, "&mode=trace"),
+	}
+	for _, as := range []string{"AS65101", "AS65102"} {
+		if !strings.Contains(answers["next-hop drawing"], as) {
+			t.Errorf("the next-hop drawing does not hold the known outside %s", as)
+		}
+	}
+	for name, answer := range answers {
+		if strings.Contains(answer, pending) {
+			t.Errorf("the %s holds the address of the peer whose AS is not yet known:\n%s", name, answer)
+		}
+	}
+}
+
 // VALIDATES: the next-hop mode refuses what the trace mode refuses: a failed
 // summary with the failure's status, and a summary that cannot say which peers
-// are outside the AS (no peer-type, or an external peer with no AS).
+// are outside the AS (no peer-type, an external peer with no address, or an
+// external peer whose remote-as is present but is no AS).
 // PREVENTS: a graph that silently draws the outside by address again because
 // the summary could not be read.
 func TestNextHopGraphModeRefusals(t *testing.T) {
@@ -211,8 +255,14 @@ func TestNextHopGraphModeRefusals(t *testing.T) {
 			`{"router-id":"10.0.0.1","local-as":0,"peers":[{"address":"198.51.100.1","remote-as":65000}]}`,
 			"peer-type",
 		},
-		"an external peer carries no AS": {
-			`{"router-id":"10.0.0.1","local-as":0,"peers":[{"address":"203.0.113.1","peer-type":"external"}]}`,
+		// An external peer with no `remote-as` at all is no refusal: see
+		// TestNextHopGraphLeavesOutAPeerWithNoASYet.
+		"an external peer carries a remote-as that is no AS": {
+			`{"router-id":"10.0.0.1","local-as":0,"peers":[{"address":"203.0.113.1","remote-as":"sixty-five","peer-type":"external"}]}`,
+			"no readable remote-as",
+		},
+		"an external peer carries a null remote-as": {
+			`{"router-id":"10.0.0.1","local-as":0,"peers":[{"address":"203.0.113.1","remote-as":null,"peer-type":"external"}]}`,
 			"no readable remote-as",
 		},
 		"an external peer carries no address": {

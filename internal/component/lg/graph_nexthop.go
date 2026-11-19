@@ -36,8 +36,10 @@ type nextHopOutside struct {
 // `peer-type`, which the engine derives from the session's own local AS.
 //
 // A summary that cannot say so is refused: with a peer whose type, address or
-// AS cannot be read, the graph would draw an outside peer as an address, as if
-// it were a router of the AS.
+// present `remote-as` cannot be read, the graph would draw an outside peer as
+// an address, as if it were a router of the AS. An external peer with no
+// `remote-as` at all is a dynamic peer whose OPEN has not arrived: its AS is
+// not yet known, it has sent no route, and it is left out of the set.
 func nextHopOutsideFrom(summary map[string]any) (nextHopOutside, error) {
 	asByAddress := make(map[netip.Addr]uint32)
 	for _, entry := range summaryPeers(summary) {
@@ -62,6 +64,16 @@ func nextHopOutsideFrom(summary map[string]any) (nextHopOutside, error) {
 		if err != nil {
 			return nextHopOutside{}, fmt.Errorf("%w: peer address %q is not an IP address",
 				errNextHopSummary, peerAddress(peer))
+		}
+		// AS not yet known: a dynamic peer is in the summary from its TCP
+		// accept, typed external, and the engine leaves `remote-as` out until
+		// its OPEN names the AS (setRemoteAS, bgp/plugins/cmd/peer/peer.go).
+		// Such a peer has sent no route, so it is left out of the outside set:
+		// an address a row names that is no known outside peer stays an
+		// address, and nothing is derived for it. A `remote-as` that is
+		// present but unreadable, `null` included, is still refused below.
+		if _, hasAS := peer[fieldRemoteAS]; !hasAS {
+			continue
 		}
 		number, isReadable := asn.FromJSON(getVal(peer, fieldRemoteAS))
 		if !isReadable {

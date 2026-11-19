@@ -1411,7 +1411,8 @@ of addresses alone keeps the bytes it had before the rule.
 | Request | Answer |
 |---------|--------|
 | The RIB query or the summary failed | `engineRefusal`, with the failure's status |
-| The summary does not say which peers are outside the AS (a row with no `peer-type` or another value, an `external` row with no readable address or `remote-as`) | 503 with `nextHopSummaryRefusal`, which names `ze show bgp`. The graph is never drawn with every node as an address instead: that would show a neighbour as if it were a router of the AS |
+| The summary does not say which peers are outside the AS (a row with no `peer-type` or another value, an `external` row with no readable address, an `external` row whose `remote-as` is present but unreadable) | 503 with `nextHopSummaryRefusal`, which names `ze show bgp`. The graph is never drawn with every node as an address instead: that would show a neighbour as if it were a router of the AS |
+| An `external` row with no `remote-as` at all: a dynamic peer whose OPEN has not arrived, which `setRemoteAS` writes without the field | No refusal. Its AS is not yet known and it has sent no route, so `nextHopOutsideFrom` leaves it out of the outside set; an address a row names that is no known outside peer stays an address, as for any address of no peer |
 
 <!-- source: internal/component/lg/graph_nexthop.go -- nextHopOutsideFrom, buildNextHopGraph, renderNextHopGraphText -->
 <!-- source: internal/component/lg/handler_graph.go -- handleNextHopGraph, nextHopSummaryRefusal -->
