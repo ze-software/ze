@@ -81,7 +81,7 @@ test/l2tp/session-clear-leaves-no-subscriber.ci that still names teardownSession
 6. Claude server: the six CQM Linux guest causal checks; `TestTickEnqueuesRecoveredKernelSetup`;
    the unchanged `l2tp-many-sessions-kl2tpd` lab (AC-9) with 93ff938cdb, 668a254aec and
    54fce2e657 in; the interop rerun.
-7. Absorb or close plan/release/fixes/spec-radius-acct-start-after-stop.md against 93ff938cdb.
+7. Absorb or close spec-radius-acct-start-after-stop against 93ff938cdb (since closed: met by 93ff938cdb and 938cf958c1, its 2026-11-12 journal row fixed).
 8. Scoped lint for l2tp root, cmd, cos, web, metrics; review gate; closure (commit A, commit B).
 
 ## Environment

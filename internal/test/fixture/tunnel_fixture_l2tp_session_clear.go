@@ -38,8 +38,10 @@ import (
 const sessionClearDelay = 250 * time.Millisecond
 
 // sessionClearWaitShare is the share of the test's budget one wait may take,
-// in percent. The peer waits five times, so the five together stay under the
-// budget and a stall ends with this peer's message naming what never came.
+// in percent. The peer waits five times (the Start, the listed session, the
+// active subscriber, the Stop and the CDN), so the five together stay under
+// the budget and a stall ends with this peer's message naming what never
+// came.
 const sessionClearWaitShare = 15
 
 // tunnelTerminateCauseAdminReset is RFC 2866 Section 5.10 value 6, "Admin
@@ -60,7 +62,10 @@ const tunnelL2TPAVPAssignedSessionID = 14
 // view the clear must empty, has the operator clear it over the CLI, and then
 // reads each view again with no wait: the clear runs every reader of the
 // session-down before it answers (the captured Teardown delivers before it sends
-// the CDN and returns), so the state the answer leaves is the end state.
+// the CDN and returns), so the state the answer leaves is the end state. The
+// one exception is the Accounting-Stop: the accounting reader hands it to the
+// session's accounting task and returns, so checkClearedAccounting waits for
+// it.
 //
 // Arguments: <l2tp-port> [id | user | address]. The optional form names how
 // the operator selects the session, by session ID when absent. The CLI takes
@@ -110,7 +115,7 @@ func tunnelL2TPSessionClear(ctx context.Context, args []string) error {
 	if err := clearL2TPSession(ctx, form, peer.zeSID, address); err != nil {
 		return err
 	}
-	if err := checkClearedAccounting(acctSessionID); err != nil {
+	if err := link.checkClearedAccounting(ctx, acctSessionID); err != nil {
 		return err
 	}
 	if err := checkNoL2TPSession(ctx); err != nil {
@@ -304,10 +309,10 @@ func (link *sessionClearLink) await(ctx context.Context, what string, probe func
 }
 
 // awaitAccountingStart waits for the Accounting-Start of the session at the
-// RADIUS server and answers its Acct-Session-Id. Accounting starts on its own
-// goroutine after the address is published, so the Start being at the
-// server, before the clear is issued, is this test's precondition: it takes
-// the Start-after-Stop race out of what is asserted.
+// RADIUS server and answers its Acct-Session-Id. The session's accounting task
+// sends the Start after the address is published, so the Start being at the
+// server before the clear is issued is this test's precondition: the clear
+// then ends a session whose accounting record is open.
 func (link *sessionClearLink) awaitAccountingStart(ctx context.Context) (string, error) {
 	var start accountingRecord
 	err := link.await(ctx, "an Accounting-Start at the RADIUS server", func() error {
@@ -436,21 +441,37 @@ func clearL2TPSession(ctx context.Context, form string, sid uint16, address neti
 	return fmt.Errorf("`ze cli -c %s` answered %s, not a session-teardown of session %d with status sent", command, describeJSON(answer), sid)
 }
 
-// checkClearedAccounting reads, once and right after the clear answered,
-// every accounting record the RADIUS server received. The session must hold
+// checkClearedAccounting waits, within one wait's share of the budget, for an
+// Accounting-Stop to reach the RADIUS server, because the session's
+// accounting task sends it after the clear's session-down returned. It then
+// judges every accounting record of that same read. The session must hold
 // exactly one Start and one Stop under the one Acct-Session-Id, and no record
 // of any other session may exist: this run carries one session, so a second
 // Acct-Session-Id is an accounting session a late event started after the
 // teardown. Interim-Updates are not counted; the config asks for none.
 //
-// The order of the two records on the wire is not asserted. The Start is sent
-// from the accounting task's goroutine and the Stop at once on teardown, so
-// for a teardown right after the address the Stop can reach the server first
-// (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12, owned by
-// plan/release/fixes/spec-radius-acct-start-after-stop.md). Here the Start was
-// seen at the server before the clear was issued, so the race cannot occur.
-func checkClearedAccounting(acctSessionID string) error {
-	records, err := readAccountingRecords()
+// The order of the two records on the wire is not asserted here. The
+// session's one accounting task (runAccounting in
+// internal/component/l2tp/plugins/authradius/acct.go) sends the Start, then
+// the Stop, and TestAccountingDownReturnsWhileStartAwaitsRadius and
+// TestTeardownDuringIPAssignedLeavesNoAccountingSession prove that order
+// (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12). Here the
+// Start was seen at the server before the clear was issued in any case.
+func (link *sessionClearLink) checkClearedAccounting(ctx context.Context, acctSessionID string) error {
+	var records []accountingRecord
+	err := link.await(ctx, "an Accounting-Stop at the RADIUS server after the clear", func() error {
+		read, err := readAccountingRecords()
+		if err != nil {
+			return err
+		}
+		for _, record := range read {
+			if record.status == accountingStatusStop {
+				records = read
+				return nil
+			}
+		}
+		return fmt.Errorf("%d accounting records, none a Stop", len(read))
+	})
 	if err != nil {
 		return err
 	}
