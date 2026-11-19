@@ -538,7 +538,8 @@ func TestSAInfoReadsOptionsBackFromKernelFlags(t *testing.T) {
 
 // TestSAInfoReadsDirectionOnlyFromKernel pins SAInfo.Dir to the XFRMA_SA_DIR the
 // dump carries: in and out map to SADirIn and SADirOut, and a state without the
-// attribute (every state Ze installs) maps to the zero SADir, never to a direction
+// attribute (Ze's shared RFC 4552 states, another program's, a pre-6.10 kernel's)
+// maps to the zero SADir, never to a direction
 // derived from its addresses or flags. Method: one state per attribute value, the
 // absent one carrying the outbound-only NOPMTUDISC flag, so a derivation from the
 // flags is red.

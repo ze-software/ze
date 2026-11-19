@@ -540,14 +540,18 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 
 	// Inbound SA: remote sends to us, keyed with the peer's send-direction keys.
 	inbound := dataplane.SAParams{
-		SPI:       child.InboundSPI,
-		Src:       child.RemoteAddr,
-		Dst:       child.LocalAddr,
-		Dir:       dataplane.SADirIn,
-		IfID:      child.IfID,
-		Proto:     protoESP,
-		Mode:      mode,
-		ReqID:     child.ReqID,
+		SPI:   child.InboundSPI,
+		Src:   child.RemoteAddr,
+		Dst:   child.LocalAddr,
+		Dir:   dataplane.SADirIn,
+		IfID:  child.IfID,
+		Proto: protoESP,
+		Mode:  mode,
+		ReqID: child.ReqID,
+		// RFC 4301 Section 4.4.2.1: "Anti-Replay Window: a 64-bit counter and a bit-map
+		// (or equivalent) used to determine whether an inbound AH or ESP packet is a
+		// replay." The window rides on the state that receives, and the outbound state
+		// below carries none.
 		ReplayWin: replayWindow,
 		EncAlgo:   encAlgo,
 		EncKey:    inEnc,
@@ -680,22 +684,21 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 
 	// Outbound SA: we send to remote, keyed with our send-direction keys.
 	outbound := dataplane.SAParams{
-		SPI:       child.OutboundSPI,
-		Src:       child.LocalAddr,
-		Dst:       child.RemoteAddr,
-		Dir:       dataplane.SADirOut,
-		IfID:      child.IfID,
-		Proto:     protoESP,
-		Mode:      mode,
-		ReqID:     child.ReqID,
-		ReplayWin: replayWindow,
-		EncAlgo:   encAlgo,
-		EncKey:    outEnc,
-		AuthAlgo:  authAlgo,
-		AuthKey:   outInteg,
-		IsAEAD:    isAEAD,
-		Scope:     outboundScope,
-		Sel:       outboundSelector,
+		SPI:      child.OutboundSPI,
+		Src:      child.LocalAddr,
+		Dst:      child.RemoteAddr,
+		Dir:      dataplane.SADirOut,
+		IfID:     child.IfID,
+		Proto:    protoESP,
+		Mode:     mode,
+		ReqID:    child.ReqID,
+		EncAlgo:  encAlgo,
+		EncKey:   outEnc,
+		AuthAlgo: authAlgo,
+		AuthKey:  outInteg,
+		IsAEAD:   isAEAD,
+		Scope:    outboundScope,
+		Sel:      outboundSelector,
 	}
 	// RFC 4301 Section 8.1: the encapsulator applies the configured DF treatment to the
 	// tunnel header it emits. A transport-mode SA emits none, so it keeps the default.

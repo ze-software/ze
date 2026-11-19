@@ -1180,7 +1180,7 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Traffic selectors | IPv4 and IPv6 CIDR prefixes, an optional IP protocol, and an optional single port. See Traffic selectors and narrowing below |
 | Encapsulation | Tunnel mode by default; `mode transport` negotiates transport mode per RFC 7296 Section 1.3.1 |
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
-| Replay protection | Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default |
+| Replay protection | Anti-replay window on the inbound SA, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default; the outbound SA carries none |
 | Lifetime | Time-based rekeying, from the ESP group's `lifetime` in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met |
 | Policy order | `policy-priority` ranks this peer's SPD entries, lower first. See SPD ordering below |
 | DF bit | `df-bit copy` (default), `clear` or `set`: what the tunnel header carries in its DF bit. See DF bit of the tunnel header below |
@@ -2877,8 +2877,11 @@ cannot read them back sets `options-known: false` and the three keys to null.
 An SA row's `direction` is `in` or `out` only when the kernel recorded one for the state
 (its `XFRMA_SA_DIR` attribute), and `unknown` otherwise. A known direction nulls the
 options that side cannot carry: an `in` row shows `df-bit` and `dscp-map` as null, an `out`
-row shows `icmp-error-check` as null. Ze installs its states without a direction, so its own
-rows read `unknown` and show all three options as the kernel holds them.
+row shows `icmp-error-check` as null. Ze installs each IKE Child SA state with its direction,
+so those rows read `in` or `out`. The OSPFv3 multicast states serve both directions and read
+`unknown`, as does a state another program installed without a direction, and every state on a
+kernel older than 6.10; such a row shows all three options as the kernel holds them. The
+replay window shows on the `in` row only: the outbound state carries none.
 
 Each policy row carries `icmp-error-return` (`true` or `false`): whether the kernel may send
 an outbound ICMP error that no SA and no entry carries through the SA this entry resolves to,

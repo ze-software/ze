@@ -277,22 +277,28 @@ type SASelector struct {
 
 // SAParams describes an ESP Security Association to install in the kernel or VPP.
 type SAParams struct {
-	SPI       uint32
-	Src       net.IP
-	Dst       net.IP
-	IfID      uint32
-	Proto     uint8 // ProtoESP (50) or ProtoAH (51)
-	Mode      uint8 // ModeTransport (1) or ModeTunnel (2)
-	ReqID     uint32
+	SPI   uint32
+	Src   net.IP
+	Dst   net.IP
+	IfID  uint32
+	Proto uint8 // ProtoESP (50) or ProtoAH (51)
+	Mode  uint8 // ModeTransport (1) or ModeTunnel (2)
+	ReqID uint32
+	// ReplayWin is the anti-replay window, in packets, of the state that receives; zero
+	// disables anti-replay. RFC 4301 Section 4.4.2.1 defines the window for an inbound
+	// packet, so an SADirOut state carries none and the XFRM backend refuses one.
 	ReplayWin uint8
 
 	// Dir names the direction this SA carries traffic in. SADirIn is the state that
 	// DECRYPTS what the peer sends. SADirOut is the state that encrypts what we send.
 	//
-	// Linux XFRM does not take it, and that is the kernel's shape rather than an
-	// omission. XFRM_MSG_NEWSA carries no direction. xfrmStateFromParams
-	// (xfrm_linux.go) therefore builds a directionless state. The kernel resolves it
-	// inbound by (daddr, spi, proto), and outbound through the policy template.
+	// Linux XFRM takes it as the XFRMA_SA_DIR attribute (Linux 6.10 and later), which
+	// xfrmStateFromParams (xfrm_linux.go) sends for SADirIn and SADirOut. The kernel
+	// still resolves the state inbound by (daddr, spi, proto) and outbound through the
+	// policy template. The direction makes it refuse the options of the other side (a
+	// replay window or the ICMP flag on an outbound state, DF clear or a DSCP rewrite on
+	// an inbound one) and lets a dump report the side back. An older kernel ignores the
+	// attribute and installs the state without a direction.
 	//
 	// VPP does take it. ipsec_sad_entry_v3 carries IPSEC_API_SAD_FLAG_IS_INBOUND. An SA
 	// that is not flagged inbound is never selected for inbound processing, so the
@@ -648,9 +654,11 @@ type SAInfo struct {
 	// Dir is the direction the dataplane itself records for the SA: SADirIn or
 	// SADirOut from the kernel's XFRMA_SA_DIR attribute. The zero value means the
 	// dataplane holds no direction, which is the answer for every state installed
-	// without that attribute, Ze's own included: the kernel then stores none
-	// (x->dir stays 0), and neither the addresses nor the flags say which side an
-	// SA carries. A renderer reads zero as unknown and never derives a direction.
+	// without that attribute: Ze's shared RFC 4552 OSPFv3 multicast states, a state
+	// another program installed, and any state on a kernel older than 6.10. The
+	// kernel then stores none (x->dir stays 0), and neither the addresses nor the
+	// flags say which side an SA carries. A renderer reads zero as unknown and never
+	// derives a direction.
 	Dir SADir
 }
 

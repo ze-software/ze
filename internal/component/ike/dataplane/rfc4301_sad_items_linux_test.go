@@ -62,11 +62,12 @@ func TestRFC4301SADItemSequenceCounterIsThe32BitCounterNegotiated(t *testing.T) 
 }
 
 // TestRFC4301SADItemAntiReplayWindowIsInstalled proves the SAD entry carries the
-// anti-replay window Ze was given. Method: build SAs with two window sizes.
+// anti-replay window Ze was given. Method: build inbound SAs with two window sizes; the
+// window belongs to the state that receives (RFC 4301 Section 4.4.2.1).
 func TestRFC4301SADItemAntiReplayWindowIsInstalled(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.2.1-6 positive -- the SAD entry carries the anti-replay window size Ze was given, 32 or 64.
 	for _, window := range []uint8{32, 64} {
-		params := boundarySA(0x1000)
+		params := boundaryInboundSA(0x1000)
 		params.ReplayWin = window
 		state, err := xfrmStateFromParams(params)
 		if err != nil {

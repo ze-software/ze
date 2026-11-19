@@ -602,7 +602,11 @@ func pmtuInstall(t *testing.T, n *pmtuNet, local, remote net.IP, outSPI, inSPI u
 	for i := range states {
 		p := &states[i]
 		p.Proto, p.Mode = ProtoESP, ModeTunnel
-		p.IfID, p.ReqID, p.ReplayWin = n.ifID, pmtuReqID, 32
+		p.IfID, p.ReqID = n.ifID, pmtuReqID
+		// The anti-replay window rides on the receiving state alone.
+		if p.Dir == SADirIn {
+			p.ReplayWin = 32
+		}
 		p.EncAlgo, p.EncKey, p.IsAEAD = "aes256gcm", encapTestAEADKey, true
 		if err := b.InstallSA(*p); err != nil {
 			t.Fatalf("install SA spi=%#x %s -> %s: %v", p.SPI, p.Src, p.Dst, err)

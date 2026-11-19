@@ -690,6 +690,13 @@ func vppSAFlags(p SAParams) ipsec_types.IpsecSadFlags {
 	// ipsec_sad_entry_v3 carries no window SIZE, so p.ReplayWin selects anti-replay on
 	// or off and VPP applies its own window. ipsec_sad_entry_v4 adds
 	// anti_replay_window_size and go.fd.io/govpp v0.13.0 does not generate it.
+	//
+	// An outbound SA carries no window (SAParams.ReplayWin), so it carries no flag, and
+	// that costs the sender nothing. RFC 4303 Section 3.3.3: "the sender checks to ensure
+	// that the counter has not cycled before inserting the new value in the Sequence
+	// Number field." VPP v26.06 does that on every outbound SA: esp_seq_advance
+	// (src/vnet/ipsec/esp.h) refuses the cycle whatever the flag, and esp_encrypt drops
+	// the packet with ESP_ENCRYPT_ERROR_SEQ_CYCLED. The flag is read on inbound only.
 	if p.ReplayWin > 0 {
 		flags |= ipsec_types.IPSEC_API_SAD_FLAG_USE_ANTI_REPLAY
 	}

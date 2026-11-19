@@ -169,11 +169,16 @@ func transportOutputInstall(t *testing.T, lab *espPolLab, ns netns.NsHandle,
 	params := dataplane.SAParams{
 		SPI: transportOutputSPI, Src: source.IP, Dst: target.IP, Dir: direction,
 		Proto: dataplane.ProtoESP, Mode: dataplane.ModeTransport,
-		ReqID: transportOutputSPI, ReplayWin: 32,
+		ReqID:   transportOutputSPI,
 		EncAlgo: "aes256gcm", EncKey: key, IsAEAD: true,
 		Sel: &dataplane.SASelector{Src: source, Dst: target, UpperProto: 0,
 			SrcPort: dataplane.AnyPortMatch(), DstPort: dataplane.AnyPortMatch()},
 		Scope: nil,
+	}
+	// The anti-replay window rides on the receiving state alone: the XFRM backend
+	// refuses one on an outbound state, as Linux does.
+	if direction == dataplane.SADirIn {
+		params.ReplayWin = 32
 	}
 	if err := backend.InstallSA(params); err != nil {
 		t.Fatalf("install the legacy transport output state: %v", err)

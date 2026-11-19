@@ -20,20 +20,31 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// boundarySA is the outbound tunnel-mode SA the boundary tests build. It carries no
+// anti-replay window: the window belongs to the inbound state (boundaryInboundSA).
 func boundarySA(spi uint32) SAParams {
 	return SAParams{
-		SPI:       spi,
-		Src:       net.ParseIP("192.0.2.1"),
-		Dst:       net.ParseIP("198.51.100.1"),
-		Proto:     ProtoESP,
-		Mode:      ModeTunnel,
-		Dir:       SADirOut,
-		ReplayWin: 64,
-		EncAlgo:   "aes256",
-		AuthAlgo:  "sha256",
-		EncKey:    make([]byte, 32),
-		AuthKey:   make([]byte, 32),
+		SPI:      spi,
+		Src:      net.ParseIP("192.0.2.1"),
+		Dst:      net.ParseIP("198.51.100.1"),
+		Proto:    ProtoESP,
+		Mode:     ModeTunnel,
+		Dir:      SADirOut,
+		EncAlgo:  "aes256",
+		AuthAlgo: "sha256",
+		EncKey:   make([]byte, 32),
+		AuthKey:  make([]byte, 32),
 	}
+}
+
+// boundaryInboundSA is boundarySA as the state that receives, with the 64-packet
+// anti-replay window Ze negotiates. The window rides on the inbound state alone:
+// xfrmStateFromParams refuses one on an outbound state, as Linux does.
+func boundaryInboundSA(spi uint32) SAParams {
+	p := boundarySA(spi)
+	p.Dir = SADirIn
+	p.ReplayWin = 64
+	return p
 }
 
 func boundaryPolicy(t *testing.T, mode uint8, dir SADir, port PortMatch) SPParams {
@@ -70,7 +81,7 @@ func boundaryPolicy(t *testing.T, mode uint8, dir SADir, port PortMatch) SPParam
 // RFC requirement: RFC4301-4.1-9 positive -- two SAs with the same selector and different SPIs build two distinct SAD entries, each carrying its own SPI.
 // RFC requirement: RFC4301-4.4.2.1-6 positive -- the SAD entry carries the anti-replay window Ze was given, 64.
 func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
-	first, err := xfrmStateFromParams(boundarySA(0x1000))
+	first, err := xfrmStateFromParams(boundaryInboundSA(0x1000))
 	if err != nil {
 		t.Fatalf("xfrmStateFromParams: %v", err)
 	}
@@ -96,7 +107,7 @@ func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 		t.Errorf("key lengths crypt=%d auth=%d, want 32 and 32", len(first.Crypt.Key), len(first.Auth.Key))
 	}
 
-	second, err := xfrmStateFromParams(boundarySA(0x2000))
+	second, err := xfrmStateFromParams(boundaryInboundSA(0x2000))
 	if err != nil {
 		t.Fatalf("xfrmStateFromParams second: %v", err)
 	}

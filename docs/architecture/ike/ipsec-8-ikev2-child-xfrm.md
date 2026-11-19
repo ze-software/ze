@@ -706,7 +706,27 @@ SAD data item Ze installs is asserted one item at a time in
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, narrowChildSelectorsIn, oneTransportPair, recordInitiatorSelectors, recordInitiatorSelectorsIn, answerSelectors, answerPairs, rangePrefixes, crossPairs, closedSubset, pairsToWire -->
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- adoptAuthResponseNegotiation -->
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmSADirFromParams -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppSAFlags -->
+
+**Every SA Ze installs for one direction carries that direction in the kernel.**
+`SAParams.Dir` reaches the kernel as `XFRMA_SA_DIR` (Linux 6.10 and later; Ze's
+kernel is 7.3), so `show vpn ipsec sa` reports the direction the kernel enforces
+rather than the engine's belief, and the kernel drops a packet that meets an SA
+of the wrong direction. A state Ze uses in both directions (the RFC 4552 OSPFv3
+wildcard SA) keeps the zero `Dir` and is installed without one, and an older
+kernel ignores the attribute and reads back no direction. An outbound SA
+carries no anti-replay window: RFC 4301 Section 4.4.2.1 defines the window as
+"used to determine whether an inbound AH or ESP packet is a replay", and
+`verify_newsa_info` (`net/xfrm/xfrm_user.c`) refuses "Replay window should be 0
+for output SA". `xfrmStateFromParams` refuses that shape before the kernel, as
+a Ze defect, and so does a `Dir` of `SADirFwd`, which names a policy and never a
+state. The other flags the kernel refuses per direction already ride one side
+only: the ICMP error check on the inbound state, DF and outer DSCP on the
+outbound one. On VPP the outbound SA, with no window, carries no
+`USE_ANTI_REPLAY` flag, and the sender loses nothing: VPP v26.06 refuses a
+cycled sequence counter on every outbound SA whatever the flag (`esp_seq_advance`,
+`src/vnet/ipsec/esp.h`), which is the sender's check RFC 4303 Section 3.3.3 names.
 
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
 `resolveIfID` reads the if_id of that xfrm interface through the iface component

@@ -196,7 +196,25 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 		Reqid: int(p.ReqID),
 		Ifid:  int(p.IfID),
 	}
+	// RFC 4301 Section 4.1
+	sadir, err := xfrmSADirFromParams(p)
+	if err != nil {
+		return nil, err
+	}
+	state.SADir = sadir
+	// RFC 4301 Section 4.4.2.1: "Anti-Replay Window: a 64-bit counter and a bit-map (or
+	// equivalent) used to determine whether an inbound AH or ESP packet is a replay."
+	// The window belongs to the state that receives. Linux agrees: verify_newsa_info
+	// (net/xfrm/xfrm_user.c) refuses a nonzero replay_window on a state flagged
+	// XFRM_SA_DIR_OUT ("Replay window should be 0 for output SA"). A zero-Dir state
+	// keeps its window, because it is also the state that verifies (RFC 4552 Section 7).
 	if p.ReplayWin > 0 {
+		if p.Dir == SADirOut {
+			// Only a Ze defect reaches this: no config sets the window per direction.
+			return nil, fmt.Errorf("xfrm: state add spi=%d: BUG: an anti-replay window of %d is set on an outbound SA, and the window belongs to the inbound SA only; "+
+				"the code that built this SAParams must set ReplayWin on the inbound state alone, as engine/child.go does, so report this as a Ze defect",
+				p.SPI, p.ReplayWin)
+		}
 		state.ReplayWindow = int(p.ReplayWin)
 	}
 	// RFC 4301 Section 4.4.2.1: "Sequence Counter Overflow: a flag indicating whether
@@ -340,6 +358,39 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	state.DontEncapDSCP = dontEncapDSCP
 
 	return state, nil
+}
+
+// xfrmSADirFromParams maps the direction Ze gave the SA onto the XFRMA_SA_DIR attribute,
+// so the kernel records the side each state carries and a dump reports it back
+// (saDirFromKernel). Linux 6.10 added the attribute; an older kernel parses XFRM
+// messages liberally (nlmsg_parse_deprecated) and skips a type above its XFRMA_MAX, so
+// it installs the state without a direction.
+//
+// RFC 4301 Section 4.1: "To secure typical, bi-directional communication
+// between two IPsec-enabled systems, a pair of SAs (one in each
+// direction) is required."
+//
+// The zero Dir is a guard, and it stays unset: it is the one state that serves both
+// directions, the RFC 4552 Section 7 OSPFv3 multicast SA (plugins/ospf/ipsec_install.go,
+// buildIPsecSA). A state flagged either way would refuse the other side's traffic
+// (xfrm_input and xfrm_output count a direction mismatch and drop the packet).
+func xfrmSADirFromParams(p SAParams) (netlink.SADir, error) {
+	switch p.Dir {
+	case 0:
+		return 0, nil
+	case SADirIn:
+		return netlink.XFRM_SA_DIR_IN, nil
+	case SADirOut:
+		return netlink.XFRM_SA_DIR_OUT, nil
+	case SADirFwd:
+		// Forwarding is a policy direction. XFRMA_SA_DIR names in and out only, and no
+		// SAParams producer sets it.
+		return 0, fmt.Errorf("xfrm: state add spi=%d: BUG: an SA carries the forward direction, which names a policy and never a state; "+
+			"the code that built this SAParams must set SADirIn or SADirOut, or leave Dir unset for a state shared by both directions, so report this as a Ze defect",
+			p.SPI)
+	}
+	return 0, fmt.Errorf("xfrm: state add spi=%d: BUG: direction %d is none of SADirIn (%d) and SADirOut (%d); report this as a Ze defect",
+		p.SPI, p.Dir, SADirIn, SADirOut)
 }
 
 // xfrmDontEncapDSCP projects the SA's outer DSCP treatment onto the one DSCP primitive

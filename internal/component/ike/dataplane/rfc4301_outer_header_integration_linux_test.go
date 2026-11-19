@@ -194,12 +194,13 @@ func readOuterHeader(t *testing.T, fd int, spi uint32, index int) outerHeader {
 	return outerHeader{}
 }
 
-// outerHdrSA is the outbound IPv4-in-IPv4 tunnel-mode SA the wire tests install.
+// outerHdrSA is the outbound IPv4-in-IPv4 tunnel-mode SA the wire tests install. It
+// carries no anti-replay window, which belongs to the inbound state alone.
 func outerHdrSA() SAParams {
 	return SAParams{
 		SPI: outerHdrSPI, Src: net.ParseIP("192.0.2.81"), Dst: net.ParseIP("192.0.2.82"),
 		Dir: SADirOut, Proto: ProtoESP, Mode: ModeTunnel,
-		IfID: crossFamilyIfID, ReqID: crossFamilyReqID, ReplayWin: 32,
+		IfID: crossFamilyIfID, ReqID: crossFamilyReqID,
 		EncAlgo: "aes256gcm", EncKey: encapTestAEADKey, IsAEAD: true,
 	}
 }

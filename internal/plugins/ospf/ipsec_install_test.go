@@ -474,6 +474,34 @@ func TestIPsecSAReplayWindow(t *testing.T) {
 	}
 }
 
+// TestIPsecSAReplayWindowOnlyOnTheReceivingSA checks that the configured window rides on
+// the states that receive and never on the per-neighbor outbound one. Method: build one SA
+// per direction from an interface configuring replay-window 64. The XFRM backend refuses
+// a window on an SADirOut state, so a window there would leave every neighbor unprotected.
+func TestIPsecSAReplayWindowOnlyOnTheReceivingSA(t *testing.T) {
+	c := ipsecInterfaceConfig{
+		SPI: 256, Protocol: ipsecProtoAH, AuthAlgo: "sha256", AuthKey: hexKey(32), ReplayWindow: 64,
+	}
+	cases := []struct {
+		dir  dataplane.SADir
+		want uint8
+	}{
+		{ipsecSharedDir, 64},
+		{dataplane.SADirIn, 64},
+		{dataplane.SADirOut, 0},
+	}
+	for _, tc := range cases {
+		sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, tc.dir, c)
+		if sa.Dir != tc.dir {
+			t.Errorf("SA Dir = %d, want %d", sa.Dir, tc.dir)
+		}
+		if sa.ReplayWin != tc.want {
+			t.Errorf("direction %d SA ReplayWin = %d, want %d: the anti-replay window is the receiver's (RFC 4301 Section 4.4.2.1)",
+				tc.dir, sa.ReplayWin, tc.want)
+		}
+	}
+}
+
 // warnLines answers the lines of a text log written at WARN.
 func warnLines(log string) []string {
 	var found []string

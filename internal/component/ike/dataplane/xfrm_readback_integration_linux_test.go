@@ -127,6 +127,91 @@ func TestXFRMReadbackShowsInstalledSA(t *testing.T) {
 	}
 }
 
+// TestXFRMReadbackReportsTheDirectionZeInstalled proves the kernel records the side Ze
+// gave each state, and that each side keeps only its own options. Method: install an
+// inbound state with a 64-packet window and the ICMP error payload check, an outbound
+// tunnel state with DF clear and a fixed outer DSCP of 0 and no window, and a state
+// with no direction; read all three back from the dump. On a kernel older than 6.10
+// the attribute is ignored, both directions read back as 0, and this test is red.
+func TestXFRMReadbackReportsTheDirectionZeInstalled(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	b := &xfrmBackend{}
+	local := net.ParseIP("10.88.0.1")
+	remote := net.ParseIP("10.88.0.2")
+	const inSPI, outSPI, sharedSPI uint32 = 0x5ead0101, 0x5ead0102, 0x5ead0103
+	outerDSCP, err := FixedOuterDSCP(0)
+	if err != nil {
+		t.Fatalf("FixedOuterDSCP(0): %v", err)
+	}
+	sa := func(spi uint32, src, dst net.IP, dir SADir) SAParams {
+		return SAParams{
+			SPI: spi, Src: src, Dst: dst, Dir: dir, Proto: ProtoESP, Mode: ModeTunnel,
+			ReqID: readbackReqID, EncAlgo: "aes256", EncKey: make([]byte, 32),
+			AuthAlgo: "sha256", AuthKey: make([]byte, 32),
+		}
+	}
+	inbound := sa(inSPI, remote, local, SADirIn)
+	inbound.ReplayWin, inbound.ICMPErrorCheck = 64, true
+	outbound := sa(outSPI, local, remote, SADirOut)
+	outbound.DF, outbound.OuterDSCP = DFClear, outerDSCP
+	shared := sa(sharedSPI, local, remote, 0)
+	shared.ReplayWin = 32
+	for _, p := range []SAParams{inbound, outbound, shared} {
+		if err := b.InstallSA(p); err != nil {
+			t.Fatalf("InstallSA spi=%#x dir %d: %v", p.SPI, p.Dir, err)
+		}
+		t.Cleanup(func() { _ = b.RemoveSA(p.SPI, p.Dst, ProtoESP) })
+	}
+
+	in := findSA(t, b, inSPI)
+	out := findSA(t, b, outSPI)
+	both := findSA(t, b, sharedSPI)
+	if in == nil || out == nil || both == nil {
+		t.Fatalf("installed states missing from the dump: in %v, out %v, shared %v", in, out, both)
+	}
+	if in.Dir == 0 && out.Dir == 0 {
+		var name unix.Utsname
+		release := "unknown"
+		if unix.Uname(&name) == nil {
+			release = unix.ByteSliceToString(name.Release[:])
+		}
+		t.Fatalf("neither state reads back a direction on kernel %s: Linux before 6.10 ignores XFRMA_SA_DIR; "+
+			"run this test on Linux 6.10 or later, such as Ze's runtime kernel (internal/appliance/kernel.version)", release)
+	}
+	if in.Dir != SADirIn {
+		t.Errorf("inbound Dir = %d, want SADirIn (%d)", in.Dir, SADirIn)
+	}
+	if out.Dir != SADirOut {
+		t.Errorf("outbound Dir = %d, want SADirOut (%d)", out.Dir, SADirOut)
+	}
+	if both.Dir != 0 {
+		t.Errorf("shared Dir = %d, want 0: a state serving both directions carries none", both.Dir)
+	}
+	// RFC 4301 Section 4.4.2.1: the window is the receiver's.
+	if in.ReplayWindow != 64 {
+		t.Errorf("inbound ReplayWindow = %d, want 64", in.ReplayWindow)
+	}
+	if out.ReplayWindow != 0 {
+		t.Errorf("outbound ReplayWindow = %d, want 0", out.ReplayWindow)
+	}
+	if both.ReplayWindow != 32 {
+		t.Errorf("shared ReplayWindow = %d, want 32", both.ReplayWindow)
+	}
+	if !in.OptionsRead || !out.OptionsRead {
+		t.Fatalf("options not read back: inbound %t, outbound %t", in.OptionsRead, out.OptionsRead)
+	}
+	if !in.Options.ICMPErrorCheck || in.Options.DF != DFCopy || in.Options.OuterDSCP != OuterDSCPCopy {
+		t.Errorf("inbound options = {DF %s, DSCP %s, ICMP %t}, want {copy, copy, true}",
+			in.Options.DF, in.Options.OuterDSCP, in.Options.ICMPErrorCheck)
+	}
+	if out.Options.ICMPErrorCheck || out.Options.DF != DFClear || out.Options.OuterDSCP != outerDSCP {
+		t.Errorf("outbound options = {DF %s, DSCP %s, ICMP %t}, want {clear, 0, false}",
+			out.Options.DF, out.Options.OuterDSCP, out.Options.ICMPErrorCheck)
+	}
+}
+
 // TestXFRMReadbackIfIDFilter proves the filter argument against a real dump.
 func TestXFRMReadbackIfIDFilter(t *testing.T) {
 	if !userns.Enter(t) {

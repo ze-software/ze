@@ -177,10 +177,12 @@ installed with a direction, `unknown` otherwise. When the direction is known,
 the side that cannot carry an option renders it null rather than its zero
 value: an `in` row has `df-bit` and `dscp-map` null, an `out` row has
 `icmp-error-check` null. With `unknown`, every option is shown as read, since
-guessing the side would hide a flag the kernel holds. Ze installs its own
-states without `XFRMA_SA_DIR`, so every row for a Ze SA reads `unknown` today
-and shows all three options; only a state another daemon installed with a
-direction reads `in` or `out`. No direction is derived from addresses or
+guessing the side would hide a flag the kernel holds. Ze installs each Child
+SA state with its direction (`xfrmStateFromParams` maps `SAParams.Dir` to
+`XFRMA_SA_DIR`), so its rows read `in` or `out`. A row reads `unknown` for the
+RFC 4552 OSPFv3 multicast states, which serve both directions and carry none,
+for a state another program installed without one, and on a kernel older than
+6.10, which ignores the attribute. No direction is derived from addresses or
 policies.
 
 The policy row carries `icmp-error-return`, the RFC 4301 Section 6.2 mapping of

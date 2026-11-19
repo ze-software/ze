@@ -63,9 +63,12 @@ This path is Linux-only.
   Zero is the default because RFC 4302 §5 says a compliant implementation SHOULD NOT
   provide anti-replay with a manually keyed SA, and every SA on this path is manually
   keyed. A non-zero window is 32 to 255: 32 is the RFC minimum, and 255 is the width of
-  `dataplane.SAParams.ReplayWin`.
+  `dataplane.SAParams.ReplayWin`. The window rides on the states that receive: the
+  two multicast states and the local-unicast one. The per-neighbor outbound state
+  carries none (`ipsecReplayWindowFor`), because the XFRM backend and Linux refuse a
+  window on a state flagged outbound.
   <!-- source: internal/plugins/ospf/config_ipsec.go -- validateIPsecReplayWindow -->
-  <!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA -->
+  <!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA, ipsecReplayWindowFor -->
   `TestIPsecInstallerXFRMReplayWindow` parses and validates the operator's leaf,
   installs the AH states, and reads every multicast and local-unicast state's
   replay window from Linux XFRM: 64 when enabled, zero when explicitly disabled

@@ -331,10 +331,11 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 }
 
 // RFC requirement: RFC4303-3.4.3-1 positive -- the production IKE Child SA path
-// installs both inbound and outbound ESP SAs with a 64-packet anti-replay window,
-// which exceeds the RFC 4303 Section 3.4.3 minimum supported window of 32 packets.
+// installs the inbound ESP SA with a 64-packet anti-replay window, which exceeds the
+// RFC 4303 Section 3.4.3 minimum supported window of 32 packets, and the outbound ESP
+// SA with none, because the window is the receiver's (RFC 4301 Section 4.4.2.1).
 // RFC requirement: RFC4303-3.4.3-4 positive -- the production IKE Child SA path uses
-// the preferred 64-packet default from RFC 4303 Section 3.4.3.
+// the preferred 64-packet default from RFC 4303 Section 3.4.3 on the inbound SA.
 func TestChildSAReplayWindowDefault(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
@@ -346,13 +347,18 @@ func TestChildSAReplayWindowDefault(t *testing.T) {
 	if len(dp.sas) != 2 {
 		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
 	}
-	for _, s := range []struct {
-		label string
-		p     dataplane.SAParams
-	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
-		if s.p.ReplayWin != 64 {
-			t.Errorf("%s SA ReplayWin = %d, want 64 (RFC 4303 Section 3.4.3 preferred default; minimum 32)", s.label, s.p.ReplayWin)
-		}
+	inbound, outbound := dp.sas[0], dp.sas[1]
+	if inbound.Dir != dataplane.SADirIn || outbound.Dir != dataplane.SADirOut {
+		t.Fatalf("SA directions = %d, %d, want inbound (%d) then outbound (%d)",
+			inbound.Dir, outbound.Dir, dataplane.SADirIn, dataplane.SADirOut)
+	}
+	if inbound.ReplayWin != 64 {
+		t.Errorf("inbound SA ReplayWin = %d, want 64 (RFC 4303 Section 3.4.3 preferred default; minimum 32)", inbound.ReplayWin)
+	}
+	// Linux refuses a window on a state flagged XFRM_SA_DIR_OUT, and the XFRM backend
+	// refuses it before the kernel, so a window here fails every Child SA install.
+	if outbound.ReplayWin != 0 {
+		t.Errorf("outbound SA ReplayWin = %d, want 0: the anti-replay window is the receiver's (RFC 4301 Section 4.4.2.1)", outbound.ReplayWin)
 	}
 }
 

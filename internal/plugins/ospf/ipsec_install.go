@@ -783,8 +783,23 @@ func buildIPsecSA(ifindex int, dst netip.Addr, dir dataplane.SADir, c ipsecInter
 		// because this path is manually keyed and RFC 4302 §5 says a compliant
 		// implementation SHOULD NOT provide anti-replay with a manually keyed SA.
 		// validateIPsecReplayWindow has already proven the value is 0 or 32..255.
-		ReplayWin: uint8(c.ReplayWindow),
+		ReplayWin: ipsecReplayWindowFor(dir, c),
 	}
+}
+
+// ipsecReplayWindowFor is the anti-replay window of one OSPF SA. The receiver owns the
+// window, so the per-neighbor outbound state carries none, whatever the leaf says:
+// the XFRM backend refuses a window on an SADirOut state, as Linux does. The inbound
+// unicast state and the two shared multicast states verify what neighbors send, so
+// they carry the configured window.
+//
+// RFC 4301 Section 4.4.2.1: "Anti-Replay Window: a 64-bit counter and a bit-map (or
+// equivalent) used to determine whether an inbound AH or ESP packet is a replay."
+func ipsecReplayWindowFor(dir dataplane.SADir, c ipsecInterfaceConfig) uint8 {
+	if dir == dataplane.SADirOut {
+		return 0
+	}
+	return uint8(c.ReplayWindow)
 }
 
 // buildIPsecPolicies builds the out/in/fwd transport-mode policies with the OSPF proto-89
