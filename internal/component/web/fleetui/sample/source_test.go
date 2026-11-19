@@ -296,3 +296,21 @@ func TestSampleClockAdvances(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, clock, connected.Latest.At, "a connected device's last sample follows the clock")
 }
+
+// TestSampleAnswersEveryConsoleSuggestion runs each command the console tab
+// suggests on a healthy sample device.
+//
+// VALIDATES: every suggestion of fleetui.ConsoleSuggestions is a command the
+// sample answers with output.
+// PREVENTS: a console tab whose suggested commands each answer "unknown
+// command" in the prototype.
+func TestSampleAnswersEveryConsoleSuggestion(t *testing.T) {
+	source := newTestEstate(t)
+	ctx := t.Context()
+
+	for _, command := range fleetui.ConsoleSuggestions() {
+		answer, err := source.Console(ctx, deviceEdgeLon01, actorThomas, command)
+		require.NoError(t, err, command)
+		assert.NotEmpty(t, answer.Output, command)
+	}
+}

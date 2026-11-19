@@ -335,15 +335,9 @@
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-4);
-  background: var(--bg-secondary);
+  background: var(--fleet-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-}
-
-[data-theme="light"] .fleet-card,
-[data-theme="light"] .fleet-panel-card,
-[data-theme="light"] .fleet-section {
-  background: var(--bg-primary);
 }
 
 .fleet-card-head {
@@ -424,6 +418,20 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-secondary);
+}
+
+/* A caption holds one line, so the figures of a row keep one baseline. */
+.fleet-figures--columns .fleet-figure-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-figures--columns .fleet-figure {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .fleet-figure-value {
@@ -631,13 +639,29 @@
 .fleet-usage-percent {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
+/* A thin bar and its percentage on one line: the bar takes the room the
+ * figure leaves, and never less than 3rem; the figure never wraps. */
 .fleet-usage-mini {
   display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
-  min-width: 6rem;
+  min-width: 7rem;
+  white-space: nowrap;
+}
+
+.fleet-usage-mini .fleet-usage-track {
+  flex: 1 1 4rem;
+  min-width: 3rem;
+}
+
+.fleet-usage-mini .fleet-usage-percent {
+  flex: none;
+  min-width: 4ch;
+  text-align: right;
 }
 
 .fleet-usage-group {
@@ -752,7 +776,7 @@
   gap: var(--space-3);
   margin: var(--space-3);
   padding: var(--space-4);
-  background: var(--bg-secondary);
+  background: var(--fleet-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -932,12 +956,8 @@
   padding: 0 var(--space-2);
   white-space: nowrap;
   text-align: right;
-  background: var(--bg-secondary);
+  background: var(--fleet-card);
   border-left: 1px solid var(--accent);
-}
-
-[data-theme="light"] .fleet-table-controls {
-  background: var(--bg-primary);
 }
 
 .fleet-table-controls > * {
@@ -989,11 +1009,14 @@
   margin-left: auto;
 }
 
+/* The row's own actions hold one line; what does not fit is in the menu. */
 .fleet-panel-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
+  white-space: nowrap;
 }
 
 .fleet-panel-card {
@@ -1042,9 +1065,11 @@
 }
 
 .fleet-kv-label {
+  flex: none;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .fleet-kv-value {
@@ -1055,6 +1080,27 @@
   margin: 0;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
+}
+
+/* A usage value takes the room its label leaves: label, bar and figure on
+ * one line. */
+.fleet-kv-value:has(.fleet-usage-mini) {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.fleet-kv-value .fleet-usage-mini {
+  flex: 1 1 auto;
+  max-width: 13rem;
+}
+
+/* A value drawn across the row, its label hidden: the card's title names it. */
+.fleet-kv-row--whole {
+  justify-content: flex-start;
+}
+
+.fleet-kv-row--whole .fleet-cell-tags {
+  flex-wrap: wrap;
 }
 
 .fleet-quick-info {
@@ -1508,6 +1554,10 @@
   border-bottom: 1px solid var(--border);
 }
 
+.fleet-alarm-row:hover {
+  background: var(--bg-surface);
+}
+
 .fleet-alarm-summary {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1637,19 +1687,33 @@
   overflow-wrap: anywhere;
 }
 
-.fleet-diff-row--added .fleet-diff-text--right {
-  color: var(--diff-add-text);
+/* A changed, added or removed line carries its band across both columns and
+ * the gutters, as a commit diff does, so the eye finds it from either side. */
+.fleet-diff-row--added > td {
   background: var(--diff-add);
 }
 
-.fleet-diff-row--removed .fleet-diff-text--left {
-  color: var(--diff-del-text);
+.fleet-diff-row--added .fleet-diff-text,
+.fleet-diff-row--added .fleet-diff-mark {
+  color: var(--diff-add-text);
+}
+
+.fleet-diff-row--removed > td {
   background: var(--diff-del);
 }
 
-.fleet-diff-row--changed .fleet-diff-text {
-  color: var(--diff-change-text);
+.fleet-diff-row--removed .fleet-diff-text,
+.fleet-diff-row--removed .fleet-diff-mark {
+  color: var(--diff-del-text);
+}
+
+.fleet-diff-row--changed > td {
   background: var(--diff-change);
+}
+
+.fleet-diff-row--changed .fleet-diff-text,
+.fleet-diff-row--changed .fleet-diff-mark {
+  color: var(--diff-change-text);
 }
 
 /* --- Gallery: the states page --- */

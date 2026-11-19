@@ -186,28 +186,28 @@ const (
 
 var roleTable = [roleCount]roleFacts{
 	roleEdge: {
-		label: "edge", model: "ZX-4800 (sample)", group: groupEdge, template: templateEdge,
+		label: "edge", model: "ZX-4800", group: groupEdge, template: templateEdge,
 		kernel: kernelRouter, localAS: asBackbone, cores: 16,
 		memoryBytes: 64 * gibibyte, storageBytes: 480 * gibibyte,
 		cpuBase: 24, memoryBase: 46, storageBase: 31,
 		trafficPeakBps: 6.4 * gigabit, historyBytes: 3 * mebibyte,
 	},
 	roleCore: {
-		label: "core", model: "ZX-9600 (sample)", group: groupCore, template: templateNone,
+		label: "core", model: "ZX-9600", group: groupCore, template: templateNone,
 		kernel: kernelRouter, localAS: asBackbone, cores: 32,
 		memoryBytes: 128 * gibibyte, storageBytes: 960 * gibibyte,
 		cpuBase: 31, memoryBase: 58, storageBase: 27,
 		trafficPeakBps: 18 * gigabit, historyBytes: 4 * mebibyte,
 	},
 	roleRouteServer: {
-		label: "route-server", model: "ZV-200 virtual (sample)", group: groupRS, template: templateNone,
+		label: "route-server", model: "ZV-200 virtual", group: groupRS, template: templateNone,
 		kernel: kernelRouter, localAS: asBackbone, cores: 8,
 		memoryBytes: 32 * gibibyte, storageBytes: 120 * gibibyte,
 		cpuBase: 12, memoryBase: 63, storageBase: 18,
 		trafficPeakBps: 40 * megabit, historyBytes: 2 * mebibyte,
 	},
 	roleCPE: {
-		label: "customer-premises", model: "ZC-110 (sample)", group: groupCPE, template: templateCPE,
+		label: "customer-premises", model: "ZC-110", group: groupCPE, template: templateCPE,
 		kernel: kernelEdge, localAS: asCustomer, cores: 4,
 		memoryBytes: 4 * gibibyte, storageBytes: 32 * gibibyte,
 		cpuBase: 9, memoryBase: 38, storageBase: 44,

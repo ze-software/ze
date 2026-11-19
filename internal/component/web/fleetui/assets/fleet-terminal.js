@@ -154,4 +154,17 @@
     event.preventDefault();
     recall(terminal, field, event.key === 'ArrowUp' ? -1 : 1);
   });
+
+  // A suggestion writes its command into the command line it controls, for
+  // the operator to read and send.
+  document.addEventListener('click', function(event) {
+    var button = event.target.closest ? event.target.closest('[data-terminal-fill]') : null;
+    if (!button) return;
+
+    var field = document.getElementById(button.getAttribute('aria-controls') || '');
+    if (!field) return;
+
+    field.value = button.getAttribute('data-terminal-fill') || '';
+    field.focus();
+  });
 })();

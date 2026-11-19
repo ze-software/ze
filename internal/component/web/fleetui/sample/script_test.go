@@ -213,3 +213,65 @@ func TestSampleScriptRunsOnItsTimer(t *testing.T) {
 	_, err = source.Step()
 	require.Error(t, err, "a closed source refuses to step")
 }
+
+// openOfflineAlarm answers the open device-offline alarm of the device, or
+// false.
+func openOfflineAlarm(t *testing.T, source *estate, device string) (fleetui.Alarm, bool) {
+	t.Helper()
+
+	alarms, err := source.Alarms(t.Context())
+	require.NoError(t, err)
+
+	for at := range alarms {
+		if alarms[at].Device == device && alarms[at].Kind == alarmDeviceOffline {
+			return alarms[at], true
+		}
+	}
+
+	return fleetui.Alarm{}, false
+}
+
+// TestSampleScriptOfflineAlarmFollowsTheDevice steps the script through one
+// outage of its device.
+//
+// VALIDATES: the script device's critical device-offline alarm opens when
+// the script takes it offline and clears, into its history, when the script
+// brings it back, as the estate's own offline devices each have one open.
+// PREVENTS: a device the page shows offline with no offline alarm, and an
+// offline alarm left open on a device that came back.
+func TestSampleScriptOfflineAlarmFollowsTheDevice(t *testing.T) {
+	source := newTestEstate(t)
+	var stepper Stepper = source
+
+	_, open := openOfflineAlarm(t, source, scriptDevice)
+	assert.False(t, open, "the script device starts online")
+
+	changes := 0
+	for range scriptSteps {
+		event, err := stepper.Step()
+		require.NoError(t, err)
+		if event.Kind != fleetui.EventDeviceChanged {
+			continue
+		}
+
+		changes++
+		alarm, opened := openOfflineAlarm(t, source, scriptDevice)
+		if changes == 1 {
+			require.True(t, opened, "the alarm opens with the outage")
+			assert.Equal(t, fleetui.AlarmSeverityCritical, alarm.Severity)
+			assert.Equal(t, event.At, alarm.Since)
+
+			continue
+		}
+
+		assert.False(t, opened, "the alarm clears when the device comes back")
+
+		history, historyErr := source.AlarmHistory(t.Context(), scriptDevice)
+		require.NoError(t, historyErr)
+		require.NotEmpty(t, history)
+		assert.Equal(t, alarmDeviceOffline, history[0].Kind)
+		assert.True(t, history[0].Cleared)
+	}
+
+	assert.Equal(t, 2, changes, "one round takes the device offline and brings it back")
+}

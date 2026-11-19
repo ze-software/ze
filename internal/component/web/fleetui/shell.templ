@@ -41,6 +41,11 @@ templ Shell(view ShellView, content templ.Component, side templ.Component) {
 			<title>{ view.Main.Title }</title>
 			<link rel="stylesheet" href="/fleet/assets/fleet-shell.css"/>
 			<link rel="stylesheet" href="/fleet/assets/fleet-components.css"/>
+			<link rel="stylesheet" href="/fleet/assets/fleet-devices.css"/>
+			<link rel="stylesheet" href="/fleet/assets/fleet-dashboard.css"/>
+			<link rel="stylesheet" href="/fleet/assets/fleet-device.css"/>
+			<link rel="stylesheet" href="/fleet/assets/fleet-activity.css"/>
+			<link rel="stylesheet" href="/fleet/assets/fleet-manage.css"/>
 			<link rel="stylesheet" href="/assets/uPlot.min.css"/>
 			<script src="/fleet/assets/fleet-theme.js"></script>
 			<script src="/assets/htmx.min.js" defer></script>
@@ -91,6 +96,9 @@ templ shellHeader(view HeaderView) {
 		</button>
 		<a class="fleet-product" href="/fleet/">Ze Fleet</a>
 		<span class="fleet-hub-name">{ view.EstateName }</span>
+		if view.Sample {
+			<span class="fleet-sample-tag" title="This estate is invented: no real device is shown or changed">Sample data</span>
+		}
 		<div class="fleet-search" role="search">
 			<input type="search" class="fleet-search-field" id="fleet-search" name="search" placeholder="Search devices and pages" aria-label="Search devices and pages" aria-controls="fleet-search-results" aria-expanded="false" autocomplete="off" role="combobox" data-fleet-fragment={ view.SearchURL }/>
 			<span class="fleet-field-icon">
@@ -205,10 +213,12 @@ templ staleBanner() {
 }
 
 // objectRegion renders what names the object the page shows: its header, the
-// breadcrumb and the tab row.
+// breadcrumb when the object is not the estate, and the tab row.
 templ objectRegion(view MainView) {
 	@objectHeader(view.Object)
-	@breadcrumb(view.Crumbs)
+	if len(view.Crumbs) > 0 {
+		@breadcrumb(view.Crumbs)
+	}
 	if len(view.Tabs) > 0 {
 		@tabRow(view)
 	}

@@ -70,6 +70,10 @@ var templRe = regexp.MustCompile(`(?m)^templ\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
 // renderable units with the templ keyword rather than with {{define}}.
 const templExt = ".templ"
 
+// goExt is the Go source suffix. A directory that holds a file carrying it is
+// a Go package.
+const goExt = ".go"
+
 // Variant is one data set a template renders with. A template with a branch
 // gets one variant per branch, so the captured bytes cover the branch body and
 // not only the markup around it.
@@ -127,7 +131,9 @@ type Set struct {
 	Dir string
 	// Ext keeps the walk to files carrying one suffix. It is empty for an FS
 	// that holds nothing but templates. Set it for a templ source tree. That
-	// tree lives beside the package's Go files, not in a directory of its own.
+	// tree lives beside the package's Go files, not in a directory of its own,
+	// so with Ext set the walk stops at a directory below Dir that is another
+	// Go package: see Files.
 	Ext string
 	// Spec is the capture plan for that tree.
 	Spec Spec
@@ -138,6 +144,23 @@ type Set struct {
 // Files walks the template tree and returns every file it holds, sorted. The
 // walk is the authority on which templates exist, so a template added later is
 // covered without an edit to the spec.
+//
+// Two kinds of directory are outside the tree, with everything under them.
+//
+// A directory named testdata holds fixtures, and the go tool excludes it from
+// every walk of its own. A template in there belongs to a test, not to the
+// package's rendered surface, and the captured fixtures live under it too.
+//
+// With Ext set, a directory below Dir that holds a Go source file is another
+// Go package. The tree is then read from the package directory, and templ
+// compiles a source into the package of the directory it sits in. The
+// components of a nested package are that package's symbols: this package's
+// spec cannot name them and its capture cannot render them, so demanding them
+// here is a finding no edit to the spec can clear. The nested package owes a
+// Set of its own. A directory below Dir that holds no Go source file is not a
+// package, and its sources stay in this tree, so a template placed there is
+// still demanded. With Ext empty the FS holds nothing but templates, and every
+// directory but testdata is part of the tree.
 func (s Set) Files(t *testing.T) []string {
 	t.Helper()
 
@@ -148,12 +171,25 @@ func (s Set) Files(t *testing.T) []string {
 			return err
 		}
 
-		// A directory named testdata holds fixtures, and the go tool excludes it
-		// from every walk of its own. A template in there belongs to a test, not
-		// to the package's rendered surface, and the captured fixtures live
-		// under it too.
 		if d.IsDir() {
 			if d.Name() == "testdata" {
+				return fs.SkipDir
+			}
+
+			if s.Ext == "" {
+				return nil
+			}
+
+			if p == s.Dir {
+				return nil
+			}
+
+			nested, readErr := holdsGoSource(s.FS, p)
+			if readErr != nil {
+				return readErr
+			}
+
+			if nested {
 				return fs.SkipDir
 			}
 
@@ -177,6 +213,29 @@ func (s Set) Files(t *testing.T) []string {
 	}
 
 	return files
+}
+
+// holdsGoSource reports whether dir itself holds a Go source file, which is
+// what makes it a Go package. It reads dir alone and no directory under it. A
+// directory that cannot be read is an error, never "not a package": that
+// answer would put another package's sources into this tree.
+func holdsGoSource(fsys fs.FS, dir string) (bool, error) {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return false, fmt.Errorf("read %s: %w", dir, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if strings.HasSuffix(entry.Name(), goExt) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // AssertCoversFS fails when the spec and the FS disagree, naming every template

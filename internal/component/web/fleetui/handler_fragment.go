@@ -13,6 +13,8 @@ package fleetui
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -115,6 +117,40 @@ func (handler *fleetHandler) serveFragment(w http.ResponseWriter, r *http.Reques
 	renderAnswer(ctx, w, http.StatusOK, component)
 }
 
+// jsonData is a fragment answer that is data rather than markup: the
+// fragment handler serves it as JSON, which a script reads with
+// fetch().json().
+type jsonData interface {
+	templ.Component
+	// answersJSON marks the answer; it does nothing.
+	answersJSON()
+}
+
+// jsonAnswer is the jsonData of one value. Its Render writes the value as
+// JSON.
+type jsonAnswer[T any] struct {
+	data T
+}
+
+func (jsonAnswer[T]) answersJSON() {}
+
+// Render writes the value as JSON.
+func (answer jsonAnswer[T]) Render(_ context.Context, w io.Writer) error {
+	body, err := json.Marshal(answer.data)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(body)
+
+	return err
+}
+
+// fragmentJSON answers data as a fragment that is served as JSON under
+// application/json, for a fragment a script reads rather than swaps.
+func fragmentJSON[T any](data T) templ.Component {
+	return jsonAnswer[T]{data: data}
+}
+
 // objectFragment answers the object header, the breadcrumb and the tab row
 // of the page.
 func objectFragment(_ context.Context, request *PageRequest, _ string) (templ.Component, error) {
@@ -150,8 +186,8 @@ func panelFragment(ctx context.Context, request *PageRequest, _ string) (templ.C
 // tasksFragment answers the task panel: as a page first draws it for an
 // empty item, and shown on the tab the item names otherwise. The answer is
 // the whole panel, which replaces the one on the page.
-func tasksFragment(_ context.Context, request *PageRequest, item string) (templ.Component, error) {
-	view, err := taskPanelItem(request, item)
+func tasksFragment(ctx context.Context, request *PageRequest, item string) (templ.Component, error) {
+	view, err := taskPanelItem(ctx, request, item)
 	if err != nil {
 		return nil, err
 	}

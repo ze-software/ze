@@ -32,7 +32,13 @@ import (
 // of its own. Never edit another family's function. Two families naming the
 // same file fail the test.
 var fleetGoldenParts = []func(t *testing.T) golden.Spec{
-	goldenSpecShell, // shell.templ, tree.templ, search.templ: golden_shell_test.go
+	goldenSpecShell,      // shell.templ, tree.templ, search.templ: golden_shell_test.go
+	goldenSpecComponents, // component_*.templ, icons.templ: golden_components_test.go
+	goldenSpecDevices,    // page_devices.templ: golden_devices_test.go
+	goldenSpecDashboard,  // page_dashboard.templ: golden_dashboard_test.go
+	goldenSpecDevice,     // page_device.templ: golden_device_test.go
+	goldenSpecActivity,   // page_activity.templ: golden_activity_test.go
+	goldenSpecManage,     // page_config.templ, page_rollouts.templ, page_admin.templ: golden_manage_test.go
 }
 
 // fleetGoldenSpecVar is what a coverage failure tells the reader to edit.

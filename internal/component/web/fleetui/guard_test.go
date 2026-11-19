@@ -27,8 +27,11 @@ const (
 	shellComponentCount = 21
 	// sharedComponentCount is icons.templ and every component_*.templ.
 	sharedComponentCount = 82
-	// pageComponentCount is every page_*.templ.
-	pageComponentCount = 0
+	// pageComponentCount is every page_*.templ: page_devices.templ (1),
+	// page_dashboard.templ (13), page_device.templ (5), page_activity.templ
+	// (5), page_config.templ (6), page_rollouts.templ (4) and
+	// page_admin.templ (2).
+	pageComponentCount = 36
 
 	fleetComponentCount = shellComponentCount + sharedComponentCount + pageComponentCount
 )
@@ -46,8 +49,8 @@ var fleetMarkupFloors = markupcheck.Floors{Literals: 20, Exempt: 0}
 const fleetTemplFileFloor = 3
 
 // fleetAssetRefFloor is the fewest asset references the asset walk must
-// resolve: the three stylesheets and the seven scripts of the shell's head.
-const fleetAssetRefFloor = 10
+// resolve: the eight stylesheets and the seven scripts of the shell's head.
+const fleetAssetRefFloor = 15
 
 // webAssetsPath is the prefix the web package serves its embedded assets at,
 // and webAssetsDir is the directory it embeds them from, seen from this

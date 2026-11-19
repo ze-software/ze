@@ -41,6 +41,9 @@ const (
 	EventsPath = fleetPath + "events"
 	// fragmentSegment is the first path segment of every fragment address.
 	fragmentSegment = "fragment"
+	// actionSegment is the first path segment of every prototype action
+	// address.
+	actionSegment = "action"
 	// groupSeparator separates the key of a group segment from its value.
 	groupSeparator = "="
 )
@@ -55,6 +58,7 @@ const (
 	paramRange    = "range"
 	paramTreeView = "view"
 	paramItem     = "item"
+	paramSub      = "sub"
 )
 
 // ErrAddressUnknown means an address names no page of the fleet interface. A
@@ -145,6 +149,10 @@ type ViewParams struct {
 	// TreeView names the tree view. ParseViewParams answers TreeViewDefault
 	// for an address that names none.
 	TreeView string
+	// Sub names a part of the tab: a sub-tab, or a view the tab opens in
+	// place of its default one. ParseViewParams does not judge it: the page
+	// does, and an empty Sub is the tab's default.
+	Sub string
 }
 
 // ChartRange is the period the charts of a dashboard show. The zero value is
@@ -486,6 +494,7 @@ func ParseViewParams(query url.Values) ViewParams {
 		Row:      query.Get(paramRow),
 		Range:    ParseChartRange(query.Get(paramRange)),
 		TreeView: treeViewParam(query),
+		Sub:      query.Get(paramSub),
 	}
 }
 
@@ -527,6 +536,9 @@ func (view ViewParams) Query() url.Values {
 	}
 	if view.treeViewChosen() {
 		query.Set(paramTreeView, view.TreeView)
+	}
+	if view.Sub != "" {
+		query.Set(paramSub, view.Sub)
 	}
 
 	return query
@@ -579,6 +591,27 @@ type FragmentAddress struct {
 // fragment's, or whose page part names no page, wraps ErrAddressUnknown. It
 // does not judge the name: the handler that owns the fragments does.
 func ParseFragment(target *url.URL) (FragmentAddress, error) {
+	return parseNamedPart(target, fragmentSegment)
+}
+
+// ParseAction reads the address of a prototype action, which has the shape
+// of a fragment's under actionSegment: /fleet/action/<name>/<page path>. The
+// name is the action's, and Item is unused.
+func ParseAction(target *url.URL) (FragmentAddress, error) {
+	return parseNamedPart(target, actionSegment)
+}
+
+// ActionAddress answers the address the form of the action registered under
+// name posts to, for the page at address.
+func ActionAddress(name string, address Address) string {
+	path := fleetPath + actionSegment + "/" + escapeSegment(name) + "/" + address.objectPath()
+
+	return withQuery(path, address.View.Query())
+}
+
+// parseNamedPart reads an address whose first segment is segment, whose
+// second names a registered part, and whose rest is a page's path.
+func parseNamedPart(target *url.URL, segment string) (FragmentAddress, error) {
 	escaped := target.EscapedPath()
 
 	segments, held := pathSegments(escaped)
@@ -590,7 +623,7 @@ func ParseFragment(target *url.URL) (FragmentAddress, error) {
 	if len(segments) < 3 {
 		return FragmentAddress{}, addressUnknown(escaped)
 	}
-	if segments[0] != fragmentSegment {
+	if segments[0] != segment {
 		return FragmentAddress{}, addressUnknown(escaped)
 	}
 

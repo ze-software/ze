@@ -1,0 +1,45 @@
+/* Design: docs/architecture/fleet-interface.md -- the layout of the activity pages
+ * Related: ../page_activity.templ -- the markup these rules lay out
+ *
+ * The task and alarm tables are the components' own table stack and need no
+ * rule here. What is the activity family's own is the row of prototype
+ * controls of the states page, and the empty forms the action controls of a
+ * task's side panel submit. Colours are theme variables and every gap is a
+ * spacing variable, as for every fleet stylesheet.
+ */
+
+.fleet-activity-states {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fleet-activity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.fleet-activity-caption {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fleet-activity-form {
+  display: contents;
+}
+
+.fleet-activity-event {
+  color: var(--text-secondary);
+}
+
+.fleet-activity-note {
+  color: var(--text-secondary);
+  margin: 0;
+  padding: var(--space-3) 0;
+}

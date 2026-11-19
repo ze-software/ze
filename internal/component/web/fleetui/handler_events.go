@@ -20,10 +20,14 @@ package fleetui
 import (
 	"context"
 	"errors"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+
+	"github.com/a-h/templ"
 
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -452,10 +456,21 @@ type Stepper interface {
 const holdAnswer = "held\n"
 
 // newHoldHandler answers POST /fleet/prototype/hold: it takes the script of
-// stepper away from its timer, and changes nothing of the estate.
+// stepper away from its timer, and changes nothing of the estate. Asked by
+// htmx, from the states page, it answers the line and a toast saying so.
 func newHoldHandler(stepper Stepper) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stepper.Hold()
+
+		if r.Header.Get(headerHTMXRequest) == htmxTrue {
+			renderAnswer(r.Context(), w, http.StatusOK, scriptAnswer(holdAnswer, ToastView{
+				Level:   ToastInformational,
+				Message: "The sample script is held.",
+				Detail:  "The estate changes only when Step is pressed, one event at a time.",
+			}))
+
+			return
+		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
@@ -467,7 +482,7 @@ func newHoldHandler(stepper Stepper) http.Handler {
 // of stepper by one event and names the event it published, as its kind and
 // the device it is about, on one line.
 func newStepHandler(stepper Stepper) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		event, err := stepper.Step()
 		if err != nil {
 			answerRefusal(w, err, http.StatusServiceUnavailable)
@@ -479,8 +494,34 @@ func newStepHandler(stepper Stepper) http.Handler {
 			answer.Byte(' ').Str(event.Device)
 		}
 
+		// Asked by htmx, from the states page, the line goes in the page and
+		// a toast names the event published.
+		// String empties the buffer, so the line is read once.
+		if r.Header.Get(headerHTMXRequest) == htmxTrue {
+			line := answer.String()
+			renderAnswer(r.Context(), w, http.StatusOK, scriptAnswer(line, ToastView{
+				Level:   ToastInformational,
+				Message: "The sample script published " + line + ".",
+				Detail:  "Every page showing what the event changed fetches it again.",
+			}))
+
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		io.WriteString(w, answer.Byte('\n').Slice()) //nolint:errcheck // the answer is committed; a failed write means the browser left
+	})
+}
+
+// scriptAnswer answers what the step and hold routes send to htmx: the line,
+// as text, for the region the control targets, then the toast out of band.
+func scriptAnswer(line string, toast ToastView) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := io.WriteString(w, html.EscapeString(strings.TrimSpace(line))); err != nil {
+			return err
+		}
+
+		return ToastOOB(toast).Render(ctx, w)
 	})
 }

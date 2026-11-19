@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -257,6 +258,101 @@ func TestFixtureNameAndPath(t *testing.T) {
 		if got := set.FixturePath("testdata", c.file, c.fixture); got != c.want {
 			t.Errorf("FixturePath(%s, %s) = %q, want %q", c.file, c.fixture, got, c.want)
 		}
+	}
+}
+
+// TestFilesLeavesANestedPackageToItsOwnSet walks a templ tree that holds a
+// nested Go package, a nested directory that is not a package, and a testdata
+// directory.
+//
+// The fleet interface nests under the web package as a package of its own.
+// Its components are that package's symbols, so the web package's spec cannot
+// name them, and a walk that returned its sources demanded coverage no edit to
+// that spec could give.
+//
+// VALIDATES: with Ext set, Set.Files leaves out a directory below Dir that
+// holds a Go source file, with everything under it, and still returns the
+// sources of the package itself and of a nested directory that is no package.
+// Set.coverage then demands the nested non-package source.
+// PREVENTS: a nested package's templ source reported against the spec of the
+// package above it, and the opposite defect, where every nested directory is
+// skipped and a template placed in one renders into no fixture.
+func TestFilesLeavesANestedPackageToItsOwnSet(t *testing.T) {
+	component := func(pkg, name string) *fstest.MapFile {
+		return &fstest.MapFile{Data: []byte("package " + pkg + "\n\ntempl " + name + "() {\n\t<p></p>\n}\n")}
+	}
+
+	set := Set{
+		FS: fstest.MapFS{
+			"page.templ":    component("web", "page"),
+			"page_templ.go": &fstest.MapFile{Data: []byte("package web\n")},
+			// A nested package: a Go source file sits beside its templ source.
+			"nested/shell.templ":    component("nested", "shell"),
+			"nested/shell_templ.go": &fstest.MapFile{Data: []byte("package nested\n")},
+			// Below the nested package, in a directory with no Go source. It
+			// is under another package, so it is outside this tree too.
+			"nested/partials/tab.templ": component("nested", "tab"),
+			// A nested directory that is not a package.
+			"partials/row.templ": component("web", "row"),
+			// A fixture, which the walk always leaves out.
+			"testdata/sample.templ": component("web", "sample"),
+		},
+		Dir: ".",
+		Ext: ".templ",
+		Spec: Spec{
+			"page.templ": {{Name: "page", Variants: []Variant{{}}}},
+		},
+		SpecVar: "testSpec",
+	}
+
+	files := set.Files(t)
+
+	want := []string{"page.templ", "partials/row.templ"}
+	if !slices.Equal(files, want) {
+		t.Fatalf("Files() = %v, want %v", files, want)
+	}
+
+	findings := set.coverage(files)
+	if len(findings) != 1 {
+		t.Fatalf("coverage findings = %v, want one", findings)
+	}
+
+	demanded := "template file partials/row.templ has no golden coverage; add its templates to testSpec"
+	if findings[0].Error() != demanded {
+		t.Errorf("finding = %q, want %q", findings[0], demanded)
+	}
+}
+
+// TestFilesWalksEveryDirectoryOfATemplateFS walks a tree with Ext empty, the
+// shape of an embedded FS that holds nothing but templates.
+//
+// VALIDATES: with Ext empty, Set.Files returns the files of every nested
+// directory but testdata, a directory that holds a Go source file included.
+// PREVENTS: the nested-package rule reaching a tree it was not written for,
+// where it would drop a directory of templates from the capture with no
+// finding.
+func TestFilesWalksEveryDirectoryOfATemplateFS(t *testing.T) {
+	body := &fstest.MapFile{Data: []byte("<p>body</p>\n")}
+
+	set := Set{
+		FS: fstest.MapFS{
+			"templates/page/login.html":    body,
+			"templates/component/row.html": body,
+			"templates/component/doc.go":   &fstest.MapFile{Data: []byte("package component\n")},
+			"templates/testdata/case.html": body,
+		},
+		Dir: "templates",
+	}
+
+	files := set.Files(t)
+
+	want := []string{
+		"templates/component/doc.go",
+		"templates/component/row.html",
+		"templates/page/login.html",
+	}
+	if !slices.Equal(files, want) {
+		t.Fatalf("Files() = %v, want %v", files, want)
 	}
 }
 

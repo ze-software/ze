@@ -478,10 +478,10 @@ func accessProfiles() []fleetui.AccessProfile {
 	}
 }
 
-// The settings of the sample hub. The offline alarm opens after a week, which
-// is why the three offline devices have none open.
+// The settings of the sample hub. The offline alarm opens five minutes after
+// a device was last seen, so each of the three offline devices has one open.
 const (
-	offlineAlarmDelay    = 7 * day
+	offlineAlarmDelay    = 5 * time.Minute
 	resourceAlarmPercent = 95
 	resourceAlarmDelay   = 5 * time.Minute
 )

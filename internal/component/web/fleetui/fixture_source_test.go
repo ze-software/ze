@@ -10,6 +10,8 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // testEstateName is the name of the test estate.
@@ -59,6 +61,19 @@ func (source *testSource) Alarms(context.Context) ([]Alarm, error) {
 
 func (source *testSource) Tasks(context.Context) ([]Task, error) {
 	return source.tasks, nil
+}
+
+// Task answers one task of the test estate, with no per-device result: the
+// shell's task panel asks it of every row it lists.
+func (source *testSource) Task(_ context.Context, id string) (TaskDetail, error) {
+	for index := range source.tasks {
+		if source.tasks[index].ID == id {
+			return TaskDetail{Task: source.tasks[index]}, nil
+		}
+	}
+
+	return TaskDetail{}, opererr.Wrap(ErrObjectUnknown, "No task is named "+id+".",
+		"The test estate keeps no such task.", "ask for a task of testTasks")
 }
 
 func (source *testSource) Subscribe(context.Context) (*Subscription, error) {

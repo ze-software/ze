@@ -1,0 +1,85 @@
+// Design: docs/architecture/fleet-interface.md -- the administration pages of the Fleet mode
+// Related: handler_admin.go, handler_audit.go -- build the views these templates draw
+
+package fleetui
+
+// AdminPageView is one administration page: the note on how a change is
+// made, the page's facts with their action, the export links, the table and
+// the hidden form its actions submit. Each part but the table is optional.
+type AdminPageView struct {
+	Note        *CalloutView
+	Facts       *KeyValueListView
+	FactsAction *ActionView
+	Exports     []LinkView
+	ExportNote  string
+	Table       TableSectionView
+	Form        ManageFormView
+}
+
+// DeviceJoinView is the side panel of a device being added: the form that
+// names it, then, once it has a name, the configuration it needs to join,
+// whose secret is never shown.
+type DeviceJoinView struct {
+	Panel  PanelView
+	Action string
+	Hidden []HiddenFieldView
+	Name   string
+	Lines  string
+	Add    ActionView
+}
+
+// AdminPage draws an administration page.
+templ AdminPage(v AdminPageView) {
+	<div class="fleet-manage">
+		if v.Note != nil {
+			@Callout(*v.Note)
+		}
+		if v.Facts != nil {
+			<section class="fleet-manage-section">
+				@KeyValueList(*v.Facts)
+				if v.FactsAction != nil {
+					<div class="fleet-manage-resolve">
+						@ActionButton(*v.FactsAction)
+					</div>
+				}
+			</section>
+		}
+		if len(v.Exports) > 0 {
+			<p class="fleet-manage-exports">
+				for _, export := range v.Exports {
+					<a class="fleet-link" href={ templ.URL(export.Href) } download>{ export.Label }</a>
+				}
+				<span class="fleet-manage-note">{ v.ExportNote }</span>
+			</p>
+		}
+		@TableSection(v.Table)
+		@ManageForm(v.Form)
+	</div>
+}
+
+// DeviceJoin draws the side panel of a device being added.
+templ DeviceJoin(v DeviceJoinView) {
+	@PanelContent(v.Panel)
+	<div class="fleet-manage-join">
+		if v.Name == "" {
+			<form class="fleet-manage-fields" method="get" action={ templ.URL(v.Action) }>
+				@hiddenFields(v.Hidden)
+				<label class="fleet-manage-field">
+					<span class="fleet-manage-field-label">Device name</span>
+					<input type="text" name="id" required maxlength="64" autocomplete="off"/>
+				</label>
+				<button type="submit" class="fleet-button fleet-button--primary">Show what it needs to join</button>
+			</form>
+		} else {
+			<p class="fleet-manage-note">The device needs this block in its configuration to join the hub; on the device, ze init --managed asks for the same values. The secret is never shown: type the one set on the hub.</p>
+			<div class="fleet-manage-code-head">
+				<span class="fleet-mono">client { v.Name }</span>
+				@CopyButton(CopyView{Text: v.Lines, Name: "the configuration lines"})
+			</div>
+			<pre class="fleet-mono fleet-manage-code">{ v.Lines }</pre>
+			<div class="fleet-manage-resolve">
+				@PrimaryButton(v.Add)
+			</div>
+		}
+	</div>
+}

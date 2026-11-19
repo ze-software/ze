@@ -45,6 +45,9 @@ func TestFleetURLRoundTrip(t *testing.T) {
 		"/fleet/device/edge-lon-04/dashboard/?range=hour",
 		"/fleet/device/edge-lon-04/console/",
 		"/fleet/device/edge%20lon/logs/?q=error",
+		"/fleet/device/edge-lon-04/routing/?sub=bgp",
+		"/fleet/device/edge-lon-04/config/?id=7&sub=divergence",
+		"/fleet/estate/rollouts/?q=site%3Aams&sub=new",
 		"/fleet/tasks/",
 		"/fleet/tasks/?page=2",
 		"/fleet/admin/audit/?q=actor%3Athomas",
@@ -68,7 +71,7 @@ func TestFleetURLRoundTrip(t *testing.T) {
 // tab and every view parameter arrive as typed values.
 // PREVENTS: a handler reading a path segment or a query parameter itself.
 func TestFleetURLParsesTypedParts(t *testing.T) {
-	text := "/fleet/group/site=a%2Fb/role/devices/?q=has%3Aalarm&sort=-state&page=2&size=25&id=edge-lon-01&range=week&view=role"
+	text := "/fleet/group/site=a%2Fb/role/devices/?q=has%3Aalarm&sort=-state&page=2&size=25&id=edge-lon-01&range=week&view=role&sub=peers"
 
 	address, err := ParseAddress(parseTarget(t, text))
 	require.NoError(t, err)
@@ -84,6 +87,7 @@ func TestFleetURLParsesTypedParts(t *testing.T) {
 		Row:      "edge-lon-01",
 		Range:    ChartRangeWeek,
 		TreeView: "role",
+		Sub:      "peers",
 	}, address.View)
 }
 
@@ -343,7 +347,9 @@ func TestTabsAreTheRegisteredSet(t *testing.T) {
 	assert.Equal(t, []string{
 		"dashboard", "console", "system", "interfaces", "routing", "config", "logs", "tasks",
 	}, names(ObjectDevice))
-	assert.Equal(t, []string{"labels", "tree-views", "filters", "access", "audit", "settings"}, names(ObjectAdmin))
+	assert.Equal(t, []string{
+		"devices", "labels", "tree-views", "filters", "templates", "access", "audit", "history", "settings", "states",
+	}, names(ObjectAdmin))
 	assert.Empty(t, names(ObjectTasks))
 }
 

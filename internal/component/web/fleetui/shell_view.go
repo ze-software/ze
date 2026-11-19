@@ -73,7 +73,10 @@ type ShellView struct {
 // HeaderView is the header region.
 type HeaderView struct {
 	EstateName string
-	Username   string
+	// Sample reports that the registered source answers an invented estate,
+	// which the header says with a tag beside the estate's name.
+	Sample   bool
+	Username string
 	// SearchURL is the fragment the search field asks as the operator
 	// types, without its item parameter.
 	SearchURL string
@@ -289,10 +292,22 @@ func devicePath(request *PageRequest, view *DeviceView) []GroupLevel {
 	return path
 }
 
+// SampleSource is implemented by a source whose estate is invented, so the
+// pages show sample data rather than a real hub's. The shell discovers it by
+// type assertion, as it discovers Stepper: a source that does not implement
+// it is a real one, and the header carries no tag.
+type SampleSource interface {
+	// SampleData marks the source as answering sample data. It does nothing.
+	SampleData()
+}
+
 // headerView fills the header region.
 func headerView(request *PageRequest) HeaderView {
+	_, sample := request.Source.(SampleSource)
+
 	return HeaderView{
 		EstateName: request.Snapshot.Estate.Name,
+		Sample:     sample,
 		Username:   request.Username,
 		SearchURL:  FragmentLink(fragmentSearch, estateAddress(request), ""),
 		Tasks:      headerTasksView(request),
@@ -394,9 +409,10 @@ func tabTitle(address Address) string {
 	return address.Tab
 }
 
-// estateCrumb answers the first step of every breadcrumb: the estate.
-func estateCrumb(request *PageRequest, current bool) CrumbView {
-	return CrumbView{Title: request.Snapshot.Estate.Name, Href: estateAddress(request).String(), Current: current}
+// estateCrumb answers the first step of every breadcrumb: the estate, a link,
+// because the estate page itself shows no breadcrumb.
+func estateCrumb(request *PageRequest) CrumbView {
+	return CrumbView{Title: request.Snapshot.Estate.Name, Href: estateAddress(request).String()}
 }
 
 // groupCrumbs answers one step per level of path, each the group node of the

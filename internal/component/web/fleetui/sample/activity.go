@@ -28,6 +28,7 @@ const (
 	alarmComponentDegraded = "component-degraded"
 	alarmConfigDiverged    = "config-diverged"
 	alarmConfigRejected    = "config-rejected"
+	alarmDeviceOffline     = "device-offline"
 	alarmResourceHigh      = "resource-high"
 	alarmSoftwareBehind    = "software-behind"
 	alarmRelayUngranted    = "relay-not-granted"
@@ -41,6 +42,8 @@ const (
 	summaryPluginsDegraded = "plugins is degraded"
 	summaryRelayUngranted  = "No relay profile is granted"
 	detailRelayUngranted   = "The device grants no profile to relayed commands, so its tabs cannot show live state."
+	summaryOffline         = "The device is offline"
+	detailOffline          = "The hub has held no managed connection to the device for more than five minutes."
 
 	scriptAlarmSummary = "Memory above 95%"
 	scriptAlarmDetail  = "Memory use has stayed above the alarm threshold of 95% for five minutes."
@@ -65,18 +68,24 @@ type alarmRow struct {
 	ofFault bool
 }
 
-// alarmRows holds the nine open alarms, one critical, five warnings and three
-// informational, and the alarms that cleared during the week on the devices
-// that have one open.
+// alarmRows holds the twelve open alarms, four critical, five warnings and
+// three informational, and the alarms that cleared during the week.
 //
-// No device-offline alarm is open although three devices are offline: the
-// sample hub opens one after seven days without a connection (settings), and
-// the device that has been away longest left six days ago.
+// Each of the three offline devices has a device-offline alarm open: the
+// sample hub opens one offlineAlarmDelay after the device was last seen
+// (settings). The two devices that were offline for a while during the week
+// and came back have the cleared one of that outage. The script device's
+// offline alarm is the script's (alarmsAt).
 var alarmRows = []alarmRow{
 	{
 		id: "A-1052", kind: alarmComponentDown, severity: fleetui.AlarmSeverityCritical,
 		device: deviceEdgeAms02, summary: summaryBGPDown, open: true, ofFault: true,
 	},
+	offlineAlarm("A-1013", deviceCpe0127),
+	offlineAlarm("A-1056", deviceCpePar07),
+	offlineAlarm("A-1057", deviceCorePar02),
+	outageAlarm("A-1024", deviceEdgePar02),
+	outageAlarm("A-1042", deviceCpeAms02),
 	{
 		id: "A-1055", kind: alarmComponentDegraded, severity: fleetui.AlarmSeverityWarning,
 		device: deviceEdgeLon04, summary: summaryIfaceDegraded, open: true, ofFault: true,
@@ -154,10 +163,49 @@ var alarmRows = []alarmRow{
 	},
 }
 
+// offlineAlarm answers the open device-offline alarm of a device the estate
+// holds offline: it opened offlineAlarmDelay after the device was last seen.
+func offlineAlarm(id, device string) alarmRow {
+	return alarmRow{
+		id: id, kind: alarmDeviceOffline, severity: fleetui.AlarmSeverityCritical,
+		device: device, summary: summaryOffline, detail: detailOffline,
+		opened: offlineFor[device] - offlineAlarmDelay, open: true,
+	}
+}
+
+// outageAlarm answers the device-offline alarm of a past outage of a device:
+// it opened offlineAlarmDelay into the outage and cleared when the device
+// came back.
+func outageAlarm(id, device string) alarmRow {
+	outage := pastOutages[device]
+
+	return alarmRow{
+		id: id, kind: alarmDeviceOffline, severity: fleetui.AlarmSeverityCritical,
+		device: device, summary: summaryOffline, detail: detailOffline,
+		opened: outage.from - offlineAlarmDelay, cleared: outage.to,
+	}
+}
+
 // alarmsAt answers the open alarms at the snapshot: the open rows of the
-// table, and the script's alarm while it is open.
+// table, the script's alarm while it is open, and the offline alarm of the
+// script device while the script holds it offline.
 func alarmsAt(snap *snapshot) []fleetui.Alarm {
-	alarms := make([]fleetui.Alarm, 0, len(alarmRows)+1)
+	alarms := make([]fleetui.Alarm, 0, len(alarmRows)+2)
+
+	// The script compresses time: its outage stands for one longer than the
+	// delay, so the alarm opens when the device goes offline and clears when
+	// it comes back.
+	if snap.script.offline {
+		alarms = append(alarms, fleetui.Alarm{
+			ID:       snap.script.offlineAlarmID,
+			Kind:     alarmDeviceOffline,
+			Severity: fleetui.AlarmSeverityCritical,
+			Device:   scriptDevice,
+			Summary:  summaryOffline,
+			Detail:   detailOffline,
+			Since:    snap.script.offlineAt,
+		})
+	}
 
 	if snap.script.alarmOpen {
 		alarms = append(alarms, fleetui.Alarm{
@@ -200,6 +248,22 @@ func alarmHistoryAt(snap *snapshot, device string) []fleetui.AlarmEvent {
 
 	if device == scriptAlarmDevice {
 		events = append(events, snap.script.alarmsPast...)
+	}
+
+	// Each outage of the script device that ended cleared its offline alarm;
+	// the one still open is among the open alarms.
+	if device == scriptDevice {
+		for at := range snap.script.outages {
+			outage := &snap.script.outages[at]
+			if outage.open {
+				continue
+			}
+
+			events = append(events, fleetui.AlarmEvent{
+				Kind: alarmDeviceOffline, Severity: fleetui.AlarmSeverityCritical, Summary: summaryOffline,
+				Opened: outage.from, Cleared: true, ClearedAt: outage.to,
+			})
+		}
 	}
 
 	open := alarmsAt(snap)

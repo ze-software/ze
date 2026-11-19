@@ -301,6 +301,37 @@ func (script *stepScript) Step() (Event, error) {
 	return next, nil
 }
 
+// TestStepRouteAnswersHtmxAToast posts to the step and hold routes as htmx
+// does, from the states page.
+//
+// VALIDATES: asked by htmx, the step route answers the event's line and an
+// out-of-band toast naming it, and the hold route a toast saying the script
+// is held.
+// PREVENTS: a states page whose controls change the estate with nothing on
+// the page saying so.
+func TestStepRouteAnswersHtmxAToast(t *testing.T) {
+	script := &stepScript{events: []Event{{Kind: EventDeviceChanged, Device: edgeLon01}}}
+
+	request := httptest.NewRequest(http.MethodPost, stepPath, http.NoBody)
+	request.Header.Set(headerHTMXRequest, htmxTrue)
+	stepped := httptest.NewRecorder()
+	newStepHandler(script).ServeHTTP(stepped, request)
+
+	assert.Equal(t, http.StatusOK, stepped.Code)
+	assert.Contains(t, stepped.Header().Get("Content-Type"), "text/html")
+	assert.Contains(t, stepped.Body.String(), "device-changed "+edgeLon01)
+	assert.Contains(t, stepped.Body.String(), "hx-swap-oob")
+	assert.Contains(t, stepped.Body.String(), "The sample script published device-changed "+edgeLon01+".")
+
+	request = httptest.NewRequest(http.MethodPost, holdPath, http.NoBody)
+	request.Header.Set(headerHTMXRequest, htmxTrue)
+	held := httptest.NewRecorder()
+	newHoldHandler(script).ServeHTTP(held, request)
+
+	assert.Contains(t, held.Body.String(), "The sample script is held.")
+	assert.True(t, script.held)
+}
+
 // TestStepRouteAdvancesTheScript posts to the prototype-only step route.
 //
 // VALIDATES: each step request advances the script by one event and names

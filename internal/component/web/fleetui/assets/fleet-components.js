@@ -220,11 +220,29 @@
     return dialog.querySelector('[data-confirm-slot="' + name + '"]');
   }
 
+  // The text a destructive confirmation asks for may hold {count}, the number
+  // of selected rows of the control's form: what its selection row shows,
+  // which is the total while every match is selected.
+  function expectedText(control) {
+    var expect = control.getAttribute('data-confirm-expect') || '';
+    if (expect.indexOf('{count}') < 0) return expect;
+
+    var formId = control.form ? control.form.id : control.getAttribute('form');
+    var count = '0';
+    document.querySelectorAll('[data-fleet-selection]').forEach(function(selection) {
+      if (selection.getAttribute('data-fleet-selection') !== formId) return;
+      var shown = selection.querySelector('[data-fleet-selected-count]');
+      if (shown) count = shown.textContent;
+    });
+
+    return expect.split('{count}').join(count);
+  }
+
   function openConfirm(control) {
     var dialog = document.getElementById('fleet-confirm');
     if (!dialog || typeof dialog.showModal !== 'function') return false;
 
-    var expect = control.getAttribute('data-confirm-expect') || '';
+    var expect = expectedText(control);
     var destructive = control.getAttribute('data-confirm-kind') === 'destructive';
 
     slot(dialog, 'action').textContent = control.getAttribute('data-confirm-action') || '';
@@ -259,7 +277,7 @@
 
     // The typed text is judged again here: the confirm button is the only
     // way to answer "confirm", and it is disabled until the text matches.
-    var expect = control.getAttribute('data-confirm-expect') || '';
+    var expect = slot(dialog, 'expect').textContent;
     if (expect !== '' && slot(dialog, 'input').value.trim() !== expect) return;
 
     control.dataset.fleetConfirmed = 'true';

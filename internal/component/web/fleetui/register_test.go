@@ -29,6 +29,7 @@ func fleetRoutes() []web.WebRoute {
 // fleetPatterns is every route the fleet interface registers.
 var fleetPatterns = []string{
 	assetsPattern, fragmentPattern, eventsPattern, stepPattern, holdPattern, shellPattern,
+	actionPattern, auditExportPattern, consolePattern,
 }
 
 // TestFleetRoutesAbsentWithoutSource reads the fleet routes out of the web

@@ -1,6 +1,6 @@
 /* Design: docs/architecture/fleet-interface.md -- fleet shell: tokens, the regions, the tree, the object header
  *
- * The colour, font and radius variables carry the names and the values the web
+ * The colour, diff, font and radius variables carry the names and the values the web
  * stylesheet (internal/component/web/assets/style.css) declares, so both
  * interfaces draw one theme. The spacing, sidebar, chart and surface variables
  * are the fleet interface's own.
@@ -27,6 +27,12 @@
   --success: #3fb950;
   --warning: #d29922;
   --error: #ff6b6b;
+  --diff-add: #1a3a2a;
+  --diff-add-text: #3fb950;
+  --diff-del: #3a1a1a;
+  --diff-del-text: #f85149;
+  --diff-change: #2a2a1a;
+  --diff-change-text: #d29922;
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   --font-mono: "Fira Code", "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
   --radius: 6px;
@@ -71,6 +77,12 @@
   --success: #1a7f37;
   --warning: #9a6700;
   --error: #cf222e;
+  --diff-add: #dafbe1;
+  --diff-add-text: #1a7f37;
+  --diff-del: #ffebe9;
+  --diff-del-text: #cf222e;
+  --diff-change: #fff8c5;
+  --diff-change-text: #9a6700;
 
   --chart-5: #8250df;
 
@@ -224,6 +236,16 @@ html {
   font-size: 0.85rem;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+/* The calm tag that says the estate is a sample, beside the hub name. */
+.fleet-sample-tag {
+  padding: 0 var(--space-2);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: var(--space-3);
 }
 
 .fleet-search {

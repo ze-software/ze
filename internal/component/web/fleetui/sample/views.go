@@ -69,7 +69,10 @@ func reach(snap *snapshot, name string) (*deviceRow, error) {
 
 		return nil, opererr.Wrap(fleetui.ErrRelayRefused, problem,
 			"The device decides which profile a relayed command runs under, and its configuration names none.",
-			devicePage(row.name, tabConfig))
+			// The fix is the line that grants a profile, which the failure
+			// state shows to copy; operator is the sample's illustrative
+			// profile, and the device's Config tab is where it is set.
+			"set fleet relay profile operator")
 	}
 
 	return row, nil

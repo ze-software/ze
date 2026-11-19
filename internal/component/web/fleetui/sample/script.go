@@ -85,9 +85,11 @@ type scriptState struct {
 	// next is the index of the step to apply.
 	next int
 
-	// offline reports that the script device is offline, since offlineAt.
-	offline   bool
-	offlineAt time.Time
+	// offline reports that the script device is offline, since offlineAt,
+	// with its offline alarm open under offlineAlarmID.
+	offline        bool
+	offlineAt      time.Time
+	offlineAlarmID string
 	// returned reports that the script device came back at least once, the
 	// last time at backAt.
 	returned bool
@@ -154,6 +156,15 @@ func (state *scriptState) currentTask() *scriptTask {
 	return &state.tasks[len(state.tasks)-1]
 }
 
+// nextAlarmID answers the identifier of the next alarm the script opens: the
+// offline alarm of its device and its memory alarm share one numbering.
+func (state *scriptState) nextAlarmID() string {
+	id := textbuf.New().Str(alarmPrefix).Uint(state.alarmNumber).Slice()
+	state.alarmNumber++
+
+	return id
+}
+
 // scriptStep is one step of the script. apply changes the state and answers
 // the event that says so.
 type scriptStep struct {
@@ -212,6 +223,7 @@ func scriptTaskDevices() []string {
 func stepDeviceOffline(state *scriptState, step *scriptStep, now time.Time) fleetui.Event {
 	state.offline = true
 	state.offlineAt = now
+	state.offlineAlarmID = state.nextAlarmID()
 
 	state.outages = append(state.outages, outage{from: now, open: true})
 	if len(state.outages) > scriptOutagesMax {
@@ -240,8 +252,7 @@ func stepDeviceBack(state *scriptState, step *scriptStep, now time.Time) fleetui
 func stepAlarmOpen(state *scriptState, step *scriptStep, now time.Time) fleetui.Event {
 	state.alarmOpen = true
 	state.alarmSince = now
-	state.alarmID = textbuf.New().Str(alarmPrefix).Uint(state.alarmNumber).Slice()
-	state.alarmNumber++
+	state.alarmID = state.nextAlarmID()
 
 	return fleetui.Event{Kind: fleetui.EventAlarmOpened, At: now, Device: step.device, Subject: state.alarmID}
 }

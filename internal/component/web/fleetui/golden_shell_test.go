@@ -23,7 +23,7 @@ func goldenPage(t *testing.T, target string, pages ...Page) (ShellView, *pageOut
 
 	outcome := resolvePage(context.Background(), request)
 
-	view, err := shellView(request, outcome)
+	view, err := shellView(context.Background(), request, outcome)
 	require.NoError(t, err)
 
 	return view, outcome
@@ -134,7 +134,9 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 			{Name: "shellMain", Variants: []golden.Variant{
 				{Data: shellMain(device.Main, deviceOutcome.content)},
 			}},
-			{Name: "staleBanner", Variants: []golden.Variant{
+			// The fixture is renamed: staleBanner.html and the component
+			// StaleBanner.html are one file on a case-insensitive disk.
+			{Name: "staleBanner", Fixture: "shellStaleBanner", Variants: []golden.Variant{
 				{Data: staleBanner()},
 			}},
 			{Name: "objectRegion", Variants: []golden.Variant{

@@ -185,15 +185,23 @@ func StatusCell(status Status) CellView {
 	return CellView{Kind: CellStatus, Status: status}
 }
 
-// tagsShownMax is the most labels a cell shows before it counts the rest.
-const tagsShownMax = 3
+// tagsShownMax is the most labels a cell shows before it counts the rest:
+// two keep the column narrow enough for every other column to fit.
+const tagsShownMax = 2
 
-// TagsCell answers a cell holding at most three of the labels and the count
-// of the others.
+// TagsCell answers a cell holding at most two of the labels and the count of
+// the others, whose key=value pairs its Title lists for the "+n" mark.
 func TagsCell(tags []TagView) CellView {
 	shown := min(len(tags), tagsShownMax)
+	hidden := textbuf.New()
+	for index, tag := range tags[shown:] {
+		if index > 0 {
+			hidden.Str(", ")
+		}
+		hidden.Str(tag.Key).Byte('=').Str(tag.Value)
+	}
 
-	return CellView{Kind: CellTags, Tags: tags[:shown], More: len(tags) - shown}
+	return CellView{Kind: CellTags, Tags: tags[:shown], More: len(tags) - shown, Title: hidden.String()}
 }
 
 // UsageCell answers a cell holding a percentage with a thin usage bar. A

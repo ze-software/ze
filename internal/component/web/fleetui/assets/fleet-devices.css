@@ -1,0 +1,49 @@
+/* Design: docs/architecture/fleet-interface.md -- the Devices tab of the estate and of a group node */
+/* Related: page_devices.templ -- the markup these rules lay out */
+
+/* The tab is one table section, which may be wider than the content region:
+   the table scrolls inside its own box rather than widening the page. */
+.fleet-devices {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+/* The labels of a row stay on one line, so every row has the same height,
+   and the column is bounded: two tags and the "+n" mark, a long tag ending
+   in an ellipsis, so every column fits at 1600 pixels with the panel closed.
+   With the panel open the table scrolls under its fixed controls column. */
+.fleet-devices .fleet-cell-tags {
+  flex-wrap: nowrap;
+  max-width: 13rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.fleet-devices .fleet-cell-tags .fleet-chip:not(.fleet-chip--more) {
+  min-width: 0;
+  max-width: 6rem;
+  overflow: hidden;
+}
+
+.fleet-devices .fleet-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The fixed controls column stays above the cells scrolling under it. */
+.fleet-devices .fleet-table-controls {
+  z-index: 1;
+}
+
+/* Eleven columns share the width: a cell keeps the smaller of the spacing
+   steps at its sides, and a usage cell its thin bar of 3rem and figure. */
+.fleet-devices .fleet-table-head,
+.fleet-devices .fleet-table-cell {
+  padding: 0 var(--space-2);
+}
+
+.fleet-devices .fleet-usage-mini {
+  min-width: 6rem;
+}

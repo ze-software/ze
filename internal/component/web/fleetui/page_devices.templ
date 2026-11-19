@@ -1,0 +1,20 @@
+// Design: docs/architecture/fleet-interface.md -- the Devices tab of the estate and of a group node
+// Related: handler_devices.go -- builds the view this draws
+// Related: component_table.templ -- the table section the tab is made of
+// Related: assets/fleet-devices.css -- the layout of the tab
+
+package fleetui
+
+// DevicesTabView is the content of a Devices tab: one table section over the
+// devices of the estate or of a group node.
+type DevicesTabView struct {
+	Section TableSectionView
+}
+
+// DevicesTab draws the Devices tab: the query row, the selection, the table
+// and the pager, as the table section stacks them.
+templ DevicesTab(v DevicesTabView) {
+	<div class="fleet-devices">
+		@TableSection(v.Section)
+	</div>
+}

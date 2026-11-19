@@ -78,7 +78,7 @@ bar when rows are selected, table, pagination.
 | Selection | A checkbox; the header checkbox selects the page | No |
 | Device | State icon and name, linking to the device page | Yes, default ascending |
 | State | The state word | Yes, by severity |
-| Labels | Tags, at most three shown, the rest behind a count | No |
+| Labels | Tags, at most two shown, the rest behind a count whose tooltip lists them. The model label is not shown here: it is inventory, shown in the side panel. Owner decision, 2026-11-19: two rather than three, so every column stays visible at normal widths | No |
 | Version | Software version, in the monospace font | Yes |
 | Config | In sync, Pending, Rejected, Diverged or Never fetched | Yes |
 | Uptime | Since the device's daemon started | Yes |

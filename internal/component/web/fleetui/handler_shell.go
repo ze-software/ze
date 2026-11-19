@@ -105,7 +105,11 @@ func renderAnswer(ctx context.Context, w http.ResponseWriter, status int, compon
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	contentType := "text/html; charset=utf-8"
+	if _, data := component.(jsonData); data {
+		contentType = "application/json"
+	}
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Vary", headerHTMXRequest)
 	w.WriteHeader(status)
@@ -153,7 +157,7 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		outcome = refusedOutcome(request, addressErr, http.StatusNotFound)
 	}
 
-	view, err := shellView(request, outcome)
+	view, err := shellView(ctx, request, outcome)
 	if err != nil {
 		answerRefusal(w, err, http.StatusInternalServerError)
 		return
@@ -168,7 +172,7 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // shellView fills the whole shell around one outcome.
-func shellView(request *PageRequest, outcome *pageOutcome) (ShellView, error) {
+func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome) (ShellView, error) {
 	sidebar, err := sidebarView(request, outcome.selects)
 	if err != nil {
 		return ShellView{}, err
@@ -180,12 +184,17 @@ func shellView(request *PageRequest, outcome *pageOutcome) (ShellView, error) {
 		main.EventsURL = EventsPath
 	}
 
+	tasks, err := taskPanelView(ctx, request)
+	if err != nil {
+		return ShellView{}, err
+	}
+
 	return ShellView{
 		Header:  headerView(request),
 		Sidebar: sidebar,
 		Main:    main,
 		Panel:   outcome.panel,
-		Tasks:   taskPanelView(request),
+		Tasks:   tasks,
 	}, nil
 }
 
@@ -198,14 +207,14 @@ func refusedOutcome(request *PageRequest, err error, status int) *pageOutcome {
 		title:  notFoundTitle,
 		main: MainView{
 			Object: ObjectHeaderView{Icon: ObjectIconView{Icon: iconAlert}, Name: notFoundTitle},
-			Crumbs: []CrumbView{estateCrumb(request, false)},
+			Crumbs: []CrumbView{estateCrumb(request)},
 		},
 		content: failureHero(request, err),
 	}
 }
 
 // describeObject fills the object header and the breadcrumb of the object the
-// request names. It refuses a group no device is in and a device the estate
+// request names. The estate has no breadcrumb. It refuses a group no device is in and a device the estate
 // does not hold, with the data layer's own error.
 func describeObject(request *PageRequest) (ObjectHeaderView, []CrumbView, error) {
 	address := request.Address
@@ -216,7 +225,9 @@ func describeObject(request *PageRequest) (ObjectHeaderView, []CrumbView, error)
 		name := request.Snapshot.Estate.Name
 		header := ObjectHeaderView{Icon: ObjectIconView{Icon: iconEstate}, Name: name}
 
-		return header, []CrumbView{estateCrumb(request, true)}, nil
+		// The estate is the root: a breadcrumb would only repeat the name the
+		// object header shows directly above it, so it has none.
+		return header, nil, nil
 
 	case ObjectGroup:
 		members, err := GroupDevices(views, address.Group)
@@ -234,7 +245,7 @@ func describeObject(request *PageRequest) (ObjectHeaderView, []CrumbView, error)
 			}
 		}
 
-		crumbs := append([]CrumbView{estateCrumb(request, false)}, groupCrumbs(request, address.Group, true)...)
+		crumbs := append([]CrumbView{estateCrumb(request)}, groupCrumbs(request, address.Group, true)...)
 
 		return header, crumbs, nil
 
@@ -252,7 +263,7 @@ func describeObject(request *PageRequest) (ObjectHeaderView, []CrumbView, error)
 			Busy:   view.TasksActive > 0,
 		}
 
-		crumbs := append([]CrumbView{estateCrumb(request, false)}, groupCrumbs(request, devicePath(request, view), false)...)
+		crumbs := append([]CrumbView{estateCrumb(request)}, groupCrumbs(request, devicePath(request, view), false)...)
 		crumbs = append(crumbs, CrumbView{
 			Title: view.Device.Name, Href: deviceAddress(request, view.Device.Name).String(), Current: true,
 		})
@@ -261,14 +272,14 @@ func describeObject(request *PageRequest) (ObjectHeaderView, []CrumbView, error)
 
 	case ObjectTasks:
 		header := ObjectHeaderView{Icon: ObjectIconView{Icon: iconTasks}, Name: tasksTitle}
-		crumbs := []CrumbView{estateCrumb(request, false), {Title: tasksTitle, Href: address.Path(), Current: true}}
+		crumbs := []CrumbView{estateCrumb(request), {Title: tasksTitle, Href: address.Path(), Current: true}}
 
 		return header, crumbs, nil
 
 	case ObjectAdmin:
 		header := ObjectHeaderView{Icon: ObjectIconView{Icon: iconAdmin}, Name: adminTitle}
 		crumbs := []CrumbView{
-			estateCrumb(request, false),
+			estateCrumb(request),
 			{Title: adminTitle, Href: address.Path()},
 			{Title: tabTitle(address), Href: address.Path(), Current: true},
 		}

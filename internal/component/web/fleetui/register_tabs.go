@@ -2,51 +2,59 @@
 // Related: tabs.go -- the registry these tabs join
 //
 // These are the tabs and the administration pages the fleet interface fixes
-// for every hub. A page family that adds another registers it from its own
-// register file.
+// for every hub. Tabs list in registration order, so every tab of the
+// interface registers here, in the order the tab row and the Administration
+// part of the sidebar show them. A page family registers the pages of these
+// tabs from its own register file; a page registration does not need its tab
+// registered first.
 
 package fleetui
 
 func init() {
 	for _, tab := range []Tab{
 		{Name: TabDashboard, Title: "Dashboard"},
-		{Name: "devices", Title: "Devices"},
-		{Name: "alarms", Title: "Alarms"},
-		{Name: "rollouts", Title: "Rollouts"},
-		{Name: "tasks", Title: "Tasks"},
+		{Name: devicesTab, Title: "Devices"},
+		{Name: activityTabAlarms, Title: "Alarms"},
+		{Name: tabEstateRollouts, Title: "Rollouts"},
+		{Name: activityTabTasks, Title: "Tasks"},
 	} {
 		MustRegisterTab(ObjectEstate, tab)
 	}
 
 	for _, tab := range []Tab{
 		{Name: TabDashboard, Title: "Dashboard"},
-		{Name: "devices", Title: "Devices"},
-		{Name: "alarms", Title: "Alarms"},
-		{Name: "tasks", Title: "Tasks"},
+		{Name: devicesTab, Title: "Devices"},
+		{Name: activityTabAlarms, Title: "Alarms"},
+		{Name: activityTabTasks, Title: "Tasks"},
 	} {
 		MustRegisterTab(ObjectGroup, tab)
 	}
 
 	for _, tab := range []Tab{
 		{Name: TabDashboard, Title: "Dashboard"},
-		{Name: "console", Title: "Console"},
-		{Name: "system", Title: "System"},
-		{Name: "interfaces", Title: "Interfaces"},
-		{Name: "routing", Title: "Routing"},
-		{Name: "config", Title: "Config"},
-		{Name: "logs", Title: "Logs"},
-		{Name: "tasks", Title: "Tasks"},
+		{Name: tabDeviceConsole, Title: "Console"},
+		{Name: tabDeviceSystem, Title: "System"},
+		{Name: tabDeviceInterfaces, Title: "Interfaces"},
+		{Name: tabDeviceRouting, Title: "Routing"},
+		{Name: tabDeviceConfig, Title: "Config"},
+		{Name: tabDeviceLogs, Title: "Logs"},
+		{Name: activityTabTasks, Title: "Tasks"},
 	} {
 		MustRegisterTab(ObjectDevice, tab)
 	}
 
+	// The administration pages, States last: it is the prototype's own page.
 	for _, tab := range []Tab{
-		{Name: "labels", Title: "Labels"},
-		{Name: "tree-views", Title: "Tree views"},
-		{Name: "filters", Title: "Saved filters"},
-		{Name: "access", Title: "Access"},
-		{Name: "audit", Title: "Audit"},
-		{Name: "settings", Title: "Settings"},
+		{Name: tabAdminDevices, Title: "Devices"},
+		{Name: tabAdminLabels, Title: "Labels"},
+		{Name: tabAdminTreeViews, Title: "Tree views"},
+		{Name: tabAdminFilters, Title: "Saved filters"},
+		{Name: tabAdminTemplates, Title: "Templates"},
+		{Name: tabAdminAccess, Title: "Access"},
+		{Name: tabAdminAudit, Title: "Audit"},
+		{Name: tabAdminHistory, Title: "History"},
+		{Name: tabAdminSettings, Title: "Settings"},
+		{Name: activityTabStates, Title: "States"},
 	} {
 		MustRegisterTab(ObjectAdmin, tab)
 	}

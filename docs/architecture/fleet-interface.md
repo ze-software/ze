@@ -35,14 +35,23 @@ imports it.
 | `handler_shell.go` | The page handler: an address resolved to a registered page inside the shell, and the assets handler |
 | `handler_fragment.go` | The fragment handler, and the fragments of the shell's own regions |
 | `handler_tree.go`, `handler_search.go` | The estate tree of the sidebar with its two fragments, and the header search |
-| `handler_events.go` | The live event stream of one page, and the prototype-only step route |
+| `handler_events.go` | The live event stream of one page, and the prototype-only step and hold routes |
+| `handler_action.go` | The action registry: `MustRegisterAction`, and the handler of `POST /fleet/action/` that answers a registered action's toast |
+| `registry.go` | The panic every registry of the package raises for a registration it cannot accept |
 | `shell_view.go`, `shell_states.go` | The view data of the shell, the states it shows in place of a page, and the task panel it fills |
 | `shell.templ`, `tree.templ`, `search.templ` | The shell (header, sidebar, main pane, side panel region), the tree, the search results |
 | `assets/fleet-shell.css`, `fleet-theme.js`, `fleet.js` | The styles and the behavior of the shell |
 | `icons.templ` | The icon set, the state marks and the illustrations |
 | `component_*.templ`, `component_*.go` | The components and their view data, one family per file: actions, cards, donut, usage, table, side panel, pane states, toasts, tasks, terminal and diff, gallery |
 | `assets/fleet-components.css`, `fleet-components.js`, `fleet-chart.js`, `fleet-terminal.js` | The styles and the behavior of the components |
+| `register_dashboard_pages.go`, `handler_dashboard.go`, `handler_dashboard_cards.go`, `handler_dashboard_device.go`, `handler_chart.go`, `page_dashboard.templ`, `assets/fleet-dashboard.css` | The dashboards: the card registry, the cards of the estate and group dashboards, the cards of a device's, and the JSON of the chart cards |
+| `register_devices_pages.go`, `handler_devices.go`, `handler_devices_action.go`, `page_devices.templ`, `assets/fleet-devices.css` | The devices table of the estate and of a group node, with its query row, selection, bulk actions and side panel |
+| `register_device_pages.go`, `handler_device_system.go`, `handler_device_interfaces.go`, `handler_device_routing.go`, `handler_device_logs.go`, `handler_device_console.go`, `page_device.templ`, `assets/fleet-device.css` | The tabs of a device: System, Interfaces, Routing, Logs and Console, and the console route |
+| `register_activity_pages.go`, `handler_tasks.go`, `handler_alarms.go`, `handler_prototype.go`, `page_activity.templ`, `assets/fleet-activity.css` | The Tasks and Alarms tabs, the task list, the alarm-kind tab registry, and the States page of the prototype |
+| `register_manage_pages.go`, `handler_config.go`, `handler_rollouts.go`, `handler_audit.go`, `handler_admin.go`, `page_config.templ`, `page_rollouts.templ`, `page_admin.templ`, `assets/fleet-manage.css` | A device's Config tab, the rollouts, the audit trail and its export, and the administration pages |
 | `guard_test.go`, `style_test.go`, `golden_test.go` | The markup guards, the style rule and the golden capture, run over this package |
+| `golden_<family>_test.go` | The capture plan of each family's templates, which `golden_test.go` joins |
+| `<family>_test.go`, `fixture_test.go`, `fixture_source_test.go` | The tests of each page family, over a fixed test source |
 
 The package embeds its own assets, so a build without the package carries none
 of them. The shell also links the vendored htmx and uPlot the web package
@@ -83,8 +92,31 @@ by the specs that make each page functional.
 <!-- source: internal/component/web/fleetui/source_activity.go -- ActivitySource, Alarm, Task -->
 <!-- source: internal/component/web/fleetui/source_config.go -- ConfigSource -->
 <!-- source: internal/component/web/fleetui/source_views.go -- DeviceViewSource -->
-<!-- source: internal/component/web/fleetui/sample/source.go -- estate, devices, notInSample -->
+<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper -->
 <!-- source: internal/component/web/fleetui/sample/register.go -- init -->
+
+### The sample source
+
+The sample source answers every method of `Source` from a fixed estate of 44
+devices, so every page can be opened and judged. `newEstate` makes it, and
+its register file makes it the build's source.
+
+| Part | Rule |
+|------|------|
+| Tables | The estate is written as tables, one file per concern: the devices and their faults, the alarms and the tasks, the rollouts and the audit trail, the configuration texts and the administration answers, what a device answers through the relay, the console's commands |
+| Clock | Every time in a table is an age, measured back from the moment the source was made, so "last seen" and a chart range read the same whenever the build is started |
+| Alarms | Twelve open: four critical (one component down, three devices offline), five warnings, three informational. The sample hub opens the offline alarm five minutes after a device was last seen (its `Settings`) |
+| History | Generated per request from a fixed seed, so every start draws the same charts. It goes back `historyRetention` (one week), and one series holds at most `historyPointsMax` points, at an interval of 30 seconds, 5 minutes or 30 minutes chosen by the period asked |
+| Timed script | The first subscription starts a script that applies one step every five seconds (`scriptPeriod`): a device goes offline and comes back, with its offline alarm; a memory alarm opens and clears; a task records its results, ends, and a new one starts. Each step publishes the event of what it changed |
+| Stepped script | `Stepper` (`Step`, `Hold`) takes the script from the timer for good: a step is applied only when asked, which the prototype-only routes and a browser test do |
+
+The only state that changes is the script's, and every list it grows is cut
+to a bound, so the source stays the same size however long the build runs.
+<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper -->
+<!-- source: internal/component/web/fleetui/sample/history.go -- historyRetention, historyPointsMax -->
+<!-- source: internal/component/web/fleetui/sample/script.go -- scriptPeriod, scriptSteps -->
+<!-- source: internal/component/web/fleetui/sample/activity.go -- alarmRows, alarmsAt -->
+<!-- source: internal/component/web/fleetui/sample/config.go -- offlineAlarmDelay, settings -->
 
 ### A source answers facts, the package derives
 
@@ -149,7 +181,7 @@ state in that section and keeps its others.
 | Address | `ParseAddress` reads a page address into an `Address` (kind of object, group path, device, tab, view) and `Address.String` renders it. `/fleet/` is the estate dashboard. A group segment is `key=value`, each escaped once, and a segment with no `=` is the node of the devices that lack the key. An address that names no page wraps `ErrAddressUnknown` |
 | Fragment | `/fleet/fragment/<name>/<page path>`, read by `ParseFragment`. It carries the page it belongs to with its view, and `item` for a fragment a page holds several of or that takes one argument. "Fragments" lists the ones the shell registers |
 | Tabs | A registered set per kind of object (`MustRegisterTab`, `Tabs`). The parser accepts only a registered tab, so a page family adds a tab from its own register file |
-| View parameters | `q`, `sort`, `page`, `size`, `id`, `range`, `view`. A page size other than 25, 50 or 100 is 50; a page below one is one; a chart range other than `hour`, `day` or `week` is `day`; an absent tree view is `site-role`. A default is left out of a rendered address |
+| View parameters | `q`, `sort`, `page`, `size`, `id`, `range`, `view`, `sub`. `sub` names a sub-view of the page, which the page judges: a device tab's sub-tab, the opened divergence diff (`sub=divergence`), the new-rollout form (`sub=new`). A page size other than 25, 50 or 100 is 50; a page below one is one; a chart range other than `hour`, `day` or `week` is `day`; an absent tree view is `site-role`. A default is left out of a rendered address |
 | Filter | `FilterSchema` holds the grammar of one table: bare word, `field:value`, `field:a,b`, `field:!value`, `field:>n`, `field:<n`, `label:key=value`, a label key in use as a field, `has:<flag>`, terms ANDed. Fields and flags are registered. A filter is at most 512 characters and 32 terms. A refusal wraps `ErrFilterRefused`, names the term and lists the fields. `SetFilterTerm` writes the choice of an assisted menu into the filter text |
 | Tree | A tree view is an ordered list of level keys. A key is a label key, unless a tree level is registered under it (`version`, `state`, `group`), which reads a field of the device. Built-in views: `site-role`, `role`, `version`, `state`. At most eight levels |
 | Sort | `ColumnSet` holds the sortable columns of one table, registered. The sort is stable; `sort=-column` is descending; an unknown column wraps `ErrSortRefused`. The state column sorts by severity: down, offline, diverged, degraded, unknown, healthy |
@@ -280,9 +312,21 @@ so the region shows it. An `item` longer than a filter may be is refused.
 | `tasks` | The task panel, whole | The tab to show it on; empty for the closed panel |
 | `header` | The Tasks button with its count and its failed dot | - |
 | `search` | The devices, then the pages, matching typed text, at most ten | The text |
+| `dashboard-card` | One card of a dashboard | The card's name |
+| `dashboard-chart` | The JSON of one chart card, answered as `application/json` | The chart's key |
+| `device-identity`, `device-hardware`, `device-resources`, `device-health`, `device-labels`, `device-management` | One section of a device's System tab | - |
+| `device-interfaces`, `device-routing`, `device-logs` | The section of the Interfaces, Routing and Logs tabs | - |
+| `device-tool` | The toast of a related tool run from a row: nothing runs | `<tool>/<target>` |
+| `config-state`, `config-text`, `config-history`, `config-divergence` | One section of a device's Config tab | - |
+| `rollout-preview` | The preview of the new rollout form | The batch size, as a percentage |
+| `toast-demo` | One toast of the States page | The level's key |
 <!-- source: internal/component/web/fleetui/handler_fragment.go -- registerShellFragments, fleetHandler.serveFragment -->
 <!-- source: internal/component/web/fleetui/pages.go -- MustRegisterFragment, FragmentLink -->
 <!-- source: internal/component/web/fleetui/handler_search.go -- searchView -->
+
+A fragment answers markup, or JSON when its builder answers `fragmentJSON`.
+<!-- source: internal/component/web/fleetui/handler_fragment.go -- fragmentJSON, jsonData -->
+<!-- source: internal/component/web/fleetui/handler_shell.go -- renderAnswer -->
 
 ### The live event stream
 
@@ -340,6 +384,107 @@ heights, offsets, border widths, radii and font sizes are free.
 <!-- source: internal/component/web/fleetui/assets/fleet-shell.css -- the :root and [data-theme="light"] blocks -->
 <!-- source: internal/component/web/fleetui/style_test.go -- TestFleetStylesUseVariablesOnly, styleFindings -->
 
+## The pages
+
+Five page families register the pages, each from its own register file, with
+its own stylesheet. A section of a page that can fail on its own is a fragment
+of its own, drawn with the page and fetched again alone.
+
+### Dashboards
+
+A dashboard is an ordered list of registered cards, each with its width
+(`dashboardCard`: name, title, span, live, builder, registered with
+`mustRegisterDashboardCard`). The estate, a group node and a device each have
+one. Every card is drawn in place and is also the `dashboard-card` fragment,
+so a card whose source fails shows the failed state with a retry that asks
+for that card alone, and every other card renders.
+
+| Rule | Detail |
+|------|--------|
+| Live cards | A card marked live shows what a device reports now. On the dashboard of an offline device a live card shows the offline state in its place and asks the device nothing |
+| Range | The range selector writes `range` (`hour`, `day`, `week`) into the address, and every chart card reads it |
+| Charts | A chart card names the `dashboard-chart` fragment, which answers JSON: the series reduced by `Reduce` to at most `dashboardChartBudget` (300) points, each the average and the maximum of its period, `null` for a period with no sample, which the script draws as a gap. A series with no sample answers "No samples have been reported yet" and when one is expected; a source that fails answers an empty chart carrying its refusal |
+| Busiest devices | The metric the card ranks by is the `sort` parameter of the dashboard's address, `cpu` by default |
+| Links | A count on a card links to the table that lists exactly those rows, with the filter that selects them: the devices table, a device's peers or interfaces by `state:`, the alarms by `device:`, the rollouts by `state:paused` |
+<!-- source: internal/component/web/fleetui/handler_dashboard.go -- dashboardCard, mustRegisterDashboardCard, dashboardContent, dashboardView, renderDashboardCard, dashboardOfflineSlot, dashboardCardFragment -->
+<!-- source: internal/component/web/fleetui/handler_chart.go -- dashboardCharts, dashboardChartBudget, chartAnswer -->
+<!-- source: internal/component/web/fleetui/handler_dashboard_cards.go -- busiestCardView, alarmsCardView -->
+<!-- source: internal/component/web/fleetui/links_test.go -- TestDashboardLinkCountsEqualTargetRows -->
+
+### The devices table
+
+The Devices tab of the estate and of a group node is one table over the
+devices of the scope, queried by `QueryDevices` through `queryDevicesTable`.
+A filter the schema refuses is shown with the refusal, naming the term and
+the fields, over the unfiltered table. Rows are selected for the bulk actions,
+which post to the action registry. The side panel shows the identity, labels,
+connection, health, the last sample and the open alarms of the opened row.
+<!-- source: internal/component/web/fleetui/handler_devices.go -- devicesContent, queryDevicesTable, devicesPanel -->
+<!-- source: internal/component/web/fleetui/handler_devices_action.go -- devicesActionAnswer -->
+
+### Device tabs
+
+A device has the tabs Dashboard, Console, System, Interfaces, Routing, Config,
+Logs and Tasks. A tab with sub-tabs names the one shown in `sub`
+(`subTabsView`). Each section is a fragment, and a section that shows what the
+device reports now refreshes itself on a timer. The Console posts each
+command to `POST /fleet/console/`, under the mutation wrap, and appends the
+`TerminalEntry` it answers; `ConsoleSuggestions` lists the commands it offers.
+An interface row has no traffic chart, because `DeviceSeries` takes no
+interface, and a BGP peer's panel shows its session and prefixes only.
+<!-- source: internal/component/web/fleetui/register_device_pages.go -- consolePattern, subTabsView -->
+<!-- source: internal/component/web/fleetui/handler_device_console.go -- consolePath, newConsoleHandler, ConsoleSuggestions -->
+
+### Activity
+
+The Tasks tab of the estate, a group node and a device, and the task list,
+list the tasks with their state, progress and duration; a row expands to its
+per-device results (`activityTaskRow`), which the header's task panel shows
+too. The Alarms tab of the estate and of a group node lists the open alarms,
+the most severe first and the oldest first within a severity.
+
+The alarm side panel shows the alarm, its device's alarms of the week, and a
+link to the device tab where its cause is examined. That tab comes from the
+alarm-kind registry: `mustRegisterAlarmTab(kind, tab)` maps an alarm kind to
+a device tab, and a kind with no entry links the device's dashboard.
+
+The States page (`/fleet/admin/states/`) belongs to the prototype: it shows
+every toast level through the `toast-demo` fragment, and, over a source that
+is a `Stepper`, the controls that step and hold the sample script. A step
+answers the event's line and a toast naming it.
+<!-- source: internal/component/web/fleetui/handler_tasks.go -- tasksContent, activityTaskRow, taskActionAnswer -->
+<!-- source: internal/component/web/fleetui/handler_alarms.go -- mustRegisterAlarmTab, alarmTab, scopedAlarms, alarmSidePanel -->
+<!-- source: internal/component/web/fleetui/register_activity_pages.go -- registerAlarmTabs -->
+<!-- source: internal/component/web/fleetui/handler_prototype.go -- statesContent, toastDemoFragment -->
+<!-- source: internal/component/web/fleetui/handler_events.go -- scriptAnswer -->
+
+### Manage
+
+| Page | Shows |
+|------|-------|
+| A device's Config tab | The configuration state, the text the hub holds, its versions, and a divergence with the diff opened by `sub=divergence`. Edit answers the prototype toast |
+| Rollouts | The table of rollouts, one rollout's page at `id=<name>`, and the new-rollout form at `sub=new`, whose preview is the `rollout-preview` fragment |
+| Audit | The audit trail, filtered by actor, event, device, result and time, and exported by `GET /fleet/export/audit` as CSV or JSON, at most `AuditEntriesMax` entries |
+| Administration | Devices (with the join panel), labels, tree views, saved filters, templates, access, audit, history, settings, and the prototype's States page last |
+<!-- source: internal/component/web/fleetui/handler_config.go -- configContent, divergenceFragment, manageActionAnswer -->
+<!-- source: internal/component/web/fleetui/handler_rollouts.go -- rolloutsContent, rolloutPreviewFragment -->
+<!-- source: internal/component/web/fleetui/handler_audit.go -- auditContent, AuditExportPath, newAuditExportHandler -->
+<!-- source: internal/component/web/fleetui/register_tabs.go -- init -->
+
+### Actions
+
+Nothing in the prototype changes anything. Every action that would change the
+estate posts to `/fleet/action/<name>/<page path>` (`ActionAddress`,
+`ParseAction`). `MustRegisterAction(name, build)` registers the builder of one
+action, which answers the toast saying the prototype changed nothing, naming
+the action and its targets, or a toast saying why the action is refused. The
+handler reads a form of at most `actionBytesMax` bytes, and answers 404 for an
+action or a page it does not know. The registered actions are `devices`, `task`
+and `manage`. A destructive action is confirmed first, by typing the name or
+the count.
+<!-- source: internal/component/web/fleetui/handler_action.go -- MustRegisterAction, newActionHandler, actionBytesMax -->
+<!-- source: internal/component/web/fleetui/url.go -- ActionAddress, ParseAction -->
+
 ## Routes
 
 The package registers its routes with the web route registry from `init()`,
@@ -351,6 +496,9 @@ and the hub mounts them when the web server starts.
 | `GET /fleet/fragment/` | The fragments |
 | `GET /fleet/events` | The live event stream |
 | `GET /fleet/assets/` | The embedded styles and scripts, with `Cache-Control: no-cache` |
+| `POST /fleet/action/` | The action registry, under the mutation wrap |
+| `POST /fleet/console/` | One Console command of a device, under the mutation wrap |
+| `GET /fleet/export/audit` | The audit export |
 | `POST /fleet/prototype/step`, `POST /fleet/prototype/hold` | The two prototype-only routes, under the mutation wrap |
 
 The `GET` routes use the authenticated wrap and carry the same enabling
@@ -365,7 +513,7 @@ because the interface has its own shell and the server forbids framing a page.
 
 So a build that links the package and no source serves no fleet route and
 lists no fleet entry. That is every shipped build today.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildShellHandler -->
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildShellHandler, buildActionHandler, buildAuditExportHandler -->
 <!-- source: cmd/ze/hub/service_web.go -- startWebServer, the RegisteredWebRoutes loop -->
 <!-- source: internal/component/web/fleetui/register_test.go -- TestFleetRoutesAbsentWithoutSource -->
 

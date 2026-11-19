@@ -118,11 +118,15 @@ as it answers any address no route owns.
 | `GET /fleet/fragment/` | One region of a page, for htmx |
 | `GET /fleet/events` | The live event stream of one page, per connection |
 | `GET /fleet/assets/` | The fleet styles and scripts |
+| `POST /fleet/action/` | A prototype action named in the path (`/fleet/action/<name>/<page path>`): it changes nothing and answers a toast saying so. Under the mutation wrap |
+| `POST /fleet/console/` | One command of a device's Console tab, answered as a terminal line. Under the mutation wrap |
+| `GET /fleet/export/audit` | The audit trail the page's filter keeps, as CSV or JSON, at most 1000 entries |
 | `POST /fleet/prototype/step`, `POST /fleet/prototype/hold` | Advance the sample estate's script by one event, and stop it from advancing on its own. Mounted only over a source that can be stepped, which no shipped build links |
 
 The routes, the addresses under them and their package are described in
 `fleet-interface.md`.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered -->
+<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildActionHandler, buildAuditExportHandler -->
+<!-- source: internal/component/web/fleetui/register_device_pages.go -- consolePattern -->
 
 ## Offline backup workspace
 

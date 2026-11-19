@@ -8,9 +8,9 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/6 |
+| Phase | 4/6 |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -73,7 +73,7 @@ This spec owns four things:
 | Software | Three versions in use, one device two versions behind |
 | Configuration | 39 in sync, 2 pending, 1 rejected, 1 diverged, 1 never fetched |
 | History | One week of samples per device, generated from a fixed seed so every start draws the same charts: a daily pattern, one traffic spike, one gap where a device was offline |
-| Alarms | 9 open: 1 critical, 5 warning, 3 informational |
+| Alarms | 12 open: 4 critical (one component down, three devices offline), 5 warning, 3 informational. The sample hub opens the offline alarm five minutes after a device was last seen. Owner decision, 2026-11-19: an offline device raises a critical alarm, replacing the earlier table of 9 open alarms with one critical |
 | Tasks | 2 running, 1 failed, 12 finished in the last day |
 | Rollouts | 1 paused at the second batch after a rejection, 1 complete |
 | Labels | `site`, `role`, `model`, `customer` |
@@ -219,11 +219,11 @@ verb, no command and no stored format.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | unvalidated: confirmed by reading (`TemplateFileParser.Parse` keeps every line before `package` in `Header`, `generator.writeHeader` writes them before the package clause); the generation run is owed. Not load-bearing: the phase 1 finding below needs no build line in the package |
-| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | A browser test that drags the edge | unvalidated |
-| A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | unvalidated: broken as worded, by reading. The generator derives a compound constraint only for a package it discovers (`discoverPlugins` over `pluginDirs`), and it does not discover this one, so nothing is derived. The fallback is lighter than stated: `sameFeatureImporter` exempts every file under the web package's directory, so the compound line is written by hand in the two hub import files only. The tier check run is owed |
-| A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | unvalidated: confirmed by reading (`startWebServer` sets `authWrap = zeweb.InsecureMiddleware`, and the route loop wraps `WrapAuth` with it); the review build is phase 5 |
-| A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | unvalidated: confirmed by reading. The asset check reads each listed directory with `os.ReadDir` and does not descend, so it never reads the fleet directory. The htmx check walks the web package recursively (`collectFiles`), so it reads the fleet directory with no new row. Both runs are owed |
+| A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | confirmed: by the parser read (`TemplateFileParser.Parse` keeps every line before `package` in `Header`, `generator.writeHeader` writes them before the package clause) and by a generation run. Not load-bearing: the phase 1 finding below needs no build line in the package |
+| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | A browser test that drags the edge | unvalidated: the script is written both ways (phase 3 findings); which path a browser takes under the content security policy waits for the owner's browser check |
+| A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | broken as worded, fallback taken. The generator derives a compound constraint only for a package it discovers (`discoverPlugins` over `pluginDirs`), and it does not discover this one, so nothing is derived. The fallback is lighter than stated: `sameFeatureImporter` exempts every file under the web package's directory, so the compound line is written by hand in the two hub import files only. The wrong assumption read the BGP precedent as general |
+| A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | confirmed: by reading (`startWebServer` sets `authWrap = zeweb.InsecureMiddleware`, and the route loop wraps `WrapAuth` with it) and by a browser session against a review build started with the insecure option, which opened `/fleet/` with no login |
+| A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | confirmed. The asset check reads each listed directory with `os.ReadDir` and does not descend, so it never reads the fleet directory; the fleet package carries its own asset guard. The htmx check walks the web package recursively (`collectFiles`), so it reads the fleet directory with no new row |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -471,7 +471,7 @@ verb, no command and no stored format.
 
 ### Phase 2 findings (foundation: the sample source)
 
-- The sample estate table states one critical alarm, and `fleet-ui-5` makes "device offline" critical while three devices are offline. The sample hub therefore opens the offline alarm after seven days (its `Settings`), so none is open: the device away for six days is on the Needs attention card and has no alarm. The one critical alarm is the component down. The owner confirms this reading or changes the table.
+- The sample estate table first stated one critical alarm while `fleet-ui-5` makes "device offline" critical and three devices are offline, so phase 2 set the offline alarm delay to seven days and opened none. The integration pass changed the table instead: the sample hub opens the offline alarm five minutes after a device was last seen (its `Settings`), so each offline device has a critical alarm open (4 critical, 12 open), the two devices that were away during the week have the cleared alarm of that outage, and the script device's alarm opens and clears with its outage, the script standing for an outage longer than the delay.
 - "12 finished" is read as eleven succeeded and one partly failed, beside the one failed and the two running: fifteen tasks. The sample hub keeps thirteen ended tasks, so an ended scripted task pushes out the oldest of the table.
 - Two devices grant no relay profile, not one: two of the three informational alarms are "relay not granted", and a device with that alarm has to refuse its views. One of them is the device in the Unknown state, which never fetched a configuration.
 - A series is answered at 30 seconds, 5 minutes or 30 minutes according to the period asked for, at most 360 points. `Series.Interval` carries which. This is input to `fleet-8`: a history that thins its older samples fits the interface as it is.
@@ -490,6 +490,23 @@ verb, no command and no stored format.
 - The fleet asset guard resolves `/assets/` against the directory the web package embeds, through a new `markupcheck.AssertAssetsResolveIn` that takes several served trees. The existing single-tree assertion and its messages are unchanged. The change to a shared guard is the main thread's to send to `ze-test-judge`.
 - `sample/handler_test.go`, written for the phase 1 shell, expects every device name in the estate page. The devices of the estate page now sit below the second level of the tree and load on expansion, so that expectation no longer holds and the sample test owes a change by the agent that owns the sample package.
 - Assumption A-2 is written both ways: the script sets `--fleet-sidebar-width` through the object model, reads it back, and falls back to three widths chosen by a class when the property did not take. Which path a browser takes under the content security policy is still to be observed.
+
+### Phase 4 findings (the page families and their integration)
+
+What the five page families decided that departs from or adds to this spec and its children:
+
+- Edit on a device's Config tab answers the prototype toast. It does not embed the YANG editor: the editor belongs to the web package, and nothing in the prototype changes anything.
+- A template's preview shows only what the data source answers. The source answers no template text, variables or rendering, so the panel says so instead of drawing a preview.
+- The devices table has no column chooser: its columns are fixed.
+- An interface row's side panel has no traffic chart: `DeviceSeries` takes no interface (phase 2 findings).
+- A BGP peer's side panel shows the session and its prefixes only: `Peer` carries no capabilities, families, counters or state history.
+- The account menu has no sign out: the web server has no sign-out route (phase 3 findings).
+- Event scoping narrows the content region only. The tree stays global, so a change of any device names the tree for every stream.
+- The opened divergence diff and the new-rollout form are values of the `sub` parameter (`?sub=divergence`, `?sub=new`), the parameter that names a page's sub-view. The umbrella's URL scheme has no other place for them.
+- The Busiest devices card takes its metric from the `sort` parameter of the dashboard's address.
+- A device's Logs tab does not stream in the prototype: the Recent sub-tab draws the follow control, and the lines are those of one request to the source.
+- Every action that would change the estate posts to one action registry, `POST /fleet/action/<name>/<page>`, which answers a toast and changes nothing. The Console keeps its own route, `POST /fleet/console/`, because it answers a terminal line, not a toast.
+- The audit export is `GET /fleet/export/audit`, bounded to `AuditEntriesMax` (1000) entries, in CSV or JSON.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

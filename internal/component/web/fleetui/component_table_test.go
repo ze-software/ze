@@ -120,12 +120,13 @@ func TestTableMarkup(t *testing.T) {
 
 // TestTagsCellCountsTheRest checks the labels a cell shows.
 //
-// VALIDATES: a cell shows at most three labels and counts the others.
-// PREVENTS: a row as tall as its longest label list.
+// VALIDATES: a cell shows at most two labels and counts the others.
+// PREVENTS: a row as tall as its longest label list, and a Labels column so
+// wide it pushes the other columns of the devices table out of view.
 func TestTagsCellCountsTheRest(t *testing.T) {
 	five := TagsCell(galleryTags())
-	if len(five.Tags) != 3 || five.More != 2 {
-		t.Errorf("five labels show %d and count %d more, want 3 and 2", len(five.Tags), five.More)
+	if len(five.Tags) != 2 || five.More != 3 {
+		t.Errorf("five labels show %d and count %d more, want 2 and 3", len(five.Tags), five.More)
 	}
 
 	two := TagsCell(galleryTags()[:2])

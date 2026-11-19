@@ -58,9 +58,11 @@ templ QueryRow(v QueryRowView) {
 
 // TableActions draws the table actions row: the caption, then each action as
 // an icon and a word, dimmed while no row is selected. It is the form the row
-// checkboxes belong to, so an action posts the selection.
+// checkboxes belong to, so an action posts the selection. htmx posts it and
+// swaps nothing: the answer is a toast, swapped out of band, so the page and
+// its selection stay as they are.
 templ TableActions(v BulkView) {
-	<form class="fleet-table-actions" id={ v.Form } method="post" action={ templ.URL(v.Action) } data-fleet-bulk-form="true">
+	<form class="fleet-table-actions" id={ v.Form } method="post" action={ templ.URL(v.Action) } hx-post={ v.Action } hx-target="this" hx-swap="none" data-fleet-bulk-form="true">
 		<input type="hidden" name="q" value={ v.Filter }/>
 		<input type="hidden" name="all" value="" data-fleet-select-matches-field="true"/>
 		<span class="fleet-table-actions-caption">Table actions</span>
@@ -187,7 +189,7 @@ templ Cell(v CellView) {
 					@Tag(tag)
 				}
 				if v.More > 0 {
-					<span class="fleet-chip fleet-chip--more" title={ countText(v.More) + " more labels" }>{ "+" + countText(v.More) }</span>
+					<span class="fleet-chip fleet-chip--more" title={ countText(v.More) + " more labels: " + v.Title }>{ "+" + countText(v.More) }</span>
 				}
 				if len(v.Tags) == 0 {
 					<span class="fleet-absent" title="No label">-</span>

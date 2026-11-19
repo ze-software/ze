@@ -1,0 +1,110 @@
+/* Design: docs/architecture/fleet-interface.md -- the layout of the device tabs: System, Interfaces, Routing, Logs and Console
+ *
+ * Layout only. Every colour is a theme variable of fleet-shell.css and every
+ * gap one of the spacing variables. The components the tabs are built from
+ * carry their own styles in fleet-components.css.
+ */
+
+.fleet-device-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fleet-device-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 0 var(--space-2) 0;
+}
+
+.fleet-device-subtab {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+}
+
+.fleet-device-subtab:hover,
+.fleet-device-subtab:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.fleet-device-subtab[aria-current="page"] {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.fleet-device-follow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.fleet-device-tool-form {
+  display: none;
+}
+
+.fleet-device-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.fleet-device-section {
+  min-width: 0;
+}
+
+.fleet-device-section--wide {
+  grid-column: 1 / -1;
+}
+
+.fleet-device-reported {
+  margin: 0 0 var(--space-2) 0;
+  color: var(--text-muted);
+}
+
+.fleet-device-external {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0 0;
+}
+
+.fleet-device-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fleet-device-grant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.fleet-device-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fleet-device-suggestions .fleet-kv-label {
+  margin: 0;
+}
+
+.fleet-device-suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

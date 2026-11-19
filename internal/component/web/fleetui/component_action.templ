@@ -212,7 +212,7 @@ type TagView struct {
 // the operator may edit it.
 templ Tag(v TagView) {
 	<span class="fleet-chip">
-		<span class="fleet-chip-text">{ v.Key }={ v.Value }</span>
+		<span class="fleet-chip-text" title={ v.Key + "=" + v.Value }>{ v.Key }={ v.Value }</span>
 		if v.Remove != nil {
 			@actionControl(*v.Remove, actionLookIcon)
 		}

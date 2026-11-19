@@ -5,7 +5,8 @@
  * answers this JSON, already reduced by the hub to the width of a chart:
  *
  *   {
- *     "unit": "%",                        the unit, written on the vertical axis
+ *     "unit": "%",                        "%", "bit/s", "B" or a count's word: figures are
+ *                                         written in its short form (Mb/s, GiB, 42%)
  *     "timestamps": [1763500000, ...],    Unix seconds, ascending, one per period
  *     "series": [
  *       {
@@ -52,10 +53,59 @@
     return Array.prototype.slice.call(root.querySelectorAll('[data-chart-series]'));
   }
 
+  // SCALED holds the units whose figures are written with a prefix: bits per
+  // second in steps of 1000 (kb/s, Mb/s, Gb/s), bytes in steps of 1024 (KiB,
+  // MiB, GiB). A percentage carries its sign; a count is written plain, its
+  // unit named once, on the vertical axis.
+  var SCALED = {
+    'bit/s': { base: 1000, steps: ['b/s', 'kb/s', 'Mb/s', 'Gb/s', 'Tb/s'] },
+    'B': { base: 1024, steps: ['B', 'KiB', 'MiB', 'GiB', 'TiB'] }
+  };
+
+  // AXIS_CHAR_WIDTH and AXIS_PADDING size the vertical axis to its widest
+  // label, in pixels, so no label is clipped.
+  var AXIS_CHAR_WIDTH = 7;
+  var AXIS_PADDING = 18;
+
+  function shortNumber(value) {
+    var size = Math.abs(value);
+    if (size >= 100) return String(Math.round(value));
+    if (size >= 10) return String(Math.round(value * 10) / 10);
+    return String(Math.round(value * 100) / 100);
+  }
+
+  // formatValue writes a figure in the short form of its unit: "2.4 Gb/s",
+  // "512 MiB", "42%", or a plain count.
   function formatValue(value, unit) {
     if (value === null || value === undefined) return '-';
-    var rounded = Math.abs(value) >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
-    return unit ? rounded + ' ' + unit : String(rounded);
+    var scale = SCALED[unit];
+    if (scale) {
+      var step = 0;
+      while (Math.abs(value) >= scale.base && step < scale.steps.length - 1) {
+        value = value / scale.base;
+        step++;
+      }
+      return shortNumber(value) + ' ' + scale.steps[step];
+    }
+    if (unit === '%') return shortNumber(value) + '%';
+    return shortNumber(value);
+  }
+
+  // axisLabel answers the caption of the vertical axis: the unit of a count,
+  // which its figures do not carry. A scaled unit and a percentage are written
+  // on every figure, so the axis needs no caption.
+  function axisLabel(unit) {
+    if (!unit || SCALED[unit] || unit === '%') return '';
+    return unit;
+  }
+
+  // axisSize answers the width of the vertical axis for its labels.
+  function axisSize(plot, values) {
+    var longest = 0;
+    (values || []).forEach(function(text) {
+      longest = Math.max(longest, String(text).length);
+    });
+    return longest * AXIS_CHAR_WIDTH + AXIS_PADDING;
   }
 
   function latest(values) {
@@ -164,8 +214,12 @@
           stroke: axis,
           grid: { stroke: grid, width: 1 },
           ticks: { stroke: grid, width: 1 },
-          label: data.unit || '',
-          labelSize: data.unit ? 20 : 0
+          values: function(plot, ticks) {
+            return ticks.map(function(tick) { return formatValue(tick, data.unit); });
+          },
+          size: axisSize,
+          label: axisLabel(data.unit),
+          labelSize: axisLabel(data.unit) ? 20 : 0
         }
       ],
       hooks: {

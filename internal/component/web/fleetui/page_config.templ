@@ -1,0 +1,119 @@
+// Design: docs/architecture/fleet-interface.md -- the device Config tab and what the manage pages share
+// Related: handler_config.go -- builds the views these templates draw
+
+package fleetui
+
+// ManageSectionView is one section of a manage page: its title, the name of
+// the fragment that answers its body alone, and the body, which is the
+// section's content or the state its failure shows.
+type ManageSectionView struct {
+	Title string
+	Name  string
+	Body  templ.Component
+}
+
+// ManageFormView is the hidden form every action of a manage page submits.
+// URL is the manage action of the page in hand; the submitting button adds
+// the action and its target as the item field of the posted body.
+type ManageFormView struct {
+	ID  string
+	URL string
+}
+
+// ConfigTabView is the Config tab of a device. Offline is the banner of a
+// device the hub cannot reach.
+type ConfigTabView struct {
+	Offline  *CalloutView
+	Sections []ManageSectionView
+	Form     ManageFormView
+}
+
+// ConfigTextView is the configuration the hub holds, read-only, with the
+// action that edits it.
+type ConfigTextView struct {
+	Version string
+	Text    string
+	Edit    ActionView
+}
+
+// DivergenceView is a diverged device's banner, the difference once it is
+// opened, and the two resolutions.
+type DivergenceView struct {
+	Banner  CalloutView
+	Opened  bool
+	Diff    DiffView
+	Keep    ActionView
+	Restore ActionView
+}
+
+// PanelDiffView is a side panel followed by a diff, and a note under it.
+// Diff is nil for a row with nothing to compare.
+type PanelDiffView struct {
+	Panel PanelView
+	Diff  *DiffView
+	Note  string
+}
+
+// manageSection draws one section with its title.
+templ manageSection(v ManageSectionView) {
+	<section class="fleet-manage-section" data-fleet-name={ v.Name }>
+		<h2 class="fleet-manage-section-title">{ v.Title }</h2>
+		@v.Body
+	</section>
+}
+
+// ManageForm draws the hidden form the actions of a manage page submit. Its
+// answer is a toast, swapped out of band, so the form swaps nothing itself.
+templ ManageForm(v ManageFormView) {
+	<form id={ v.ID } class="fleet-manage-form" method="post" action={ templ.URL(v.URL) } hx-post={ v.URL } hx-target="this" hx-swap="none"></form>
+}
+
+// ConfigTab draws the Config tab of a device.
+templ ConfigTab(v ConfigTabView) {
+	<div class="fleet-manage">
+		if v.Offline != nil {
+			@Callout(*v.Offline)
+		}
+		for _, section := range v.Sections {
+			@manageSection(section)
+		}
+		@ManageForm(v.Form)
+	</div>
+}
+
+// ConfigText draws the configuration in a read-only monospace block. The
+// prototype embeds no editor: Edit answers the prototype's toast.
+templ ConfigText(v ConfigTextView) {
+	<div class="fleet-manage-code-head">
+		<span class="fleet-mono">{ v.Version }</span>
+		@ActionButton(v.Edit)
+	</div>
+	<pre class="fleet-mono fleet-manage-code" aria-label="The configuration the hub holds, read-only">{ v.Text }</pre>
+}
+
+// DivergenceSection draws the divergence banner, the difference with the
+// hub on the left and the device on the right once it is opened, and the
+// two resolutions, the destructive one last.
+templ DivergenceSection(v DivergenceView) {
+	@Callout(v.Banner)
+	if v.Opened {
+		@Diff(v.Diff)
+	}
+	<div class="fleet-manage-resolve">
+		@ActionButton(v.Keep)
+		@ActionButton(v.Restore)
+	</div>
+}
+
+// PanelWithDiff draws a side panel's content with a diff under its cards.
+templ PanelWithDiff(v PanelDiffView) {
+	@PanelContent(v.Panel)
+	if v.Diff != nil {
+		<div class="fleet-manage-panel-diff">
+			@Diff(*v.Diff)
+		</div>
+	}
+	if v.Note != "" {
+		<p class="fleet-manage-note">{ v.Note }</p>
+	}
+}

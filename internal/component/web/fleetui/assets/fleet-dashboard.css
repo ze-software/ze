@@ -1,0 +1,203 @@
+/* Design: docs/architecture/fleet-interface.md -- the layout of the estate, group and device dashboards
+ *
+ * The cards, their grid, the donuts, the usage bars and the charts are the
+ * components' own (fleet-components.css). This sheet lays out what only a
+ * dashboard holds: the range selector, the slot of a card, the lists inside
+ * the Needs attention, Rollouts, Recent changes and Busiest devices cards,
+ * and the retry of a failed card.
+ */
+
+.fleet-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The range selector sits above the grid, at its right. */
+.fleet-dashboard-ranges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.fleet-dashboard-choices {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fleet-dashboard-choice-link {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.fleet-dashboard-choice-link:hover,
+.fleet-dashboard-choice-link:focus-visible {
+  color: var(--text-primary);
+}
+
+.fleet-dashboard-choice--current .fleet-dashboard-choice-link {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* A slot takes no room of its own: the card inside is the grid item, so its
+ * span class places it. */
+.fleet-dashboard-slot {
+  display: contents;
+}
+
+/* The ranking choices of Busiest devices sit under the card's title. */
+.fleet-dashboard-rank {
+  margin: 0 0 var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.fleet-dashboard-lines,
+.fleet-dashboard-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A line of Needs attention: the whole line is the link, the count in a
+ * pill, the sentence in the accent colour on one line, with the hover band
+ * of the alarm rows. */
+.fleet-dashboard-line-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.fleet-dashboard-line-link:hover,
+.fleet-dashboard-line-link:focus-visible {
+  background: var(--bg-surface);
+}
+
+.fleet-dashboard-line-link:hover .fleet-dashboard-line-text,
+.fleet-dashboard-line-link:focus-visible .fleet-dashboard-line-text {
+  text-decoration: underline;
+}
+
+.fleet-dashboard-line-count {
+  flex: none;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fleet-dashboard-line-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-dashboard-lines {
+  gap: 0;
+}
+
+/* A row of Rollouts, Recent changes and Busiest devices: one line, its
+ * columns aligned from row to row like the alarm rows. */
+.fleet-dashboard-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-dashboard-row:hover {
+  background: var(--bg-surface);
+}
+
+.fleet-dashboard-row--rollout,
+.fleet-dashboard-row--change {
+  display: grid;
+}
+
+/* Name, state, progress, then who started it at the right. */
+.fleet-dashboard-row--rollout {
+  grid-template-columns: minmax(0, 1fr) 7rem 7.5rem minmax(0, 6rem);
+}
+
+/* When, who, what, then how many devices at the right. */
+.fleet-dashboard-row--change {
+  grid-template-columns: 7rem minmax(0, 6rem) minmax(0, 1fr) 5.5rem;
+}
+
+/* A cell holds one line: a text too long for it ends in an ellipsis, and
+ * the cell's title carries the whole text. */
+.fleet-dashboard-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-dashboard-row-end {
+  text-align: right;
+}
+
+/* A busy device: its name, then the bar taking what room is left. */
+.fleet-dashboard-row--busy {
+  align-items: center;
+}
+
+.fleet-dashboard-row--busy .fleet-usage-mini {
+  flex: 1 1 auto;
+}
+
+.fleet-dashboard-row-detail,
+.fleet-dashboard-row-when {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fleet-dashboard-row-actor {
+  font-weight: 600;
+}
+
+.fleet-dashboard-row-link {
+  color: var(--accent);
+}
+
+.fleet-dashboard-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+}
+
+/* The one line of a card with nothing to count. */
+.fleet-dashboard-note {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.fleet-dashboard-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  color: var(--accent);
+}

@@ -45,8 +45,9 @@ type Stepper interface {
 
 // The interfaces the sample source fills.
 var (
-	_ fleetui.Source = (*estate)(nil)
-	_ Stepper        = (*estate)(nil)
+	_ fleetui.Source       = (*estate)(nil)
+	_ Stepper              = (*estate)(nil)
+	_ fleetui.SampleSource = (*estate)(nil)
 )
 
 // estate is the sample data source. Safe for concurrent use.
@@ -141,6 +142,10 @@ func (source *estate) Close() {
 func (source *estate) Now(context.Context) (time.Time, error) {
 	return source.clock(), nil
 }
+
+// SampleData marks the source as answering an invented estate, which the
+// fleet header says with its "Sample data" tag (fleetui.SampleSource).
+func (*estate) SampleData() {}
 
 // Estate answers the name of the sample estate.
 func (*estate) Estate(context.Context) (fleetui.Estate, error) {

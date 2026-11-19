@@ -12,8 +12,14 @@ import (
 	"github.com/ze-software/ze/internal/component/web"
 )
 
-// fleetPrefix is the method and path every fleet route pattern starts with.
-const fleetPrefix = "GET /fleet/"
+// fleetPrefix is the path every fleet route pattern starts with, after its
+// method.
+const fleetPrefix = "/fleet/"
+
+// fleetRouteCount is every fleet route: the shell, the assets, the
+// fragments, the event stream, the audit export, the actions and the
+// console, and the step and hold routes the sample's script mounts.
+const fleetRouteCount = 9
 
 // mountFleet mounts the registered fleet routes the way the hub does when the
 // web server starts without login: it skips a route whose Enabled answers
@@ -25,7 +31,8 @@ func mountFleet(t *testing.T) *http.ServeMux {
 	mounted := 0
 
 	for _, route := range web.RegisteredWebRoutes() {
-		if !strings.HasPrefix(route.Pattern, fleetPrefix) {
+		_, path, _ := strings.Cut(route.Pattern, " ")
+		if !strings.HasPrefix(path, fleetPrefix) {
 			continue
 		}
 		if route.Enabled != nil && !route.Enabled() {
@@ -36,7 +43,7 @@ func mountFleet(t *testing.T) *http.ServeMux {
 		mounted++
 	}
 
-	require.Equal(t, 2, mounted, "linking the sample source mounts the shell route and the assets route")
+	require.Equal(t, fleetRouteCount, mounted, "linking the sample source mounts every fleet route, the script's included")
 
 	return mux
 }
@@ -55,7 +62,7 @@ func get(t *testing.T, mux *http.ServeMux, target string) *httptest.ResponseReco
 // registered routes, in a test binary that links the sample source.
 //
 // VALIDATES: AC-1 at the handler -- the route is mounted because a source is
-// registered, and the shell names the sample estate and every sample device.
+// registered, and the shell draws the estate dashboard of the sample estate.
 // PREVENTS: a sample build whose fleet address answers a page with no estate
 // in it, and a registration that never reaches the web route registry.
 func TestFleetShellRendersSampleEstate(t *testing.T) {
@@ -66,13 +73,20 @@ func TestFleetShellRendersSampleEstate(t *testing.T) {
 
 	page := answer.Body.String()
 	assert.Contains(t, page, estateName)
-	assert.Contains(t, page, "edge-lon-04")
+	assert.Contains(t, page, "fleet-dashboard-slot", "the estate dashboard draws its cards")
+}
 
-	// A device is too large to copy per iteration, so the loop indexes.
-	sampled := devices()
-	for index := range sampled {
-		assert.Contains(t, page, sampled[index].Name)
-	}
+// TestFleetDevicePageRendersSampleDevice requests a sample device's
+// dashboard through the registered routes.
+//
+// VALIDATES: a device of the sample answers its page, named in its header.
+// PREVENTS: a sample whose devices, below the second level of the tree, are
+// reachable by no address.
+func TestFleetDevicePageRendersSampleDevice(t *testing.T) {
+	answer := get(t, mountFleet(t), "/fleet/device/edge-lon-04/dashboard/")
+
+	require.Equal(t, http.StatusOK, answer.Code)
+	assert.Contains(t, answer.Body.String(), "edge-lon-04")
 }
 
 // TestFleetShellAssetsAreServed requests the stylesheet and the script the

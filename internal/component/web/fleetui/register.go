@@ -2,11 +2,19 @@
 // Related: source.go -- the slot whose state decides whether the routes mount
 // Related: handler_shell.go, handler_fragment.go, handler_events.go -- the handlers the routes build
 // Related: pages.go -- the fragment registry the shell's own fragments join
+// Related: handler_action.go -- the action registry the action route answers
+// Related: handler_audit.go -- the audit export the export route answers
+// Related: register_device_pages.go -- the console route, registered by its family
 //
 // The fleet routes register here and the hub mounts them when the web server
 // starts. They mount only when a data source is registered, so a build that
 // links this package and no source serves no fleet route and lists no fleet
 // entry in the portal menu.
+//
+// Every route builder takes the source from the package's slot, which keeps
+// it for the life of the process: Source has no Close, and nothing stops it.
+// A source that runs a worker, as the sample's clock does, runs it until the
+// process ends.
 
 package fleetui
 
@@ -27,6 +35,12 @@ const (
 	eventsPattern   = "GET " + EventsPath
 	stepPattern     = "POST " + stepPath
 	holdPattern     = "POST " + holdPath
+	// actionPattern is every prototype action: the action registry answers
+	// it, under the mutation wrap, because an action is a state change in
+	// the functional interface even though the prototype changes nothing.
+	actionPattern = "POST " + actionPath
+	// auditExportPattern is the audit log export, a read.
+	auditExportPattern = "GET " + AuditExportPath
 )
 
 func init() {
@@ -49,6 +63,18 @@ func init() {
 		Wrap:    web.WrapAuth,
 		Enabled: sourceRegistered,
 		Build:   buildEventsHandler,
+	})
+	web.RegisterWebRoute(web.WebRoute{
+		Pattern: actionPattern,
+		Wrap:    web.WrapMutation,
+		Enabled: sourceRegistered,
+		Build:   buildActionHandler,
+	})
+	web.RegisterWebRoute(web.WebRoute{
+		Pattern: auditExportPattern,
+		Wrap:    web.WrapAuth,
+		Enabled: sourceRegistered,
+		Build:   buildAuditExportHandler,
 	})
 	web.RegisterWebRoute(web.WebRoute{
 		Pattern: stepPattern,
@@ -124,6 +150,17 @@ func buildFragmentHandler(web.RouteDeps) http.Handler {
 // source.
 func buildEventsHandler(web.RouteDeps) http.Handler {
 	return newEventStream(mountedSource())
+}
+
+// buildActionHandler builds the action route over the registered source.
+func buildActionHandler(web.RouteDeps) http.Handler {
+	return newActionHandler(mountedSource())
+}
+
+// buildAuditExportHandler builds the audit export over the registered
+// source.
+func buildAuditExportHandler(web.RouteDeps) http.Handler {
+	return newAuditExportHandler(mountedSource())
 }
 
 // mountedStepper answers the registered source as a Stepper, which

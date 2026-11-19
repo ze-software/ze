@@ -1,0 +1,334 @@
+// Design: docs/architecture/fleet-interface.md -- the dashboards of the estate, of a group node and of a device
+// Related: handler_dashboard.go -- the registry of cards and the builders that fill these views
+// Related: component_card.templ -- the card frame, the figures and the chart card
+// Related: assets/fleet-dashboard.css -- the layout rules of the dashboards
+package fleetui
+
+// DashboardChoiceView is one link of a small selector: a chart range, or
+// what the Busiest devices card ranks by. Current marks the one shown.
+type DashboardChoiceView struct {
+	Label   string
+	Href    string
+	Current bool
+}
+
+// DashboardView is the frame of a dashboard: the width of its grid and the
+// links of its one range selector.
+type DashboardView struct {
+	Columns int
+	Ranges  []DashboardChoiceView
+}
+
+// Dashboard draws the range selector, then the cards in their grid.
+templ Dashboard(v DashboardView, cards []templ.Component) {
+	<div class="fleet-dashboard">
+		<nav class="fleet-dashboard-ranges" aria-label="Chart range">
+			<span class="fleet-dashboard-ranges-caption">Charts over</span>
+			@dashboardChoices(v.Ranges)
+		</nav>
+		@CardGrid(CardGridView{Columns: v.Columns}) {
+			for _, card := range cards {
+				@card
+			}
+		}
+	</div>
+}
+
+// dashboardChoices draws the links of a selector, the current one marked.
+templ dashboardChoices(choices []DashboardChoiceView) {
+	<ul class="fleet-dashboard-choices">
+		for _, choice := range choices {
+			<li class={ "fleet-dashboard-choice", templ.KV("fleet-dashboard-choice--current", choice.Current) }>
+				@NavLink(NavLinkView{Href: choice.Href, Class: "fleet-dashboard-choice-link", Current: choice.Current}) {
+					{ choice.Label }
+				}
+			</li>
+		}
+	</ul>
+}
+
+// DashboardSlotView is the place of one card. ID is what a retry of the card
+// replaces; Fragment is the address of the card alone.
+type DashboardSlotView struct {
+	ID       string
+	Fragment string
+}
+
+// dashboardSlot holds one card. The slot takes no room of its own in the
+// grid, so the card inside is the grid item.
+templ dashboardSlot(v DashboardSlotView, card templ.Component) {
+	<div class="fleet-dashboard-slot" id={ v.ID } data-fleet-card={ v.Fragment }>
+		@card
+	</div>
+}
+
+// DashboardFailedView is a card whose source failed: its frame, the state
+// FailureOf names, and a retry that fetches the card alone into Target.
+type DashboardFailedView struct {
+	Card      CardView
+	Hero      StateHeroView
+	RetryHref string
+	Fragment  string
+	Target    string
+}
+
+// dashboardFailedCard draws the failed state of one card, in the card's own
+// size, with its retry.
+templ dashboardFailedCard(v DashboardFailedView) {
+	@Card(v.Card) {
+		@StateHero(v.Hero)
+		<a class="fleet-dashboard-retry" href={ templ.URL(v.RetryHref) } hx-get={ v.Fragment } hx-target={ v.Target } hx-swap="outerHTML">
+			@Icon("retry")
+			<span>Retry this card</span>
+		</a>
+	}
+}
+
+// DashboardOfflineView is the full-width state of an offline device's
+// dashboard, in place of its live cards.
+type DashboardOfflineView struct {
+	Card CardView
+	Hero StateHeroView
+}
+
+// dashboardOffline draws the offline state of a device's dashboard.
+templ dashboardOffline(v DashboardOfflineView) {
+	@Card(v.Card) {
+		@StateHero(v.Hero)
+	}
+}
+
+// DashboardAlarmsView is the Alarms card: the most severe open alarms.
+type DashboardAlarmsView struct {
+	Card CardView
+	List AlarmListView
+}
+
+// dashboardAlarms draws the Alarms card, or its good news when none is open.
+templ dashboardAlarms(v DashboardAlarmsView) {
+	@Card(v.Card) {
+		@AlarmList(v.List)
+	}
+}
+
+// DashboardLineView is one line of the Needs attention card: a count, what
+// it counts, and the filtered view of exactly those rows.
+type DashboardLineView struct {
+	Count int
+	Text  string
+	Href  string
+}
+
+// DashboardAttentionView is the Needs attention card.
+type DashboardAttentionView struct {
+	Card  CardView
+	Lines []DashboardLineView
+	Empty GoodNewsView
+}
+
+// dashboardAttention draws one line per condition, or the good news. The
+// whole line is the link to the filtered view: the count in a pill, then the
+// sentence, held on one line.
+templ dashboardAttention(v DashboardAttentionView) {
+	@Card(v.Card) {
+		if len(v.Lines) == 0 {
+			@GoodNews(v.Empty)
+		} else {
+			<ul class="fleet-dashboard-lines">
+				for _, line := range v.Lines {
+					<li class="fleet-dashboard-line">
+						@NavLink(NavLinkView{Href: line.Href, Class: "fleet-dashboard-line-link"}) {
+							<span class="fleet-pill fleet-dashboard-line-count">{ countText(line.Count) }</span>
+							<span class="fleet-dashboard-line-text" title={ line.Text }>{ line.Text }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+// DashboardRolloutView is one rollout of the Rollouts card.
+type DashboardRolloutView struct {
+	Name     string
+	Href     string
+	Progress string
+	Actor    string
+	Status   Status
+}
+
+// DashboardRolloutsView is the Rollouts card: the running rollouts first,
+// then the recently finished ones. Empty is the line shown when none ran.
+type DashboardRolloutsView struct {
+	Card  CardView
+	Rows  []DashboardRolloutView
+	Empty string
+}
+
+// dashboardRollouts draws the Rollouts card, one aligned row per rollout:
+// its name, its state, its progress and, at the right, who started it. A
+// cell too long for its column ends in an ellipsis and carries its text in
+// its title.
+templ dashboardRollouts(v DashboardRolloutsView) {
+	@Card(v.Card) {
+		if len(v.Rows) == 0 {
+			<p class="fleet-dashboard-note">{ v.Empty }</p>
+		} else {
+			<ul class="fleet-dashboard-rows">
+				for _, row := range v.Rows {
+					<li class="fleet-dashboard-row fleet-dashboard-row--rollout">
+						<span class="fleet-dashboard-cell" title={ row.Name }>
+							@NavLink(NavLinkView{Href: row.Href, Class: "fleet-object-link"}) {
+								{ row.Name }
+							}
+						</span>
+						<span class="fleet-dashboard-cell">
+							@StatusWord(row.Status)
+						</span>
+						<span class="fleet-dashboard-cell fleet-dashboard-row-detail" title={ row.Progress }>{ row.Progress }</span>
+						<span class="fleet-dashboard-cell fleet-dashboard-row-end" title={ row.Actor }>{ row.Actor }</span>
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+// DashboardChangeView is one audit entry of the Recent changes card.
+type DashboardChangeView struct {
+	When    string
+	Exact   string
+	Actor   string
+	What    string
+	Devices string
+	Href    string
+}
+
+// DashboardChangesView is the Recent changes card.
+type DashboardChangesView struct {
+	Card  CardView
+	Rows  []DashboardChangeView
+	Empty string
+}
+
+// dashboardChanges draws the last audit entries, the newest first, one
+// aligned row each: when, who, what (the link to the entry) and, at the
+// right, how many devices it reached.
+templ dashboardChanges(v DashboardChangesView) {
+	@Card(v.Card) {
+		if len(v.Rows) == 0 {
+			<p class="fleet-dashboard-note">{ v.Empty }</p>
+		} else {
+			<ul class="fleet-dashboard-rows">
+				for _, row := range v.Rows {
+					<li class="fleet-dashboard-row fleet-dashboard-row--change">
+						<span class="fleet-dashboard-cell fleet-dashboard-row-when" title={ row.Exact }>{ row.When }</span>
+						<span class="fleet-dashboard-cell fleet-dashboard-row-actor" title={ row.Actor }>{ row.Actor }</span>
+						<span class="fleet-dashboard-cell" title={ row.What }>
+							@NavLink(NavLinkView{Href: row.Href, Class: "fleet-dashboard-row-link"}) {
+								{ row.What }
+							}
+						</span>
+						<span class="fleet-dashboard-cell fleet-dashboard-row-detail fleet-dashboard-row-end">{ row.Devices }</span>
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+// DashboardBusyView is one device of the Busiest devices card. Value is the
+// figure written beside a bar whose metric is not a percentage.
+type DashboardBusyView struct {
+	Device string
+	Href   string
+	Value  string
+	Bar    UsageBarView
+}
+
+// DashboardBusiestView is the Busiest devices card: what it ranks by, chosen
+// by small links carried in the address, and the devices ranked.
+type DashboardBusiestView struct {
+	Card    CardView
+	Choices []DashboardChoiceView
+	Rows    []DashboardBusyView
+	Empty   string
+}
+
+// dashboardBusiest draws the ranking choices, then one bar per device.
+templ dashboardBusiest(v DashboardBusiestView) {
+	@Card(v.Card) {
+		<nav class="fleet-dashboard-rank" aria-label="Rank by">
+			@dashboardChoices(v.Choices)
+		</nav>
+		if len(v.Rows) == 0 {
+			<p class="fleet-dashboard-note">{ v.Empty }</p>
+		} else {
+			<ul class="fleet-dashboard-rows">
+				for _, row := range v.Rows {
+					<li class="fleet-dashboard-row fleet-dashboard-row--busy">
+						@NavLink(NavLinkView{Href: row.Href, Class: "fleet-object-link"}) {
+							{ row.Device }
+						}
+						@UsageMini(row.Bar)
+						if row.Value != "" {
+							<span class="fleet-dashboard-row-detail">{ row.Value }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+// DashboardGroupView is the Group card: the label values that define the
+// node, then its figures.
+type DashboardGroupView struct {
+	Card    CardView
+	Labels  []TagView
+	Figures []FigureView
+}
+
+// dashboardGroup draws the Group card.
+templ dashboardGroup(v DashboardGroupView) {
+	@Card(v.Card) {
+		<div class="fleet-dashboard-labels">
+			for _, label := range v.Labels {
+				@Tag(label)
+			}
+		</div>
+		@FigureList(FigureListView{Figures: v.Figures, Columns: true})
+	}
+}
+
+// DashboardConfigView is the Configuration card of a device: its state and
+// versions, and the divergence callout when the device diverged.
+type DashboardConfigView struct {
+	Card       CardView
+	Rows       []ValueView
+	Divergence *CalloutView
+}
+
+// dashboardConfig draws the Configuration card.
+templ dashboardConfig(v DashboardConfigView) {
+	@Card(v.Card) {
+		if v.Divergence != nil {
+			@Callout(*v.Divergence)
+		}
+		@KeyValueList(KeyValueListView{Rows: v.Rows})
+	}
+}
+
+// DashboardNoteView is a card with nothing to count yet: one line, in the
+// card's own size, so the grid does not jump.
+type DashboardNoteView struct {
+	Card CardView
+	Text string
+}
+
+// dashboardNote draws a card that says in one line why it counts nothing.
+templ dashboardNote(v DashboardNoteView) {
+	@Card(v.Card) {
+		<p class="fleet-dashboard-note">{ v.Text }</p>
+	}
+}

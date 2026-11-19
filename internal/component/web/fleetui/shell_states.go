@@ -12,6 +12,7 @@
 package fleetui
 
 import (
+	"context"
 	"errors"
 
 	"github.com/a-h/templ"
@@ -239,8 +240,10 @@ func taskRowView(request *PageRequest, task *Task) TaskRowView {
 }
 
 // taskPanelTab answers the task panel with one tab open. open says whether
-// the panel is drawn shown.
-func taskPanelTab(request *PageRequest, active taskTab, open bool) TaskPanelView {
+// the panel is drawn shown. Each row is the task list's row, so it expands
+// to its per-device results and its eye opens the task; a task the source
+// cannot answer fails the panel.
+func taskPanelTab(ctx context.Context, request *PageRequest, active taskTab, open bool) (TaskPanelView, error) {
 	tasks := request.Snapshot.Tasks
 	page := estateAddress(request)
 
@@ -271,26 +274,34 @@ func taskPanelTab(request *PageRequest, active taskTab, open bool) TaskPanelView
 		if len(view.List.Rows) == taskPanelRowsMax {
 			break
 		}
-		if active.holds(tasks[index].State) {
-			view.List.Rows = append(view.List.Rows, taskRowView(request, &tasks[index]))
+		if !active.holds(tasks[index].State) {
+			continue
 		}
+
+		eye := linkView(request)
+		eye.Row = tasks[index].ID
+		row, err := activityTaskRow(ctx, request, &tasks[index], Address{Kind: ObjectTasks, View: eye}.String())
+		if err != nil {
+			return TaskPanelView{}, err
+		}
+		view.List.Rows = append(view.List.Rows, row)
 	}
 
-	return view
+	return view, nil
 }
 
 // taskPanelView answers the task panel as a page first draws it: closed, on
 // the tab of the tasks that are not over.
-func taskPanelView(request *PageRequest) TaskPanelView {
-	return taskPanelTab(request, taskTabRunning, false)
+func taskPanelView(ctx context.Context, request *PageRequest) (TaskPanelView, error) {
+	return taskPanelTab(ctx, request, taskTabRunning, false)
 }
 
 // taskPanelItem answers the task panel a fragment asks for. An empty item is
 // the panel as a page first draws it, which is what a closed panel is
 // refreshed with. A named tab is the panel shown, on that tab.
-func taskPanelItem(request *PageRequest, item string) (TaskPanelView, error) {
+func taskPanelItem(ctx context.Context, request *PageRequest, item string) (TaskPanelView, error) {
 	if item == "" {
-		return taskPanelView(request), nil
+		return taskPanelView(ctx, request)
 	}
 
 	tab, err := parseTaskTab(item)
@@ -298,5 +309,5 @@ func taskPanelItem(request *PageRequest, item string) (TaskPanelView, error) {
 		return TaskPanelView{}, err
 	}
 
-	return taskPanelTab(request, tab, true), nil
+	return taskPanelTab(ctx, request, tab, true)
 }

@@ -1,0 +1,183 @@
+// Design: docs/architecture/fleet-interface.md -- the device tabs: System, Interfaces, Routing, Logs and Console
+// Related: register_device_pages.go -- the pages and the section fragments these templates draw
+// Related: handler_device_system.go, handler_device_interfaces.go, handler_device_routing.go -- the view data of the tabs
+// Related: handler_device_logs.go, handler_device_console.go -- the view data of the logs and the console
+
+package fleetui
+
+
+// DeviceSectionView is one section of a device tab. Each section is its own
+// fragment, so one slow or refused question does not blank the tab. URL is
+// the section's fragment address and Every the interval it is fetched again
+// at while the tab is open, such as "5s"; a section with no interval is not
+// fetched on a timer. Body is the section's content, or the state it shows
+// in place of its data.
+type DeviceSectionView struct {
+	Title string
+	URL   string
+	Every string
+	Wide  bool
+	Body  templ.Component
+}
+
+// DeviceSubTabView is one sub-tab of a tab: its words and the address that
+// shows it.
+type DeviceSubTabView struct {
+	Title   string
+	Href    string
+	Current bool
+}
+
+// DeviceSubTabsView is the row of small links that chooses a sub-tab. Label
+// names the row for assistive technology.
+type DeviceSubTabsView struct {
+	Label string
+	Tabs  []DeviceSubTabView
+}
+
+// DeviceTabView is the content of one device tab. SubTabs is absent from a
+// tab with none. Follow draws the follow control of the recent log lines.
+// ToolForm is the fragment address the related tools of the tab's rows ask,
+// or empty for a tab whose rows have none.
+type DeviceTabView struct {
+	Label    string
+	SubTabs  *DeviceSubTabsView
+	Follow   bool
+	ToolForm string
+	Sections []DeviceSectionView
+}
+
+// deviceToolFormID is the id of the form the related tools of a row submit.
+const deviceToolFormID = "fleet-device-tools"
+
+// deviceTab draws a device tab: its sub-tabs, then its sections.
+templ deviceTab(v DeviceTabView) {
+	<div class="fleet-device-tab" aria-label={ v.Label }>
+		if v.SubTabs != nil {
+			@deviceSubTabs(*v.SubTabs)
+		}
+		if v.Follow {
+			<p class="fleet-device-follow">
+				@StatusWord(Status{Tone: ToneSuccess, Word: "Following"})
+				<span class="fleet-device-follow-note">The prototype does not stream the device's log: these lines are its last answer, and the page asks again when it is opened.</span>
+			</p>
+		}
+		if v.ToolForm != "" {
+			<form id={ deviceToolFormID } class="fleet-device-tool-form" method="get" action={ templ.URL(v.ToolForm) } hx-get={ v.ToolForm } hx-target={ "#" + toastAreaID } hx-swap="beforeend"></form>
+		}
+		<div class="fleet-device-sections">
+			for _, section := range v.Sections {
+				@deviceSection(section)
+			}
+		</div>
+	</div>
+}
+
+// deviceSubTabs draws the row of sub-tabs. Each is a link whose address
+// names the sub-tab, so the view it shows has an address.
+templ deviceSubTabs(v DeviceSubTabsView) {
+	<nav class="fleet-device-subtabs" aria-label={ v.Label }>
+		for _, tab := range v.Tabs {
+			@NavLink(NavLinkView{Href: tab.Href, Class: "fleet-device-subtab", Current: tab.Current}) {
+				{ tab.Title }
+			}
+		}
+	</nav>
+}
+
+// deviceSection draws one section. A section with an interval asks its
+// fragment again on that timer, which stops when the tab is left because the
+// section leaves the page with it.
+templ deviceSection(v DeviceSectionView) {
+	<section
+		class={ "fleet-device-section", templ.KV("fleet-device-section--wide", v.Wide) }
+		aria-label={ v.Title }
+		data-fleet-section={ v.URL }
+		if v.Every != "" {
+			hx-get={ v.URL }
+			hx-trigger={ "every " + v.Every }
+			hx-target="this"
+			hx-swap="innerHTML"
+		}
+	>
+		@v.Body
+	</section>
+}
+
+// DeviceFactsView is one card of labeled values. Reported, when set, says
+// when the values were reported, for a device that is offline. External is
+// the link to the device's own interface, opened apart from the hub. Table,
+// when set, is drawn after the rows, for values that need columns. State,
+// when set, is drawn in place of the rows and the table.
+type DeviceFactsView struct {
+	Title    string
+	Reported string
+	Rows     []ValueView
+	Table    *TableView
+	External *LinkView
+	State    *StateHeroView
+}
+
+// deviceFacts draws a card of labeled values, or the state shown in their
+// place.
+templ deviceFacts(v DeviceFactsView) {
+	@Card(CardView{Title: v.Title}) {
+		if v.Reported != "" {
+			<p class="fleet-device-reported">{ v.Reported }</p>
+		}
+		if v.State != nil {
+			@StateHero(*v.State)
+		} else {
+			if len(v.Rows) > 0 {
+				@KeyValueList(KeyValueListView{Rows: v.Rows})
+			}
+			if v.Table != nil {
+				@Table(*v.Table)
+			}
+			if v.External != nil {
+				<p class="fleet-device-external">
+					@Icon("external")
+					<a class="fleet-link" href={ templ.SafeURL(v.External.Href) } target="_blank" rel="noopener noreferrer">{ v.External.Label }</a>
+				</p>
+			}
+		}
+	}
+}
+
+// DeviceConsoleView is the Console tab of a device that can be asked: the
+// terminal, the commands suggested under it, and the line that grants the
+// relay when the device refused it. InputID is the id of the terminal's
+// input, which a suggestion fills.
+type DeviceConsoleView struct {
+	Terminal    TerminalView
+	InputID     string
+	Suggestions []string
+	GrantLine   string
+}
+
+// deviceConsole draws the console tab. A suggestion is a button that fills
+// the terminal's input with its command; it runs nothing by itself.
+templ deviceConsole(v DeviceConsoleView) {
+	<div class="fleet-device-console">
+		@Terminal(v.Terminal)
+		if v.GrantLine != "" {
+			<p class="fleet-hero-line fleet-device-grant">
+				<span class="fleet-kv-label">The line that grants the relay</span>
+				<code class="fleet-mono">{ v.GrantLine }</code>
+				@CopyButton(CopyView{Text: v.GrantLine, Name: "the configuration line"})
+			</p>
+		}
+		if len(v.Suggestions) > 0 && v.Terminal.Refusal == "" {
+			<div class="fleet-device-suggestions" aria-label="Commands to try">
+				<p class="fleet-kv-label">Commands to try</p>
+				<ul class="fleet-device-suggestion-list">
+					for _, command := range v.Suggestions {
+						<li>
+							<button type="button" class="fleet-button fleet-device-suggestion fleet-mono" data-terminal-fill={ command } aria-controls={ v.InputID }>{ command }</button>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+	</div>
+}

@@ -19,6 +19,10 @@ type ValueView struct {
 	Status Status
 	Mono   bool
 	Copy   bool
+	// Whole draws the value across the row, its label read by assistive
+	// technology only: for a card whose title already names the one value,
+	// such as Labels.
+	Whole bool
 }
 
 // valueContent draws the value of a row, without its label.
@@ -59,8 +63,8 @@ type KeyValueListView struct {
 templ KeyValueList(v KeyValueListView) {
 	<dl class="fleet-kv">
 		for _, row := range v.Rows {
-			<div class="fleet-kv-row">
-				<dt class="fleet-kv-label">{ row.Label }</dt>
+			<div class={ "fleet-kv-row", templ.KV("fleet-kv-row--whole", row.Whole) }>
+				<dt class={ "fleet-kv-label", templ.KV("fleet-visually-hidden", row.Whole) }>{ row.Label }</dt>
 				<dd class="fleet-kv-value">
 					@valueContent(row)
 					if row.Copy && row.Text != "" {

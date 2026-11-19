@@ -1,0 +1,208 @@
+// Design: docs/architecture/fleet-interface.md -- a rollout's page and the new rollout form
+// Related: handler_rollouts.go -- builds the views these templates draw
+
+package fleetui
+
+import "strconv"
+
+// RolloutPageView is the page of one rollout. Controls are the routine
+// controls valid for its state and Destructive the ones drawn apart. Pause
+// is set only for a paused rollout.
+type RolloutPageView struct {
+	Back        LinkView
+	Name        string
+	Status      Status
+	Facts       KeyValueListView
+	Controls    []ActionView
+	Destructive []ActionView
+	Pause       *RolloutPauseView
+	Batches     []BatchSegmentView
+	Devices     TableSectionView
+	Form        ManageFormView
+}
+
+// RolloutPauseView is why a rollout paused, in the hub's words, and the
+// devices that caused it.
+type RolloutPauseView struct {
+	Banner CalloutView
+	Causes []LinkView
+}
+
+// BatchSegmentView is one segment of the batch strip.
+type BatchSegmentView struct {
+	Label  string
+	Status Status
+}
+
+// BatchStripView is the batch strip of a rollout: one segment per batch.
+type BatchStripView struct {
+	Segments []BatchSegmentView
+}
+
+// RolloutFormView is the new rollout form. Target names the devices the
+// filter of the address chooses, Choices the targets a link sets, and
+// Preview the batches of the default batch size. PreviewURL is the preview
+// fragment, asked again when the batch size changes.
+type RolloutFormView struct {
+	Back       LinkView
+	Target     string
+	Choices    []LinkView
+	Query      QueryRowView
+	Percent    int
+	Percents   []int
+	PreviewURL string
+	Preview    RolloutPreviewView
+	Start      ActionView
+	Form       ManageFormView
+}
+
+// RolloutPreviewView is what a target resolves to: the connected devices it
+// changes, the offline ones it skips, and its batches at Percent.
+type RolloutPreviewView struct {
+	Connected int
+	Offline   int
+	Percent   int
+	Batches   []RolloutBatchPreview
+}
+
+// RolloutBatchPreview is one batch of the preview and its devices.
+type RolloutBatchPreview struct {
+	Number  int
+	Devices string
+}
+
+// RolloutPage draws a rollout across the whole content region.
+templ RolloutPage(v RolloutPageView) {
+	<div class="fleet-manage fleet-manage--wide">
+		<p class="fleet-manage-back">
+			@NavLink(NavLinkView{Href: v.Back.Href, Class: "fleet-link"}) {
+				{ v.Back.Label }
+			}
+		</p>
+		<header class="fleet-manage-head">
+			<h2 class="fleet-manage-title">{ v.Name }</h2>
+			@StatusWord(v.Status)
+			<div class="fleet-manage-controls">
+				for _, control := range v.Controls {
+					@ActionButton(control)
+				}
+			</div>
+			if len(v.Destructive) > 0 {
+				<div class="fleet-manage-controls fleet-manage-controls--apart">
+					for _, control := range v.Destructive {
+						@ActionButton(control)
+					}
+				</div>
+			}
+		</header>
+		@KeyValueList(v.Facts)
+		if v.Pause != nil {
+			@Callout(v.Pause.Banner)
+			<ul class="fleet-manage-causes">
+				for _, cause := range v.Pause.Causes {
+					<li>
+						@NavLink(NavLinkView{Href: cause.Href, Class: "fleet-link"}) {
+							{ cause.Label }
+						}
+					</li>
+				}
+			</ul>
+		}
+		@batchStrip(BatchStripView{Segments: v.Batches})
+		@TableSection(v.Devices)
+		@ManageForm(v.Form)
+	</div>
+}
+
+// batchStrip draws one segment per batch, each with its state's mark and
+// word.
+templ batchStrip(v BatchStripView) {
+	<ol class="fleet-manage-batches" aria-label="Batches">
+		for _, segment := range v.Segments {
+			<li class="fleet-manage-batch">
+				@StatusMark(segment.Status)
+				<span class="fleet-manage-batch-label">{ segment.Label }</span>
+				<span class="fleet-manage-batch-word">{ segment.Status.Word }</span>
+			</li>
+		}
+	</ol>
+}
+
+// RolloutForm draws the new rollout form.
+templ RolloutForm(v RolloutFormView) {
+	<div class="fleet-manage fleet-manage--wide">
+		<p class="fleet-manage-back">
+			@NavLink(NavLinkView{Href: v.Back.Href, Class: "fleet-link"}) {
+				{ v.Back.Label }
+			}
+		</p>
+		<h2 class="fleet-manage-title">New rollout</h2>
+		<section class="fleet-manage-section">
+			<h3 class="fleet-manage-section-title">Target</h3>
+			<p class="fleet-manage-target">{ v.Target }</p>
+			<ul class="fleet-manage-choices">
+				for _, choice := range v.Choices {
+					<li>
+						@NavLink(NavLinkView{Href: choice.Href, Class: "fleet-link"}) {
+							{ choice.Label }
+						}
+					</li>
+				}
+			</ul>
+			@QueryRow(v.Query)
+		</section>
+		<form class="fleet-manage-fields" id="fleet-rollout-new" method="get" action={ templ.URL(v.PreviewURL) }>
+			<label class="fleet-manage-field">
+				<span class="fleet-manage-field-label">What to push</span>
+				<select name="push">
+					<option value="template">A template version</option>
+					<option value="change">A configuration change</option>
+				</select>
+			</label>
+			<label class="fleet-manage-field">
+				<span class="fleet-manage-field-label">Batch size</span>
+				<select name="item" hx-get={ v.PreviewURL } hx-trigger="change" hx-target="#fleet-rollout-preview" hx-swap="innerHTML">
+					for _, percent := range v.Percents {
+						<option value={ strconv.Itoa(percent) } selected?={ percent == v.Percent }>{ percentText(percent) } of the connected devices</option>
+					}
+				</select>
+			</label>
+			<label class="fleet-manage-field">
+				<span class="fleet-manage-field-label">Failure threshold, percent of a batch</span>
+				<input type="number" name="threshold" min="0" max="100" value="10"/>
+			</label>
+			<label class="fleet-manage-field">
+				<input type="checkbox" name="gate" value="health"/>
+				<span class="fleet-manage-field-label">Health gate: wait for each batch to report healthy before the next</span>
+			</label>
+		</form>
+		<section class="fleet-manage-section" id="fleet-rollout-preview" aria-live="polite">
+			@RolloutPreview(v.Preview)
+		</section>
+		<div class="fleet-manage-resolve">
+			@PrimaryButton(v.Start)
+		</div>
+		@ManageForm(v.Form)
+	</div>
+}
+
+// RolloutPreview draws what a target resolves to and its batches.
+templ RolloutPreview(v RolloutPreviewView) {
+	<h3 class="fleet-manage-section-title">Preview</h3>
+	<p class="fleet-manage-counts">
+		<span class="fleet-manage-count">{ countText(v.Connected) }</span> connected devices change;
+		<span class="fleet-manage-count">{ countText(v.Offline) }</span> offline devices are skipped.
+	</p>
+	if len(v.Batches) == 0 {
+		<p class="fleet-manage-note">No connected device matches the target, so there is no batch.</p>
+	} else {
+		<ol class="fleet-manage-preview" aria-label="Batches">
+			for _, batch := range v.Batches {
+				<li>
+					<span class="fleet-manage-batch-label">Batch { strconv.Itoa(batch.Number) }</span>
+					{ batch.Devices }
+				</li>
+			}
+		</ol>
+	}
+}

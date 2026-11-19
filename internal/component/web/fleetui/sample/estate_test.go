@@ -219,7 +219,7 @@ func TestSampleEstateInvariants(t *testing.T) {
 	})
 
 	t.Run("alarms", func(t *testing.T) {
-		require.Len(t, facts.alarms, 9)
+		require.Len(t, facts.alarms, 12)
 
 		severities := map[fleetui.AlarmSeverity]int{}
 		open := 0
@@ -233,11 +233,11 @@ func TestSampleEstateInvariants(t *testing.T) {
 		}
 
 		assert.Equal(t, map[fleetui.AlarmSeverity]int{
-			fleetui.AlarmSeverityCritical:      1,
+			fleetui.AlarmSeverityCritical:      4,
 			fleetui.AlarmSeverityWarning:       5,
 			fleetui.AlarmSeverityInformational: 3,
 		}, severities)
-		assert.Equal(t, 9, open, "every alarm is counted on a device")
+		assert.Equal(t, 12, open, "every alarm is counted on a device")
 	})
 
 	t.Run("alarm history", func(t *testing.T) {
@@ -368,6 +368,9 @@ func assertAlarmFitsDevice(t *testing.T, alarm *fleetui.Alarm, view *fleetui.Dev
 		assert.Equal(t, releaseTable[releaseOldest].version, view.Device.Inventory.SoftwareVersion, alarm.ID)
 	case alarmRelayUngranted:
 		assert.False(t, view.Device.Connection.RelayGranted, alarm.ID)
+	case alarmDeviceOffline:
+		assert.Equal(t, fleetui.DisplayStateOffline, view.State, alarm.ID)
+		assert.Equal(t, fleetui.AlarmSeverityCritical, alarm.Severity, alarm.ID)
 	default:
 		t.Errorf("%s: the table holds an alarm kind %q this test does not know", alarm.ID, alarm.Kind)
 	}

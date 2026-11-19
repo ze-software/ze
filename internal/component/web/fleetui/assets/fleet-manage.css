@@ -1,0 +1,148 @@
+/* Design: docs/architecture/fleet-interface.md -- the layout of the manage pages:
+ * the device Config tab, the rollouts, the audit page and the administration
+ * pages. Every colour, space and font is a variable of fleet-shell.css. */
+
+.fleet-manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.fleet-manage--wide {
+  max-width: none;
+}
+
+.fleet-manage-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fleet-manage-title,
+.fleet-manage-section-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+.fleet-manage-back,
+.fleet-manage-target,
+.fleet-manage-counts,
+.fleet-manage-note,
+.fleet-manage-exports {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.fleet-manage-head,
+.fleet-manage-code-head,
+.fleet-manage-exports {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fleet-manage-controls {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.fleet-manage-controls--apart {
+  margin-left: auto;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border);
+}
+
+.fleet-manage-code {
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+.fleet-manage-resolve {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fleet-manage-batches,
+.fleet-manage-preview,
+.fleet-manage-causes,
+.fleet-manage-choices {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fleet-manage-batches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fleet-manage-batch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fleet-manage-batch-word,
+.fleet-manage-field-label {
+  color: var(--text-secondary);
+}
+
+.fleet-manage-batch-label,
+.fleet-manage-count {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.fleet-manage-preview,
+.fleet-manage-causes,
+.fleet-manage-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fleet-manage-choices {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fleet-manage-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.fleet-manage-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fleet-manage-form {
+  display: none;
+}
+
+.fleet-manage-panel-diff,
+.fleet-manage-join {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
