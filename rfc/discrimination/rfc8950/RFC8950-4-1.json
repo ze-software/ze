@@ -47,7 +47,7 @@
     "rid": "RFC8950-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire",
-    "unit-sha": "d2828432bf0d1a6b",
+    "unit-sha": "299daa3fd876ea93",
     "claim-sha": "494b6a3d4642225b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_static_wire.go::sendStaticRoutesGrouped",
@@ -124,22 +124,22 @@
     "rid": "RFC8950-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
-    "unit-sha": "a00e28eac1b4abb3",
+    "unit-sha": "b8b06ab66b8379e5",
     "claim-sha": "40b17fb879a7486e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",
-    "producer-sha": "c03863c3822b1d75",
-    "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c943c6b29c8836ba",
+    "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
-    "unit-sha": "a00e28eac1b4abb3",
+    "unit-sha": "b8b06ab66b8379e5",
     "claim-sha": "130590b45afdfdab",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",
-    "producer-sha": "c03863c3822b1d75",
-    "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c943c6b29c8836ba",
+    "break": "body of egressNextHopLacksExtendedNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -2,9 +2,9 @@
   "code": {
     "internal/component/ike/dataplane/vpp.go::InstallSA": "b0c652e23d7fd98d",
     "internal/component/ike/dataplane/vpp.go::vppSAFlags": "75c15129e87bb04b",
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "97278232d4a38a5b"
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "ecf2bc50bc605ab4"
   },
-  "note": "Re-judged 2026-11-10 independently of producer authors. RFC 4303 Section 3.4.4.1 step 3 says the receiver SHOULD inspect default Padding before removal and delivery. xfrmStateFromParams builds SA selectors, replay, transforms, UDP encapsulation and PMTU/DSCP flags but requests no padding inspection. vppBackend.InstallSA builds the SAD request and vppSAFlags selects direction, tunnel, replay and UDP flags; neither requests padding-byte inspection. Ze performs no ESP decryption at these boundaries. No observed lower-layer proof establishes inspection, so the existing explicit gap remains unimplemented; no support claim is upgraded.",
+  "note": "Rejudged the current builders against RFC 4303 Section 3.4.4.1 step 3: If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. xfrmStateFromParams now projects the explicit state scope through xfrmStateScopeFromParams, but its mode, selector, replay, transform, encapsulation and PMTU/DSCP projection still requests no padding inspection. vppBackend.InstallSA builds the SAD message and vppSAFlags declares direction, tunnel, replay and UDP flags, without a padding-inspection option. Neither boundary decrypts ESP. There is still no lower-layer observation proving padding inspection on the installed state, so the explicit gap and unimplemented verdict remain; no conformance claim is upgraded.",
   "requirement_sha": "dea07385ec5c5f6a",
   "verdict": "unimplemented"
 }

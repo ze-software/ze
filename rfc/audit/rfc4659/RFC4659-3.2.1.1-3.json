@@ -1,26 +1,15 @@
 {
   "code": {
-    "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "a1027fce5de9716b",
-    "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets": "96921349031a3cec",
-    "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop": "e0234bcc347ec215",
-    "internal/component/bgp/reactor/egress_inject_filter.go::normalizeVPNNextHop": "416ace221291cc43",
-    "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope": "eead8ceeb2055bfa",
-    "internal/component/bgp/reactor/forward_next_hop.go::egressLinkLocal": "bca7a6ec9ffc0a01",
-    "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop": "b08802525714b51e",
-    "internal/component/bgp/reactor/link_scope.go::holdsCommonSubnet": "2144abd502fcd434",
-    "internal/component/bgp/reactor/link_scope.go::linkLocalConditionFor": "e21a6b4f397f7443",
-    "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "718ce0e9ffa4b22e",
-    "internal/component/bgp/reactor/link_scope.go::linkLocalNextHopFor": "27b010a8b456a649",
-    "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop": "bf4c803978b775c3",
-    "internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop": "3f20401966b282bf",
-    "internal/component/bgp/reactor/peer_forward_facts.go::vpnIPv6NextHop": "41952a99bce2a4c8",
-    "internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew": "55569f78534ff7bd"
+    "internal/component/bgp/reactor/config_nexthop_form.go::applyLinkLocal": "16cfde244a2843ee",
+    "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.normalizeOrdinaryNextHop": "022d4813d4a161c8",
+    "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope": "7b7728999939cc3c",
+    "internal/component/bgp/reactor/link_scope.go::linkScope.linkLocalNextHop": "718ce0e9ffa4b22e"
   },
-  "note": "Independent source rejudgment against RFC 4659 Section 3.2.1.1: \"The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to\"; the same section defines the global as the advertising speaker's. Read all tagged tests, helpers, cited producers and current native configs/checker. Static, API, forwarding and next-hop-rewrite tests assert exact zero-RD 48-octet pairs on-link versus 24-octet fields off-link. The loopback-global cases distinguish this peer-only condition from RFC 2545's joint condition; configured, relay and next-hop-self rails retain the pair despite a speaker-owned global outside the connected prefix. linkLocalConditionFor selects the VPN peer-only condition and the builders preserve the two zero RDs. The functional positive asserts the 48-octet field. The moved checkVPNFRR positive now requires BIRD's exact ordered global plus topology-owned link-local; FRR's output cannot independently prove the pair. Its negative remains only a third-party-global omission control on the SAME on-link sessions, not evidence of no common subnet; the true no-common-subnet negative is provided by the Go units and is not credited to that interop tag. Source limitations for non-speaker-owned globals remain outside this section's defined global-address form; no new whole-RFC support claim follows. Verdict enforced on the stated requirement. No native run, proof replay or freshness verification performed.",
+  "note": "Independent AC12 rejudgment on 2026-11-16 against RFC 4659 Section 3.2.1.1 and every current tagged carrier: the Go units assert exact zero-RD 48-octet pairs for speaker-owned globals with a configured usable LinkLocal on a common subnet, and exact 24-octet fields for recipients on no connected subnet. The loopback-global controls correctly distinguish VPN peer-only scope from RFC2545 joint scope. The functional positive covers the same configured case. The interop positive requires BIRD exact ordered global and topology-owned Link-Local; its negative is only third-party omission on those same on-link sessions, not a no-common-subnet negative. These narrow assertions remain useful. Whole-row enforced is unsupported: applyLinkLocal accepts an absent leaf, the only production assignment of PeerSettings.LinkLocal is that parser, and linkScope.linkLocalNextHop returns no address for the speaker when that configured value is absent. The shared normalizer and builder then retain the global-only field even when the actual speaker/peer common-subnet condition holds. No tagged carrier exercises interface-derived own Link-Local without this override. This is a source-demonstrated pre-existing implementation/testing gap, not an observed runtime failure. Existing spec-bgp-link-local-only-next-hop AC9-19/AC20 owns interface-derived address selection and actual-interface binding. Verdict weak until that required case is proven and fixed; a later valid partial annotation may preserve the tested scope with an explicit gap, but no partial or enforced claim is made now. No tests, records, audit stamps, compilation or runtime checks were executed by this reviewer.",
   "requirement_sha": "95532f9edd77514e",
   "tests": {
-    "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet": "46c7bc77ed0a8e9b",
-    "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet#2": "46c7bc77ed0a8e9b",
+    "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet": "1355b19a655750cc",
+    "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet#2": "1355b19a655750cc",
     "internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go::TestRFC4659VPNv6LinkLocalLoopbackGlobal": "57af9a3fd196ada7",
     "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet": "bf584388124dadbc",
     "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet#2": "bf584388124dadbc",
@@ -28,8 +17,8 @@
     "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet#2": "bf584388124dadbc",
     "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD": "7273db48e225dce7",
     "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD#2": "7273db48e225dce7",
-    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "a19bf492823e14b9",
-    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "a19bf492823e14b9",
+    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "7aa0ef34755a56dc",
+    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "7aa0ef34755a56dc",
     "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci": "3ee5ecb9b114c5f7"
   },
   "units": {
@@ -46,5 +35,5 @@
     "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "f87d229c85db0649",
     "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci": "3ee5ecb9b114c5f7"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

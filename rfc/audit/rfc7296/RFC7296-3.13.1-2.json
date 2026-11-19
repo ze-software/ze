@@ -1,13 +1,17 @@
 {
-  "note": "Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and producers byte-identical). Same finding as RFC7296-3.13.1-1 for End Port: the test proves ANY -> 65535 under protocol 0, with TCP 443/443 as the discriminator, but cannot fail on a port-undefined protocol other than 0. Ze emits a specific End Port there, because checkPortProgrammable and programmableSelector only treat protocol 0 as portless, while RFC 7296 Section 3.13.1 says the field MUST be 65535.",
+  "note": "Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535. TestTSWireAnyPortsForEveryProtocol exercises selectorsToWire under all 256 protocol values and asserts one ANY selector whose EndPort is exactly 65535 and StartPort exactly 0. TestTSWireRefusesUndefinedPortValues requires the encoder to reject specific and OPAQUE ports for protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol. The assertions now cover both the all-ports clause and portless protocols, replacing the earlier protocol-0-only tagged fixture. The conforming ANY controls rule out unconditional rejection; Port.ValidForProtocol is checked at the final encoding boundary. This judgment makes no claim that an exact Mobility Header selector is programmable on Linux.",
   "requirement_sha": "95053d78048c3563",
   "tests": {
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "87247232d998a505",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "87247232d998a505",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
   },
   "units": {
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "d53527639a4e8c0d",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "01e1417e2974061a",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

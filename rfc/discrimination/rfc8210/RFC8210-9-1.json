@@ -2,6 +2,17 @@
   {
     "rid": "RFC8210-9-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go::TestParseRPKIConfigDefaults",
+    "unit-sha": "bdd5fc8d4b13ffa2",
+    "claim-sha": "444ef492114dcaca",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig",
+    "producer-sha": "43cb01e567ac21b5",
+    "break": "line 240: \"323\" -\u003e \"324 /* MUTATION-APPLIED: default RTR port */\""
+  },
+  {
+    "rid": "RFC8210-9-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig",
     "unit-sha": "2b6b60cfaa07e625",
     "claim-sha": "d64b6e2103766c06",

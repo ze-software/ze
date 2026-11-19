@@ -102,45 +102,66 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds",
-    "unit-sha": "787f722aa4624559",
+    "unit-sha": "0bdd40346fbffae8",
     "claim-sha": "8c220eaef31cb924",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
     "producer-sha": "faf3ed4513e2d69c",
-    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink",
-    "unit-sha": "c392e5e665c86275",
+    "unit-sha": "27a583fb1c84698b",
     "claim-sha": "503dd2d530e3d3ae",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
     "producer-sha": "faf3ed4513e2d69c",
-    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC2545-3-3",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
-    "unit-sha": "88400bfac7bd928a",
-    "claim-sha": "9b73d5234f9c93e2",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.linkLocalNextHop",
-    "producer-sha": "602df978457d6505",
-    "break": "body of linkScope.linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
-    "unit-sha": "88400bfac7bd928a",
+    "unit-sha": "a61b9f7bf15b71f8",
     "claim-sha": "6bc214eb0b57a548",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal",
     "producer-sha": "061935927499a739",
-    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 262: \"return linkLocal\" -\u003e \"_ = linkLocal; return netip.Addr{}\""
+  },
+  {
+    "rid": "RFC2545-3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "a61b9f7bf15b71f8",
+    "claim-sha": "9b73d5234f9c93e2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
+    "producer-sha": "ba97f961c58ff969",
+    "break": "line 120: \"prefix.Contains(ls.peer) \u0026\u0026 prefix.Contains(global)\" -\u003e \"prefix.Contains(global)\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeWith",
+        "producer-sha": "24a532cc0fe7a363",
+        "break": "line 103: \"network.SharesSubnet(connected, peerAddr)\" -\u003e \"len(connected) \u003e 0\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
+        "break": "line 120: \"prefix.Contains(ls.peer) \u0026\u0026 prefix.Contains(global)\" -\u003e \"prefix.Contains(global)\"",
+        "seconds": 18,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.906s"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeWith",
+        "break": "line 103: \"network.SharesSubnet(connected, peerAddr)\" -\u003e \"len(connected) \u003e 0\"",
+        "seconds": 125,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.221s"
+      }
+    ]
   },
   {
     "rid": "RFC2545-3-3",

@@ -69,12 +69,12 @@
     "rid": "RFC2545-3-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink",
-    "unit-sha": "c392e5e665c86275",
+    "unit-sha": "27a583fb1c84698b",
     "claim-sha": "0a7a378b93b90044",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
     "producer-sha": "faf3ed4513e2d69c",
-    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-4",

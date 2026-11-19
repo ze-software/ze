@@ -3,45 +3,67 @@
     "rid": "RFC4271-5.1.3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestQueuedDefaultNextHopDrains",
-    "unit-sha": "7bd29495dedd2bbf",
+    "unit-sha": "b20f8ea270c6c215",
     "claim-sha": "1e2f38fcfd3f9548",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "6d38f3058c2e37b0",
-    "break": "line 607: \"return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\" -\u003e \"if s.settings.IsIBGP() \u0026\u0026 nextHop.legacy == connectedLocalAddress(s) { sections, parseErr := wire.ParseUpdateSections(body); if parseErr != nil { return parseErr }; _, _, nhWire, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop); if found { copy(nhWire, s.settings.Address.AsSlice()) } }; return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\""
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "line 619: \"return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\" -\u003e \"if s.settings.IsIBGP() \u0026\u0026 nextHop.legacy == connectedLocalAddress(s) { sections, parseErr := wire.ParseUpdateSections(body); if parseErr != nil { return parseErr }; _, _, nhWire, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop); if found { copy(nhWire, s.settings.Address.AsSlice()) } }; return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestQueuedDefaultNextHopDrains",
-    "unit-sha": "7bd29495dedd2bbf",
+    "unit-sha": "b20f8ea270c6c215",
     "claim-sha": "363b375edbaab9d5",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "6d38f3058c2e37b0",
-    "break": "line 607: \"return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\" -\u003e \"if s.settings.IsIBGP() \u0026\u0026 nextHop.legacy.Is4() \u0026\u0026 nextHop.legacy != connectedLocalAddress(s) { sections, parseErr := wire.ParseUpdateSections(body); if parseErr != nil { return parseErr }; _, _, nhWire, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop); if found { copy(nhWire, s.settings.Address.AsSlice()) } }; return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\""
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "line 619: \"return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\" -\u003e \"if s.settings.IsIBGP() \u0026\u0026 nextHop.legacy.Is4() \u0026\u0026 nextHop.legacy != connectedLocalAddress(s) { sections, parseErr := wire.ParseUpdateSections(body); if parseErr != nil { return parseErr }; _, _, nhWire, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop); if found { copy(nhWire, s.settings.Address.AsSlice()) } }; return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress",
+    "unit-sha": "fba6a7c147d695c6",
+    "claim-sha": "8b9232d0cc62f89e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"base.has(f.addr)\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress",
+    "unit-sha": "fba6a7c147d695c6",
+    "claim-sha": "0fd5f22b0ed2e3fe",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress",
-    "unit-sha": "3d5c6b4031168332",
+    "unit-sha": "1a1d792a59bb49a0",
     "claim-sha": "4c8e3c44da82e7ec",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-    "producer-sha": "ea96bc2178c9ec45",
-    "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"false\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress",
-    "unit-sha": "3d5c6b4031168332",
+    "unit-sha": "1a1d792a59bb49a0",
     "claim-sha": "6f9ac40a72a1de67",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-    "producer-sha": "ea96bc2178c9ec45",
-    "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
@@ -49,10 +71,10 @@
     "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress",
     "unit-sha": "2a3f5badb64042a6",
     "claim-sha": "a8179ef3e44b0e7c",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-    "producer-sha": "ea96bc2178c9ec45",
-    "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"false\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
@@ -60,10 +82,10 @@
     "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress",
     "unit-sha": "4303f8b755a77997",
     "claim-sha": "1f5dfc3d14400656",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-    "producer-sha": "ea96bc2178c9ec45",
-    "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"false\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
@@ -71,10 +93,98 @@
     "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress",
     "unit-sha": "4303f8b755a77997",
     "claim-sha": "afc14ede0a461a3d",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-    "producer-sha": "ea96bc2178c9ec45",
-    "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f55623845f58c5d2",
+    "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop",
+    "unit-sha": "6050fa18dc803fd0",
+    "claim-sha": "1d42e3b72427fea2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::originatedNextHopIsPeerOwn",
+    "producer-sha": "2b3acfd8b1d6aa0d",
+    "break": "line 515: \"return payloadNextHop(body).has(peer)\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop",
+    "unit-sha": "6050fa18dc803fd0",
+    "claim-sha": "318de76b3052b55a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::originatedNextHopIsPeerOwn",
+    "producer-sha": "2b3acfd8b1d6aa0d",
+    "break": "line 515: \"return payloadNextHop(body).has(peer)\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop",
+    "unit-sha": "82f94ee82517c00d",
+    "claim-sha": "b917157bd7dc382b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "line 607: \"nextHop.has(s.settings.Address)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop",
+    "unit-sha": "82f94ee82517c00d",
+    "claim-sha": "41db132cc23b45bc",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "line 619: \"return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\" -\u003e \"if nextHop.legacy == netip.MustParseAddr(\\\"203.0.113.1\\\") { sections, parseErr := wire.ParseUpdateSections(body); if parseErr != nil { return parseErr }; _, _, nhWire, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop); if found \u0026\u0026 len(nhWire) == 4 { nhWire[3] = 2 } }; return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_raw_originated_next_hop_test.go::TestRawOriginatedUpdateWithholdsPeerOwnNextHop",
+    "unit-sha": "9d2033efac0b9770",
+    "claim-sha": "fa902017f57fa75e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::writeOriginatedRawUpdate",
+    "producer-sha": "f9b6bef417be1ffb",
+    "break": "line 190: \"aigpNextHop(body).has(s.settings.Address)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_raw_originated_next_hop_test.go::TestRawOriginatedUpdateWithholdsPeerOwnNextHop",
+    "unit-sha": "9d2033efac0b9770",
+    "claim-sha": "5655146136106d3e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::writeOriginatedRawUpdate",
+    "producer-sha": "f9b6bef417be1ffb",
+    "break": "line 190: \"aigpNextHop(body).has(s.settings.Address)\" -\u003e \"aigpNextHop(body).legacy.IsValid()\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_scoped_next_hop_test.go::TestRFC4271ScopedNextHopPreservesThirdParty",
+    "unit-sha": "fdd9f7c06f2f647f",
+    "claim-sha": "d1ece26621e2c20a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::has",
+    "producer-sha": "15b1f47ec64a9da6",
+    "break": "line 90: \"n.legacy == addr || n.mp == addr || n.mpLL == addr\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_scoped_next_hop_test.go::TestRFC4271ScopedNextHopWithholdsPeerOwn",
+    "unit-sha": "60587e93267c9cea",
+    "claim-sha": "82db1b911c59afad",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::has",
+    "producer-sha": "15b1f47ec64a9da6",
+    "break": "line 89: \"addr.Unmap().WithZone(\\\"\\\")\" -\u003e \"addr.Unmap()\""
   },
   {
     "rid": "RFC4271-5.1.3-1",
@@ -99,5 +209,29 @@
     "producer-sha": "977ad4f0cd4f2a47",
     "break": "line 607: \"nextHop.has(s.settings.Address)\" -\u003e \"nextHop.legacy.Is4()\"",
     "citation": "expect=bgp:conn=1:seq=1:announced=180A0000:attribute=3,CB007101"
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "positive",
+    "unit": "test/plugin/raw-originated-nexthop-peer-own.ci",
+    "unit-sha": "6db01b0c4451f7bb",
+    "claim-sha": "c96a8872a5265a6a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::writeOriginatedRawUpdate",
+    "producer-sha": "f9b6bef417be1ffb",
+    "break": "line 190: \"aigpNextHop(body).has(s.settings.Address)\" -\u003e \"false\"",
+    "citation": "reject=bgp:conn=1:scope=announced:pattern=180A5A01"
+  },
+  {
+    "rid": "RFC4271-5.1.3-1",
+    "polarity": "negative",
+    "unit": "test/plugin/raw-originated-nexthop-peer-own.ci",
+    "unit-sha": "6db01b0c4451f7bb",
+    "claim-sha": "c6960e3d451a06e3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::writeOriginatedRawUpdate",
+    "producer-sha": "f9b6bef417be1ffb",
+    "break": "line 190: \"aigpNextHop(body).has(s.settings.Address)\" -\u003e \"aigpNextHop(body).legacy.IsValid()\"",
+    "citation": "expect=bgp:conn=1:seq=1:announced=180A5A00:attribute=3,CB007101"
   }
 ]

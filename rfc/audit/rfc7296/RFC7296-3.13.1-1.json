@@ -1,13 +1,17 @@
 {
-  "note": "Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and the selectorsToWire/PortSelector.Wire producers byte-identical). The earlier enforced verdict was too wide. The test drives one fixture, protocol 0 with an ANY port, so it proves the all-ports-allowed encoding (ANY -> Start Port 0) and that the encoder can emit a non-zero port (TCP 443). It cannot fail on the 'protocols for which port is undefined' clause for any protocol other than 0, and Ze does not comply there: ipsec.checkPortProgrammable refuses a single port only when proto == 0, and engine.programmableSelector/intersectPort narrow away a specific port only under protocol 0, so a selector such as protocol 47 (GRE) with port 443, configured or proposed by a peer, reaches selectorsToWire and is emitted as 443/443 where RFC 7296 Section 3.13.1 says the field MUST be zero. Half the requirement is proven; the other half is a code defect.",
+  "note": "Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. TestTSWireAnyPortsForEveryProtocol calls selectorsToWire for every protocol number with an ANY port and asserts one selector with StartPort 0 and EndPort 65535. TestTSWireRefusesUndefinedPortValues calls the encoder with specific and OPAQUE ports under protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol and requires a nil payload. These replace the earlier single-protocol tagged fixture that justified the weak verdict. The encoder now checks Port.ValidForProtocol before writing the wire selector; it cannot emit a specific port for the invalid inputs tested. The conforming ANY controls prevent a blanket refusal from satisfying the pair. The judgment concerns these field encodings, not support for every exact ICMP or Mobility Header selector.",
   "requirement_sha": "f9a6633b996ca03e",
   "tests": {
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "87247232d998a505",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "87247232d998a505",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
   },
   "units": {
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "d53527639a4e8c0d",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "01e1417e2974061a",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }
