@@ -118,12 +118,17 @@ func TestBestRouteTransitSourcePopulationRequiresBothOriginals(t *testing.T) {
 // real export exclusion from missing input or selection of another route.
 func TestBestRouteTransitExcludedRouteRequiresItsSelectedSource(t *testing.T) {
 	source := netip.MustParseAddr("172.30.0.3")
-	good := `{"best-path":[{"prefix":"10.245.2.0/24","best-peer":"172.30.0.3"}]}`
+	good := `[{"family":"ipv4/unicast","prefix":"10.245.2.0/24","best-peer":"172.30.0.3"}]`
 	for _, question := range []struct {
 		output string
 		valid  bool
 	}{
 		{good, true}, {"{}", false}, {strings.Replace(good, "10.245.2.0/24", "10.245.0.0/24", 1), false}, {strings.Replace(good, "172.30.0.3", "172.30.0.14", 1), false},
+		{"[]", false}, {"null", false}, {"[", false}, {"[null]", false},
+		{strings.TrimSuffix(good, "]") + "," + strings.TrimPrefix(good, "["), false},
+		{`{"best-path":` + good + `}`, false},
+		{`[{"best-peer":"172.30.0.3"}]`, false}, {`[{"prefix":"10.245.2.0/24"}]`, false},
+		{strings.Replace(good, "172.30.0.3", "not-an-address", 1), false},
 	} {
 		if err := requireBestRouteTransitSelected(question.output, source); (err == nil) != question.valid {
 			t.Fatalf("selected verdict=%v,valid=%t", err, question.valid)

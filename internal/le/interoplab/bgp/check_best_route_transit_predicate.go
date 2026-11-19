@@ -35,22 +35,20 @@ func requireBestRouteTransitInputs(output string, source, backup netip.Addr) err
 }
 
 func requireBestRouteTransitSelected(output string, source netip.Addr) error {
-	var document struct {
-		Paths []struct {
-			Prefix string `json:"prefix"`
-			Peer   string `json:"best-peer"`
-		} `json:"best-path"`
+	var paths []struct {
+		Prefix string `json:"prefix"`
+		Peer   string `json:"best-peer"`
 	}
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
+	if err := json.Unmarshal([]byte(output), &paths); err != nil {
 		return err
 	}
-	if len(document.Paths) != 1 {
+	if len(paths) != 1 {
 		return errors.New("denied native prefix has no unique elected Ze route")
 	}
-	if document.Paths[0].Prefix != bestRouteTransitDenied {
+	if paths[0].Prefix != bestRouteTransitDenied {
 		return errors.New("Ze's denied-route answer names another prefix")
 	}
-	peer, err := netip.ParseAddr(document.Paths[0].Peer)
+	peer, err := netip.ParseAddr(paths[0].Peer)
 	if err != nil {
 		return err
 	}
