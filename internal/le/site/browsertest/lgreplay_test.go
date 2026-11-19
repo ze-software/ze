@@ -285,6 +285,46 @@ func TestLGReplayAnswersTheTourFromTheRecording(t *testing.T) {
 		t.Fatalf("the text step shows %q, and the recording holds the graph's text", answer)
 	}
 
+	// Restart from a middle step. The tour is taken back to the search page
+	// first, with two presses made at once: the second arrives while the
+	// first step is still loading, and it is kept.
+	press("Restart")
+	press("Next step")
+	press("Next step")
+	await("two presses made at once to reach the search form's result",
+		lgReplayMount+`.getAttribute('data-lg-replay-step') === '2'`)
+	loads := attribute("data-lg-replay-loads")
+	press("Restart")
+	// Restart opens the entry page in a new frame document, and only then
+	// plays the first step: the page the frame says it shows is the entry,
+	// and it was loaded after the press.
+	await("Restart to play step 1 on a newly loaded entry page",
+		lgReplayMount+`.getAttribute('data-lg-replay-step') === '0' && `+
+			lgReplayMount+`.getAttribute('data-lg-replay-page') === 'GET /lg/peers' && `+
+			lgReplayMount+`.getAttribute('data-lg-replay-loads') !== '`+loads+`'`)
+	if caption := text(".lg-replay__caption"); caption != "Step 1 of 4: The peers page." {
+		t.Fatalf("caption after Restart: %q\n%s", caption, seen())
+	}
+	// More presses than steps are left, none waited for: the tour plays every
+	// remaining step, ends on the last one, and no step is reported unfinished.
+	for range 5 {
+		press("Next step")
+	}
+	await("presses made without waiting to play the tour to its last step",
+		lgReplayMount+`.getAttribute('data-lg-replay-step') === '3'`)
+	if caption := text(".lg-replay__caption"); caption != "Step 4 of 4: The graph as text." {
+		t.Fatalf("caption after the tour played to its end again: %q\n%s", caption, seen())
+	}
+	if answer := text(".lg-replay__answer"); answer != "AS65000 -> AS64501\n" {
+		t.Fatalf("the last step shows %q after a restart\n%s", answer, seen())
+	}
+	if status := text(".lg-replay__status"); strings.Contains(status, "did not finish") {
+		t.Fatalf("a step was reported unfinished: %q\n%s", status, seen())
+	}
+	if status := text(".lg-replay__status"); strings.Contains(status, "is loading") {
+		t.Fatalf("the status line still says a step is loading after the tour ended: %q\n%s", status, seen())
+	}
+
 	// The server was asked for the page, the player and the frame, and for
 	// nothing of the looking glass.
 	for _, path := range asked() {

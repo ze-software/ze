@@ -76,7 +76,17 @@
   function mountPlayer(mount) {
     var section = mount.closest('.lg-replay') || mount.parentNode;
     var steps = Array.prototype.slice.call(section.querySelectorAll('[data-lg-replay-step]'));
-    var state = { step: -1, playing: false, busy: false, timer: 0, watchdog: 0, errors: 0, errorsDropped: 0 };
+    /* step is the last step that finished, current the one in progress, and
+       target the step the presses so far ask for: Next step moves target, and
+       the tour plays one step after another until step reaches it. page is
+       the key of the recorded page the frame loaded and nothing has asked a
+       question on since, or '' once one was asked. recoveredStep is the step
+       the tour already went back to the entry page for, so it does so once. */
+    var state = {
+      step: -1, current: -1, target: -1, playing: false, busy: false, ready: false, opening: false,
+      page: '', progress: '', recoveredStep: -1, loads: 0,
+      timer: 0, watchdog: 0, errors: 0, errorsDropped: 0
+    };
 
     /* The frame can raise an error on every request for as long as the page
        stays open, so the mount keeps the first ERRORS_MAX of them in
@@ -118,22 +128,39 @@
     answer.tabIndex = 0;
     answer.setAttribute('aria-label', 'Recorded text answer');
 
-    var frame = document.createElement('iframe');
-    frame.className = 'lg-replay__frame';
-    frame.title = 'Recorded Ze looking glass';
-    /* allow-forms lets the looking glass's search form raise its submit event,
+    var frameSource = mount.getAttribute('data-lg-replay-frame');
+    var frame = null;
+
+    /* The host owns which recorded page the frame shows. Every load is a new
+       frame element, so the document is new whatever the old one was doing,
+       and a message from the old one is no longer from the frame. An empty key
+       opens the recording's entry page. The frame document says `ready` when
+       the page is in place, and nothing plays before that.
+
+       allow-forms lets the looking glass's search form raise its submit event,
        which htmx answers; a sandbox without it drops the submission before
        any script sees it. allow-same-origin is left out on purpose. */
-    frame.setAttribute('sandbox', 'allow-scripts allow-forms');
-    frame.src = mount.getAttribute('data-lg-replay-frame');
+    function loadFrame(key) {
+      var fresh = document.createElement('iframe');
+      fresh.className = 'lg-replay__frame';
+      fresh.title = 'Recorded Ze looking glass';
+      fresh.setAttribute('sandbox', 'allow-scripts allow-forms');
+      fresh.src = frameSource + (key ? '#' + encodeURIComponent(key) : '');
+      state.ready = false;
+      state.page = '';
+      mount.setAttribute('data-lg-replay-state', 'loading');
+      mount.removeAttribute('data-lg-replay-page');
+      if (frame) mount.replaceChild(fresh, frame);
+      else mount.appendChild(fresh);
+      frame = fresh;
+    }
 
     while (mount.firstChild) mount.removeChild(mount.firstChild);
     mount.appendChild(controls);
     mount.appendChild(caption);
     mount.appendChild(status);
-    mount.appendChild(frame);
+    loadFrame('');
     mount.appendChild(answer);
-    mount.setAttribute('data-lg-replay-state', 'loading');
 
     function setPlaying(playing) {
       state.playing = playing;
@@ -149,53 +176,127 @@
       });
     }
 
-    function playStep(index) {
-      if (index >= steps.length) {
-        setPlaying(false);
-        status.textContent = 'The tour is over. Press Restart to play it again.';
+    var lastStep = steps.length - 1;
+    var tourOver = 'The tour is over. Press Restart to play it again.';
+
+    /* A press while a step is still loading is kept, never dropped: the
+       status line says which step is loading and how many presses wait
+       behind it, and Next step says it is busy to assistive technology. */
+    function showProgress() {
+      next.setAttribute('aria-busy', state.busy ? 'true' : 'false');
+      if (!state.busy) {
+        if (status.textContent === state.progress) status.textContent = '';
+        state.progress = '';
         return;
       }
+      var queued = state.target - state.current;
+      state.progress = 'Step ' + (state.current + 1) + ' is loading' +
+        (queued > 0 ? ', and ' + queued + ' more ' + (queued === 1 ? 'press waits' : 'presses wait') + ' behind it.' : '.');
+      status.textContent = state.progress;
+    }
+
+    function playStep(index) {
       var text = steps[index].querySelector('[data-lg-replay-caption]');
       caption.textContent = 'Step ' + (index + 1) + ' of ' + steps.length + ': ' +
         (text ? text.textContent : '');
-      status.textContent = '';
       answer.hidden = true;
       markStep(index);
       state.busy = true;
-      state.step = index;
+      state.current = index;
       mount.setAttribute('data-lg-replay-step-state', 'playing');
+      showProgress();
       window.clearTimeout(state.watchdog);
       state.watchdog = window.setTimeout(function () {
         if (!state.busy) return;
         state.busy = false;
+        state.target = state.step;
         setPlaying(false);
+        showProgress();
         status.textContent = 'Step ' + (index + 1) + ' did not finish. Press Restart to play the tour from its first step.';
       }, STEP_WAIT_MS);
       frame.contentWindow.postMessage({ from: FROM_HOST, type: 'step', index: index }, '*');
+    }
+
+    /* advance plays the next step when one is asked for and nothing is in the
+       way: no step in progress, and a frame that has said `ready`. Every
+       event that removes an obstacle calls it, so a press made early plays
+       as soon as it can. */
+    function advance() {
+      if (state.busy) {
+        showProgress();
+        return;
+      }
+      if (!state.ready) return;
+      if (state.step >= state.target) return;
+      playStep(state.step + 1);
     }
 
     function stepDone() {
       if (!state.busy) return;
       state.busy = false;
       window.clearTimeout(state.watchdog);
+      state.step = state.current;
+      if (state.recoveredStep === state.step) state.recoveredStep = -1;
+      showProgress();
       mount.setAttribute('data-lg-replay-step-state', 'done');
       mount.setAttribute('data-lg-replay-step', String(state.step));
+      if (state.step < state.target) {
+        advance();
+        return;
+      }
       if (!state.playing) return;
-      state.timer = window.setTimeout(function () { playStep(state.step + 1); }, STEP_DWELL_MS);
+      if (state.step === lastStep) {
+        setPlaying(false);
+        status.textContent = tourOver;
+        return;
+      }
+      state.timer = window.setTimeout(function () {
+        state.target = state.step + 1;
+        advance();
+      }, STEP_DWELL_MS);
+    }
+
+    /* Restart opens the entry page in a new frame document and asks for the
+       first step, which plays once that document says `ready`. */
+    function restartTour() {
+      window.clearTimeout(state.timer);
+      window.clearTimeout(state.watchdog);
+      state.busy = false;
+      state.opening = false;
+      state.step = -1;
+      state.current = -1;
+      state.target = 0;
+      state.recoveredStep = -1;
+      showProgress();
+      status.textContent = '';
+      answer.hidden = true;
+      mount.removeAttribute('data-lg-replay-step');
+      loadFrame('');
     }
 
     play.addEventListener('click', function () {
       setPlaying(!state.playing);
-      if (state.playing && !state.busy) playStep(state.step + 1 >= steps.length ? 0 : state.step + 1);
+      if (!state.playing) return;
+      if (state.step >= lastStep) {
+        restartTour();
+        return;
+      }
+      if (state.target <= state.step) state.target = state.step + 1;
+      advance();
     });
     next.addEventListener('click', function () {
       setPlaying(false);
-      if (!state.busy) playStep(state.step + 1);
+      if (state.target >= lastStep) {
+        if (state.busy) showProgress();
+        else if (state.step >= lastStep) status.textContent = tourOver;
+        return;
+      }
+      state.target += 1;
+      advance();
     });
     restart.addEventListener('click', function () {
       setPlaying(false);
-      state.busy = false;
-      playStep(0);
+      restartTour();
     });
 
     window.addEventListener('message', function (event) {
@@ -203,8 +304,28 @@
       var message = event.data;
       if (!message || message.from !== FROM_FRAME) return;
       if (message.type === 'ready') {
+        state.ready = true;
+        state.page = message.key;
+        state.loads += 1;
         mount.setAttribute('data-lg-replay-state', 'ready');
-        stepDone();
+        mount.setAttribute('data-lg-replay-page', message.key);
+        mount.setAttribute('data-lg-replay-loads', String(state.loads));
+        if (state.opening) {
+          state.opening = false;
+          stepDone();
+        } else {
+          advance();
+        }
+      } else if (message.type === 'open') {
+        /* The frame asks for a recorded page: a tour step that opens one, or
+           a visitor's click on a plain link. A step whose page the frame
+           already shows untouched is done; any other gets a new document. */
+        if (message.step && state.page === message.key) {
+          stepDone();
+          return;
+        }
+        state.opening = Boolean(message.step);
+        loadFrame(message.key);
       } else if (message.type === 'step-done') {
         stepDone();
       } else if (message.type === 'text') {
@@ -212,16 +333,36 @@
         answer.hidden = false;
         stepDone();
       } else if (message.type === 'answered') {
+        state.page = '';
         mount.setAttribute('data-lg-replay-answered', message.key);
       } else if (message.type === 'missing') {
+        state.page = '';
         mount.setAttribute('data-lg-replay-missing', message.request);
         status.textContent = 'Not in this recording: ' + message.request +
           '. The replay holds the answers of the tour and of the rows its pages show.';
       } else if (message.type === 'unreachable') {
-        state.busy = false;
+        /* The step presses a control of the page the steps before it leave,
+           and a visitor who clicked around inside the frame left another
+           page. The tour goes back once: it opens the entry page and plays
+           the earlier steps again, up to this one. A step still unreachable
+           after that is a step the recording cannot play, and it says so. */
         window.clearTimeout(state.watchdog);
+        state.busy = false;
+        if (state.recoveredStep !== state.current) {
+          state.recoveredStep = state.current;
+          state.step = -1;
+          showProgress();
+          status.textContent = 'Returning to the page step ' + (state.current + 1) + ' starts from.';
+          state.progress = status.textContent;
+          state.current = -1;
+          loadFrame('');
+          return;
+        }
+        state.recoveredStep = -1;
+        state.target = state.step;
         setPlaying(false);
-        status.textContent = 'The control this step presses is not on the page shown. ' +
+        showProgress();
+        status.textContent = 'The control step ' + (state.current + 1) + ' presses is not on the page the earlier steps leave. ' +
           'Press Restart to play the tour from its first step.';
       } else if (message.type === 'error') {
         keepError(String(message.text));
@@ -411,9 +552,13 @@
         { status: exchange.status, headers: { 'Content-Type': exchange['content-type'] } }));
     };
 
-    function openDocument(key) {
-      window.location.hash = encodeURIComponent(key);
-      window.location.reload();
+    /* The host loads every document of the frame, in a new frame element, so
+       a recorded page is opened by asking for it. step says a tour step asks,
+       which the host then counts as played once the page is in place. The
+       frame does not reload itself: a reload it asked for and did not get
+       left the tour waiting on a page that never came. */
+    function openDocument(key, step) {
+      tellHost({ type: 'open', key: key, step: step });
     }
 
     /* A plain link or form would leave the frame document for a URL the site
@@ -428,7 +573,7 @@
       var target = new URL(link.getAttribute('href'), window.location.href);
       var key = exchangeKey('GET', target.pathname, fieldsOf(target.searchParams), [], false);
       if (exchanges[key] && isMarkup(exchanges[key])) {
-        openDocument(key);
+        openDocument(key, false);
         return;
       }
       reportMissing(key);
@@ -528,7 +673,7 @@
         return;
       }
       if (!exchange.htmx) {
-        if (isMarkup(exchange)) openDocument(exchange.key);
+        if (isMarkup(exchange)) openDocument(exchange.key, true);
         else tellHost({ type: 'text', key: exchange.key, body: exchange.body });
         return;
       }
