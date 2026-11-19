@@ -1,9 +1,9 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- PPPoE subscriber relayed to L2TP.
 //go:build linux
 
-// Linux only: these tests read which descriptors handlePADR released, and
-// closePPPoxFD closes a descriptor only on Linux (socket_other.go stubs it,
-// since no other platform has a PPPoE session to release).
+// Linux only: these tests read which descriptors handlePADR released, through
+// the Linux fixture fixtureSyntheticOpened (dataplane_fixture_linux_test.go),
+// since no other platform has a PPPoE session to release.
 
 package pppoe
 

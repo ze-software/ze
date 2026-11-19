@@ -5,6 +5,8 @@
 
 package dataplane
 
+// RFC naming: untagged -- it asserts only the kernel's scope capability receipt, an admission precondition no RFC 4301 row states; the packet tests prove each enforcement.
+
 import (
 	"errors"
 	"testing"

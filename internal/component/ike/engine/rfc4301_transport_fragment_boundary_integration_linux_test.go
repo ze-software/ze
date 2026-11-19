@@ -5,6 +5,8 @@
 
 package engine
 
+// RFC naming: untagged -- it proves the RFC 4301 Section 4.1 transport-fragment restriction for IPv6, which no row carries (RFC4301-7-1 quotes the IPv4 sentence only), and its kernel-patch proof route is plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md.
+
 import (
 	"bytes"
 	"crypto/aes"

@@ -18,7 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
-// RFC naming: untagged -- useful FlowSpec survival when auxiliary replay stands down.
+// TestOrdinarySelectedFlowSpecReplaysToReplacementRecipient proves a selected
+// FlowSpec route survives to a replacement recipient when auxiliary replay
+// stands down.
 func TestOrdinarySelectedFlowSpecReplaysToReplacementRecipient(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	settings := []*PeerSettings{

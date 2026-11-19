@@ -32,20 +32,19 @@ func newPADTSessionWithIdentity(t *testing.T, server *InterfaceServer, mac [EthA
 	}
 	sid, err := server.sessions.AllocSID()
 	if err != nil {
-		closePPPoxFD(pair[0])
-		closePPPoxFD(pair[1])
-		t.Fatal(err)
+		t.Fatal(errors.Join(err, unix.Close(pair[0]), unix.Close(pair[1])))
 	}
 	opened := fixtureFDOpened(t, pair[0], &fixtureFrames{}, &fixtureSessionHandle{identity: ppp.SessionIdentity{InterfaceName: identity}})
 	err = server.sessions.Add(&Session{SID: sid, MAC: net.HardwareAddr(mac[:]), Opened: opened, State: StateSession})
 	if err != nil {
 		server.closeSession(opened)
-		closePPPoxFD(pair[1])
-		t.Fatal(err)
+		t.Fatal(errors.Join(err, unix.Close(pair[1])))
 	}
 	t.Cleanup(func() {
 		server.closeSession(server.sessions.Remove(sid))
-		closePPPoxFD(pair[1])
+		if err := unix.Close(pair[1]); err != nil {
+			t.Error(err)
+		}
 	})
 	return sid, pair[0]
 }
