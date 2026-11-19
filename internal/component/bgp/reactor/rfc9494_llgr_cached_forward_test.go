@@ -112,6 +112,12 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 	session := NewSession(source.Settings())
 	session.localLLGR.Store(localLLGR)
 	source.session = session
+	// The fixture starts an already-established original connection. Publish
+	// its generation and negotiated encoding before taking its source receipt.
+	source.advanceForwardGeneration()
+	session.setRecvCtxID(ctxID)
+	require.NoError(t, session.captureSourceReceipt(source, &sourceReceipts))
+	t.Cleanup(session.closeSourceReceipt)
 	// An established session holds a forwarding snapshot (setEncodingContexts);
 	// the RS fast-path gate reads the source's receive grant from it.
 	source.refreshForwardFacts()
@@ -196,8 +202,14 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 	wu := wireu.NewWireUpdate(body, ctxID)
 	wu.SetSourceID(source.SourceID())
 
-	r.notifyMessageReceiver(sourceAddr, msgtype.TypeUPDATE, body, wu, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
+	receive := session.sourceMessageCallback(r.messageReceiverForPeer(source))
+	retained := receive(session, sourceAddr, msgtype.TypeUPDATE, body, wu, ctxID, rpc.DirectionReceived,
+		BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
+	require.True(t, retained, "the original source UPDATE reaches the cache")
 	require.Len(t, dispatched, 1, "the UPDATE is dispatched to the plugins")
+	require.Equal(t, source.sourceOwner, dispatched[0].SourceOwner)
+	require.Equal(t, session.connectionID, dispatched[0].SourceConnectionID)
+	require.Equal(t, session.sourceReceiptID(), dispatched[0].SourceReceipt)
 
 	if !rs {
 		sel, selErr := selector.Parse("*")
