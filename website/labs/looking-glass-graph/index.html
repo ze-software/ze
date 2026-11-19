@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Looking Glass Graph Demo - Ze</title>
-        <meta name="description" content="A realistic UK topology with real external ASNs, populating the Looking Glass graph." />
+        <meta name="description" content="Ze's looking glass replayed from a real run against eleven simulated BGP speakers, and the lab that checks its graphs against a UK topology." />
         <meta property="og:title" content="Looking Glass Graph Demo - Ze" />
-        <meta property="og:description" content="A realistic UK topology with real external ASNs, populating the Looking Glass graph." />
+        <meta property="og:description" content="Ze's looking glass replayed from a real run against eleven simulated BGP speakers, and the lab that checks its graphs against a UK topology." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -45,47 +45,61 @@
                     <span class="journey-eyebrow">Demo lab</span>
                     <h1 id="lab-title">Looking Glass Graph Demo</h1>
                     <p>
-                        A realistic UK topology with real external ASNs
-                        populates the Looking Glass topology graph. The native
-                        plugin test suite checks it in a browser.
+                        Ze's looking glass, replayed from a real run: Ze
+                        collects routes from eleven simulated BGP speakers,
+                        and every page and graph below is the answer it gave.
+                        A second lab checks the graphs against a hand-built
+                        UK network with real AS names.
                     </p>
                 </div>
                 <div class="status-panel reveal">
                     <div class="status-copy">
                         <span class="tag">Daemon</span>
                         <p>
-                            Injects 36 routes into a running Ze instance that
-                            describes a small but realistic network: a core
-                            ring (Telehouse, Leeds, Manchester, Birmingham)
-                            with edge sites (Slough, Bradford), peered with
-                            real external ASNs: NTT (transit), Cogent
-                            (transit), Cloudflare (peering), and Akamai
-                            (peering), all under AS65000.
+                            The replay comes from a functional test. It
+                            generates a network from a seed: five routers of
+                            AS65000, one of them a route reflector, and six
+                            external neighbours on eBGP. Each speaker holds a
+                            real BGP session to Ze and announces the routes a
+                            model of the network computed for it. The test
+                            asks the looking glass for its pages and its three
+                            graphs and compares every answer with the model,
+                            router by router, before the recorder keeps a copy
+                            for this page.
                         </p>
                         <p>
-                            The Go test runner starts a real Looking Glass in
-                            an isolated workspace, injects the routes, checks
-                            the topology graph and route views, then tears the
-                            instance down.
+                            The UK lab injects 36 routes for a small network:
+                            a core ring (Telehouse, Leeds, Manchester,
+                            Birmingham) with edge sites (Slough, Bradford)
+                            under AS65000, peered with NTT and Cogent for
+                            transit and Cloudflare and Akamai for peering. It
+                            checks the AS path and next-hop drawings byte for
+                            byte, AS names included, which a stub name server
+                            supplies. As that stub listens on port 53, this
+                            lab runs on Linux only.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
                             <strong>What this lab tests</strong>
-                            <span>The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network</span>
+                            <span>The looking glass pages and its three graphs (AS path, next hop, trace) over real BGP sessions, compared with what a model of the network computed</span>
                         </div>
                         <div class="status-row">
                             <strong>Topology</strong>
-                            <span>AS65000 core ring + edge sites, external peers NTT/Cogent/Cloudflare/Akamai</span>
+                            <span>Replay: five routers of AS65000 with a route reflector, six external neighbours. UK lab: AS65000 core ring and edge sites, peers NTT, Cogent, Cloudflare and Akamai</span>
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Go toolchain</span>
+                            <span>Go toolchain. The UK lab also needs Linux and permission to bind port 53</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
                             <span
                                 ><a
+                                    href="https://github.com/ze-software/ze/blob/main/test/plugin/lg-simulated-network.ci" target="_blank" rel="noopener"
+                                    >test/plugin/lg-simulated-network.ci</a
+                                >,
+                                <a
                                     href="https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp" target="_blank" rel="noopener"
                                     >internal/le/interoplab/bgp/</a
                                 ></span
@@ -101,15 +115,17 @@
                             <span class="terminal-title">looking-glass-graph</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># runs the native plugin suite, including the graph lab</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> functional plugin-test</pre>
+                            <pre><span class="term-comment"># the simulated network behind the replay, on any machine</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test bgp plugin --pattern lg-simulated-network
+<span class="term-comment"># the UK lab, Linux only</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test bgp plugin --pattern lg-graph-lab</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Good first lab</span>
                         <p>
-                            No Docker, no QEMU, no root. If you want to see
-                            what Ze's management interfaces look like
+                            The simulated network needs no Docker, no QEMU and
+                            no root. If you want to see Ze's looking glass
                             before running anything else, start here.
                         </p>
                         <div class="link-list">
