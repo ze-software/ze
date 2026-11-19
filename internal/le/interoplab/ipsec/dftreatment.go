@@ -4,6 +4,7 @@ package ipsec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -72,6 +73,19 @@ func (t dfTreatment) leaf() (string, error) {
 	return "", fmt.Errorf("DF treatment %d names neither clear nor copy", t)
 }
 
+// phaseBase answers how many assertions the phases before this treatment's hold: the
+// clear phase runs first, then the copy phase.
+func (t dfTreatment) phaseBase() (int, error) {
+	switch t {
+	case dfTreatmentClear:
+		return 0, nil
+	case dfTreatmentCopy:
+		return len(dfPhaseOrder), nil
+	case dfTreatmentUnspecified:
+	}
+	return 0, fmt.Errorf("DF treatment %d names neither clear nor copy, so it has no assertion number", t)
+}
+
 // outerDF answers the DF bit the outer IPv4 header of Ze's ESP packet must carry
 // for an inner packet whose own DF bit is innerDF.
 //
@@ -103,10 +117,18 @@ func (t dfTreatment) outerDF(innerDF bool) (bool, error) {
 // copies the inner bit or clears it, and no XFRM flag sets it), and that refusal is
 // proven by test/parse/ipsec-df-bit-treatment.ci.
 //
+// Each phase judges three observations and names each by its assertion number
+// (dfAssertion): the clear phase's DF-set burst is 1, its DF-clear burst 2 and its
+// `show vpn ipsec dataplane sa` readback 3; the copy phase's are 4, 5 and 6. The
+// wire is judged first and every observation is judged even when an earlier one
+// failed (judgeDFPhase), so a break that changes both what Ze installs and what it
+// reads back is reported at the wire as well as at the readback.
+//
 // Red proof: make xfrmDFFlag (internal/component/ike/dataplane/xfrm_linux.go)
 // answer false for DFClear, rebuild the Ze image (the harness does it), and the
-// clear phase's DF-set burst arrives with DF set. Make it answer true for DFCopy,
-// and the copy phase's DF-set burst arrives with DF clear.
+// clear phase's DF-set burst arrives with DF set: assertion 1 is red (and 3, since
+// the readback reads the same flag back). Make it answer true for DFCopy, and the
+// copy phase's DF-set burst arrives with DF clear: assertion 4 is red (and 6).
 func checkTunnelDFTreatment(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
 		return err
@@ -145,51 +167,127 @@ func checkTunnelDFTreatment(ctx context.Context, lab *scenarioLab) error {
 	return lab.requireOuterDFPhase(ctx, dfTreatmentCopy)
 }
 
-// requireOuterDFPhase reads the treatment Ze reports for its outbound SA, then sends
-// a DF-set burst and a DF-clear burst and requires strongSwan to count each packet
-// with the outer DF bit the treatment derives from its inner bit.
+// dfObservation is one of the three things a phase of tunnel-df-treatment observes.
+// The zero value names none, so an observation nobody chose is refused rather than
+// numbered.
+type dfObservation uint8
+
+const (
+	dfObservationUnspecified dfObservation = iota
+	// dfObservationWireInnerSet is the DF-set burst, counted by strongSwan on the wire.
+	dfObservationWireInnerSet
+	// dfObservationWireInnerClear is the DF-clear burst, counted the same way.
+	dfObservationWireInnerClear
+	// dfObservationReadback is the df-bit `show vpn ipsec dataplane sa` reports.
+	dfObservationReadback
+)
+
+// dfScenario names the scenario in every numbered refusal.
+const dfScenario = "tunnel-df-treatment"
+
+// dfPhaseOrder is the order a phase judges its observations: both wire bursts, then
+// the readback. The wire comes first because it is what the peer receives, and the
+// readback reads the same kernel flag back, so a break of the flag changes both.
+var dfPhaseOrder = [...]dfObservation{dfObservationWireInnerSet, dfObservationWireInnerClear, dfObservationReadback}
+
+// dfAssertion answers the assertion number of one observation in one phase: the
+// clear phase holds 1 to 3 and the copy phase 4 to 6, each in dfPhaseOrder.
+func dfAssertion(treatment dfTreatment, observation dfObservation) (int, error) {
+	base, err := treatment.phaseBase()
+	if err != nil {
+		return 0, err
+	}
+	for index, ordered := range dfPhaseOrder {
+		if ordered == observation {
+			return base + index + 1, nil
+		}
+	}
+	return 0, fmt.Errorf("DF observation %d is not one a phase judges, so it has no assertion number", observation)
+}
+
+// dfFailure names the assertion an observation failed at, as the other numbered
+// checkers do (checkEAPTLS), so a red says which observation went red.
+func dfFailure(treatment dfTreatment, observation dfObservation, cause error) error {
+	assertion, err := dfAssertion(treatment, observation)
+	if err != nil {
+		return errors.Join(err, cause)
+	}
+	var tb textbuf.Buffer
+	tb.Str("scenario ").Str(dfScenario).Str(" assertion ").Str(strconv.Itoa(assertion)).Str(": ").Err(cause)
+	return errors.New(tb.String())
+}
+
+// judgeDFPhase runs every observation of one phase in dfPhaseOrder and answers each
+// failure under its assertion number, joined. A failed observation never stops the
+// ones after it: both recorded reds of AC-8 once stopped at the readback and never
+// reached the wire, so the wire assertion had no red of its own.
+func judgeDFPhase(treatment dfTreatment, observe func(dfObservation) error) error {
+	var failures []error
+	for _, observation := range dfPhaseOrder {
+		if err := observe(observation); err != nil {
+			failures = append(failures, dfFailure(treatment, observation, err))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// requireOuterDFPhase sends a DF-set burst and a DF-clear burst and requires
+// strongSwan to count each packet with the outer DF bit the treatment derives from
+// its inner bit, then reads the treatment Ze reports for its outbound SA.
 func (l *scenarioLab) requireOuterDFPhase(ctx context.Context, treatment dfTreatment) error {
 	leaf, err := treatment.leaf()
 	if err != nil {
 		return err
 	}
-	answer, err := l.zeCLI(ctx, "show vpn ipsec dataplane sa | json")
+	return judgeDFPhase(treatment, func(observation dfObservation) error {
+		switch observation {
+		case dfObservationWireInnerSet:
+			return l.requireOuterDFBurst(ctx, treatment, leaf, true)
+		case dfObservationWireInnerClear:
+			return l.requireOuterDFBurst(ctx, treatment, leaf, false)
+		case dfObservationReadback:
+			answer, err := l.zeCLI(ctx, "show vpn ipsec dataplane sa | json")
+			if err != nil {
+				return err
+			}
+			return requireDataplaneDF(answer, leaf)
+		case dfObservationUnspecified:
+		}
+		return fmt.Errorf("DF observation %d names no burst and no readback", observation)
+	})
+}
+
+// requireOuterDFBurst sends one burst whose inner DF bit is innerDF and requires
+// strongSwan to count every packet of it with the outer bit the treatment derives.
+func (l *scenarioLab) requireOuterDFBurst(ctx context.Context, treatment dfTreatment, leaf string, innerDF bool) error {
+	want, err := treatment.outerDF(innerDF)
 	if err != nil {
 		return err
 	}
-	if err := requireDataplaneDF(answer, leaf); err != nil {
+	before, err := l.readOuterDFCounts(ctx)
+	if err != nil {
 		return err
 	}
-	for _, innerDF := range []bool{true, false} {
-		want, err := treatment.outerDF(innerDF)
-		if err != nil {
-			return err
+	// ping exits non-zero on any loss, so its error is kept for the refusal
+	// rather than returned: the loss summary is what decides.
+	output, pingErr := l.exec(ctx, zePeer, dfPingCommand(innerDF)...)
+	loss, err := pingLoss(output)
+	if err != nil {
+		return fmt.Errorf("df-bit %s: ping from %s to %s %w (exec: %w)", leaf, dfZeInner, dfSwanInner, err, pingErr)
+	}
+	if loss != 0 {
+		return fmt.Errorf("df-bit %s: ping from %s to %s lost %g%% of %d packets (exec: %w): %s", leaf, dfZeInner, dfSwanInner, loss, dfPingCount, pingErr, output)
+	}
+	after, err := l.readOuterDFCounts(ctx)
+	if err != nil {
+		return err
+	}
+	if err := judgeOuterDF(before, after, dfPingCount, want); err != nil {
+		state, stateErr := l.exec(ctx, zePeer, "ip", xfrmCommand, ipWordState, "list", ipWordSrc, zeIP, xfrmHeaderTarget, swanIP)
+		if stateErr != nil {
+			return fmt.Errorf("df-bit %s, inner DF %s: %w; ze's outbound XFRM state was not read: %w", leaf, dfBitName(innerDF), err, stateErr)
 		}
-		before, err := l.readOuterDFCounts(ctx)
-		if err != nil {
-			return err
-		}
-		// ping exits non-zero on any loss, so its error is kept for the refusal
-		// rather than returned: the loss summary is what decides.
-		output, pingErr := l.exec(ctx, zePeer, dfPingCommand(innerDF)...)
-		loss, err := pingLoss(output)
-		if err != nil {
-			return fmt.Errorf("df-bit %s: ping from %s to %s %w (exec: %v)", leaf, dfZeInner, dfSwanInner, err, pingErr)
-		}
-		if loss != 0 {
-			return fmt.Errorf("df-bit %s: ping from %s to %s lost %g%% of %d packets (exec: %v): %s", leaf, dfZeInner, dfSwanInner, loss, dfPingCount, pingErr, output)
-		}
-		after, err := l.readOuterDFCounts(ctx)
-		if err != nil {
-			return err
-		}
-		if err := judgeOuterDF(before, after, dfPingCount, want); err != nil {
-			state, stateErr := l.exec(ctx, zePeer, "ip", xfrmCommand, ipWordState, "list", ipWordSrc, zeIP, xfrmHeaderTarget, swanIP)
-			if stateErr != nil {
-				return fmt.Errorf("df-bit %s, inner DF %s: %w; ze's outbound XFRM state was not read: %w", leaf, dfBitName(innerDF), err, stateErr)
-			}
-			return fmt.Errorf("df-bit %s, inner DF %s: %w; ze's outbound XFRM state:\n%s", leaf, dfBitName(innerDF), err, state)
-		}
+		return fmt.Errorf("df-bit %s, inner DF %s: %w; ze's outbound XFRM state:\n%s", leaf, dfBitName(innerDF), err, state)
 	}
 	return nil
 }

@@ -3,6 +3,7 @@
 package ipsec
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -45,6 +46,95 @@ func TestOuterDFFollowsTheTreatment(t *testing.T) {
 		if got != want {
 			t.Fatalf("treatment %d leaf %q, want %q", treatment, got, want)
 		}
+	}
+}
+
+// TestDFAssertionNumbersEveryObservationOnce pins the fail sites a red names: the clear
+// phase's DF-set burst, DF-clear burst and readback are 1, 2 and 3, the copy phase's
+// 4, 5 and 6. The AC-8 red proofs read these numbers, so a renumbering is a change to
+// what they expect. An unnamed treatment or observation has no number.
+func TestDFAssertionNumbersEveryObservationOnce(t *testing.T) {
+	want := map[dfTreatment]map[dfObservation]int{
+		dfTreatmentClear: {dfObservationWireInnerSet: 1, dfObservationWireInnerClear: 2, dfObservationReadback: 3},
+		dfTreatmentCopy:  {dfObservationWireInnerSet: 4, dfObservationWireInnerClear: 5, dfObservationReadback: 6},
+	}
+	seen := make(map[int]bool)
+	for treatment, observations := range want {
+		for observation, number := range observations {
+			got, err := dfAssertion(treatment, observation)
+			if err != nil {
+				t.Fatalf("treatment %d observation %d: %v", treatment, observation, err)
+			}
+			if got != number {
+				t.Fatalf("treatment %d observation %d: assertion %d, want %d", treatment, observation, got, number)
+			}
+			if seen[got] {
+				t.Fatalf("assertion %d names two observations", got)
+			}
+			seen[got] = true
+		}
+	}
+	if _, err := dfAssertion(dfTreatmentUnspecified, dfObservationReadback); err == nil {
+		t.Fatal("an unnamed treatment answered an assertion number")
+	}
+	if _, err := dfAssertion(dfTreatmentClear, dfObservationUnspecified); err == nil {
+		t.Fatal("an unnamed observation answered an assertion number")
+	}
+}
+
+// TestJudgeDFPhaseJudgesTheWireWhenTheReadbackFails proves the order and the
+// independence of a phase's three observations, the AC-8 defect: the readback once ran
+// first and returned, so a break of xfrmDFFlag, which changes the readback and the wire
+// together, went red at the readback and the wire counters were never judged. Each
+// failing observation must be reported under its own number, the wire first, and a
+// failure must not stop the observations after it.
+func TestJudgeDFPhaseJudgesTheWireWhenTheReadbackFails(t *testing.T) {
+	failing := func(fail ...dfObservation) (func(dfObservation) error, *[]dfObservation) {
+		var observed []dfObservation
+		return func(observation dfObservation) error {
+			observed = append(observed, observation)
+			if slices.Contains(fail, observation) {
+				return errors.New("observed wrong")
+			}
+			return nil
+		}, &observed
+	}
+	order := []dfObservation{dfObservationWireInnerSet, dfObservationWireInnerClear, dfObservationReadback}
+
+	observe, observed := failing(dfObservationWireInnerSet, dfObservationReadback)
+	err := judgeDFPhase(dfTreatmentClear, observe)
+	if !slices.Equal(*observed, order) {
+		t.Fatalf("observed %v, want every observation in the order %v", *observed, order)
+	}
+	if err == nil {
+		t.Fatal("two failed observations judged the phase good")
+	}
+	lines := strings.Split(err.Error(), "\n")
+	wantLines := []string{
+		"scenario tunnel-df-treatment assertion 1: observed wrong",
+		"scenario tunnel-df-treatment assertion 3: observed wrong",
+	}
+	if !slices.Equal(lines, wantLines) {
+		t.Fatalf("refusal %q, want %q", lines, wantLines)
+	}
+
+	observe, observed = failing(dfObservationReadback)
+	err = judgeDFPhase(dfTreatmentCopy, observe)
+	if !slices.Equal(*observed, order) {
+		t.Fatalf("observed %v, want every observation in the order %v", *observed, order)
+	}
+	if err == nil || err.Error() != "scenario tunnel-df-treatment assertion 6: observed wrong" {
+		t.Fatalf("copy readback failure answered %v, want assertion 6 alone", err)
+	}
+
+	observe, _ = failing()
+	if err := judgeDFPhase(dfTreatmentClear, observe); err != nil {
+		t.Fatalf("a phase whose every observation passed was refused: %v", err)
+	}
+
+	observe, _ = failing(dfObservationWireInnerClear)
+	if err := judgeDFPhase(dfTreatmentUnspecified, observe); err == nil || !strings.Contains(err.Error(), "observed wrong") {
+		t.Fatalf("a failure under an unnamed treatment lost its cause: %v", err)
 	}
 }
 

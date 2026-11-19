@@ -117,6 +117,14 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// read decides it.
 	"initiator-answer-one-local-two-remote": {run: checkResponderTwoSubnets},
 	"responder-raises-child-rekey":          {run: checkResponderRaisesChildRekey},
+	// RFC 4301 Section 4.4.3.1: a remote-id sub-tree admits strongSwan's ID_FQDN under
+	// it and refuses one outside it, the only change being strongSwan's local id
+	// (padsubtree.go).
+	"pad-subtree-identity": {run: checkPADSubtreeIdentity},
+	// RFC 4301 Section 4.4.1: an operator DISCARD entry, in the default configuration,
+	// drops traffic the policy-based tunnel beside it would carry, in both
+	// directions, and the tunnel stays up (spddiscard.go).
+	"spd-discard-entry": {run: checkSPDDiscardEntry},
 	// RFC 4301 Section 8.1: the outer DF bit of Ze's ESP, counted by strongSwan
 	// under df-bit clear and then df-bit copy (dftreatment.go).
 	"tunnel-df-treatment": {run: checkTunnelDFTreatment},

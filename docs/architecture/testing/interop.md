@@ -2893,7 +2893,11 @@ so the bit is read as the peer receives it. Under `clear` all six packets must
 arrive with DF clear. Under `copy` each must carry its inner bit. Each burst
 must move exactly one counter by exactly three. `show vpn ipsec dataplane sa`
 must also report the phase's `df-bit` on Ze's outbound SA, with
-`options-known` true. iptables cannot read
+`options-known` true. Each phase judges the wire first and the readback last,
+and judges all three even when one has failed, so a red reports every
+observation that disagreed. Each refusal names its assertion: the clear phase's
+DF-set burst is 1, its DF-clear burst 2 and its readback 3; the copy phase's
+are 4, 5 and 6. iptables cannot read
 the bit on Ze's kernel: its only match for an arbitrary header bit is xt_u32,
 which the kernel does not build. So the strongSwan image carries `nftables`.
 `df-bit set` is not a phase, because every dataplane refuses it at commit.
@@ -2920,12 +2924,12 @@ discriminates"). The harness rebuilds the Ze image with each private fault:
 
 | Scenario | Break | Expected red |
 |----------|-------|--------------|
-| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
-| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | assertion 1: the clear phase's DF-set burst arrives with DF set. Assertion 3, the readback, is red beside it, because it reads the same flag back |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | assertion 4: the copy phase's DF-set burst arrives with DF clear. Assertion 6, the readback, is red beside it; assertions 1 to 3 pass |
 | `icmp-error-payload-check` (c) | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed |
 | `icmp-error-payload-check` (d) | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`. S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | P alone and S alone pass. Together they deliver the inconsistent error and fail its packet assertion |
 
-<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
+<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, judgeDFPhase, dfAssertion, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
 <!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
 
@@ -2934,6 +2938,52 @@ single-fault passes show that either selector still rejects the inconsistent
 error. Preserve the negotiated traffic selectors and every other state and
 policy field. Template-free BYPASS and DISCARD entries keep their selectors.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+
+### An operator DISCARD entry and a PAD sub-tree (RFC 4301)
+
+`spd-discard-entry` proves RFC 4301 Section 4.4.1's DISCARD disposition on the
+default configuration: no `unmatched` leaf, no `icmp-error-check` leaf, and the
+entry's order, direction and protocol at their defaults. Ze initiates a
+policy-based tunnel for 10.2.0.0/24 === 10.1.0.0/24, and the entry
+`drop-swan-upper` discards 10.2.0.0/24 <-> 10.1.0.128/25, inside the Child SA's
+selectors. Its order of 1000 ranks it before the peer's policy-priority of 2000.
+strongSwan's Child SA covers the whole /24, and charon installs its policies as
+`XFRM_POLICY_ALLOW` with the SA's template (`add_policy_internal` in
+`kernel_netlink_ipsec.c`, strongSwan 6.1.0), so strongSwan carries the upper
+half like the rest. The checker requires, in numbered assertions: Ze's echo to
+10.1.0.1 crosses the tunnel in all four directions (3); Ze's echo to
+10.1.0.200 is all lost, Ze's `XfrmOutPolBlock` rises by the echoes sent and
+Ze's outbound SA moves no byte (4); strongSwan's echo from 10.1.0.200 is all
+lost, strongSwan's outbound SA and Ze's inbound SA move bytes, and Ze's
+`XfrmInPolBlock` rises by the echoes sent (5); both peers still list the IKE SA
+established, the ESP SPIs are unchanged, and 10.1.0.1 still crosses (6).
+
+`pad-subtree-identity` proves RFC 4301 Section 4.4.3.1's sub-tree match for an
+ID_FQDN. Ze initiates with `remote-id ".example.com"`. strongSwan first asserts
+`id = vpn.example.com`, which `identification_create_from_string`
+(`identification.c`) reads as ID_FQDN, and Ze must authenticate it (1) and carry
+traffic (3). The checker then writes a conf.d file that changes strongSwan's
+local id alone to `vpn.notexample.com`, which ends in the characters
+`example.com` but lies outside the sub-tree, loads it (`merge_config` in
+`vici_config.c` replaces the connection), and clears Ze's SAs so Ze redials. Ze
+sends no IDr, so charon answers with its configured id (`build_r` in
+`ike_auth.c`). charon's own log must show it authenticating as the second id
+(6), and Ze must log `ike: remote AUTH verification failed` naming
+`vpn.notexample.com` and `.example.com` (7, 8), list no established IKE SA (9)
+and hold no ESP state (10). charon is not read after the refusal: as the
+responder it lists its side established once it has answered.
+
+| Scenario | Break | Expected red |
+|----------|-------|--------------|
+| `spd-discard-entry` | `spdPolicyHasDirection` answers false for `SADirOut` | assertion 4: Ze's echo to 10.1.0.200 crosses the tunnel |
+| `spd-discard-entry` | `spdPolicyHasDirection` answers false for `SADirIn` | assertion 5: every echo is still lost to Ze's out BLOCK, but `XfrmInPolBlock` stays still |
+| `pad-subtree-identity` | `textIdentityMatches` answers true for a sub-tree whatever the name | assertion 7: Ze authenticates `vpn.notexample.com` and logs no refusal |
+| `pad-subtree-identity` | `textIdentityMatches` answers false for a sub-tree | assertion 1: Ze refuses `vpn.example.com` |
+
+<!-- source: internal/le/interoplab/ipsec/spddiscard.go -- checkSPDDiscardEntry, requireDiscarded, requireESPStill, requireTunnelStayedUp -->
+<!-- source: internal/le/interoplab/ipsec/padsubtree.go -- checkPADSubtreeIdentity, loadOutsideIdentity, requireZeIKENotEstablished -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyHasDirection -->
+<!-- source: internal/component/ike/engine/remote_id.go -- textIdentityMatches, checkRemoteIdentity -->
 
 ### Live ESP form changes
 
