@@ -4,7 +4,12 @@
 
 package ppp
 
-import "sync"
+import (
+	"slices"
+	"sync"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+)
 
 // Each wait owns a fresh buffered-one channel. A retained provider capability
 // never acquires another wait's channel, even when the PPP worker is unchanged.
@@ -13,11 +18,13 @@ type authRequest struct {
 	control      SessionControl
 	subscriberID string
 	// Immutable link to the actual initial L2TP auth round, not its answer wait.
-	admission *authAdmissionBinding
-	answers   chan authResponseMsg
-	mu        sync.Mutex
-	waiting   bool
-	answered  bool
+	admission           *authAdmissionBinding
+	framedRoutesAllowed bool
+	answers             chan authResponseMsg
+	mu                  sync.Mutex
+	waiting             bool
+	answered            bool
+	framedRoutes        []l2tpevents.FramedRoute
 }
 
 type ipRequest struct {
@@ -46,6 +53,7 @@ func newIPRequest(control SessionControl, subscriberID string, family AddressFam
 func (pending *authRequest) retire() {
 	pending.mu.Lock()
 	pending.waiting = false
+	pending.framedRoutes = nil
 	pending.mu.Unlock()
 }
 
@@ -98,6 +106,33 @@ func (request EventAuthRequest) Active() bool {
 	return request.Control.Active()
 }
 
+// StageFramedRoutes copies the bounded, validated profile for the original
+// credentialed PPPoE authentication round. The provider MUST call this before
+// replying Accept. Other kinds of authentication do not stage a route profile.
+// Safe for concurrent use. A zero or expired eligible request cannot stage.
+func (request EventAuthRequest) StageFramedRoutes(framedRoutes []l2tpevents.FramedRoute) error {
+	pending := request.pending
+	if pending == nil {
+		return ErrRequestExpired
+	}
+	if !pending.framedRoutesAllowed {
+		return nil
+	}
+	pending.mu.Lock()
+	defer pending.mu.Unlock()
+	if !request.validLocked() {
+		return ErrRequestExpired
+	}
+	if pending.answered {
+		return ErrAuthResponsePending
+	}
+	if !request.Control.Active() {
+		return ErrRequestExpired
+	}
+	pending.framedRoutes = slices.Clone(framedRoutes)
+	return nil
+}
+
 func (request EventIPRequest) Active() bool {
 	if request.pending == nil {
 		return false
@@ -128,9 +163,13 @@ func (request EventAuthRequest) answer(decision authResponseMsg) error {
 	if request.pending.answered {
 		return ErrAuthResponsePending
 	}
+	if decision.accept {
+		decision.framedRoutes = request.pending.framedRoutes
+	}
 	select {
 	case request.pending.answers <- decision:
 		request.pending.answered = true
+		request.pending.framedRoutes = nil
 		return nil
 	default:
 		return ErrAuthResponsePending

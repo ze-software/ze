@@ -181,6 +181,9 @@ type pppSession struct {
 
 	// Accepted request principal for this LCP lifetime. Goroutine-owned.
 	authenticatedUsername string
+	// Immutable copied profile from this PPPoE lifetime's accepted request.
+	// Goroutine-owned. Each assignment borrows its own copy.
+	authenticatedFramedRoutes []l2tpevents.FramedRoute
 
 	// Tracks final teardown publication. Owned by the session goroutine.
 	sessionDownSent bool

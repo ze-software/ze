@@ -324,6 +324,8 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 	req.Control = s.control
 	req.pending = newAuthRequest(s.control, s.subscriberID)
 	req.pending.admission = admission
+	// Periodic authentication does not replace an already admitted profile.
+	req.pending.framedRoutesAllowed = s.pppoe && !s.ncpStarted && req.Method != AuthMethodNone
 	s.authRequest = req.pending
 	defer func() {
 		req.pending.retire()
@@ -394,8 +396,8 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 	}
 }
 
-// acceptAuthDecision records the username of an accepted decision and
-// returns the decision for awaitAuthDecision to hand back.
+// acceptAuthDecision records the accepted request's identity and any original
+// PPPoE route profile before the worker can negotiate a network assignment.
 func (s *pppSession) acceptAuthDecision(decision authResponseMsg, req EventAuthRequest) authResponseMsg {
 	if decision.accept {
 		if req.pending.admission != nil {
@@ -406,6 +408,9 @@ func (s *pppSession) acceptAuthDecision(decision authResponseMsg, req EventAuthR
 			}
 		}
 		s.authenticatedUsername = req.Username
+		if req.pending.framedRoutesAllowed {
+			s.authenticatedFramedRoutes = decision.framedRoutes
+		}
 	}
 	return decision
 }

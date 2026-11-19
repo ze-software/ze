@@ -5,7 +5,11 @@
 
 package ppp
 
-import "fmt"
+import (
+	"fmt"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+)
 
 // AuthMethod identifies the PPP authentication protocol negotiated for
 // a session. The zero value (AuthMethodNone) means LCP advertised no
@@ -154,6 +158,7 @@ type authResponseMsg struct {
 	accept           bool
 	message          string
 	authResponseBlob []byte
+	framedRoutes     []l2tpevents.FramedRoute
 	// terminate asks the session to close the link with an LCP
 	// Terminate-Request after a reject (Driver.RefuseAuth).
 	terminate bool

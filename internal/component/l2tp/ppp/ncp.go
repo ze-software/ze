@@ -12,6 +12,7 @@ package ppp
 import (
 	"errors"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -1408,6 +1409,7 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 	}
 	ev.NetworkLifetime = lifetime
 	ev.BaselineCounters = baseline
+	ev.FramedRoutes = slices.Clone(s.authenticatedFramedRoutes)
 	admission, err := s.prepareAuthNetworkAssignment(lifetime, baseline)
 	if err != nil {
 		s.fail(opererr.Wrap(err,
@@ -1512,6 +1514,7 @@ func (s *pppSession) resetNCP() bool {
 	s.stopNCPRestartTimers()
 	s.ncpStarted = false
 	s.authenticatedUsername = ""
+	s.authenticatedFramedRoutes = nil
 	if err := s.resetNetwork(); err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("NCP cleanup before LCP restart: ").Err(err).String())

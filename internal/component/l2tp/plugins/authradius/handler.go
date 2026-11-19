@@ -209,7 +209,8 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		}
 
 		// RFC 2865: extract subscriber profile attributes from Access-Accept.
-		if meta := extractAuthMetadata(resp); meta != nil {
+		meta := extractAuthMetadata(resp)
+		if meta != nil {
 			l2tp.StoreSessionMetadata(req.SubscriberID, meta)
 			logger().Info("l2tp-auth-radius: stored session metadata",
 				"tunnel", req.TunnelID, "session", req.SessionID,
@@ -224,6 +225,13 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 				if respErr := respond(false, "no MS-CHAP2-Success in Access-Accept", nil); respErr != nil {
 					logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
 				}
+				return
+			}
+		}
+		if meta != nil && len(meta.FramedRoutes) != 0 {
+			if err := req.StageFramedRoutes(meta.FramedRoutes); err != nil {
+				// The original wait retired or already has a decision.
+				logger().Debug("l2tp-auth-radius: original framed-route profile was not staged", "error", err)
 				return
 			}
 		}
