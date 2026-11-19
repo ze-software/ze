@@ -357,7 +357,7 @@ func resolveKernel(root, version, arch, profile, builder, target, jobs string) (
 		return "", err
 	}
 	if td.isTree {
-		return resolveRuntimeKernel(root, version, arch, profile, builder, td, resolved, variant, jobs)
+		return resolveRuntimeKernel(root, version, arch, profile, builder, td, resolved, jobs)
 	}
 	td.outputDir, err = kernelOutputPath(root, td.outputDir)
 	if err != nil {
@@ -473,19 +473,26 @@ func resolveInstallerKernel(root, version, arch, profile, builder string, td ker
 // run or a lab reads the cache through CachedRuntimeKernelTree, which never
 // builds. The build runs under the key's lock and is published by one rename
 // (publishRuntimeKernel), so concurrent runs build the key once and no failure
-// leaves a partial entry.
-func resolveRuntimeKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
+// leaves a partial entry. With no builder requested, the other backend's entry
+// of the same inputs serves too, so a kernel either backend built is never
+// built again (runtimeKernelBackends); the build on a miss uses the preferred
+// backend and publishes its entry.
+func resolveRuntimeKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, jobs string) (string, error) {
 	if err := enforceReserveMemKernelFloor(version); err != nil {
 		return "", err
 	}
-	cachedDir, err := filepath.Abs(kernelTreeCachePath(version, variant))
+	entries, err := runtimeKernelEntries(root, version, arch, builder, resolved)
 	if err != nil {
-		return "", fmt.Errorf("resolve runtime kernel cache entry: %w", err)
+		return "", err
 	}
-	cachedKernel := filepath.Join(cachedDir, td.artifact)
-	if _, err := os.Stat(cachedKernel); err == nil {
-		return cachedDir, nil
+	entry, found, err := publishedRuntimeKernel(entries, td.artifact)
+	if err != nil {
+		return "", err
 	}
+	if found {
+		return entry, nil
+	}
+	cachedDir := entries[0]
 	// A cold foreign-arch entry cannot be built here, before any output exists.
 	if arch != kernelbuilder.HostArch() {
 		return "", &foreignArchKernelError{version: version, arch: arch, cachedDir: cachedDir}
@@ -616,9 +623,9 @@ func unsupportedArch(what, arch, fix string) string {
 // kernel for is refused first, so the fix never sends the operator to a host
 // that cannot build it either.
 //
-// The cache is asked under builder "", the backend a build here would choose,
-// so a kernel built with the other --builder is not seen
-// (docs/architecture/appliance/build-artifacts.md).
+// The cache is asked with no backend requested, so either backend's entry of
+// the current inputs counts, the preferred one first (runtimeKernelBackends,
+// docs/architecture/appliance/build-artifacts.md).
 func runtimeKernelReachable(root, arch string) error {
 	if !kernelbuilder.ArchSupported(arch) {
 		return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, unsupported: true}
@@ -626,18 +633,18 @@ func runtimeKernelReachable(root, arch string) error {
 	if arch == kernelbuilder.HostArch() {
 		return nil
 	}
-	td, err := kernelTargetFor(kernelTargetRuntime)
+	entries, err := defaultRuntimeKernelEntries(root, arch)
 	if err != nil {
 		return err
 	}
-	cachedDir, err := kernelCachePathFor(root, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+	_, found, err := publishedRuntimeKernel(entries, runtimeKernelArtifact)
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(cachedDir, td.artifact)); err == nil {
+	if found {
 		return nil
 	}
-	return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, cachedDir: cachedDir}
+	return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, cachedDir: entries[0]}
 }
 
 // buildKernelArtifact resolves the firmware directory then invokes the native driver.

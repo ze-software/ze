@@ -279,8 +279,11 @@ func kernelPatchSources(root, target string) (paths []string, ok bool) {
 // the config fragments, manifests and patches the profile resolves; and by a
 // hash of the builder sources (kernelBuilderSources). builder is the --builder
 // value, empty for the backend a build here would choose: the Docker and QEMU
-// backends compile with different gcc releases, so a kernel one built is never
-// served for the other. The version is in the path.
+// backends compile with different gcc releases, so each backend's kernel has an
+// entry of its own and an explicit --builder is served only its backend's. A
+// runtime resolution with no backend requested also accepts the other
+// backend's entry of the same two hashes (runtimeKernelBackends) rather than
+// build those inputs a second time. The version is in the path.
 //
 // The hardware-kms firmware is covered through the builder hash: its pins
 // (kernelbuilder hardwareKMSFirmware) sit in worker.go, a BuildSources file,

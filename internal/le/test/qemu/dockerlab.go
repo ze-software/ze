@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
@@ -242,15 +243,41 @@ type dockerLabRequest struct {
 
 // DockerLabReport is what a docker-lab run answers.
 type DockerLabReport struct {
-	Image       string           `json:"image"`
-	Accelerator string           `json:"accelerator"`
-	Console     string           `json:"console"`
-	CheckExit   int              `json:"check-exit"`
-	LabExit     int              `json:"lab-exit"`
-	Interrupted bool             `json:"interrupted"`
-	LeftBehind  string           `json:"left-behind,omitempty"`
-	Kernel      *dockerLabKernel `json:"kernel,omitempty"`
-	CommandExit int              `json:"command-exit"`
+	Image string `json:"image"`
+	// RuntimeKernel is the cache entry the lab branch's image embeds, and
+	// KernelBuilder the backend that built it: with both backends' entries
+	// possible (appliance.CachedRuntimeKernelTree), the report names which
+	// booted. The command branch boots the kernel its caller names and reports
+	// it under Kernel.
+	RuntimeKernel string           `json:"runtime-kernel,omitempty"`
+	KernelBuilder string           `json:"kernel-builder,omitempty"`
+	Accelerator   string           `json:"accelerator"`
+	Console       string           `json:"console"`
+	CheckExit     int              `json:"check-exit"`
+	LabExit       int              `json:"lab-exit"`
+	Interrupted   bool             `json:"interrupted"`
+	LeftBehind    string           `json:"left-behind,omitempty"`
+	Kernel        *dockerLabKernel `json:"kernel,omitempty"`
+	CommandExit   int              `json:"command-exit"`
+}
+
+// dockerLabKernelProvenance answers the runtime kernel entry the lab's image
+// embeds and the backend that built it, for the report: the cache may serve
+// either backend's build of the current inputs (appliance.CachedRuntimeKernelTree).
+// CachedImage has already resolved and checked that kernel, so this answers
+// only what the report shows, and a lookup that cannot answer says so in place
+// of the value rather than failing a lab that booted.
+func dockerLabKernelProvenance(root, goarch string) (kernel, builder string) {
+	kernel, err := setupdockerhost.CachedRuntimeKernel(root, goarch)
+	if err != nil {
+		unknown := "unknown: " + err.Error()
+		return unknown, unknown
+	}
+	builder, err = appliance.RuntimeKernelBuilder(kernel)
+	if err != nil {
+		return kernel, "unknown: " + err.Error()
+	}
+	return kernel, builder
 }
 
 // runDockerLabHere runs the verb over this checkout under its signal root, so
@@ -328,6 +355,7 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 		image: image, linuxZe: linuxZe, lab: lab, environment: environment,
 		bootPreparation: bootPreparation,
 	})
+	report.RuntimeKernel, report.KernelBuilder = dockerLabKernelProvenance(root, goarch)
 	if err != nil {
 		leaction.ReportError(err)
 		return &report, 1

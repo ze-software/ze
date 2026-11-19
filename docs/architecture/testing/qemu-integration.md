@@ -807,8 +807,17 @@ cache and build neither: a cold cache refuses before the boot, naming the
 missing entry and ending with `./le setup docker host build arch <arch>`, the
 one command that builds the kernel when it is missing and then the image. That
 command runs on its own, outside any test deadline, so no test timeout can kill
-a build before it is published. No Alpine ISO or initramfs is read, no package is
-installed. In the Docker lab branch nothing of le's runs in the guest.
+a build before it is published. The runtime kernel is looked up under the
+backend a build here would choose (Docker when its client is on PATH) and then
+under the other backend's entry of the same two input hashes, so a Mac whose
+kernel the QEMU backend built boots that kernel in a lab although the Docker
+client is present, and the same inputs are never built twice; the report names
+the entry (`runtime-kernel`) and the backend that built it (`kernel-builder`).
+An explicit `--builder` is served its own backend's entry alone. No Alpine ISO
+or initramfs is read, no package is installed. In the Docker lab branch nothing
+of le's runs in the guest.
+<!-- source: internal/appliance/runtimekernel_cached.go -- runtimeKernelBackends, publishedRuntimeKernel, RuntimeKernelBuilder -->
+<!-- test: internal/appliance/runtimekernel_backends_test.go TestRuntimeKernelBackendsNameOnlyTheRequestedOne, TestPublishedRuntimeKernelServesAnyBuildOfTheSameInputs -->
 The action demands HVF or KVM, because a lab under TCG measures the emulator.
 The Docker lab branch then:
 

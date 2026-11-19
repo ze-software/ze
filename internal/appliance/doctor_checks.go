@@ -6,7 +6,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
@@ -243,15 +242,20 @@ func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 		return runtimeKernelDiagnostic("cannot resolve the runtime kernel source directory: " + err.Error())
 	}
 	arch := kernelbuilder.HostArch()
-	cached, err := kernelCachePathFor(root, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+	entries, err := defaultRuntimeKernelEntries(root, arch)
 	if err != nil {
 		return runtimeKernelDiagnostic("cannot check the runtime kernel: " + err.Error() + "\n" +
 			"ze appliance build reads the kernel config from " + runtimeKernelConfigDir + " in the Ze source tree.\n" +
 			"run ze doctor from the top of the Ze source tree")
 	}
-	if _, err := os.Stat(filepath.Join(cached, runtimeKernelArtifact)); err == nil {
+	_, found, err := publishedRuntimeKernel(entries, runtimeKernelArtifact)
+	if err != nil {
+		return runtimeKernelDiagnostic(err.Error())
+	}
+	if found {
 		return nil
 	}
+	cached := entries[0]
 	_, builderErr := doctorRuntimeBuilderFn(arch)
 	if builderErr == nil {
 		return nil
