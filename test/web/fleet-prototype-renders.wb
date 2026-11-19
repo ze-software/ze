@@ -1,0 +1,28 @@
+# Test: the fleet interface opens on the sample estate
+# VALIDATES: spec-fleet-ui-1 Wiring Test and AC-1 -- a build carrying the
+#            sample tag, started web-only, opens /fleet/ on the estate
+#            dashboard of the sample estate inside the shell
+# PREVENTS: a sample build whose fleet route is unmounted, or whose shell
+#           renders without its tree or its dashboard
+#
+# Goal: prove a browser reaches the fleet shell through the real web server.
+# Method: open /fleet/ and read the page state: the shell's three regions by
+# id, the sample marker in the header, and the Devices card of the estate
+# dashboard, whose total is the sample estate's 44 devices
+# (sample/estate_test.go TestSampleEstateInvariants). A unit test renders the
+# handler alone (TestFleetShellRendersSampleEstate); only a browser proves the
+# route is mounted in the hub and the page loads in a browser.
+#
+# A ze built without ze_fleet_ui_sample skips this case with the reason.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=60s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/
+expect=element:id=fleet-sidebar
+expect=element:id=fleet-tree
+expect=element:id=fleet-content
+expect=html:contains=Sample data
+expect=html:id=fleet-content:contains=fleet-donut-total-figure">44<
+expect=url:contains=/fleet/

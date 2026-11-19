@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md -- web browser expectation checking
 // Related: parser.go -- .wb file parsing
+// Related: expect_attribute_test.go -- the attribute expectation's shape and reading
 
 package webtesting
 
@@ -114,8 +115,69 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 		return checkURL(b, e)
 	case "title":
 		return checkTitle(b, e)
+	case "attribute":
+		return checkAttribute(b, e)
 	}
 	return fmt.Errorf("unknown expectation kind %q", e.Kind)
+}
+
+// errAttributeShape names the one form an attribute expectation takes.
+var errAttributeShape = errors.New("attribute expectation needs selector=, name= and exactly one of value= or contains=, each nonempty")
+
+// checkAttribute judges one attribute of the first element a CSS selector
+// matches, the root element included. Every other expectation reads the body,
+// the head, the address or the accessibility tree, and none of them can see
+// an attribute a script sets on the root element: the theme a stored browser
+// setting applies before the first paint, or the custom property a script
+// writes into the root's style. `value` compares the whole attribute, and
+// `contains` one substring of it.
+//
+// It is positive only, and polls: a script sets the attribute after the
+// navigation lands. A key it does not know is refused before the browser is
+// asked, because a misspelled key would otherwise judge nothing and pass.
+func checkAttribute(b *Browser, e *WBExpectation) error {
+	selector := e.Values["selector"]
+	if selector == "" {
+		return errAttributeShape
+	}
+	name := e.Values["name"]
+	if name == "" {
+		return errAttributeShape
+	}
+	// Three keys: the selector, the name and one condition. A fourth key, or
+	// a third that is neither condition, is refused below.
+	if len(e.Values) != 3 {
+		return errAttributeShape
+	}
+	want, whole := e.Values["value"]
+	if !whole {
+		var partial bool
+		want, partial = e.Values["contains"]
+		if !partial {
+			return errAttributeShape
+		}
+	}
+	if want == "" {
+		return errAttributeShape
+	}
+
+	return b.retryPositive(func() error {
+		out, err := b.runAgentOutput("get", "attr", selector, name)
+		if err != nil {
+			return fmt.Errorf("attribute %s of %s: %w", name, selector, err)
+		}
+		current := strings.TrimSpace(out)
+		if whole {
+			if current != want {
+				return fmt.Errorf("attribute %s of %s is %q, not %q", name, selector, current, want)
+			}
+			return nil
+		}
+		if !strings.Contains(current, want) {
+			return fmt.Errorf("attribute %s of %s is %q, which does not contain %q", name, selector, current, want)
+		}
+		return nil
+	})
 }
 
 func checkElement(b *Browser, e *WBExpectation) error {

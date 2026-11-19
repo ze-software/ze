@@ -1,0 +1,32 @@
+# Test: a dashboard count leads to exactly the rows it counts
+# VALIDATES: spec-fleet-ui-1 user story 1 -- the operator opens the estate,
+#            follows the count of devices in a failing state on the Devices
+#            card, and lands on the devices table filtered to those devices
+# PREVENTS: a card count whose link opens a table that lists other rows, or
+#           a different number of rows than the card said
+#
+# Goal: prove the path from the estate dashboard to the failing devices in a
+# browser.
+# Method: the Devices card draws one legend link per display state, the word
+# and its count (handler_dashboard_cards.go devicesCardView, linking
+# state:<key>). The sample estate has exactly one device in the Down state,
+# edge-ams-02, whose BGP component is down (sample/estate.go; Down 1 in
+# TestSampleEstateInvariants). The script never changes a health component
+# (sample/script.go scriptSteps), so its timer cannot move that count. The
+# test clicks "Down 1", then reads the address and the content region: one
+# match of 44, the row of edge-ams-02, and no row of a healthy device.
+# TestDashboardLinkCountsEqualTargetRows proves every count equals its rows in
+# process; this proves a browser follows the link to them.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=60s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/
+expect=html:id=fleet-content:contains=Down
+action=click:text=Down 1
+expect=url:contains=/fleet/estate/devices/
+expect=url:contains=q=state%3Adown
+expect=html:id=fleet-content:contains=1 of 44 devices
+expect=html:id=fleet-content:contains=edge-ams-02
+expect=html:id=fleet-content:not-contains=edge-ams-01

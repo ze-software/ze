@@ -1,0 +1,42 @@
+# Test: a filter narrows the devices table, survives a reload, and a row
+#       opens the side panel
+# VALIDATES: spec-fleet-ui-1 user story 3 and AC-4 -- the filter is in the
+#            address, so the address reproduces the view; the eye control of
+#            a row opens its details in the side panel
+# PREVENTS: a query row that filters without writing the address, a reload
+#           that loses the filter, an eye control that opens nothing
+#
+# Goal: prove the devices table's filter and side panel work in a browser.
+# Method: the sample estate has 44 devices, four of them route servers
+# (rs-lon-01, rs-ams-01, rs-fra-01, rs-par-01: sample/estate.go, and the role
+# counts of TestSampleEstateInvariants). Labels never change under the
+# sample script, so the counts hold whenever its timer steps. The test types
+# role:route-server into the query row and submits it, then reads the count
+# line and the address; opens that same address again, which is the reload;
+# then opens rs-fra-01's details with its eye control and reads the side
+# panel and the address. Every assertion on the table reads the content
+# region alone, so the tree's names cannot answer for it.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/estate/devices/
+expect=html:id=fleet-content:contains=44 of 44 devices
+action=fill:id=fleet-devices-filter:value=role:route-server
+action=press:id=fleet-devices-filter:key=Enter
+expect=url:contains=q=role%3Aroute-server
+expect=html:id=fleet-content:contains=4 of 44 devices
+expect=html:id=fleet-content:contains=rs-fra-01
+expect=html:id=fleet-content:not-contains=edge-lon-01
+
+# The reload: the address alone must rebuild the filtered view.
+action=open:path=/fleet/estate/devices/?q=role%3Aroute-server
+expect=html:id=fleet-content:contains=4 of 44 devices
+expect=html:id=fleet-content:contains=value="role:route-server"
+expect=html:id=fleet-content:not-contains=edge-lon-01
+
+action=click:text=Show the details of rs-fra-01
+expect=url:contains=id=rs-fra-01
+expect=url:contains=q=role%3Aroute-server
+expect=html:id=fleet-side-panel:contains=rs-fra-01

@@ -957,6 +957,7 @@ the browser is queried. Use `html` for markup or class assertions.
 | `breadcrumb` | `contains` / `not-contains` (CSV) | each segment is present / absent |
 | `url` | `contains` / `not-contains` | the ADDRESS BAR contains / does not contain the substring. It read the accessibility snapshot until 2026-08-15, which never carries the address, so the assertion could only ever fail |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |
+| `attribute` | `selector` and `name`, then exactly one of `value` / `contains` | the attribute `name` of the first element the CSS `selector` matches equals `value`, or contains the substring `contains`. It is the one expectation that reads an attribute of the root element: the theme a stored browser setting applies before the first paint (`selector=html:name=data-theme`), or a custom property a script writes into the root's style (`selector=html:name=style:contains=--fleet-sidebar-width: 28rem`). Positive only, polled; a missing key, an empty condition, both conditions or an unknown key fails before the browser is queried |
 
 Each positive retry and transient-query retry has its own `expectDeadline`:
 15 seconds serially, or 45 seconds with concurrent scheduler headroom. Sequential
@@ -968,7 +969,7 @@ All work inherits the earlier absolute case deadline, so no retry resets or
 extends the case budget. A negative check judges absence on one successful query,
 although the outer poller also rechecks failed expectations. An absence therefore
 proves something only when the preceding step made the state current.
-<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/head/url/title; retryPositive vs retryFetch -->
+<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/head/url/title/attribute; checkAttribute; retryPositive vs retryFetch -->
 <!-- source: internal/component/web/testing/runner.go -- checkExpectationRetry, getHTML reads body, getHeadHTML reads head -->
 
 ### Browser integration (agent-browser)

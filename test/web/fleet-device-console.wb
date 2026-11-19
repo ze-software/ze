@@ -1,0 +1,29 @@
+# Test: a sample command typed in a device's console shows its answer
+# VALIDATES: spec-fleet-ui-1 user story 5 -- the Console tab of a device
+#            posts the typed command to POST /fleet/console/ and appends the
+#            answer the device gave to the scrollback
+# PREVENTS: a console whose form posts nothing, or whose answer never reaches
+#           the page
+#
+# Goal: prove the console runs a command in a browser, through the terminal
+# script and the console route.
+# Method: open edge-lon-01's Console tab, type "show version" into its command
+# line (id fleet-terminal-command-<device>, component_terminal.templ) and
+# press Enter. The sample answers it from the device's inventory
+# (sample/console.go consoleVersion): edge-lon-01 runs the newest release,
+# "ze 1.4.2 (2026-11-02 9f3c1a8)" (sample/estate.go releaseNewest). The build
+# string is absent from the content region before the command, so finding it
+# after proves the answer was appended, not drawn with the page.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=60s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/device/edge-lon-01/console/
+expect=element:id=fleet-terminal-command-edge-lon-01
+expect=html:id=fleet-content:not-contains=9f3c1a8
+action=fill:id=fleet-terminal-command-edge-lon-01:value=show version
+action=press:id=fleet-terminal-command-edge-lon-01:key=Enter
+action=wait-html:contains=9f3c1a8
+expect=html:id=fleet-content:contains=ze 1.4.2 (2026-11-02 9f3c1a8)
+expect=url:contains=/fleet/device/edge-lon-01/console/

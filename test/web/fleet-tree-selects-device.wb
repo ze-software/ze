@@ -1,0 +1,32 @@
+# Test: filtering the tree and selecting a device opens its page
+# VALIDATES: spec-fleet-ui-1 user story 2 -- an operator types part of a
+#            device name into the tree filter, the tree narrows to it, and
+#            choosing the row opens the device inside the shell
+# PREVENTS: a tree filter that never asks the tree fragment, or a tree link
+#           that does not open the device it names
+#
+# Goal: prove the tree filter and the tree link work in a browser.
+# Method: cpe-0127 has no site label, so under the default site-role view its
+# row sits three levels down and is not drawn until a filter keeps it (a
+# filter draws everything it keeps, expanded: docs/architecture/fleet-
+# interface.md, "The tree"). Typing "0127" must therefore make its row appear
+# in the tree region without a navigation; then clicking it must change the
+# address to the device and put its name in the object header. The script
+# changes cpe-lon-03 and core-lon-01 only (sample/script.go scriptSteps), so
+# its timer cannot move this device.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=60s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/
+expect=element:id=fleet-tree-filter
+expect=html:id=fleet-tree:not-contains=cpe-0127
+action=fill:id=fleet-tree-filter:value=0127
+action=wait-html:contains=cpe-0127
+expect=html:id=fleet-tree:contains=cpe-0127
+expect=html:id=fleet-tree:not-contains=No devices match this filter
+action=click:text=cpe-0127
+expect=url:contains=/fleet/device/cpe-0127/
+expect=html:id=fleet-object:contains=cpe-0127
+expect=html:id=fleet-tree:contains=aria-selected="true"

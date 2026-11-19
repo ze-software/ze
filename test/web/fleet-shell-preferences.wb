@@ -1,0 +1,56 @@
+# Test: the theme and the sidebar width persist across a reload
+# VALIDATES: spec-fleet-ui-1 user story 6, AC-4's preferences and A-2 --
+#            the theme switch writes the browser setting ze-theme, which
+#            fleet-theme.js applies to the root element before the first
+#            paint of the next load; the sidebar handle writes its width,
+#            which fleet.js sets as the custom property --fleet-sidebar-width
+#            on the root element through the object model
+# PREVENTS: a theme or a width that holds for one page and is lost on the
+#           next load, and a width script that silently takes the three-class
+#           fallback because the browser refused the custom property
+#
+# Goal: prove the two shell preferences survive a reload in a browser.
+# Method: the root element carries no data-theme until a choice is stored
+# (shell.templ Shell), and the switch flips it light, then dark
+# (fleet.js toggleTheme). The test switches twice, reloading after each, and
+# reads data-theme on the root with the attribute expectation, so a reload
+# that drew the server's default would fail on the first value and a stored
+# choice that never changes would fail on the second. The width is set from
+# the keyboard on the handle, End being the maximum of 28rem (fleet.js
+# SIDEBAR_MAX), because the format has no drag; the test reads the handle's
+# aria-valuenow, which both paths of applyWidth set, and the root's style,
+# which only the custom property path writes. That second read is what
+# validates A-2: under the fallback the root's style stays empty.
+# What remains a human check is the drag itself (pointer events on the
+# handle), which no .wb action can perform.
+
+option=needs-build-tag:value=ze_fleet_ui_sample:state=present
+option=timeout:value=90s
+option=viewport:width=1600:height=1000
+
+action=open:path=/fleet/
+expect=element:id=fleet-sidebar-handle
+
+# The theme: light, kept by a reload, then dark, kept by a reload.
+action=click:text=Account menu
+action=click:text=Switch theme
+expect=attribute:selector=html:name=data-theme:value=light
+action=open:path=/fleet/
+expect=element:id=fleet-sidebar-handle
+expect=attribute:selector=html:name=data-theme:value=light
+action=click:text=Account menu
+action=click:text=Switch theme
+expect=attribute:selector=html:name=data-theme:value=dark
+action=open:path=/fleet/
+expect=element:id=fleet-sidebar-handle
+expect=attribute:selector=html:name=data-theme:value=dark
+
+# The width: the maximum, from the keyboard, kept by a reload.
+expect=attribute:selector=#fleet-sidebar-handle:name=aria-valuenow:value=17
+action=press:id=fleet-sidebar-handle:key=End
+expect=attribute:selector=#fleet-sidebar-handle:name=aria-valuenow:value=28
+expect=attribute:selector=html:name=style:contains=--fleet-sidebar-width: 28rem
+action=open:path=/fleet/
+expect=element:id=fleet-sidebar-handle
+expect=attribute:selector=#fleet-sidebar-handle:name=aria-valuenow:value=28
+expect=attribute:selector=html:name=style:contains=--fleet-sidebar-width: 28rem

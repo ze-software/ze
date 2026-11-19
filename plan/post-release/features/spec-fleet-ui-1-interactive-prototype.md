@@ -220,7 +220,7 @@ verb, no command and no stored format.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A build line written before the package clause of a templ file is copied into its generated file | The templ parser keeps the header lines | The fleet templates cannot be gated and the package must be gated another way | Generate once and read the output, in the wiring phase | confirmed: by the parser read (`TemplateFileParser.Parse` keeps every line before `package` in `Header`, `generator.writeHeader` writes them before the package clause) and by a generation run. Not load-bearing: the phase 1 finding below needs no build line in the package |
-| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | A browser test that drags the edge | unvalidated: the script is written both ways (phase 3 findings); which path a browser takes under the content security policy waits for the owner's browser check |
+| A-2 | A script may set a custom property on an element under the current content security policy | The policy restricts markup, not script-driven style changes | The sidebar falls back to three fixed widths chosen by class | `test/web/fleet-shell-preferences.wb`: the End key on the handle, then the root element's `style` read by the `attribute` expectation, which holds the custom property only on the object-model path | unvalidated until that test runs: the script is written both ways (phase 3 findings). A green run confirms the custom property path under the content security policy; a red on the `style` read with `aria-valuenow` at 28 shows the fallback. The drag itself stays the owner's browser check |
 | A-3 | The gate tooling derives the `ze_web` dependency for a package nested under the web package | It does so for packages nested under BGP | The compound build line is written by hand in every file | `./le arch tier check` in the wiring phase | broken as worded, fallback taken. The generator derives a compound constraint only for a package it discovers (`discoverPlugins` over `pluginDirs`), and it does not discover this one, so nothing is derived. The fallback is lighter than stated: `sameFeatureImporter` exempts every file under the web package's directory, so the compound line is written by hand in the two hub import files only. The wrong assumption read the BGP precedent as general |
 | A-4 | A route under the authenticated wrap is reachable without login when the server runs with the insecure option | The browser test harness works this way | The owner logs in with a sample user | Opening `/fleet/` in the review build | confirmed: by reading (`startWebServer` sets `authWrap = zeweb.InsecureMiddleware`, and the route loop wraps `WrapAuth` with it) and by a browser session against a review build started with the insecure option, which opened `/fleet/` with no login |
 | A-5 | The asset and htmx checks accept a shell in a directory they do not list, or accept a fourth listed directory | Their surface list names three directories | The fleet directory is added to their list in this work | Running both checks in the wiring phase | confirmed. The asset check reads each listed directory with `os.ReadDir` and does not descend, so it never reads the fleet directory; the fleet package carries its own asset guard. The htmx check walks the web package recursively (`collectFiles`), so it reads the fleet directory with no new row |
@@ -248,7 +248,7 @@ verb, no command and no stored format.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Sample build, `GET /fleet/` | → | The fleet shell renders the estate dashboard of the sample estate | `TestFleetShellRendersSampleEstate` |
-| Sample build, browser opens `/fleet/` | → | Shell, tree and dashboard are visible | `test/web/fleet-prototype-renders.wb` |
+| Sample build, browser opens `/fleet/` | → | Shell, tree and dashboard are visible | `test/web/fleet-prototype-renders.wb` (written, pending run under `ze.tags=ze_fleet_ui_sample`) |
 | Standard build | → | No fleet route is mounted | `TestFleetRoutesAbsentWithoutSource` |
 | Every shipped flavour | → | The sample package is not linked | `TestShippedZeLinksNoFleetSample` |
 | Build without `ze_fleet_ui` | → | The binary holds no fleet symbol | `cmd/ze/hub/build_tag_fleet_ui_absent_test.go` |
@@ -307,13 +307,13 @@ verb, no command and no stored format.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fleet-prototype-renders` | `test/web/fleet-prototype-renders.wb` | The interface opens on the sample estate | |
-| `fleet-tree-selects-device` | `test/web/fleet-tree-selects-device.wb` | Filtering the tree and selecting a device opens its page | |
-| `fleet-devices-filter` | `test/web/fleet-devices-filter.wb` | A filter narrows the table, survives a reload, and a row opens the side panel | |
-| `fleet-estate-to-failing-devices` | `test/web/fleet-estate-to-failing-devices.wb` | A dashboard count leads to exactly the rows it counts | |
-| `fleet-live-updates` | `test/web/fleet-live-updates.wb` | A stepped event changes the tree, the table and the task panel without a reload | |
-| `fleet-device-console` | `test/web/fleet-device-console.wb` | A sample command typed in the console shows its answer | |
-| `fleet-shell-preferences` | `test/web/fleet-shell-preferences.wb` | Theme and sidebar width persist across a reload | |
+| `fleet-prototype-renders` | `test/web/fleet-prototype-renders.wb` | The interface opens on the sample estate | written, pending run |
+| `fleet-tree-selects-device` | `test/web/fleet-tree-selects-device.wb` | Filtering the tree and selecting a device opens its page | written, pending run |
+| `fleet-devices-filter` | `test/web/fleet-devices-filter.wb` | A filter narrows the table, survives a reload, and a row opens the side panel | written, pending run; the sort of user story 3 is not asserted (a sort header has no unique accessible name to click) |
+| `fleet-estate-to-failing-devices` | `test/web/fleet-estate-to-failing-devices.wb` | A dashboard count leads to exactly the rows it counts | written, pending run |
+| `fleet-live-updates` | `test/web/fleet-live-updates.wb` | A stepped event changes the tree, the table and the task panel without a reload | blocked, not written: the sample script starts on a five-second timer with no held start, and the step control is only on the States page, which shows no devices table |
+| `fleet-device-console` | `test/web/fleet-device-console.wb` | A sample command typed in the console shows its answer | written, pending run |
+| `fleet-shell-preferences` | `test/web/fleet-shell-preferences.wb` | Theme and sidebar width persist across a reload | written, pending run; asserts the theme and the width (custom property) across a reload; the drag stays a human check |
 
 ## Files to Modify
 - `feature-gates.txt` - the `ze_fleet_ui` line
