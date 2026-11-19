@@ -27,6 +27,13 @@ in the spec or commit it applies to.
 - The goal behind all work is shipping Ze in production as a NOS. A change to
   the shipped binary outranks tooling, and recording a problem never counts as
   closing it.
+- The rules exist to reach that goal and are read for the objective each one
+  serves, never applied in a vacuum. A rule is never the reason to defer clear
+  work, hand it to another session, or put a question to Thomas that its
+  purpose already answers; where a rule's wording would defeat its objective,
+  the work follows the objective and the wording is corrected in the same
+  turn. The hard bans in AGENTS.md are not read this way: they hold as
+  written.
 - Every RFC Ze implements gets full, correct coverage; an absent requirement of
   an implemented RFC is owed work, never a question. The only exception is a
   basic primitive Linux cannot provide, named with evidence.
