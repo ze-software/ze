@@ -5308,6 +5308,26 @@ issuer locks, then rechecks the existing write/grant lease. Peer grants remain
 separate authority. An unknown ID, changed record, wrong native key or a
 same-name replacement connection cannot authorize output.
 
+A direct destination (one whose owner does not take origin intake) writes an
+accepted original on the original's own rail, and its withdrawal takes the same
+rail. While the destination's queueing gate is closed (initial sync), the
+original waits on the peer's operation queue with its accepted ID, and the
+withdrawal joins that queue behind it, never the forward queue. Under the peer
+lock it already holds, the withdrawal marks each queued announcement of the
+same ID and route as retired, and both drains drop a marked announcement
+without writing it. The drain makes no lookup and no RPC. While the gate is
+open the original was written directly, so its withdrawal is written directly
+too, even when the replay fence or owed forwards hold other withdrawals behind
+the forward queue. Either way, a replacement announced after the withdrawal is
+never withdrawn by it. An original a drain has already taken off the queue for
+its write cannot be marked; its withdrawal is then written after it, from the
+same queue. An original whose record vanished without a withdrawal, because its
+accepting Process ended, is not marked and is written: on a direct destination
+it stays, as the Process's routes already written there stay.
+<!-- source: internal/component/bgp/reactor/peer.go -- QueueWithdraw, retireQueuedAcceptedLocked -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- destinationBatchQueues, withdrawBatchFromPeers, splitOnAdvertised -->
+
 Exact source withdrawal marks only that source's records as retiring. Such a
 record may answer its exact withdrawal while that operation joins; it cannot
 authorize an announcement. Completed records leave no withdrawal history.

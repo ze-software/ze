@@ -13,6 +13,7 @@
 package reactor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net"
@@ -156,7 +157,13 @@ type peerOp struct {
 	Route         *rib.Route             // For PeerOpAnnounce
 	NextHopPolicy bgptypes.NextHopPolicy // Resolve against the session that drains this announcement.
 	Replay        bool                   // Preserve the sent entry's origin when a refresh is queued.
-	NLRI          nlri.NLRI              // For PeerOpWithdraw
+	// Admission is the accepted redistribution ID a PeerOpAnnounce was admitted
+	// under, zero for every other announce. Retired is set under p.mu by the
+	// queued withdrawal of the same ID and route (QueueWithdraw), and both
+	// drains drop a retired announce instead of writing it.
+	Admission uint64    // For PeerOpAnnounce
+	Retired   bool      // For PeerOpAnnounce
+	NLRI      nlri.NLRI // For PeerOpWithdraw
 	// Withdrawal is the command a PeerOpWithdraw came from, so the drain frames
 	// the same UPDATE the direct write would have (queuedWithdrawal).
 	Withdrawal *queuedWithdrawal // For PeerOpWithdraw
@@ -2812,6 +2819,14 @@ func handshakeInFlight(session *Session) bool {
 // caller that cannot tell a queued route from a dropped one reports success for
 // a RIB the peer will never receive (ai/rules/principles.md).
 func (p *Peer) QueueAnnounce(route *rib.Route, nextHopPolicy bgptypes.NextHopPolicy, replay bool) error {
+	return p.queueAnnounce(route, nextHopPolicy, replay, 0)
+}
+
+// queueAnnounce is QueueAnnounce that also keeps the accepted redistribution
+// ID the announce was admitted under, so a later queued withdrawal of that
+// original can retire it before any drain writes it (peerOp.Admission).
+// admission is zero for every other announce.
+func (p *Peer) queueAnnounce(route *rib.Route, nextHopPolicy bgptypes.NextHopPolicy, replay bool, admission uint64) error {
 	p.mu.Lock()
 	if !p.queueGateClosedLocked() {
 		p.mu.Unlock()
@@ -2824,7 +2839,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route, nextHopPolicy bgptypes.NextHopPol
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
-	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopPolicy: nextHopPolicy, Replay: replay})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopPolicy: nextHopPolicy, Replay: replay, Admission: admission})
 	p.mu.Unlock()
 	return nil
 }
@@ -2877,9 +2892,40 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI, w *queuedWithdrawal) error {
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
+	if w.batch.OriginAdmissionID != 0 {
+		p.retireQueuedAcceptedLocked(w.batch.OriginAdmissionID, n)
+	}
 	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpWithdraw, NLRI: n, Withdrawal: w})
 	p.mu.Unlock()
 	return nil
+}
+
+// retireQueuedAcceptedLocked marks every queued announce of the accepted
+// original admission names for route n as retired, so no drain writes it after
+// its withdrawal has returned. The withdrawal still follows it in the queue.
+// An announce a drain has already taken off the queue for its unlocked write is
+// beyond reach; the withdrawal queued behind it is then written after it.
+//
+// The scan is bounded by opQueueMax and runs only for an accepted withdrawal.
+// MUST be called with p.mu held for writing.
+func (p *Peer) retireQueuedAcceptedLocked(admission uint64, n nlri.NLRI) {
+	for i := len(p.opQueue) - 1; i >= 0; i-- {
+		op := &p.opQueue[i]
+		if op.Type != PeerOpAnnounce {
+			continue
+		}
+		if op.Admission != admission {
+			continue
+		}
+		queued := op.Route.NLRI()
+		if queued.Family() != n.Family() {
+			continue
+		}
+		if !bytes.Equal(queued.Bytes(), n.Bytes()) {
+			continue
+		}
+		op.Retired = true
+	}
 }
 
 // Wait waits for the peer to stop.

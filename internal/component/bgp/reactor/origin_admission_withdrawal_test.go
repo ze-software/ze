@@ -5,6 +5,7 @@ package reactor
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -110,4 +111,63 @@ func TestOriginAcceptedQueuedOriginalCannotInstallAfterWithdrawal(t *testing.T) 
 	}
 	require.Contains(t, installed, netip.MustParsePrefix("10.1.0.0/24"), "independent accepted work must remain useful")
 	require.NotContains(t, installed, netip.MustParsePrefix("10.0.0.0/24"), "a returned retirement cannot leave its original able to install later")
+}
+
+// With the queueing gate open and the replay fence up, an accepted original is
+// written directly, so its withdrawal must be written directly too: behind the
+// forwards it would reach the wire after a replacement announced later and
+// withdraw that replacement. Method: announce A under ID 51, withdraw it, then
+// announce replacement A' under ID 53 for the same prefix, all while the fence
+// holds; read the wire's order for the prefix. The fixture's forward worker
+// fails the test if anything reaches it.
+// MUTATION: let an accepted withdrawal take queueExpectedWrite in withdrawBatchFromPeers.
+func TestOriginAcceptedWithdrawalTakesItsOriginalDirectRail(t *testing.T) {
+	t.Cleanup(redistevents.PreserveForTest())
+	redistevents.RegisterProtocol("static")
+	f := newSelectedWriterFixture(t, false)
+	f.peer.setTestInitialSync(0, false)
+	f.peer.initialUpdateOwed.Store(true)
+	require.False(t, f.peer.shouldQueue(), "the queueing gate must be open")
+	require.True(t, f.peer.withdrawBehindForwards(), "the replay fence must send an ordinary withdrawal behind the forwards")
+	// Publish the recording TCP endpoint required by the genuine Self resolver.
+	f.peer.currentSession().transport.Store(connectedTransport(selectedOriginEndpointConn{
+		Conn: f.conn, local: netip.MustParseAddrPort("192.0.2.254:179"),
+	}))
+	owner, _ := originOwnerFixture(t, selectedWriterProcess)
+	var retiring atomic.Bool
+	owner, err := owner.WithOriginAdmissionLookup(func(_ context.Context, in rpc.OriginAdmissionLookupInput) (*rpc.OriginAdmissionLookupOutput, error) {
+		state := rpc.OriginAdmissionCurrent
+		if in.AdmissionID == 51 {
+			if retiring.Load() {
+				state = rpc.OriginAdmissionRetiring
+			}
+		}
+		return originAcceptedAnswer(in, state, rpc.OriginAdmissionSnapshot{
+			Protocol: "static", SourceInstance: 7, PeerScope: rpc.OriginAdmissionAllPeers,
+		}), nil
+	})
+	require.NoError(t, err)
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, NextHop: bgptypes.NewNextHopSelf(),
+		Attrs: attribute.NewBuilder().SetOrigin(2),
+		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, prefix, 0, false)}}
+	original := plugin.WithOriginProducerContext(plugin.WithOriginAdmissionID(t.Context(), 51), owner, nil)
+	_, err = f.api.AnnounceNLRIBatchResult(original, selector.All(), batch, owner.Sender())
+	require.NoError(t, err)
+	retiring.Store(true)
+	_, err = f.api.WithdrawNLRIBatchResult(original, selector.All(), batch, owner.Sender())
+	require.NoError(t, err)
+	replacement := plugin.WithOriginProducerContext(plugin.WithOriginAdmissionID(t.Context(), 53), owner, nil)
+	_, err = f.api.AnnounceNLRIBatchResult(replacement, selector.All(), batch, owner.Sender())
+	require.NoError(t, err)
+	var order []string
+	for _, body := range updateBodies(t, f.conn.written()) {
+		if slices.Contains(updatePrefixes(t, body, false), prefix) {
+			order = append(order, "announce")
+		}
+		if slices.Contains(updatePrefixes(t, body, true), prefix) {
+			order = append(order, "withdraw")
+		}
+	}
+	require.Equal(t, []string{"announce", "withdraw", "announce"}, order, "the withdrawal must leave between its original and the later replacement")
 }

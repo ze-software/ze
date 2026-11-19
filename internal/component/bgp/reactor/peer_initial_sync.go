@@ -225,6 +225,13 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 			hasTeardown = true
 
 		case PeerOpAnnounce:
+			// The queued withdrawal of this accepted original marked it under
+			// p.mu, which this drain still holds (Peer.retireQueuedAcceptedLocked).
+			if op.Retired {
+				logRetiredAcceptedDropped(addr, op)
+				processed++
+				continue
+			}
 			// Send route, splitting if needed, on this sync's own session.
 			fam := op.Route.NLRI().Family()
 			nextHop := op.Route.NextHop()
@@ -476,6 +483,15 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	session.initialSyncEOROwed.Store(false)
 }
 
+// logRetiredAcceptedDropped records that a drain dropped a queued accepted
+// original its own withdrawal had retired. It is the designed outcome, not a
+// failure: the withdrawal behind it in the queue answers for the route, so the
+// line is a debug trace and no operator report.
+func logRetiredAcceptedDropped(addr string, op peerOp) {
+	routesLogger().Debug("queued accepted original dropped: its withdrawal arrived before the drain wrote it",
+		"peer", addr, "nlri", op.Route.NLRI(), "admission", op.Admission)
+}
+
 // sendQueuedWithdrawal sends one withdrawal the opQueue held, framed from the
 // command it came from (queuedWithdrawal.update) into a pooled buffer pair, so
 // the queued withdrawal and the direct one are the same UPDATE. Both drains call
@@ -536,6 +552,12 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 		op := p.opQueue[finalProcessed]
 		switch op.Type {
 		case PeerOpAnnounce:
+			// Marked under the p.mu this drain holds, as in the main drain.
+			if op.Retired {
+				logRetiredAcceptedDropped(addr, op)
+				finalProcessed++
+				continue
+			}
 			fam := op.Route.NLRI().Family()
 			nextHop := op.Route.NextHop()
 			if fam.NeedsNextHop() {

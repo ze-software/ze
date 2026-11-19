@@ -923,7 +923,12 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 	// The guard is asked ONCE for each peer, above the unit loop, because it is
 	// a property of the connection rather than of the framing. A peer counts as
 	// SERVED: the command did what it asked for, and no route was named to it.
-	writable, unarmed := splitOnAdvertised(peers)
+	// An accepted original is always written directly once the gate is open
+	// (originBatchEligible admits no maintenance receipt), so its withdrawal
+	// takes the same rail: behind the forwards it would reach the wire after a
+	// replacement announced later and withdraw that replacement.
+	accepted := batch.OriginAdmissionID != 0
+	writable, unarmed := splitOnAdvertised(peers, accepted)
 	if batch.SentOwnerMessage != 0 {
 		writable, unarmed = peers, nil
 	}
@@ -972,7 +977,11 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 			}
 			target.destinationOwner, target.destinationSession = sender.Destination()
 			var sendErr error
-			if target.queueExpectedWrite() {
+			behind := false
+			if !accepted {
+				behind = target.queueExpectedWrite()
+			}
+			if behind {
 				sendErr = target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxMsgSize, facts.addPath)
 			} else {
 				sendErr = target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
@@ -1045,10 +1054,13 @@ func (target announceTarget) queueBehindForwards(expectedMessage, sourcePolicyEp
 // A peer whose withdrawal joins its forward queue (withdrawBehindForwards) is
 // writable whatever it has been sent: the question belongs to the moment of the
 // write, and the items queued ahead of the withdrawal, a held forward or a
-// replayed announce, can advertise the route before it.
-func splitOnAdvertised(peers []*Peer) (writable, unarmed []*Peer) {
+// replayed announce, can advertise the route before it. direct says the
+// withdrawal is written now whatever the forward queue holds (an accepted
+// original's, withdrawBatchFromPeers), so only what this connection has
+// already been sent arms the peer.
+func splitOnAdvertised(peers []*Peer, direct bool) (writable, unarmed []*Peer) {
 	for i, peer := range peers {
-		if peer.hasAdvertised() || peer.withdrawBehindForwards() {
+		if peerWithdrawArmed(peer, direct) {
 			if unarmed != nil {
 				writable = append(writable, peer)
 			}
@@ -1063,6 +1075,17 @@ func splitOnAdvertised(peers []*Peer) (writable, unarmed []*Peer) {
 		return peers, nil
 	}
 	return writable, unarmed
+}
+
+// peerWithdrawArmed answers splitOnAdvertised's question for one peer.
+func peerWithdrawArmed(peer *Peer, direct bool) bool {
+	if peer.hasAdvertised() {
+		return true
+	}
+	if direct {
+		return false
+	}
+	return peer.withdrawBehindForwards()
 }
 
 // logWithdrawWithheld says which routes a peer was not withdrawn from, and why.
@@ -1107,7 +1130,9 @@ func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer
 			return i, err
 		}
 		ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-		if err := peer.QueueAnnounce(ribRoute, batch.NextHop.Policy, batch.Replay); err != nil {
+		// The accepted ID travels with the queued original, so its queued
+		// withdrawal can retire it (Peer.retireQueuedAcceptedLocked).
+		if err := peer.queueAnnounce(ribRoute, batch.NextHop.Policy, batch.Replay, batch.OriginAdmissionID); err != nil {
 			return i, err
 		}
 	}
@@ -1211,7 +1236,9 @@ func (a *reactorAPIAdapter) writeWithdrawNLRIBatch(ctx context.Context, peers []
 		// A peer still in its initial sync would queue this withdrawal on its
 		// opQueue, which drains when the sync ends, before a replay the fence
 		// still holds. withdrawBehindForwards sends it to the forward queue
-		// instead, behind the replay (withdrawBatchFromPeers).
+		// instead, behind the replay (withdrawBatchFromPeers). An accepted
+		// redistribution withdrawal is the exception: its original was queued
+		// on the opQueue, so it follows there (destinationBatchQueues).
 		// peerBatch is what this peer is sent directly: the whole batch, or the
 		// NLRIs the queue refused once its gate opened partway through, which
 		// no update group shares.
@@ -1230,7 +1257,7 @@ func (a *reactorAPIAdapter) writeWithdrawNLRIBatch(ctx context.Context, peers []
 				partial = true
 			}
 		}
-		if destinationBatchQueues(peer, destinationOwner, batch.SentOwnerMessage) {
+		if destinationBatchQueues(peer, destinationOwner, batch.SentOwnerMessage, batch.OriginAdmissionID) {
 			// Session not established or queue draining: queue to preserve order
 			// A dropped withdrawal is worse than a dropped announce: the peer
 			// keeps forwarding to a prefix this speaker has taken back. Same
@@ -2716,9 +2743,25 @@ func (target announceTarget) queueExpectedWrite() bool {
 	}
 	return target.peer.withdrawBehindForwards()
 }
-func destinationBatchQueues(peer *Peer, owner, receipt uint64) bool {
+
+// destinationBatchQueues reports whether a withdrawal for peer joins its
+// opQueue. admission is the batch's accepted redistribution ID, zero for every
+// other withdrawal.
+func destinationBatchQueues(peer *Peer, owner, receipt, admission uint64) bool {
 	if owner != 0 || receipt != 0 {
 		return false
 	}
-	return peer.shouldQueue() && !peer.withdrawBehindForwards()
+	if !peer.shouldQueue() {
+		return false
+	}
+	// An accepted original is never forwarded: while the gate is closed its
+	// announce waits on this opQueue (announceNLRIBatch), so its withdrawal
+	// joins the same FIFO behind it and retires it there
+	// (Peer.retireQueuedAcceptedLocked). The forward queue is released only
+	// after the drain, so a replacement announced after this withdrawal would
+	// reach the wire first and then be withdrawn by it.
+	if admission != 0 {
+		return true
+	}
+	return !peer.withdrawBehindForwards()
 }

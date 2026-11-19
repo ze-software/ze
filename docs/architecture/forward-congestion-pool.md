@@ -172,7 +172,14 @@ through the worker's channel, `withdrawBatchFromPeers` queues the withdrawal as 
 (`queueBehindForwards`) instead of writing it. The worker writes it through the
 export chain, as the direct write would have. The "previously advertised" check
 treats such a peer as armed, because the items queued ahead of the withdrawal
-can advertise the route before it is written.
+can advertise the route before it is written. A withdrawal of an accepted
+redistribution original is the exception: its original is never forwarded, so
+the withdrawal takes the original's rail. While the peer's queueing gate is
+closed it joins the peer's own operation queue behind the original
+(`destinationBatchQueues`); while the gate is open it is written directly, even
+with the fence up (`withdrawBatchFromPeers`). See
+`docs/architecture/api/process-protocol.md`, "Accepted redistribution at BGP
+input".
 <!-- source: internal/component/bgp/reactor/peer.go -- withdrawBehindForwards -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- queueBehindForwards, splitOnAdvertised -->
 
