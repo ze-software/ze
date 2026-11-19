@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | The release must ship behavior that matches its design documentation and Thomas's decisions. On 2026-11-12 a design he never saw, contradicting his own decision, was implemented into the daemon. This spec is the gate that stops that, and it must hold before the first release (`plan/README.md`, `release/validation/`: evidence that shipped behavior works, including accurate claims) |
@@ -751,7 +751,9 @@ wording in the same work.
 ### Choices for Thomas
 
 Thomas chose the recommendation for each of C-1 to C-5 on 2026-11-19, so each
-of those Decision cells is settled. C-6 to C-9 are open.
+of those Decision cells is settled. On 2026-11-19 Thomas ordered the spec
+implemented ("Implement it."), which approved the design and took the
+recommended option (a) for each of C-6 to C-9.
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
@@ -760,10 +762,10 @@ of those Decision cells is settled. C-6 to C-9 are open.
 | C-3 | An independent design judge before presentation | (a) required, its read records covering every listed page; (b) optional; (c) none | (a): the judge action refuses a judge with no read record of the section behind each row |
 | C-4 | How away is bounded | (a) `until <date>` required; (b) open until you return | (a), no maximum |
 | C-5 | Does the main session's own ready edit need the approval | (a) yes; (b) only a subagent's is refused | (a) |
-| C-6 | What read of the design page an edit owes | (a) the page's `## Design decisions` section, owed again whenever a row is added; (b) the whole page; (c) the whole page when one Read holds it (2000 lines, 25,000 tokens), else the section | Open. Recommended (a). Under (b) an edit of any hook file costs about 72,000 tokens for `core-design.md`, an edit under `plugin/server` about 91,000, and no existing record route can hold a page that size; under (c) two rules exist and the largest, most linked pages still get the section only |
-| C-7 | The decisions you made before today, which live in `plan/records/`, `plan/learned/DESIGN-HISTORY.md` and door lines | (a) a child spec in `release/validation` that walks them and proposes each row for you to confirm; (b) each is written when its page is next edited; (c) this spec carries the walk | Open. Recommended (a): until a past decision is a row, this gate cannot protect it, and the walk needs a design of its own. This spec writes only the pipe decision |
-| C-8 | What your approval binds | (a) the spec's Task, Acceptance Criteria, Design documents and Design presentation; (b) the whole text except Status, Updated and Phase | Open. Recommended (a): a spec you approved that is blocked and set `ready` again starts without you while those four are unchanged, and comes back to you when any of them changed. Under (b) it comes back after any edit |
-| C-9 | Changing a decision outside a spec | (a) the main session edits the row and hands you one `./le commit create ... decision-change "<your words>"` to run; (b) only through a spec's approved departure | Open. Recommended (a): an order you give directly needs no spec (`ai/META-DECISIONS.md`) |
+| C-6 | What read of the design page an edit owes | (a) the page's `## Design decisions` section, owed again whenever a row is added; (b) the whole page; (c) the whole page when one Read holds it (2000 lines, 25,000 tokens), else the section | (a), decided 2026-11-19. Under (b) an edit of any hook file costs about 72,000 tokens for `core-design.md`, an edit under `plugin/server` about 91,000, and no existing record route can hold a page that size; under (c) two rules exist and the largest, most linked pages still get the section only |
+| C-7 | The decisions you made before today, which live in `plan/records/`, `plan/learned/DESIGN-HISTORY.md` and door lines | (a) a child spec in `release/validation` that walks them and proposes each row for you to confirm; (b) each is written when its page is next edited; (c) this spec carries the walk | (a), decided 2026-11-19: until a past decision is a row, this gate cannot protect it, and the walk needs a design of its own. This spec writes only the pipe decision |
+| C-8 | What your approval binds | (a) the spec's Task, Acceptance Criteria, Design documents and Design presentation; (b) the whole text except Status, Updated and Phase | (a), decided 2026-11-19: a spec you approved that is blocked and set `ready` again starts without you while those four are unchanged, and comes back to you when any of them changed. Under (b) it comes back after any edit |
+| C-9 | Changing a decision outside a spec | (a) the main session edits the row and hands you one `./le commit create ... decision-change "<your words>"` to run; (b) only through a spec's approved departure | (a), decided 2026-11-19: an order you give directly needs no spec (`ai/META-DECISIONS.md`) |
 
 ## Implementation Steps
 
