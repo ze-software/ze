@@ -991,7 +991,7 @@ at closure:
 
 ## Review Gate
 
-**CLEAN after one round: 0 BLOCKER, 0 ISSUE.** Round 1 covered the 151
+**CLEAN after three rounds: 0 BLOCKER, 0 ISSUE in round 3.** Round 1 covered the 151
 reviewable files of the change set and `website/assets/js/lg-replay.js`. Three
 closing agents read it from source, each in a fresh context, the first two
 stopping at their context budget with the remainder listed; the third read
@@ -1001,9 +1001,9 @@ spec, so they open no round (`ai/rules/planning.md`).
 
 | Field | Value |
 |-------|-------|
-| Artifact | `./le spec review record spec lg-peer-history-origin-search-and-named-nodes verdict CLEAN rounds 1`, over 152 files pinned as `blob` and `mode`: the content at `26bf52678b`, except ten files read at HEAD (below) |
+| Artifact | `./le spec review record spec lg-peer-history-origin-search-and-named-nodes verdict CLEAN rounds 3`, over 166 files pinned as `blob` and `mode` at HEAD `2ccb2d09ff` (Rounds 2 and 3, below) |
 | `./le spec review check` | `review_gate: OK (0 code files, clean, hashes match tmp/review/lg-peer-history-origin-search-and-named-nodes-97db3f03-2102-451b-be07-78188390d9f6.md)`, exit 0, 2026-11-19 |
-| Rounds | 1 |
+| Rounds | 3 |
 | Reviewer lenses used | logic and wiring, security and edge cases, style (the six questions), test discrimination |
 
 Known reds, not findings of this spec: `test/plugin/lg-graph-lab.ci` (Linux
@@ -1129,10 +1129,44 @@ NOTEs of this agent, which do not block:
 9. `ReadCheckout` (`lgreplay/actions.go`) lists uncommitted paths from `git status --porcelain` through `gitAnswer`, which trims the whole answer, so the first path shown loses its leading status column. Display only: the count and the refusal are unchanged.
 10. Record defects, fixed in one edit: the TDD plan and AC-47 named `TestLGReplayRefusesARecordingOfADirtyTree`, which `337a118e8c` replaced, and AC-47 said the site build refuses a trial recording, which the owner's change made a notice and a site check refusal. AC-47 is restated, and AC-54 to AC-58 record the follow-up commits.
 
+### Rounds 2 and 3 (2026-11-19)
+
+Round 2 covered round 1's delta: each pinned file diffed against its round-1
+blob. Two sources fed that delta. The first was this work's owner-ordered
+follow-ups (`d15c58d121`, `337a118e8c`, `bcad3821e8`, `3db8caf644`). Their
+product code was read: `as_names.go` whole, and the diffs of `server.go`,
+`service_lg.go`, `handler_ui.go`, `handler_graph.go`, `nexthop_ranges.go`,
+`graph_nexthop.go`, `graph_trace.go`, the `layout*.go` files, the templates,
+`lgreplay.go`, `recording.go` and `lgreplay_check.go` whole. The second was
+other sessions' commits (`c9fbf8964c`, `076b002dae`, `ea209e4a78`,
+`ba0f3a3a7d`, `da0d74ac6f`, `5b1836d01e`). None of them alters this spec's
+lines: the looking glass wiring, the next-hop ranges, the route age and the
+peer description.
+
+Round 2 found one ISSUE. `nextHopOutsideFrom` refused the whole summary for an
+external peer with no `remote-as`. The engine writes that row for a dynamic peer
+that has been accepted but whose OPEN has not arrived (`createDynamicPeer`,
+`setRemoteAS`). So any host in a dynamic range could make the next-hop graph
+answer 503 for every reader. The AS name is escaped in both places it now
+appears: the SVG `<title>` and the templ `title` attribute. Each page part's
+lookups are bounded and share one deadline, and a failed lookup is reported,
+never read as "no name".
+
+Round 3 covered the fix only, `dcdcca8741`. A peer with no `remote-as` is left
+out of the outside set, and a `remote-as` that is present but unreadable
+(`null` included) is still refused. `TestNextHopGraphLeavesOutAPeerWithNoASYet`
+checks the whole text answer and checks that the peer's address is absent from
+the next-hop and trace answers. Round 3 found no BLOCKER and no ISSUE. It also
+read the assertions of `as_names_test.go`, `as_names_hover_test.go` and
+`site/lgreplay_check_test.go`: each asserts the answer its behaviour produces.
+The artifact pins 166 files at the HEAD `2ccb2d09ff` blobs. Those are the
+round-1 files, the follow-ups' new files (`as_names*.go`,
+`graph_outside_test.go`, `lgreplay_check*.go`) and the `testdata/graph` captures.
+
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| - | - | None: round 1 found no BLOCKER and no ISSUE | - | - |
+| 1 | ISSUE | An external peer with no `remote-as` (a dynamic peer before its OPEN) made the next-hop graph refuse with 503 | `nextHopOutsideFrom`, `lg/graph_nexthop.go` | `dcdcca8741`, `TestNextHopGraphLeavesOutAPeerWithNoASYet` |
 
 ## Pre-Commit Verification
 
