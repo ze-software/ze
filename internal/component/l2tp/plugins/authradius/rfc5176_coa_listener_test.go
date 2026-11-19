@@ -278,13 +278,9 @@ func (f *fakeL2TPService) LookupSession(localSID uint16) (l2tp.SessionSnapshot, 
 	}
 	return l2tp.SessionSnapshot{}, false
 }
-func (f *fakeL2TPService) Listeners() []l2tp.ListenerSnapshot   { return nil }
-func (f *fakeL2TPService) EffectiveConfig() l2tp.ConfigSnapshot { return l2tp.ConfigSnapshot{} }
-func (f *fakeL2TPService) TeardownTunnel(uint16) error          { return nil }
-func (f *fakeL2TPService) TeardownSession(uint16) error {
-	f.teardowns.Add(1)
-	return nil
-}
+func (f *fakeL2TPService) Listeners() []l2tp.ListenerSnapshot                        { return nil }
+func (f *fakeL2TPService) EffectiveConfig() l2tp.ConfigSnapshot                      { return l2tp.ConfigSnapshot{} }
+func (f *fakeL2TPService) TeardownTunnel(uint16) error                               { return nil }
 func (f *fakeL2TPService) TeardownAllTunnels() int                                   { return 0 }
 func (f *fakeL2TPService) TeardownAllSessions() int                                  { return 0 }
 func (f *fakeL2TPService) SessionEvents(subscriberid.L2TPBirth) []l2tp.ObserverEvent { return nil }

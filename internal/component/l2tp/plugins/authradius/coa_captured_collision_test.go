@@ -21,7 +21,7 @@ import (
 // not an earlier equal-SID subscriber. Method: signed UDP reaches the real
 // listener and its supplied service; only the captured original can terminate.
 // The service models row retirement, not native cleanup or Accounting-Stop.
-// MUTATION: reduce the matched original to SID and call TeardownSession again.
+// MUTATION: capture the matched original by SID alone (drop Birth and TID from the selector).
 func TestDisconnectExactAccountingMatchKeepsEqualSIDSurvivor(t *testing.T) {
 	for _, target := range []int{0, 1} {
 		t.Run([]string{"earlier", "later"}[target], func(t *testing.T) {
@@ -132,7 +132,7 @@ func (service *coaCollisionService) Snapshot() l2tp.Snapshot {
 	return snapshot
 }
 
-// The legacy methods deliberately retain the existing first-match semantics;
+// The remaining legacy LookupSession deliberately keeps first-match semantics;
 // a handler that loses its original therefore produces an observable own RED.
 func (service *coaCollisionService) LookupSession(sid uint16) (l2tp.SessionSnapshot, bool) {
 	service.mu.Lock()
@@ -146,21 +146,6 @@ func (service *coaCollisionService) LookupSession(sid uint16) (l2tp.SessionSnaps
 		}
 	}
 	return l2tp.SessionSnapshot{}, false
-}
-
-func (service *coaCollisionService) TeardownSession(sid uint16) error {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-	service.legacyOperations++
-	for _, original := range service.originals {
-		if original.alive {
-			if original.snapshot.LocalSID == sid {
-				original.alive = false
-				return nil
-			}
-		}
-	}
-	return l2tp.ErrSessionNotFound
 }
 
 func (service *coaCollisionService) CaptureSession(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {

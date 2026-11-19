@@ -36,7 +36,7 @@ func admitCoAFixtureOriginals(t *testing.T, fixture *fakeL2TPService) {
 }
 
 // coaFixtureCapture retains one original snapshot row. It never delegates
-// an operation to LookupSession or TeardownSession with a reusable SID.
+// an operation to LookupSession, or any other reusable-SID operation.
 type coaFixtureCapture struct {
 	service  *fakeL2TPService
 	original *l2tp.SessionSnapshot

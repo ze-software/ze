@@ -6,7 +6,6 @@ package l2tpauthradius
 
 import (
 	"slices"
-	"sync/atomic"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
@@ -19,17 +18,11 @@ import (
 // remove it is gone by the time the listener asks for the teardown.
 type stopsAfterLookupService struct {
 	*fakeL2TPService
-	teardownAttempts atomic.Int32
 }
 
 func (s *stopsAfterLookupService) Snapshot() l2tp.Snapshot {
 	l2tp.PublishService(nil)
 	return s.fakeL2TPService.Snapshot()
-}
-
-func (s *stopsAfterLookupService) TeardownSession(uint16) error {
-	s.teardownAttempts.Add(1)
-	return nil
 }
 
 // TestRFC5176DisconnectLocatedButServiceStoppedIsNotRemovable checks the answer
@@ -61,7 +54,7 @@ func TestRFC5176DisconnectLocatedButServiceStoppedIsNotRemovable(t *testing.T) {
 	if got := errorCauses(t, resp); !slices.Equal(got, []uint32{radius.ErrorCauseSessionNotRemovable}) {
 		t.Errorf("Error-Cause: got %v, want [504] (Session Context Not Removable)", got)
 	}
-	if got := svc.teardownAttempts.Load(); got != 0 {
-		t.Errorf("teardown attempts with the service stopped: got %d, want 0", got)
+	if got := svc.fakeL2TPService.teardowns.Load(); got != 0 {
+		t.Errorf("captured teardowns with the service stopped: got %d, want 0", got)
 	}
 }

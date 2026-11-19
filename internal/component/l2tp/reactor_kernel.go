@@ -367,7 +367,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	var event string
 	switch e := ev.(type) {
 	case ppp.EventSessionDown:
-		event = "session-down"
+		event = l2tpevents.SessionDownEvent
 		birth, subscriberID = e.Birth, e.SubscriberID
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, e.Cause
 		control = e.Control
@@ -519,7 +519,7 @@ func (r *l2tpReactor) pppSessionLocked(event string, tid, sid uint16, control pp
 // It touches only the logger, so the caller MAY hold tunnelsMu.
 func (r *l2tpReactor) refusePPPEvent(event string, tid, sid uint16, why string) {
 	r.logger.Debug("l2tp: PPP event refused; it was not made for the session holding these IDs",
-		"event", event, "tunnel-id", tid, "session-id", sid, "why", why)
+		"event", event, reportFieldTunnelID, tid, "session-id", sid, "why", why)
 }
 
 // handleLCPUp retains the actual peer receive MRU and selected method from the

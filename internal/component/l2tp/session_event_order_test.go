@@ -649,10 +649,9 @@ func (w *reactorTripwire) CaptureSession(SessionSelector) (CapturedSession, erro
 	w.trip("CaptureSession")
 	return nil, ErrSessionNotFound
 }
-func (w *reactorTripwire) TeardownTunnel(uint16) error  { w.trip("TeardownTunnel"); return nil }
-func (w *reactorTripwire) TeardownSession(uint16) error { w.trip("TeardownSession"); return nil }
-func (w *reactorTripwire) TeardownAllTunnels() int      { w.trip("TeardownAllTunnels"); return 0 }
-func (w *reactorTripwire) TeardownAllSessions() int     { w.trip("TeardownAllSessions"); return 0 }
+func (w *reactorTripwire) TeardownTunnel(uint16) error { w.trip("TeardownTunnel"); return nil }
+func (w *reactorTripwire) TeardownAllTunnels() int     { w.trip("TeardownAllTunnels"); return 0 }
+func (w *reactorTripwire) TeardownAllSessions() int    { w.trip("TeardownAllSessions"); return 0 }
 func (w *reactorTripwire) SessionEvents(subscriberid.L2TPBirth) []ObserverEvent {
 	w.trip("SessionEvents")
 	return nil

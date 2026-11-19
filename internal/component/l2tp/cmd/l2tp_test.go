@@ -27,7 +27,6 @@ type fakeService struct {
 	lookupTunnel         func(uint16) (l2tppkg.TunnelSnapshot, bool)
 	lookupSession        func(uint16) (l2tppkg.SessionSnapshot, bool)
 	teardownTunnelErr    error
-	teardownSessionErr   error
 	teardownAllTunnelsN  int
 	teardownAllSessionsN int
 	outgoingCall         func(remote, called string) (l2tppkg.OutgoingCallResult, error)
@@ -39,10 +38,9 @@ func (f *fakeService) EffectiveConfig() l2tppkg.ConfigSnapshot { return f.config
 func (f *fakeService) CaptureSession(l2tppkg.SessionSelector) (l2tppkg.CapturedSession, error) {
 	return nil, l2tppkg.ErrSessionNotFound
 }
-func (f *fakeService) TeardownTunnel(_ uint16) error  { return f.teardownTunnelErr }
-func (f *fakeService) TeardownSession(_ uint16) error { return f.teardownSessionErr }
-func (f *fakeService) TeardownAllTunnels() int        { return f.teardownAllTunnelsN }
-func (f *fakeService) TeardownAllSessions() int       { return f.teardownAllSessionsN }
+func (f *fakeService) TeardownTunnel(_ uint16) error { return f.teardownTunnelErr }
+func (f *fakeService) TeardownAllTunnels() int       { return f.teardownAllTunnelsN }
+func (f *fakeService) TeardownAllSessions() int      { return f.teardownAllSessionsN }
 func (f *fakeService) LookupTunnel(id uint16) (l2tppkg.TunnelSnapshot, bool) {
 	if f.lookupTunnel != nil {
 		return f.lookupTunnel(id)

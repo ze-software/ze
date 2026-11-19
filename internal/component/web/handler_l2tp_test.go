@@ -30,8 +30,6 @@ type fakeL2TPService struct {
 	events       []l2tp.ObserverEvent
 	samples      []l2tp.CQMBucket
 	samplesLogin string
-	teardownErr  error
-	teardownSID  uint16
 	disconnects  []fakeDisconnect
 }
 
@@ -67,12 +65,8 @@ func (f *fakeL2TPService) CaptureSession(selector l2tp.SessionSelector) (l2tp.Ca
 	return &fakeL2TPDetailCapture{session: f.session, events: append([]l2tp.ObserverEvent(nil), f.events...)}, nil
 }
 func (f *fakeL2TPService) TeardownTunnel(_ uint16) error { return nil }
-func (f *fakeL2TPService) TeardownSession(sid uint16) error {
-	f.teardownSID = sid
-	return f.teardownErr
-}
-func (f *fakeL2TPService) TeardownAllTunnels() int  { return 0 }
-func (f *fakeL2TPService) TeardownAllSessions() int { return 0 }
+func (f *fakeL2TPService) TeardownAllTunnels() int       { return 0 }
+func (f *fakeL2TPService) TeardownAllSessions() int      { return 0 }
 func (f *fakeL2TPService) SessionEvents(_ subscriberid.L2TPBirth) []l2tp.ObserverEvent {
 	return f.events
 }
