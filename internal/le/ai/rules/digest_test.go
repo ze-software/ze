@@ -1030,6 +1030,7 @@ func TestSituationalSectionsTheReaderCannotPlaceLeaveThePayloadIncomplete(t *tes
 // it turns TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts red until
 // this list moves with it, which is the moment its placement is judged.
 var mainSessionDecisions = []string{
+	"Choose the number of long-running subagents to fit",
 	"**Thomas requests subagent delegation as the default in",
 	"Some harness builds carry a guard:",
 	"An agent sent to find out how something",
@@ -1049,9 +1050,9 @@ var mainSessionDecisions = []string{
 // besides them. A rule added or removed changes one of these counts, which is
 // the moment its placement is judged.
 const (
-	decisionBulletsTotal       = 135
-	decisionBulletsAgent       = 96
-	decisionBulletsSituational = 28
+	decisionBulletsTotal       = 146
+	decisionBulletsAgent       = 105
+	decisionBulletsSituational = 29
 )
 
 // decisionBullets answers each bullet of lines whole, its continuation lines
