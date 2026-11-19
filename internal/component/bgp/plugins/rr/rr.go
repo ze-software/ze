@@ -414,15 +414,21 @@ func isConnectionError(err error) bool {
 func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 	identity, err := newPeerIdentity(se.PeerAddress, se.PeerOwner, se.ConnectionID)
 	if err != nil {
-		if se.PeerOwner != 0 {
-			if se.ConnectionID == 0 {
-				if se.Reason == "peer-removed" {
-					rr.endOwner(se.PeerOwner)
-					return nil
-				}
-			}
+		if se.PeerOwner == 0 {
+			return err
 		}
-		return err
+		if se.ConnectionID != 0 {
+			return err
+		}
+		if se.State != rpc.SessionStateDown {
+			return err
+		}
+		if se.Reason != rpc.ReasonPeerRemoved {
+			return err
+		}
+		// Deconfiguration may end the owner before it ever opened a session.
+		rr.endOwner(se.PeerOwner)
+		return nil
 	}
 	switch se.State {
 	case rpc.SessionStateUp:
