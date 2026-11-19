@@ -110,7 +110,7 @@ Those commits do not close the spec or claim release readiness.
 | Captured-forward channel accounting | Committed in `2865747eb8` | All four new admitted/refused stored/cached debt cells passed with race detection. The original RS destination-owner test still fails its final causal marker in both attribute cases; this accounting repair does not establish that it is fixed |
 | Unconfirmed accepted-redistribution cleanup | Committed in `d6459f7412` | All 35 consumer-package roots passed with race detection, including failed replacement, exact predecessor cleanup and immutable replay. This preserves BGP accepted-input records; it does not add an upstream checked-withdrawal receipt |
 | Forwarding fixture qualification | 35 of 50 scoped roots passed; 15 failed; no race reported | The failures reach cached forwarding with a source that the engine refuses as not established. The exact tests and native log remain in the session record. This result does not establish RFC conformance or close an acceptance criterion |
-| FRR and BIRD user-outcome scenarios | Both native scenarios passed healthy and failed at the intended recipient check with publication disabled. BIRD passed again on the clean rebuild | Both healthy recipients saw the winner, its backup, and the final withdrawal. The control route stayed present, the excluded route stayed out, and the original sessions survived. With selected publication disabled, FRR returned an empty recipient table and BIRD reported no control route. The final clean FRR confirmation and Review Gate remain owed |
+| FRR and BIRD user-outcome scenarios | Both native scenarios passed healthy, failed at the intended recipient check with publication disabled, and passed again on a clean rebuild | Both healthy recipients saw the winner, its backup, and the final withdrawal. The control route stayed present, the excluded route stayed out, and the original sessions survived. With selected publication disabled, FRR returned an empty recipient table and BIRD reported no control route |
 
 The current execution evidence and exact source-review pins stay in the session
 state file named above. No acceptance criterion is marked complete solely
@@ -1476,7 +1476,7 @@ the function.
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-best-route-transit-frr` | `test/interop/scenarios/` | FRR 10.7.1 | Recipient observes the elected route, its backup, and final withdrawal under the configured export policy | Healthy pass and meaningful failure at assertion 5 after publication is disabled. Final clean confirmation pending |
+| `bgp-best-route-transit-frr` | `test/interop/scenarios/` | FRR 10.7.1 | Recipient observes the elected route, its backup, and final withdrawal under the configured export policy | Healthy pass, meaningful failure at assertion 5 after publication is disabled, and a clean rebuild pass |
 | `bgp-best-route-transit-bird` | `test/interop/scenarios/` | BIRD 3.4.0 | Same route lifecycle with BIRD peers | Healthy pass, meaningful failure at assertion 5 after publication is disabled, and a clean rebuild pass |
 
 ## Files to Modify
