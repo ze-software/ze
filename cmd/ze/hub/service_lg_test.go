@@ -2,16 +2,23 @@
 
 package hub
 
-// VALIDATES: the ze_lg-gated looking-glass factory -- parseASNForDecorator's
-// numeric parsing/bounds and buildLGService's not-configured skip path.
-// PREVENTS: an ASN decorator misparse (overflow/garbage) and a no-op build
-// being treated as a failure.
+// VALIDATES: the ze_lg-gated looking-glass factory -- buildLGService's
+// not-configured skip path, its TLS choices, and that the service it builds
+// names AS numbers through the dispatcher with no resolver in its deps.
+// PREVENTS: a no-op build being treated as a failure, and a private path to a
+// Team Cymru resolver beside the resolve component's command.
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/lg"
 	"github.com/ze-software/ze/internal/component/plugin"
+	resolvecmd "github.com/ze-software/ze/internal/component/resolve/cmd"
 )
 
 func lgTestDispatch() plugin.CommandDispatcher {
@@ -20,25 +27,81 @@ func lgTestDispatch() plugin.CommandDispatcher {
 	}
 }
 
-func TestParseASNForDecorator(t *testing.T) {
-	cases := []struct {
-		in   string
-		want uint32
-	}{
-		{"0", 0},
-		{"1", 1},
-		{"65535", 65535},
-		{"4294967295", 4294967295}, // max uint32, last valid
-		{"4294967296", 0},          // one past max -> 0
-		{"99999999999", 0},         // far past max -> 0
-		{"", 0},                    // empty -> 0
-		{"abc", 0},                 // non-numeric -> 0
-		{"12x", 0},                 // trailing garbage -> 0
+// TestLGUnknownASNameMatchesTheResolveCommand compares the two copies of the
+// word `resolve cymru asn-name` answers for an AS Team Cymru does not name.
+// The looking glass cannot import the resolve component, so it holds a copy;
+// this is the check that names the copy's source.
+//
+// VALIDATES: lg.ASNameUnknown is resolvecmd.ASNameUnknown.
+// PREVENTS: the looking glass drawing "(unknown)" as an organization name
+// after the command's word changes.
+func TestLGUnknownASNameMatchesTheResolveCommand(t *testing.T) {
+	if lg.ASNameUnknown != resolvecmd.ASNameUnknown {
+		t.Fatalf("lg.ASNameUnknown = %q, resolvecmd.ASNameUnknown = %q: they MUST be equal",
+			lg.ASNameUnknown, resolvecmd.ASNameUnknown)
 	}
-	for _, c := range cases {
-		if got := parseASNForDecorator(c.in); got != c.want {
-			t.Errorf("parseASNForDecorator(%q) = %d, want %d", c.in, got, c.want)
+}
+
+// TestBuildLGService_NamesASThroughTheDispatcher builds the looking glass the
+// way the hub does, with no resolver in its deps, and reads the peers page.
+//
+// VALIDATES: the built service asks `resolve cymru asn-name <asn>` of the
+// dispatcher it was given, and draws the name the command answers.
+// PREVENTS: the looking glass depending on resolvers.Cymru (the old
+// DecorateASN closure), which named nothing when the deps carried none.
+func TestBuildLGService_NamesASThroughTheDispatcher(t *testing.T) {
+	const summary = `{"peers":[{"address":"192.0.2.1","remote-as":"64500","state":"established"}]}`
+	var mu sync.Mutex
+	var asked []string
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
+		mu.Lock()
+		asked = append(asked, command)
+		mu.Unlock()
+		if command == "resolve cymru asn-name 64500" {
+			// The resolve component's answer shape (handleCymruASNName).
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"name": "Example Transit"}), nil
 		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(summary)), nil
+	}
+
+	svc, err := buildLGService(&serviceDeps{
+		Dispatch: dispatch,
+		LGAddrs:  []string{"127.0.0.1:0"},
+		LGTLS:    false,
+	})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if svc == nil {
+		t.Fatal("want a running looking glass, got nil")
+	}
+	t.Cleanup(func() { _ = svc.Shutdown(context.Background()) })
+
+	addresses := svc.(lgService).Addresses()
+	if len(addresses) == 0 {
+		t.Fatal("the looking glass bound no address")
+	}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+addresses[0]+"/lg/peers", http.NoBody)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /lg/peers: %v", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // test response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+
+	if !strings.Contains(string(body), "Example Transit") {
+		t.Errorf("the peers page does not draw the name the command answered:\n%s", body)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !strings.Contains(strings.Join(asked, "|"), "resolve cymru asn-name 64500") {
+		t.Errorf("the dispatcher was not asked for the name: %q", asked)
 	}
 }
 

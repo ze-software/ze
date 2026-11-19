@@ -157,9 +157,11 @@ func (s *LGServer) routeRowsWithNextHopNames(routes []any) []routeRow {
 // the range its address is in, or, for an AS outside the local one, the AS
 // name the AS path graph shows (decorateGraphNodes).
 func (s *LGServer) nameNextHopNodes(g *nextHopGraph) {
+	names := s.asNames()
+	defer names.done()
 	for i := range g.Nodes {
 		if g.Nodes[i].Outside {
-			g.Nodes[i].Name = s.resolveASN(textbuf.StringInt(int64(g.Nodes[i].AS)))
+			g.Nodes[i].Name = names.name(textbuf.StringUint32(g.Nodes[i].AS))
 			continue
 		}
 		g.Nodes[i].Name = s.nextHopName(g.Nodes[i].Address)

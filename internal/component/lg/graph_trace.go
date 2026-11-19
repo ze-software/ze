@@ -692,7 +692,7 @@ type traceNames struct {
 	// address answers the operator's name for a router or next-hop address
 	// (nexthop_ranges.go).
 	address func(netip.Addr) string
-	// as answers the name of an AS number (LGServer.resolveASN).
+	// as answers the name of an AS number (asNames.name, as_names.go).
 	as func(uint32) string
 }
 

@@ -48,7 +48,7 @@ func traceModeFourRouters() traceModeEngine {
 }
 
 // traceModeRequest asks GET /lg/graph of a server whose engine is the given
-// one, with one named range and an AS name decorator, and answers the response
+// one, with one named range and an engine that names AS65101, and answers the response
 // and every command the server sent.
 func traceModeRequest(t *testing.T, engine traceModeEngine, query string) (*httptest.ResponseRecorder, []string) {
 	t.Helper()
@@ -68,6 +68,12 @@ func traceModeRequest(t *testing.T, engine traceModeEngine, query string) (*http
 		case traceModeRIBCommand:
 			answer := `{"routes":[` + strings.Join(engine.rows, ",") + `]}`
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(answer)), nil
+		case asNameCommand + "65101":
+			// The resolve component's answer shape (handleCymruASNName).
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"name": "Transit <A>"}), nil
+		}
+		if strings.HasPrefix(cmd, asNameCommand) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"name": ASNameUnknown}), nil
 		}
 		return nil, errUnknownCommand
 	}
@@ -76,12 +82,6 @@ func traceModeRequest(t *testing.T, engine traceModeEngine, query string) (*http
 		ListenAddrs:   []string{"127.0.0.1:0"},
 		Dispatch:      dispatch,
 		NextHopRanges: map[netip.Prefix]string{netip.MustParsePrefix("203.0.113.0/24"): "ixp-lan-a"},
-		DecorateASN: func(number string) string {
-			if number == "65101" {
-				return "Transit <A>"
-			}
-			return ""
-		},
 	})
 	if err != nil {
 		t.Fatalf("new lg server: %v", err)
@@ -99,8 +99,11 @@ func traceModeRequest(t *testing.T, engine traceModeEngine, query string) (*http
 
 // VALIDATES: AC-21, AC-23 at the handler -- `mode=trace&format=text` answers
 // the trace graph's text form from ONE RIB query and the peer summary, with a
-// node named from the named ranges (address) and from the AS name decorator.
-// PREVENTS: a second RIB query, a new command, or a text form with no names.
+// node named from the named ranges (address) and from the AS name the resolve
+// component answers, each AS asked once although the layout and the drawing
+// both label it.
+// PREVENTS: a second RIB query, an engine command other than the name lookups,
+// a name asked twice for one drawing, or a text form with no names.
 func TestTraceGraphModeAnswersText(t *testing.T) {
 	rec, commands := traceModeRequest(t, traceModeFourRouters(), "&mode=trace&format=text")
 	if rec.Code != http.StatusOK {
@@ -111,8 +114,21 @@ func TestTraceGraphModeAnswersText(t *testing.T) {
 	}
 
 	want := []string{traceModeRIBCommand, cmdBGPOverview}
-	if strings.Join(commands, "|") != strings.Join(want, "|") {
-		t.Fatalf("commands = %q, want %q", commands, want)
+	if len(commands) < len(want) || strings.Join(commands[:len(want)], "|") != strings.Join(want, "|") {
+		t.Fatalf("commands = %q, want %q first", commands, want)
+	}
+	asked := map[string]bool{}
+	for _, cmd := range commands[len(want):] {
+		if !strings.HasPrefix(cmd, asNameCommand) {
+			t.Errorf("command %q after the engine queries is not a name lookup", cmd)
+		}
+		if asked[cmd] {
+			t.Errorf("%q was asked twice for one drawing", cmd)
+		}
+		asked[cmd] = true
+	}
+	if !asked[asNameCommand+"65101"] {
+		t.Errorf("the name of AS65101 was not asked: %q", commands)
 	}
 
 	body := rec.Body.String()

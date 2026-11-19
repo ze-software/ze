@@ -70,31 +70,6 @@ func TestGraphLabelsFollowTheConfiguredNotation(t *testing.T) {
 	}
 }
 
-// TestResolveASNLooksUpTheDecimalForm proves the ASN-name lookup key is the
-// decimal value whatever notation the row carried. The method resolves both
-// spellings against a decorator that records its key.
-//
-// VALIDATES: LGServer.resolveASN normalizes before it calls the decorator.
-// PREVENTS: every ASN-name lookup failing under asdot, because Team Cymru is
-// asked for AS "1.10", a name that resolves to nothing.
-func TestResolveASNLooksUpTheDecimalForm(t *testing.T) {
-	var asked string
-	server := &LGServer{decorateASN: func(key string) string {
-		asked = key
-		return "EXAMPLE"
-	}}
-
-	for _, text := range []string{"1.10", "65546"} {
-		asked = ""
-		if got := server.resolveASN(text); got != "EXAMPLE" {
-			t.Errorf("resolveASN(%q) = %q, want EXAMPLE", text, got)
-		}
-		if asked != "65546" {
-			t.Errorf("resolveASN(%q) asked the decorator for %q, want %q", text, asked, "65546")
-		}
-	}
-}
-
 // configureNotation records one notation for the rest of a test.
 func configureNotation(t *testing.T, notation asn.Notation) {
 	t.Helper()

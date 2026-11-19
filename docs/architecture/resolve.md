@@ -45,7 +45,20 @@ than this one.
 | Consumer | Resolver | Entry Point |
 |----------|----------|-------------|
 | Web UI ASN decoration | Cymru | `decorator_asn.go` via `NewASNNameDecoratorFromCymru` |
-| Looking glass graph | Cymru | `LGConfig.DecorateASN` callback |
+| Looking glass AS names (peer tables, peer detail, graphs) | Cymru | the `resolve cymru asn-name` command through the dispatcher (`internal/component/lg/as_names.go`); the looking glass holds no resolver |
+
+`CymruResolver.LookupASNName` has three answers, and each caller branches on
+all three: a name; `""` with no error when Team Cymru publishes no record for
+the AS (NXDOMAIN, which every private and documentation AS number answers);
+and an error when the name could not be learned (the TXT query failed, every
+name server answered a server failure, or the record is not Team Cymru's
+format). Only a name is cached. The hub's Cymru asks through
+`dns.Resolver.ResolveTXTWithin`, which ends the exchange at the caller's
+deadline, so the looking glass's page budget and the origin pipe's timeout
+bound the query. `resolve cymru asn-name` answers `{"name": "(unknown)"}` for
+the second answer and an error for the third.
+<!-- source: internal/component/resolve/cymru/cymru.go -- LookupASNName -->
+<!-- source: internal/component/resolve/dns/resolver.go -- ResolveTXTWithin -->
 | Prefix update command | PeeringDB | `prefix_update.go` imports `resolve/peeringdb` |
 
 ## Dependencies

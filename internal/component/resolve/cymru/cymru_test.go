@@ -49,18 +49,29 @@ func TestCymruASNNameNoDash(t *testing.T) {
 	assert.Equal(t, "CLOUDFLARENET", name)
 }
 
-// VALIDATES: AC-4 -- DNS failure returns empty string (graceful degradation).
-// PREVENTS: Cymru errors propagated to caller.
-func TestCymruGracefulDegradation_DNSFailure(t *testing.T) {
+// VALIDATES: a TXT query that fails is an error naming the AS number and
+// carrying the DNS failure, never the empty name an AS Team Cymru does not
+// name answers, and nothing is cached for it.
+// PREVENTS: a name-server outage read by every caller as "this AS has no
+// name" (the looking glass showed bare AS numbers and logged nothing).
+func TestCymruASNNameReportsDNSFailure(t *testing.T) {
+	errNetwork := fmt.Errorf("network error")
+	var queries int
 	dns := func(_ context.Context, _ string) ([]string, error) {
-		return nil, fmt.Errorf("network error")
+		queries++
+		return nil, errNetwork
 	}
 
 	r := New(dns, nil)
 	name, err := r.LookupASNName(context.Background(), 65001)
 
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errNetwork)
+	assert.Contains(t, err.Error(), "AS65001")
 	assert.Empty(t, name)
+
+	_, err = r.LookupASNName(context.Background(), 65001)
+	require.ErrorIs(t, err, errNetwork)
+	assert.Equal(t, 2, queries, "a failed lookup MUST NOT be cached")
 }
 
 // VALIDATES: AC-4 -- empty DNS response returns empty string.
@@ -75,8 +86,9 @@ func TestCymruGracefulDegradation_EmptyResponse(t *testing.T) {
 	assert.Empty(t, name)
 }
 
-// VALIDATES: AC-4 -- malformed Cymru TXT response returns empty string.
-// PREVENTS: panic on unexpected response format.
+// VALIDATES: a malformed Cymru TXT response is an error, not an empty name.
+// PREVENTS: panic on unexpected response format, and an unreadable answer
+// reported as an AS Team Cymru does not name.
 func TestCymruGracefulDegradation_MalformedResponse(t *testing.T) {
 	dns := fakeDNS(map[string][]string{
 		"AS65001.asn.cymru.com.": {"this is not a valid cymru response"},
@@ -85,7 +97,8 @@ func TestCymruGracefulDegradation_MalformedResponse(t *testing.T) {
 	r := New(dns, nil)
 	name, err := r.LookupASNName(context.Background(), 65001)
 
-	require.NoError(t, err)
+	require.Error(t, err, "an answer that is not the Cymru record format is not a name")
+	assert.Contains(t, err.Error(), "AS65001")
 	assert.Empty(t, name)
 }
 

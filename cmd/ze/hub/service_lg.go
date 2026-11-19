@@ -52,7 +52,6 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 	}
 
 	dispatch := deps.Dispatch
-	resolvers := deps.Resolvers
 
 	// A storeless stdin daemon cannot persist a self-signed looking-glass
 	// certificate. Named certificates remain usable without persistence.
@@ -78,14 +77,10 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 		NextHopRanges: deps.LGNextHopRanges,
 		// The unified dispatcher is passed through directly; the lg server
 		// renders each typed response at its edge with a zero-value caller.
+		// It also names AS numbers, by asking the resolve component's
+		// `resolve cymru asn-name` command (internal/component/lg/as_names.go),
+		// so the looking glass holds no resolver of its own.
 		Dispatch: dispatch,
-		DecorateASN: func(asn string) string {
-			if resolvers == nil || resolvers.Cymru == nil {
-				return ""
-			}
-			name, _ := resolvers.Cymru.LookupASNName(context.Background(), parseASNForDecorator(asn))
-			return name
-		},
 	}
 
 	// When TLS is enabled, resolve the material the listener serves through the
@@ -137,21 +132,4 @@ func serveLGBlocking(srv *lg.LGServer) {
 	if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 		slogutil.Logger("lg.server").Error("looking glass server error", "error", serveErr)
 	}
-}
-
-// parseASNForDecorator converts an ASN string to uint32 for the Cymru resolver.
-// Returns 0 on parse failure (Cymru handles ASN 0 gracefully). Lives here (not
-// always-on) because the looking glass is its only caller.
-func parseASNForDecorator(asn string) uint32 {
-	var n uint64
-	for _, c := range asn {
-		if c < '0' || c > '9' {
-			return 0
-		}
-		n = n*10 + uint64(c-'0')
-		if n > 4294967295 {
-			return 0
-		}
-	}
-	return uint32(n)
 }

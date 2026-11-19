@@ -6,6 +6,7 @@
 package dns
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -292,7 +293,7 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 		return records, nil
 	}
 
-	records, ttl, _, err := r.query(name, qtype)
+	records, ttl, _, err := r.query(context.Background(), name, qtype)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +324,7 @@ func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, 
 		return records, ttl, StatusSuccess, nil
 	}
 
-	records, ttl, status, err := r.query(name, qtype)
+	records, ttl, status, err := r.query(context.Background(), name, qtype)
 	if err != nil {
 		return nil, 0, StatusUnspecified, err
 	}
@@ -338,6 +339,36 @@ func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, 
 // ResolveTXT queries for TXT records.
 func (r *Resolver) ResolveTXT(name string) ([]string, error) {
 	return r.Resolve(name, mdns.TypeTXT)
+}
+
+// ResolveTXTWithin queries for TXT records, every exchange ending at ctx's
+// deadline at the latest, and refuses an answer that says nothing about the
+// name.
+//
+// It differs from ResolveTXT in two ways, both for a caller that must tell
+// "this name holds no record" from "I could not find out". A query that every
+// server answered with a server failure (SERVFAIL, REFUSED) returns an error
+// here, where ResolveTXT returns an empty list. And ctx bounds the walk: once
+// it is done, no further server is asked, and ctx's error is returned. A name
+// that does not exist (NXDOMAIN) is an empty list and no error, as it is for
+// ResolveTXT. Shares ResolveTXT's cache. Safe for concurrent use.
+func (r *Resolver) ResolveTXTWithin(ctx context.Context, name string) ([]string, error) {
+	if records, ok := r.cache.get(name, mdns.TypeTXT); ok {
+		return records, nil
+	}
+
+	records, ttl, status, err := r.query(ctx, name, mdns.TypeTXT)
+	if err != nil {
+		return nil, err
+	}
+	if !status.Authoritative() {
+		return nil, fmt.Errorf("dns query %s TXT: every server answered %s", name, status.String())
+	}
+
+	if len(records) > 0 {
+		r.cache.put(name, mdns.TypeTXT, records, ttl)
+	}
+	return records, nil
 }
 
 // ResolveA queries for A (IPv4) records.
@@ -375,7 +406,12 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 // last server failure a server answered is returned as the status, with no
 // error and no records, so the caller keeps what it had; when no server
 // answered at all, the error names the last failure.
-func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, error) {
+//
+// ctx bounds the walk: each exchange ends at its deadline at the latest, and
+// once it is done no further server is asked and its error is returned. The
+// callers with no deadline of their own pass context.Background(), which
+// leaves the configured timeout per server as the only bound.
+func (r *Resolver) query(ctx context.Context, name string, qtype uint16) ([]string, uint32, Status, error) {
 	servers := *r.servers.Load()
 	if len(servers) == 0 {
 		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: no DNS server configured", name, mdns.TypeToString[qtype])
@@ -384,7 +420,10 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, e
 	var lastErr error
 	failure := StatusUnspecified
 	for _, server := range servers {
-		records, ttl, status, err := r.queryServer(server, name, qtype)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], ctxErr)
+		}
+		records, ttl, status, err := r.queryServer(ctx, server, name, qtype)
 		if err != nil {
 			var unanswered *unansweredError
 			if !errors.As(err, &unanswered) {
@@ -421,7 +460,7 @@ func (e *unansweredError) Unwrap() error { return e.err }
 // queryServer asks one server. A failure to obtain an answer is an
 // *unansweredError; an answer refused by DNSSEC policy is not, because another
 // server would be refused for the same chain.
-func (r *Resolver) queryServer(server, name string, qtype uint16) ([]string, uint32, Status, error) {
+func (r *Resolver) queryServer(ctx context.Context, server, name string, qtype uint16) ([]string, uint32, Status, error) {
 	fqdn := mdns.Fqdn(name)
 
 	validating := r.dnssec != "" && r.dnssec != dnssecOff
@@ -434,7 +473,9 @@ func (r *Resolver) queryServer(server, name string, qtype uint16) ([]string, uin
 	// chain (CD stays 0). Off mode keeps today's non-DNSSEC query exactly.
 	m.SetEdns0(4096, validating)
 
-	resp, _, err := r.client.Exchange(m, server)
+	// ExchangeContext ends the exchange at the earlier of ctx's deadline and
+	// the client's configured timeout.
+	resp, _, err := r.client.ExchangeContext(ctx, m, server)
 	if err != nil {
 		return nil, 0, StatusUnspecified, &unansweredError{fmt.Errorf("dns query %s %s to %s: %w", name, mdns.TypeToString[qtype], server, err)}
 	}

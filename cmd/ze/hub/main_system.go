@@ -100,10 +100,11 @@ func newResolvers(sc *system.SystemConfig) (resolvers *resolve.Resolvers, unwatc
 		dnsResolver.SetServers(servers)
 	})
 
-	// Wrap DNS ResolveTXT to match Cymru's TXTResolver signature (adds context).
-	txtResolver := func(_ context.Context, name string) ([]string, error) {
-		return dnsResolver.ResolveTXT(name)
-	}
+	// Cymru asks through ResolveTXTWithin, so a caller's deadline (the
+	// looking glass's per-page budget, the origin pipe's timeout) ends the
+	// DNS exchange, and a server failure is an error rather than an AS with
+	// no name.
+	txtResolver := dnsResolver.ResolveTXTWithin
 
 	return &resolve.Resolvers{
 		DNS:       dnsResolver,

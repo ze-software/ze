@@ -199,7 +199,9 @@ func (s *LGServer) handleTraceGraph(w http.ResponseWriter, routes []any, format 
 		return
 	}
 
-	names := s.traceNames()
+	asNames := s.asNames()
+	defer asNames.done()
+	names := s.traceNames(asNames)
 	if format == graphFormatText {
 		writeText(w, renderTraceGraphText(graph, names))
 		return
@@ -254,18 +256,22 @@ func nextHopSummaryRefusal(err error) *opererr.Error {
 
 // traceNames answers the names the trace graph labels its nodes with: the
 // operator's named range for a router or next-hop address, and the AS name
-// decorator the AS path graph uses for an AS.
-func (s *LGServer) traceNames() traceNames {
+// the AS path graph shows for an AS (as_names.go). names MUST outlive every
+// use of the answer, the layout and the drawing both.
+func (s *LGServer) traceNames(names *asNames) traceNames {
 	return traceNames{
 		address: func(address netip.Addr) string { return s.nextHopName(address.String()) },
-		as:      func(number uint32) string { return s.resolveASN(textbuf.StringInt(int64(number))) },
+		as:      func(number uint32) string { return names.name(textbuf.StringUint32(number)) },
 	}
 }
 
-// decorateGraphNodes resolves ASN names for all graph nodes via the decorator.
+// decorateGraphNodes names the AS of every graph node, under one lookup
+// budget for the graph (as_names.go).
 func (s *LGServer) decorateGraphNodes(g *Graph) {
+	names := s.asNames()
+	defer names.done()
 	for i := range g.Nodes {
-		g.Nodes[i].Name = s.resolveASN(textbuf.StringInt(int64(g.Nodes[i].ASN)))
+		g.Nodes[i].Name = names.name(textbuf.StringUint32(g.Nodes[i].ASN))
 	}
 }
 

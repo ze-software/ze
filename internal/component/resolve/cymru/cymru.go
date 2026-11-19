@@ -14,6 +14,7 @@ package cymru
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net"
 	"net/netip"
@@ -28,8 +29,10 @@ import (
 // defaultCacheTTL is the cache duration for Cymru results.
 const defaultCacheTTL = time.Hour
 
-// TXTResolver is a function that resolves TXT records for a DNS name.
-// Matches the signature pattern of dns.Resolver.ResolveTXT with context.
+// TXTResolver is a function that resolves TXT records for a DNS name. It
+// MUST answer a name that does not exist as no records and no error, and a
+// query it could not complete as an error: dns.Resolver.ResolveTXTWithin is
+// that function, and it ends the query at ctx's deadline.
 type TXTResolver func(ctx context.Context, name string) ([]string, error)
 
 // CymruResolver resolves AS numbers to organization names via Team Cymru DNS.
@@ -83,7 +86,16 @@ func originCacheKey(ip string) string {
 }
 
 // LookupASNName returns the organization name for the given ASN.
-// Returns ("", nil) on any failure -- graceful degradation, never error.
+//
+// It has three answers, and a caller branches on each: a name; "" and no
+// error when Team Cymru names nothing for the AS number (no TXT record: a
+// private, documentation or unallocated AS number answers NXDOMAIN); and an
+// error when the name could not be learned (the TXT query failed, or its
+// answer is not the record format Team Cymru publishes). "Nobody names this
+// AS" and "I could not find out" are never reported as each other. Only a
+// name is cached, so an AS Team Cymru does not name is asked again on the
+// next lookup. The lookup ends at ctx's deadline when the TXT resolver
+// honours it, as the hub's does (cmd/ze/hub/main_system.go newResolvers).
 func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, error) {
 	key := "asn:" + textbuf.StringUint32(asn)
 
@@ -96,7 +108,7 @@ func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, 
 
 	records, err := r.resolveTXT(ctx, query)
 	if err != nil {
-		return "", nil //nolint:nilerr // graceful degradation: DNS failure is not a caller error
+		return "", fmt.Errorf("team cymru name of AS%d: %w", asn, err)
 	}
 
 	if len(records) == 0 {
@@ -105,7 +117,7 @@ func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, 
 
 	name, ok := parseASNName(records[0])
 	if !ok {
-		return "", nil
+		return "", fmt.Errorf("team cymru name of AS%d: unreadable answer %q", asn, records[0])
 	}
 
 	r.cache.Set(key, name)
@@ -146,8 +158,15 @@ func (r *CymruResolver) LookupOrigin(ctx context.Context, ip string) (Origin, er
 		return Origin{}, nil
 	}
 
-	// Resolve ASN name via the existing method.
-	name, _ := r.LookupASNName(ctx, o.ASN)
+	// A name the lookup could not learn leaves the origin unnamed, and the
+	// origin is not cached, so the next lookup asks for the name again. The
+	// origin itself was answered, and this method already answers a failed
+	// origin query as no origin (above), so the pipe it serves shows what it
+	// has rather than nothing.
+	name, nameErr := r.LookupASNName(ctx, o.ASN)
+	if nameErr != nil {
+		return o, nil //nolint:nilerr // the origin was learned; only its name was not (see above)
+	}
 	o.Name = name
 
 	// Cache as "ASN|prefix|name" for compact storage.

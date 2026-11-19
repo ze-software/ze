@@ -44,8 +44,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/asn"
-
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/errorfragment"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -75,10 +73,6 @@ const maxSSEClients = 100
 // CommandDispatcher.JSON with a zero-value caller identity (public, read-only).
 type CommandDispatcher = plugin.CommandDispatcher
 
-// ASNDecorator resolves an AS number string to an organization name.
-// Returns empty string on failure (graceful degradation).
-type ASNDecorator func(asn string) string
-
 // LGConfig holds the configuration for creating an LG server.
 type LGConfig struct {
 	// ListenAddrs is the list of addresses to bind (e.g., []string{"0.0.0.0:8443"}).
@@ -96,13 +90,11 @@ type LGConfig struct {
 	// KeyPEM is optional PEM-encoded private key data (required when TLS is true).
 	KeyPEM []byte
 
-	// Dispatch is the command dispatcher for querying the BGP engine.
+	// Dispatch is the command dispatcher for querying the BGP engine. It also
+	// answers the name of each AS number a page shows, through the resolve
+	// component's `resolve cymru asn-name` command (as_names.go).
 	// MUST NOT be nil.
 	Dispatch CommandDispatcher
-
-	// DecorateASN resolves AS numbers to organization names via Team Cymru DNS.
-	// If nil, ASN names are not shown.
-	DecorateASN ASNDecorator
 
 	// Token is an optional bearer token gating every route. Empty (the default)
 	// leaves the looking glass open, which is its normal posture: a public
@@ -148,10 +140,9 @@ type LGServer struct {
 	// reads it per handshake rather than per listener, so UpdateTLSCertificate
 	// rotates the served material without touching a bound listener. Nil when
 	// useTLS is false; never nil after NewLGServer returns with TLS enabled.
-	cert        atomic.Pointer[tls.Certificate]
-	dispatch    CommandDispatcher
-	decorateASN ASNDecorator
-	sseClients  atomic.Int32 // concurrent SSE connection counter
+	cert       atomic.Pointer[tls.Certificate]
+	dispatch   CommandDispatcher
+	sseClients atomic.Int32 // concurrent SSE connection counter
 
 	// nextHopRanges is the list of named next-hop ranges every page reads. A
 	// reload replaces the pointer whole (UpdateNextHopRanges), so a reader
@@ -206,15 +197,14 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	configured := append([]string(nil), cfg.ListenAddrs...)
 
 	s := &LGServer{
-		mux:         mux,
-		configured:  configured,
-		listeners:   make(map[string]net.Listener),
-		ready:       make(chan struct{}),
-		logger:      log,
-		useTLS:      cfg.TLS,
-		tlsCfg:      tlsCfg,
-		dispatch:    cfg.Dispatch,
-		decorateASN: cfg.DecorateASN,
+		mux:        mux,
+		configured: configured,
+		listeners:  make(map[string]net.Listener),
+		ready:      make(chan struct{}),
+		logger:     log,
+		useTLS:     cfg.TLS,
+		tlsCfg:     tlsCfg,
+		dispatch:   cfg.Dispatch,
 		server: &http.Server{
 			// Addr is informational; multi-listener serving uses Serve(ln).
 			Addr: configured[0],
@@ -391,25 +381,6 @@ func (s *LGServer) registerRoutes() error {
 	})
 
 	return nil
-}
-
-// resolveASN returns the organization name for an ASN, or empty string if
-// no decorator is configured or the lookup fails.
-//
-// The argument arrives as the daemon rendered it, so under bgp/as-notation
-// asdot it reads "1.10". The decorator behind this is a Team Cymru DNS lookup
-// (internal/component/web/decorator_asn.go), and its key is the decimal value
-// alone. The notation is therefore undone here rather than at each caller. A
-// token that names no AS number is passed through, and the decorator answers
-// "" for it, which is what an unresolvable ASN already produces.
-func (s *LGServer) resolveASN(text string) string {
-	if s.decorateASN == nil || text == "" {
-		return ""
-	}
-	if number, err := asn.Parse(text); err == nil {
-		text = asn.Text(number, asn.NotationPlain)
-	}
-	return s.decorateASN(text)
 }
 
 // ListenAndServe binds every configured listen address and starts serving.

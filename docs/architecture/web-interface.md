@@ -1384,8 +1384,8 @@ rows whose `peer-type` is `external`, each with its session address and its
 
 `egress` is a statement about a router of the AS, so an `outside` node never
 carries it. `nameNextHopNodes` names an address from the named ranges and an
-`outside` node from the AS name decorator the AS path graph uses
-(`LGServer.resolveASN`).
+`outside` node from the AS name the AS path graph shows (`asNames.name`,
+"LG AS names" below).
 
 The text form, `renderNextHopGraphText`, writes the nodes by layer, highest
 first, then by node, then the edges sorted:
@@ -1490,7 +1490,7 @@ query and no command. Its answers:
 
 | Request | Answer |
 |---------|--------|
-| `format=text` | `renderTraceGraphText`, with a `name=` on a router or next hop inside a named range and on an AS the AS name decorator knows (`LGServer.traceNames`) |
+| `format=text` | `renderTraceGraphText`, with a `name=` on a router or next hop inside a named range and on an AS the resolve component names (`LGServer.traceNames`, "LG AS names" below) |
 | `format=svg`, the default | `renderTraceGraphSVG` over `computeTraceLayout` |
 | No router of the AS sent a route, or more than `maxGraphNodes` nodes | The message of `traceGraph.undrawn`, in the format asked for, as the other modes answer. With no walk, the message (`traceCounts.noTrace`) starts "No trace: " and says which fact left nothing to draw: "this looking glass has a session with no router of the AS (a peer with an internal session)", "the query answered no route for this prefix", or "no route the query answered came from a router of the AS (a peer with an internal session)". It ends with the three counts, as ". Peers: 11, routers of the AS: 0, routes answered: 9." It names no command, because the page is public and its reader cannot run one |
 | The RIB query or the summary failed | `engineRefusal`, with the failure's status (502 or 503), as the other modes answer |
@@ -1527,6 +1527,34 @@ The search result panel offers the mode as the third button of
 ### LG Data Access
 
 All BGP data is queried via `CommandDispatcher` (same `func(string) (string, error)` as the web UI's admin handlers). The LG never imports RIB or peer plugin packages. The dispatcher routes commands to the engine, preserving plugin isolation.
+
+#### LG AS names
+
+The name beside an AS number, on the peer tables, a peer's detail and the
+three graphs, comes from the resolve component's command
+`resolve cymru asn-name <asn>` (wire method `ze-resolve:cymru-asn-name`),
+asked through the same dispatcher as every other fact. The looking glass
+holds no resolver and imports no resolve package; the command is answered
+from the hub's Team Cymru client, which caches each name for an hour
+(`docs/architecture/resolve.md`, "Consumers").
+
+- **One budget per page part.** A graph, a peer table or a peer's detail
+  shares one deadline of 2 seconds (`asNameBudget`) across its lookups. The
+  deadline reaches the DNS exchange (`dns.Resolver.ResolveTXTWithin`), and a
+  lookup asked after it is not sent, so a graph of 100 AS numbers that are
+  not cached yet waits at most that long. Within the part each AS number is
+  asked once, in decimal whatever the configured notation; nothing is kept
+  after the part is drawn.
+- **Three answers.** A name is drawn beside the number. `(unknown)`, the
+  command's answer for an AS Team Cymru names nothing for (every private and
+  documentation AS number), draws the number alone. A failure (the name
+  servers did not answer, the budget was spent, the answer was unreadable)
+  also draws the number alone, and is reported once per page part: one WARN
+  line under the doctor code `doctor-dns-resolver`, and one warning on the
+  report bus (`show warnings`, source `lg`, subject `as-names`) whose fix is
+  the command for the first AS that failed. The next part that names an AS
+  with no failure clears the warning.
+<!-- source: internal/component/lg/as_names.go -- asNames, asNameCommand, asNameBudget, asNames.done -->
 
 The prefix value of the search page, `/lg/graph`, `routes/prefix` and
 `routes/search` goes through one parser, `parsePrefixLookup`. A prefix with

@@ -38,6 +38,13 @@ const (
 // actionDeleteEntry is the action a cache-record deletion reports.
 const actionDeleteEntry = "delete-entry"
 
+// ASNameUnknown is the name `resolve cymru asn-name` answers for an AS
+// number Team Cymru names nothing for. It is an answer, not a failure: a
+// lookup that could not learn the name answers an error instead. The looking
+// glass reads this word as "no name" (internal/component/lg ASNameUnknown),
+// and the hub's looking glass test compares the two.
+const ASNameUnknown = "(unknown)"
+
 // msgCacheUnavailable is what every handler reports when the DNS cache is absent.
 const msgCacheUnavailable = "DNS cache not available"
 
@@ -177,7 +184,7 @@ func handleCymruASNName(ctx *pluginserver.CommandContext, validated command.Vali
 		return errResponse(err.Error())
 	}
 	if name == "" {
-		name = "(unknown)"
+		name = ASNameUnknown
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyName: name}}, nil
 }

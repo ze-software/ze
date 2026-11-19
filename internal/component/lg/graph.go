@@ -77,7 +77,7 @@ func renderGraphText(g *Graph) string {
 	var tb textbuf.Buffer
 	for _, n := range g.Nodes {
 		// A node label is read by a human, so it carries the configured
-		// notation. The lookup key resolveASN builds is decimal (server.go).
+		// notation. The name lookup asks in decimal (as_names.go).
 		tb.Reset().Str("AS").Str(asn.Text(n.ASN, asn.Configured()))
 		if n.Name != "" {
 			tb.Byte(' ').Str(n.Name)

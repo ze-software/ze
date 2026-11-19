@@ -19,9 +19,27 @@ func testServer() *LGServer {
 	return &LGServer{logger: slogutil.DiscardLogger()}
 }
 
-// testServerWithDecorator returns an LGServer with an ASN decorator for testing.
-func testServerWithDecorator(fn ASNDecorator) *LGServer {
-	return &LGServer{decorateASN: fn, logger: slogutil.DiscardLogger()}
+// testServerWithNames returns an LGServer whose engine answers
+// `resolve cymru asn-name <asn>` as the resolve component does
+// (handleCymruASNName, internal/component/resolve/cmd/resolve.go): done with
+// {"name": <name>} for an AS number in names, done with {"name": "(unknown)"}
+// for any other, and an error for every other command.
+func testServerWithNames(names map[uint32]string) *LGServer {
+	return testServerWithDispatch(func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+		text, isName := strings.CutPrefix(cmd, asNameCommand)
+		if !isName {
+			return nil, errUnknownCommand
+		}
+		number, err := strconv.ParseUint(text, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		name, known := names[uint32(number)]
+		if !known {
+			name = ASNameUnknown
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"name": name}), nil
+	})
 }
 
 // errTestEngineDown is what the stubbed dispatcher below fails with.
@@ -430,14 +448,10 @@ func TestPeerInfoFromReadsHistory(t *testing.T) {
 }
 
 func TestExtractPeersWithASNNames(t *testing.T) {
-	// VALIDATES: AC-2 -- ASN names populated from decorator.
-	// PREVENTS: empty RemoteASName when decorator is wired.
-	srv := testServerWithDecorator(func(asn string) string {
-		if asn == "65001" {
-			return "Test Org"
-		}
-		return ""
-	})
+	// VALIDATES: AC-2 -- ASN names populated from the resolve component's
+	// answer to `resolve cymru asn-name`.
+	// PREVENTS: empty RemoteASName when the engine names the AS.
+	srv := testServerWithNames(map[uint32]string{65001: "Test Org"})
 
 	ze := map[string]any{
 		"peers": []any{
@@ -676,51 +690,13 @@ func TestAsk(t *testing.T) {
 	})
 }
 
-func TestResolveASN(t *testing.T) {
-	// VALIDATES: resolveASN handles nil decorator and empty input.
-	t.Run("nil decorator", func(t *testing.T) {
-		srv := testServer()
-		if got := srv.resolveASN("65001"); got != "" {
-			t.Errorf("nil decorator: got %q, want empty", got)
-		}
-	})
-
-	t.Run("empty asn", func(t *testing.T) {
-		srv := testServerWithDecorator(func(asn string) string { return "should not be called" })
-		if got := srv.resolveASN(""); got != "" {
-			t.Errorf("empty asn: got %q, want empty", got)
-		}
-	})
-
-	t.Run("decorator returns name", func(t *testing.T) {
-		srv := testServerWithDecorator(func(asn string) string {
-			if asn == "65001" {
-				return "Acme Corp"
-			}
-			return ""
-		})
-		if got := srv.resolveASN("65001"); got != "Acme Corp" {
-			t.Errorf("got %q, want %q", got, "Acme Corp")
-		}
-	})
-
-	t.Run("decorator returns empty", func(t *testing.T) {
-		srv := testServerWithDecorator(func(string) string { return "" })
-		if got := srv.resolveASN("99999"); got != "" {
-			t.Errorf("got %q, want empty", got)
-		}
-	})
-}
-
+// TestDecorateGraphNodes proves an AS path graph labels each node with the
+// name the engine answers, and leaves an AS the engine does not name bare.
+//
+// VALIDATES: AC-6 -- graph node names populated from the name command.
+// PREVENTS: empty node labels when the engine names the AS.
 func TestDecorateGraphNodes(t *testing.T) {
-	// VALIDATES: AC-6 -- graph node names populated from decorator.
-	// PREVENTS: empty node labels when decorator is wired.
-	srv := testServerWithDecorator(func(asn string) string {
-		if asn == "65001" {
-			return "Acme Corp"
-		}
-		return ""
-	})
+	srv := testServerWithNames(map[uint32]string{65001: "Acme Corp"})
 
 	g := &Graph{
 		Nodes: []GraphNode{

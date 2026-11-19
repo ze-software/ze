@@ -107,7 +107,7 @@ set `tls false`). No authentication is required unless you set `token`.
 
 | Tab / View | URL | Description |
 |------------|-----|-------------|
-| Peers tab | `/lg/peers` | All peers with state, session history, ASN names (Team Cymru), route counts. Live SSE updates. |
+| Peers tab | `/lg/peers` | All peers with state, session history, AS names (from Team Cymru, through `resolve cymru asn-name`; an AS it names nothing for, such as a private AS number, shows its number alone), route counts. Live SSE updates. |
 | Lookup tab | `/lg/lookup` | Prefix/IP lookup with inline all-peers AS path topology graph (SVG). |
 | Search tab | `/lg/search` | Unified search: prefix, AS path, or community. Type selector. |
 | Per-peer routes | `/lg/peer/{address}` | Routes received from a specific peer (inline below peers table). |

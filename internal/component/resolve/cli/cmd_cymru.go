@@ -50,11 +50,9 @@ func cmdCymru(args []string) int {
 	dns := resolveDNS.NewResolver(cfg)
 	defer dns.Close()
 
-	txtResolver := func(_ context.Context, name string) ([]string, error) {
-		return dns.ResolveTXT(name)
-	}
-
-	r := cymru.New(txtResolver, nil)
+	// ResolveTXTWithin, as the daemon's Cymru asks: a server failure is an
+	// error here, not "no name found".
+	r := cymru.New(dns.ResolveTXTWithin, nil)
 
 	name, err := r.LookupASNName(context.Background(), number)
 	if err != nil {

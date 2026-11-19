@@ -239,9 +239,11 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decorate peer AS name.
+	// The peer's AS name, under a lookup budget of its own (as_names.go).
 	if remoteAS := getStr(peerInfo, "remote-as"); remoteAS != "" {
-		peerInfo["remote-as-name"] = s.resolveASN(remoteAS)
+		names := s.asNames()
+		peerInfo["remote-as-name"] = names.name(remoteAS)
+		names.done()
 	}
 
 	// Get the prefix-length histogram (fast, constant memory).
@@ -780,6 +782,10 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 	peers, _ := ze[fieldPeers].([]any)
 	var result []peerRow
 
+	// One lookup budget for the table's AS names (as_names.go).
+	names := s.asNames()
+	defer names.done()
+
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {
@@ -796,7 +802,7 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 		result = append(result, peerRow{
 			Address:      address,
 			RemoteAS:     remoteAS,
-			RemoteASName: s.resolveASN(remoteAS),
+			RemoteASName: names.name(remoteAS),
 			State:        getStr(peer, fieldState),
 			Uptime:       getStr(peer, "uptime"),
 			// Route counts (NLRI-level) and UPDATE message counts are
@@ -844,6 +850,10 @@ func (s *LGServer) extractBMPPeers(ze map[string]any) []bmpPeerRow {
 		return nil
 	}
 
+	// One lookup budget for the table's AS names (as_names.go).
+	names := s.asNames()
+	defer names.done()
+
 	var result []bmpPeerRow
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
@@ -856,7 +866,7 @@ func (s *LGServer) extractBMPPeers(ze map[string]any) []bmpPeerRow {
 		result = append(result, bmpPeerRow{
 			Router:     getStr(peer, "router"),
 			PeerAS:     peerAS,
-			PeerASName: s.resolveASN(peerAS),
+			PeerASName: names.name(peerAS),
 			BGPID:      getStr(peer, "peer-bgp-id"),
 			State:      peerState(getBool(peer, "up")),
 			IPv6:       getBool(peer, "ipv6"),

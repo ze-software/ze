@@ -50,7 +50,9 @@ func TestNextHopGraphDrawsOutsidePeersByAS(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
 	}
-	if want := []string{traceModeRIBCommand, cmdBGPOverview}; strings.Join(commands, "|") != strings.Join(want, "|") {
+	// One RIB query, the peer summary, then one name lookup per outside AS,
+	// asked once each through the resolve command (as_names.go).
+	if want := []string{traceModeRIBCommand, cmdBGPOverview, "resolve cymru asn-name 65101", "resolve cymru asn-name 65102"}; strings.Join(commands, "|") != strings.Join(want, "|") {
 		t.Fatalf("commands = %q, want %q", commands, want)
 	}
 
