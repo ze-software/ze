@@ -302,8 +302,12 @@ templ contentRegion(view MainView, content templ.Component) {
 
 // sidePanel renders the side panel region. It is hidden for a page that has
 // no side panel, shows side while the address names a row, and the sentence
-// that tells how to fill it otherwise. oob marks the answer of a navigation
-// inside the shell, which replaces the region on the page.
+// that tells how to fill it otherwise. The panel is unpinned by default, so
+// the stylesheet draws the region only while it holds a row, over the right
+// edge of the content; the class fleet-theme.js sets before the first paint
+// from the stored pin makes it stand beside the content, the sentence
+// included. oob marks the answer of a navigation inside the shell, which
+// replaces the region on the page.
 templ sidePanel(view SidePanelView, side templ.Component, oob bool) {
 	<aside
 		class="fleet-side-panel"
@@ -321,7 +325,7 @@ templ sidePanel(view SidePanelView, side templ.Component, oob bool) {
 			</div>
 		} else if view.Present {
 			<div class="fleet-panel-body" id={ idPanelBody }>
-				@PanelContent(PanelView{Empty: true, Pinned: true})
+				@PanelContent(PanelView{Empty: true})
 			</div>
 		}
 	</aside>

@@ -627,7 +627,7 @@ func (r *Runner) runSelected(ctx context.Context, opts *RunOptions) bool {
 			continue
 		}
 		dut := newDUTBuildTags(r.zePath, r.readDUTBuildInfo)
-		pr.setAdmission(func(record *Record) (string, error) {
+		pr.SetAdmission(func(record *Record) (string, error) {
 			reason, err := dut.admit(record.buildTags)
 			if err != nil {
 				record.buildTagResult = true

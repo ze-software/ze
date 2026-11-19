@@ -91,6 +91,12 @@ var (
 	taskStateTones     = []Tone{
 		ToneNeutral, ToneNeutral, ToneProgress, ToneSuccess, ToneError, ToneMuted, ToneWarning,
 	}
+	rolloutResultTones       = []Tone{ToneNeutral, ToneNeutral, ToneSuccess, ToneError}
+	configVersionResultTones = []Tone{ToneNeutral, ToneSuccess, ToneError, ToneMuted}
+	auditResultTones         = []Tone{
+		ToneNeutral, ToneSuccess, ToneAccent, ToneNeutral, ToneProgress, ToneWarning,
+		ToneSuccess, ToneError, ToneMuted, ToneWarning,
+	}
 )
 
 // toneOf answers the tone of an enum value. A value outside the named set is
@@ -126,6 +132,36 @@ func AlarmStatus(severity AlarmSeverity) Status {
 // TaskStatus answers how a task state is drawn.
 func TaskStatus(state TaskState) Status {
 	return Status{Tone: toneOf(taskStateTones, state), Word: state.String()}
+}
+
+// RolloutResultStatus answers how the result of one device of a rollout is
+// drawn.
+func RolloutResultStatus(result RolloutResult) Status {
+	return Status{Tone: toneOf(rolloutResultTones, result), Word: result.String()}
+}
+
+// ConfigVersionResultStatus answers how a device's answer to one version of
+// its configuration is drawn.
+func ConfigVersionResultStatus(result ConfigVersionResult) Status {
+	return Status{Tone: toneOf(configVersionResultTones, result), Word: result.String()}
+}
+
+// AuditResultStatus answers how the result of an audit entry is drawn.
+func AuditResultStatus(result AuditResult) Status {
+	return Status{Tone: toneOf(auditResultTones, result), Word: result.String()}
+}
+
+// AdjacencyStatus answers how the state of a routing adjacency is drawn: its
+// word is the device's, its tone whether the device holds it up.
+func AdjacencyStatus(adjacency *Adjacency) Status {
+	switch {
+	case adjacency.State == "":
+		return Status{Tone: ToneNeutral, Word: enumWordUnspecified}
+	case adjacency.Up:
+		return Status{Tone: ToneSuccess, Word: adjacency.State}
+	default:
+		return Status{Tone: ToneWarning, Word: adjacency.State}
+	}
 }
 
 // LinkView is one link: its words and the address it opens.

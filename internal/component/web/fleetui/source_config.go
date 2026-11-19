@@ -100,8 +100,11 @@ type ConfigVersion struct {
 	At      time.Time
 	Actor   string
 	Summary string
-	// Result is what the device answered when it was sent this version.
-	Result string
+	// Result is what the device answered when it was sent this version, and
+	// Answer the device's words for a refusal. Answer is empty when the
+	// device gave none.
+	Result ConfigVersionResult
+	Answer string
 }
 
 // Divergence is both sides of a configuration a device edited locally.
@@ -199,8 +202,8 @@ type RolloutDevice struct {
 	Device string
 	// Batch is the number of the batch the device is in.
 	Batch int
-	// Result is the result word, and Answer the device's answer.
-	Result string
+	// Result is where the device stands, and Answer the device's answer.
+	Result RolloutResult
 	Answer string
 	// Answered reports whether the device has been sent the configuration.
 	Answered bool
@@ -218,7 +221,7 @@ type AuditEntry struct {
 	Target string
 	// Devices counts the devices the event touched.
 	Devices int
-	Result  string
+	Result  AuditResult
 	Summary string
 	// TaskID is the task the entry belongs to. It is empty for an entry no
 	// task wrote.

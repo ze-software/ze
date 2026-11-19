@@ -76,10 +76,17 @@
   margin: var(--space-2) 0 0 0;
 }
 
+/* The console owns its margin, so the terminal card, the grant line and the
+   suggestions under it share one left edge. */
 .fleet-device-console {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  margin: var(--space-3);
+}
+
+.fleet-device-console .fleet-terminal {
+  margin: 0;
 }
 
 .fleet-device-grant {

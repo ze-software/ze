@@ -57,6 +57,29 @@ func ParseResourceOption(r *Record, declaration string) (bool, error) {
 	return true, arm.parse(r, "", kv)
 }
 
+// ParseDUTOption applies a declaration of a suite that admits its cases
+// against its own selected DUT through DUTAdmission: the resource options,
+// and the selected-DUT conditions, whose tag vocabulary is read from the
+// checkout above the working directory. False means the option belongs to the
+// suite. Callers MUST admit every case through DUTAdmission.Admit before it
+// runs, or a condition parsed here is never checked.
+func ParseDUTOption(r *Record, declaration string) (bool, error) {
+	parts := strings.Split(declaration, ":")
+	arm, found := recordOptionArms[parts[0]]
+	if !found || !arm.selectedDUT {
+		return ParseResourceOption(r, declaration)
+	}
+	name := "option=" + parts[0]
+	kv, err := parseDirectiveKV(name, parts[1:], arm.keys)
+	if err != nil {
+		return true, err
+	}
+	if err := checkKeys(name, kv, arm.keys...); err != nil {
+		return true, err
+	}
+	return true, arm.parse(r, "", kv)
+}
+
 // parseOptionFile reads option=file.
 func parseOptionFile(r *Record, ciFile string, kv map[string]string) error {
 	configName := kv["path"]

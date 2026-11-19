@@ -66,7 +66,7 @@ func registerAuditFields() {
 	auditFilters.MustRegisterField(TextField("actor", nil, func(row *AuditEntry) string { return row.Actor }))
 	auditFilters.MustRegisterField(TextField("event", nil, func(row *AuditEntry) string { return row.Event }))
 	auditFilters.MustRegisterField(TextField("device", nil, func(row *AuditEntry) string { return row.Target }))
-	auditFilters.MustRegisterField(TextField("result", nil, func(row *AuditEntry) string { return row.Result }))
+	auditFilters.MustRegisterField(TextField("result", auditResultKeys[1:], func(row *AuditEntry) string { return row.Result.Key() }))
 }
 
 // auditQuery is a parsed audit filter: the field terms, and the time bounds
@@ -233,7 +233,7 @@ func auditRow(request *PageRequest, entry *AuditEntry) RowView {
 		Opened:  request.Address.View.Row == entry.ID,
 		Cells: []CellView{
 			whenCell(request, entry.At), TextCell(entry.Actor), MonoCell(entry.Event),
-			target, TextCell(entry.Result), TextCell(entry.Summary),
+			target, StatusCell(AuditResultStatus(entry.Result)), TextCell(entry.Summary),
 		},
 	}
 }
@@ -324,7 +324,7 @@ func auditPanel(ctx context.Context, request *PageRequest) (templ.Component, err
 		{Label: "Event", Text: entry.Event, Mono: true},
 		{Label: "Device or target", Text: entry.Target},
 		{Label: "Devices", Text: countText(entry.Devices)},
-		{Label: "Result", Text: entry.Result},
+		{Label: "Result", Status: AuditResultStatus(entry.Result)},
 		{Label: "Summary", Text: entry.Summary},
 	}
 	if entry.TaskID != "" {
@@ -460,7 +460,7 @@ func writeAuditCSV(body *bytes.Buffer, entries []AuditEntry) error {
 		entry := &entries[index]
 		record := []string{
 			entry.ID, entry.At.UTC().Format(time.RFC3339), entry.Actor, entry.Event, entry.Target,
-			countText(entry.Devices), entry.Result, entry.Summary, entry.TaskID,
+			countText(entry.Devices), entry.Result.Key(), entry.Summary, entry.TaskID,
 		}
 		if err := writer.Write(record); err != nil {
 			return err
@@ -478,7 +478,7 @@ func writeAuditJSON(body *bytes.Buffer, entries []AuditEntry) error {
 		entry := &entries[index]
 		records = append(records, auditRecord{
 			ID: entry.ID, At: entry.At.UTC(), Actor: entry.Actor, Event: entry.Event, Target: entry.Target,
-			Devices: entry.Devices, Result: entry.Result, Summary: entry.Summary, TaskID: entry.TaskID,
+			Devices: entry.Devices, Result: entry.Result.Key(), Summary: entry.Summary, TaskID: entry.TaskID,
 		})
 	}
 

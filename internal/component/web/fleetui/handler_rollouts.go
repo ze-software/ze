@@ -186,7 +186,7 @@ func rolloutPage(ctx context.Context, request *PageRequest, name string) (templ.
 		Back:   LinkView{Label: "All rollouts", Href: rolloutsAddress(request, "", "").String()},
 		Name:   rollout.Name,
 		Status: rolloutStatus(rollout.State),
-		Facts: KeyValueListView{Rows: []ValueView{
+		Facts: QuickInfoView{Card: CardView{Title: "Rollout", Span: 12}, Items: []ValueView{
 			{Label: "Target", Text: rollout.Target},
 			{Label: "Progress", Text: rolloutProgress(rollout)},
 			{Label: "Actor", Text: rollout.Actor},
@@ -197,14 +197,7 @@ func rolloutPage(ctx context.Context, request *PageRequest, name string) (templ.
 	view.Controls, view.Destructive = rolloutControls(rollout)
 
 	if rollout.State == RolloutStatePaused {
-		pause := &RolloutPauseView{Banner: CalloutView{
-			Title: rollout.Name + " paused: " + rollout.PauseReason,
-			Text:  "It waits for an operator. The devices that caused the pause:",
-		}}
-		for _, device := range detail.PauseDevices {
-			pause.Causes = append(pause.Causes, LinkView{Label: device, Href: deviceTabHref(request, device, tabDeviceDashboard)})
-		}
-		view.Pause = pause
+		view.Pause = rolloutPauseBanner(request, rollout, detail.PauseDevices)
 	}
 
 	for _, batch := range detail.Batches {
@@ -250,6 +243,27 @@ func rolloutControls(rollout *Rollout) ([]ActionView, []ActionView) {
 	return nil, nil
 }
 
+// rolloutPauseBanner answers the callout of a paused rollout: why it paused
+// on the first line and, on the second, the device that caused it as the
+// callout's link. When several devices caused it, the second line counts
+// them and the link opens the devices table filtered to them.
+func rolloutPauseBanner(request *PageRequest, rollout *Rollout, causes []string) *CalloutView {
+	banner := CalloutView{
+		Title: rollout.Name + " paused: " + rollout.PauseReason,
+		Text:  "It waits for an operator.",
+	}
+	if len(causes) == 1 {
+		banner.Text = "It waits for an operator. The device that caused the pause:"
+		banner.Link = &LinkView{Label: causes[0], Href: deviceTabHref(request, causes[0], tabDeviceDashboard)}
+	}
+	if len(causes) > 1 {
+		banner.Text = "It waits for an operator. " + strconv.Itoa(len(causes)) + " devices caused the pause:"
+		banner.Link = &LinkView{Label: "Show them", Href: estateDevicesHref(request, "name:"+strings.Join(causes, ","))}
+	}
+
+	return &banner
+}
+
 // rolloutDevices answers the devices table of a rollout.
 func rolloutDevices(request *PageRequest, detail *RolloutDetail) TableSectionView {
 	rows := make([]RowView, 0, len(detail.Devices))
@@ -266,7 +280,7 @@ func rolloutDevices(request *PageRequest, detail *RolloutDetail) TableSectionVie
 			Cells: []CellView{
 				LinkCell(device.Device, deviceTabHref(request, device.Device, tabDeviceConfig)),
 				NumberCell(strconv.Itoa(device.Batch)),
-				TextCell(device.Result),
+				StatusCell(RolloutResultStatus(device.Result)),
 				TextCell(device.Answer),
 				when,
 			},

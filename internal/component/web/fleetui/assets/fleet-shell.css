@@ -197,12 +197,39 @@ html {
   max-width: 100vw;
 }
 
-.fleet-side-panel--overlay {
+/* The side panel is unpinned by default: with no row open it is not drawn,
+   so the content takes the full width, and an opened row lies over the right
+   edge of the content. The class fleet-theme.js sets before the first paint
+   from the stored pin puts it beside the content, with the sentence that says
+   how to fill it while no row is open. */
+.fleet-side-panel[data-fleet-panel="empty"] {
+  display: none;
+}
+
+.fleet-side-panel[data-fleet-panel="open"] {
   position: fixed;
   top: 2.5rem;
   right: 0;
   bottom: 0;
   z-index: 20;
+}
+
+.fleet-panel-pinned .fleet-side-panel[data-fleet-panel="empty"] {
+  display: block;
+}
+
+.fleet-panel-pinned .fleet-side-panel[data-fleet-panel="open"] {
+  position: static;
+}
+
+/* The pin control carries both icons and shows the one its state names. */
+.fleet-pin-icon {
+  display: inline-flex;
+}
+
+[data-fleet-panel-pin][aria-pressed="true"] .fleet-pin-icon--pin,
+[data-fleet-panel-pin][aria-pressed="false"] .fleet-pin-icon--unpin {
+  display: none;
 }
 
 /* --- Header --- */
@@ -823,6 +850,11 @@ html {
     bottom: 0;
     z-index: 20;
     width: 100%;
+  }
+
+  /* A narrow viewport has no room beside the content, pinned or not. */
+  .fleet-panel-pinned .fleet-side-panel[data-fleet-panel="open"] {
+    position: fixed;
   }
 
   .fleet-hub-name,

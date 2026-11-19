@@ -379,7 +379,7 @@ func adjacencyTable(request *PageRequest, view *DeviceView, protocol *ProtocolAd
 			Cells: []CellView{
 				MonoCell(adjacency.Neighbor),
 				MonoCell(adjacency.Interface),
-				TextCell(adjacency.State),
+				StatusCell(AdjacencyStatus(&adjacency)),
 				sinceCell(now, adjacency.Since),
 			},
 		})

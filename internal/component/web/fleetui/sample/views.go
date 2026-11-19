@@ -492,11 +492,13 @@ func adjacenciesAt(row *deviceRow, snap *snapshot) []fleetui.ProtocolAdjacencies
 				Neighbor:  adjacency.neighbor,
 				Interface: adjacency.iface,
 				State:     adjacency.state,
+				Up:        true,
 				Since:     up,
 			}
 			if faulty {
 				if fault.linkDown == adjacency.iface {
 					answer.State = stateDown
+					answer.Up = false
 					answer.Since = snap.ago(fault.since)
 				}
 			}

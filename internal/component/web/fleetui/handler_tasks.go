@@ -95,6 +95,29 @@ func registerTaskFields() {
 	taskFilters.MustRegisterField(taskDeviceField())
 }
 
+// taskKindWordTable holds the words of the task kinds the hub registers
+// today. Kind is open (a registered kind, named by the hub), so a kind the
+// table does not hold is shown as the hub names it.
+var taskKindWordTable = map[string]string{
+	"config-push":           "Config push",
+	"command-batch":         "Command batch",
+	"diagnostic-run":        "Diagnostic run",
+	"divergence-resolution": "Divergence resolution",
+	"rollout-batch":         "Rollout batch",
+	"software-update":       "Software update",
+}
+
+// TaskKindWords answers a task kind as words, for every place a task kind is
+// shown: task rows, the side panel, the filter menu and the toasts. A kind
+// the hub registered after this table was written is shown by its own name.
+func TaskKindWords(kind string) string {
+	if words, known := taskKindWordTable[kind]; known {
+		return words
+	}
+
+	return kind
+}
+
 // taskKind answers the kind of a task.
 func taskKind(task *Task) string {
 	return task.Kind
@@ -223,9 +246,10 @@ func tasksContent(ctx context.Context, request *PageRequest) (templ.Component, e
 	}
 
 	matches := activityMatches(len(kept), len(tasks), tasksSubject)
+	kinds := taskKindsInUse(tasks)
 	menus := []MenuView{
 		activityFilterMenu(request, "State", fieldState, taskStateKeys[1:], taskStateWords[1:]),
-		activityFilterMenu(request, "Kind", activityFieldKind, taskKindsInUse(tasks), taskKindsInUse(tasks)),
+		activityFilterMenu(request, "Kind", activityFieldKind, kinds, taskKindWordsOf(kinds)),
 	}
 
 	return tasksSection(TasksSectionView{
@@ -256,6 +280,16 @@ func taskKindsInUse(tasks []Task) []string {
 	slices.Sort(kinds)
 
 	return slices.Compact(kinds)
+}
+
+// taskKindWordsOf answers the words of each kind, in the order of kinds.
+func taskKindWordsOf(kinds []string) []string {
+	words := make([]string, len(kinds))
+	for index, kind := range kinds {
+		words[index] = TaskKindWords(kind)
+	}
+
+	return words
 }
 
 // activityTaskRow answers one task as a task and event row: the row of the
@@ -334,11 +368,10 @@ func taskSideView(request *PageRequest, detail *TaskDetail) TaskSideView {
 	closed.View.Row = ""
 
 	side := TaskSideView{Panel: PanelView{
-		Title:     task.Kind + " " + task.ID,
+		Title:     TaskKindWords(task.Kind) + " " + task.ID,
 		CloseHref: closed.String(),
 		Icon:      ObjectIconView{Icon: iconTasks, Status: TaskStatus(task.State), Marked: true},
 		Cards:     taskCards(request, detail),
-		Pinned:    true,
 	}}
 
 	action := ActionAddress(taskActionName, request.Address)
@@ -380,7 +413,7 @@ func taskCards(request *PageRequest, detail *TaskDetail) []PanelCardView {
 
 	rows := []ValueView{
 		{Label: "Identifier", Text: task.ID, Mono: true, Copy: true},
-		{Label: "Kind", Text: task.Kind},
+		{Label: "Kind", Text: TaskKindWords(task.Kind)},
 		{Label: "State", Status: TaskStatus(task.State)},
 		{Label: "Progress", Text: ProgressText(task.Finished, len(task.Devices))},
 		{Label: "Failed", Text: textbuf.StringInt(int64(task.Failed))},
@@ -479,7 +512,7 @@ func taskActionToast(ctx context.Context, request *PageRequest, item string) Toa
 		return ToastView{
 			Level:   ToastInformational,
 			Message: changedNothing,
-			Detail: "The cancel of " + task.Kind + " " + task.ID +
+			Detail: "The cancel of " + TaskKindWords(task.Kind) + " " + task.ID +
 				" was confirmed, and no task was stopped. Devices that had finished keep their result.",
 			Link: link,
 		}
@@ -493,7 +526,7 @@ func taskActionToast(ctx context.Context, request *PageRequest, item string) Toa
 		return ToastView{
 			Level:   ToastInformational,
 			Message: changedNothing,
-			Detail: textbuf.New().Str("The retry of ").Str(task.Kind).Byte(' ').Str(task.ID).
+			Detail: textbuf.New().Str("The retry of ").Str(TaskKindWords(task.Kind)).Byte(' ').Str(task.ID).
 				Str(" over its failed devices (").Join(failed, ", ").Str(") was confirmed, and no task was started.").String(),
 			Link: link,
 		}

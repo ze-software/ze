@@ -17,12 +17,12 @@ func init() {
 	registerAlarmTabs()
 
 	for _, kind := range []ObjectKind{ObjectEstate, ObjectGroup, ObjectDevice} {
-		MustRegisterPage(Page{Kind: kind, Tab: activityTabTasks, Content: tasksContent, SidePanel: taskSidePanel})
+		MustRegisterPage(Page{Kind: kind, Tab: activityTabTasks, Content: tasksContent, SidePanel: taskSidePanel, Primary: estatePrimary})
 	}
 	MustRegisterPage(Page{Kind: ObjectTasks, Content: tasksContent, SidePanel: taskSidePanel})
 
 	for _, kind := range []ObjectKind{ObjectEstate, ObjectGroup} {
-		MustRegisterPage(Page{Kind: kind, Tab: activityTabAlarms, Content: alarmsContent, SidePanel: alarmSidePanel})
+		MustRegisterPage(Page{Kind: kind, Tab: activityTabAlarms, Content: alarmsContent, SidePanel: alarmSidePanel, Primary: estatePrimary})
 	}
 
 	MustRegisterPage(Page{Kind: ObjectAdmin, Tab: activityTabStates, Content: statesContent})

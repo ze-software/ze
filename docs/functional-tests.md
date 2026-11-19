@@ -161,6 +161,7 @@ must be run manually:
 | Live RPKI | `./le test integration live-rpki` | `TestLiveRPKIValidation`, `TestLiveASPAValidation` and `TestLiveRTRv2DowngradeToV1` (tag `live`) against a real stayrtr started through `labtest.Start`: Cloudflare's public RPKI data, and a synthetic ASPA set the test serves. Needs Docker and internet access. The verb sets `ZE_REQUIRE_DOCKER=1`, so an absent Docker or an unpullable image fails; run ad hoc with `go test -tags live`, either skips |
 | Docker peers | `./le test integration docker-peers` | Every package test tagged `docker`: a real server started through `labtest.Start`, with `ZE_REQUIRE_DOCKER=1`. Needs Docker and no Ze kernel |
 | Chaos web | `./le test functional web` | Browser and dashboard scenarios |
+| Fleet review web | `env ze.tags=ze_fleet_ui_sample ./le job run label fleet-web command bin/le test web -p fleet-` | The fleet interface `.wb` cases, which carry `option=needs-build-tag:value=ze_fleet_ui_sample:state=present`: the tag links the sample estate, and a ze built without it skips each case with the reason naming the tag and this `ze.tags` prefix <!-- source: internal/test/runner/build_tags.go -- developmentBuildTags, DUTAdmission --> |
 
 Every suite action routes through `internal/le/job`, which runs it now,
 queues it behind a heavy job already in flight, or attaches it to an equivalent

@@ -470,24 +470,23 @@
 
   // --- Side panel -----------------------------------------------------------
 
+  // panelPinned reads the stored pin. The panel is unpinned until the
+  // operator pins it, so a table with no row open takes the full width.
   function panelPinned() {
-    return local(KEY_PANEL_PINNED) !== '0';
+    return local(KEY_PANEL_PINNED) === '1';
   }
 
-  // applyPanel shows the side panel region as its state and its pin ask:
-  // pinned, it stays beside the content and says how to fill it; unpinned, it
-  // opens over the content only while it shows a row.
+  // applyPanel sets the pin class fleet-theme.js set before the first paint,
+  // and names the pin on its control. The stylesheet draws the region from
+  // that class and the region's state: pinned, it stays beside the content
+  // and says how to fill it; unpinned, it opens over the content only while
+  // it shows a row.
   function applyPanel() {
+    var isPinned = panelPinned();
+    document.documentElement.classList.toggle('fleet-panel-pinned', isPinned);
+
     var panel = byId('fleet-side-panel');
     if (!panel) return;
-
-    var state = panel.getAttribute('data-fleet-panel');
-    var isPinned = panelPinned();
-    var open = state === 'open';
-
-    panel.hidden = !(open || (state === 'empty' && isPinned));
-    panel.classList.toggle('fleet-side-panel--overlay', open && !isPinned);
-    body.classList.toggle('fleet-shell--panel', !panel.hidden && isPinned);
 
     each('[data-fleet-panel-pin]', function (button) {
       var label = isPinned ? 'Unpin the side panel' : 'Pin the side panel';

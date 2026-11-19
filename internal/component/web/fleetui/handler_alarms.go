@@ -406,7 +406,6 @@ func alarmSidePanel(ctx context.Context, request *PageRequest) (templ.Component,
 		CloseHref: closed.String(),
 		Icon:      ObjectIconView{Icon: iconAlert, Status: AlarmStatus(row.Alarm.Severity), Marked: true},
 		Cards:     []PanelCardView{alarmCard(request, row)},
-		Pinned:    true,
 	}
 
 	if row.Alarm.Device == "" {

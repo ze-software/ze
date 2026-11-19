@@ -7,7 +7,7 @@ package fleetui
 
 func init() {
 	for _, kind := range []ObjectKind{ObjectEstate, ObjectGroup} {
-		MustRegisterPage(Page{Kind: kind, Tab: devicesTab, Content: devicesContent, SidePanel: devicesPanel})
+		MustRegisterPage(Page{Kind: kind, Tab: devicesTab, Content: devicesContent, SidePanel: devicesPanel, Primary: estatePrimary})
 	}
 
 	MustRegisterAction(devicesActionName, devicesActionAnswer)

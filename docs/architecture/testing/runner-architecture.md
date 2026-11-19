@@ -555,7 +555,9 @@ present/absent mismatch skips that case with the artifact and predicate;
 unknown metadata fails it. This admission runs before the exclusive lease and
 concurrency semaphore. Parse-runner failures and skips are retained on both the
 scheduler record and original parsing test so failure output preserves the
-cause. Resource-only consumers reject this declaration.
+cause. The web runner admits its `.wb` cases the same way, over the ze it
+built (`DUTAdmission`). Resource-only consumers (the editor runner) reject this
+declaration.
 <!-- source: internal/test/runner/build_tags.go -- dutBuildTags.admit, explicitDUTBuildTags -->
 <!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
 <!-- source: internal/test/runner/parsing.go -- parsingRunner.Run -->
@@ -606,8 +608,12 @@ Unknown directives or kinds fail parsing immediately.
 | `option=server:kind=web\|lg\|lg-no-engine\|chaos\|daemon` | Which server the harness starts. Default `web`. An unknown kind fails parsing, because starting the default one and asserting against it is a pass that proves nothing |
 | `option=env:var=<name>:value=<v>` | Repeatable. Sets one environment variable on the SERVER process |
 | `option=plugin:name=<internal plugin>` | Repeatable. Adds `plugin { internal <name> { use <name> } }` to the daemon kind's config, so a test drives a command only that plugin serves. Any other kind loads no config, so the harness refuses the test rather than run it without the plugin |
+| `option=needs-build-tag:value=<tag>:state=present\|absent` | Run only when the ze the suite built has the tag in the declared state. The tag is one of `feature-gates.txt` or of the development tags no shipped build sets (`ze_fleet_ui_sample`), which a run adds through `ze.tags`: `env ze.tags=ze_fleet_ui_sample ./le test web <selector>`. A mismatch SKIPS the case, naming the tag and that command, before it takes a port or a browser; an unknown tag fails parsing; unreadable build information fails the case |
 
 <!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth, server, env, plugin -->
+<!-- source: internal/test/runner/build_tags.go -- developmentBuildTags, DUTAdmission.Admit -->
+<!-- source: internal/test/runner/record_parse_option.go -- ParseDUTOption -->
+<!-- source: internal/test/cli/cmd_web.go -- runWebTests: the admission over bins.ze -->
 <!-- source: internal/component/web/testing/deadline.go -- CaseContext, Bound -->
 <!-- source: internal/test/labconfig/web.go -- WebDaemon -->
 

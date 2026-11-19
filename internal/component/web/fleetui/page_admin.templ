@@ -8,7 +8,7 @@ package fleetui
 // the hidden form its actions submit. Each part but the table is optional.
 type AdminPageView struct {
 	Note        *CalloutView
-	Facts       *KeyValueListView
+	Facts       *QuickInfoView
 	FactsAction *ActionView
 	Exports     []LinkView
 	ExportNote  string
@@ -36,7 +36,7 @@ templ AdminPage(v AdminPageView) {
 		}
 		if v.Facts != nil {
 			<section class="fleet-manage-section">
-				@KeyValueList(*v.Facts)
+				@QuickInfo(*v.Facts)
 				if v.FactsAction != nil {
 					<div class="fleet-manage-resolve">
 						@ActionButton(*v.FactsAction)

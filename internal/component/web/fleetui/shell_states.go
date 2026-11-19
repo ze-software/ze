@@ -137,7 +137,7 @@ func notBuiltHero(request *PageRequest) templ.Component {
 // panelEmpty answers the side panel with no row chosen: the sentence that
 // tells the operator how to fill it.
 func panelEmpty() templ.Component {
-	return PanelContent(PanelView{Empty: true, Pinned: true})
+	return PanelContent(PanelView{Empty: true})
 }
 
 // taskTab is one tab of the task panel. The zero value is not a tab.
@@ -218,11 +218,6 @@ func parseTaskTab(key string) (taskTab, error) {
 
 // taskRowView answers one task as the panel lists it.
 func taskRowView(request *PageRequest, task *Task) TaskRowView {
-	name := textbuf.New().Str(task.Kind)
-	if task.Target != "" {
-		name.Str(" on ").Str(task.Target)
-	}
-
 	now := request.Snapshot.Now
 	when := "Started " + RelativeTime(now.Sub(task.Started))
 	if !task.State.Active() {
@@ -230,7 +225,8 @@ func taskRowView(request *PageRequest, task *Task) TaskRowView {
 	}
 
 	return TaskRowView{
-		Name:   name.Slice(),
+		Name:   TaskKindWords(task.Kind),
+		Target: task.Target,
 		Actor:  task.Actor,
 		When:   when,
 		Status: TaskStatus(task.State),

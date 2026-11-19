@@ -1391,8 +1391,12 @@ func contentRegion(view MainView, content templ.Component) templ.Component {
 
 // sidePanel renders the side panel region. It is hidden for a page that has
 // no side panel, shows side while the address names a row, and the sentence
-// that tells how to fill it otherwise. oob marks the answer of a navigation
-// inside the shell, which replaces the region on the page.
+// that tells how to fill it otherwise. The panel is unpinned by default, so
+// the stylesheet draws the region only while it holds a row, over the right
+// edge of the content; the class fleet-theme.js sets before the first paint
+// from the stored pin makes it stand beside the content, the sentence
+// included. oob marks the answer of a navigation inside the shell, which
+// replaces the region on the page.
 func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1417,7 +1421,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templruntime.NewAttributeExpression(idSidePanel).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 310, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 314, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 		if templ_7745c5c3_Err != nil {
@@ -1430,7 +1434,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templruntime.NewAttributeExpression(panelState(view)).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 312, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 316, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 		if templ_7745c5c3_Err != nil {
@@ -1464,7 +1468,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 			var templ_7745c5c3_Var63 string
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templruntime.NewAttributeExpression(idPanelBody).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 319, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 323, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 			if templ_7745c5c3_Err != nil {
@@ -1477,7 +1481,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templruntime.NewAttributeExpression(regionKeyContent).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 319, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 323, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 			if templ_7745c5c3_Err != nil {
@@ -1490,7 +1494,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templruntime.NewAttributeExpression(fragmentPanel).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 319, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 323, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 			if templ_7745c5c3_Err != nil {
@@ -1516,7 +1520,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templruntime.NewAttributeExpression(idPanelBody).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 323, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/fleetui/shell.templ`, Line: 327, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 			if templ_7745c5c3_Err != nil {
@@ -1526,7 +1530,7 @@ func sidePanel(view SidePanelView, side templ.Component, oob bool) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = PanelContent(PanelView{Empty: true, Pinned: true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = PanelContent(PanelView{Empty: true}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

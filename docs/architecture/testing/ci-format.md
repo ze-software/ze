@@ -420,9 +420,17 @@ file is judged in the parsed workflow's load composition, using the browser
 daemon's own baseline, including parsed authentication/profile declarations,
 and the shared editor's merge or replace operation. A default web case that
 needs multiple users or a reader shares the runner's daemon-selection rule.
-Login and authenticated editor-owner switching before a load remain explicit
-unsupported-composition findings, retaining standalone validation of that file.
-An accepted editor draft is counted separately; its submitted commit snapshot uses
+
+Declared logins are checked against the generated fixture credentials. Their
+resolved profiles gate editor mutations before a physical input is consumed.
+The same authenticated candidate survives CLI and graphical page navigation.
+Native import controls provide the selected token path, root or selected-item
+scope, and merge or replace operation. Repeated login remains an explicit
+unsupported composition: the browser runner cannot fill a second login form
+on an authenticated page. Failed authentication, denied mutation and unknown
+composition retain the physical file's standalone validation.
+
+An accepted editor draft is counted separately. Its submitted commit snapshot uses
 the full configuration validator. Standalone and applied config oracles remain
 unchanged. The fragment is
 not made standalone by adding settings that the running daemon already supplies.
@@ -580,13 +588,18 @@ option=<type>:key=value[:key=value...]
 <!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
-`needs-build-tag` is supported by the generic `.ci` and parse runners. It reads
+`needs-build-tag` is supported by the generic `.ci` and parse runners, and by
+the web runner for `.wb` cases (`ParseDUTOption`, admitted through
+`DUTAdmission` against the ze the web suite built). Besides the manifest's
+tags it accepts the development tags no shipped build sets
+(`developmentBuildTags`, today `ze_fleet_ui_sample`), which a run adds with
+`env ze.tags=<tag>`; a missing tag's skip reason names that command. It reads
 the final selected DUT's embedded Go `-tags` setting once per run, only when a
 selected case with valid declarations has passed its existing host admission.
 Declare each feature once; an unknown feature name, state, key or repeated
 declaration is a parse error. Ordinary cases do not read DUT metadata. The
-shared resource-only reader used by editor and web tests refuses this option
-because those consumers do not supply a selected DUT to this admission path.
+shared resource-only reader used by editor tests refuses this option because
+that consumer does not supply a selected DUT to this admission path.
 <!-- source: internal/test/runner/build_tags.go -- parseOptionNeedsBuildTag, dutBuildTags.admit, explicitDUTBuildTags -->
 <!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
 

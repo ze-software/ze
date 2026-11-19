@@ -75,7 +75,6 @@
 
 .fleet-manage-batches,
 .fleet-manage-preview,
-.fleet-manage-causes,
 .fleet-manage-choices {
   margin: 0;
   padding: 0;
@@ -110,7 +109,6 @@
 }
 
 .fleet-manage-preview,
-.fleet-manage-causes,
 .fleet-manage-choices {
   display: flex;
   flex-direction: column;

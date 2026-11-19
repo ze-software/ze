@@ -180,7 +180,7 @@ func ParseWBFile(content string) (*WBTestCase, error) {
 }
 
 func parseWBOption(tc *WBTestCase, rest string, line int) error {
-	if handled, err := runner.ParseResourceOption(&tc.Admission, rest); handled {
+	if handled, err := runner.ParseDUTOption(&tc.Admission, rest); handled {
 		if err != nil {
 			return fmt.Errorf("line %d: %w", line, err)
 		}

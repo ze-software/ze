@@ -22,7 +22,7 @@ func TestBuildTagAdmissionBeforeExclusiveLease(t *testing.T) {
 	pr := NewParallelRunner[int](NewColors())
 	pr.SetQuiet(true)
 	pr.setNoSummary(true)
-	pr.setAdmission(func(int) (string, error) { return "selected DUT lacks required tag", nil })
+	pr.SetAdmission(func(int) (string, error) { return "selected DUT lacks required tag", nil })
 	record := pr.AddTestWithNick("mismatch", "mismatch", 0, func(context.Context, int) (bool, error) {
 		t.Error("build mismatch reached execution")
 		return true, nil
@@ -50,7 +50,7 @@ func TestBuildTagAdmissionBeforeSemaphore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	started := make(chan struct{})
-	pr.setAdmission(func(number int) (string, error) {
+	pr.SetAdmission(func(number int) (string, error) {
 		if number == 0 {
 			return "", nil
 		}
@@ -90,7 +90,7 @@ func TestBuildTagAdmissionPreservesEarlierVerdicts(t *testing.T) {
 		pr.SetQuiet(true)
 		pr.setNoSummary(true)
 		var calls atomic.Int32
-		pr.setAdmission(func(int) (string, error) {
+		pr.SetAdmission(func(int) (string, error) {
 			calls.Add(1)
 			return "", errors.New("artifact must not be read")
 		})

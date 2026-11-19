@@ -277,9 +277,9 @@ func (r *parallelRunner[T]) setHostLoad(h *HostLoad) {
 	r.hostLoad = h
 }
 
-// setAdmission supplies a pre-resource verdict for eligible tests. The caller
+// SetAdmission supplies a pre-resource verdict for eligible tests. The caller
 // MUST set it before Run. Nil performs no additional admission work.
-func (r *parallelRunner[T]) setAdmission(admit func(T) (string, error)) {
+func (r *parallelRunner[T]) SetAdmission(admit func(T) (string, error)) {
 	r.admission = admit
 }
 

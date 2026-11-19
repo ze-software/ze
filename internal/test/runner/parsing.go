@@ -740,7 +740,7 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 			continue
 		}
 		dut := newDUTBuildTags(r.zePath, r.readDUTBuildInfo)
-		runner.setAdmission(func(parsed *parsingTest) (string, error) {
+		runner.SetAdmission(func(parsed *parsingTest) (string, error) {
 			reason, err := dut.admit(parsed.buildTags)
 			if err != nil {
 				parsed.Error = err

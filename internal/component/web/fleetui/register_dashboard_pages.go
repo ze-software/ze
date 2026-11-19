@@ -41,7 +41,7 @@ const (
 
 func init() {
 	for _, kind := range []ObjectKind{ObjectEstate, ObjectGroup, ObjectDevice} {
-		MustRegisterPage(Page{Kind: kind, Tab: TabDashboard, Content: dashboardContent})
+		MustRegisterPage(Page{Kind: kind, Tab: TabDashboard, Content: dashboardContent, Primary: estatePrimary})
 	}
 
 	MustRegisterFragment(fragmentDashboardCard, dashboardCardFragment)

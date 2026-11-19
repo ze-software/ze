@@ -47,8 +47,8 @@ func (source *manageSource) DeviceConfig(_ context.Context, device string) (Devi
 
 func (source *manageSource) ConfigVersions(context.Context, string) ([]ConfigVersion, error) {
 	return []ConfigVersion{
-		{Version: manageVersionNew, At: testNow.Add(-time.Hour), Actor: "alice", Summary: manageSummaryNew, Result: "Applied"},
-		{Version: manageVersionOld, At: testNow.Add(-48 * time.Hour), Actor: "bob", Summary: manageSummaryOld, Result: "Applied"},
+		{Version: manageVersionNew, At: testNow.Add(-time.Hour), Actor: "alice", Summary: manageSummaryNew, Result: ConfigVersionResultApplied},
+		{Version: manageVersionOld, At: testNow.Add(-48 * time.Hour), Actor: "bob", Summary: manageSummaryOld, Result: ConfigVersionResultApplied},
 	}, nil
 }
 
@@ -100,7 +100,7 @@ func (source *manageSource) Rollout(_ context.Context, name string) (RolloutDeta
 		return RolloutDetail{
 			Rollout: manageRollout(name),
 			Batches: []RolloutBatch{{Number: 1, State: RolloutStateComplete}},
-			Devices: []RolloutDevice{{Device: coreLon01, Batch: 1, Result: "Applied", Answer: "commit 7", Answered: true, At: testNow.Add(-23 * time.Hour)}},
+			Devices: []RolloutDevice{{Device: coreLon01, Batch: 1, Result: RolloutResultApplied, Answer: "commit 7", Answered: true, At: testNow.Add(-23 * time.Hour)}},
 		}, nil
 	}
 	if name != manageRolloutPaused {
@@ -113,9 +113,9 @@ func (source *manageSource) Rollout(_ context.Context, name string) (RolloutDeta
 			{Number: 1, State: RolloutStateComplete}, {Number: 2, State: RolloutStatePaused}, {Number: 3, State: RolloutStatePending},
 		},
 		Devices: []RolloutDevice{
-			{Device: edgeLon01, Batch: 1, Result: "Applied", Answer: "commit 12", Answered: true, At: testNow.Add(-time.Hour)},
-			{Device: cpe0113, Batch: 2, Result: "Failed", Answer: "commit refused: unknown leaf", Answered: true, At: testNow.Add(-30 * time.Minute)},
-			{Device: edgeLon02, Batch: 3, Result: "Waiting"},
+			{Device: edgeLon01, Batch: 1, Result: RolloutResultApplied, Answer: "commit 12", Answered: true, At: testNow.Add(-time.Hour)},
+			{Device: cpe0113, Batch: 2, Result: RolloutResultRejected, Answer: "commit refused: unknown leaf", Answered: true, At: testNow.Add(-30 * time.Minute)},
+			{Device: edgeLon02, Batch: 3, Result: RolloutResultWaiting},
 		},
 		PauseDevices: []string{cpe0113},
 	}, nil
@@ -123,9 +123,9 @@ func (source *manageSource) Rollout(_ context.Context, name string) (RolloutDeta
 
 func (source *manageSource) AuditEntries(context.Context) ([]AuditEntry, error) {
 	return []AuditEntry{
-		{ID: "A-3", At: testNow.Add(-time.Hour), Actor: "alice", Event: "config-push", Target: edgeLon01, Devices: 1, Result: "applied", Summary: manageSummaryNew, TaskID: "T-1"},
-		{ID: "A-2", At: testNow.Add(-3 * time.Hour), Actor: "bob", Event: "rollout-start", Target: "role:edge", Devices: 3, Result: "started", Summary: manageSummaryStart},
-		{ID: "A-1", At: testNow.Add(-48 * time.Hour), Actor: "bob", Event: "config-push", Target: edgeLon01, Devices: 1, Result: "applied", Summary: manageSummaryOld},
+		{ID: "A-3", At: testNow.Add(-time.Hour), Actor: "alice", Event: "config-push", Target: edgeLon01, Devices: 1, Result: AuditResultSucceeded, Summary: manageSummaryNew, TaskID: "T-1"},
+		{ID: "A-2", At: testNow.Add(-3 * time.Hour), Actor: "bob", Event: "rollout-start", Target: "role:edge", Devices: 3, Result: AuditResultStarted, Summary: manageSummaryStart},
+		{ID: "A-1", At: testNow.Add(-48 * time.Hour), Actor: "bob", Event: "config-push", Target: edgeLon01, Devices: 1, Result: AuditResultSucceeded, Summary: manageSummaryOld},
 	}, nil
 }
 

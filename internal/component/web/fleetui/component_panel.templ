@@ -108,19 +108,12 @@ func panelPinLabel(pinned bool) string {
 	return "Pin the side panel"
 }
 
-// panelPinIcon answers the icon of the pin control.
-func panelPinIcon(pinned bool) string {
-	if pinned {
-		return "unpin"
-	}
-
-	return "pin"
-}
-
 // PanelContent draws the content of the side panel: a header with the row's
 // name, its own actions, the pin control and the close link, then a stack of
 // small cards. With no row chosen it shows one centred sentence over a
-// picture. The shell script owns the pin: the control only names it.
+// picture. The shell script owns the pin: the control only names it, and it
+// carries both icons so the stylesheet shows the one its pressed state names
+// once the script has read the stored pin.
 templ PanelContent(v PanelView) {
 	<div class="fleet-panel">
 		<header class="fleet-panel-head">
@@ -130,7 +123,12 @@ templ PanelContent(v PanelView) {
 			}
 			<div class="fleet-panel-controls">
 				<button type="button" class="fleet-icon-button" data-fleet-panel-pin="true" aria-pressed={ boolText(v.Pinned) } aria-label={ panelPinLabel(v.Pinned) } title={ panelPinLabel(v.Pinned) }>
-					@Icon(panelPinIcon(v.Pinned))
+					<span class="fleet-pin-icon fleet-pin-icon--pin">
+						@Icon("pin")
+					</span>
+					<span class="fleet-pin-icon fleet-pin-icon--unpin">
+						@Icon("unpin")
+					</span>
 				</button>
 				if !v.Empty {
 					@NavLink(NavLinkView{Href: v.CloseHref, Class: "fleet-icon-button", Name: "Close the details"}) {

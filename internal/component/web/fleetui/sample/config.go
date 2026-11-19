@@ -37,9 +37,8 @@ const (
 	rejectionAnswer = "rejected at verify: bgp group transit: prefix maximum 1200000 is above " +
 		"the 1000000 routes this device has memory for"
 
-	resultApplied    = "applied"
-	resultNotFetched = "not fetched yet"
-	resultKeptLocal  = "kept the local edit: the hub's version was not applied"
+	resultApplied   = "applied"
+	resultKeptLocal = "kept the local edit: the hub's version was not applied"
 
 	// fetchDelay is how long after a revision is written a device fetches it.
 	fetchDelay = 20 * time.Second
@@ -348,18 +347,18 @@ func deviceConfig(row *deviceRow) fleetui.DeviceConfig {
 }
 
 // revisionResult answers what the device answered when it was sent revision
-// number.
-func revisionResult(stage *configStage, number uint8) string {
+// number, and its words for a refusal.
+func revisionResult(stage *configStage, number uint8) (fleetui.ConfigVersionResult, string) {
 	if stage.fetched {
 		if number <= stage.device {
-			return resultApplied
+			return fleetui.ConfigVersionResultApplied, ""
 		}
 	}
 	if stage.state == fleetui.ConfigStateRejected {
-		return rejectionAnswer
+		return fleetui.ConfigVersionResultRejected, rejectionAnswer
 	}
 
-	return resultNotFetched
+	return fleetui.ConfigVersionResultNotFetched, ""
 }
 
 // configVersions answers the versions the hub has held for a device, the
@@ -370,12 +369,14 @@ func configVersions(row *deviceRow, snap *snapshot) []fleetui.ConfigVersion {
 	versions := make([]fleetui.ConfigVersion, 0, stage.hub)
 	for number := stage.hub; number >= revisionFirst; number-- {
 		written := &revisions[number-1]
+		result, answer := revisionResult(stage, number)
 		versions = append(versions, fleetui.ConfigVersion{
 			Version: versionID(row.name, number),
 			At:      snap.ago(written.age),
 			Actor:   written.actor,
 			Summary: written.summary,
-			Result:  revisionResult(stage, number),
+			Result:  result,
+			Answer:  answer,
 		})
 	}
 

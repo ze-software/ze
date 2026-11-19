@@ -27,7 +27,10 @@ type TaskResultView struct {
 // Total of zero draws no progress bar. Results are its parts, shown when the
 // row is expanded. EyeHref opens the row in the side panel.
 type TaskRowView struct {
+	// Name is the task's kind in words, and Target the summary of the devices
+	// it runs on, drawn after it in the secondary text colour.
 	Name    string
+	Target  string
 	Actor   string
 	When    string
 	EyeHref string
@@ -72,7 +75,12 @@ templ taskProgress(v TaskRowView) {
 // count of its parts, its progress and its actor, then right aligned its
 // time, a larger result indicator with the state's word, and the eye.
 templ taskSummary(v TaskRowView) {
-	<span class="fleet-task-name">{ v.Name }</span>
+	<span class="fleet-task-name">
+		{ v.Name }
+		if v.Target != "" {
+			<span class="fleet-task-target">{ "on " + v.Target }</span>
+		}
+	</span>
 	<span class="fleet-task-mark">
 		@StatusMark(v.Status)
 	</span>

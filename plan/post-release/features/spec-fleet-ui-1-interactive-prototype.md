@@ -8,7 +8,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/6 |
+| Phase | 5/6 |
 | Handoff | - |
 | Updated | 2026-11-19 |
 
@@ -533,10 +533,10 @@ What the five page families decided that departs from or adds to this spec and i
 
 | Field | Value |
 |-------|-------|
-| Binary | |
-| Address | |
-| Process | |
-| Started by | |
+| Binary | `tmp/session/2026-11-18-205620/scratch/ze-fleet-review`, built with the sample tag and without the `ze_l2tp` and `ze_vpp` gates, because another session's in-progress change breaks the L2TP build in the shared checkout; the fleet interface depends on neither |
+| Address | `https://127.0.0.1:59440/fleet/` (loopback, self-signed certificate, no login) |
+| Process | pid 46189, recorded in `tmp/session/2026-11-18-205620/scratch/fleet-review.pid`; config store `tmp/session/2026-11-18-205620/scratch/fleet-review-config`, log `tmp/session/2026-11-18-205620/scratch/fleet-review.log` |
+| Started by | The main session of this spec, on 2026-11-19 |
 | Removal condition | Stopped and the scratch binary removed when the owner ends the review |
 
 ## Owner review record

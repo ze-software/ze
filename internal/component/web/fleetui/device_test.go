@@ -167,7 +167,7 @@ func (source *deviceTestSource) DeviceAdjacencies(_ context.Context, name string
 	}
 
 	return []ProtocolAdjacencies{{Protocol: "OSPF", Rows: []Adjacency{
-		{Neighbor: "10.0.0.2", Interface: "eth0", State: "full", Since: testNow.Add(-2 * time.Hour)},
+		{Neighbor: "10.0.0.2", Interface: "eth0", State: "full", Up: true, Since: testNow.Add(-2 * time.Hour)},
 	}}}, nil
 }
 

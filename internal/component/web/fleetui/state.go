@@ -223,6 +223,99 @@ func (state ConfigState) Key() string {
 	return enumText(configStateKeys, state)
 }
 
+// RolloutResult is where one device of a rollout stands: its result word is
+// drawn beside a mark in the result's colour, never as a bare word.
+type RolloutResult uint8
+
+const (
+	// RolloutResultUnspecified is the invalid zero value.
+	RolloutResultUnspecified RolloutResult = iota
+	// RolloutResultWaiting means the device has not been sent the version yet.
+	RolloutResultWaiting
+	// RolloutResultApplied means the device applied the version.
+	RolloutResultApplied
+	// RolloutResultRejected means the device refused the version.
+	RolloutResultRejected
+)
+
+var rolloutResultWords = []string{enumWordUnspecified, "Waiting", "Applied", "Rejected"}
+
+// String answers the result's word.
+func (result RolloutResult) String() string {
+	return enumText(rolloutResultWords, result)
+}
+
+// ConfigVersionResult is what a device answered when the hub sent it one
+// version of its configuration. The zero value is not a result.
+type ConfigVersionResult uint8
+
+const (
+	// ConfigVersionResultUnspecified is the invalid zero value.
+	ConfigVersionResultUnspecified ConfigVersionResult = iota
+	// ConfigVersionResultApplied means the device applied the version.
+	ConfigVersionResultApplied
+	// ConfigVersionResultRejected means the device refused the version.
+	ConfigVersionResultRejected
+	// ConfigVersionResultNotFetched means the device has not fetched the
+	// version yet.
+	ConfigVersionResultNotFetched
+)
+
+var configVersionResultWords = []string{enumWordUnspecified, "Applied", "Rejected", "Not fetched yet"}
+
+// String answers the result's word.
+func (result ConfigVersionResult) String() string {
+	return enumText(configVersionResultWords, result)
+}
+
+// AuditResult is how the event an audit entry records turned out. The zero
+// value is not a result.
+type AuditResult uint8
+
+const (
+	// AuditResultUnspecified is the invalid zero value.
+	AuditResultUnspecified AuditResult = iota
+	// AuditResultRecorded means the change took effect when it was recorded.
+	AuditResultRecorded
+	// AuditResultStarted means the event started work that goes on.
+	AuditResultStarted
+	// AuditResultPending means the work waits to start.
+	AuditResultPending
+	// AuditResultRunning means the work is under way.
+	AuditResultRunning
+	// AuditResultPaused means the work waits for an operator.
+	AuditResultPaused
+	// AuditResultSucceeded means the work finished on every device.
+	AuditResultSucceeded
+	// AuditResultFailed means the work failed.
+	AuditResultFailed
+	// AuditResultCanceled means an operator stopped the work.
+	AuditResultCanceled
+	// AuditResultPartlyFailed means the work failed on some devices.
+	AuditResultPartlyFailed
+)
+
+var (
+	auditResultWords = []string{
+		enumWordUnspecified, "Recorded", "Started", enumWordPending, "Running", "Paused",
+		"Succeeded", "Failed", "Canceled", "Partly failed",
+	}
+	auditResultKeys = []string{
+		enumKeyUnspecified, "recorded", "started", enumKeyPending, "running", "paused",
+		"succeeded", enumKeyFailed, "canceled", "partly-failed",
+	}
+)
+
+// String answers the result's word.
+func (result AuditResult) String() string {
+	return enumText(auditResultWords, result)
+}
+
+// Key answers the result's name in a filter term and an export.
+func (result AuditResult) Key() string {
+	return enumText(auditResultKeys, result)
+}
+
 // ParseConfigState answers the state a filter term names, or false.
 func ParseConfigState(key string) (ConfigState, bool) {
 	return enumParse[ConfigState](configStateKeys, key)

@@ -9,7 +9,7 @@ func init() {
 	registerAuditFields()
 
 	MustRegisterPage(Page{Kind: ObjectDevice, Tab: tabDeviceConfig, Content: configContent, SidePanel: configPanel})
-	MustRegisterPage(Page{Kind: ObjectEstate, Tab: tabEstateRollouts, Content: rolloutsContent})
+	MustRegisterPage(Page{Kind: ObjectEstate, Tab: tabEstateRollouts, Content: rolloutsContent, Primary: estatePrimary})
 
 	MustRegisterPage(Page{Kind: ObjectAdmin, Tab: tabAdminAudit, Content: auditContent, SidePanel: auditPanel})
 	MustRegisterPage(Page{Kind: ObjectAdmin, Tab: tabAdminDevices, Content: adminDevicesContent, SidePanel: adminDevicesPanel})

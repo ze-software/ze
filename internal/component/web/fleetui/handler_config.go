@@ -340,7 +340,7 @@ func configHistoryFragment(ctx context.Context, request *PageRequest, _ string) 
 			Opened:  request.Address.View.Row == version.Version,
 			Cells: []CellView{
 				whenCell(request, version.At), MonoCell(version.Version), TextCell(version.Actor),
-				TextCell(version.Summary), TextCell(version.Result),
+				TextCell(version.Summary), StatusCell(ConfigVersionResultStatus(version.Result)),
 			},
 			Menu: &MenuView{Label: "Actions for version " + version.Version, Items: []ActionView{rollback}},
 		})
@@ -476,16 +476,21 @@ func configPanel(ctx context.Context, request *PageRequest) (templ.Component, er
 		return nil, err
 	}
 
+	rows := []ValueView{
+		{Label: "Version", Text: version.Version, Mono: true, Copy: true},
+		{Label: "Time", Text: whenText(request, version.At)},
+		{Label: "Actor", Text: version.Actor},
+		{Label: "Summary", Text: version.Summary},
+		{Label: "Result on the device", Status: ConfigVersionResultStatus(version.Result)},
+	}
+	if version.Answer != "" {
+		rows = append(rows, ValueView{Label: "Device answer", Text: version.Answer})
+	}
+
 	return PanelWithDiff(PanelDiffView{
 		Panel: PanelView{
 			Title: "Version " + version.Version, CloseHref: closeHref,
-			Cards: []PanelCardView{{Title: "Version", Rows: []ValueView{
-				{Label: "Version", Text: version.Version, Mono: true, Copy: true},
-				{Label: "Time", Text: whenText(request, version.At)},
-				{Label: "Actor", Text: version.Actor},
-				{Label: "Summary", Text: version.Summary},
-				{Label: "Result on the device", Text: version.Result},
-			}}},
+			Cards: []PanelCardView{{Title: "Version", Rows: rows}},
 		},
 		Diff: diff,
 	}), nil

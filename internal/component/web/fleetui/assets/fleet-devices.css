@@ -10,20 +10,20 @@
   gap: var(--space-3);
 }
 
-/* The labels of a row stay on one line, so every row has the same height,
-   and the column is bounded: two tags and the "+n" mark, a long tag ending
-   in an ellipsis, so every column fits at 1600 pixels with the panel closed.
-   With the panel open the table scrolls under its fixed controls column. */
+/* The labels of a row stay on one line, so every row has the same height.
+   The column sizes to its content: at most two tags and the "+n" mark
+   (tagsShownMax), each tag shown whole up to 18 characters and only a
+   longer one ending in an ellipsis. That bound, with the side panel closed
+   by default, lets every column fit at 1600 pixels; a narrower window
+   scrolls the table under its fixed controls column. */
 .fleet-devices .fleet-cell-tags {
   flex-wrap: nowrap;
-  max-width: 13rem;
-  overflow: hidden;
   white-space: nowrap;
 }
 
 .fleet-devices .fleet-cell-tags .fleet-chip:not(.fleet-chip--more) {
   min-width: 0;
-  max-width: 6rem;
+  max-width: calc(18ch + 2 * var(--space-2));
   overflow: hidden;
 }
 
@@ -44,6 +44,10 @@
   padding: 0 var(--space-2);
 }
 
-.fleet-devices .fleet-usage-mini {
+/* A usage cell is its bar and its figure on one line across the whole cell,
+   the figure at the right edge like every other number. */
+.fleet-devices .fleet-table-cell .fleet-usage-mini {
+  display: flex;
+  width: 100%;
   min-width: 6rem;
 }

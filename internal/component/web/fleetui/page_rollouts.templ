@@ -12,20 +12,13 @@ type RolloutPageView struct {
 	Back        LinkView
 	Name        string
 	Status      Status
-	Facts       KeyValueListView
+	Facts       QuickInfoView
 	Controls    []ActionView
 	Destructive []ActionView
-	Pause       *RolloutPauseView
+	Pause       *CalloutView
 	Batches     []BatchSegmentView
 	Devices     TableSectionView
 	Form        ManageFormView
-}
-
-// RolloutPauseView is why a rollout paused, in the hub's words, and the
-// devices that caused it.
-type RolloutPauseView struct {
-	Banner CalloutView
-	Causes []LinkView
 }
 
 // BatchSegmentView is one segment of the batch strip.
@@ -95,18 +88,9 @@ templ RolloutPage(v RolloutPageView) {
 				</div>
 			}
 		</header>
-		@KeyValueList(v.Facts)
+		@QuickInfo(v.Facts)
 		if v.Pause != nil {
-			@Callout(v.Pause.Banner)
-			<ul class="fleet-manage-causes">
-				for _, cause := range v.Pause.Causes {
-					<li>
-						@NavLink(NavLinkView{Href: cause.Href, Class: "fleet-link"}) {
-							{ cause.Label }
-						}
-					</li>
-				}
-			</ul>
+			@Callout(*v.Pause)
 		}
 		@batchStrip(BatchStripView{Segments: v.Batches})
 		@TableSection(v.Devices)

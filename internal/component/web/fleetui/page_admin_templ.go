@@ -18,7 +18,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // the hidden form its actions submit. Each part but the table is optional.
 type AdminPageView struct {
 	Note        *CalloutView
-	Facts       *KeyValueListView
+	Facts       *QuickInfoView
 	FactsAction *ActionView
 	Exports     []LinkView
 	ExportNote  string
@@ -71,7 +71,7 @@ func AdminPage(v AdminPageView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = KeyValueList(*v.Facts).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = QuickInfo(*v.Facts).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -1510,6 +1510,12 @@
   font-weight: 600;
 }
 
+/* The target summary follows the kind's words, in the secondary colour. */
+.fleet-task-target {
+  margin-left: var(--space-1);
+  color: var(--text-secondary);
+}
+
 .fleet-task-mark .fleet-icon {
   width: var(--space-3);
   height: var(--space-3);

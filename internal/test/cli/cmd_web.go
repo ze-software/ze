@@ -206,6 +206,15 @@ func runWebTests(ctx context.Context, selected []*zeTestWebTest, bins zeTestWebB
 	pr.SetQuiet(quiet)
 	pr.SetVerbose(verbose)
 	pr.SetBaseDir(baseDir)
+	// A case that needs a build tag the built ze lacks is skipped, naming
+	// the tag and how to build with it, before it takes a port or a browser.
+	admission := runner.NewDUTAdmission(bins.ze)
+	pr.SetAdmission(func(test *zeTestWebTest) (string, error) {
+		if test.parsed == nil {
+			return "", nil // zeTestRunWebTest refuses an undiscovered case.
+		}
+		return admission.Admit(&test.parsed.Admission)
+	})
 
 	records := make([]*runner.Record, len(selected))
 	for i, t := range selected {

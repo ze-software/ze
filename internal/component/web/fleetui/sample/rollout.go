@@ -31,10 +31,6 @@ const (
 	// taskRejectedBatch is the task that ran the batch a device refused.
 	taskRejectedBatch = "T-2046"
 
-	wordApplied  = "Applied"
-	wordRejected = "Rejected"
-	wordWaiting  = "Waiting"
-
 	// answerInterval is the time between the answers of two devices of one
 	// batch.
 	answerInterval = 20 * time.Second
@@ -147,12 +143,12 @@ func refusedBy(row *rolloutRow, device string) bool {
 // rolloutDevice answers what one device of a rollout answered. batch is the
 // position of its batch and place its position in the batch.
 func rolloutDevice(row *rolloutRow, snap *snapshot, batch, place int) fleetui.RolloutDevice {
-	device := fleetui.RolloutDevice{Device: row.batches[batch][place], Batch: batch + 1, Result: wordWaiting}
+	device := fleetui.RolloutDevice{Device: row.batches[batch][place], Batch: batch + 1, Result: fleetui.RolloutResultWaiting}
 
 	if batch < row.batchesDone {
 		sent := row.started - time.Duration(batch)*row.pace - time.Duration(place+1)*answerInterval
 
-		device.Result = wordApplied
+		device.Result = fleetui.RolloutResultApplied
 		device.Answer = answerApplied
 		device.Answered = true
 		device.At = snap.ago(sent)
@@ -166,7 +162,7 @@ func rolloutDevice(row *rolloutRow, snap *snapshot, batch, place int) fleetui.Ro
 		return device
 	}
 
-	device.Result = wordRejected
+	device.Result = fleetui.RolloutResultRejected
 	device.Answer = rejectionAnswer
 	device.Answered = true
 	device.At = snap.ago(rejectedFor)
@@ -226,64 +222,84 @@ type auditRow struct {
 	device  string
 	target  string
 	devices int
-	result  string
+	result  fleetui.AuditResult
 	summary string
 }
 
 // The words of the audit trail more than one row carries.
 const (
 	eventRolloutStarted = "rollout-started"
-	resultStarted       = "started"
-	resultRecorded      = "recorded"
 )
 
 // auditRows holds the audit entries of the last week that no task wrote.
 var auditRows = []auditRow{
 	{
 		id: "AU-3016", age: 2*time.Hour + 45*time.Minute, actor: actorAmelie, event: "config-edited",
-		device: deviceCpePar07, devices: 1, result: "pending",
+		device: deviceCpePar07, devices: 1, result: fleetui.AuditResultPending,
 		summary: "Edited the configuration. The device is offline and has not fetched it.",
 	},
 	{
 		id: "AU-3015", age: rejectedFor - 10*time.Second, actor: actorHub, event: "rollout-paused",
-		target: rolloutEdge, devices: 12, result: "paused",
+		target: rolloutEdge, devices: 12, result: fleetui.AuditResultPaused,
 		summary: "Paused at batch 2: edge-fra-01 refused the configuration.",
 	},
 	{
 		id: "AU-3013", age: rolloutEdgeAge, actor: actorThomas, event: eventRolloutStarted,
-		target: rolloutEdge, devices: 12, result: resultStarted,
+		target: rolloutEdge, devices: 12, result: fleetui.AuditResultStarted,
 		summary: "Started over role:edge, 5 batches, failure threshold of one device.",
 	},
 	{
 		id: "AU-3012", age: rolloutEdgeAge + 3*time.Minute, actor: actorThomas, event: "template-changed",
-		target: templateEdge, devices: 12, result: resultRecorded,
+		target: templateEdge, devices: 12, result: fleetui.AuditResultRecorded,
 		summary: "Raised the IPv4 prefix maximum to 1200000.",
 	},
 	{
 		id: "AU-3009", age: divergedFor, actor: actorHub, event: "divergence-detected",
-		device: deviceRsFra01, devices: 1, result: resultRecorded,
+		device: deviceRsFra01, devices: 1, result: fleetui.AuditResultRecorded,
 		summary: "The device reported 3 local changes. Nothing was overwritten.",
 	},
 	{
 		id: "AU-3004", age: 26 * time.Hour, actor: actorSofia, event: "device-declared",
-		device: newcomerName, devices: 1, result: resultRecorded,
+		device: newcomerName, devices: 1, result: fleetui.AuditResultRecorded,
 		summary: "Declared the device and set its secret.",
 	},
 	{
 		id: "AU-2996", age: 3*day - 2*time.Hour, actor: actorHub, event: "rollout-completed",
-		target: rolloutCore, devices: 8, result: "complete",
+		target: rolloutCore, devices: 8, result: fleetui.AuditResultSucceeded,
 		summary: "Every batch finished: 8 of 8 devices applied the configuration.",
 	},
 	{
 		id: "AU-2990", age: 3 * day, actor: actorAmelie, event: eventRolloutStarted,
-		target: rolloutCore, devices: 8, result: resultStarted,
+		target: rolloutCore, devices: 8, result: fleetui.AuditResultStarted,
 		summary: "Started over role:core, 4 batches.",
 	},
 	{
 		id: "AU-2981", age: 6*day + 12*time.Hour, actor: actorThomas, event: "label-changed",
-		device: deviceCpe0127, devices: 1, result: resultRecorded,
+		device: deviceCpe0127, devices: 1, result: fleetui.AuditResultRecorded,
 		summary: "Set customer=acme-logistics.",
 	},
+}
+
+// auditResultOf answers the audit result of a task in the state given.
+func auditResultOf(state fleetui.TaskState) fleetui.AuditResult {
+	switch state {
+	case fleetui.TaskStateUnspecified:
+		return fleetui.AuditResultUnspecified
+	case fleetui.TaskStatePending:
+		return fleetui.AuditResultPending
+	case fleetui.TaskStateRunning:
+		return fleetui.AuditResultRunning
+	case fleetui.TaskStateSucceeded:
+		return fleetui.AuditResultSucceeded
+	case fleetui.TaskStateFailed:
+		return fleetui.AuditResultFailed
+	case fleetui.TaskStateCanceled:
+		return fleetui.AuditResultCanceled
+	case fleetui.TaskStatePartlyFailed:
+		return fleetui.AuditResultPartlyFailed
+	}
+
+	return fleetui.AuditResultUnspecified
 }
 
 // taskEntry answers the audit entry a task wrote: when it ended, or when it
@@ -296,7 +312,7 @@ func taskEntry(task *fleetui.Task) fleetui.AuditEntry {
 		Event:   task.Kind,
 		Target:  task.Target,
 		Devices: len(task.Devices),
-		Result:  task.State.String(),
+		Result:  auditResultOf(task.State),
 		TaskID:  task.ID,
 	}
 	if !task.State.Active() {

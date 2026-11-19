@@ -18,6 +18,31 @@ import (
 
 const optionNeedsBuildTag = "needs-build-tag"
 
+// developmentBuildTags are the tags a test may require that feature-gates.txt
+// does not declare, because no shipped build sets them: a review build names
+// them through ze.tags. Each is declared by the build constraint of the file
+// declaredIn names, and TestDevelopmentBuildTagsStayOutsideTheManifest
+// compares the two.
+var developmentBuildTags = []developmentBuildTag{
+	{name: "ze_fleet_ui_sample", declaredIn: "cmd/ze/hub/register_fleet_ui_sample.go"},
+}
+
+// developmentBuildTag is one tag outside the manifest and the file, relative
+// to the checkout, whose build constraint declares it.
+type developmentBuildTag struct {
+	name       string
+	declaredIn string
+}
+
+// developmentBuildTagNames answers the names of developmentBuildTags.
+func developmentBuildTagNames() []string {
+	names := make([]string, 0, len(developmentBuildTags))
+	for _, tag := range developmentBuildTags {
+		names = append(names, tag.name)
+	}
+	return names
+}
+
 // buildTagState is a declaration's required feature state. Zero is invalid.
 type buildTagState uint8
 
@@ -61,9 +86,10 @@ func parseOptionNeedsBuildTag(record *Record, ciFile string, kv map[string]strin
 	if err != nil {
 		return fmt.Errorf("option=needs-build-tag: read feature build tags: %w", err)
 	}
-	if !slices.Contains(names, name) {
-		return fmt.Errorf("option=needs-build-tag: unknown feature build tag %q (declared in %s: %s)",
-			name, featureGatesFile, strings.Join(names, ", "))
+	development := developmentBuildTagNames()
+	if !slices.Contains(names, name) && !slices.Contains(development, name) {
+		return fmt.Errorf("option=needs-build-tag: unknown feature build tag %q (declared in %s: %s; outside it: %s)",
+			name, featureGatesFile, strings.Join(names, ", "), strings.Join(development, ", "))
 	}
 	for _, requirement := range record.buildTags {
 		if requirement.name == name {
@@ -116,7 +142,9 @@ func (dut *dutBuildTags) admit(requirements []buildTagRequirement) (string, erro
 		switch requirement.state {
 		case buildTagPresent:
 			if !present {
-				return fmt.Sprintf("DUT %q does not satisfy option=needs-build-tag:value=%s:state=present (tag is absent)", dut.path, requirement.name), nil
+				return fmt.Sprintf("DUT %q does not satisfy option=needs-build-tag:value=%s:state=present (tag is absent); "+
+					"build it with the tag by running the ./le test command under env ze.tags=%s",
+					dut.path, requirement.name, requirement.name), nil
 			}
 		case buildTagAbsent:
 			if present {
@@ -129,6 +157,27 @@ func (dut *dutBuildTags) admit(requirements []buildTagRequirement) (string, erro
 		}
 	}
 	return "", nil
+}
+
+// DUTAdmission admits the cases of one run against the build tags of the
+// run's selected DUT, for a suite that schedules its own cases: a case whose
+// needs-build-tag conditions the DUT does not satisfy is skipped with the
+// reason, never run and never passed. Safe for concurrent use.
+type DUTAdmission struct {
+	dut *dutBuildTags
+}
+
+// NewDUTAdmission binds the admission to the DUT at path. The artifact is
+// read once, by the first case that declares a condition.
+func NewDUTAdmission(path string) *DUTAdmission {
+	return &DUTAdmission{dut: newDUTBuildTags(path, nil)}
+}
+
+// Admit answers the skip reason of the case whose parsed declarations record
+// holds, empty when it may run. An error means the DUT's build information
+// could not answer, which fails the case.
+func (admission *DUTAdmission) Admit(record *Record) (string, error) {
+	return admission.dut.admit(record.buildTags)
 }
 
 // explicitDUTBuildTags accepts only a single explicit nonempty Go -tags setting.

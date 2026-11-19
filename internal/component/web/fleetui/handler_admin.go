@@ -59,6 +59,19 @@ func removeAction(key, label, target, detail string) ActionView {
 	return action
 }
 
+// estatePrimary answers the primary action of the estate's object header:
+// adding a device, on the administration page that declares devices. A
+// group node answers none: its devices are chosen by their labels, so there
+// is nothing to add to it.
+func estatePrimary(request *PageRequest) (ActionView, bool) {
+	if request.Address.Kind != ObjectEstate {
+		return ActionView{}, false
+	}
+	target := Address{Kind: ObjectAdmin, Tab: tabAdminDevices, View: ViewParams{TreeView: request.Address.View.TreeView}}
+
+	return ActionView{Label: "Add device", Icon: "plus", Href: target.String()}, true
+}
+
 // estateDevicesHref answers the estate's devices table narrowed by filter.
 func estateDevicesHref(request *PageRequest, filter string) string {
 	return Address{Kind: ObjectEstate, Tab: "devices", View: ViewParams{
@@ -80,6 +93,26 @@ func connectionStatus(device *Device) Status {
 	return Status{Tone: ToneMuted, Word: "Offline"}
 }
 
+// secretStatus answers whether a device holds its join secret as a status:
+// a device without one cannot join, so its absence is a warning.
+func secretStatus(device *Device) Status {
+	if device.SecretSet {
+		return Status{Tone: ToneSuccess, Word: "Set"}
+	}
+
+	return Status{Tone: ToneWarning, Word: "Not set"}
+}
+
+// defaultFilterCell answers the Default cell of a saved filter: the marked
+// word for the default, nothing for the others.
+func defaultFilterCell(filter *SavedFilter) CellView {
+	if filter.Default {
+		return StatusCell(Status{Tone: ToneAccent, Word: "Default"})
+	}
+
+	return TextCell("")
+}
+
 // adminDevicesContent builds the Devices page: every declared device.
 func adminDevicesContent(_ context.Context, request *PageRequest) (templ.Component, error) {
 	views := request.Snapshot.Views
@@ -91,10 +124,6 @@ func adminDevicesContent(_ context.Context, request *PageRequest) (templ.Compone
 		for _, label := range device.Labels {
 			tags = append(tags, TagView{Key: label.Key, Value: label.Value})
 		}
-		secret := "Not set"
-		if device.SecretSet {
-			secret = "Set"
-		}
 
 		rows = append(rows, RowView{
 			ID: device.Name, Name: device.Name,
@@ -102,7 +131,7 @@ func adminDevicesContent(_ context.Context, request *PageRequest) (templ.Compone
 			Opened:  request.Address.View.Row == device.Name,
 			Cells: []CellView{
 				LinkCell(device.Name, deviceTabHref(request, device.Name, tabDeviceDashboard)),
-				TextCell(device.Group), TagsCell(tags), TextCell(secret), StatusCell(connectionStatus(device)),
+				TextCell(device.Group), TagsCell(tags), StatusCell(secretStatus(device)), StatusCell(connectionStatus(device)),
 			},
 			Menu: &MenuView{
 				Label: "Actions for " + device.Name,
@@ -152,7 +181,7 @@ func adminDevicesPanel(_ context.Context, request *PageRequest) (templ.Component
 			Cards: []PanelCardView{{Title: "Declared", Rows: []ValueView{
 				{Label: "Name", Text: device.Device.Name, Mono: true, Copy: true},
 				{Label: "Group", Text: device.Device.Group},
-				{Label: "Secret", Text: secretWords(device.Device.SecretSet)},
+				{Label: "Secret", Status: secretStatus(&device.Device)},
 				{Label: "Connection", Status: connectionStatus(&device.Device)},
 			}}},
 		}), nil
@@ -169,15 +198,6 @@ func adminDevicesPanel(_ context.Context, request *PageRequest) (templ.Component
 		"The device is declared in the hub's configuration with a secret of its own, which is never shown again once set.")
 
 	return DeviceJoin(view), nil
-}
-
-// secretWords answers whether a secret is set, never the secret.
-func secretWords(set bool) string {
-	if set {
-		return "Set; it is never shown again"
-	}
-
-	return "Not set"
 }
 
 // deviceNameValid refuses a name the hub could not declare: empty, longer
@@ -315,14 +335,10 @@ func adminFiltersContent(ctx context.Context, request *PageRequest) (templ.Compo
 
 	rows := make([]RowView, 0, len(saved))
 	for _, filter := range saved {
-		standing := ""
-		if filter.Default {
-			standing = "Default"
-		}
 		rows = append(rows, RowView{
 			ID: filter.Name, Name: filter.Name,
 			Cells: []CellView{
-				TextCell(filter.Name), LinkCell(filter.Filter, estateDevicesHref(request, filter.Filter)), TextCell(standing),
+				TextCell(filter.Name), LinkCell(filter.Filter, estateDevicesHref(request, filter.Filter)), defaultFilterCell(&filter),
 			},
 			Menu: &MenuView{
 				Label: "Actions for " + filter.Name,
@@ -528,7 +544,7 @@ func adminHistoryContent(ctx context.Context, request *PageRequest) (templ.Compo
 
 	return AdminPage(AdminPageView{
 		Note: pendingNote(),
-		Facts: &KeyValueListView{Rows: []ValueView{
+		Facts: &QuickInfoView{Card: CardView{Title: "Metric history", Span: 12}, Items: []ValueView{
 			{Label: "Retention", Text: durationText(usage.Retention)},
 			{Label: "Size", Text: size, Usage: &UsageBarView{Name: "History size against its cap", Percent: percent, Known: known, Scale: true}},
 			{Label: "Oldest sample", Text: whenText(request, usage.Oldest)},

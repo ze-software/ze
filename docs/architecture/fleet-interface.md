@@ -356,7 +356,7 @@ no event attribute, so behavior reaches the scripts through ids and
 
 | File | Holds |
 |------|-------|
-| `fleet-theme.js` | Applies the theme stored in the browser setting `ze-theme`, which the other web modes write, before the first paint. It is the one script loaded without `defer` |
+| `fleet-theme.js` | Applies, before the first paint, the theme stored in the browser setting `ze-theme`, which the other web modes write, and the side panel pin stored in `ze-fleet-panel-pinned`, as the class `fleet-panel-pinned` on the document. The server renders the unpinned form, the default: with no row open the panel region is not drawn, and an opened row lies over the right edge of the content; pinned, it stands beside the content with its placeholder sentence. It is the one script loaded without `defer` |
 | `fleet.js` | The shell: the theme switch; the sidebar's collapse, pin, two tabs and width; the tree's expansion, lazy branches, filter and keyboard; the side panel pin; the header search; the event stream client and the region refresh |
 | `fleet-shell.css` | The theme variables under the names and with the values the web stylesheet uses, in a dark default and a light theme; the spacing, sidebar and chart variables; the surface variables; the regions, the tree, the object header, the breadcrumb and the tab row; the one responsive form below 60rem |
 
@@ -466,6 +466,26 @@ answers the event's line and a toast naming it.
 | Rollouts | The table of rollouts, one rollout's page at `id=<name>`, and the new-rollout form at `sub=new`, whose preview is the `rollout-preview` fragment |
 | Audit | The audit trail, filtered by actor, event, device, result and time, and exported by `GET /fleet/export/audit` as CSV or JSON, at most `AuditEntriesMax` entries |
 | Administration | Devices (with the join panel), labels, tree views, saved filters, templates, access, audit, history, settings, and the prototype's States page last |
+
+A state is its word beside its mark, never a bare word, in a table cell and a
+panel row alike. Each result vocabulary is a typed enum with one tone per
+value, beside the other state tones in `component_view.go`:
+`RolloutResultStatus` (Waiting, Applied, Rejected) for a device of a
+rollout, `ConfigVersionResultStatus` (Applied, Rejected, Not fetched yet) for
+a configuration version, whose refusal text the version's panel shows as the
+device's answer, and `AuditResultStatus` (Recorded, Started, Pending, Running,
+Paused, Succeeded, Failed, Canceled, Partly failed) for an audit entry, whose
+filter term and export carry the result's key. A routing adjacency keeps the
+device's own word, toned by `Adjacency.Up` (`AdjacencyStatus`), as a BGP peer
+is by `Established`. A task's kind is shown in words (`TaskKindWords`), its
+target after it in the secondary colour; a kind the table does not hold is
+shown by its name. A full-width block of facts is a quick info card
+(`QuickInfo`: the history page's figures, a rollout's facts); a narrow card,
+such as a device's System cards or the dashboard's Configuration card, keeps
+its label-left, value-right list.
+<!-- source: internal/component/web/fleetui/component_view.go -- RolloutResultStatus, ConfigVersionResultStatus, AuditResultStatus, AdjacencyStatus -->
+<!-- source: internal/component/web/fleetui/handler_tasks.go -- TaskKindWords -->
+<!-- source: internal/component/web/fleetui/handler_admin.go -- secretStatus, defaultFilterCell -->
 <!-- source: internal/component/web/fleetui/handler_config.go -- configContent, divergenceFragment, manageActionAnswer -->
 <!-- source: internal/component/web/fleetui/handler_rollouts.go -- rolloutsContent, rolloutPreviewFragment -->
 <!-- source: internal/component/web/fleetui/handler_audit.go -- auditContent, AuditExportPath, newAuditExportHandler -->

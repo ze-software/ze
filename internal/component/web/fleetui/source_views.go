@@ -163,8 +163,10 @@ type ProtocolAdjacencies struct {
 type Adjacency struct {
 	Neighbor  string
 	Interface string
-	// State is the adjacency state, in the device's words.
+	// State is the adjacency state, in the device's words, and Up whether the
+	// device counts that state as up (OSPF full, BFD up).
 	State string
+	Up    bool
 	Since time.Time
 }
 
