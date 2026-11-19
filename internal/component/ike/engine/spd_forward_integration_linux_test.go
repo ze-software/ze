@@ -31,14 +31,24 @@ const (
 	transitDropPort = 5101
 )
 
-// transitEgressCapture observes the IP packets on one of Ze's own links in both
-// directions, so a packet Ze forwards out of it is seen as Ze sent it. The caller MUST
-// be in Ze's namespace.
+// transitLinkProtocol is etherType as an AF_PACKET address carries it: in network byte
+// order, held in a native uint16.
+func transitLinkProtocol(etherType uint16) uint16 {
+	var wire [2]byte
+	binary.BigEndian.PutUint16(wire[:], etherType)
+	return binary.NativeEndian.Uint16(wire[:])
+}
+
+// transitEgressCapture observes the frames on one of Ze's own links in both directions,
+// so a packet Ze forwards out of it is seen as Ze sent it. It binds ETH_P_ALL because
+// the kernel hands a transmitted frame only to the ETH_P_ALL taps (dev_queue_xmit_nit
+// walks ptype_all and the device's ptype_all), so an ETH_P_IP binding sees ingress
+// alone and never the packet Ze forwards. The socket therefore also reads Ze's ARP for
+// the protected host, which transitEntryArrived skips. The caller MUST be in Ze's
+// namespace.
 func transitEgressCapture(t *testing.T, ifindex int) int {
 	t.Helper()
-	var etherType [2]byte
-	binary.BigEndian.PutUint16(etherType[:], unix.ETH_P_IP)
-	protocol := binary.NativeEndian.Uint16(etherType[:])
+	protocol := transitLinkProtocol(unix.ETH_P_ALL)
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, int(protocol))
 	if err != nil {
 		t.Fatalf("open Ze's egress observation socket: %v", err)
@@ -63,7 +73,8 @@ func transitEntryPacket(source, target string, port, id uint16) []byte {
 }
 
 // transitEntryArrived reports whether fd saw the UDP packet tagged id from source to
-// target within fragmentCaptureWait. At most 64 frames are read.
+// target within fragmentCaptureWait. At most 64 frames are read, and a frame that is
+// not IPv4 (the egress capture's ARP) is read and skipped.
 func transitEntryArrived(t *testing.T, fd int, source, target string, id uint16) bool {
 	t.Helper()
 	deadline := time.Now().Add(fragmentCaptureWait)
@@ -84,9 +95,16 @@ func transitEntryArrived(t *testing.T, fd int, source, target string, id uint16)
 		if ready == 0 {
 			return false
 		}
-		n, _, err := unix.Recvfrom(fd, buf, 0)
+		n, from, err := unix.Recvfrom(fd, buf, 0)
 		if err != nil {
 			t.Fatalf("read the transit observation: %v", err)
+		}
+		link, ok := from.(*unix.SockaddrLinklayer)
+		if !ok {
+			t.Fatalf("the transit observation came from a %T, not a link-layer address", from)
+		}
+		if link.Protocol != transitLinkProtocol(unix.ETH_P_IP) {
+			continue
 		}
 		header, err := ipv4.ParseHeader(buf[:n])
 		if err != nil {
