@@ -7,7 +7,7 @@
     "claim-sha": "4f61de9f5a8059fa",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
-    "producer-sha": "0356f01ce3628319",
+    "producer-sha": "5cf249f1d8106773",
     "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "a85ea1e2452d7726",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
-    "producer-sha": "0356f01ce3628319",
+    "producer-sha": "5cf249f1d8106773",
     "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

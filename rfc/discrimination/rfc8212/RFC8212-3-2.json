@@ -3,12 +3,12 @@
     "rid": "RFC8212-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8212_default_reject_test.go::TestRFC8212Section3AbsentExportRejectsOnEBGP",
-    "unit-sha": "cd03542a390fb962",
+    "unit-sha": "2071324a08558944",
     "claim-sha": "ea25e9a1fd2b68a8",
     "route": "mutant",
     "producer": "internal/component/bgp/filterapi/policy.go::UnconfiguredAccepts",
     "producer-sha": "1ea02f031981b57e",
-    "break": "line 240: \"return !external\" -\u003e \"return true\""
+    "break": "line 286: \"return !external\" -\u003e \"return true\""
   },
   {
     "rid": "RFC8212-3-2",
