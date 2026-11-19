@@ -207,7 +207,7 @@ func TestOwnerEngineOperationTypedDiscovery(t *testing.T) {
 		},
 		TypedWire: func(_ *Server, proc *process.Process, bridge *rpc.DirectBridge) {
 			wiredProcess = proc
-			bridge.SetForwardCached(func(context.Context, []uint64, []string) error { return ownerError })
+			bridge.SetForwardCached(func(context.Context, rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) { return nil, ownerError })
 		},
 	})
 	const pluginName = "typed-owner-test"
@@ -236,7 +236,7 @@ func TestOwnerEngineOperationTypedDiscovery(t *testing.T) {
 		t.Fatal("owner descriptor did not receive the internal process generation")
 	}
 	proc.Bridge().SetReady()
-	if err := proc.Bridge().ForwardCached(ctx, nil, nil); !errors.Is(err, ownerError) {
+	if err := proc.Bridge().ForwardCached(ctx, rpc.ForwardCachedInput{}); !errors.Is(err, ownerError) {
 		t.Fatalf("owner typed bridge call = %v", err)
 	}
 }

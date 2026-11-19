@@ -134,7 +134,7 @@ func TestForkedRIBGateCommandsCrossTheServer(t *testing.T) {
 		}
 		answer, err := ribevents.AnswerEligibility(input.Args[0], func(route ribevents.ValidationRoute, _ uint64) bool {
 			return route == accepted
-		}, func(route ribevents.ValidationRoute) bool { return route == accepted })
+		}, func(route ribevents.ValidationRoute) bool { return route == accepted }, nil)
 		if err != nil {
 			return nil, err
 		}

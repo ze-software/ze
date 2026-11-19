@@ -117,7 +117,7 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	if err := c.TeardownPeer(addr, 6, 2, nil); !errors.Is(err, ErrNoReactor) {
 		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
-	if err := c.PausePeer(addr); !errors.Is(err, ErrNoReactor) {
+	if err := c.PausePeer(context.Background(), addr, 0, 0); !errors.Is(err, ErrNoReactor) {
 		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
 	if err := c.RemovePeer(addr); !errors.Is(err, ErrNoReactor) {
@@ -136,7 +136,7 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	if err := c.SignalPluginStartupComplete(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SignalPeerAPIReady("10.0.0.1", ProcessSender("p"), 1); err != nil {
+	if err := c.SignalPeerAPIReady(context.Background(), "10.0.0.1", ProcessSender("p"), 1); err != nil {
 		t.Fatal(err)
 	}
 	c.SetPeerUpBarrier("10.0.0.1", 1)
@@ -373,13 +373,13 @@ func (m *mockReactor) TeardownPeer(netip.Addr, uint8, uint8, []byte) error {
 	m.teardownCalled = true
 	return nil
 }
-func (m *mockReactor) PausePeer(netip.Addr) error                         { return nil }
-func (m *mockReactor) ResumePeer(netip.Addr) error                        { return nil }
-func (m *mockReactor) AddDynamicPeer(netip.Addr, map[string]any) error    { return nil }
-func (m *mockReactor) RemovePeer(netip.Addr) error                        { return nil }
-func (m *mockReactor) FlushForwardPool(context.Context) error             { return nil }
-func (m *mockReactor) FlushForwardPoolPeer(context.Context, string) error { return nil }
-func (m *mockReactor) DrainPeerSync(context.Context) error                { return nil }
+func (m *mockReactor) PausePeer(_ context.Context, _ netip.Addr, _, _ uint64) error  { return nil }
+func (m *mockReactor) ResumePeer(_ context.Context, _ netip.Addr, _, _ uint64) error { return nil }
+func (m *mockReactor) AddDynamicPeer(netip.Addr, map[string]any) error               { return nil }
+func (m *mockReactor) RemovePeer(netip.Addr) error                                   { return nil }
+func (m *mockReactor) FlushForwardPool(context.Context) error                        { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(context.Context, string) error            { return nil }
+func (m *mockReactor) DrainPeerSync(context.Context) error                           { return nil }
 func (m *mockReactor) Reload() error {
 	m.reloadCalled = true
 	return nil
@@ -402,9 +402,9 @@ func (m *mockReactor) SetConfigTree(tree map[string]any) { m.configTree = tree }
 func (m *mockReactor) SignalAPIReady() {
 	m.apiReadyCalled = true
 }
-func (m *mockReactor) AddAPIProcessCount(int)                          {}
-func (m *mockReactor) SignalPluginStartupComplete() error              { return nil }
-func (m *mockReactor) SignalPeerAPIReady(string, Sender, uint64) error { return nil }
+func (m *mockReactor) AddAPIProcessCount(int)                                           {}
+func (m *mockReactor) SignalPluginStartupComplete() error                               { return nil }
+func (m *mockReactor) SignalPeerAPIReady(context.Context, string, Sender, uint64) error { return nil }
 func (m *mockReactor) SetPeerUpBarrier(peer string, expected int) {
 	m.barrierSet = peer
 	m.barrierExpected = expected

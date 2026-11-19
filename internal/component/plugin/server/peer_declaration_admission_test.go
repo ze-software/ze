@@ -138,10 +138,10 @@ func TestPendingPeerDeclarationsFenceEveryOutputRail(t *testing.T) {
 			return err
 		}},
 		{name: "cached", method: rpc.MethodForwardCached, input: rpc.ForwardCachedInput{}, typed: func() error {
-			return bridge.ForwardCached(t.Context(), []uint64{1}, []string{"192.0.2.1"})
+			return bridge.ForwardCached(t.Context(), rpc.ForwardCachedInput{IDs: []uint64{1}, Destinations: []string{"192.0.2.1"}})
 		}},
 		{name: "stored", method: rpc.MethodRelayStoredRoute, input: rpc.RelayStoredRouteInput{}, typed: func() error {
-			return bridge.RelayStoredRoute(t.Context(), "192.0.2.1", []rpc.StoredRoute{{}})
+			return bridge.RelayStoredRoute(t.Context(), rpc.RelayStoredRouteInput{Destination: "192.0.2.1", Routes: []rpc.StoredRoute{{}}})
 		}},
 		{name: "command", method: rpc.MethodDispatchCommand, input: rpc.DispatchCommandInput{}, typed: func() error {
 			_, err := bridge.DispatchCommand(t.Context(), "send bgp * route")
