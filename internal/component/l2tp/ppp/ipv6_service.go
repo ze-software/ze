@@ -89,6 +89,16 @@ func (s *IPv6Service) Stop() error {
 	if s == nil {
 		return nil
 	}
+	return errors.Join(s.stopWriters(), s.cleanupPrefix(), s.removeLinkLocal())
+}
+
+// stopWriters joins the actual RA/DHCPv6 workers, including the final
+// advertisement, without withdrawing addresses/routes. The owner can then
+// seal forwarding and sample traffic before resource cleanup changes the unit.
+func (s *IPv6Service) stopWriters() error {
+	if s == nil {
+		return nil
+	}
 	s.stopOnce.Do(func() {
 		var cause error
 		if s.stop != nil {
@@ -101,7 +111,7 @@ func (s *IPv6Service) Stop() error {
 	s.mu.Lock()
 	cause := s.stopErr
 	s.mu.Unlock()
-	return errors.Join(cause, s.cleanupPrefix(), s.removeLinkLocal())
+	return cause
 }
 
 // linkLocalPrefixBits is the length of the link-local prefix FE80::/64 that

@@ -350,3 +350,8 @@ func coaCollisionRequireRates(t *testing.T, backend *coaApplyBackend, name strin
 		t.Errorf("%s upload=%d, want %d", name, qos.Ingress.RateBps, upload)
 	}
 }
+
+// This existing fixture owns no original PPP terminal measurement.
+func (*coaCollisionCapture) TerminalCounters(context.Context) (l2tpevents.TrafficSample, error) {
+	return l2tpevents.TrafficSample{}, l2tp.ErrSessionNotFound
+}

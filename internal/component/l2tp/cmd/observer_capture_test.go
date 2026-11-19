@@ -150,3 +150,8 @@ func TestObserverSummaryKeepsBareAndAllWithExplicitIdentity(t *testing.T) {
 	require.Empty(t, service.selectors)
 	require.Zero(t, service.unsafeReads)
 }
+
+// This existing fixture owns no original PPP terminal measurement.
+func (*cqmCommandCapture) TerminalCounters(context.Context) (l2tpevents.TrafficSample, error) {
+	return l2tpevents.TrafficSample{}, l2tp.ErrSessionNotFound
+}

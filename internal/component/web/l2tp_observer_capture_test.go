@@ -138,3 +138,8 @@ func TestL2TPDetailRefusesAmbiguousAndEndedOriginals(t *testing.T) {
 		})
 	}
 }
+
+// This existing fixture owns no original PPP terminal measurement.
+func (*cqmWebCapture) TerminalCounters(context.Context) (l2tpevents.TrafficSample, error) {
+	return l2tpevents.TrafficSample{}, l2tp.ErrSessionNotFound
+}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -227,6 +228,9 @@ func (d *Driver) retrySessionOwner(ctx context.Context, session *pppSession) err
 
 // Caller holds the owner's nativeReleaseMu. Physical I/O uses NO Driver lock.
 func (d *Driver) closeSessionOwnerLocked(session *pppSession) error {
+	// Driver.Stop, StopSession and canceled-owner cleanup all reach this
+	// boundary. The frozen measurement precedes the actual original Close.
+	session.captureNetworkTerminal()
 	err := session.dataplane.Close()
 	confirmed := err == nil
 	gate, native := session.dataplane.(NativeReleaseHandle)
@@ -235,6 +239,13 @@ func (d *Driver) closeSessionOwnerLocked(session *pppSession) error {
 		if !confirmed {
 			err = errors.Join(err, ErrNativeReleasePending)
 		}
+	}
+	// Only exact physical release retires the copied IPv4 receipt. A failed
+	// descriptor close can coexist with confirmed native-unit destruction;
+	// its error remains independent below. Pending release MUST keep this
+	// receipt, without trying native mutation through the closed handle.
+	if confirmed {
+		session.installedIPv4 = netip.Prefix{}
 	}
 	d.mu.Lock()
 	session.ownerCloseAttempted = true

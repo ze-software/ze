@@ -1288,11 +1288,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 		local := netip.PrefixFrom(s.localIPv4, 32)
 		peer := netip.PrefixFrom(s.peerIPv4, 32)
 		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the address-installation error; no IP assignment is published.
-		if err := s.dataplane.AddAddressP2P(local, peer); err != nil {
+		if err := s.installNCPIPv4(local, peer); err != nil {
 			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
 			return false
 		}
-		s.installedIPv4 = local
 		if !s.sendIPAssigned(EventSessionIPAssigned{
 			TunnelID:     s.tunnelID,
 			SessionID:    s.sessionID,
@@ -1342,31 +1341,51 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 // family cannot stage an unacknowledged assignment during this reconciliation.
 // Initial activation remains in afterLCPOpen, after all NCPs have completed.
 func (s *pppSession) reconcileOpenedNCP(family AddressFamily) bool {
-	s.mu.Lock()
-	if s.filesClosed {
-		s.mu.Unlock()
-		return false
-	}
-	if !s.channelConnected {
-		s.mu.Unlock()
-		return true
-	}
-	// refuse-by-default: guards pppSession.onNCPOpened -- IPv6 service refusal preserves the independent NCP
-	if family == AddressFamilyIPv6 {
-		// Startup installs this family's link-local pair, reconciles it, then
-		// opens its carrier. It preserves any failed rollback owner.
-		s.afterLCPOpenIPv6Service()
-		s.mu.Unlock()
-		return true
-	}
-	err := s.dataplane.Connect()
-	s.mu.Unlock()
+	// The native stage MUST release its gate before fail can publish Down.
+	ready, err := s.reconcileNCPFamily(family)
 	if err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("NCP forwarding reconciliation: ").Err(err).String())
 		return false
 	}
-	return true
+	return ready
+}
+
+// reconcileNCPFamily confines native work to an exception-safe owner stage.
+// Its caller MUST handle an error only after this method returns. A provider
+// panic propagates with the gate released; this is not worker panic recovery.
+func (s *pppSession) reconcileNCPFamily(family AddressFamily) (bool, error) {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	s.mu.Lock()
+	stopped := s.filesClosed
+	if s.sessionDownSent {
+		stopped = true
+	}
+	connected := s.channelConnected
+	s.mu.Unlock()
+	select {
+	case <-s.stopCh:
+		stopped = true
+	case <-s.sessStop:
+		stopped = true
+	default:
+	}
+	if stopped {
+		return false, nil
+	}
+	if !connected {
+		return true, nil
+	}
+	if family == AddressFamilyIPv6 {
+		s.afterLCPOpenIPv6Service()
+		return true, nil
+	}
+	err := s.dataplane.Connect()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // sendIPAssigned waits for the transport to publish the assignment and capture
@@ -1379,6 +1398,13 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 		return false
 	default:
 	}
+	lifetime, baseline, err := s.prepareNetworkCounters()
+	if err != nil {
+		s.fail("PPP accounting baseline lifetime could not be established: " + err.Error())
+		return false
+	}
+	ev.NetworkLifetime = lifetime
+	ev.BaselineCounters = baseline
 	ev.done = make(chan struct{})
 	ev.Birth = s.l2tpBirth
 	ev.SubscriberID = s.subscriberID
@@ -1416,27 +1442,7 @@ func (s *pppSession) resetNCP() bool {
 	s.stopNCPRestartTimers()
 	s.ncpStarted = false
 	s.authenticatedUsername = ""
-	s.mu.Lock()
-	if s.filesClosed {
-		s.mu.Unlock()
-		return false
-	}
-	if s.channelConnected {
-		// The descriptor lock MUST cover disconnect, just as it covers
-		// connect and close, so this ioctl cannot use a recycled fd.
-		// refuse-by-default: guards pppSession.performAction -- false prohibits LCP restart after fail publishes the disconnect error; the old lifetime cannot be reused.
-		if err := s.dataplane.Disconnect(); err != nil {
-			s.mu.Unlock()
-			var tb textbuf.Buffer
-			s.fail(tb.Str("PPPIOCDISCONN: ").Err(err).String())
-			return false
-		}
-		s.channelConnected = false
-		// The unit keeps handing out frames queued before the disconnect.
-		s.unitDrainOwed = s.unitConnected != nil
-	}
-	s.mu.Unlock()
-	if err := s.teardownNCPResources(); err != nil {
+	if err := s.resetNetwork(); err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("NCP cleanup before LCP restart: ").Err(err).String())
 		return false
@@ -1459,7 +1465,49 @@ func (s *pppSession) resetNCP() bool {
 // withdrawNCPFamily releases only this family's resources. Resource witnesses
 // survive a failed withdrawal even if negotiation has already changed its
 // proposal or FSM state. A removal error prohibits reuse of that lifetime.
+// installNCPIPv4 serializes the native add and its receipt with terminal
+// sampling and Close. It MUST release the gate before assignment publication.
+// A successful late add still records its receipt even if cancellation arrived
+// during I/O, so the same gated final cleanup can withdraw that exact address.
+func (s *pppSession) installNCPIPv4(local, peer netip.Prefix) error {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	s.mu.Lock()
+	closed := s.filesClosed
+	s.mu.Unlock()
+	if closed {
+		return ErrSessionNotFound
+	}
+	select {
+	case <-s.stopCh:
+		return ErrSessionNotFound
+	case <-s.sessStop:
+		return ErrSessionNotFound
+	default:
+	}
+	if err := s.dataplane.AddAddressP2P(local, peer); err != nil {
+		return err
+	}
+	s.installedIPv4 = local
+	return nil
+}
+
+// The family-only TLD MUST use the same owner gate as activation and Close,
+// but MUST NOT seal the independent family's network/counter receipt.
 func (s *pppSession) withdrawNCPFamily(family AddressFamily) error {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	s.mu.Lock()
+	closed := s.filesClosed
+	s.mu.Unlock()
+	if closed {
+		return ErrSessionNotFound
+	}
+	return s.withdrawNCPFamilyLocked(family)
+}
+
+// Caller MUST hold nativeReleaseMu; native I/O holds no metadata mutex.
+func (s *pppSession) withdrawNCPFamilyLocked(family AddressFamily) error {
 	switch family {
 	case AddressFamilyIPv4:
 		if !s.installedIPv4.IsValid() {
@@ -1479,8 +1527,10 @@ func (s *pppSession) withdrawNCPFamily(family AddressFamily) error {
 
 // teardownNCPResources releases both families on LCP down or session exit.
 // Each owner is retried independently, including after an earlier failed TLD.
+// Caller MUST hold nativeReleaseMu; final callers MUST sample after joining
+// writers and disconnecting, before entering this withdrawal stage.
 func (s *pppSession) teardownNCPResources() error {
-	ipv6Err := s.withdrawNCPFamily(AddressFamilyIPv6)
-	ipv4Err := s.withdrawNCPFamily(AddressFamilyIPv4)
+	ipv6Err := s.withdrawNCPFamilyLocked(AddressFamilyIPv6)
+	ipv4Err := s.withdrawNCPFamilyLocked(AddressFamilyIPv4)
 	return errors.Join(ipv6Err, ipv4Err)
 }

@@ -77,6 +77,7 @@ type SessionSnapshot struct {
 	SubscriberID       string                           `json:"subscriber-id,omitempty"`
 	Listener           netip.AddrPort                   `json:"listener,omitzero"`
 	Generation         l2tpevents.ObservationGeneration `json:"-"`
+	NetworkLifetime    l2tpevents.NetworkLifetime       `json:"network-lifetime,omitzero"`
 	LocalSID           uint16
 	RemoteSID          uint16
 	TunnelLocalTID     uint16
@@ -196,7 +197,12 @@ func (r *l2tpReactor) sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionS
 	if s.negotiatedMRU != 0 {
 		authMethod = s.negotiatedAuthMethod.String()
 	}
+	var network l2tpevents.NetworkLifetime
+	if s.timeoutLifetime != nil {
+		network = s.timeoutLifetime.network
+	}
 	return SessionSnapshot{
+		NetworkLifetime:    network,
 		Birth:              s.Birth(),
 		SubscriberID:       s.SubscriberID(),
 		Listener:           listener,

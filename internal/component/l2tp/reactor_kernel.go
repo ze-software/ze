@@ -14,10 +14,13 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 const reportFieldTunnelID = "tunnel-id"
+const sessionAssignmentReportSubject = "subscriber network assignment"
 
 var errPPPLogicalIdentity = errors.New("l2tp: session has no admitted logical identity")
 
@@ -557,7 +560,9 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	ticket := tunnel.issueNoticeTicket()
 	r.tunnelsMu.Unlock()
 
-	ticket.deliver(func() { r.notifyNetworkLifetimeDown(birth, subscriberID, ev.TunnelID, ev.SessionID, username) })
+	ticket.deliver(func() {
+		r.notifyNetworkLifetimeDown(birth, subscriberID, ev.TunnelID, ev.SessionID, username, ev.NetworkLifetime, ev.TerminalCounters)
+	})
 	r.tunnelsMu.Lock()
 	_, current := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if current == sess {
@@ -579,7 +584,7 @@ func (r *l2tpReactor) hasSessionNoticeReader() bool {
 // notifyNetworkLifetimeDown withdraws the subscriber route of a session whose
 // LCP went down in the network phase, and publishes the (l2tp, session-down)
 // that ends its network lifetime. Runs inside handleLCPDown's ticket turn.
-func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, subscriberID string, tid, sid uint16, username string) {
+func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, subscriberID string, tid, sid uint16, username string, network l2tpevents.NetworkLifetime, terminal l2tpevents.TrafficSample) {
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(birth, tid, sid)
 	}
@@ -589,6 +594,7 @@ func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, su
 	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 		Birth: birth, SubscriberID: subscriberID, Generation: r.params.Generation,
 		TunnelID: tid, SessionID: sid, Username: username,
+		NetworkLifetime: network, TerminalCounters: terminal,
 		Cause: l2tpevents.TerminateCauseUserRequest,
 	}); err != nil {
 		r.logger.Warn("l2tp: network lifetime withdrawal failed", "error", err)
@@ -625,7 +631,26 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	// before the assignment ACK enables forwarding. SessionUp follows later.
 	// The second address family MUST retain the same network lifetime.
 	if sess.timeoutLifetime == nil {
-		sess.timeoutLifetime = &sessionTimeoutLifetime{}
+		receipt, err := ev.Control.CaptureNetworkCounters(ev.NetworkLifetime)
+		if err != nil {
+			r.tunnelsMu.Unlock()
+			ev.Cancel() // The ready assignment ACK MUST NOT enable forwarding.
+			// The producer prepares this receipt before publication and retains
+			// it through cancellation. Absence here is a Ze defect, not an
+			// unavailable native measurement or an ordinary retired session.
+			const problem = "L2TP refused a subscriber address assignment"
+			const why = "Ze could not retain this network's original counters, so forwarding remains disabled"
+			const fix = "ze show doctor"
+			refusal := opererr.Wrap(err, problem, why, fix)
+			r.logger.Warn(refusal.Error(), "code", diagnostic.CodeDoctorInternalDefect,
+				"fix", fix, "error", err, "tunnel-id", ev.TunnelID, "session-id", ev.SessionID)
+			report.RaiseWarningFix(SubsystemName, diagnostic.CodeDoctorInternalDefect,
+				sessionAssignmentReportSubject, problem+": "+why, fix,
+				map[string]any{"tunnel-id": ev.TunnelID, "session-id": ev.SessionID,
+					"subscriber-id": ev.SubscriberID, "cause": err.Error()})
+			return
+		}
+		sess.timeoutLifetime = &sessionTimeoutLifetime{network: ev.NetworkLifetime, counters: receipt}
 	}
 	var addr netip.Addr
 	if ev.Peer.Is4() {
@@ -672,6 +697,8 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 			peerAddr = addr.String()
 		}
 		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
+			NetworkLifetime:  ev.NetworkLifetime,
+			BaselineCounters: ev.BaselineCounters,
 			Birth:            birth,
 			SubscriberID:     subscriberID,
 			FramedRoutes:     framedRoutes,

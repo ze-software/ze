@@ -10,13 +10,16 @@ import (
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // sessionTimeoutLifetime identifies one network lifetime on a retained PPP
 // attempt. Its nonzero size gives each live allocation a distinct identity.
 // A canceled lifetime cannot arm timers after its Up readers return.
 type sessionTimeoutLifetime struct {
-	_ byte
+	_        byte
+	network  l2tpevents.NetworkLifetime
+	counters ppp.NetworkCounterReceipt
 }
 
 // startSessionTimeouts reads RADIUS metadata for the session and starts

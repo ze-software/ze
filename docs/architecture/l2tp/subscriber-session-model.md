@@ -446,6 +446,43 @@ changing an existing sample.
 <!-- source: internal/component/l2tp/events/network_lifetime.go -- NetworkLifetime -->
 <!-- source: internal/component/l2tp/events/traffic_sample.go -- TrafficSample -->
 
+PPP reads the original handle's baseline before publishing its first address
+assignment. Both address families retain the same network lifetime and baseline.
+At network end, the native-release gate joins IPv6 writers, including their final
+advertisement, disconnects forwarding once, captures the terminal sample, then
+withdraws resources and closes the original owner. Activation and address
+installation use that same gate; lifecycle publication happens after it is
+released. Scoped deferred unlocks preserve this ordering during panic unwinding
+without adding general worker panic recovery.
+<!-- source: internal/component/l2tp/ppp/network_counters.go -- prepareNetworkCounters, captureNetworkTerminal -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- prepareSessionDown, prepareLCPDown, closeFilesLocked, activateNetwork -->
+
+An optional `SessionSelector.NetworkLifetime` qualifies a capture to one network
+phase. Its snapshot and ordinary counter reads refuse once that phase changes.
+Omitting the qualifier preserves logical-session captures across LCP restarts.
+The qualified capture's `TerminalCounters` method retains its original readonly
+receipt after row removal or physical Close. Callers MUST retain that receipt
+and wait outside publication callbacks. A caller deadline leaves the measurement
+pending; another wait on the same receipt can still complete. The sample becomes
+ready before physical Close, so a completed read does not wait for that Close.
+<!-- source: internal/component/l2tp/session_capture.go -- SessionSelector, CaptureSession, TerminalCounters -->
+<!-- source: internal/component/l2tp/ppp/network_counters.go -- CaptureNetworkCounters, NetworkCounterReceipt.TerminalCounters -->
+
+An ordinary counter-provider error produces an unavailable sample with cause
+text. A contained baseline-provider panic instead ends the original before
+assignment or forwarding. A terminal-provider panic produces an unavailable
+terminal sample and permits physical cleanup to continue. Neither a failed read
+nor a canceled wait invents a measured zero.
+
+The L2TP assignment consumer cancels its exact original before acknowledging a
+notice whose network counter receipt is absent or mismatched. It publishes no
+address and keeps forwarding disabled. This violates the producer's preparation
+contract, so the refusal carries `doctor-internal-defect` and remains on the
+report bus with its original coordinates and cause. `ze show doctor` reports it; a
+healthy later assignment does not erase it. An unavailable native measurement
+is carried by its existing receipt and does not take this refusal path.
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+
 Clearing display counters does not change accounting. Unavailable counter values
 are omitted and logged, not reported as zero.
 

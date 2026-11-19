@@ -477,3 +477,8 @@ func (*fakeL2TPDetailCapture) RecordDisconnect(string, string, uint32) error {
 func (*fakeL2TPDetailCapture) Teardown(context.Context, l2tpevents.TerminateCause, string) error {
 	return errReadOnlyL2TPDetailCapture
 }
+
+// This existing fixture owns no original PPP terminal measurement.
+func (*fakeL2TPDetailCapture) TerminalCounters(context.Context) (l2tpevents.TrafficSample, error) {
+	return l2tpevents.TrafficSample{}, l2tp.ErrSessionNotFound
+}

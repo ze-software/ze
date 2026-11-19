@@ -335,12 +335,14 @@ type sessionDown struct {
 	// localTID travels with the event because a single drain can carry
 	// sessions from more than one tunnel: a tie-breaker loss discards a
 	// tunnel whose local TID is not the one the inbound packet named.
-	localTID     uint16
-	localSID     uint16
-	username     string
-	birth        subscriberid.L2TPBirth
-	subscriberID string
-	cause        l2tpevents.TerminateCause
+	localTID       uint16
+	localSID       uint16
+	username       string
+	birth          subscriberid.L2TPBirth
+	subscriberID   string
+	cause          l2tpevents.TerminateCause
+	network        l2tpevents.NetworkLifetime
+	counterReceipt ppp.NetworkCounterReceipt
 	// established records that the session had reached established when it
 	// was removed. Only such a session ran PPP, so only it can hold a
 	// subscriber route for the route observer to withdraw. A pre-PPP removal
@@ -480,6 +482,16 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	if sess == nil {
 		return
 	}
+	// Capture the exact published network and attempt before cancellation
+	// clears the timer cell or any asynchronous owner can finish release.
+	var network l2tpevents.NetworkLifetime
+	if sess.timeoutLifetime != nil {
+		network = sess.timeoutLifetime.network
+	}
+	var counterReceipt ppp.NetworkCounterReceipt
+	if sess.timeoutLifetime != nil {
+		counterReceipt = sess.timeoutLifetime.counters
+	}
 	// Cancel only this admission; a reused wire SID cannot select a successor.
 	sess.removed.Store(true)
 	sess.pppAttempt.Cancel()
@@ -503,15 +515,17 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		sess.relay.end("L2TP session to " + sess.relay.target() + " ended")
 	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
-		session:      sess,
-		tunnel:       t,
-		localTID:     t.localTID,
-		localSID:     sid,
-		username:     sess.username,
-		birth:        sess.Birth(),
-		subscriberID: sess.SubscriberID(),
-		cause:        cause,
-		established:  established,
+		session:        sess,
+		tunnel:         t,
+		localTID:       t.localTID,
+		localSID:       sid,
+		username:       sess.username,
+		birth:          sess.Birth(),
+		subscriberID:   sess.SubscriberID(),
+		network:        network,
+		counterReceipt: counterReceipt,
+		cause:          cause,
+		established:    established,
 	})
 	delete(t.sessions, sid)
 }

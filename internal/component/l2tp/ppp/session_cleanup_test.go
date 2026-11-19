@@ -711,13 +711,17 @@ func TestCanceledOwnerClosePreservesLiveWorkerIPv6Cleanup(t *testing.T) {
 			request.pending.mu.Unlock()
 		}
 	})
+	control.worker.nativeReleaseMu.Lock()
 	control.worker.mu.Lock()
 	control.worker.localInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 1}
 	control.worker.peerInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 2}
 	control.worker.peerInterfaceIDNegotiated = true
+	control.worker.mu.Unlock()
 	control.worker.afterLCPOpenIPv6Service()
+	control.worker.mu.Lock()
 	service := control.worker.ipv6Svc
 	control.worker.mu.Unlock()
+	control.worker.nativeReleaseMu.Unlock()
 	if service == nil {
 		t.Fatal("production IPv6 service startup failed")
 	}

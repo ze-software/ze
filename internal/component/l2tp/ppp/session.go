@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
@@ -58,6 +59,13 @@ type pppSession struct {
 	// Pending pointers are worker-owned; answers synchronize on request state.
 	authRequest *authRequest
 	ipRequest   *ipRequest
+
+	// networkCounterMu protects only these pointers/sequence, never native I/O.
+	// The previous receipt survives removal until a new network supersedes it.
+	networkCounterMu sync.Mutex
+	networkSequence  l2tpevents.NetworkLifetime
+	networkCurrent   *networkCounterLifetime
+	networkPrevious  *networkCounterLifetime
 
 	// The channel carries userspace PPP control frames. unitFile owns
 	// the kernel PPP unit attached by PPPIOCCONNECT; framesIn is fed

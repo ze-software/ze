@@ -117,12 +117,11 @@ func (s *pppSession) run(start *StartSession) {
 			default:
 			}
 		}
-		if err := s.teardownNCPResources(); err != nil {
-			ReportCleanupFailure(s.dataplane.Identity(), CleanupNetwork, err)
-			s.logger.Warn("ppp: final network cleanup failed; resource removal is unconfirmed",
-				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
-		}
 		close(readerStop)
+		// The shared close gate also ends an active network when a global
+		// stop interrupts periodic authentication without publishing Down.
+		// Final writers, sample and withdrawals MUST finish in that gate;
+		// an independent Stop close cannot overtake any of them.
 		s.closeFiles()
 		readerWG.Wait()
 		if framesCh != nil {
@@ -552,11 +551,9 @@ func (s *pppSession) sendEvent(ev Event) {
 		// Finish the last IPv6 advertisement before granting that permission.
 		// A peer-initiated transport close has already gated the wire, so
 		// its cleanup can only fail a write rather than send after PADT.
-		if err := s.stopIPv6Service(); err != nil {
-			s.reportIPv6ChildCleanupFailure(err)
-			s.logger.Warn("ppp: IPv6 cleanup before session-down failed; resource removal is unconfirmed",
-				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
-		}
+		ev = s.prepareSessionDown(ev.(EventSessionDown))
+	} else if event, ending := ev.(EventLCPDown); ending {
+		ev = s.prepareLCPDown(event)
 	}
 	select {
 	case s.eventsOut <- ev:
@@ -567,8 +564,39 @@ func (s *pppSession) sendEvent(ev Event) {
 	}
 }
 
-// closeFiles releases the session owner once. mu also guards interface setup,
-// so a late operation cannot target resources reused after shutdown.
+// prepareSessionDown ends native work before its caller publishes the event.
+// The caller MUST publish only the returned value, after this method returns.
+// Defer releases the gate even if an existing IPv6 provider panics, allowing
+// the ordinary final cleanup defer to enter the same original owner's gate.
+// This method deliberately does not recover that provider panic.
+func (s *pppSession) prepareSessionDown(event EventSessionDown) EventSessionDown {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	if err := s.stopIPv6Writers(); err != nil {
+		s.reportIPv6ChildCleanupFailure(err)
+		s.logger.Warn("ppp: IPv6 cleanup before session-down failed; resource removal is unconfirmed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+	}
+	event.NetworkLifetime, event.TerminalCounters = s.captureNetworkTerminal()
+	if err := s.stopIPv6Service(); err != nil {
+		s.reportIPv6ChildCleanupFailure(err)
+		s.logger.Warn("ppp: IPv6 resource cleanup after terminal counters failed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+	}
+	return event
+}
+
+// prepareLCPDown confines the retained terminal measurement to the owner gate.
+// The caller MUST publish the returned value only after this method returns.
+func (s *pppSession) prepareLCPDown(event EventLCPDown) EventLCPDown {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	event.NetworkLifetime, event.TerminalCounters = s.captureNetworkTerminal()
+	return event
+}
+
+// closeFiles releases the session owner once. nativeReleaseMu serializes
+// setup, terminal measurement and Close, preventing reuse during late work.
 func (s *pppSession) closeFiles() {
 	s.nativeReleaseMu.Lock()
 	defer s.nativeReleaseMu.Unlock()
@@ -596,9 +624,30 @@ func (s *pppSession) closeFilesLocked() error {
 	s.channelConnected = false
 	owner := s.dataplane
 	s.mu.Unlock()
-	if err := s.stopIPv6Service(); err != nil {
+	if s.driver != nil {
+		s.driver.mu.Lock()
+		attempted, confirmed, cause := s.ownerCloseAttempted, s.ownerReleased, s.nativeReleaseErr
+		s.driver.mu.Unlock()
+		if attempted {
+			// A guarded callback may have closed this exact IPv4-only owner
+			// while the worker was publishing. Its handle may already refuse
+			// native operations even when retained-unit release is uncertain.
+			// Retry only that original Close; never issue a post-Close withdrawal.
+			if confirmed {
+				return cause
+			}
+			return s.driver.closeSessionOwnerLocked(s)
+		}
+	}
+	if err := s.stopIPv6Writers(); err != nil {
 		s.reportIPv6ChildCleanupFailure(err)
-		s.logger.Warn("ppp: IPv6 cleanup before session release failed; resource removal is unconfirmed",
+		s.logger.Warn("ppp: IPv6 writers before terminal counters failed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+	}
+	s.captureNetworkTerminal()
+	if err := s.teardownNCPResources(); err != nil {
+		ReportCleanupFailure(s.dataplane.Identity(), CleanupNetwork, err)
+		s.logger.Warn("ppp: final network cleanup failed; resource removal is unconfirmed",
 			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	if owner == nil {
@@ -703,7 +752,15 @@ func (s *pppSession) beginOwnerService() bool {
 // the session, so both refusals here are logged and counted, never
 // fatal.
 func (s *pppSession) afterLCPOpenIPv6Service() {
-	if s.ipv6Svc != nil {
+	// Caller owns nativeReleaseMu, never the worker metadata mutex.
+	s.mu.Lock()
+	retained := s.ipv6Svc != nil
+	supported := s.ipv6MRUSupported()
+	negotiated := s.peerInterfaceIDNegotiated
+	peerMRU, localMRU, cap := s.negotiatedMRU, s.localMRU, s.maxMRU
+	localID, peerID := s.localInterfaceID, s.peerInterfaceID
+	s.mu.Unlock()
+	if retained {
 		// A retained partial service still owns cleanup. Never replace it
 		// with another service, or its address-removal receipt would be lost.
 		reportIPv6Failure(s.logger, s.dataplane.Identity().InterfaceName, "service replacement",
@@ -713,12 +770,12 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 	// information field to be at least as large as the minimum link MTU
 	// size required for IPv6 [2]."
-	if !s.ipv6MRUSupported() {
+	if !supported {
 		s.logger.Warn("ppp: refusing IPv6 service below the IPv6 minimum MRU",
-			"peer_mru", s.negotiatedMRU, "local_mru", s.localMRU, "session_mru", s.maxMRU)
+			"peer_mru", peerMRU, "local_mru", localMRU, "session_mru", cap)
 		return
 	}
-	if !s.peerInterfaceIDNegotiated {
+	if !negotiated {
 		s.logger.Warn("ppp: IPv6CP opened without a negotiated peer interface identifier, refusing to start the IPv6 service",
 			"tunnel_id", s.tunnelID, "session_id", s.sessionID, "reason", reasonServiceUnnegotiated)
 		countIdentifierRefusal(reasonServiceUnnegotiated)
@@ -731,10 +788,10 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 	svc, err := startIPv6Service(iPv6ServiceConfig{
 		TunnelID:         s.tunnelID,
 		SessionID:        s.sessionID,
-		LocalInterfaceID: s.localInterfaceID,
-		PeerInterfaceID:  s.peerInterfaceID,
+		LocalInterfaceID: localID,
+		PeerInterfaceID:  peerID,
 		Dataplane:        s.dataplane,
-	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
+	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), localID[:]...)}, nil, s.logger)
 	if svc != nil {
 		s.setOwnerServiceState(true, err)
 	} else {
@@ -743,7 +800,9 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 	if svc != nil {
 		// A failed startup may still own an address whose withdrawal failed.
 		// Keep that owner for resetNCP and final session cleanup to retry.
+		s.mu.Lock()
 		s.ipv6Svc = svc
+		s.mu.Unlock()
 	}
 	if err != nil {
 		if svc != nil {
@@ -814,23 +873,39 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	if err := s.activateNetwork(mru); err != nil {
+		if !errors.Is(err, ErrSessionNotFound) {
+			s.fail(err.Error())
+		}
+		return false
+	}
+	// Publication can block. The original owner gate covers activation only,
+	// so its cleanup and terminal receipt never wait for this event consumer.
+	s.sendEvent(EventSessionUp{TunnelID: s.tunnelID, SessionID: s.sessionID})
+	return true
+}
+
+// activateNetwork protects actual owner I/O with the release gate. Metadata
+// locks cover only validation/state commits, never provider calls/publication.
+func (s *pppSession) activateNetwork(mru uint16) error {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
 	s.mu.Lock()
-	// Cancellation can arrive after the assignment acknowledgment, while
-	// this goroutine waits for the descriptor lock. Do not connect then.
+	invalid := s.filesClosed
+	if s.sessionDownSent {
+		invalid = true
+	}
+	s.mu.Unlock()
 	select {
 	case <-s.stopCh:
-		s.mu.Unlock()
-		return false
+		return ErrSessionNotFound
 	case <-s.sessStop:
-		s.mu.Unlock()
-		return false
+		return ErrSessionNotFound
 	default:
 	}
-	if s.filesClosed {
-		s.mu.Unlock()
-		return false
+	if invalid {
+		return ErrSessionNotFound
 	}
-
 	var tb textbuf.Buffer
 	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
 	// over a PPP link is the same as the maximum length of the Information
@@ -842,54 +917,43 @@ func (s *pppSession) afterLCPOpen() bool {
 	// The MTU goes first because the interface of a reopened lifetime is still
 	// up with the previous MTU: resetNCP disconnects the channel and leaves the
 	// interface alone, and the connect below is what lets it transmit again.
-	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the MTU error, before any channel connect.
+	// refuse-by-default: guards pppSession.afterLCPOpen -- an MTU error ends the exact original before any channel connect.
 	if err := s.dataplane.SetMTU(int(mru)); err != nil {
-		s.mu.Unlock()
-		s.fail(tb.Str("iface SetMTU: ").Err(err).String())
-		return false
+		return errors.New(tb.Str("iface SetMTU: ").Err(err).String())
 	}
-
 	// Post-NCP: connect channel to unit and bring interface up.
 	// PPPIOCCONNECT must happen after NCP because it changes frame
 	// routing from channel fd to unit fd (accel-ppp uses the same
 	// deferred-connect pattern): from here on the NCP frames arrive on
 	// the unit, so readUnitFrames is woken to read them. MRU/AdminUp
 	// follow.
-	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the connect error, before receive-MRU or admin-up.
+	// refuse-by-default: guards pppSession.afterLCPOpen -- a connect error ends the exact original before receive-MRU or admin-up.
 	if err := s.dataplane.Connect(); err != nil {
-		s.mu.Unlock()
-		s.fail(tb.Reset().Str("PPPIOCCONNECT: ").Err(err).String())
-		return false
+		return errors.New(tb.Reset().Str("PPPIOCCONNECT: ").Err(err).String())
 	}
+	s.mu.Lock()
 	s.channelConnected = true
+	s.mu.Unlock()
 	s.wakeUnitReader()
 	// RFC 1661 Section 6.1: "If smaller packets are requested, an
 	// implementation MUST still be able to receive the full 1500 octet
 	// information field in case link synchronization is lost."
 	// The peer's MRU limits our sends, not the kernel's receive buffer.
-	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the receive-MRU error, before admin-up.
+	// refuse-by-default: guards pppSession.afterLCPOpen -- a receive-MRU error ends the exact original before admin-up.
 	if err := s.dataplane.SetReceiveMRU(MaxFrameLen); err != nil {
-		s.mu.Unlock()
-		s.fail(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
-		return false
+		return errors.New(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
 	}
-	// refuse-by-default: guards pppSession.applyTransition -- false blocks SessionUp after fail publishes the admin-up error; the interface never became usable.
+	// refuse-by-default: guards pppSession.afterLCPOpen -- an admin-up error prevents SessionUp for the exact original.
 	if err := s.dataplane.SetAdminUp(); err != nil {
-		s.mu.Unlock()
-		s.fail(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
-		return false
+		return errors.New(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
 	}
-
-	if s.ipv6cpState == LCPStateOpened {
+	s.mu.Lock()
+	ipv6Opened := s.ipv6cpState == LCPStateOpened
+	s.mu.Unlock()
+	if ipv6Opened {
 		s.afterLCPOpenIPv6Service()
 	}
-	s.mu.Unlock()
-
-	s.sendEvent(EventSessionUp{
-		TunnelID:  s.tunnelID,
-		SessionID: s.sessionID,
-	})
-	return true
+	return nil
 }
 
 // runAuthPhase dispatches to the per-method authentication handler

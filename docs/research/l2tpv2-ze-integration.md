@@ -1210,6 +1210,16 @@ alone do not establish a backend counter reader.
 <!-- source: internal/component/l2tp/ppp/session_handle.go -- SessionCounters -->
 <!-- source: internal/component/l2tp/ppp/counter_reading.go -- CounterReading.Value -->
 
+PPP captures the original network's raw byte and packet baseline before its
+first address assignment is published. Both address families share that network
+lifetime. Teardown joins IPv6 writers, disconnects forwarding, then freezes the
+final measurement before withdrawing addresses and routes or closing the
+original files. A retained readonly receipt can return that final sample after
+the worker ends; a canceled wait leaves it unresolved rather than inventing
+zero. A network-qualified capture refuses a later network on the same session.
+<!-- source: internal/component/l2tp/ppp/network_counters.go -- prepareNetworkCounters, captureNetworkTerminal, NetworkCounterReceipt.TerminalCounters -->
+<!-- source: internal/component/l2tp/session_capture.go -- capturedSession.currentLocked, capturedSession.TerminalCounters -->
+
 The shared kernel library also provides an original-unit creator. It creates
 named and unnamed PPP units through the supplied backend's ordered creation
 socket, retaining the actual ECHO identity, original unit file and that socket's

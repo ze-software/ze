@@ -237,14 +237,19 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 		return
 	}
 	for _, d := range batch {
+		// A pending snapshot remains owned by the already-bound accounting
+		// task, which awaits the exact receipt off this publication callback.
+		terminal, _ := d.counterReceipt.TerminalSnapshot()
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-			Birth:        d.birth,
-			SubscriberID: d.subscriberID,
-			Generation:   r.params.Generation,
-			TunnelID:     d.localTID,
-			SessionID:    d.localSID,
-			Username:     d.username,
-			Cause:        d.cause,
+			Birth:            d.birth,
+			SubscriberID:     d.subscriberID,
+			Generation:       r.params.Generation,
+			TunnelID:         d.localTID,
+			SessionID:        d.localSID,
+			Username:         d.username,
+			NetworkLifetime:  d.network,
+			TerminalCounters: terminal,
+			Cause:            d.cause,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-down emit failed",
 				"local-tid", d.localTID, "local-sid", d.localSID, "error", err)

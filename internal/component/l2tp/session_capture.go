@@ -21,6 +21,9 @@ type SessionSelector struct {
 	TID      uint16
 	Listener netip.AddrPort
 	Birth    subscriberid.L2TPBirth
+	// NetworkLifetime qualifies this capture to one existing network phase.
+	// Zero preserves logical-session captures across LCP renegotiation.
+	NetworkLifetime l2tpevents.NetworkLifetime
 }
 
 // ErrSessionAmbiguous refuses a readable selector matching distinct sessions.
@@ -40,6 +43,9 @@ type CapturedSession interface {
 	FSMHistory() ([]FSMTransition, error)
 	SessionEvents() ([]ObserverEvent, error)
 	Counters() (ppp.SessionCounters, error)
+	// TerminalCounters is valid only for an explicitly network-qualified
+	// capture and MUST be awaited off the EventBus publication callback.
+	TerminalCounters(context.Context) (l2tpevents.TrafficSample, error)
 	RecordDisconnect(actor, reason string, cause uint32) error
 	Teardown(context.Context, l2tpevents.TerminateCause, string) error
 }
@@ -48,13 +54,15 @@ type CapturedSession interface {
 // nil values are invalid; only CaptureSession returns a successful capability.
 // It borrows its original owners and never closes a replacement or current ID.
 type capturedSession struct {
-	reactor         *l2tpReactor
-	tunnel          *L2TPTunnel
-	session         *L2TPSession
-	birth           subscriberid.L2TPBirth
-	listener        netip.AddrPort
-	observer        *Observer
-	generation      l2tpevents.ObservationGeneration
+	reactor    *l2tpReactor
+	tunnel     *L2TPTunnel
+	session    *L2TPSession
+	birth      subscriberid.L2TPBirth
+	listener   netip.AddrPort
+	observer   *Observer
+	generation l2tpevents.ObservationGeneration
+	// network is nonnil only when the selector explicitly qualified it.
+	network         *sessionTimeoutLifetime
 	teardownStarted atomic.Bool
 }
 
@@ -129,10 +137,20 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 					continue
 				}
 			}
+			var network *sessionTimeoutLifetime
+			if selector.NetworkLifetime.IsValid() {
+				network = session.timeoutLifetime
+				if network == nil {
+					continue
+				}
+				if network.network != selector.NetworkLifetime {
+					continue
+				}
+			}
 			if selected != nil {
 				return nil, ErrSessionAmbiguous
 			}
-			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation}
+			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation, network: network}
 		}
 		for session, tunnel := range reactor.retiredSessions {
 			if session.localSID != selector.SID {
@@ -152,10 +170,20 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 					continue
 				}
 			}
+			var network *sessionTimeoutLifetime
+			if selector.NetworkLifetime.IsValid() {
+				network = session.timeoutLifetime
+				if network == nil {
+					continue
+				}
+				if network.network != selector.NetworkLifetime {
+					continue
+				}
+			}
 			if selected != nil {
 				return nil, ErrSessionAmbiguous
 			}
-			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation}
+			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation, network: network}
 			selected.teardownStarted.Store(true)
 		}
 	}
@@ -204,6 +232,11 @@ func (captured *capturedSession) currentLocked() bool {
 	}
 	if captured.tunnel.sessions[captured.session.localSID] != captured.session {
 		return false
+	}
+	if captured.network != nil {
+		if captured.session.timeoutLifetime != captured.network {
+			return false
+		}
 	}
 	return captured.session.Birth() == captured.birth
 }
@@ -375,4 +408,18 @@ func (captured *capturedSession) Teardown(ctx context.Context, cause l2tpevents.
 		}
 	}
 	return cleanupErr
+}
+
+// TerminalCounters uses only the original readonly receipt retained at capture.
+// It remains valid after row removal, network replacement or physical Close;
+// none of those states can redirect it to a new actor, handle or network.
+// The caller MUST retain the capture until its accounting task completes.
+func (captured *capturedSession) TerminalCounters(ctx context.Context) (l2tpevents.TrafficSample, error) {
+	if captured == nil {
+		return l2tpevents.TrafficSample{}, ErrSessionNotFound
+	}
+	if captured.network == nil {
+		return l2tpevents.TrafficSample{}, errors.New("l2tp: terminal counters require a network-qualified capture")
+	}
+	return captured.network.counters.TerminalCounters(ctx)
 }

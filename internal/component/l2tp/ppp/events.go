@@ -81,8 +81,10 @@ func (EventLCPUp) isPPPEvent() {}
 // transport. Its consumer calls Acknowledge after that withdrawal; PPP waits
 // before processing replacement authentication or NCP packets.
 type EventLCPDown struct {
-	Birth        subscriberid.L2TPBirth `json:",omitzero"`
-	SubscriberID string                 `json:",omitempty"`
+	Birth            subscriberid.L2TPBirth     `json:",omitzero"`
+	SubscriberID     string                     `json:",omitempty"`
+	NetworkLifetime  l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
+	TerminalCounters l2tpevents.TrafficSample   `json:"terminal-counters,omitzero"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control      SessionControl
 	TunnelID     uint16
@@ -145,8 +147,10 @@ func (EventSessionUp) isPPPEvent() {}
 // identifier was never negotiated (session.go:
 // peerInterfaceIDNegotiated): there is no identifier to carry.
 type EventSessionIPAssigned struct {
-	Birth        subscriberid.L2TPBirth `json:",omitzero"`
-	SubscriberID string                 `json:",omitempty"`
+	Birth            subscriberid.L2TPBirth     `json:",omitzero"`
+	SubscriberID     string                     `json:",omitempty"`
+	NetworkLifetime  l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
+	BaselineCounters l2tpevents.TrafficSample   `json:"baseline-counters,omitzero"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16
@@ -200,8 +204,10 @@ func (e EventSessionIPAssigned) Acknowledge() {
 // sets it; an exit ze cannot attribute names NAS Error rather than
 // guessing a more specific cause.
 type EventSessionDown struct {
-	Birth        subscriberid.L2TPBirth `json:",omitzero"`
-	SubscriberID string                 `json:",omitempty"`
+	Birth            subscriberid.L2TPBirth     `json:",omitzero"`
+	SubscriberID     string                     `json:",omitempty"`
+	NetworkLifetime  l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
+	TerminalCounters l2tpevents.TrafficSample   `json:"terminal-counters,omitzero"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16

@@ -142,3 +142,8 @@ func (original *coaPanickingCapture) Teardown(ctx context.Context, cause l2tpeve
 	}
 	return original.CapturedSession.Teardown(ctx, cause, reason)
 }
+
+// This existing fixture owns no original PPP terminal measurement.
+func (*coaFixtureCapture) TerminalCounters(context.Context) (l2tpevents.TrafficSample, error) {
+	return l2tpevents.TrafficSample{}, l2tp.ErrSessionNotFound
+}

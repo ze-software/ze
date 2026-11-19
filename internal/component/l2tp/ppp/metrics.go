@@ -97,6 +97,7 @@ func bindPPPMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	networkCounterPanics().guard.SetMetricsRegistry(reg)
 	pppMetricsPtr.Store(initPPPMetrics(reg))
 }
 
