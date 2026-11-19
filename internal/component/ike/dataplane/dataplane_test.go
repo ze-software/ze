@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+// testBypassPriority ranks the BYPASS entries the backend tests install directly. It is
+// any rank ahead of PriorityChildSA, so a bypass beside a Child SA policy decides the
+// packets both match. No production SPD entry carries it: Ze's own IKE exchange is
+// exempt on its IKE sockets (transport.bypassIKESocket), not in the SPD.
+const testBypassPriority = 100
+
 type mockDataplane struct {
 	installed   []SAParams
 	removed     []uint32

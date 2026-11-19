@@ -114,15 +114,16 @@ func TestSPDPolicyRefusesAnAbsentOrUnknownAction(t *testing.T) {
 	}
 }
 
-// VALIDATES: RFC4301-4.4.1-4. An operator SPD entry ranked at or above the IKE
-// control-plane bypass is refused at commit.
-// PREVENTS: an entry that captures the IKE exchange. A DISCARD at rank 100 or below
-// matches ze's own IKE datagrams before the bypass does, so every tunnel on the node
-// stops being built, rekeyed and torn down, and the kernel reports nothing because it
-// picked the entry the operator ranked highest, exactly as asked.
-// RFC requirement: RFC4301-4.4.1-4 negative -- an order that captures IKE is refused.
-func TestSPDPolicyOrderInsideBypassBandRefused(t *testing.T) {
-	for _, order := range []string{"1", "99", "100"} {
+// VALIDATES: an operator SPD entry takes every rank from 1 to 2147483647, the lowest
+// order included, and an order outside that range is refused at commit with the
+// command that fixes it.
+// PREVENTS: a rank reserved for nothing. The IKE exchange is exempt on Ze's own IKE
+// sockets, so no order can capture it, and refusing a low order would only take ranks
+// away from the operator. Order 0 stays refused because the kernel resolves a tie by
+// insertion order and 0 is the rank of every policy installed without one; an order
+// above 2147483647 is one no dataplane carries.
+func TestSPDPolicyOrderOutsideTheRankRangeRefused(t *testing.T) {
+	for _, order := range []string{"0", "2147483648"} {
 		tree := spdTree("greedy",
 			map[string]string{"action": "discard", "order": order},
 			map[string]string{"prefix": "192.0.2.0/24"},
@@ -131,24 +132,30 @@ func TestSPDPolicyOrderInsideBypassBandRefused(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ParseIPsecConfig for order %s: %v", order, err)
 		}
-		if err := cfg.ValidateSPDPolicies(); err == nil {
-			t.Errorf("order %s was accepted; it ranks at or above the IKE bypass (%d)",
-				order, dataplane.PriorityIKEBypass)
+		err = cfg.ValidateSPDPolicies()
+		if err == nil {
+			t.Errorf("order %s was accepted; it is outside the ranks 1 to 2147483647", order)
+			continue
+		}
+		if !strings.Contains(err.Error(), "set vpn ipsec policy greedy order <rank>") {
+			t.Errorf("the refusal of order %s does not name the command that fixes it: %v", order, err)
 		}
 	}
 
-	// The positive half: the first rank above the band is accepted, so the refusal is
-	// a boundary rather than a blanket ban on ordering.
-	tree := spdTree("polite",
-		map[string]string{"action": "discard", "order": "101"},
-		map[string]string{"prefix": "192.0.2.0/24"},
-		map[string]string{"prefix": "198.51.100.0/24"})
-	cfg, err := ParseIPsecConfig(tree)
-	if err != nil {
-		t.Fatalf("ParseIPsecConfig for order 101: %v", err)
-	}
-	if err := cfg.ValidateSPDPolicies(); err != nil {
-		t.Errorf("order 101 was refused, and it is the first rank below the IKE bypass: %v", err)
+	// The positive half: both ends of the range are accepted, the lowest order 1
+	// included, so the refusal is a boundary rather than a band kept from the operator.
+	for _, order := range []string{"1", "2147483647"} {
+		tree := spdTree("polite",
+			map[string]string{"action": "discard", "order": order},
+			map[string]string{"prefix": "192.0.2.0/24"},
+			map[string]string{"prefix": "198.51.100.0/24"})
+		cfg, err := ParseIPsecConfig(tree)
+		if err != nil {
+			t.Fatalf("ParseIPsecConfig for order %s: %v", order, err)
+		}
+		if err := cfg.ValidateSPDPolicies(); err != nil {
+			t.Errorf("order %s was refused, and it is inside the ranks 1 to 2147483647: %v", order, err)
+		}
 	}
 }
 

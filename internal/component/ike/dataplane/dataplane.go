@@ -125,25 +125,18 @@ func (a SPAction) isTemplateFree() bool {
 // LOWER VALUE MEANS HIGHER PRECEDENCE. The kernel keeps each policy chain sorted by
 // priority ascending and takes the first match (net/xfrm/xfrm_policy.c,
 // xfrm_policy_insert and xfrm_policy_lookup_bytype). At EQUAL priority the ordering
-// falls back to insertion order, which is why neither of these is left at zero: a
-// tie between the IKE bypass and a Child SA policy would be resolved by whichever
-// was installed last.
+// falls back to insertion order, which is why no rank Ze installs is zero: a policy
+// another tool installs with no priority lands at zero, and a tie with it would be
+// resolved by whichever was installed last.
 //
-// Every policy this package installs for IKE carries one of these two. Before they
-// existed both landed at priority 0, so no bypass could outrank a Child SA policy
-// whose selector had already captured the IKE endpoints.
-//
-// The gap between them is deliberate room. Nothing occupies it today.
+// No SPD rank is reserved for IKE. Ze's IKE exchange is exempt on Ze's own IKE
+// sockets (transport.bypassIKESocket), and the kernel consults a socket's policy
+// before any SPD entry whatever its rank, so an operator order and a peer's
+// policy-priority take any rank from 1 to 2147483647 (ze-ipsec-conf.yang) without
+// capturing the exchange that builds and rekeys the SA.
 const (
-	// PriorityIKEBypass is the floor of the operator's orders and of a peer's
-	// policy-priority: the config refuses a rank at or below it. It once ranked a
-	// node-wide SPD bypass on UDP 500 and 4500 ahead of every Child SA policy. That
-	// bypass now lives on Ze's own IKE sockets (transport.bypassIKESocket), which the
-	// kernel consults before any SPD entry whatever its rank, so no SPD entry Ze
-	// installs carries this rank and the band below it protects nothing.
-	PriorityIKEBypass = 100
-	// PriorityChildSA ranks a negotiated Child SA policy. It is deliberately worse
-	// than PriorityIKEBypass and deliberately non-zero.
+	// PriorityChildSA ranks a negotiated Child SA policy whose peer states no
+	// policy-priority. It is the YANG default of that leaf, and deliberately non-zero.
 	PriorityChildSA = 2000
 	// PriorityUnmatched ranks the SPD catch-all entry (engine/unmatched.go) LAST:
 	// it is the largest value the kernel's u32 priority holds, so every operator
@@ -489,9 +482,9 @@ type SPParams struct {
 	SPD  string
 
 	// Priority ranks this policy against every other policy whose selector also
-	// matches. LOWER VALUE MEANS HIGHER PRECEDENCE. Use PriorityIKEBypass or
-	// PriorityChildSA; a bare 0 ties with every other unset policy and the winner is
-	// then decided by installation order.
+	// matches. LOWER VALUE MEANS HIGHER PRECEDENCE. Use the operator's rank or one of
+	// the Priority constants; a bare 0 ties with every other unset policy and the
+	// winner is then decided by installation order.
 	Priority int
 
 	// SrcPort and DstPort narrow the policy selector to a port. The zero value of each

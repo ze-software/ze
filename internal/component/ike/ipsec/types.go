@@ -779,7 +779,7 @@ type SiteToSitePeer struct {
 	// parseSiteToSitePeer resolves an absent leaf to that same constant, so a peer that
 	// states no order installs what it installed before.
 	//
-	// ValidatePolicyOrder refuses a rank that outranks the IKE control-plane bypass.
+	// ValidatePolicyOrder refuses a rank outside 1 to 2147483647 (spdRankMin).
 	//
 	// It sits LAST on purpose. Mode and TransportRequired above are one octet each, so
 	// the struct already carried six octets of tail padding and this member fits inside

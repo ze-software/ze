@@ -8,11 +8,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"maps"
+	"math"
 	"net/netip"
 	"slices"
 	"strings"
-
-	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 // IsEAPMode reports whether an auth mode runs the EAP exchange. RFC 7296
@@ -240,34 +239,55 @@ func validateIdentityLeaves(name string, local, remote identityLeaf, remoteIDTyp
 	return nil
 }
 
-// ValidatePolicyOrder refuses a peer whose SPD rank would capture the IKE control plane.
+// spdRankMin and spdRankMax bound an SPD rank: a peer's policy-priority and the order
+// of an operator entry (ze-ipsec-conf.yang, range "1..2147483647" on both leaves).
+// TestSPDRankBoundsMatchTheYANGRanges holds the two declarations together.
+//
+// No rank is reserved for IKE: the IKE exchange is exempt on Ze's own IKE sockets
+// (transport.bypassIKESocket), which the kernel consults before any SPD entry.
+//
+// Zero is refused for two reasons. The engine reads a zero PolicyPriority as "no rank
+// stated" and installs dataplane.PriorityChildSA instead (childPairPolicy,
+// engine/child.go), so a 0 that reached it would install at 2000, not where the
+// operator ranked it. And the kernel resolves equal priorities by insertion order, so
+// a 0 ties with every policy another tool installs without a priority.
+//
+// The ceiling keeps every rank inside what each dataplane carries (vppPriority holds
+// an int32) and below the catch-all entries (dataplane.PriorityUnmatched).
+const (
+	spdRankMin = 1
+	spdRankMax = math.MaxInt32
+)
+
+// spdRankValid reports whether rank is inside the SPD rank range.
+func spdRankValid(rank uint32) bool {
+	if rank < spdRankMin {
+		return false
+	}
+	return rank <= spdRankMax
+}
+
+// ValidatePolicyOrder refuses a peer whose SPD rank is outside the SPD rank range.
 //
 // RFC 4301 Section 4.4.1 requires the ordering: "Thus, a user or administrator MUST be
 // able to order the entries to express a desired access control policy." It orders the
-// entries of ONE database. Its floor is dataplane.PriorityIKEBypass, a rank the IKE
-// bypass once held; that bypass now sits on Ze's IKE sockets (transport.bypassIKESocket).
+// entries of ONE database, in the range spdRankMin documents.
 //
-// A Child SA entry at or above the bypass matches the IKE datagrams first, so the
-// exchange that builds, rekeys and tears down that very SA is handed to the SA itself.
-// The tunnel then cannot renegotiate, and nothing reports why: the kernel picked the
-// entry the operator ranked highest, exactly as asked. The refusal lands at commit
-// because that is the only place the operator can still act on it
-// (ai/rules/protocol.md).
-//
-// A zero is refused for the same reason and not as an unset marker. parseSiteToSitePeer
-// resolves an absent leaf to dataplane.PriorityChildSA, so a parsed config never carries
-// one, and a zero that reaches here came from somewhere that skipped the parser.
+// The YANG range refuses the same values. This check is its pair for a peer that
+// reached the engine without the schema: parseSiteToSitePeer resolves an absent leaf
+// to dataplane.PriorityChildSA, so a parsed config carries a 0 only when the leaf was
+// written as 0 and the schema did not run.
 func (c *IPsecConfig) ValidatePolicyOrder() error {
 	for name := range c.Peers {
 		priority := c.Peers[name].PolicyPriority
-		if priority > dataplane.PriorityIKEBypass {
+		if spdRankValid(priority) {
 			continue
 		}
 		return fmt.Errorf(
-			"ipsec peer %q: policy-priority %d ranks at or above the IKE control-plane bypass "+
-				"(%d), so this peer's policy would capture the IKE exchange that builds and "+
-				"rekeys it and the tunnel could never renegotiate. Set policy-priority above %d",
-			name, priority, dataplane.PriorityIKEBypass, dataplane.PriorityIKEBypass)
+			"ipsec peer %q: policy-priority %d is not a rank. A rank runs from %d to %d, "+
+				"and the lowest is searched first. Set a rank in that range: "+
+				"set vpn ipsec site-to-site peer %s policy-priority <rank>",
+			name, priority, spdRankMin, spdRankMax, name)
 	}
 	return nil
 }

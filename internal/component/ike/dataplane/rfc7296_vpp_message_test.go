@@ -651,13 +651,13 @@ func TestVPPInstallPolicy(t *testing.T) {
 			req.Entry.RemotePortStart, req.Entry.RemotePortStop)
 	}
 	// Ze ranks lower first and VPP ranks higher first, so PriorityChildSA (2000) must
-	// not outrank PriorityIKEBypass (100) once translated.
+	// not outrank a bypass ranked ahead of it (testBypassPriority, 100) once translated.
 	if req.Entry.Priority != -PriorityChildSA {
 		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -PriorityChildSA)
 	}
-	if vppPriority(PriorityIKEBypass) <= vppPriority(PriorityChildSA) {
-		t.Errorf("vppPriority inverts the ranking: IKE bypass %d, child SA %d",
-			vppPriority(PriorityIKEBypass), vppPriority(PriorityChildSA))
+	if vppPriority(testBypassPriority) <= vppPriority(PriorityChildSA) {
+		t.Errorf("vppPriority inverts the ranking: bypass %d, child SA %d",
+			vppPriority(testBypassPriority), vppPriority(PriorityChildSA))
 	}
 }
 
@@ -831,7 +831,7 @@ func TestVPPInstallPolicyBypass(t *testing.T) {
 	p.Action = SPActionBypass
 	p.SAID = 0
 	p.Mode = 0
-	p.Priority = PriorityIKEBypass
+	p.Priority = testBypassPriority
 	p.UpperProto = 17 // UDP
 	p.SrcPort = AnyPortMatch()
 	p.DstPort = ExactPortMatch(500)
@@ -853,8 +853,8 @@ func TestVPPInstallPolicyBypass(t *testing.T) {
 		t.Errorf("local port range = %d..%d, want 0..65535",
 			req.Entry.LocalPortStart, req.Entry.LocalPortStop)
 	}
-	if req.Entry.Priority != -PriorityIKEBypass {
-		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -PriorityIKEBypass)
+	if req.Entry.Priority != -testBypassPriority {
+		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -testBypassPriority)
 	}
 }
 

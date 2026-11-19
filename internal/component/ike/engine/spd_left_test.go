@@ -161,7 +161,7 @@ func TestSPDLeftoverNamesTheExactRemovalCommand(t *testing.T) {
 			UpperProto: 17,
 			SrcPort:    dataplane.ExactPortMatch(port),
 			DstPort:    dataplane.ExactPortMatch(port),
-			Priority:   dataplane.PriorityIKEBypass,
+			Priority:   dataplane.PriorityChildSA - 1, // any rank ahead of the Child SA entry
 			Action:     dataplane.SPActionBypass,
 		}
 	}

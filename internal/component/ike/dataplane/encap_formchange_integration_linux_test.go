@@ -262,7 +262,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// it before any Child SA policy: the dir-in entry of engine/bypass.go
 	// ikeBypassPolicies, which installIKEBypass puts in place at the first configuration
 	// apply. The Child SA policy below then carries PriorityChildSA, as installChildSA
-	// gives every Child SA policy, so the bypass at PriorityIKEBypass ranks ahead of it.
+	// gives every Child SA policy, so the bypass at testBypassPriority ranks ahead of it.
 	//
 	// WHY the probe needs it now. The re-presented datagram is plaintext UDP to port 4500,
 	// and it arrives on ze-espform, whose disable_policy is 0. Linux checks the inbound
@@ -281,7 +281,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 		Dir:        SADirIn,
 		Action:     SPActionBypass,
 		Role:       PolicyRoleIKEBypass,
-		Priority:   PriorityIKEBypass,
+		Priority:   testBypassPriority,
 		UpperProto: unix.IPPROTO_UDP,
 		SrcPort:    AnyPortMatch(),
 		DstPort:    ExactPortMatch(encapNATTPortForTests),

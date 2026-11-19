@@ -793,20 +793,20 @@ func vppSPDAction(a SPAction) ipsec_types.IpsecSpdAction {
 
 // vppPriority converts a Ze policy priority to the VPP one, and the SIGN FLIPS.
 //
-// Ze ranks LOWER first (SPParams.Priority, dataplane.go: PriorityIKEBypass 100 beats
-// PriorityChildSA 2000). VPP keeps each SPD chain sorted by priority DESCENDING and
-// takes the first match. A pass-through would therefore rank every Child SA policy
-// ahead of the IKE bypass. A Child SA selector that captured the IKE endpoints would
-// then prevent its own rekey. Negating preserves the ranking the constants express.
+// Ze ranks LOWER first (SPParams.Priority: an operator entry at its default order 1000
+// beats a peer at PriorityChildSA 2000). VPP keeps each SPD chain sorted by priority
+// DESCENDING and takes the first match. A pass-through would therefore reverse the
+// operator's order: the entry ranked last would decide every packet two entries both
+// match. Negating preserves the ranking the operator wrote.
 //
-// The hardcoded 100 that stood here gave every policy the IKE bypass rank.
+// The hardcoded 100 that stood here gave every policy one rank.
 //
 // MEASURED on VPP v26.06 in the AC-7 deployment run
 // (internal/le/test/deployment/vppevidence.go, run_ipsec_evidence). Two outbound policies go
-// into one chain and `show ipsec spd` prints it in stored order. The IKE bypass
-// (Ze 100, VPP -100) is listed AHEAD of the Child SA policy (Ze 2000, VPP -2000), and
-// two policies added afterwards at VPP priority 7 and 8 sort ahead of both, highest
-// first. The chain is sorted DESCENDING, so the negation preserves the ranking.
+// into one chain and `show ipsec spd` prints it in stored order. The bypass at Ze 100
+// (VPP -100) is listed AHEAD of the Child SA policy (Ze 2000, VPP -2000), and two
+// policies added afterwards at VPP priority 7 and 8 sort ahead of both, highest first.
+// The chain is sorted DESCENDING, so the negation preserves the ranking.
 func vppPriority(p int) int32 {
 	switch {
 	case p > math.MaxInt32:

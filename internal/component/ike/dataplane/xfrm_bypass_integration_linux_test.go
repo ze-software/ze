@@ -75,7 +75,7 @@ func ikeBypassOut(port uint16) SPParams {
 		Dst:        anyV4,
 		Dir:        SADirOut,
 		Action:     SPActionBypass,
-		Priority:   PriorityIKEBypass,
+		Priority:   testBypassPriority,
 		UpperProto: unix.IPPROTO_UDP,
 		SrcPort:    ExactPortMatch(port),
 		DstPort:    AnyPortMatch(),
@@ -236,8 +236,8 @@ func TestXFRMBypassIsStoredWithoutTemplate(t *testing.T) {
 	if len(found.Tmpls) != 0 {
 		t.Errorf("bypass stored with %d template(s), want 0; a template makes it a protect policy and the kernel would demand a state for ze's own IKE", len(found.Tmpls))
 	}
-	if found.Priority != PriorityIKEBypass {
-		t.Errorf("bypass priority round-tripped as %d, want %d", found.Priority, PriorityIKEBypass)
+	if found.Priority != testBypassPriority {
+		t.Errorf("bypass priority round-tripped as %d, want %d", found.Priority, testBypassPriority)
 	}
 	if found.DstPort != 0 {
 		t.Errorf("bypass pinned remote port %d; a NAT rewrites it and the exemption would stop matching", found.DstPort)

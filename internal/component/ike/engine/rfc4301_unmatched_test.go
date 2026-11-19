@@ -17,7 +17,7 @@ import (
 )
 
 // operatorOrderMax is the upper bound of the `order` leaf (ze-ipsec-conf.yang,
-// range "101..2147483647"). The catch-all must rank after it.
+// range "1..2147483647"). The catch-all must rank after it.
 const operatorOrderMax = 2147483647
 
 // RFC requirement: RFC4301-5-1 positive -- the discard catch-all is a wildcard entry in

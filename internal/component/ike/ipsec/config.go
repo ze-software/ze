@@ -542,8 +542,7 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 		// An absent leaf resolves to the rank every peer took before the SPD became
 		// orderable (RFC 4301 Section 4.4.1), so an unordered config installs what it
 		// installed before. It is resolved HERE rather than left at zero, because zero
-		// outranks the IKE control-plane bypass and would capture the exchange that
-		// builds the very SA the entry protects (dataplane.PriorityIKEBypass).
+		// is not a rank (spdRankMin, validate.go) and ValidatePolicyOrder refuses it.
 		PolicyPriority: dataplane.PriorityChildSA,
 	}
 

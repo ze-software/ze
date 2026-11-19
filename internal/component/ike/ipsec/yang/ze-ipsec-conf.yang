@@ -245,7 +245,7 @@ module ze-ipsec-conf {
 
                 leaf order {
                     type uint32 {
-                        range "101..2147483647";
+                        range "1..2147483647";
                     }
                     default 1000;
                     description "Where this entry sits in the operator's ordering of the Security
@@ -256,16 +256,16 @@ module ze-ipsec-conf {
                                  RFC 4301 Section 4.4.1: the management interface 'MUST support
                                  (total) ordering of these entries, as seen via this interface'.
 
-                                 The default of 1000 sits between the lowest order accepted, 101,
+                                 The default of 1000 sits between the lowest order accepted, 1,
                                  and a peer's default rank of 2000, so an entry written with no order
                                  outranks the tunnels and carves its hole out of them. Raise it above
                                  2000 to let a tunnel win instead. Two entries that overlap must not
                                  share an order, so two overlapping entries both left at the default
                                  are refused at commit until one is given an order of its own.
 
-                                 The range starts above 100, as policy-priority's does. The IKE
-                                 exchange is exempt on Ze's own IKE sockets, ahead of every entry
-                                 whatever its order, so no order captures it.";
+                                 The range is policy-priority's. No order is reserved for IKE: the
+                                 IKE exchange is exempt on Ze's own IKE sockets, ahead of every
+                                 entry whatever its order, so no order captures it.";
                     ze:help
                         "Rank of this entry, lowest searched first.";
                 }
@@ -1162,7 +1162,7 @@ module ze-ipsec-conf {
 
                     leaf policy-priority {
                         type uint32 {
-                            range "101..2147483647";
+                            range "1..2147483647";
                         }
                         default 2000;
                         description "Where this peer's Security Policy Database entries sit in the
@@ -1185,11 +1185,12 @@ module ze-ipsec-conf {
                                      forbids. The default 2000 is the rank every peer took before
                                      this leaf existed.
 
-                                     The range starts above 100, a band the IKE control-plane bypass
-                                     once held. The bypass now sits on Ze's own IKE sockets, ahead of
-                                     every entry whatever its rank, so no rank captures the exchange
-                                     that builds and rekeys the SA. It ends at 2147483647, the largest
-                                     rank Ze can carry to a dataplane.";
+                                     No rank is reserved for IKE: the IKE exchange is exempt on Ze's
+                                     own IKE sockets, ahead of every entry whatever its rank, so no
+                                     rank captures the exchange that builds and rekeys the SA. The
+                                     range starts at 1, because the kernel breaks a tie by insertion
+                                     order and 0 is the rank of a policy installed with none. It ends
+                                     at 2147483647, the largest rank Ze can carry to a dataplane.";
                         ze:help
                             "Rank of this peer's Security Policy Database entries, lowest searched first.";
                     }

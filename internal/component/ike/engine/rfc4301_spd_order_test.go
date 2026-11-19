@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -61,9 +62,10 @@ func TestSpdOperatorOrdersOverlappingPeers(t *testing.T) {
 // VALIDATES: RFC4301-4.4.1-4. A peer that states no order takes the documented default
 // rank, so an unordered configuration installs exactly what it installed before the leaf
 // existed, and a rekey inherits the operator's rank rather than falling back.
-// PREVENTS: a zero reading as a valid rank. Priority 0 outranks the IKE control-plane
-// bypass, so a peer whose priority went unset would capture the IKE traffic that builds
-// it and prevent its own rekey (dataplane.PriorityIKEBypass).
+// PREVENTS: a zero reading as a valid rank. The kernel resolves equal priorities by
+// insertion order and 0 is the rank of every policy installed without one, so a peer
+// whose priority went unset would be ordered against those by whichever was installed
+// last, never by what the operator wrote.
 // RFC requirement: RFC4301-4.4.1-4 negative -- an unstated order never reaches the SPD as 0.
 func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	sa := wideSA("site-a", "10.0.0.2")
@@ -79,8 +81,8 @@ func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	for _, dir := range bothDirections {
 		got := childPolicies(child, dir)[0].Priority
 		if got == 0 {
-			t.Fatalf("the %s entry reached the SPD at rank 0, which outranks the IKE bypass at %d",
-				dirName(dir), dataplane.PriorityIKEBypass)
+			t.Fatalf("the %s entry reached the SPD at rank 0, which ties with every policy "+
+				"installed without a rank", dirName(dir))
 		}
 		if got != dataplane.PriorityChildSA {
 			t.Errorf("the %s entry ranks %d, and an unordered peer takes %d",
@@ -98,32 +100,38 @@ func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	}
 }
 
-// VALIDATES: RFC4301-4.4.1-4. An operator rank that would capture the IKE control plane
-// is refused at commit, so the ordering interface cannot be used to break the SPD it
-// orders.
-// PREVENTS: a tunnel that cannot rekey itself. A Child SA entry ranked at or above the
-// IKE bypass matches the IKE datagrams before the bypass does, so the exchange that
-// builds, rekeys and tears down that very SA is handed to the SA (dataplane.go).
-// RFC requirement: RFC4301-4.4.1-4 negative -- an order that captures IKE is refused.
-func TestSpdOrderCannotCaptureTheIKEControlPlane(t *testing.T) {
-	for _, priority := range []uint32{0, 1, dataplane.PriorityIKEBypass} {
+// VALIDATES: a peer's policy-priority takes every rank from 1 to 2147483647, and a rank
+// outside that range is refused at commit with the command that fixes it.
+// PREVENTS: a rank the engine would misread. childPairPolicy (child.go) reads a zero
+// PolicyPriority as "no rank stated" and installs dataplane.PriorityChildSA, so a
+// committed 0 would install at 2000 rather than where the operator ranked it; a rank
+// above 2147483647 is one no dataplane carries. No rank is reserved for IKE: the IKE
+// exchange is exempt on Ze's own IKE sockets, so the lowest rank 1 is accepted.
+func TestSpdPolicyPriorityOutsideTheRankRangeRefused(t *testing.T) {
+	for _, priority := range []uint32{0, 2147483648, 4294967295} {
 		cfg := &ipsec.IPsecConfig{
 			Peers: map[string]ipsec.SiteToSitePeer{
 				"branch": {Name: "branch", PolicyPriority: priority},
 			},
 		}
-		if err := cfg.ValidatePolicyOrder(); err == nil {
-			t.Errorf("policy-priority %d committed, and it outranks the IKE bypass at %d",
-				priority, dataplane.PriorityIKEBypass)
+		err := cfg.ValidatePolicyOrder()
+		if err == nil {
+			t.Errorf("policy-priority %d committed, and it is outside the ranks 1 to 2147483647", priority)
+			continue
+		}
+		if !strings.Contains(err.Error(), "set vpn ipsec site-to-site peer branch policy-priority <rank>") {
+			t.Errorf("the refusal of policy-priority %d does not name the command that fixes it: %v", priority, err)
 		}
 	}
 
-	ok := &ipsec.IPsecConfig{
-		Peers: map[string]ipsec.SiteToSitePeer{
-			"branch": {Name: "branch", PolicyPriority: dataplane.PriorityIKEBypass + 1},
-		},
-	}
-	if err := ok.ValidatePolicyOrder(); err != nil {
-		t.Errorf("the first rank below the IKE bypass was refused: %v", err)
+	for _, priority := range []uint32{1, 2147483647} {
+		ok := &ipsec.IPsecConfig{
+			Peers: map[string]ipsec.SiteToSitePeer{
+				"branch": {Name: "branch", PolicyPriority: priority},
+			},
+		}
+		if err := ok.ValidatePolicyOrder(); err != nil {
+			t.Errorf("policy-priority %d was refused, and it is inside the ranks 1 to 2147483647: %v", priority, err)
+		}
 	}
 }

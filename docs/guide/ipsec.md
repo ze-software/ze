@@ -1200,15 +1200,16 @@ value. Two tunnels that overlap at one value are not ordered at all, so Ze
 refuses the second peer's Child SA rather than let arrival order pick the tunnel
 (RFC 3948 Section 5.1, see the inner-address paragraphs above).
 
-The default is 2000, which every peer took before the leaf existed. The range starts at
-101: Ze refuses a value at or below 100 at commit. That band once held the IKE
-control-plane bypass; the bypass now sits on Ze's own IKE sockets, ahead of every
-SPD entry whatever its rank, so no peer entry can capture the exchange that builds
-and rekeys its SA.
+The default is 2000, which every peer took before the leaf existed. The range is 1
+to 2147483647, and commit refuses a value outside it. No rank is reserved for IKE:
+Ze's own IKE exchange is exempt on Ze's IKE sockets, ahead of every SPD entry
+whatever its rank, so no peer entry can capture the exchange that builds and rekeys
+its SA. The range starts at 1 because the kernel breaks a tie by insertion order,
+and 0 is the rank of every policy installed without one.
 
 <!-- source: internal/component/ike/engine/child.go -- childPolicies -->
-<!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
-<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
+<!-- source: internal/component/ike/ipsec/validate.go -- spdRankMin, ValidatePolicyOrder -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityChildSA -->
 
 ### ICMP error messages
 
@@ -1457,7 +1458,7 @@ for it.
 | Leaf | Values | Default | Meaning |
 |---|---|---|---|
 | `action` | `bypass`, `discard` | none, required | What the entry does with matching traffic |
-| `order` | 101 to 2147483647 | 1000 | Rank, lowest searched first |
+| `order` | 1 to 2147483647 | 1000 | Rank, lowest searched first |
 | `direction` | `out`, `in`, `both` | `both` | Which half of the database the entry joins |
 | `protocol` | 0 to 255 | 0 (any) | Next-layer protocol selector |
 | `local prefix` | CIDR | none, required | Ze's own side of the boundary |
@@ -1471,11 +1472,11 @@ for it.
 keeps local and remote as written, and the inbound entry swaps them, because the
 local side of a flow is the destination of an inbound packet.
 
-The default order of 1000 sits between the lowest order Ze accepts, 101, and a
+The default order of 1000 sits between the lowest order Ze accepts, 1, and a
 peer's default rank of 2000, so an entry written with no order outranks the
 tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
-win instead. An order at or below 100 is refused at commit, for the reason
-`policy-priority` states above.
+win instead. The order shares the range of `policy-priority` above, and no
+order captures Ze's own IKE exchange.
 
 The order must be total wherever it decides something (RFC 4301 Section 4.4.1:
 the management interface "MUST support (total) ordering of these entries").

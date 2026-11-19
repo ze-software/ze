@@ -186,7 +186,7 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateOuterHeader(); err != nil {
 		return err
 	}
-	// The operator's own SPD entries take the same reserved-band rule as a peer's
+	// The operator's own SPD entries take the same rank range as a peer's
 	// rank, plus the selector rules no negotiation can enforce for them: nothing
 	// narrows an operator entry, so config verify is the only gate it passes
 	// (spd_policy.go, ValidateSPDPolicies).

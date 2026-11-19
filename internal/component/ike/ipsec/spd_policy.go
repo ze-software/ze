@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-3-data-model.md -- the typed model between YANG and the engine
 // Related: traffic_selector.go -- PortSelector, the port form both surfaces share
-// Related: validate.go -- ValidatePolicyOrder, the same reserved band this file honors
+// Related: validate.go -- spdRankMin and ValidatePolicyOrder, the rank range this file shares
 // RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 4.4.1.1, 7.4)
 
 package ipsec
@@ -193,8 +193,8 @@ func parseSPDPolicy(name string, t *config.Tree) (SPDPolicy, error) {
 	p := SPDPolicy{
 		Name: name,
 		// The YANG default. Resolved here so a policy that reaches the engine
-		// carries a rank the kernel can order, never a zero that would outrank the
-		// IKE control-plane bypass (dataplane.PriorityIKEBypass).
+		// carries a rank the kernel can order, never a zero that ties with every
+		// policy installed without a priority (spdRankMin).
 		Order:      1000,
 		Direction:  SPDDirBoth,
 		LocalPort:  AnyPort(),
@@ -346,7 +346,7 @@ func parseSPDPort(name, side, v string) (PortSelector, error) {
 }
 
 // ValidateSPDPolicies refuses every operator SPD entry a dataplane cannot program
-// exactly, and every entry whose rank would capture the IKE control plane.
+// exactly, and every entry whose order is outside the SPD rank range.
 //
 // It runs at config verify, which is the only place the operator can still act on the
 // refusal (ai/rules/protocol.md). An entry approximated at install time would bypass
@@ -384,16 +384,15 @@ func (p SPDPolicy) validate() error {
 	}
 
 	// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order
-	// the entries to express a desired access control policy." The IKE control-plane
-	// bypass is an entry of the same database, and an operator entry at or above it
-	// matches the IKE datagrams first. A DISCARD there stops every tunnel on the node
-	// from being built, rekeyed or torn down, and the kernel reports nothing: it
-	// picked the entry the operator ranked highest, exactly as asked.
-	if p.Order <= dataplane.PriorityIKEBypass {
+	// the entries to express a desired access control policy." The order shares the
+	// rank range of a peer's policy-priority (spdRankMin), so one number means one
+	// thing across the database; a 0 would tie with every policy another tool
+	// installs without a priority, and the kernel would let insertion order decide.
+	if !spdRankValid(p.Order) {
 		return fmt.Errorf(
-			"%w %q: order %d ranks at or above the IKE control-plane bypass (%d), so this entry would "+
-				"capture the IKE exchange that builds and rekeys every tunnel on this node. Set order above %d",
-			ErrSPDPolicy, p.Name, p.Order, dataplane.PriorityIKEBypass, dataplane.PriorityIKEBypass)
+			"%w %q: order %d is not a rank. A rank runs from %d to %d, and the lowest is "+
+				"searched first. Set a rank in that range: set vpn ipsec policy %s order <rank>",
+			ErrSPDPolicy, p.Name, p.Order, spdRankMin, spdRankMax, p.Name)
 	}
 
 	// RFC 4301 Section 4.4.1.1 lists the port selectors under "Next Layer Protocol",

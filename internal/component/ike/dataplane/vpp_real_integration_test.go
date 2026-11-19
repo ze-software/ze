@@ -172,7 +172,7 @@ func TestVPPRealDataplaneInstalls(t *testing.T) {
 		Dir:        SADirOut,
 		IfIndex:    swIfIndex,
 		Action:     SPActionBypass,
-		Priority:   PriorityIKEBypass,
+		Priority:   testBypassPriority,
 		UpperProto: 17, // UDP
 		DstPort:    ExactPortMatch(500),
 	}

@@ -33,13 +33,13 @@ func fragBypassPair() []SPParams {
 	return []SPParams{
 		{
 			Src: anyNet, Dst: anyNet,
-			Dir: SADirOut, Action: SPActionBypass, Priority: PriorityIKEBypass,
+			Dir: SADirOut, Action: SPActionBypass, Priority: testBypassPriority,
 			UpperProto: unix.IPPROTO_UDP,
 			SrcPort:    ExactPortMatch(fragTestPort), DstPort: AnyPortMatch(),
 		},
 		{
 			Src: anyNet, Dst: anyNet,
-			Dir: SADirIn, Action: SPActionBypass, Priority: PriorityIKEBypass,
+			Dir: SADirIn, Action: SPActionBypass, Priority: testBypassPriority,
 			UpperProto: unix.IPPROTO_UDP,
 			SrcPort:    AnyPortMatch(), DstPort: ExactPortMatch(fragTestPort),
 		},
