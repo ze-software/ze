@@ -1,19 +1,25 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4: \"It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message.\" The earlier finding (GR compared against \"notification\" while the reactor only ever sent \"session closed\" or \"connection lost\") is fixed: reactor/peer_close.go::sessionCloseFor returns rpc.ReasonNotification whenever notificationExchanged is set, and gr.go handleStructuredState and handleStateEvent compare against that constant. TestPeerCloseNamesTheNotificationTheNeighborSent drives a running Peer that receives a Cease and asserts the observer sees rpc.ReasonNotification with Event 25; TestRFC4724NotificationCloseRetainsNothing feeds that reason to the production GR callbacks and asserts no purge-stale, retain-routes or mark-stale dispatch, so the RIB clears the Adj-RIB-In on DOWN (rib.go, retainedPeers unset). Negatives TestPeerCloseNamesTheTransportLoss (TCP drop, rpc.ReasonTCPFailure) and TestRFC4724TransportCloseRetains (three-command sequence for TCPFailure and LocalClose) are genuine contrasts. The sending half has no tagged end-to-end unit: it rests on incrNotificationSent setting notificationExchanged (asserted by an untagged unit in reactor/peer_stats_test.go) and on the notified=true rows of untagged TestSessionCloseForCoversEveryCause. The older tagged gr_state_test.go units inject wasNotification and prove only the state-machine branch. Not covered: the text-event path handleStateEvent, which external GR plugins take.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr.go::handleStateEvent": "e7cb0b130901d0f5",
+    "internal/component/bgp/plugins/gr/gr.go::handleStructuredState": "3112002b35655aae",
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred": "dd0cb59e3860ed3d",
+    "internal/component/bgp/reactor/peer_close.go::sessionCloseFor": "77c4c0befb43a191"
+  },
+  "note": "Independent current-source rejudgment preserves enforced at the prior scope after reading the complete normative Section4/4.2 context, all current tagged whole units and actual helpers/producers. Exact observed new native job-advertiser-policy-wire-and-gr-freshness-90755426.log completed under Main wrapper49977 exit0. These renewals replace whole producing bodies with a panic: they demonstrate the named tests reach and depend on these producers, not isolated normal-return semantic omissions. No broken later subcase skipped by a panic is claimed. Other RFC requirements and broader GR/LLGR conformance are not inferred. Section4 requires normal BGP procedures on a sent or received NOTIFICATION. The two running-Peer tests distinguish an actually received Cease/Event25 with ReasonNotification from actual transport loss/Event18 with ReasonTCPFailure. sessionCloseFor gives the captured notification fact priority. The structured production GR notification test requires no retention/purge/mark commands; transport and local-close controls require exactly source-owner701/connection41 retain then stale-mark commands. The state-only tagged notification/retention roots contrast activation, not RIB contents. The current text/JSON state handler delegates to the same structured handler. The sending side shares notificationExchanged in the producer, with existing untagged sent-counter coverage; no new independently tagged end-to-end send scenario is claimed. Fresh notification clean PASS29, named panic FAIL34, record54; fresh transport clean PASS83 with both healthy subcases, first tcp-failure panic91, record112. The local-close broken subcase does not execute. Both existing reactor sessionCloseFor records are preserved.",
   "requirement_sha": "27edc6747b36ca46",
   "tests": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "51e4cdbd76bc873f",
-    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "51e4cdbd76bc873f",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "a88d9c62b3a168c4",
+    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "a88d9c62b3a168c4",
     "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "3ed1b320856853b8",
     "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "3ed1b320856853b8"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "16cfa56e18a119dc",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "30a739dea259dade",
-    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "56b485277cb0cd80",
-    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "596d839d448556a1",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "9ff9cefcb09f5073",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "5ec332dd16d3b2f6",
+    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "0b995e0302fddcb0",
+    "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "d8bd344565c7dd72",
     "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "63e4547fe047cb11",
     "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "4d5ca2f74e71e068"
   },

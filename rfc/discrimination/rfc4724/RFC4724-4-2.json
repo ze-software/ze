@@ -3,22 +3,22 @@
     "rid": "RFC4724-4-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing",
-    "unit-sha": "a141e817c240eaef",
+    "unit-sha": "286e18a9367cb239",
     "claim-sha": "ed6fabe89912193c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
-    "producer-sha": "f203ed5c9dbe8939",
+    "producer-sha": "4bad793030c4d12b",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains",
-    "unit-sha": "9cefc42461fb67d7",
-    "claim-sha": "476524dc0218db15",
+    "unit-sha": "f4af5ed9d06aad76",
+    "claim-sha": "d1b31b3b8b46a6e4",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
-    "producer-sha": "f203ed5c9dbe8939",
+    "producer-sha": "4bad793030c4d12b",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
