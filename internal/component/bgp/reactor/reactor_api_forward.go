@@ -102,7 +102,8 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 // stands down, answered as handled with nothing written, on a `manual-eor`
 // peer, while the session's initial sync still owes its own marker or the peer
 // still queues route operations, and once the family's marker is claimed for
-// the session (claimInitialSyncEOR).
+// the session (claimInitialSyncEOR). An automatic request bound to a current
+// destination also stands down when that session did not negotiate the family.
 func (a *reactorAPIAdapter) AnnounceReplayEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
 	return a.announceEOR(sel, family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}, sender, true)
 }
@@ -129,18 +130,24 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		if peer.State() != PeerStateEstablished {
 			continue
 		}
-		// RFC 4760 Section 8: "A BGP speaker that uses Multiprotocol Extensions
-		// SHOULD use the Capability Advertisement procedures [BGP-CAP] to
-		// determine whether the speaker could use Multiprotocol Extensions with
-		// a particular peer." A peer that did not negotiate the family is not
-		// sent its End-of-RIB, and it does not count as served.
-		if nc := peer.negotiated.Load(); nc == nil || !nc.Has(fam) {
-			continue
-		}
 		target := announceTarget{peer: peer, session: peer.currentSession()}
 		target.destinationOwner, target.destinationSession = sender.Destination()
 		if err := destinationCurrent(peer, target.session, sender); err != nil {
 			errs = append(errs, err)
+			continue
+		}
+		// RFC 4760 Section 8: "A BGP speaker that uses Multiprotocol Extensions
+		// SHOULD use the Capability Advertisement procedures [BGP-CAP] to
+		// determine whether the speaker could use Multiprotocol Extensions with
+		// a particular peer." The peer's OPEN can offer families outside the
+		// negotiated set. Its bound automatic replay owes no marker for them.
+		if nc := peer.negotiated.Load(); nc == nil || !nc.Has(fam) {
+			if once && target.destinationOwner != 0 {
+				negotiated := target.session.Negotiated()
+				if negotiated != nil && !negotiated.SupportsFamily(fam) {
+					sentCount++
+				}
+			}
 			continue
 		}
 		// The replay form stands down, answered as handled and with nothing

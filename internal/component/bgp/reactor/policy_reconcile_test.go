@@ -361,9 +361,14 @@ func TestPolicyFinalFlowSpecOnlyRestorationWithoutReceiveStore(t *testing.T) {
 			{"bgp-rib", "update state refresh"},
 			{"bgp-rs", "update-received state open-received refresh"},
 		} {
-			if err := EnsureProcessBinding(setting, binding.name, binding.receive, "update"); err != nil {
+			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
+			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
 				t.Fatal(err)
 			}
+			if err := parseSendFlags("update", &attachment); err != nil {
+				t.Fatal(err)
+			}
+			setting.ProcessBindings = append(setting.ProcessBindings, attachment)
 		}
 		if err := r.AddPeer(setting); err != nil {
 			t.Fatal(err)
