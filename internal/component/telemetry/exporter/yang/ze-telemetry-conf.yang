@@ -150,11 +150,12 @@ module ze-telemetry-conf {
                     type string;
                     ze:bcrypt;
                     description "Ze compares the password of each request with this hash, and it
-                                 compares the username in constant time. A value that is not a
-                                 bcrypt hash stops the metrics server with an error, and the
-                                 config check warns about it at commit. With basic-auth enabled,
-                                 a username and this password are both required.";
-                    ze:help "Bcrypt-hashed HTTP Basic Authentication password. Write plaintext via plaintext-password.";
+                                 compares the username in constant time. The hash is bcrypt, or a
+                                 SHA-crypt hash ($6$ or $5$) kept from another system. A value that
+                                 is neither stops the metrics server with an error, and the config
+                                 check warns about it at commit. With basic-auth enabled, a
+                                 username and this password are both required.";
+                    ze:help "Hashed Basic Auth password (bcrypt or SHA-crypt); write plaintext to plaintext-password";
                 }
 
                 leaf plaintext-password {

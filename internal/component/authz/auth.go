@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/passhash"
 )
 
 // Type aliases: the AAA interface layer lives in internal/component/aaa.
@@ -35,7 +36,8 @@ var ErrAuthRejected = aaa.ErrAuthRejected
 // timing side-channel attacks that could enumerate valid usernames.
 var dummyHash = []byte("$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234") //nolint:gosec // not a credential
 
-// LocalAuthenticator wraps the existing bcrypt-based user list authentication.
+// LocalAuthenticator authenticates against the local user list, whose hashes
+// are bcrypt or SHA-crypt (passhash.Verify).
 type LocalAuthenticator struct {
 	// Users is a fixed credential list, correct only where the set cannot
 	// change while the process runs.
@@ -58,9 +60,13 @@ func (a *LocalAuthenticator) users() ([]UserConfig, error) {
 	return a.Users, nil
 }
 
-// Authenticate checks username/password against the local bcrypt user list.
+// Authenticate checks username/password against the local user list.
 // Returns (result, nil) on success, (result, ErrAuthRejected) on failure.
-// Timing-safe: invokes bcrypt even for unknown users.
+// Timing-safe for bcrypt accounts: invokes bcrypt even for unknown users. An
+// account holding a SHA-crypt hash is not covered: its login takes the time of
+// its hash's rounds plus no bcrypt, so it answers in a different time than an
+// unknown name, and whether such an account exists can be told by timing until
+// its password is set again through plaintext-password, which stores bcrypt.
 //
 // With UsersFunc set it can also return that function's error. An unreadable
 // user list is NOT an empty one: treating it as empty would reject every login
@@ -98,15 +104,16 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 	return AuthResult{Source: aaa.SourceLocal}, ErrAuthRejected
 }
 
-// CheckPassword validates a credential against a stored bcrypt hash.
+// CheckPassword validates a credential against a stored password hash: bcrypt,
+// or a SHA-crypt hash ($5$, $6$) an account migrated from another system kept.
 // Supports two modes:
-//   - Hash-as-token: credential is the bcrypt hash itself (ze cli sends the hash
+//   - Hash-as-token: credential is the stored hash itself (ze cli sends the hash
 //     stored in zefs). Matched by constant-time string comparison. Only tried
 //     when allowHashToken is true — i.e. the connection is trusted-local
 //     (loopback TCP or unix socket). Over any remote transport the hash is NOT a
 //     credential, so a leaked config backup cannot be replayed as a password.
 //   - Plaintext: credential is the user's password (interactive SSH terminal,
-//     web login, API bearer). Matched by bcrypt comparison. Always tried,
+//     web login, API bearer). Matched by passhash.Verify. Always tried,
 //     regardless of transport.
 //
 // Returns false for empty hash or empty credential. allowHashToken defaults to
@@ -117,7 +124,7 @@ func CheckPassword(hash, credential string, allowHashToken bool) bool {
 		return false
 	}
 	if allowHashToken {
-		// Hash-as-token: the local ze cli sends the bcrypt hash read from zefs.
+		// Hash-as-token: the local ze cli sends the stored hash read from zefs.
 		gotHash := sha256.Sum256([]byte(hash))
 		credHash := sha256.Sum256([]byte(credential))
 		if subtle.ConstantTimeCompare(gotHash[:], credHash[:]) == 1 {
@@ -125,17 +132,17 @@ func CheckPassword(hash, credential string, allowHashToken bool) bool {
 		}
 	}
 	// Plaintext: interactive user typed their password.
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(credential)) == nil
+	return passhash.Verify(hash, credential)
 }
 
 // authenticateUser checks username/credential against the configured user list.
 // Tries all matching entries (a user may appear in both config and zefs with
-// different bcrypt hashes). Returns true on first match.
+// different stored hashes). Returns true on first match.
 // When no username matches, bcrypt is still invoked against a dummy hash
 // to prevent timing side-channel attacks on username enumeration.
 //
 // allowHashToken threads the same trusted-local gate as CheckPassword: the
-// bcrypt-hash-as-token credential path is tried only when true. It has no
+// stored-hash-as-token credential path is tried only when true. It has no
 // non-test caller today, but carries the restriction so a future caller that
 // wires it cannot fail open (the parameter is not optional; a caller must state
 // the transport class explicitly).

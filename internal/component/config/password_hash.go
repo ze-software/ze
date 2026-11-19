@@ -10,12 +10,13 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/core/passhash"
 	"github.com/ze-software/ze/internal/core/redact"
 )
 
-// IsBcryptHash reports whether s is a syntactically valid bcrypt hash.
-// Used by the validator to warn when a ze:bcrypt canonical leaf holds
-// a non-hash value (typically literal plaintext from hand-edited config).
+// IsBcryptHash reports whether s is a syntactically valid bcrypt hash, the one
+// format Ze writes. The validator's warning walk asks the wider passhash.Check,
+// which also accepts a SHA-crypt hash Ze only reads.
 // It delegates to redact.IsBcryptHash so the bcrypt-shape regex has a single
 // home shared with the log-redaction path.
 func IsBcryptHash(s string) bool {
@@ -23,7 +24,9 @@ func IsBcryptHash(s string) bool {
 }
 
 // CheckBcryptLeaves walks the tree and returns a warning string for each
-// ze:bcrypt leaf whose value is non-empty and not a valid bcrypt hash.
+// ze:bcrypt leaf whose value is non-empty and not a stored password hash every
+// consumer of the leaf can verify (passhash.Check): bcrypt, or a SHA-crypt hash
+// ($5$, $6$) kept from an account migrated from another system.
 // Path is dot-separated (e.g., "system.authentication.user.alice.password").
 // Empty-value leaves are skipped (a missing password is a separate concern).
 func CheckBcryptLeaves(tree *Tree, schema *Schema) []string {
@@ -44,9 +47,9 @@ func checkBcryptLeavesWalk(tree *Tree, node Node, prefix string, warnings *[]str
 		child := cp.Get(childName)
 		path := joinDotPath(prefix, childName)
 		if leaf, ok := child.(*LeafNode); ok && leaf.Bcrypt {
-			if val, present := tree.Get(childName); present && val != "" && !IsBcryptHash(val) {
+			if val, present := tree.Get(childName); present && val != "" && passhash.Check(val) != nil {
 				*warnings = append(*warnings,
-					path+": not a valid bcrypt hash; use plaintext-"+childName+" or 'ze passwd' to set")
+					path+": not a valid bcrypt hash or SHA-crypt hash ($5$, $6$); use plaintext-"+childName+" or 'ze passwd' to set")
 			}
 			continue
 		}
@@ -79,6 +82,9 @@ const plaintextPrefix = "plaintext-"
 // ApplyPasswordHashing walks the tree and, for every schema leaf marked
 // ze:bcrypt (LeafNode.Bcrypt), bcrypt-hashes the value of the sibling
 // "plaintext-<name>" leaf into the canonical leaf.
+//
+// It never reads the canonical leaf, so a hash written there directly, bcrypt
+// or SHA-crypt, is stored as given and never hashed again.
 //
 // The plaintext sibling is removed on every path that returns without an error,
 // whether or not it was hashed. An EMPTY sibling hashes nothing and is still

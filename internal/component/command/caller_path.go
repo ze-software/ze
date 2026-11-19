@@ -220,7 +220,7 @@ func callerPathRefusal(commandPath string, tokens []string, reason string) error
 	private := false
 	for _, token := range tokens {
 		display := token
-		if private || redact.IsBcryptHash(token) {
+		if private || redact.IsPasswordHash(token) {
 			display = redact.Placeholder
 		}
 		local.Byte(' ')

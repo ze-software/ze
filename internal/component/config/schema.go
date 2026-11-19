@@ -157,7 +157,7 @@ type LeafNode struct {
 	Type        ValueType
 	Default     string
 	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
-	Bcrypt      bool     // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
+	Bcrypt      bool     // ze:bcrypt — one-way password hash (bcrypt written, SHA-crypt kept as given); parser skips $9$ decode, commit bcrypt-hashes plaintext sibling
 	Hidden      bool     // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
 	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
 	Decorate    string   // ze:decorate — decorator name for display-time enrichment

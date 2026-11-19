@@ -162,11 +162,12 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 
 ### Step 2: declare the user in YANG
 
-Two equivalent ways to set the password:
+Three ways to set the password:
 
 | Form | When to use |
 |------|------------|
 | `password "$2a$10$..."` | You already have a hash (from `ze passwd`, fleet automation, or a backup) |
+| `password "$6$..."` | You migrate an account from another system and keep its SHA-crypt hash (see below) |
 | `plaintext-password "secret"` | You want to type the plaintext and let Ze hash it (Junos style) |
 
 Example using the plaintext form:
@@ -188,6 +189,57 @@ written to disk. This matches Junos's `plain-text-password` behavior.
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
+
+### Migrated accounts keep their SHA-crypt hash
+
+An account copied from another system keeps the password its user already
+has. Put the system's stored hash on `password` as it is:
+
+```
+system {
+    authentication {
+        user alice {
+            password "$6$rounds=656000$examplesalt$..."
+        }
+    }
+}
+```
+
+Ze recognises the format by the hash's prefix:
+
+| Prefix | Format | Ze writes it |
+|--------|--------|--------------|
+| `$2a$`, `$2b$`, `$2y$` | bcrypt | yes, from `plaintext-password` and `ze passwd` |
+| `$6$` | SHA-crypt with SHA-512, the format of a Linux shadow file | no, it only verifies it |
+| `$5$` | SHA-crypt with SHA-256 | no, it only verifies it |
+
+A SHA-crypt hash has the form `$6$[rounds=N$]salt$digest`. Without a
+`rounds=` field the hash uses 5000 rounds. With one, N is between 1000 and
+999999999, the salt holds at most 16 characters, and the digest holds 86
+characters for `$6$` and 43 for `$5$`. That is the form crypt(3) writes, so a
+hash copied from a shadow file fits it. Ze stores the hash as given and never
+hashes it again. `ze config validate` warns about a value that is neither a
+bcrypt hash nor a well-formed SHA-crypt hash, and that account cannot log in.
+
+Each login runs all of the hash's rounds. A hash with a very high `rounds=`
+value costs that much CPU for every login attempt, wrong passwords included.
+
+The login time of a migrated account also differs from that of a name that
+does not exist. Ze hides which names exist by running one bcrypt comparison
+for an unknown name, and a SHA-crypt account takes the time of its rounds
+instead. Someone who measures login times can tell that such an account
+exists, more easily the higher its rounds, until its password is set again.
+
+When the user sets a new password through `plaintext-password`, Ze stores it
+as bcrypt and the SHA-crypt hash is gone, and with it the timing difference.
+Every `ze:bcrypt` leaf accepts both formats, the telemetry exporter's
+`basic-auth/password` included, because the config check and every consumer
+of such a leaf use the same verifier.
+
+<!-- source: internal/core/shacrypt/shacrypt.go -- Parse, Hash.Matches -->
+<!-- source: internal/core/passhash/passhash.go -- Check, Verify -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword -->
+<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
 
 ### Weak passwords are named, never refused
 
@@ -561,19 +613,20 @@ super-admin (created by `ze init`) authenticates with a password.
 
 The canonical `password` leaf is marked `ze:bcrypt` -- the parser stores
 the value verbatim and never tries to apply the `$9$` reversible
-obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
-it with `$9$` would let an operator recover the password from the file.
+obfuscation used for other sensitive fields. A password hash is one-way;
+mixing it with `$9$` would let an operator recover the password from the file.
 
 If you write a literal plaintext directly on `password`:
 
 ```
 user alice {
-    password "secret"     # WRONG -- not a bcrypt hash
+    password "secret"     # WRONG -- not a password hash
 }
 ```
 
 then `ze config validate` emits a warning, the daemon logs a warning at
-load, and the user cannot authenticate (bcrypt compare fails). Use
+load, and the user cannot authenticate (the value is neither a bcrypt hash
+nor a SHA-crypt hash, so no comparison can match). Use
 `plaintext-password` (auto-hashed) or `ze passwd` (manual) instead.
 
 <!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->

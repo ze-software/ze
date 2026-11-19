@@ -25,7 +25,7 @@ module ze-authz-conf {
 
             list user {
                 key "name";
-                description "Authenticated user (local). Each entry is one local account. password carries the bcrypt hash
+                description "Authenticated user (local). Each entry is one local account. password carries the password hash
                     the login compares against, and profile names the authorization profiles the account carries.
                     A commit rejects an entry whose name is reserved for a built-in identity.";
                 ze:help "Authenticated user (local)";
@@ -41,12 +41,17 @@ module ze-authz-conf {
                 leaf password {
                     type string;
                     ze:bcrypt;
-                    description "The canonical form carries a cost prefix, for
-                                 example $2a$10$ before the salt and the digest.
-                                 Write the plaintext password to plaintext-password.
-                                 On commit, ze hashes that value into this leaf and
-                                 then discards the plaintext.";
-                    ze:help "Bcrypt-hashed password, in canonical form.";
+                    description "The stored password hash. Ze writes bcrypt, whose
+                                 canonical form carries a cost prefix, for example
+                                 $2a$10$ before the salt and the digest. A SHA-crypt
+                                 hash ($6$ for SHA-512 or $5$ for SHA-256, with an
+                                 optional rounds=N$ field) copied from another
+                                 system is also accepted and stored as given, so a
+                                 migrated account keeps its password. Write a new
+                                 plaintext password to plaintext-password. On
+                                 commit, ze hashes that value with bcrypt into this
+                                 leaf and then discards the plaintext.";
+                    ze:help "Password hash: bcrypt, or a SHA-crypt $6$ or $5$ hash kept from another system";
                 }
 
                 leaf plaintext-password {

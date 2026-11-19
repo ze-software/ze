@@ -16,7 +16,7 @@ redact credential tokens in the command log.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath, MaskSecretInMessage, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/config/schema.go -- Schema.LookupTokenPath -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
-<!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, URL, URLError, Placeholder -->
+<!-- source: internal/core/redact/redact.go -- IsBcryptHash, IsPasswordHash, Command, JSON, URL, URLError, Placeholder -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
 
 ## Decisions
@@ -91,9 +91,13 @@ upload. The web value setter no-ops a resubmitted placeholder as a
 user-interface backstop.
 
 **The redaction regex has one home.** The core redact package owns the
-bcrypt-shape pattern and the config helper delegates to it. Command redaction
-scrubs bcrypt-shaped tokens and password-family key values BEFORE the log
-truncation, so a secret straddling the cut cannot half-leak.
+bcrypt-shape pattern and the config helper delegates to it. `redact.IsPasswordHash`
+answers for every stored format Ze accepts: bcrypt, and the SHA-crypt `$5$` and
+`$6$` hashes of migrated accounts. Its SHA-crypt shape is looser than the
+verifier's parser (`internal/core/shacrypt`), so a near-valid hash is hidden too
+and redaction fails closed. Command and JSON redaction scrub every such token and password-family key
+values BEFORE the log truncation, so a secret straddling the cut cannot
+half-leak.
 
 **Four shapes of input, four entry points, and each surface asks the one that
 fits it.** A surface leaks because it did not ask, never because the answer was

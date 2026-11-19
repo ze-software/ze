@@ -2,8 +2,9 @@
 
 // Package redact scrubs credential-bearing tokens from strings before they are
 // logged. It owns the canonical bcrypt-shape regex (config.IsBcryptHash
-// delegates here) so the pattern has a single home, and it is a leaf package
-// (no ze imports) so any tier may use it.
+// delegates here) so the pattern has a single home, and IsPasswordHash, the one
+// answer to "could this token be a stored password hash" every redaction path
+// asks. It is a leaf package (no ze imports) so any tier may use it.
 //
 // It answers three shapes of input, and each shape has exactly one entry
 // point: Command for an operator's command line, JSON for a captured payload,
@@ -33,6 +34,21 @@ var bcryptFormat = regexp.MustCompile(`^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$`)
 // IsBcryptHash reports whether s is a syntactically valid bcrypt hash.
 func IsBcryptHash(s string) bool {
 	return bcryptFormat.MatchString(s)
+}
+
+// shaCryptShape matches anything shaped like a SHA-crypt hash ($5$ or $6$, an
+// optional rounds= field, a salt, a digest in the crypt alphabet). It is looser
+// than shacrypt.Parse on purpose: redaction fails closed, so a near-valid hash
+// (a wrong length, a rounds value out of range) is hidden too.
+var shaCryptShape = regexp.MustCompile(`^\$[56]\$(rounds=[^$]*\$)?[^$\s]*\$[./0-9A-Za-z]+$`)
+
+// IsPasswordHash reports whether s is shaped like a stored password hash:
+// bcrypt, or SHA-crypt ($5$, $6$) kept from a migrated account. Every
+// redaction below asks this, so a migrated account's hash is as hidden as a
+// bcrypt one. It answers for redaction only: whether a hash can be verified is
+// passhash.Check.
+func IsPasswordHash(s string) bool {
+	return IsBcryptHash(s) || shaCryptShape.MatchString(s)
 }
 
 // isSecretConfigKey reports whether a config leaf name holds a secret value.
@@ -89,7 +105,7 @@ func IsCredentialKeyword(word string) bool {
 
 // JSON returns payload with every secret-bearing value replaced by Placeholder:
 // any value whose key satisfies isSecretConfigKey, at any depth, plus any string
-// value that is bcrypt-shaped wherever it appears.
+// value that is a password hash (IsPasswordHash) wherever it appears.
 //
 // It fails CLOSED. When payload is not valid JSON there is no way to tell a
 // secret from anything else, so the returned bytes are a bare Placeholder string
@@ -141,7 +157,7 @@ func redactValue(v any, secret bool) any {
 		}
 		return out
 	case string:
-		if IsBcryptHash(t) {
+		if IsPasswordHash(t) {
 			return Placeholder
 		}
 		return t
@@ -150,11 +166,11 @@ func redactValue(v any, secret bool) any {
 	}
 }
 
-// Command returns a copy of a command line safe to log: every bcrypt-shaped
-// token is replaced with Placeholder, and the value token immediately following
-// a credential keyword (isCredentialKey: the password family, "plaintext-*" and
-// "content") is replaced with Placeholder even when it is a non-bcrypt
-// plaintext secret. A command with no credential token is returned
+// Command returns a copy of a command line safe to log: every password-hash
+// token (IsPasswordHash) is replaced with Placeholder, and the value token
+// immediately following a credential keyword (isCredentialKey: the password
+// family, "plaintext-*" and "content") is replaced with Placeholder even when it
+// is a plaintext secret rather than a hash. A command with no credential token is returned
 // unchanged (whitespace preserved). Redaction runs on the full command; callers
 // truncate the result AFTER, so a secret straddling a truncation boundary can
 // never half-leak.
@@ -164,7 +180,7 @@ func Command(cmd string) string {
 	prevKey := false
 	for i, tok := range fields {
 		switch {
-		case IsBcryptHash(tok):
+		case IsPasswordHash(tok):
 			fields[i] = Placeholder
 			changed = true
 		case prevKey:

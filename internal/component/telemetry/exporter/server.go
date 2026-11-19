@@ -26,10 +26,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/passhash"
 )
 
 // endpoint is one parsed "address:port" listen entry for the metrics server.
@@ -62,7 +61,7 @@ type basicAuthConfig struct {
 	Enabled    bool
 	Realm      string
 	Username   string
-	BcryptHash string
+	BcryptHash string // the ze:bcrypt password leaf: bcrypt or SHA-crypt (passhash)
 }
 
 // netdataConfig holds Netdata-compatible OS collector settings. These settings
@@ -190,8 +189,8 @@ func (cfg basicAuthConfig) validate() error {
 	if cfg.BcryptHash == "" {
 		return errors.New("metrics server basic-auth: password is required")
 	}
-	if _, err := bcrypt.Cost([]byte(cfg.BcryptHash)); err != nil {
-		return fmt.Errorf("metrics server basic-auth: password must be a bcrypt hash: %w", err)
+	if err := passhash.Check(cfg.BcryptHash); err != nil {
+		return fmt.Errorf("metrics server basic-auth: password must be a bcrypt or SHA-crypt hash: %w", err)
 	}
 	return nil
 }
@@ -215,7 +214,7 @@ func basicAuthMiddleware(auth basicAuthConfig, next http.Handler) http.Handler {
 
 func basicAuthAccepted(auth basicAuthConfig, username, password string) bool {
 	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(auth.Username)) == 1
-	passwordOK := bcrypt.CompareHashAndPassword([]byte(auth.BcryptHash), []byte(password)) == nil
+	passwordOK := passhash.Verify(auth.BcryptHash, password)
 	return usernameOK && passwordOK
 }
 
