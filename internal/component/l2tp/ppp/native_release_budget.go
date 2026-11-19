@@ -228,6 +228,7 @@ func (d *Driver) retrySessionOwner(ctx context.Context, session *pppSession) err
 
 // Caller holds the owner's nativeReleaseMu. Physical I/O uses NO Driver lock.
 func (d *Driver) closeSessionOwnerLocked(session *pppSession) error {
+	session.closeAuthAdmission()
 	// Driver.Stop, StopSession and canceled-owner cleanup all reach this
 	// boundary. The frozen measurement precedes the actual original Close.
 	session.captureNetworkTerminal()

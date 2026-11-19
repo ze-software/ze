@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -1389,7 +1390,9 @@ func (s *pppSession) reconcileNCPFamily(family AddressFamily) (bool, error) {
 }
 
 // sendIPAssigned waits for the transport to publish the assignment and capture
-// its accounting baseline before NCP completion can enable forwarding.
+// its accounting baseline before NCP completion can enable forwarding. A
+// claimed initial L2TP accounting owner must also approve that exact network
+// within the existing IP timeout; an ACK alone does not authorize forwarding.
 func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 	select {
 	case <-s.stopCh:
@@ -1405,6 +1408,38 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 	}
 	ev.NetworkLifetime = lifetime
 	ev.BaselineCounters = baseline
+	admission, err := s.prepareAuthNetworkAssignment(lifetime, baseline)
+	if err != nil {
+		s.fail(opererr.Wrap(err,
+			"Subscriber accounting could not bind the assigned network",
+			"Forwarding remains disabled because the original authentication ended or changed",
+			"show doctor",
+		).Error())
+		return false
+	}
+	assigned := false
+	defer func() {
+		if assigned {
+			return
+		}
+		if admission.binding != nil {
+			admission.binding.finish(false)
+		}
+	}()
+	timeout := s.ipTimeout
+	if timeout <= 0 {
+		timeout = defaultIPTimeout
+	}
+	approval, deadline, err := admission.armAssignmentApproval(timeout)
+	if err != nil {
+		return false
+	}
+	var expires <-chan time.Time
+	if approval != nil {
+		timer := time.NewTimer(time.Until(deadline))
+		defer timer.Stop()
+		expires = timer.C
+	}
 	ev.done = make(chan struct{})
 	ev.Birth = s.l2tpBirth
 	ev.SubscriberID = s.subscriberID
@@ -1415,6 +1450,8 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 		return false
 	case <-s.sessStop:
 		return false
+	case <-expires:
+		return s.authAssignmentTimedOut(admission)
 	}
 	select {
 	case <-ev.done:
@@ -1422,16 +1459,46 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 		return false
 	case <-s.sessStop:
 		return false
+	case <-expires:
+		return s.authAssignmentTimedOut(admission)
 	}
-	// A ready acknowledgment cannot override an already observed stop.
+	if approval != nil {
+		select {
+		case <-approval:
+		case <-s.stopCh:
+			return false
+		case <-s.sessStop:
+			return false
+		case <-expires:
+			return s.authAssignmentTimedOut(admission)
+		}
+		// Select may choose a ready ACK/approval after its timer became ready.
+		// The same monotonic deadline also fences the final binding transition.
+		if !time.Now().Before(deadline) {
+			return s.authAssignmentTimedOut(admission)
+		}
+	}
+	// A ready ACK and approval cannot override an already observed stop.
 	select {
 	case <-s.stopCh:
 		return false
 	case <-s.sessStop:
 		return false
 	default:
+	}
+	if admission.binding == nil {
 		return true
 	}
+	assigned = admission.binding.finish(true)
+	if assigned {
+		return true
+	}
+	if approval != nil {
+		if !time.Now().Before(deadline) {
+			return s.authAssignmentTimedOut(admission)
+		}
+	}
+	return false
 }
 
 // resetNCP ends the NCP lifetime when LCP leaves Opened. It MUST tear down
@@ -1439,6 +1506,9 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 // RFC 1661 Section 4.4, This-Layer-Down: "This action indicates to the upper
 // layers that the automaton is leaving the Opened state.".
 func (s *pppSession) resetNCP() bool {
+	// A same-worker next LCP auth round must not inherit this reservation.
+	// This metadata-only completion precedes any native gate or publication.
+	s.abortAuthAdmission()
 	s.stopNCPRestartTimers()
 	s.ncpStarted = false
 	s.authenticatedUsername = ""

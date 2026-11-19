@@ -316,12 +316,20 @@ func authMethodToLCPOptions(m AuthMethod) (uint16, []byte) {
 // (the helper only synthesizes the timeout failure because accept vs
 // reject fan-out differs per method).
 func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (authResponseMsg, bool) {
+	admission, err := s.beginAuthAdmission()
+	if err != nil {
+		return authResponseMsg{}, false
+	}
 	req.SubscriberID = s.subscriberID
 	req.Control = s.control
 	req.pending = newAuthRequest(s.control, s.subscriberID)
+	req.pending.admission = admission
 	s.authRequest = req.pending
 	defer func() {
 		req.pending.retire()
+		if admission != nil {
+			admission.retireWait()
+		}
 		if s.authRequest == req.pending {
 			s.authRequest = nil
 		}
@@ -390,6 +398,13 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 // returns the decision for awaitAuthDecision to hand back.
 func (s *pppSession) acceptAuthDecision(decision authResponseMsg, req EventAuthRequest) authResponseMsg {
 	if decision.accept {
+		if req.pending.admission != nil {
+			if !req.pending.admission.accept() {
+				decision.accept = false
+				decision.message = "original authentication admission was canceled"
+				return decision
+			}
+		}
 		s.authenticatedUsername = req.Username
 	}
 	return decision

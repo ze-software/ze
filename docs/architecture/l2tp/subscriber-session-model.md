@@ -377,6 +377,31 @@ that acknowledgment before NCP succeeds and before it enables forwarding.
 Rejected assignments and missing sessions are also acknowledged, so the producer
 does not remain blocked after the consumer returns.
 
+An initial L2TP authentication request offers one local accounting approval
+claim before Accept. A claimant MUST reserve its existing finite accounting
+capacity before accepting and retain that capability in the same task. Its
+assignment callback MUST match both the prepared Birth and network lifetime,
+queue the immutable original header, then approve that exact binding. It MUST
+return without a RADIUS exchange. The capability never crosses the EventBus.
+<!-- source: internal/component/l2tp/ppp/auth_admission.go -- ClaimAccountingAssignment, AuthAssignmentApproval.Approve -->
+
+When a claim exists, PPP requires both its local approval and the transport
+ACK before completing the original assignment or enabling forwarding. The
+existing IP timeout bounds that transfer from before publication; ready
+signals cannot override the final deadline or original cancellation. Without
+a claim, the existing ACK path is unchanged. PPPoE and authentication within an
+existing network do not acquire another initial L2TP accounting claim.
+<!-- source: internal/component/l2tp/ppp/ncp.go -- sendIPAssigned -->
+<!-- source: internal/component/l2tp/ppp/auth_admission.go -- beginAuthAdmission, authAdmissionBinding.finish -->
+
+The readonly admission receipt survives retirement of the original answer
+wait after Accept. It exposes a copied prepared binding before publication,
+then resolves only the same original assignment or its abort. Its caller MUST
+wait off the publication callback and retain unresolved custody after a caller
+deadline; another wait on the same receipt remains useful. The receipt grants
+no answer, native-operation or cleanup authority.
+<!-- source: internal/component/l2tp/ppp/auth_admission.go -- AccountingAdmission, AuthAdmissionReceipt.PreparedAssignment, AuthAdmissionReceipt.Assignment -->
+
 PPP records the request username only when the authentication handler accepts
 the request. Each IP-assigned event carries that accepted username to the
 transport, which publishes it in the subscriber registry and lifecycle events.

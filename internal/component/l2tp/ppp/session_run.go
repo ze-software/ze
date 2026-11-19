@@ -543,6 +543,7 @@ func (s *pppSession) sendEvent(ev Event) {
 		return
 	}
 	if _, ending := ev.(EventSessionDown); ending {
+		s.closeAuthAdmission()
 		s.retireProviderRequests()
 		if s.released.Load() {
 			return
@@ -598,6 +599,8 @@ func (s *pppSession) prepareLCPDown(event EventLCPDown) EventLCPDown {
 // closeFiles releases the session owner once. nativeReleaseMu serializes
 // setup, terminal measurement and Close, preventing reuse during late work.
 func (s *pppSession) closeFiles() {
+	// The provisional outcome must not wait behind an in-flight native gate.
+	s.closeAuthAdmission()
 	s.nativeReleaseMu.Lock()
 	defer s.nativeReleaseMu.Unlock()
 	// The exact result is recorded/reported for the completion observers.
@@ -606,6 +609,7 @@ func (s *pppSession) closeFiles() {
 
 // Caller holds nativeReleaseMu, never Driver.mu.
 func (s *pppSession) closeFilesLocked() error {
+	s.closeAuthAdmission()
 	s.mu.Lock()
 	if s.filesClosed {
 		s.mu.Unlock()
@@ -865,6 +869,12 @@ func (s *pppSession) afterLCPOpen() bool {
 
 	if !s.runNCPPhase() {
 		return false
+	}
+	// Both disabled NCPs cannot ever publish an assignment in this round.
+	if s.disableIPCP {
+		if s.disableIPv6CP {
+			s.abortAuthAdmission()
+		}
 	}
 
 	// A reconnect after resetNCP waits until the unit has handed out every

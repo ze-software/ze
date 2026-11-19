@@ -245,6 +245,9 @@ func (control SessionControl) Cancel() bool {
 	if control.worker == nil {
 		return false
 	}
+	// Complete provisional custody before native Close or worker retirement
+	// can block. Already acknowledged network receipts are unchanged.
+	control.worker.closeAuthAdmission()
 	control.worker.sessStopOnce.Do(func() { close(control.worker.sessStop) })
 	return true
 }

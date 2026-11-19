@@ -12,10 +12,12 @@ import "sync"
 type authRequest struct {
 	control      SessionControl
 	subscriberID string
-	answers      chan authResponseMsg
-	mu           sync.Mutex
-	waiting      bool
-	answered     bool
+	// Immutable link to the actual initial L2TP auth round, not its answer wait.
+	admission *authAdmissionBinding
+	answers   chan authResponseMsg
+	mu        sync.Mutex
+	waiting   bool
+	answered  bool
 }
 
 type ipRequest struct {

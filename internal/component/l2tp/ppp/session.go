@@ -59,6 +59,11 @@ type pppSession struct {
 	// Pending pointers are worker-owned; answers synchronize on request state.
 	authRequest *authRequest
 	ipRequest   *ipRequest
+	// The worker opens each round; original cancellation/Close may end it.
+	// This mutex covers metadata only and never spans native operations.
+	authAdmissionMu     sync.Mutex
+	authAdmission       *authAdmissionBinding
+	authAdmissionClosed bool
 
 	// networkCounterMu protects only these pointers/sequence, never native I/O.
 	// The previous receipt survives removal until a new network supersedes it.

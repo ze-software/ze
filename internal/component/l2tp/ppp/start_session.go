@@ -121,6 +121,8 @@ type StartSession struct {
 	// Driver.IPResponse after emitting EventIPRequest. Zero means use
 	// the package default (30s). On timeout the session emits
 	// EventSessionDown and an LCP Terminate-Request.
+	// A claimed initial L2TP accounting assignment uses this same duration
+	// from before publication to bound its local approval and transport ACK.
 	IPTimeout time.Duration
 
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 4.4.5).
