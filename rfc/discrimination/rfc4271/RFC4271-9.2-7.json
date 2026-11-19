@@ -20,5 +20,17 @@
     "producer": "internal/component/bgp/reactor/recovery_owed.go::Session.recoveryOwedFor",
     "producer-sha": "c169e652d5bbb842",
     "break": "line 156: \"return worker.ownerReceives(command, source)\" -\u003e \"return false // MUTATION-APPLIED: bypass registered source election at the destination writer\""
+  },
+  {
+    "rid": "RFC4271-9.2-7",
+    "polarity": "positive",
+    "unit": "test/plugin/bgp-best-route-transit-default.ci",
+    "unit-sha": "431d98c8beed98da",
+    "claim-sha": "2b5e7a6b76cc3c0f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_selected_dispatch.go::selectedDispatch.publish",
+    "producer-sha": "c01c8c80f1263f03",
+    "break": "body of selectedDispatch.publish replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: selected-route internal wiring and API survivor"
   }
 ]

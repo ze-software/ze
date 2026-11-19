@@ -1,5 +1,6 @@
 # Test: does an explicitly attached bgp-rib advertise its elected iBGP route to
 # an external peer without a route-server plugin, then retire its withdrawal?
+# RFC requirement: RFC4271-9.2-7 positive -- a newly elected ordinary IPv4 unicast route learned from iBGP reaches the configured eBGP recipient in an UPDATE with the learned path and local AS, with internal and forked bgp-rib.
 # A unit cannot decide whether configuration grants, plugin placement, actual
 # receive storage, next-hop resolution and the recipient TCP writer are joined.
 # The compiled driver waits for both initial EORs, installs real terminal
