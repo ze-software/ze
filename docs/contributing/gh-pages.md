@@ -879,11 +879,25 @@ is not suggested answers a terminal entry saying it was not sent.
 
 The render fails, naming the bound, the chunk and the figure, and what the
 chunk or the whole holds by kind of request, and writes nothing, when the tour
-passes one of the bounds `tour.go` states: `tourExchangesMax` (5,000 requests;
-the narrowed tour is estimated at about 3,000), `chunkExchangesMax` (2,000
-answers in one chunk), `chunkBytesMax` (16 MiB for one chunk file) and
-`totalBytesMax` (40 MiB for the frame and every chunk). Past one, the tour is
-narrowed where the kinds say it grew, rather than the bound raised in silence.
+passes one of the bounds `tour.go` states: `tourExchangesMax` (5,000 requests),
+`chunkExchangesMax` (2,000 answers in one chunk), `chunkBytesMax` (16 MiB for
+one chunk file) and `totalBytesMax` (128 MiB for the frame and every chunk).
+Past one, the tour is narrowed where the kinds say it grew, rather than the
+bound raised in silence.
+
+The narrowing is measured. The first render of the whole tour asked about
+9,000 requests in about seven minutes, and its estate chunk alone was
+54,751,363 bytes. Two causes made it so. The crawl recorded every navigation
+as the whole shell, because it did not send `HX-Request-Type: partial`. The
+tour also recorded cross products: every page size at every page, and the
+side panels of every device. Once navigations were recorded as their partial
+answer and the tour narrowed to the table above, the render of commit
+`152ca49be0` recorded 2,007 exchanges in 88,127,981 bytes, with every chunk
+under 16 MiB. Most of that total is the device tabs, at about 60 kB a partial
+page. The total bound is a disk figure, not a download: the demonstration
+lives in the output's ignored `tmp/`, and a viewer loads one chunk per object
+it opens, which `chunkBytesMax` bounds. A published demonstration would first
+share the inline icon markup, which is about half of every table row.
 The kinds are a page as htmx or the browser asks it, the side panel fragment
 an eye or a close control asks, any other fragment by its registered name (`fragment tree-branch` for the tree), a chart's data and
 a console command (`exchangeKind`, `sizeByKind`). The files, under the output's

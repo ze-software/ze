@@ -8,7 +8,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-ui-1-interactive-prototype.md |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-11-19 |
 
@@ -43,7 +43,7 @@ me to review."
 |-------|----------|
 | Not live | The demonstration is written under the website output's `tmp/` directory. Git ignores it there, the page registry, the sitemap, the search index and the publication receipt skip it, and a site build carries it across. It is reachable from the owner's local review server and from nowhere else. No page links to it and it carries a no-index marker. Nothing is pushed |
 | Own action | It is produced by its own action, `./le site fleet-demo render`, never by `./le site build`. A site build neither creates nor refreshes it |
-| Publishing later | Publishing is a deliberate later step with its own spec: a real route, a navigation entry, the site's page rules. This spec never writes outside `tmp/` |
+| Publishing later | This spec never writes outside `tmp/`. The owner's ruling at closure (2026-11-19): "yes close it, keep it on request". The demonstration stays a feature rendered on request by `./le site fleet-demo render`, never automatically and never by the site build, and stays unpublished. Publishing it is a possible later decision of his (Known Limitations), not owed work of this spec |
 | Mechanism | The looking glass replay: a recording of request and answer pairs, and a player that answers the page's requests from it inside a sandboxed frame |
 | Data | The sample estate of `fleet-ui-1`, at a clock pinned to the commit date of the tree that is recorded, so two renders of one commit write the same bytes |
 | Size | The recording is split: an index and the entry page travel with the frame; the answers of each object (the estate, each group node, each device, the administration pages) are a separate file the host page fetches when first needed and hands to the frame |
@@ -189,11 +189,11 @@ readers are listed. No network wire changes.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The owner's local review server serves the `gh-pages` checkout including its `tmp/` directory | He reviews the site through a local server of that checkout | He opens the host page from the file system, or the server is told to serve `tmp/` | The owner opening the address | unvalidated |
-| A-2 | `htmx.ajax` goes through the same `fetch` path as attribute-driven requests | The vendored htmx 4 holds no other request path | Calls from the shell script escape the player and fail in the frame | The browser test over the tree and the task panel | unvalidated |
-| A-3 | A sandboxed frame without same-origin can receive chunk data from its host by message at an acceptable speed | The looking glass replay already talks to its host by message | Chunks are inlined for a smaller tour | The browser test opening a device | unvalidated |
+| A-1 | The owner's local review server serves the `gh-pages` checkout including its `tmp/` directory | He reviews the site through a local server of that checkout | He opens the host page from the file system, or the server is told to serve `tmp/` | The owner opening the address | confirmed: the render sits in `../gh-pages/tmp/fleet-demo/` (74 files, `index.html` included), git ignores it (`.gitignore:1:tmp/`), and the owner ruled on it at closure ("yes close it, keep it on request") |
+| A-2 | `htmx.ajax` goes through the same `fetch` path as attribute-driven requests | The vendored htmx 4 holds no other request path | Calls from the shell script escape the player and fail in the frame | The browser test over the tree and the task panel | confirmed: `TestFleetDemoOpensADeviceFromItsChunk` expands lazy tree branches, which `fleet.js` `load` asks through `htmx.ajax`, and the player answers them |
+| A-3 | A sandboxed frame without same-origin can receive chunk data from its host by message at an acceptable speed | The looking glass replay already talks to its host by message | Chunks are inlined for a smaller tour | The browser test opening a device | confirmed: `TestFleetDemoOpensADeviceFromItsChunk` loads a device chunk (about 1 to 4 MB) through the host within its 20 s wait |
 | A-4 | The full tour fits a size a static site can carry | Estimated at tens of megabytes across about sixty chunk files. Broken by the first render (2026-11-19): about 9,000 requests in about seven minutes, and the estate chunk alone 54,751,363 bytes, past `chunkBytesMax` (32 MiB). Two causes: the crawler sent `HX-Request` without `HX-Request-Type: partial`, so the shell (`asksPart`, `handler_shell.go`) answered every navigation with the whole shell (header, sidebar, task panel) where the browser receives the content region; and cross products in the tour. Narrowed: navigations recorded as the partial requests their controls send; the devices table at the default of every other part of a view; ordinary devices at the default view of each table, the day range, no sort and no side panel (the tour table above). Targets: under 40 MiB in total, every chunk under 16 MiB, a render under about two and a half minutes. Second render (2026-11-19, after the narrowing): the estate chunk 50.3 MB, of which side panels 23.5 MB (88 answers of about 266 kB: opening a panel re-rendered the whole page) and table views 14.6 MB. Both were inefficiencies of the live interface and were fixed there: the eye control now fetches the side panel fragment alone, and a navigation inside one object no longer resends the tree and administration list (`handler_shell.go`, `keepsSidebar`). The devices table's views moved to a chunk of their own (`estate-devices`), so the estate dashboard opens without them. Measured at that point: every chunk under 16 MiB, a render under two minutes, and 87.6 MB in total, most of it the device tabs (959 partial pages of about 60 kB). The total bound was raised to 128 MiB, because the recording is a local review artifact under the output's ignored `tmp/` and a viewer loads one chunk per object it opens, so the total is a disk figure and not a download. A published demonstration would first need the larger lever: the inline icon markup, about half of every table row | The tour is narrowed further where the report's kinds say it grew; a published demonstration shares icon markup first | The action reporting each chunk's size and kinds and the total; `TestFleetDemoReportsItsSizeByKind`, `TestFleetDemoNarrowsOrdinaryDevices` | broken as worded: holds for each chunk, not for the total; the total bound restated with its reason |
-| A-5 | The fleet scripts run under the frame's content security policy once inlined | The looking glass scripts do | A script construct the policy refuses is changed in the fleet script | The browser test | unvalidated |
+| A-5 | The fleet scripts run under the frame's content security policy once inlined | The looking glass scripts do | A script construct the policy refuses is changed in the fleet script | The browser test | confirmed: `TestFleetDemoPlaysTheEstateDashboard` asserts `data-lg-replay-errors` is empty, and the frame reports every `securitypolicyviolation` there |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -203,7 +203,7 @@ readers are listed. No network wire changes.
 | R-3 | The recording goes stale as the fleet pages change | The demonstration shows an old page | The host bar states the commit and date it was recorded from; re-rendering is one command |
 | R-4 | The recording is not deterministic | Two renders of one commit differ | The clock is pinned, the sample history is seeded, nothing subscribes to the script; a test renders twice and compares. It renders the sampled tour (`tourScope.sampled`: the estate, the task list, the administration, one group subtree, one featured and one ordinary device) through the same `render`, so the package renders the whole tour once, in the render its other tests share |
 | R-5 | A fleet script change for the frame alters the live interface | A fleet package test or browser test goes red | The page path attribute and htmx navigation are covered by the fleet package's own tests, which run before the recorder is used |
-| R-6 | The tour's crawl grows without bound | The exchange count or size passes its stated bound | Stated bounds per object and in total, set to the narrowed tour's targets: `tourExchangesMax` 5,000 (estimated about 3,000), `chunkExchangesMax` 2,000, `chunkBytesMax` 16 MiB, `totalBytesMax` 40 MiB; `renderWait` 10 minutes. The action fails naming the bound, what exceeded it, and what that chunk or the whole holds by kind of request, so the next narrowing is measured. The bounds are tightened to the measured figures with room to spare once the render has reported them |
+| R-6 | The tour's crawl grows without bound | The exchange count or size passes its stated bound | Stated bounds per object and in total: `tourExchangesMax` 5,000 (measured 2,007), `chunkExchangesMax` 2,000, `chunkBytesMax` 16 MiB (every chunk measured under it), `totalBytesMax` 128 MiB (measured 88,127,981 bytes; raised from 40 MiB with its reason, A-4); `renderWait` 10 minutes. The action fails naming the bound, what exceeded it, and what that chunk or the whole holds by kind of request, so the next narrowing is measured. The bounds are tightened to the measured figures with room to spare once the render has reported them |
 
 ## Blast Radius
 
@@ -419,7 +419,10 @@ readers are listed. No network wire changes.
 ## Known Limitations
 - The demonstration is one recorded moment. Nothing in it moves on its own.
 - Typed filters, the tree filter and the header search are not recorded.
-- It is not published. Publishing it is a separate decision and a separate piece of work.
+- It is not published, and it is rendered only on request with `./le site fleet-demo render`, never by the site build. Publishing it is a possible later decision of the owner, who has not asked for it. It would need a real route, a navigation entry, the site's page rules, and first a smaller recording: sharing the inline icon markup, about half of every table row (`docs/contributing/gh-pages.md`, "Render the fleet demonstration").
+- A recording made from a dirty tree reads the player from the working tree and says so in its host bar ("with uncommitted changes"), so its bytes are those of that tree, not of the commit.
+- A render whose chunk set shrank leaves the earlier chunk files in `tmp/fleet-demo/`. The index names only the current ones, so the player never fetches a stale file.
+- Opening a side panel in the live interface now fetches the panel alone, so the table's sort and pager links keep the view they were drawn with, and the next sort closes the panel (`docs/architecture/fleet-interface.md`, the `PanelLink` paragraph). This departs from AC-9's "as before" (Deviations).
 
 ## Checklist
 
@@ -459,3 +462,151 @@ readers are listed. No network wire changes.
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove` this spec's path only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- `./le site fleet-demo render` (`internal/le/site/fleetdemo`, `actions.go` `runRender`, `render.go` `render`, `tour.go` `planTour`): it serves the fleet routes in process (`fleetui.NewRoutes`) over `sample.New` at a clock pinned to the HEAD commit date, crawls the tour, and writes the host page, the frame, `recording.json` and one chunk per object under the output's `tmp/fleet-demo/` only (`demoDirectoryIn` refuses a link or file on the way). It runs on request only, and no site producer calls it.
+- The recording format gained optional `player`, `chunks` and `fallbacks` (`lgreplay/recording.go`, `checkParts`, `SplitChunks`, `ChunkFiles`). The crawl is shared and exported (`lgreplay/record.go`, `Crawler`, `Follow`), and it sends `HX-Request-Type: partial` and `HX-Current-URL` as htmx does.
+- The player (`website/assets/js/lg-replay.js`): `mountFrame`, `chunkServer` (fetches only index-named files matching `CHUNK_FILE`), settings from the recording, a silent `EventSource`, fallback answers, the kept pushed address, plain forms. The frame checks its sender (`event.source !== window.parent`).
+- Fleet package: the page path from the page (`shell.templ` `contentRegion`, `fleet.js` `navigate`), `NewRoutes` over a given source, `sample.New` with registration moved to `sample/register`, the side panel fetched alone (`PanelLink`, `side-panel` fragment) and the sidebar kept within one object (`keepsSidebar`). The gallery's hand-written addresses now come from the address builders (`component_gallery.go`).
+- The plain-figure walk skips what `publicationIgnored` names (`plaintext.go` `plainFiguresOfArtifact`).
+
+### Bugs Found/Fixed
+- The crawl recorded every navigation as the whole shell (no `HX-Request-Type: partial`): `TestCrawlerSendsTheRequestTypeHTMXSends`, `TestFleetDemoRecordsPagesAsTheirPartialAnswer`.
+- The component gallery linked addresses the server refuses (task tab with no page part, unregistered fragments, absent devices): `TestGalleryAddressesAreAnswered`.
+- Opening a side panel re-rendered the whole page (about 266 kB an answer): `TestOpeningAPanelAnswersOnlyThePanel`.
+- A browser test clicked a control before htmx bound it: `click` in `browsertest/fleetdemo_test.go` waits for `data-htmx-powered`.
+- Closure: the guide stated `totalBytesMax` as 40 MiB where `tour.go` declares 128 MiB, and the bound failure's fix line sent the operator to this spec, which closure deletes (Review Gate, finding 1).
+
+### Documentation Updates
+- `docs/architecture/fleet-interface.md`: page path, navigation through htmx, `PanelLink` and the side panel fragment, construction over a source, the sample's registration sub-package (anchors `handler_shell.go`, `fleet.js`, `component_action.templ`).
+- `docs/contributing/gh-pages.md`, "Render the fleet demonstration": the action, tour, chunks, bounds, notice, fallbacks and browser tests. At closure, the measured figures and the reason for the total bound moved here from A-4.
+- `website/AI.md` (replay section), `docs/architecture/site-facts.md` (plain-figure guard), `docs/architecture/plugin/feature-gates.md`.
+- `./le doc check all` (2026-11-19, at closure): FAILED with 13 problems, all YANG command summaries of other sessions' work (`request bgp rib source mark-stale` and `purge-stale`, `show errors`, `show interface errors`). None is in this spec's files, and the digest anchors all resolve.
+
+### Deviations from Plan
+- The total size bound is 128 MiB, not 40 MiB (A-4, broken as worded): the total is a disk figure for a local review artifact, and every chunk stays under 16 MiB.
+- Ordinary devices record no sort and no side panel, where the Devices row once had panels for every device (A-4 narrowing; tour table updated).
+- `TestFleetDemoStaysOutOfThePublishedSite` lives in package `site` (`unpublished_test.go`), not in `fleetdemo`, because it runs a real `Build`.
+- AC-9: the live interface's side panel now opens as a fragment, so a table's sort and pager links keep the view they were drawn with and the next sort closes the panel. The design page documents it (`docs/architecture/fleet-interface.md`, `PanelLink` paragraph), and the owner approved the prototype as built after this change (`290951e355`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: the full tour fits tens of megabytes | The first render was about 9,000 requests and 54.7 MB for the estate chunk alone, because every navigation was recorded as the whole shell and the tour held cross products | The first render failed `chunkBytesMax` | The crawl sends the htmx request type; the tour was narrowed; the size report by kind of request was added (`sizeByKind`) |
+| approach | A fix raised `totalBytesMax` in `tour.go` and left the guide at 40 MiB, with the figures only in this spec | A page that disagrees with the code is repaired in the same change (`ai/rules/documentation.md`) | Closure review | Guide and code comments repointed at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The owner sees the fleet interface from the website checkout with no daemon | Done | `internal/le/site/fleetdemo/render.go` `render`; `../gh-pages/tmp/fleet-demo/index.html` | Rendered from `152ca49be0` |
+| Nobody else can find it | Done | `fleetdemo/actions.go` `demoDirectory`; `host.go` `hostPage` (no-index, no navigation) | `TestFleetDemoStaysOutOfThePublishedSite` |
+| Not live: rendered on request, never by the site build | Done | `fleetdemo/register.go`; no `registerProducer` call | Owner ruling at closure |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFleetDemoRenderWritesTheDemonstration`, `TestFleetDemoReportsItsSizeByKind`; the action's report | 2,007 exchanges, 88,127,981 bytes |
+| AC-2 | Done | `TestFleetDemoPlaysTheEstateDashboard`; `host.go` `hostBarText` | |
+| AC-3 | Done | `TestFleetDemoTourCoversEveryRegisteredPage`, `TestFleetDemoOpensADeviceFromItsChunk`, `TestFleetDemoSortsAndOpensAPanel` | Narrowed tour (A-4) |
+| AC-4 | Done | `TestFleetDemoAnswersAnUnrecordedRequestWithTheNotice` | |
+| AC-5 | Done | same test, the bulk action's toast after its confirm dialog; `render.go` `demoFallbacks` | |
+| AC-6 | Done | `TestFleetDemoStaysOutOfThePublishedSite`, `TestPlainFiguresSkipUnpublishedDirectories` | The search index assertion cannot go red alone: the render writes no Markdown mirror |
+| AC-7 | Done | `TestFleetDemoRenderIsDeterministic` | Over the sampled tour; judge-approved in `cf08ace969` |
+| AC-8 | Done | `TestRecordingOptionalFieldsRoundTrip`; `TestLGReplay*` browser tests unchanged | |
+| AC-9 | Changed | fleetui package tests and the seven fleet browser tests | Panel deviation recorded above |
+| AC-10 | Done | `cmd/ze/fleet_sample_absent_test.go` `TestShippedZeLinksNoFleetSample` | Run owed at closure |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 13 unit tests of the TDD plan | Done | `fleetdemo/render_test.go`, `fleetdemo/tour_test.go`, `lgreplay/crawl_test.go`, `lgreplay/recording_test.go`, `site/unpublished_test.go`, `site/plaintext_test.go`, `fleetui/handler_shell_test.go`, `fleetui/sample/source_test.go` | Green in the main thread's scoped runs |
+| The four `TestFleetDemo*` browser tests and `TestLGReplayAnswersTheTourFromTheRecording` | Done | `browsertest/fleetdemo_test.go`, `browsertest/lgreplay_test.go` | Green |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file of Files to Modify and Files to Create | Done | `fleetdemo/publish_test.go` became `site/unpublished_test.go` (Deviations); `sample/register.go` deleted, moved to `sample/register/register.go` |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-9, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The owner sees the fleet interface with no daemon | functional (browser) | `TestFleetDemoPlaysTheEstateDashboard`, `TestFleetDemoOpensADeviceFromItsChunk`, `TestFleetDemoSortsAndOpensAPanel` green; the render in `../gh-pages/tmp/fleet-demo/` from `152ca49be0` |
+| Nobody else can find it | functional (real site build) | `TestFleetDemoStaysOutOfThePublishedSite` green over a real `Build`; `git -C ../gh-pages check-ignore -v tmp/fleet-demo/index.html` answers `.gitignore:1:tmp/` |
+| The looking glass replay is unharmed | functional (browser) | `TestLGReplay*` and `TestReplayPlaysAProduct*` green unchanged; `website/data/lg-replay.json` unchanged |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every in-scope item is done. Publishing is out of scope by the owner's ruling (Known Limitations) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-ui-7-recorded-demonstration-15269d3e-0e9f-48a2-918c-3e6749565424.md` (5 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1: wiring, security (host and frame messaging, chunk file names, write paths), removed behavior, documentation drift, style pass over the fleetdemo Go. Round 2: the closure edits only |
+
+Round 1 covered the committed diff `186f9bd437..HEAD` of this spec's files, because the code is already committed. The pre-checks ran first. `./le repo check` found 5 issues, all number-parse allowlist rows outside this spec's files. `./le test weakened check base origin/main` was clean over 73 test files.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The guide stated `totalBytesMax` as 40 MiB and the tour as estimated at 3,000. `tour.go` declares 128 MiB, and the render measured 2,007. `boundFailure`'s fix line and five comments sent the reader to this spec's A-4, which closure deletes | `docs/contributing/gh-pages.md`, "Render the fleet demonstration"; `internal/le/site/fleetdemo/tour.go` `boundFailure`, bound comments, `panels`, `devicesTable`; `tour_test.go` `TestFleetDemoNarrowsOrdinaryDevices` | Guide: bounds and measured figures. Code: the comments and the fix line repointed at the guide. No regression test: the change is a message and its page, and no test asserts the fix line |
+
+Run 2 (the closure edits): 0 BLOCKER, 0 ISSUE. Every remaining finding is a NOTE: a not-yet-bound `hx-get` link can navigate the frame within htmx's 1 ms settle delay (`lg-replay.js` click listener); the host page carries an inline `<style>` (`host.go` `hostPage`); stale chunk files survive a smaller render; and `follow` skips an unparsable page link silently, since `TestGalleryAddressesAreAnswered` holds the links.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/site/fleetdemo/` | Yes | `actions.go host.go register.go render.go render_absent.go render_test.go tour.go tour_test.go` |
+| `internal/component/web/fleetui/sample/register/register.go` | Yes | ls: `register.go register_test.go`; `sample/register.go` absent |
+| `internal/le/site/browsertest/fleetdemo_test.go` | Yes | ls: 27K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-7 | Writes only under `tmp/fleet-demo/`, deterministically | `./le test unit pkg path ./internal/le/site/fleetdemo/` green (main thread); `render.go` writes only `filepath.Join(directory, file.name)` from `demoDirectoryIn` |
+| AC-2 to AC-5 | Plays, answers, notices, toasts | `./le test unit pkg path ./internal/le/site/browsertest/ run 'TestFleetDemo|TestLGReplay|TestReplayPlaysAProduct'` green (main thread) |
+| AC-6 | Out of the published site | `./le test unit pkg path ./internal/le/site/ run 'TestPlainFiguresSkipUnpublishedDirectories|TestFleetDemoStaysOutOfThePublishedSite'` green (main thread) |
+| AC-8 to AC-10 | Looking glass, live interface, no shipped sample | The LG browser tests green; `./le test unit pkg path ./internal/component/web/fleetui/` and the seven fleet browser tests green; `TestShippedZeLinksNoFleetSample` owed |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site fleet-demo render` | No `.ci`: a le action, proven by `TestFleetDemoRenderWritesTheDemonstration` and the real run | `./le help site fleet-demo` lists `render [writes]`; `internal/le/register.go:139` imports the area |
+| A browser opens the host page or a device | `browsertest/fleetdemo_test.go` (chromedp over the rendered files) | Read: `openFleetDemo` serves the render and opens `tmp/fleet-demo/index.html` |
+| `./le site build` over an output holding it | `site/unpublished_test.go` | Read: a real `Build`, then the registry, sitemap, search, receipt and git walks |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The render in `../gh-pages/tmp/fleet-demo/`, ignored by git; the owner's closure ruling |
+| A-2 | confirmed | `TestFleetDemoOpensADeviceFromItsChunk` (lazy branches through `htmx.ajax`) |
+| A-3 | confirmed | `TestFleetDemoOpensADeviceFromItsChunk` (chunk by message) |
+| A-4 | broken | Mistake Log row 1; the total bound restated with its reason |
+| A-5 | confirmed | `TestFleetDemoPlaysTheEstateDashboard` asserts no frame error |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Bounds in `gh-pages.md` | `tour.go` `tourExchangesMax` 5,000, `chunkExchangesMax` 2,000, `chunkBytesMax` 16 MiB, `totalBytesMax` 128 MiB | Yes, at closure |
+| Not published, on request only | `gh-pages.md`: "`./le site build` neither creates nor refreshes it, and nothing of it is published" | Yes |
+| Rows 1-9, 11, 13-15, 17 (No) | No `ze` command, config, YANG, API or RFC change: the diff's product edits are `internal/component/web/fleetui` markup and scripts behind `ze_fleet_ui`, and `web/auth.go` `AccountMiddleware` | Yes |

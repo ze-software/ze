@@ -22,22 +22,23 @@ import (
 
 // The bounds of one recording. Each is a figure the tour is not expected to
 // reach: a render that passes one fails naming it, because the tour grew past
-// what was planned, and the fix is a decision (narrow the tour, spec A-4)
-// rather than a figure to raise in silence. The render's report gives each
-// chunk's figures and the bytes of every kind of request (sizeByKind), which
-// is where a narrowing starts.
+// what was planned, and the fix is a decision (narrow the tour) rather than a
+// figure to raise in silence. The render's report gives each chunk's figures
+// and the bytes of every kind of request (sizeByKind), which is where a
+// narrowing starts.
 //
 // The first render of the full tour, with every page recorded as the whole
 // shell, asked about 9,000 requests in about seven minutes, and its estate
 // chunk alone was 54,751,363 bytes. Recording a navigation as the region htmx
-// asks for, and the narrowing of spec A-4, are what bring it under these.
+// asks for, and the narrowing that docs/contributing/gh-pages.md ("Render the
+// fleet demonstration") records with its figures, are what bring it under
+// these.
 const (
 	// tourExchangesMax bounds the requests one render asks, the follow-ups
-	// and the discovered requests included. The narrowed tour is estimated
-	// at about 3,000: some 40 for an ordinary device (its tabs and sub-tabs,
-	// their fragments, the day charts, the console's suggestions) over 44
-	// devices, some 60 more for each featured one, about 700 for the estate
-	// and 400 for the groups and the administration.
+	// and the discovered requests included. The narrowed tour recorded 2,007
+	// on 2026-11-19: its tabs and sub-tabs, their fragments, the day charts
+	// and the console's suggestions for each of 44 devices, more for each
+	// featured one, and the estate, the groups and the administration.
 	tourExchangesMax = 5_000
 	// chunkExchangesMax bounds one chunk's exchanges. The estate's is the
 	// largest, estimated at about 700: its tabs, the devices table's views,
@@ -54,9 +55,9 @@ const (
 	// for the owner's local review and is never published, and a viewer
 	// loads one chunk per object it opens (chunkBytesMax bounds that), so
 	// the whole is a disk figure, not a download. 128 MiB leaves room for the
-	// tour to grow; spec A-4 records the figures and the larger lever (the
-	// inline icon markup, about half of every table row) for a published
-	// demonstration.
+	// tour to grow; docs/contributing/gh-pages.md records the figures and the
+	// larger lever (the inline icon markup, about half of every table row)
+	// for a published demonstration.
 	totalBytesMax = 128 << 20
 	// discoveryRoundsMax bounds the crawls that ask what the answers name
 	// outside hx-get. A tree branch names the branches below it, so a round
@@ -360,7 +361,8 @@ func (plan *tour) devicesTable(ctx context.Context, source fleetui.Source, accou
 		table(fleetui.ViewParams{Sort: fleetui.SortSpec{Column: column, Descending: true}})
 	}
 	// Each page size at its first page, and each page at the default size:
-	// no page of another size, which is a cross product (spec A-4).
+	// no page of another size, which is a cross product (gh-pages.md, "Render
+	// the fleet demonstration").
 	for _, size := range fleetui.PageSizes() {
 		table(fleetui.ViewParams{Size: size})
 	}
@@ -463,7 +465,8 @@ func (plan *tour) follow(parent sitelgreplay.Exchange, asked sitelgreplay.Reques
 // panels reports whether the tour opens the side panels of the rows page
 // shows. A group's rows are the estate's, whose panels the estate holds, and
 // an ordinary device shows the default view of each table only, since its
-// panels repeat over 44 devices what the featured devices show (spec A-4).
+// panels repeat over 44 devices what the featured devices show (gh-pages.md,
+// "Render the fleet demonstration").
 func (plan *tour) panels(page fleetui.Address) bool {
 	switch page.Kind {
 	case fleetui.ObjectGroup:
@@ -768,6 +771,6 @@ func describeKinds(sizes []kindSize) string {
 // boundFailure answers the operator error of a recording past a bound.
 func boundFailure(bound string, figure int, what string) *opererr.Error {
 	return opererr.New("The fleet demonstration is past its bound "+bound+" of "+strconv.Itoa(figure)+": "+what,
-		"The bounds are the tour's estimated size with room to spare, so the tour grew, and nothing was written.",
-		"narrow the tour for ordinary devices (spec fleet-ui-7, A-4), or raise "+bound+" in internal/le/site/fleetdemo/tour.go with its reason, then "+RenderCommand)
+		"The bounds are the tour's measured size with room to spare, so the tour grew, and nothing was written.",
+		"narrow the tour where the kinds above say it grew (docs/contributing/gh-pages.md, \"Render the fleet demonstration\"), or raise "+bound+" in internal/le/site/fleetdemo/tour.go with its reason, then "+RenderCommand)
 }

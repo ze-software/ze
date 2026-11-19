@@ -64,7 +64,7 @@ components it composes.
 | 4 | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` | The device tabs that show live device state through the relay, and the per-device browser CLI | fleet-ui-2, fleet-9 |
 | 5 | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub task model and its panel, the alarm list, toasts and the live event stream | fleet-ui-1 (approved), fleet-1, fleet-4 |
 | 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-2, fleet-3, fleet-5, fleet-7 |
-| 7 | `plan/post-release/features/spec-fleet-ui-7-recorded-demonstration.md` | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review | fleet-ui-1 |
+| 7 | `spec-fleet-ui-7-recorded-demonstration` (closed 2026-11-19) | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review. It is rendered on request by `./le site fleet-demo render`, never by the site build, into the output's unpublished `tmp/fleet-demo/` (`docs/contributing/gh-pages.md`, "Render the fleet demonstration") | fleet-ui-1 |
 
 Back-end work the interface needs, owned by the `fleet` set:
 

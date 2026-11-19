@@ -342,7 +342,8 @@ func TestFleetDemoReportsItsSizeByKind(t *testing.T) {
 // TestFleetDemoNarrowsOrdinaryDevices reads a featured and an ordinary
 // device's chunks, and the estate's devices table, out of the shared render.
 //
-// VALIDATES: spec A-4 -- a featured device is recorded with its side panels
+// VALIDATES: the narrowed tour of docs/contributing/gh-pages.md ("Render the
+// fleet demonstration") -- a featured device is recorded with its side panels
 // and its table sorts, an ordinary one with neither; no page of the devices
 // table is recorded at a page size other than the default.
 // PREVENTS: a tour that records every view of every device and every page of
