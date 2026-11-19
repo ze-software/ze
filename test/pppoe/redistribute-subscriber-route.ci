@@ -1,0 +1,109 @@
+# Does a real PPPoE subscriber's IPCP address and RADIUS Framed-Route cross
+# configured redistribution into BGP and leave when that exact session ends?
+# A unit cannot connect AF_PACKET discovery, Linux PPP, the shared RADIUS
+# handler, the subscriber lifetime, the configured source and a BGP socket.
+# The independent wire driver negotiates two subscribers on one veth. It waits
+# for both announced prefixes of each subscriber on one BGP connection before
+# sending the original subscriber's PADT. It checks both of that connection's
+# withdrawals, leaves the control session and its original routes up, then
+# ends the control and observes its own withdrawals.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+option=timeout:value=180s
+
+stdin=config:terminator=EOF_CONF
+plugin {
+    external pppoe-subscriber-route-test {
+        run "le test fixture pppoe/redistribute-subscriber-route veth-sub 127.0.0.4:$PORT"
+        encoder json
+    }
+}
+
+interface {
+    ethernet veth-bng {
+    }
+}
+
+pppoe {
+    enabled true
+    ac-name ze-test
+    auth-method pap
+    authentication-allow [ pap ]
+    max-sessions-per-mac 2
+    interface veth-bng {
+    }
+}
+
+l2tp {
+    enabled false
+    auth {
+        radius {
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.23.1
+            start 10.99.23.100
+            end 10.99.23.110
+        }
+    }
+}
+
+redistribute {
+    destination bgp {
+        import pppoe {
+            final accept
+        }
+    }
+}
+
+bgp {
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
+    peer receiver {
+        connection {
+            local {
+                ip 127.0.0.4
+                port $PORT
+            }
+            remote {
+                ip 127.0.0.1
+                connect false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 192.0.2.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        attach process redistribute-orchestrator {
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test fixture pppoe/redistribute-subscriber-route/radius $PORT2 testing123
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: PPPoE IPCP addresses and RADIUS routes advertised and withdrawn on the same BGP connection, with the control surviving the first disconnect
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic

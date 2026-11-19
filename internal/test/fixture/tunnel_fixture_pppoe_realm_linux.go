@@ -277,7 +277,7 @@ func (peer *tunnelRealmPeer) sendPPP(protocol uint16, packet []byte) error {
 func (wire *tunnelPPPoEWire) readSession(sid uint16) (uint16, []byte, error) {
 	buffer := make([]byte, 1518)
 	for {
-		n, _, err := unix.Recvfrom(wire.fd, buffer, 0)
+		n, err := wire.readFrame(buffer)
 		if err != nil {
 			return 0, nil, err
 		}

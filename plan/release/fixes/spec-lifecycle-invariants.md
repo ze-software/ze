@@ -439,8 +439,10 @@ tests instead.
 | `TestSessionTimeoutsKeyedOnSubscriberSession` | `internal/component/l2tp/` | AC-20: an L2TP and a PPPoE session with equal number pairs each keep their own timers | |
 | `TestIdleTimeoutReadFailureIsNotIdle` | `internal/component/l2tp/session_timeout_test.go` | AC-21: a counter read error is logged and does not tear the session down | |
 | `TestPPPoEIfIndexAbove16BitsKeepsDistinctSessions` | `internal/component/l2tp/pppoe/` | AC-22: access interfaces with ifindex 2 and 65538 and one PPPoE session id keep two driver sessions, two pool allocations and two metadata entries, and a teardown of one leaves the other's intact | |
-| `TestPPPoESessionDrivesSubscriberRoutes` | `internal/component/l2tp/pppoe/` | AC-23: a PPPoE IP assignment produces a route-change add for the address and each Framed-Route, and session down produces the matching removes | |
-| `TestPPPoESubscriberRoutesCannotCollideWithL2TP` | `internal/component/l2tp/` | AC-23 with AC-22: a PPPoE and an L2TP session holding equal number pairs each keep their own route record, and one's teardown withdraws only its own routes | |
+| `TestSubscriberRouteEventsKeepAccessAndLifetimeApart` | `internal/component/l2tp/` | AC-23: matching numeric labels on PPPoE and L2TP stay independent. Both sources replay the original host and framed routes. A stale Down leaves the active record intact | |
+| `TestPPPoEFramedRoutesFollowExactAuthenticationRound` | `internal/component/l2tp/ppp/` | AC-23: the two CHAP/IPCP lifetimes receive their own profiles, and a retired request cannot supply framed routes to its successor | |
+| `TestPPPoETerminalPublicationHoldsSIDUntilSubscribersReturn` | `internal/component/l2tp/pppoe/` | AC-23: a competing PADT gates the wire while the original address reservation and subscriber ID stay owned through terminal event delivery | |
+| `TestSubscriberRouteStopWithdrawsLiveContributions` | `internal/component/l2tp/` | AC-23: stopping a transport withdraws any retained host and framed routes, and late Down or replay cannot revive them | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -667,8 +669,8 @@ The owner approved D-14 and its acceptance criterion AC-23. The current
 metadata store and PPP drivers already use the full subscriber ID and exact
 admission controls. Keep the original metadata lookup available to its other
 consumers. For PPPoE routing, carry the Framed-Routes from the accepted auth
-request to its own address assignment. A delayed RADIUS answer held by a
-previous PPPoE admission cannot authorize routes for its successor.
+request to its own address assignment. A delayed RADIUS reply to a retired
+PPPoE request cannot supply Framed-Routes to the new network lifetime.
 
 Reuse the subscriber route observer for both transports. Each running transport
 owns its subscription and replay lifetime. The L2TP reactor delivers its
@@ -696,6 +698,13 @@ The focused source test passed. In Ze's Linux 7.3 guest, the PPPoE-only
 draft passed with two real subscribers. One BGP peer saw both assigned
 prefixes and both RADIUS Framed-Routes. Each PADT withdrew that subscriber's
 two routes. The control subscriber and its routes survived the first PADT.
+
+The wire control kept the `pppoe` source registered and omitted its route
+reader in an isolated daemon build. PPPoE completed IPCP and the BGP peer
+timed out waiting for `10.99.23.10/32` and `198.51.100.0/24`.
+
+The corrected fixture passed all 80 guest iterations with no skipped cases.
+It passed again after promotion to `test/pppoe/redistribute-subscriber-route.ci`.
 
 Hold the PPPoE SID through terminal publication. The held-Down test fails
 when cleanup can release it before the pool reader returns. Wait for

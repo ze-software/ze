@@ -27,6 +27,10 @@ func init() {
 // reads from when TEST_IFACE is unset, matching test/pppoe's own veth-sub name.
 const tunnelPPPoEDefaultInterface = "veth-sub"
 
+// Socket operations can be interrupted by the runtime under stress. Bound the
+// immediate retries so the caller can still check its context and phase budget.
+const tunnelPPPoESocketAttempts = 4
+
 type tunnelPPPoEWire struct {
 	fd        int
 	ifindex   int
@@ -76,16 +80,33 @@ func (wire *tunnelPPPoEWire) send(destination net.HardwareAddr, payload []byte) 
 	copy(frame[14:], payload)
 	var address [8]byte
 	copy(address[:], destination)
-	return unix.Sendto(wire.fd, frame, 0, &unix.SockaddrLinklayer{
+	target := &unix.SockaddrLinklayer{
 		Protocol: tunnelNetwork16(wire.etherType), Ifindex: wire.ifindex,
 		Halen: 6, Addr: address,
-	})
+	}
+	for range tunnelPPPoESocketAttempts {
+		err := unix.Sendto(wire.fd, frame, 0, target)
+		if !errors.Is(err, unix.EINTR) {
+			return err
+		}
+	}
+	return fmt.Errorf("send PPPoE frame interrupted repeatedly: %w", unix.EINTR)
+}
+
+func (wire *tunnelPPPoEWire) readFrame(buffer []byte) (int, error) {
+	for range tunnelPPPoESocketAttempts {
+		n, _, err := unix.Recvfrom(wire.fd, buffer, 0)
+		if !errors.Is(err, unix.EINTR) {
+			return n, err
+		}
+	}
+	return 0, fmt.Errorf("read PPPoE frame interrupted repeatedly: %w", unix.EINTR)
 }
 
 func (wire *tunnelPPPoEWire) read() (net.HardwareAddr, byte, uint16, map[uint16][]byte, error) {
 	buffer := make([]byte, 1518)
 	for {
-		n, _, err := unix.Recvfrom(wire.fd, buffer, 0)
+		n, err := wire.readFrame(buffer)
 		if err != nil {
 			return nil, 0, 0, nil, err
 		}
