@@ -867,7 +867,8 @@ list (`keepsSidebar`); a step the tour asks names no page, and carries them.
 The crawl is
 `lgreplay.Crawler`, whose `Follow` decides which `hx-get` it asks. The answers
 are split by `lgreplay.SplitChunks` into one chunk per object, named `estate`
-(the task list included), `group-<path>` (the node's levels in lower-case
+(the task list included), `estate-devices` (the views of the estate's devices
+table, loaded when the Devices tab first opens), `group-<path>` (the node's levels in lower-case
 letters, digits and hyphens), `device-<name>` and `admin`. The entry page and
 the shell's styles and scripts travel in the frame. A request outside the
 recording shows, in the fleet stylesheet's `fleet-banner`, "This is not part of
@@ -910,7 +911,29 @@ with its answer count, its size and its answers by kind of request, the whole
 recording's answers by kind, the total bytes, the exchange count and the
 commit. A le built without the `ze_web` and `ze_fleet_ui` tags refuses the
 action, because it has no fleet pages to record.
-<!-- source: internal/le/site/fleetdemo/actions.go -- runRender, newDemonstration -->
+
+`internal/le/site/browsertest/fleetdemo_test.go` plays what the action writes.
+It renders the whole tour once per run through `sitefleetdemo.RenderInto`,
+the action's render over an output it names, into a scratch output holding
+the files a built output needs, and serves it as the review server does. Its
+four tests read the frame's own document: the browser runs the sandboxed frame
+as a target of its own or inside the host page, and the tests reach it either
+way. A test clicks an htmx control only once htmx bound it
+(`data-htmx-powered`): the recording answers at once, and htmx binds the
+content of a swap that kept an element's id only after its settle delay, so a
+link clicked before that follows its href and the frame leaves its document.
+`TestFleetDemoPlaysTheEstateDashboard` reads the host bar, the estate
+dashboard's first row, the open and silent stream and the absent Step and
+Hold controls; `TestFleetDemoOpensADeviceFromItsChunk` walks the tree to a
+device and two of its tabs, and reads from the server's log that the device's
+chunk was fetched when the device opened, and once;
+`TestFleetDemoSortsAndOpensAPanel` opens the Devices tab from its chunk, a
+row's side panel and its close, and a sort;
+`TestFleetDemoAnswersAnUnrecordedRequestWithTheNotice` types a filter no tour
+records, reads the notice and opens another tab after it, then posts a bulk
+action through its confirm dialog and reads the toast.
+<!-- source: internal/le/site/browsertest/fleetdemo_test.go -- openFleetDemo, renderFleetDemo, reachFrame, click -->
+<!-- source: internal/le/site/fleetdemo/actions.go -- runRender, newDemonstration, RenderInto -->
 <!-- source: internal/le/site/fleetdemo/render.go -- render, demoDirectoryIn, recordTour, crawlTour, demoFallbacks, plainSource -->
 <!-- source: internal/le/site/fleetdemo/tour.go -- planTour, follow, panels, discover, chunkOf, exchangeKind, sizeByKind, tourExchangesMax, chunkExchangesMax, chunkBytesMax, totalBytesMax -->
 <!-- source: internal/le/site/lgreplay/record.go -- Crawler -->

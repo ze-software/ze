@@ -275,10 +275,10 @@ readers are listed. No network wire changes.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestFleetDemoPlaysTheEstateDashboard` | `internal/le/site/browsertest/fleetdemo_test.go` | The host page shows the estate dashboard | |
-| `TestFleetDemoOpensADeviceFromItsChunk` | `internal/le/site/browsertest/fleetdemo_test.go` | A device opened from the tree shows its dashboard and tabs | |
-| `TestFleetDemoSortsAndOpensAPanel` | `internal/le/site/browsertest/fleetdemo_test.go` | A recorded sort and a side panel answer | |
-| `TestFleetDemoAnswersAnUnrecordedRequestWithTheNotice` | `internal/le/site/browsertest/fleetdemo_test.go` | A typed filter shows the notice | |
+| `TestFleetDemoPlaysTheEstateDashboard` | `internal/le/site/browsertest/fleetdemo_test.go` | The host page shows the estate dashboard | written, pending run (renders the whole tour once per run, `sitefleetdemo.RenderInto`) |
+| `TestFleetDemoOpensADeviceFromItsChunk` | `internal/le/site/browsertest/fleetdemo_test.go` | A device opened from the tree shows its dashboard and tabs | written, pending run |
+| `TestFleetDemoSortsAndOpensAPanel` | `internal/le/site/browsertest/fleetdemo_test.go` | A recorded sort and a side panel answer | written, pending run |
+| `TestFleetDemoAnswersAnUnrecordedRequestWithTheNotice` | `internal/le/site/browsertest/fleetdemo_test.go` | A typed filter shows the notice, and a posted action the toast | written, pending run |
 | `TestLGReplayAnswersTheTourFromTheRecording` (existing) | `internal/le/site/browsertest/lgreplay_test.go` | The looking glass replay still plays | |
 
 ## Files to Modify

@@ -207,6 +207,24 @@ func runRender(arguments leaction.Arguments) (any, int) {
 	}, 0
 }
 
+// RenderInto records the whole tour from the checkout at repository and
+// writes the demonstration into the website output at output, as the action
+// does once it has resolved its output: an output with no built site is
+// refused, and nothing is written past a bound. It answers the provenance the
+// recording names: the commit, its date and whether the tree was dirty. The
+// browser tests render the demonstration with it into a scratch output, so
+// they play what the action writes.
+func RenderInto(ctx context.Context, repository, output string) (sitelgreplay.Provenance, error) {
+	demo, err := newDemonstration(ctx, site.Paths{Repository: repository, Output: output})
+	if err != nil {
+		return sitelgreplay.Provenance{}, err
+	}
+	if _, err := render(ctx, demo); err != nil {
+		return sitelgreplay.Provenance{}, err
+	}
+	return demo.provenance, nil
+}
+
 // newDemonstration reads the commit the recording names, and pins the sample
 // estate's clock to its date, so two renders of one commit write the same
 // bytes.
