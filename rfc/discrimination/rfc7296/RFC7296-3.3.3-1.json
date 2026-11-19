@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol",
+    "unit-sha": "795498b4316694d5",
+    "claim-sha": "bf03ab1ab6353976",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::transformTypeUnderstood",
+    "producer-sha": "f6b19ed537d775a2",
+    "break": "line 100: \"protocolTransformTypes[proto][tt] != transformTypeAbsent\" -\u003e \"protocolTransformTypes[proto][tt] == transformTypeRequired\""
+  },
+  {
+    "rid": "RFC7296-3.3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol",
+    "unit-sha": "795498b4316694d5",
+    "claim-sha": "61db57663f0ea49f",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::transformTypeUnderstood",
+    "producer-sha": "f6b19ed537d775a2",
+    "break": "line 100: \"protocolTransformTypes[proto][tt] != transformTypeAbsent\" -\u003e \"true\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.14-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength",
+    "unit-sha": "29b5b22abcdb618c",
+    "claim-sha": "dc87dc75d848ebb9",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
+    "producer-sha": "33fdc1644406af4a",
+    "break": "line 813: \"end \u003c 0\" -\u003e \"end \u003c 0 || padLen \u003e= 16\""
+  }
+]

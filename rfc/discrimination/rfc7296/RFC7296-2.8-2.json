@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime",
+    "unit-sha": "d2bdaa993e738ca3",
+    "claim-sha": "438274827b02baf0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::newLifetimeState",
+    "producer-sha": "16f87a9e362aa80d",
+    "break": "line 1012: \"hard := now.Add(lifetime)\" -\u003e \"hard := now\""
+  },
+  {
+    "rid": "RFC7296-2.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire",
+    "unit-sha": "962a3c282f2c6318",
+    "claim-sha": "60303a52314f6ad7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::encAttrs",
+    "producer-sha": "5f591c51cecce19a",
+    "break": "line 733: \"return []wire.TransformAttr{{Type: wire.AttrTypeKeyLength, Value: enc.KeyLength}}\" -\u003e \"return []wire.TransformAttr{{Type: wire.AttrTypeKeyLength, Value: enc.KeyLength}, {Type: 11, Value: 3600}}\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-10",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyRetiringAChildSASendsADeletePayload",
+    "unit-sha": "e28ca94e46754f9c",
+    "claim-sha": "0191a2f91207526b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "line 518: \"ps.sendDeleteESP(sa, tr, old.InboundSPI, log)\" -\u003e \"_ = old\""
+  },
+  {
+    "rid": "RFC7296-2.4-10",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyRetiringAChildSASendsADeletePayload",
+    "unit-sha": "e28ca94e46754f9c",
+    "claim-sha": "8ff711d0b2e72721",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateChildRekey",
+    "producer-sha": "721700d0f9ef54cb",
+    "break": "line 396: \"inner = append(inner, wire.PayloadEntry{Payload: rekeyNotify})\" -\u003e \"inner = append(inner, wire.PayloadEntry{Payload: rekeyNotify}, wire.PayloadEntry{Payload: espDeletePayload([]uint32{oldChild.InboundSPI})})\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeCookieAndInvalidKECombineWithoutFailing",
+    "unit-sha": "f8557e289c5e2232",
+    "claim-sha": "189d0d408189a733",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 138: \"if sa.SAInitRetries \u003e maxSAInitRetries {\" -\u003e \"if false \u0026\u0026 sa.SAInitRetries \u003e maxSAInitRetries {\""
+  },
+  {
+    "rid": "RFC7296-2.6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeSecondCookieReplacesTheFirstWithoutFailing",
+    "unit-sha": "0ab6ac95b8dc0f89",
+    "claim-sha": "8d7986c45a026fa8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 157: \"sa.Cookie = append([]byte(nil), data...)\" -\u003e \"if sa.Cookie != nil { sa.State = StateDead; return false }; sa.Cookie = append([]byte(nil), data...)\""
+  }
+]

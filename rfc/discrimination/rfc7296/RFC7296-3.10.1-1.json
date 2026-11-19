@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.10.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling",
+    "unit-sha": "7bc9f0e22a0803d1",
+    "claim-sha": "c6b984cc06675840",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::failIfUnrecognizedErrorNotify",
+    "producer-sha": "a9f88356acb3acb1",
+    "break": "line 404: \"return errUnrecognizedNotify\" -\u003e \"return nil\""
+  },
+  {
+    "rid": "RFC7296-3.10.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling",
+    "unit-sha": "7bc9f0e22a0803d1",
+    "claim-sha": "df24b938a9c84f8d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::unrecognizedErrorNotify",
+    "producer-sha": "141251db48116a59",
+    "break": "line 382: \"wire.NotifyIsError(n.NotifyMsgType) \u0026\u0026\" -\u003e \"true \u0026\u0026\""
+  }
+]

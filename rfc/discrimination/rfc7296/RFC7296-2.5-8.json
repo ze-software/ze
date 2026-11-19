@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped",
+    "unit-sha": "2b4b08a35e9a2571",
+    "claim-sha": "e11305d23477fd30",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 132: \"payload = \u0026payloadRaw{PayloadType: nextType, Data: bodyData}\" -\u003e \"return ErrUnknownPayload\""
+  },
+  {
+    "rid": "RFC7296-2.5-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped",
+    "unit-sha": "2b4b08a35e9a2571",
+    "claim-sha": "698ceee6c8c5fd7d",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 117: \"payload, err := decodePayload(nextType, bodyData)\" -\u003e \"payload, err := decodePayload(nextType, bodyData); if err == nil \u0026\u0026 nextType == PayloadTypeNonce \u0026\u0026 m.Header.NextPayload == PayloadTypeNonce { err = ErrUnknownPayload }\""
+  }
+]

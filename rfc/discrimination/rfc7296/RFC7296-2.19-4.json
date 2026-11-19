@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.19-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigurationRequest",
+    "unit-sha": "e8237269b2e7880c",
+    "claim-sha": "8b3e352f938807f6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
+    "producer-sha": "e172737bd312d865",
+    "break": "line 1135: \"{Payload: \u0026wire.PayloadNonce{NonceData: ni}},\" -\u003e \"{Payload: \u0026wire.PayloadNonce{NonceData: ni}}, {Payload: \u0026wire.PayloadCP{CFGType: wire.CFGTypeRequest}},\""
+  },
+  {
+    "rid": "RFC7296-2.19-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigurationRequest",
+    "unit-sha": "e8237269b2e7880c",
+    "claim-sha": "8a2aaa884145007a",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_cp.go::WriteTo",
+    "producer-sha": "bb81f1b5ef7b1186",
+    "break": "line 75: \"p.Attrs[i].Type\u0026cpAttrTypeMask\" -\u003e \"(p.Attrs[i].Type+1)\u0026cpAttrTypeMask\""
+  }
+]

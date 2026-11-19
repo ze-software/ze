@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesCarryVersion2Point0",
+    "unit-sha": "dbebb8001728ab9e",
+    "claim-sha": "4dcd0ea298969a67",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::writeAuthHeaderWithMsgID",
+    "producer-sha": "001114a9a5340ebc",
+    "break": "line 738: \"MajorVersion: 2,\" -\u003e \"MajorVersion: 2, MinorVersion: 1,\""
+  },
+  {
+    "rid": "RFC7296-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesCarryVersion2Point0",
+    "unit-sha": "dbebb8001728ab9e",
+    "claim-sha": "f4647dcd7fdeac64",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/header.go::WriteTo",
+    "producer-sha": "299430c6e2aee01e",
+    "break": "line 44: \"(h.MajorVersion \u003c\u003c 4) | (h.MinorVersion \u0026 0x0f)\" -\u003e \"h.MajorVersion \u003c\u003c 4\""
+  }
+]

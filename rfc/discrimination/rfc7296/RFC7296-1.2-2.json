@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutFirstCertificateCarriesTheAuthKey",
+    "unit-sha": "752e2d786ea9eb09",
+    "claim-sha": "4c3162e8e909838b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cert_payload.go::buildCertPayloads",
+    "producer-sha": "8ebc8197efa35b83",
+    "break": "line 378: \"der,\" -\u003e \"der[:0],\""
+  },
+  {
+    "rid": "RFC7296-1.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutFirstCertificateCarriesTheAuthKey",
+    "unit-sha": "752e2d786ea9eb09",
+    "claim-sha": "94462c39300f054d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::verifyX509Auth",
+    "producer-sha": "18c42ad7895372b9",
+    "break": "line 546: \"return verifySignature(publicKey, digest, signature, hashFunc)\" -\u003e \"_, _ = digest, signature; return nil\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical",
+    "unit-sha": "bb85ed2ce2193d96",
+    "claim-sha": "7d24ed10260ef804",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildEncryptedMessageEx",
+    "producer-sha": "a8f79798b6df3df3",
+    "break": "line 275: \"gh.Critical = innerPayloads[i].Critical\" -\u003e \"gh.Critical = true\""
+  },
+  {
+    "rid": "RFC7296-3.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical",
+    "unit-sha": "bb85ed2ce2193d96",
+    "claim-sha": "de04cb5612381c28",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::WriteTo",
+    "producer-sha": "62092fbc7eb1fd0f",
+    "break": "line 30: \"gh.Critical = m.Payloads[i].Critical\" -\u003e \"gh.Critical = false\""
+  }
+]

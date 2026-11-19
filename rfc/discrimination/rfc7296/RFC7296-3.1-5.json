@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesCarryVersion2Point0",
+    "unit-sha": "dbebb8001728ab9e",
+    "claim-sha": "244b0fd8ac519918",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::writeAuthHeaderWithMsgID",
+    "producer-sha": "001114a9a5340ebc",
+    "break": "line 738: \"MajorVersion: 2,\" -\u003e \"MajorVersion: 3,\""
+  }
+]

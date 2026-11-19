@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashURLLookupRefusesEverythingOutsideTheBound",
+    "unit-sha": "7f94ed4b508f137e",
+    "claim-sha": "8c6ecbb5bbdf2a0f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/certurl.go::fetchHashAndURL",
+    "producer-sha": "f8c776c06c05efe8",
+    "break": "line 560: \"u.Scheme != \\\"http\\\"\" -\u003e \"u.Scheme != \\\"http\\\" \u0026\u0026 u.Scheme != \\\"ftp\\\"\""
+  },
+  {
+    "rid": "RFC7296-3.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashURLLookupUsesHTTPAndVerifiesTheHash",
+    "unit-sha": "04ce0d654bf7fc56",
+    "claim-sha": "9230e2564e988011",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/certurl.go::fetchHashAndURL",
+    "producer-sha": "f8c776c06c05efe8",
+    "break": "line 560: \"u.Scheme != \\\"http\\\"\" -\u003e \"u.Scheme != \\\"https\\\"\""
+  }
+]

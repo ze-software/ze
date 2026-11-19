@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys",
+    "unit-sha": "53c9c079fd2cd0fd",
+    "claim-sha": "15d82d7a4ba5646a",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/prf.go::PRF",
+    "producer-sha": "5b6fe072f55bd9ad",
+    "break": "line 33: \"mac := hmac.New(hf, key)\" -\u003e \"if len(key) != hf().Size() { return nil, ErrUnsupportedAlgorithm }; mac := hmac.New(hf, key)\""
+  },
+  {
+    "rid": "RFC7296-1.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys",
+    "unit-sha": "53c9c079fd2cd0fd",
+    "claim-sha": "21d4bae79c2c1697",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/prf.go::PRF",
+    "producer-sha": "5b6fe072f55bd9ad",
+    "break": "line 33: \"mac := hmac.New(hf, key)\" -\u003e \"mac := hmac.New(hf, nil)\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonCriticalUnsupportedPayloadIgnored",
+    "unit-sha": "f2e1c550083f0f79",
+    "claim-sha": "d570725fe2a87fd2",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 132: \"payload = \u0026payloadRaw{PayloadType: nextType, Data: bodyData}\" -\u003e \"return ErrUnknownPayload\""
+  },
+  {
+    "rid": "RFC7296-2.5-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonCriticalUnsupportedPayloadIgnored",
+    "unit-sha": "f2e1c550083f0f79",
+    "claim-sha": "00ad6482c4a5cb5c",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 129: \"if gh.Critical {\" -\u003e \"if false \u0026\u0026 gh.Critical {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestSPIsAreUniqueIdentifiers",
+    "unit-sha": "adad7884c8eaf18f",
+    "claim-sha": "944f6afba9efc0ec",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::GenerateSPI",
+    "producer-sha": "7ecca7b9476d0a5f",
+    "break": "line 552: \"if spi != [8]byte{} {\" -\u003e \"if spi = [8]byte{1}; spi != [8]byte{} {\""
+  },
+  {
+    "rid": "RFC7296-2.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestSPIsAreUniqueIdentifiers",
+    "unit-sha": "adad7884c8eaf18f",
+    "claim-sha": "0714b9232d67ffe5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/table.go::Insert",
+    "producer-sha": "1f751604c02c1dae",
+    "break": "line 37: \"if _, exists := t.bySPI[key]; exists {\" -\u003e \"if _, exists := t.bySPI[key]; false \u0026\u0026 exists {\""
+  }
+]

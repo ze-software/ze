@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch",
+    "unit-sha": "04931cc4efba9193",
+    "claim-sha": "e8954444f9cd20d6",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "line 468: \"return chosen, nil\" -\u003e \"_ = chosen; return remote[0], nil\""
+  },
+  {
+    "rid": "RFC7296-2.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch",
+    "unit-sha": "e6770a312a645e05",
+    "claim-sha": "9072a2d9cd0b8773",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "line 480: \"return IKEProposal{}, reason\" -\u003e \"return local[0], nil\""
+  }
+]

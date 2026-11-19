@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2OutOfSAAnswersARequest",
+    "unit-sha": "69f2fa0f46905bca",
+    "claim-sha": "69f35cdf06440a83",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 271: \"if hdr.Flags\u0026wire.FlagResponse != 0 {\" -\u003e \"if true || hdr.Flags\u0026wire.FlagResponse != 0 {\""
+  },
+  {
+    "rid": "RFC7296-1.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2OutOfSAEmitterIsAFixedPoint",
+    "unit-sha": "525f90de7fbb5922",
+    "claim-sha": "f4842d47540d4b4f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 271: \"if hdr.Flags\u0026wire.FlagResponse != 0 {\" -\u003e \"if false \u0026\u0026 hdr.Flags\u0026wire.FlagResponse != 0 {\""
+  }
+]

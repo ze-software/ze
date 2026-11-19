@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.13-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms",
+    "unit-sha": "2078826a5b1a0bb4",
+    "claim-sha": "d5b0a26aac9cde00",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "line 84: \"prfKeyLen := int(prf.KeyLength)\" -\u003e \"prfKeyLen := int(prf.KeyLength) / 2\""
+  },
+  {
+    "rid": "RFC7296-2.13-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms",
+    "unit-sha": "2078826a5b1a0bb4",
+    "claim-sha": "f2d76709a2a5ccd3",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "line 82: \"integKeyLen := int(integ.KeyLength)\" -\u003e \"integKeyLen := int(prf.KeyLength)\""
+  }
+]

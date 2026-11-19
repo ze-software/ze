@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.13-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestTransformRegistryStatesKeySizes",
+    "unit-sha": "e6815d8326bc1318",
+    "claim-sha": "87843a2dbb035e57",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/transform.go::LookupPRF",
+    "producer-sha": "92dd76438f91be93",
+    "break": "line 417: \"return t, nil\" -\u003e \"t.KeyLength /= 2; return t, nil\""
+  },
+  {
+    "rid": "RFC7296-2.13-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestTransformRegistryStatesKeySizes",
+    "unit-sha": "e6815d8326bc1318",
+    "claim-sha": "1f2f000d5625ec68",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/transform.go::LookupPRF",
+    "producer-sha": "92dd76438f91be93",
+    "break": "line 415: \"return PRFTransform{}, ErrUnsupportedAlgorithm\" -\u003e \"return prfRegistry[\\\"sha256\\\"], nil\""
+  }
+]

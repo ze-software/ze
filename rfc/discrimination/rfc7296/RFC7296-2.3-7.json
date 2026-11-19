@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfySetWindowSizeDataIsFourOctets",
+    "unit-sha": "06c8a340c0bbbcf8",
+    "claim-sha": "38d5e98c185c1d36",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_notify.go::ParseSetWindowSize",
+    "producer-sha": "c33ac96f1f861d1c",
+    "break": "line 28: \"binary.BigEndian.Uint32(data)\" -\u003e \"binary.LittleEndian.Uint32(data)\""
+  },
+  {
+    "rid": "RFC7296-2.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfySetWindowSizeDataIsFourOctets",
+    "unit-sha": "06c8a340c0bbbcf8",
+    "claim-sha": "599d9380e0186808",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_notify.go::ParseSetWindowSize",
+    "producer-sha": "c33ac96f1f861d1c",
+    "break": "line 25: \"if len(data) != 4 {\" -\u003e \"if len(data) \u003c 4 {\""
+  }
+]

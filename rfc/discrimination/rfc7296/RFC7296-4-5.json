@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-4-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_fourmessage_test.go::TestFourmFirstPairEstablishesNeitherSA",
+    "unit-sha": "fbcc9c544cb06665",
+    "claim-sha": "594159ccd0112583",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "line 318: \"sa.State = StateSAInitReceived\" -\u003e \"sa.State = StateEstablished\""
+  },
+  {
+    "rid": "RFC7296-4-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderHandshakePSKEndToEnd",
+    "unit-sha": "531042a704eafd58",
+    "claim-sha": "b53d2f14003c3a95",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+    "producer-sha": "ec7648d0d44f856a",
+    "break": "line 1178: \"sa.State = StateEstablished\" -\u003e \"sa.State = StateAuthSent\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-16",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_version_test.go::TestNATTDispatchAppliesTheSameVersionGate",
+    "unit-sha": "80c9066750a8cba6",
+    "claim-sha": "a4f4594c46707031",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::dispatchNATTInbound",
+    "producer-sha": "b88eaa4431fe49c5",
+    "break": "line 768: \"if ikeData[17]\u003e\u003e4 != 2 {\" -\u003e \"if ikeData[17]\u003e\u003e4 != 2 \u0026\u0026 ikeData[17]\u003e\u003e4 != 3 {\""
+  },
+  {
+    "rid": "RFC7296-2.5-16",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_version_test.go::TestSupportedMajorVersionSetIsSingleton",
+    "unit-sha": "8d95d4d2b31aa1fb",
+    "claim-sha": "77e672e04ce76747",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::dispatchInbound",
+    "producer-sha": "8cd2caca5dba6e72",
+    "break": "line 1024: \"if pkt.Data[17]\u003e\u003e4 != 2 {\" -\u003e \"if pkt.Data[17]\u003e\u003e4 != 2 \u0026\u0026 pkt.Data[17]\u003e\u003e4 != 3 {\""
+  }
+]

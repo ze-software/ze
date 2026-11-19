@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.12-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestVendorIDDoesNotChangeInterpretation",
+    "unit-sha": "e5580bafdbb181b9",
+    "claim-sha": "77896a52c6d794ca",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "line 191: \"for _, pe := range msg.Payloads {\" -\u003e \"for _, pe := range msg.Payloads { if _, vid := pe.Payload.(*wire.PayloadVendorID); vid { sa.State = StateDead; return }\""
+  },
+  {
+    "rid": "RFC7296-3.12-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestVendorIDDoesNotChangeInterpretation",
+    "unit-sha": "e5580bafdbb181b9",
+    "claim-sha": "b96b0f711f94604c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "line 196: \"remoteKE = p\" -\u003e \"if remoteKE == nil { remoteKE = p }\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-15",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_version_test.go::TestResponderEchoesTheSupportedMajorVersion",
+    "unit-sha": "942d2f66b6924849",
+    "claim-sha": "07b09ff954a5b64d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::buildSAInitResponse",
+    "producer-sha": "12267fd497657ec4",
+    "break": "line 384: \"MajorVersion: 2,\" -\u003e \"MajorVersion: 3,\""
+  },
+  {
+    "rid": "RFC7296-2.5-15",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_version_test.go::TestResponderEchoesTheSupportedMajorVersion",
+    "unit-sha": "942d2f66b6924849",
+    "claim-sha": "32cd17f5bcd45ccb",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/header.go::WriteTo",
+    "producer-sha": "299430c6e2aee01e",
+    "break": "line 44: \"(h.MajorVersion \u003c\u003c 4)\" -\u003e \"(2 \u003c\u003c 4)\""
+  }
+]

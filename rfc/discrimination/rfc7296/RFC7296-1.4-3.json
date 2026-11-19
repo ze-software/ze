@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyControlMessagesRideTheirOwnIKESA",
+    "unit-sha": "7296734a8cb42600",
+    "claim-sha": "fb2afcf367926181",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/delete.go::sendDeleteESP",
+    "producer-sha": "88333ed346db9a88",
+    "break": "line 116: \"ps.writeDelete(sa, tr, espDeletePayload([]uint32{spi}), log)\" -\u003e \"ps.writeDelete(func() *SA { c := *sa; c.ResponderSPI = [8]byte{}; return \u0026c }(), tr, espDeletePayload([]uint32{spi}), log)\""
+  },
+  {
+    "rid": "RFC7296-1.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyControlMessagesRideTheirOwnIKESA",
+    "unit-sha": "7296734a8cb42600",
+    "claim-sha": "cef65305e08a9d47",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "line 94: \"PRFPlus(prfID, skeyseed, seed, totalLen)\" -\u003e \"PRFPlus(prfID, []byte{1}, []byte{1}, totalLen)\""
+  }
+]

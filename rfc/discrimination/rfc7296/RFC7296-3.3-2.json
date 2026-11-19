@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone",
+    "unit-sha": "c34d580d55fc09bf",
+    "claim-sha": "b83c475bf2d220e0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+    "producer-sha": "2d361fc226c9def6",
+    "break": "line 893: \"if !p.Encryption.IsAEAD() {\" -\u003e \"if p.Encryption.IsAEAD() { transforms = append(transforms, wire.Transform{Type: wire.TransformTypeINTG, ID: uint16(crypto.AUTH_HMAC_SHA2_256_128)}) }; if !p.Encryption.IsAEAD() {\""
+  },
+  {
+    "rid": "RFC7296-3.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone",
+    "unit-sha": "c34d580d55fc09bf",
+    "claim-sha": "981b1d35c80f6290",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+    "producer-sha": "2d361fc226c9def6",
+    "break": "line 893: \"!p.Encryption.IsAEAD()\" -\u003e \"false \u0026\u0026 !p.Encryption.IsAEAD()\""
+  }
+]

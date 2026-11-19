@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropFixedLengthAttributeRejectsTLVEncoding",
+    "unit-sha": "130cc48fae904a21",
+    "claim-sha": "a2d5722e1444fd1a",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkAttr",
+    "producer-sha": "62f873004484b399",
+    "break": "line 251: \"!spec.variable \u0026\u0026 a.Variable \u0026\u0026 spec.fixedLen \u003c= 2\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.3.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropFixedLengthAttributeRejectsTLVEncoding",
+    "unit-sha": "130cc48fae904a21",
+    "claim-sha": "701a7da19b144a22",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkAttr",
+    "producer-sha": "62f873004484b399",
+    "break": "line 248: \"spec.variable \u0026\u0026 !a.Variable\" -\u003e \"!a.Variable\""
+  }
+]

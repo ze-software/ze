@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropProposalNumbering",
+    "unit-sha": "7164f20e03247f05",
+    "claim-sha": "cb1659469e1f98a5",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::ValidateOfferNumbering",
+    "producer-sha": "fa742953ee431fc0",
+    "break": "line 468: \"int(p.Proposals[i].Number) != i+1\" -\u003e \"int(p.Proposals[i].Number) != i+2\""
+  },
+  {
+    "rid": "RFC7296-3.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropProposalNumbering",
+    "unit-sha": "7164f20e03247f05",
+    "claim-sha": "1fb261de8cc2e051",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::ValidateOfferNumbering",
+    "producer-sha": "fa742953ee431fc0",
+    "break": "line 468: \"int(p.Proposals[i].Number) != i+1\" -\u003e \"int(p.Proposals[i].Number) \u003e i+1\""
+  }
+]

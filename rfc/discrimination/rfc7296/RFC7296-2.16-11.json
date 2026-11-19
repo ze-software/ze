@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate",
+    "unit-sha": "2e602e9f03a5a4e3",
+    "claim-sha": "8e46853e6ea2eea7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder_eap.go::computeServerAuth",
+    "producer-sha": "1d5e803aafade590",
+    "break": "line 172: \"if sa.PeerCfg.Auth.Certificate == \\\"\\\" {\" -\u003e \"if sa.PeerCfg.Auth.Certificate == \\\"\\\" { return computePSKAuth(sa) }; if false {\""
+  },
+  {
+    "rid": "RFC7296-2.16-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderSignsWithPublicKey",
+    "unit-sha": "8e9f07c68b7a3a76",
+    "claim-sha": "415bc1f63ce2d48d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder_eap.go::computeServerAuth",
+    "producer-sha": "1d5e803aafade590",
+    "break": "line 178: \"return computeX509Auth(sa)\" -\u003e \"return computePSKAuth(sa)\""
+  }
+]

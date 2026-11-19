@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropAcceptedProposalNumberMatchesOffer",
+    "unit-sha": "d016b7a72f4947cb",
+    "claim-sha": "6e906597a17ea866",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::matchIKE",
+    "producer-sha": "ad331edf4e6ce355",
+    "break": "line 409: \"chosen.Number = remote.Number\" -\u003e \"chosen.Number = remote.Number - 1\""
+  },
+  {
+    "rid": "RFC7296-3.3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropAcceptedProposalNumberMatchesOffer",
+    "unit-sha": "d016b7a72f4947cb",
+    "claim-sha": "d0e33da22fd885a1",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::matchIKE",
+    "producer-sha": "ad331edf4e6ce355",
+    "break": "line 409: \"chosen.Number = remote.Number\" -\u003e \"chosen.Number = min(remote.Number, 2)\""
+  }
+]

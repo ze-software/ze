@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact",
+    "unit-sha": "341624de3df50402",
+    "claim-sha": "ed82cdd230b5c62d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildAuthRequest",
+    "producer-sha": "f0481bbba3814ad9",
+    "break": "line 165: \"if !mayBeReplicated(sa.PeerCfg) {\" -\u003e \"if false \u0026\u0026 !mayBeReplicated(sa.PeerCfg) {\""
+  },
+  {
+    "rid": "RFC7296-2.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey",
+    "unit-sha": "4a0d428c61f1e815",
+    "claim-sha": "e07c51edad0fb4f0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
+    "producer-sha": "e172737bd312d865",
+    "break": "line 1134: \"{Payload: \u0026wire.PayloadSA{Proposals: props}},\" -\u003e \"{Payload: \u0026wire.PayloadNotify{NotifyMsgType: wire.NotifyInitialContact}}, {Payload: \u0026wire.PayloadSA{Proposals: props}},\""
+  }
+]

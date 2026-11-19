@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.13-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestTransformRegistryStatesKeySizes",
+    "unit-sha": "e6815d8326bc1318",
+    "claim-sha": "daa32f8a8f2c383f",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/transform.go::LookupEncryption",
+    "producer-sha": "974171b5a261fe53",
+    "break": "line 351: \"return t, nil\" -\u003e \"t.KeyLength /= 2; return t, nil\""
+  },
+  {
+    "rid": "RFC7296-2.13-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestTransformRegistryStatesKeySizes",
+    "unit-sha": "e6815d8326bc1318",
+    "claim-sha": "29d7b25b9fa9cf5d",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/transform.go::LookupEncryption",
+    "producer-sha": "974171b5a261fe53",
+    "break": "line 349: \"return EncryptionTransform{}, ErrUnsupportedAlgorithm\" -\u003e \"return encryptionRegistry[\\\"aes128\\\"], nil\""
+  }
+]

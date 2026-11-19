@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.14-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKSelectsFreshIVPerMessage",
+    "unit-sha": "37133521e9cafe51",
+    "claim-sha": "fdfd960a7f31d6ed",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageCBCWithMsgID",
+    "producer-sha": "d32a169a6beea61a",
+    "break": "line 660: \"crand.Read(buf[ivOff : ivOff+blockSize])\" -\u003e \"crand.Read(make([]byte, blockSize))\""
+  }
+]

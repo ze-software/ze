@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.3.6-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResSelectedDHGroupNoneOmitsKEFromTheResponse",
+    "unit-sha": "f2ffa675c3de3fd6",
+    "claim-sha": "c0f4f1eaeca4e0bf",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "069840ba181d43c6",
+    "break": "line 867: \"group != dhGroupNone\" -\u003e \"group != dhGroupNone || reqKE != nil\""
+  }
+]

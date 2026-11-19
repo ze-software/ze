@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestIKESuitePolicyIsOperatorSpecified",
+    "unit-sha": "2df85c9e36f4d200",
+    "claim-sha": "ee9d210730b0ffeb",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/config.go::parseIKEProposal",
+    "producer-sha": "bb66b5dfb5978e8a",
+    "break": "line 528: \"p.DHGroup = g\" -\u003e \"p.DHGroup = DHGroup(14)\""
+  },
+  {
+    "rid": "RFC7296-3.3.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestIKESuitePolicyRejectsAnUnhonourableSuite",
+    "unit-sha": "0dda900ca2076313",
+    "claim-sha": "244d00cf0b7413e4",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/config.go::parseIKEProposal",
+    "producer-sha": "bb66b5dfb5978e8a",
+    "break": "line 524: \"!DHGroupImplemented(g)\" -\u003e \"false\""
+  }
+]

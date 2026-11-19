@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestSAInternalLengthConsistency",
+    "unit-sha": "72c7de8979a8ae7a",
+    "claim-sha": "9ced02ebca03df0a",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::Proposal.ReadFrom",
+    "producer-sha": "64fbd3b2282439e4",
+    "break": "line 395: \"plen \u003c proposalHeaderLen || plen \u003e len(data)\" -\u003e \"plen \u003c proposalHeaderLen\""
+  },
+  {
+    "rid": "RFC7296-3.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestSAInternalLengthConsistency",
+    "unit-sha": "72c7de8979a8ae7a",
+    "claim-sha": "f5e2fce6a20b906d",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::Proposal.ReadFrom",
+    "producer-sha": "64fbd3b2282439e4",
+    "break": "line 395: \"plen \u003c proposalHeaderLen || plen \u003e len(data)\" -\u003e \"plen \u003c proposalHeaderLen || plen \u003e= len(data)\""
+  }
+]

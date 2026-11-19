@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.15-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestPSKAcceptsAtLeast64ASCIIOctets",
+    "unit-sha": "8ef6c8d3f652648b",
+    "claim-sha": "50a7bb95ae9a5a6f",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/config.go::parsePreSharedSecret",
+    "producer-sha": "6576c9c531918644",
+    "break": "line 793: \"return v, nil\" -\u003e \"return v[:min(len(v), 63)], nil\""
+  },
+  {
+    "rid": "RFC7296-2.15-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestPSKAcceptsAtLeast64ASCIIOctets",
+    "unit-sha": "8ef6c8d3f652648b",
+    "claim-sha": "87017f0f4d59246f",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/config.go::parsePreSharedSecret",
+    "producer-sha": "6576c9c531918644",
+    "break": "line 781: \"return \\\"\\\", nil\" -\u003e \"return \\\"ze-invented-secret\\\", nil\""
+  }
+]

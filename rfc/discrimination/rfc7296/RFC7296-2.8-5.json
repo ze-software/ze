@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.8-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyExhaustedRekeyClosesTheChildSAs",
+    "unit-sha": "ee51c6f6d477edcc",
+    "claim-sha": "46d309fe3421d800",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "line 1031: \"ps.cleanupChild(dp, bus, log)\" -\u003e \"_ = bus\""
+  },
+  {
+    "rid": "RFC7296-2.8-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyExhaustedRekeyClosesTheChildSAs",
+    "unit-sha": "ee51c6f6d477edcc",
+    "claim-sha": "8fa762047e210880",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "line 1021: \"if p.retransmits \u003e= maxRetransmissions {\" -\u003e \"if p.retransmits \u003e= maxRetransmissions-1 {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.12-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestVendorIDIgnoredButPreserved",
+    "unit-sha": "0dd077e05e3805ad",
+    "claim-sha": "1f7d64432c49e687",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_vendor.go::ReadFrom",
+    "producer-sha": "56f7734caa1f0314",
+    "break": "line 22: \"return nil\" -\u003e \"return ErrTruncated\""
+  },
+  {
+    "rid": "RFC7296-3.12-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestVendorIDIgnoredButPreserved",
+    "unit-sha": "0dd077e05e3805ad",
+    "claim-sha": "79af4adb5d77a5c5",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_vendor.go::ReadFrom",
+    "producer-sha": "56f7734caa1f0314",
+    "break": "line 21: \"copy(p.VendorIDData, data)\" -\u003e \"copy(p.VendorIDData, data[1:])\""
+  }
+]

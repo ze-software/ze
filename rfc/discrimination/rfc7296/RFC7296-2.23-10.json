@@ -1,0 +1,45 @@
+[
+  {
+    "rid": "RFC7296-2.23-10",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable",
+    "unit-sha": "01c0e6dc8719fadb",
+    "claim-sha": "2d67b2be856bcb40",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+    "producer-sha": "9475156f5bedb5b6",
+    "break": "line 665: \"if child.UDPEncap {\" -\u003e \"if child.UDPEncap \u0026\u0026 false {\"",
+    "paired": [
+      {
+        "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+        "producer-sha": "9475156f5bedb5b6",
+        "break": "line 731: \"if child.NATDetected {\" -\u003e \"if child.NATDetected \u0026\u0026 false {\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+        "break": "line 665: \"if child.UDPEncap {\" -\u003e \"if child.UDPEncap \u0026\u0026 false {\"",
+        "seconds": 4,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.467s"
+      },
+      {
+        "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+        "break": "line 731: \"if child.NATDetected {\" -\u003e \"if child.NATDetected \u0026\u0026 false {\"",
+        "seconds": 4,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.410s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC7296-2.23-10",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA",
+    "unit-sha": "004bcc158d463e46",
+    "claim-sha": "b2a9f20ff7bcf96f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+    "producer-sha": "9475156f5bedb5b6",
+    "break": "line 678: \"inbound.AcceptBothESPForms = true\" -\u003e \"inbound.AcceptBothESPForms = false\""
+  }
+]

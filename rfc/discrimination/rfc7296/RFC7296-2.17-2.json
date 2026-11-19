@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.17-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder",
+    "unit-sha": "02cd4b2d3f3d8286",
+    "claim-sha": "79761e640956ba1e",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "2f408bd1b701c971",
+    "break": "line 156: \"keys.IntegKeyI = dup(keymat[off : off+integKeyLen])\" -\u003e \"keys.IntegKeyI = dup(keymat[0:integKeyLen])\""
+  },
+  {
+    "rid": "RFC7296-2.17-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder",
+    "unit-sha": "02cd4b2d3f3d8286",
+    "claim-sha": "517cadb800d0dadd",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "2f408bd1b701c971",
+    "break": "line 158: \"keys.EncryptKeyR = dup(keymat[off : off+encKeyLen])\" -\u003e \"keys.EncryptKeyR = dup(keymat[0:encKeyLen])\""
+  }
+]

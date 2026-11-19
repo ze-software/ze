@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.16-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtPeerResponseTypeIsNakOrMatchesRequest",
+    "unit-sha": "e583743e3be13ebe",
+    "claim-sha": "438d96e23c010f8e",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "line 578: \"TypeIdentity,\" -\u003e \"TypeMD5Challenge,\""
+  },
+  {
+    "rid": "RFC7296-3.16-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtPeerResponseTypeIsNakOrMatchesRequest",
+    "unit-sha": "e583743e3be13ebe",
+    "claim-sha": "950d38d30a2106ad",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "line 611: \"ps.methodCommitted\" -\u003e \"false\""
+  }
+]

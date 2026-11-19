@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_dpd_liveness_test.go::TestDPDVerdictNeedsARepeatedAttempt",
+    "unit-sha": "a5c57cd2418bd7dc",
+    "claim-sha": "f505ae0b14b46959",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/dpd.go::timedOut",
+    "producer-sha": "3eb56d391f51af55",
+    "break": "line 116: \"return true\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC7296-2.4-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_dpd_liveness_test.go::TestDPDVerdictNeedsARepeatedAttempt",
+    "unit-sha": "a5c57cd2418bd7dc",
+    "claim-sha": "ad78dcd9f46cf8df",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/dpd.go::timedOut",
+    "producer-sha": "3eb56d391f51af55",
+    "break": "line 115: \"if d.retries \u003e 0 {\" -\u003e \"if d.retries \u003e= 0 {\""
+  }
+]

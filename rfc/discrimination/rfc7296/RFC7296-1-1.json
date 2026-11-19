@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutExchangesRunInRFCOrder",
+    "unit-sha": "f18ff7ade9c80b42",
+    "claim-sha": "b061a9b44ee973f9",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
+    "producer-sha": "4ae635daeb3b20aa",
+    "break": "line 65: \"if msg.Header.ExchangeType == wire.ExchangeIKESAInit {\" -\u003e \"if msg.Header.ExchangeType == wire.ExchangeIKEAuth { ps.handleAuthRequest(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log) } else if msg.Header.ExchangeType == wire.ExchangeIKESAInit {\""
+  },
+  {
+    "rid": "RFC7296-1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutExchangesRunInRFCOrder",
+    "unit-sha": "f18ff7ade9c80b42",
+    "claim-sha": "a910575218d4c133",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
+    "producer-sha": "4ae635daeb3b20aa",
+    "break": "line 73: \"ps.handleAuthRequest(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log)\" -\u003e \"_ = ps\""
+  }
+]

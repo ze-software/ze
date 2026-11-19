@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrRefusedChildRekeyIsAnswered",
+    "unit-sha": "f3d662562be92bda",
+    "claim-sha": "6d388c6d0735b258",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "line 599: \"log.Warn(\\\"ike: child rekey respond failed\\\", \\\"peer\\\", ps.peerName, \\\"error\\\", err)\" -\u003e \"log.Warn(\\\"ike: child rekey respond failed\\\", \\\"peer\\\", ps.peerName, \\\"error\\\", err); return ownedOutcome{}\""
+  },
+  {
+    "rid": "RFC7296-2.21.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrRefusedChildRekeyIsAnswered",
+    "unit-sha": "f3d662562be92bda",
+    "claim-sha": "f753e3c5282a3e69",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "line 605: \"sendRaw(sa, tr, resp, log)\" -\u003e \"ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA, wire.NotifyNoProposalChosen, nil, tr, log)\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.5-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_identity_test.go::TestIPv6IdentityLengthIsEnforced",
+    "unit-sha": "38b6f61fa4af1afa",
+    "claim-sha": "92a4d8c8317551bc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/remote_id.go::assertedAddr",
+    "producer-sha": "d7055ca9771fd605",
+    "break": "line 83: \"len(p.IDData) != 16\" -\u003e \"len(p.IDData) \u003e 16\""
+  },
+  {
+    "rid": "RFC7296-3.5-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsIPv6Identity",
+    "unit-sha": "cf330e1c672e52fe",
+    "claim-sha": "df2326c4c867b77f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/remote_id.go::assertedAddr",
+    "producer-sha": "d7055ca9771fd605",
+    "break": "line 83: \"len(p.IDData) != 16\" -\u003e \"true\""
+  }
+]

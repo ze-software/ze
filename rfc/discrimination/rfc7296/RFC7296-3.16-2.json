@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.16-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength",
+    "unit-sha": "d9ee690b46d62c9a",
+    "claim-sha": "16633a472178a321",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_eap.go::WriteTo",
+    "producer-sha": "1757f74eb9a1bf1a",
+    "break": "line 37: \"totalLen := uint16(4 + len(p.EAPData))\" -\u003e \"totalLen := uint16(8 + len(p.EAPData))\""
+  },
+  {
+    "rid": "RFC7296-3.16-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength",
+    "unit-sha": "d9ee690b46d62c9a",
+    "claim-sha": "f57ed5ac000e0139",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_eap.go::WriteTo",
+    "producer-sha": "1757f74eb9a1bf1a",
+    "break": "line 37: \"totalLen := uint16(4 + len(p.EAPData))\" -\u003e \"totalLen := uint16(4 + len(p.EAPData)%60)\""
+  }
+]

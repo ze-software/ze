@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_kegroup_test.go::TestKegRetryOfferIsNotNarrowedByTheNotify",
+    "unit-sha": "8f4a6e3ff682a2d5",
+    "claim-sha": "100c2142a28453a8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 207: \"encodeSAInitRequest(sa, sa.IKEGroup)\" -\u003e \"encodeSAInitRequest(sa, func() ipsec.IKEGroup { g := sa.IKEGroup; g.Proposals = nil; for _, p := range sa.IKEGroup.Proposals { if crypto.DHGroupID(p.DHGroup) == sa.LocalDH.GroupID { g.Proposals = append(g.Proposals, p) } }; return g }())\""
+  },
+  {
+    "rid": "RFC7296-1.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_kegroup_test.go::TestKegRetryReproposesEveryConfiguredSuite",
+    "unit-sha": "cef61b399425f447",
+    "claim-sha": "955c816e6eda09fe",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 207: \"encodeSAInitRequest(sa, sa.IKEGroup)\" -\u003e \"encodeSAInitRequest(sa, func() ipsec.IKEGroup { g := sa.IKEGroup; g.Proposals = nil; for _, p := range sa.IKEGroup.Proposals { if crypto.DHGroupID(p.DHGroup) == sa.LocalDH.GroupID { g.Proposals = append(g.Proposals, p) } }; return g }())\""
+  }
+]

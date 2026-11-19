@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits",
+    "unit-sha": "3f37dd25f1bbdd40",
+    "claim-sha": "4b7113bccd3d508c",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::prfOutputAcceptable",
+    "producer-sha": "9dd3df2b16688d74",
+    "break": "line 325: \"bits \u003c minPRFOutputBits\" -\u003e \"bits \u003c 64\""
+  },
+  {
+    "rid": "RFC7296-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits",
+    "unit-sha": "3f37dd25f1bbdd40",
+    "claim-sha": "05f945ad315914f4",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::prfOutputAcceptable",
+    "producer-sha": "9dd3df2b16688d74",
+    "break": "line 325: \"bits \u003c minPRFOutputBits\" -\u003e \"bits \u003c= minPRFOutputBits\""
+  }
+]

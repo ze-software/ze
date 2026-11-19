@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.6-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropSelectedTransformAttributesUnmodified",
+    "unit-sha": "3a604f317021fb44",
+    "claim-sha": "df485f43b3dafdd2",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
+    "producer-sha": "62247f481f88d39a",
+    "break": "line 295: \"chosen.KeyLength = remote.KeyLength\" -\u003e \"chosen.KeyLength = local.KeyLength\""
+  },
+  {
+    "rid": "RFC7296-3.3.6-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropSelectedTransformAttributesUnmodified",
+    "unit-sha": "3a604f317021fb44",
+    "claim-sha": "f9ffc661c62076cf",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
+    "producer-sha": "62247f481f88d39a",
+    "break": "line 290: \"remote.KeyLength \u003c local.KeyLength\" -\u003e \"false\""
+  }
+]

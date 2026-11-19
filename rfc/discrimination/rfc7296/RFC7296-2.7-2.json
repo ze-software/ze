@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesAcceptedProposalKeepsItsProtocol",
+    "unit-sha": "a5c99dc3b603064d",
+    "claim-sha": "c8913a17462be880",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::chosenIKEProposalToWire",
+    "producer-sha": "232c39c002ab283f",
+    "break": "line 415: \"ProtocolID: wire.ProtocolIKE,\" -\u003e \"ProtocolID: wire.ProtocolESP,\""
+  },
+  {
+    "rid": "RFC7296-2.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesAcceptedProposalKeepsItsProtocol",
+    "unit-sha": "a5c99dc3b603064d",
+    "claim-sha": "56ba3efc6477616c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::matchOfferedESP",
+    "producer-sha": "969cbd039a7a0a6e",
+    "break": "line 821: \"rp.ProtocolID == wire.ProtocolESP \u0026\u0026\" -\u003e \"(rp.ProtocolID == wire.ProtocolESP || rp.ProtocolID == wire.ProtocolIKE) \u0026\u0026\""
+  }
+]

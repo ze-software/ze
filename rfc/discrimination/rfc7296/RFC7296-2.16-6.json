@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutEAPRunsAsExtraIKEAuthExchanges",
+    "unit-sha": "6eb9f7b917a9500d",
+    "claim-sha": "9c857debd3710c58",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder_eap.go::sendResponderEAP",
+    "producer-sha": "9cb74f86232c61e2",
+    "break": "line 441: \"wire.ExchangeIKEAuth\" -\u003e \"wire.ExchangeInformational\""
+  },
+  {
+    "rid": "RFC7296-2.16-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutEAPRunsAsExtraIKEAuthExchanges",
+    "unit-sha": "6eb9f7b917a9500d",
+    "claim-sha": "44be250be34ccb99",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::finishResponderEstablish",
+    "producer-sha": "2f9e424c04754329",
+    "break": "line 1288: \"sa.State = StateEstablished\" -\u003e \"sa.State = StateAuthReceived\""
+  }
+]

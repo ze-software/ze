@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.9-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesNoncesAreRandomlyChosenAndNeverReused",
+    "unit-sha": "451800c10d6bc3e0",
+    "claim-sha": "21d221a64b61f540",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "line 562: \"rand.Read(nonce)\" -\u003e \"rand.Read(nonce[:0])\""
+  },
+  {
+    "rid": "RFC7296-3.9-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesRekeyDrawsFreshNoncesOnBothSides",
+    "unit-sha": "536847fd7b25baee",
+    "claim-sha": "590dc7f07b5b0b02",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
+    "producer-sha": "e172737bd312d865",
+    "break": "line 1097: \"GenerateNonce(nonceLen)\" -\u003e \"oldSA.LocalNonce, error(nil)\""
+  }
+]

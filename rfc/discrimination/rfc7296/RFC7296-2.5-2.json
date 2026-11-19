@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestHigherMajorVersionDropped",
+    "unit-sha": "f123551fa93c4faa",
+    "claim-sha": "0d9222acb125433d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::dispatchInbound",
+    "producer-sha": "8cd2caca5dba6e72",
+    "break": "line 1024: \"if pkt.Data[17]\u003e\u003e4 != 2 {\" -\u003e \"if pkt.Data[17]\u003e\u003e4 \u003c 2 {\""
+  },
+  {
+    "rid": "RFC7296-2.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestHigherMajorVersionDropped",
+    "unit-sha": "f123551fa93c4faa",
+    "claim-sha": "76319f7bdfdf8585",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::dispatchInbound",
+    "producer-sha": "8cd2caca5dba6e72",
+    "break": "line 1024: \"if pkt.Data[17]\u003e\u003e4 != 2 {\" -\u003e \"if true || pkt.Data[17]\u003e\u003e4 != 2 {\""
+  }
+]

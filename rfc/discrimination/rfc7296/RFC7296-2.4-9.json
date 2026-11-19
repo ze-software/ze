@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyOneChildSALivesUnderOneIKESA",
+    "unit-sha": "3b1f15d91c6e1a74",
+    "claim-sha": "9b251b701b6f8615",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "line 508: \"ps.setChildSA(newChild)\" -\u003e \"ps.setChildSA(old)\""
+  },
+  {
+    "rid": "RFC7296-2.4-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyOneChildSALivesUnderOneIKESA",
+    "unit-sha": "3b1f15d91c6e1a74",
+    "claim-sha": "d900584e09241417",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateChildRekey",
+    "producer-sha": "721700d0f9ef54cb",
+    "break": "line 448: \"newInboundSPI: espSPI,\" -\u003e \"newInboundSPI: oldChild.InboundSPI + espSPI*0,\""
+  }
+]

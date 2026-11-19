@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyRetiredSPIsAreNeverReused",
+    "unit-sha": "8b8c453df594afa4",
+    "claim-sha": "99fc3adf42bfb0bf",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::initiateChildRekey",
+    "producer-sha": "721700d0f9ef54cb",
+    "break": "line 448: \"newInboundSPI: espSPI,\" -\u003e \"newInboundSPI: oldChild.InboundSPI + espSPI*0,\""
+  },
+  {
+    "rid": "RFC7296-1.4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyRetiredSPIsAreNeverReused",
+    "unit-sha": "8b8c453df594afa4",
+    "claim-sha": "2429b9678a98d261",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "line 276: \"return spi, nil\" -\u003e \"return 0x01020304, nil\""
+  }
+]

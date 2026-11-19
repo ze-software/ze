@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol",
+    "unit-sha": "a21c2a885c44cd65",
+    "claim-sha": "91a1cc4093270e06",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkSPISize",
+    "producer-sha": "5f6f0401c46a6bd3",
+    "break": "line 378: \"p.SPISize != 0 \u0026\u0026 p.SPISize != 8\" -\u003e \"p.SPISize != 8\""
+  },
+  {
+    "rid": "RFC7296-3.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol",
+    "unit-sha": "a21c2a885c44cd65",
+    "claim-sha": "6b60fc2a77198a18",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkSPISize",
+    "producer-sha": "5f6f0401c46a6bd3",
+    "break": "line 378: \"p.SPISize != 0 \u0026\u0026 p.SPISize != 8\" -\u003e \"p.SPISize != 0 \u0026\u0026 p.SPISize != 8 \u0026\u0026 p.SPISize != 4\""
+  }
+]

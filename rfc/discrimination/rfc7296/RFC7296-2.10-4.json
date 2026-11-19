@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.10-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesNoncesAreRandomlyChosenAndNeverReused",
+    "unit-sha": "451800c10d6bc3e0",
+    "claim-sha": "4352205d4925ba71",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "line 562: \"rand.Read(nonce)\" -\u003e \"rand.Read(nonce[:length/2])\""
+  },
+  {
+    "rid": "RFC7296-2.10-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_session_test.go::TestSesNoncesAreRandomlyChosenAndNeverReused",
+    "unit-sha": "451800c10d6bc3e0",
+    "claim-sha": "6aab74131b196db1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "line 562: \"rand.Read(nonce)\" -\u003e \"rand.Read(nonce[length-8:])\""
+  }
+]

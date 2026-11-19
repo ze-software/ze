@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_kegroup_test.go::TestKegInitiatorRefusesUnofferedGroup",
+    "unit-sha": "d0a4ca8f283e2c45",
+    "claim-sha": "9401d21bf8f495a7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 169: \"if !groupIsProposed(sa.IKEGroup, group) {\" -\u003e \"if false \u0026\u0026 !groupIsProposed(sa.IKEGroup, group) {\""
+  },
+  {
+    "rid": "RFC7296-1.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_kegroup_test.go::TestKegInitiatorRetriesOnInvalidKEPayload",
+    "unit-sha": "2b017ea26a284e2b",
+    "claim-sha": "918f63a1e2c196ce",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 185: \"sa.LocalDH = dh\" -\u003e \"_ = dh\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.14-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnspecifiedTransformRefused",
+    "unit-sha": "4dd7947c5fda79c1",
+    "claim-sha": "cbbab95a9ade80d4",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptIntegrity",
+    "producer-sha": "3e44dca0a7dcc948",
+    "break": "line 333: \"!specifiedIntegrity[remote.ID]\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.14-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnspecifiedTransformRefused",
+    "unit-sha": "4dd7947c5fda79c1",
+    "claim-sha": "6324af5b53ae29c0",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptIntegrity",
+    "producer-sha": "3e44dca0a7dcc948",
+    "break": "line 333: \"!specifiedIntegrity[remote.ID]\" -\u003e \"!specifiedIntegrity[remote.ID] || remote.ID == AUTH_HMAC_SHA2_256_128\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_kesa_test.go::TestKesaAbsentKEIsAlwaysAllowed",
+    "unit-sha": "2e7a3698fda0fa77",
+    "claim-sha": "e110646bd68a9c58",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::ValidateKEGroup",
+    "producer-sha": "e8c6951d61028550",
+    "break": "line 526: \"return nil\" -\u003e \"return ErrKEGroupNotOffered\""
+  },
+  {
+    "rid": "RFC7296-3.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_kesa_test.go::TestKesaKEWithoutDHProposalIsRejected",
+    "unit-sha": "28dfd31c2b16273e",
+    "claim-sha": "cbe640899b9c86de",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::ValidateKEGroup",
+    "producer-sha": "e8c6951d61028550",
+    "break": "line 529: \"return ErrKEWithoutDHProposal\" -\u003e \"return nil\""
+  }
+]

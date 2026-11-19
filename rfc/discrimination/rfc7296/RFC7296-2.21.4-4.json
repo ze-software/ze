@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI",
+    "unit-sha": "cfc751654dd73d4c",
+    "claim-sha": "84289a8ed60f3327",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 311: \"NotifyMsgType: wire.NotifyInvalidIKESPI,\" -\u003e \"NotifyMsgType: wire.NotifyInvalidIKESPI, NotificationData: []byte{0},\""
+  },
+  {
+    "rid": "RFC7296-2.21.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI",
+    "unit-sha": "cfc751654dd73d4c",
+    "claim-sha": "a947e6577a2be9de",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 283: \"if hdr.ExchangeType == wire.ExchangeIKESAInit {\" -\u003e \"if hdr.ExchangeType == wire.ExchangeIKESAInit \u0026\u0026 false {\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.14-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext",
+    "unit-sha": "cfd3b977fc5a5984",
+    "claim-sha": "23696d6a959c183a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageCBCWithMsgID",
+    "producer-sha": "d32a169a6beea61a",
+    "break": "line 654: \"paddedLen + integTrunc\" -\u003e \"paddedLen + 1 + integTrunc\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection",
+    "unit-sha": "129bede9574f4d16",
+    "claim-sha": "d7bebe295887326d",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload.go::GenericHeader.WriteTo",
+    "producer-sha": "45157176177633b2",
+    "break": "line 113: \"buf[off+1] = 0x80\" -\u003e \"buf[off+1] = 0x40\""
+  },
+  {
+    "rid": "RFC7296-3.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection",
+    "unit-sha": "129bede9574f4d16",
+    "claim-sha": "1272d594f6ae835f",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload.go::GenericHeader.WriteTo",
+    "producer-sha": "45157176177633b2",
+    "break": "line 111: \"buf[off+1] = 0\" -\u003e \"buf[off+1] = 0x80\""
+  }
+]

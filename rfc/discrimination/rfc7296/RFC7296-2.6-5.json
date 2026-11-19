@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeMismatchedCookieIsIgnoredNotRejected",
+    "unit-sha": "50cf9e9d141181f5",
+    "claim-sha": "7bc36599076f2bcb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "d3f25fa84405ecfc",
+    "break": "line 923: \"!verifyCookie(cookie,\" -\u003e \"len(cookie) == 0 \u0026\u0026 !verifyCookie(cookie,\""
+  },
+  {
+    "rid": "RFC7296-2.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeValidCookieReachesTheHandshake",
+    "unit-sha": "23ce26835b684b30",
+    "claim-sha": "b49880db150dda51",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cookie.go::verifyCookie",
+    "producer-sha": "ecd9e03ec012a73b",
+    "break": "line 239: \"return hmac.Equal(want, data)\" -\u003e \"return false \u0026\u0026 hmac.Equal(want, data)\""
+  }
+]

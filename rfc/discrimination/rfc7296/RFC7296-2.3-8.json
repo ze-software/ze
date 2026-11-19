@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_outstanding_test.go::TestOsrRequestAcceptedWhileOursIsOutstanding",
+    "unit-sha": "e48e5fcaed7c1b62",
+    "claim-sha": "f8259b562a7a8edc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 213: \"case inboundNewRequest, inboundResponse:\" -\u003e \"case inboundNewRequest, inboundResponse: if !isResponse \u0026\u0026 sa.requestOutstanding { return ownedOutcome{} }\""
+  },
+  {
+    "rid": "RFC7296-2.3-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_outstanding_test.go::TestOsrRequestAcceptedWhileOursIsOutstanding",
+    "unit-sha": "e48e5fcaed7c1b62",
+    "claim-sha": "be3054b337d4b0de",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 213: \"case inboundNewRequest, inboundResponse:\" -\u003e \"case inboundNewRequest, inboundResponse: if !isResponse { sa.releaseRequestWindow() }\""
+  }
+]

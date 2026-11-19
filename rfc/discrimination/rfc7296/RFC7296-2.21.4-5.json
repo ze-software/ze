@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.4-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfEmitterIsAFixedPoint",
+    "unit-sha": "4519d47d26cc6078",
+    "claim-sha": "1f98da247a6b0970",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 307: \"Flags:        wire.FlagResponse,\" -\u003e \"Flags:        0,\""
+  },
+  {
+    "rid": "RFC7296-2.21.4-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfEmitterIsAFixedPoint",
+    "unit-sha": "4519d47d26cc6078",
+    "claim-sha": "33d342f2394057aa",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::answerOutOfSA",
+    "producer-sha": "c85771768b8fdfb7",
+    "break": "line 341: \"if err := hdr.ReadFrom(pkt.Data); err != nil {\" -\u003e \"if err := hdr.ReadFrom(pkt.Data); err != nil || len(pkt.Data) \u003e wire.HeaderLen {\""
+  }
+]

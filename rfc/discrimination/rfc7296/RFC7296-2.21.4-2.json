@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI",
+    "unit-sha": "cfc751654dd73d4c",
+    "claim-sha": "44fa9471b5585a46",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 308: \"MessageID:    hdr.MessageID,\" -\u003e \"MessageID:    0,\""
+  },
+  {
+    "rid": "RFC7296-2.21.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI",
+    "unit-sha": "cfc751654dd73d4c",
+    "claim-sha": "71c73ceb2e6745bc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 302: \"InitiatorSPI: hdr.InitiatorSPI,\" -\u003e \"InitiatorSPI: [8]byte{0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18},\""
+  }
+]

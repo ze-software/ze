@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits",
+    "unit-sha": "1503f8039d201617",
+    "claim-sha": "ef9104e6491dae1d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::writeAuthHeaderWithMsgID",
+    "producer-sha": "001114a9a5340ebc",
+    "break": "line 740: \"flags,\" -\u003e \"flags | 0x01,\""
+  }
+]

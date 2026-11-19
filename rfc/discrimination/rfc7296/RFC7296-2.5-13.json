@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.5-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected",
+    "unit-sha": "82b880632b4264bf",
+    "claim-sha": "f56dd699a3bfceed",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 117: \"payload, err := decodePayload(nextType, bodyData)\" -\u003e \"payload, err := decodePayload(nextType, bodyData); if nextType == PayloadTypeSA \u0026\u0026 len(m.Payloads) \u003e 0 { return ErrTruncated }\""
+  },
+  {
+    "rid": "RFC7296-2.5-13",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected",
+    "unit-sha": "82b880632b4264bf",
+    "claim-sha": "7df04a9615ce2bf4",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 109: \"if gh.Length \u003c GenericHeaderLen {\" -\u003e \"if false \u0026\u0026 gh.Length \u003c GenericHeaderLen {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_dh_test.go::TestRFC7296MODPPublicValueMatchesModulusLength",
+    "unit-sha": "ce65da2be3d49a50",
+    "claim-sha": "1848e9009d55427e",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/dh.go::padBigInt",
+    "producer-sha": "7e4c26337a494c7c",
+    "break": "line 258: \"len(b) \u003e= size\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC7296-3.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_dh_test.go::TestRFC7296MODPShortPublicValueIsRefusedOnReceipt",
+    "unit-sha": "f6867799c5f368c6",
+    "claim-sha": "e081a3bb0d283b26",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/dh.go::SharedSecret",
+    "producer-sha": "e509c53923d2d302",
+    "break": "line 222: \"len(remotePublic) != modp2048Len\" -\u003e \"len(remotePublic) \u003e modp2048Len\""
+  }
+]

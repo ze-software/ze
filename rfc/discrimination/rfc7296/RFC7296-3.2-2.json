@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType",
+    "unit-sha": "9a5df4b098134650",
+    "claim-sha": "3996e1293e725488",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 117: \"decodePayload(nextType, bodyData)\" -\u003e \"decodePayload(func() uint8 { if gh.Critical { return 0 }; return nextType }(), bodyData)\""
+  },
+  {
+    "rid": "RFC7296-3.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType",
+    "unit-sha": "9a5df4b098134650",
+    "claim-sha": "26e6a9891192f6fa",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 129: \"if gh.Critical {\" -\u003e \"if false {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.12-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2ForgetKeysErasesEverySecret",
+    "unit-sha": "eb9c527257f22c60",
+    "claim-sha": "133fc2260d905413",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::forgetKeys",
+    "producer-sha": "cdc753aec375ed3a",
+    "break": "line 869: \"sa.SKKeys.Clear()\" -\u003e \"_ = sa.SKKeys\""
+  },
+  {
+    "rid": "RFC7296-2.12-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2OpenSAKeepsItsKeys",
+    "unit-sha": "3c041ebe96f00922",
+    "claim-sha": "a508045813dffdae",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::finishResponderEstablish",
+    "producer-sha": "2f9e424c04754329",
+    "break": "line 1289: \"sa.EstablishedAt = time.Now()\" -\u003e \"sa.EstablishedAt = time.Now(); sa.forgetKeys()\""
+  }
+]

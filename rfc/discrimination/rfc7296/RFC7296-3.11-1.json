@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.11-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol",
+    "unit-sha": "5b65f985a50bc10b",
+    "claim-sha": "66debf1efaa5e8d1",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_delete.go::ReadFrom",
+    "producer-sha": "a8a60fbabba5115a",
+    "break": "line 40: \"make([]byte, expected)\" -\u003e \"make([]byte, expected+1)\""
+  },
+  {
+    "rid": "RFC7296-3.11-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol",
+    "unit-sha": "5b65f985a50bc10b",
+    "claim-sha": "5df5509157ca1bb5",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_delete.go::ReadFrom",
+    "producer-sha": "a8a60fbabba5115a",
+    "break": "line 31: \"p.ProtocolID = data[0]\" -\u003e \"p.ProtocolID = ProtocolESP\""
+  }
+]

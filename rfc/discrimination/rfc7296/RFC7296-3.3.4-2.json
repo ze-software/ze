@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformIDsComparedAgainstLocalPolicy",
+    "unit-sha": "3706a240ff72f59c",
+    "claim-sha": "0b286b7864bf2ae5",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
+    "producer-sha": "62247f481f88d39a",
+    "break": "line 271: \"remote.ID != local.ID\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.3.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformIDsComparedAgainstLocalPolicy",
+    "unit-sha": "3706a240ff72f59c",
+    "claim-sha": "142f8fa15294ba61",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptPRF",
+    "producer-sha": "2247854089207463",
+    "break": "line 306: \"remote.ID != local.ID\" -\u003e \"false\""
+  }
+]

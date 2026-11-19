@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedMessageDrawsNoCachedResponse",
+    "unit-sha": "baa9d33b3e738eae",
+    "claim-sha": "e3d8e0b1fcd7bc94",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 90: \"if !carriesSKPayload(\u0026msg) {\" -\u003e \"if false \u0026\u0026 !carriesSKPayload(\u0026msg) {\""
+  },
+  {
+    "rid": "RFC7296-2.4-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedMessageDrawsNoCachedResponse",
+    "unit-sha": "baa9d33b3e738eae",
+    "claim-sha": "db7d6fd2b6de42f4",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 90: \"if !carriesSKPayload(\u0026msg) {\" -\u003e \"if true || !carriesSKPayload(\u0026msg) {\""
+  }
+]

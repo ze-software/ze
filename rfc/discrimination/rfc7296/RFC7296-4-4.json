@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable",
+    "unit-sha": "35b38e25fcef0f9d",
+    "claim-sha": "7c1d85a41bcc5b47",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/remote_id.go::assertedIdentity",
+    "producer-sha": "f62a4906f27fa517",
+    "break": "line 133: \"wire.IDTypeFQDN, wire.IDTypeRFC822Addr, wire.IDTypeKeyID\" -\u003e \"wire.IDTypeFQDN, wire.IDTypeKeyID\""
+  },
+  {
+    "rid": "RFC7296-4-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceSetDoesNotAcceptWhatItMustNot",
+    "unit-sha": "5ad0049a16527441",
+    "claim-sha": "235a8fed0a91116e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/remote_id.go::certificateCarriesIdentity",
+    "producer-sha": "2c601c2ceb898a98",
+    "break": "line 530: \"return pinnedType == wire.IDTypeKeyID\" -\u003e \"return pinnedType == wire.IDTypeKeyID || true\""
+  }
+]

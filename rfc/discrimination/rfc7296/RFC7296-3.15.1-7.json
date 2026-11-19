@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.15.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestCFGSetIsIgnoredAndDrawsNoCFGACK",
+    "unit-sha": "43d7561f08f01b3a",
+    "claim-sha": "8ae44f58d3dace14",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "6be9ce648c40ceee",
+    "break": "line 848: \"respPayloads := mobikeResponsePayloads(sa, inner)\" -\u003e \"respPayloads := append(mobikeResponsePayloads(sa, inner), func() []wire.PayloadEntry { for _, pe := range inner { if cp, ok := pe.Payload.(*wire.PayloadCP); ok \u0026\u0026 cp.CFGType == wire.CFGTypeSet { return []wire.PayloadEntry{{Payload: \u0026wire.PayloadCP{CFGType: wire.CFGTypeACK, Attrs: cp.Attrs}}} } }; return nil }()...)\""
+  },
+  {
+    "rid": "RFC7296-3.15.1-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestCFGSetIsIgnoredAndDrawsNoCFGACK",
+    "unit-sha": "43d7561f08f01b3a",
+    "claim-sha": "706edd5f8a59d9d1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "6be9ce648c40ceee",
+    "break": "line 848: \"respPayloads := mobikeResponsePayloads(sa, inner)\" -\u003e \"respPayloads := mobikeResponsePayloads(sa, inner); for _, pe := range inner { if _, ok := pe.Payload.(*wire.PayloadCP); ok { return ownedOutcome{} } }\""
+  }
+]

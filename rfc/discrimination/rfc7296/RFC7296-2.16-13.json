@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_producer_test.go::TestEapAuthFollowsTheSuccessMessage",
+    "unit-sha": "05fd8a8e4bd3f034",
+    "claim-sha": "8a6647a001d17cc1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::buildAuthIdentityPayloads",
+    "producer-sha": "19d90df4bca6c4e9",
+    "break": "line 1081: \"return roundIdentityPayloads(sa, false, authPayload)\" -\u003e \"return func() ([]wire.PayloadEntry, error) { p, e := roundIdentityPayloads(sa, false, authPayload); if e != nil || !fromEAP { return p, e }; return p[:len(p)-1], e }()\""
+  },
+  {
+    "rid": "RFC7296-2.16-13",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_producer_test.go::TestEapAuthFollowsTheSuccessMessage",
+    "unit-sha": "05fd8a8e4bd3f034",
+    "claim-sha": "9b8c437ebcf20abd",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder_eap.go::sendResponderEAP",
+    "producer-sha": "9cb74f86232c61e2",
+    "break": "line 440: \"inner := []wire.PayloadEntry{{Payload: eapToWire(pkt)}}\" -\u003e \"inner := []wire.PayloadEntry{{Payload: eapToWire(pkt)}}; if pkt.Code == eap.CodeSuccess { if a, aerr := computeEAPAuth(sa); aerr == nil { inner = append(inner, wire.PayloadEntry{Payload: a}) } }\""
+  }
+]

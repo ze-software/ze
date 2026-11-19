@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutEAPSharedKeyServesAuthAlone",
+    "unit-sha": "f0e79d845700ef50",
+    "claim-sha": "6b23f031a108a2cb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
+    "producer-sha": "2494b50d7e92ff78",
+    "break": "line 332: \"sa.Proposal.PRF.ID, sa.SKKeys.SK_d,\" -\u003e \"sa.Proposal.PRF.ID, append(append([]byte(nil), sa.SKKeys.SK_d...), sa.EAPMSK[:]...),\""
+  },
+  {
+    "rid": "RFC7296-2.16-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutEAPSharedKeyServesAuthAlone",
+    "unit-sha": "f0e79d845700ef50",
+    "claim-sha": "2e9f3d3f3d77515f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/eap_auth.go::eapAuthSecret",
+    "producer-sha": "ef2933708abe8b50",
+    "break": "line 288: \"return sa.EAPMSK[:], nil\" -\u003e \"return sa.SKKeys.SK_d, nil\""
+  }
+]

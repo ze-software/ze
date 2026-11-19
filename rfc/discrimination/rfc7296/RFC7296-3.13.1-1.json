@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.13.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131",
+    "unit-sha": "d5f685013b712816",
+    "claim-sha": "e01c19727ff1199d",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/traffic_selector.go::Wire",
+    "producer-sha": "6acad497fad92586",
+    "break": "line 155: \"0, 65535\" -\u003e \"1, 65535\""
+  },
+  {
+    "rid": "RFC7296-3.13.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131",
+    "unit-sha": "d5f685013b712816",
+    "claim-sha": "932415b1123cc8a2",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/traffic_selector.go::Wire",
+    "producer-sha": "6acad497fad92586",
+    "break": "line 151: \"p.Port, p.Port\" -\u003e \"0, p.Port\""
+  }
+]

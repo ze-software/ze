@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutIKEAuthVerifiesEveryMAC",
+    "unit-sha": "24968de9f285ee4a",
+    "claim-sha": "8b8f97855948f642",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::verifyPSKAuth",
+    "producer-sha": "73cfa37ffd11b4c1",
+    "break": "line 502: \"return verifyAuthFromSharedSecret(sa.Proposal.PRF.ID, []byte(psk), signedOctets, authData)\" -\u003e \"return nil\""
+  },
+  {
+    "rid": "RFC7296-1.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutIKEAuthVerifiesEveryMAC",
+    "unit-sha": "24968de9f285ee4a",
+    "claim-sha": "893a8436223d90aa",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::verifyPSKAuth",
+    "producer-sha": "73cfa37ffd11b4c1",
+    "break": "line 502: \"return verifyAuthFromSharedSecret(sa.Proposal.PRF.ID, []byte(psk), signedOctets, authData)\" -\u003e \"return errNoPSK\""
+  }
+]

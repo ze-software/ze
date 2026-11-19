@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.6-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeCookieIsAbsentWithoutAChallenge",
+    "unit-sha": "83b6d3653dd25642",
+    "claim-sha": "4f7e75006defd37c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::encodeSAInitRequest",
+    "producer-sha": "5c44ca37885fea5d",
+    "break": "line 73: \"if len(sa.Cookie) \u003e 0 {\" -\u003e \"if len(sa.Cookie) \u003e= 0 {\""
+  },
+  {
+    "rid": "RFC7296-2.6-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeRetryCarriesCookieFirstAndNothingElseChanged",
+    "unit-sha": "30e5b407dc65409d",
+    "claim-sha": "aafb55e3c18cb5d1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::encodeSAInitRequest",
+    "producer-sha": "5c44ca37885fea5d",
+    "break": "line 73: \"if len(sa.Cookie) \u003e 0 {\" -\u003e \"if false \u0026\u0026 len(sa.Cookie) \u003e 0 {\""
+  }
+]

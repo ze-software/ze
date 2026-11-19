@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropDuplicateAttributeRejected",
+    "unit-sha": "bf20df31c5762fe0",
+    "claim-sha": "017b87e048d086c9",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::Transform.ReadFrom",
+    "producer-sha": "bc9bd7c6c91aa908",
+    "break": "line 301: \"t.Attrs[i].Type == attr.Type\" -\u003e \"false \u0026\u0026 t.Attrs[i].Type == attr.Type\""
+  },
+  {
+    "rid": "RFC7296-3.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropDuplicateAttributeRejected",
+    "unit-sha": "bf20df31c5762fe0",
+    "claim-sha": "de1a77f55301e7d7",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::Transform.ReadFrom",
+    "producer-sha": "bc9bd7c6c91aa908",
+    "break": "line 297: \"if err := t.checkAttr(\u0026attr); err != nil {\" -\u003e \"if err := t.checkAttr(\u0026attr); err != nil || (len(t.Attrs) == 0 \u0026\u0026 off == tlen) {\""
+  }
+]

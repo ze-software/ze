@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.8-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResExpiredSAIsNotUsed",
+    "unit-sha": "32cb8de856b33b39",
+    "claim-sha": "a8953fa262f424ad",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildEncryptedMessageEx",
+    "producer-sha": "a8f79798b6df3df3",
+    "break": "line 263: \"if sa.lifetimeExpired(time.Now()) {\" -\u003e \"if false \u0026\u0026 sa.lifetimeExpired(time.Now()) {\""
+  },
+  {
+    "rid": "RFC7296-2.8-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResUnexpiredSAIsUsed",
+    "unit-sha": "92d6784d31df5c31",
+    "claim-sha": "641133091c81859c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::lifetimeExpired",
+    "producer-sha": "9cd56f9343663d9d",
+    "break": "line 622: \"return !now.Before(time.Unix(0, deadline))\" -\u003e \"return !now.Before(time.Unix(0, deadline).Add(-2 * time.Second))\""
+  }
+]

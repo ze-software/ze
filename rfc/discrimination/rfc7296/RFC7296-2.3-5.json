@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_outstanding_test.go::TestOsrOutOfWindowRequestIsNotAcknowledged",
+    "unit-sha": "32b57f77381c855a",
+    "claim-sha": "656fb201eeed80c5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/msgid.go::classifyInbound",
+    "producer-sha": "88a5f112ac8d672d",
+    "break": "line 333: \"if msgID == sa.ExpectedMsgID {\" -\u003e \"if msgID \u003e= sa.ExpectedMsgID {\""
+  },
+  {
+    "rid": "RFC7296-2.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_outstanding_test.go::TestOsrOutOfWindowRequestIsNotAcknowledged",
+    "unit-sha": "32b57f77381c855a",
+    "claim-sha": "bc08a488e7df329d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/msgid.go::classifyInbound",
+    "producer-sha": "88a5f112ac8d672d",
+    "break": "line 330: \"if sa.lastResponseSet \u0026\u0026 msgID == sa.lastResponseID {\" -\u003e \"if false \u0026\u0026 sa.lastResponseSet \u0026\u0026 msgID == sa.lastResponseID {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds",
+    "unit-sha": "adbb8d5d0fb568c7",
+    "claim-sha": "55ca5fc328157b21",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_nonce.go::ReadFrom",
+    "producer-sha": "80d7fbe12751d8b0",
+    "break": "line 26: \"len(data) \u003c NonceMinLen\" -\u003e \"len(data) \u003c= NonceMinLen\""
+  },
+  {
+    "rid": "RFC7296-3.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds",
+    "unit-sha": "adbb8d5d0fb568c7",
+    "claim-sha": "10dc8dce5b50ee6e",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_nonce.go::ReadFrom",
+    "producer-sha": "80d7fbe12751d8b0",
+    "break": "line 29: \"len(data) \u003e NonceMaxLen\" -\u003e \"len(data) \u003e NonceMaxLen+1\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.17-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder",
+    "unit-sha": "02cd4b2d3f3d8286",
+    "claim-sha": "cf0d38ec25f254bb",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "2f408bd1b701c971",
+    "break": "line 154: \"keys.EncryptKeyI = dup(keymat[off : off+encKeyLen])\" -\u003e \"keys.EncryptKeyI = dup(keymat[encKeyLen+integKeyLen : 2*encKeyLen+integKeyLen])\""
+  },
+  {
+    "rid": "RFC7296-2.17-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder",
+    "unit-sha": "02cd4b2d3f3d8286",
+    "claim-sha": "b6cb2b8a67c2799f",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "2f408bd1b701c971",
+    "break": "line 145: \"seed := append(append([]byte(nil), ni...), nr...)\" -\u003e \"seed := append(append([]byte(nil), nr...), ni...)\""
+  }
+]

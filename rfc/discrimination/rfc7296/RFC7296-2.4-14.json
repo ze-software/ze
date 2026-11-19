@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-14",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResInitialContactNotSentByReplicableIdentity",
+    "unit-sha": "18d2be26066cdae4",
+    "claim-sha": "8156d936a5210e40",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildAuthRequest",
+    "producer-sha": "f0481bbba3814ad9",
+    "break": "line 165: \"if !mayBeReplicated(sa.PeerCfg) {\" -\u003e \"if true || !mayBeReplicated(sa.PeerCfg) {\""
+  },
+  {
+    "rid": "RFC7296-2.4-14",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResInitialContactSentByNonReplicableIdentity",
+    "unit-sha": "fef815787cdfc310",
+    "claim-sha": "82bfb92469c37423",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::buildAuthRequest",
+    "producer-sha": "f0481bbba3814ad9",
+    "break": "line 165: \"if !mayBeReplicated(sa.PeerCfg) {\" -\u003e \"if false \u0026\u0026 !mayBeReplicated(sa.PeerCfg) {\""
+  }
+]

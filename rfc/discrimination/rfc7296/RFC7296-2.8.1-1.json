@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyOldAndNewChildBothReceiveUntilThePeerDeletes",
+    "unit-sha": "6f076a8cb105f590",
+    "claim-sha": "27730d82938376f3",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "line 607: \"ps.supersededChild = old\" -\u003e \"removeChildSA(old, dp, log)\""
+  },
+  {
+    "rid": "RFC7296-2.8.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyOldAndNewChildBothReceiveUntilThePeerDeletes",
+    "unit-sha": "6f076a8cb105f590",
+    "claim-sha": "181a7a27f20a78de",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/delete.go::closeDesignatedChildSAs",
+    "producer-sha": "3ce53370043050b4",
+    "break": "line 399: \"removeChildSAExcept(old, child, dp, log)\" -\u003e \"removeChildSAExcept(child, old, dp, log)\""
+  }
+]

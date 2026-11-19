@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResNoAdditionalSAsTriggersReestablish",
+    "unit-sha": "f7daff049469279f",
+    "claim-sha": "f31ef753cd89c692",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::rekeyRefusal",
+    "producer-sha": "8cc31eac07012e76",
+    "break": "line 176: \"return errNoAdditionalSAs\" -\u003e \"return errTemporaryFailure\""
+  },
+  {
+    "rid": "RFC7296-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_residual_test.go::TestResOtherRekeyFailuresDoNotReestablish",
+    "unit-sha": "99ca4dc2bc27a29e",
+    "claim-sha": "e7981b376df4ce78",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::rekeyRefusal",
+    "producer-sha": "8cc31eac07012e76",
+    "break": "line 173: \"return errTemporaryFailure\" -\u003e \"return errNoAdditionalSAs\""
+  }
+]

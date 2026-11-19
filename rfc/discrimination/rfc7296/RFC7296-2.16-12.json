@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_producer_test.go::TestEapAuthProducerIsKeyedByTheNegotiatedMSK",
+    "unit-sha": "01d8dd88085553ce",
+    "claim-sha": "8407b18e0d816169",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/eap_auth.go::eapAuthSecret",
+    "producer-sha": "ef2933708abe8b50",
+    "break": "line 288: \"return sa.EAPMSK[:], nil\" -\u003e \"return sa.SKKeys.SK_d, nil\""
+  },
+  {
+    "rid": "RFC7296-2.16-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_eap_auth_producer_test.go::TestEapAuthProducerOutputIsRefusedUnderAnotherKey",
+    "unit-sha": "268ced74951aeae4",
+    "claim-sha": "22f0b9ca422200cb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/eap_auth.go::verifyAuthFromSharedSecret",
+    "producer-sha": "00b77c0807b5884f",
+    "break": "line 82: \"if !constantTimeEqualAuth(expected, receivedAuth) {\" -\u003e \"if !constantTimeEqualAuth(expected, receivedAuth) \u0026\u0026 false {\""
+  }
+]

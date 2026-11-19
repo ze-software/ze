@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.10-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero",
+    "unit-sha": "f3f2d9c2941897b1",
+    "claim-sha": "8781265d06739a0c",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_notify.go::WriteTo",
+    "producer-sha": "109cc4fdfaa4d396",
+    "break": "line 272: \"buf[off] = 0\" -\u003e \"buf[off] = p.ProtocolID\""
+  },
+  {
+    "rid": "RFC7296-3.10-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero",
+    "unit-sha": "f3f2d9c2941897b1",
+    "claim-sha": "3081003a59fea7e1",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_notify.go::WriteTo",
+    "producer-sha": "109cc4fdfaa4d396",
+    "break": "line 275: \"buf[off] = p.ProtocolID\" -\u003e \"buf[off] = 0\""
+  }
+]

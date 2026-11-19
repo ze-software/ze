@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_negotiation_test.go::TestNegRekeyRejectsMismatchedKEGroup",
+    "unit-sha": "e41202373cfe1b53",
+    "claim-sha": "907e8730ffe7a19f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
+    "producer-sha": "83938513561c78aa",
+    "break": "line 1335: \"if keiGroup != uint16(chosen.DHGroup.ID) {\" -\u003e \"if false \u0026\u0026 keiGroup != uint16(chosen.DHGroup.ID) {\""
+  },
+  {
+    "rid": "RFC7296-1.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_negotiation_test.go::TestNegRekeyRejectsMismatchedKEGroup",
+    "unit-sha": "e41202373cfe1b53",
+    "claim-sha": "f11f6f35ea5bba48",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
+    "producer-sha": "83938513561c78aa",
+    "break": "line 1335: \"if keiGroup != uint16(chosen.DHGroup.ID) {\" -\u003e \"if true || keiGroup != uint16(chosen.DHGroup.ID) {\""
+  }
+]

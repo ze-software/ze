@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestMessageHandles1280Octets",
+    "unit-sha": "e9d93cd126fdeed8",
+    "claim-sha": "9a19b199f216c242",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 88: \"if int(m.Header.Length) \u003e len(data) {\" -\u003e \"if int(m.Header.Length) \u003e len(data) || m.Header.Length \u003e= 1280 {\""
+  },
+  {
+    "rid": "RFC7296-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestMessageHandles1280Octets",
+    "unit-sha": "e9d93cd126fdeed8",
+    "claim-sha": "d96da58486235100",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "line 88: \"if int(m.Header.Length) \u003e len(data) {\" -\u003e \"if false \u0026\u0026 int(m.Header.Length) \u003e len(data) {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.5-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthRejectedOnFixedKeyTransform",
+    "unit-sha": "0fc583bfe798bac7",
+    "claim-sha": "dc6b534aa151c2ec",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkAttr",
+    "producer-sha": "62f873004484b399",
+    "break": "line 254: \"a.Type == AttrTypeKeyLength \u0026\u0026 !t.keyLengthAllowed()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.3.5-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthRejectedOnFixedKeyTransform",
+    "unit-sha": "0fc583bfe798bac7",
+    "claim-sha": "a1c34d68c7000ef5",
+    "route": "mutant",
+    "producer": "internal/component/ike/wire/payload_sa.go::keyLengthAllowed",
+    "producer-sha": "7781c938663ff4c4",
+    "break": "line 211: \"return t.ID != encrDES \u0026\u0026 t.ID != encrIDEA\" -\u003e \"return false\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutSharedSecretAuthBindsTheIDName",
+    "unit-sha": "90e2cf24bebe6432",
+    "claim-sha": "0fd9cf34feded842",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::computeSignedOctets",
+    "producer-sha": "4a84395032ca9bc8",
+    "break": "line 81: \"signed = append(signed, prfOfID...)\" -\u003e \"signed = append(signed, prfOfID[:0]...)\""
+  },
+  {
+    "rid": "RFC7296-1.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_auth_test.go::TestAutSharedSecretAuthBindsTheIDName",
+    "unit-sha": "90e2cf24bebe6432",
+    "claim-sha": "3d0c4c662d686dba",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth.go::verifyRemoteAuth",
+    "producer-sha": "2e85d5d7ea885c5b",
+    "break": "line 432: \"computeSignedOctets(sa, !sa.IsInitiator)\" -\u003e \"computeSignedOctets(sa, sa.IsInitiator)\""
+  }
+]

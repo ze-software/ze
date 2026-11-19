@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.10.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling",
+    "unit-sha": "7bc9f0e22a0803d1",
+    "claim-sha": "2c45129ba7a3ef6c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::unrecognizedErrorNotify",
+    "producer-sha": "141251db48116a59",
+    "break": "line 382: \"wire.NotifyIsError(n.NotifyMsgType) \u0026\u0026\" -\u003e \"true \u0026\u0026\""
+  },
+  {
+    "rid": "RFC7296-3.10.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling",
+    "unit-sha": "7bc9f0e22a0803d1",
+    "claim-sha": "901221a7856870b2",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 292: \"logIgnoredNotifies(inner, ps.peerName, isResponse, log)\" -\u003e \"if failIfUnrecognizedErrorNotify(inner, ps.peerName, log) != nil { sa.State = StateDead }; logIgnoredNotifies(inner, ps.peerName, isResponse, log)\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_responder_request_test.go::TestResponderFirstRequestMatchesWhatTheInitiatorExpects",
+    "unit-sha": "eedb7a2af9e76325",
+    "claim-sha": "904051131409832f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::finishResponderEstablish",
+    "producer-sha": "2f9e424c04754329",
+    "break": "line 1254: \"cacheResponse(sa, msgID, resp)\" -\u003e \"cacheResponse(sa, msgID, resp); sa.NextMsgID = msgID + 1\""
+  },
+  {
+    "rid": "RFC7296-2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidResponderEstablishDoesNotWrapTheCounter",
+    "unit-sha": "a384ba671d99da3a",
+    "claim-sha": "a9f2da83c999b5a5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::finishResponderEstablish",
+    "producer-sha": "2f9e424c04754329",
+    "break": "line 1254: \"cacheResponse(sa, msgID, resp)\" -\u003e \"cacheResponse(sa, msgID, resp); sa.NextMsgID = msgID + 1\""
+  }
+]

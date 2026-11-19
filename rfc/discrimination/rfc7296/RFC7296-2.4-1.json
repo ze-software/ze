@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse",
+    "unit-sha": "1cf743cbe12dc4d6",
+    "claim-sha": "00c5d41ba44fdab1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "6be9ce648c40ceee",
+    "break": "line 857: \"cacheResponse(sa, msg.Header.MessageID, resp)\" -\u003e \"_ = resp\""
+  },
+  {
+    "rid": "RFC7296-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse",
+    "unit-sha": "1cf743cbe12dc4d6",
+    "claim-sha": "059998930d5acd56",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "6be9ce648c40ceee",
+    "break": "line 839: \"if isResponse {\" -\u003e \"if false \u0026\u0026 isResponse {\""
+  }
+]

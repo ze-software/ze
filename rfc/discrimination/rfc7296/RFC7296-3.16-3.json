@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.16-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField",
+    "unit-sha": "c47dabe5feed41a2",
+    "claim-sha": "146add152826701e",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap.go::Encode",
+    "producer-sha": "9e024da3abf13b80",
+    "break": "line 123: \"p.Code == CodeSuccess || p.Code == CodeFailure\" -\u003e \"p.Code == CodeFailure\""
+  },
+  {
+    "rid": "RFC7296-3.16-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField",
+    "unit-sha": "c47dabe5feed41a2",
+    "claim-sha": "7bd4db619e817492",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap.go::Encode",
+    "producer-sha": "9e024da3abf13b80",
+    "break": "line 137: \"buf[4] = p.Type\" -\u003e \"buf[4] = 0\""
+  }
+]

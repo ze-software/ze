@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.18-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxRekeyedIKESAResetsMessageCounters",
+    "unit-sha": "dde3cd360439bdb9",
+    "claim-sha": "eb50a856bcbca05e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::applyIKERekeyResponse",
+    "producer-sha": "1777cd66a119b13d",
+    "break": "line 1249: \"NextMsgID:      0,\" -\u003e \"NextMsgID:      oldSA.NextMsgID,\""
+  },
+  {
+    "rid": "RFC7296-2.18-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxRekeyedIKESAResetsMessageCounters",
+    "unit-sha": "dde3cd360439bdb9",
+    "claim-sha": "bf0c1013f09460ad",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
+    "producer-sha": "83938513561c78aa",
+    "break": "line 1400: \"ExpectedMsgID:  0,\" -\u003e \"ExpectedMsgID:  oldSA.ExpectedMsgID,\""
+  }
+]

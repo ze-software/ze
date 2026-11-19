@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerIsUnprotected",
+    "unit-sha": "cba959b26287d724",
+    "claim-sha": "50488a93f8538a9d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 310: \"Payloads: []wire.PayloadEntry{{Payload: \u0026wire.PayloadNotify{\" -\u003e \"Payloads: []wire.PayloadEntry{{Payload: \u0026wire.PayloadSK{CipherText: make([]byte, 16)}}, {Payload: \u0026wire.PayloadNotify{\""
+  },
+  {
+    "rid": "RFC7296-2.21.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerIsUnprotected",
+    "unit-sha": "cba959b26287d724",
+    "claim-sha": "0e8ae53925ae784d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::buildErrorNotifyResponse",
+    "producer-sha": "ab1665efb80c7f0e",
+    "break": "line 145: \"return buildEncryptedMessageEx(sa, inner, msgID, exchange, initiatorFlag(sa)|wire.FlagResponse)\" -\u003e \"return func() ([]byte, error) { m := wire.Message{Header: wire.Header{InitiatorSPI: sa.InitiatorSPI, ResponderSPI: sa.ResponderSPI, MajorVersion: 2, ExchangeType: exchange, Flags: initiatorFlag(sa) | wire.FlagResponse, MessageID: msgID}, Payloads: inner}; b := make([]byte, wire.HeaderLen+64+len(data)); n, err := m.CheckedWriteTo(b, 0); return b[:n], err }()\""
+  }
+]

@@ -1,0 +1,45 @@
+[
+  {
+    "rid": "RFC7296-3.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestCcnCertificateCountIsBoundedAndConfigurable",
+    "unit-sha": "029945eb28fd21a8",
+    "claim-sha": "711d5d9d7d8c362f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cert_payload.go::storeRemoteCerts",
+    "producer-sha": "606ac653918aa988",
+    "break": "line 96: \"len(certs) \u003e limit\" -\u003e \"false\"",
+    "paired": [
+      {
+        "producer": "internal/component/ike/engine/cert_payload.go::storeRemoteCerts",
+        "producer-sha": "606ac653918aa988",
+        "break": "line 107: \"len(chain) \u003e limit\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/ike/engine/cert_payload.go::storeRemoteCerts",
+        "break": "line 96: \"len(certs) \u003e limit\" -\u003e \"false\"",
+        "seconds": 7,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.576s"
+      },
+      {
+        "producer": "internal/component/ike/engine/cert_payload.go::storeRemoteCerts",
+        "break": "line 107: \"len(chain) \u003e limit\" -\u003e \"false\"",
+        "seconds": 12,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/ike/engine\t0.625s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC7296-3.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestCcnCertificateCountReachesFourInBothDirections",
+    "unit-sha": "93df80e509d4490b",
+    "claim-sha": "246349986c7f6b44",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cert_payload.go::storeRemoteCerts",
+    "producer-sha": "606ac653918aa988",
+    "break": "line 96: \"len(certs) \u003e limit\" -\u003e \"len(certs) \u003e= limit\""
+  }
+]

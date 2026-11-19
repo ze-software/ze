@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.16-15",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc7296_eap_result_test.go::TestEapResultFailureIsSent",
+    "unit-sha": "8c969bbbdb26c3ca",
+    "claim-sha": "816419a7a6a0b018",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap.go::failure",
+    "producer-sha": "f09b8da03f973110",
+    "break": "line 783: \"Code:       CodeFailure,\" -\u003e \"Code:       CodeSuccess,\""
+  },
+  {
+    "rid": "RFC7296-2.16-15",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc7296_eap_result_test.go::TestEapResultSuccessIsNotFailure",
+    "unit-sha": "ae5144b9cabe06e2",
+    "claim-sha": "a2b702aad59c3b46",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "line 618: \"Code:       CodeSuccess,\" -\u003e \"Code:       CodeFailure,\""
+  }
+]

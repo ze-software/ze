@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeEchoedCookieIsBoundedToo",
+    "unit-sha": "48abea08edb10deb",
+    "claim-sha": "68f38c79a8a395c4",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "line 151: \"len(data) \u003e maxCookieLen\" -\u003e \"len(data) \u003e maxCookieLen+1\""
+  },
+  {
+    "rid": "RFC7296-2.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cookie_test.go::TestCkeMintedCookieIsWithinTheLengthBound",
+    "unit-sha": "ec948b03c5e81273",
+    "claim-sha": "7a7eced4eb8b9f5e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::sendCookieChallenge",
+    "producer-sha": "1ff55da0ddb7abae",
+    "break": "line 541: \"if len(cookie) \u003c minCookieLen || len(cookie) \u003e maxCookieLen {\" -\u003e \"if len(cookie) \u003c minCookieLen {\""
+  }
+]

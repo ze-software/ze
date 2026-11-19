@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.16-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest",
+    "unit-sha": "47b4990ec797d823",
+    "claim-sha": "a921b320b287617a",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "line 577: \"Identifier: req.Identifier,\" -\u003e \"Identifier: req.Identifier + 1,\""
+  },
+  {
+    "rid": "RFC7296-3.16-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest",
+    "unit-sha": "47b4990ec797d823",
+    "claim-sha": "0a34b4c0672cf3f5",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "line 877: \"Identifier: identifier,\" -\u003e \"Identifier: 200,\""
+  }
+]
