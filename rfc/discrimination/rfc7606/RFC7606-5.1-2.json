@@ -47,7 +47,7 @@
     "rid": "RFC7606-5.1-2",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-relay-one-field.ci",
-    "unit-sha": "1f56eadd6d442500",
+    "unit-sha": "1e1f3cd28008ed4d",
     "claim-sha": "639b8ce2b61bf9b7",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_shape.go::MixesNLRIFields",
