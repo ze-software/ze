@@ -2,8 +2,8 @@
   "note": "automated half: createFirstChildSA installs IKE-keyed SAs; manual half: OSPFv3 installs static SPI+key SAs; single-polarity annotated",
   "requirement_sha": "7ace33c19c76dd42",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "e37080524641dd96",
-    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "2e49c226bd39207a"
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3ecdcbdea3c4458f",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "55dee93c9574577a"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d",

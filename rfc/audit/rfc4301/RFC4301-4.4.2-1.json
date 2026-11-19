@@ -2,13 +2,13 @@
   "note": "Rejudged the whole Section 4.4.2 sentence: For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created. The tagged projection tests preserve address, protocol and port values for one negotiated pair, and the tunnel/transport packet tests prove matching traffic delivered and nonmatching traffic refused. The revised tunnel negative now correctly requires XfrmInStateMismatch exactly one, with both SPD counters unchanged, for the same source, port and protocol violations. Those assertions remain useful, but every tagged fixture uses one pair. installChildDataplane binds a tunnel state only when tunnelStateSelectorSupported accepts its policy set; TestTunnelMultiplePairsKeepTheirPolicySet explicitly keeps inbound.Sel nil for multiple pairs. The tagged set therefore cannot establish the quoted values obligation for an SA negotiated with several pairs. A second row quoting the same obligation does not narrow this unannotated row. The earlier enforced verdict overstated the tagged coverage; no test or tag is removed.",
   "requirement_sha": "e3911738ce979efb",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "e37080524641dd96",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "ff9ae2ac152d55e9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "ff9ae2ac152d55e9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "ff9ae2ac152d55e9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "ff9ae2ac152d55e9",
+    "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3ecdcbdea3c4458f",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "6f4c9fc3f9e18ac4",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "6f4c9fc3f9e18ac4",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "6f4c9fc3f9e18ac4",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "6f4c9fc3f9e18ac4",
     "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "fc51f7049086d591",
-    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "042ef3718a420858"
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "7a2ef4cde370eb4b"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",
