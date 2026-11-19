@@ -3,56 +3,56 @@
     "rid": "RFC9494-4.3-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough",
-    "unit-sha": "efb68bfd391e4217",
+    "unit-sha": "0b906f7fbed39729",
     "claim-sha": "1e131c6420951a6f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
-    "producer-sha": "f29395774282303c",
-    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_RebuiltRecoversReceivedStale",
-    "unit-sha": "9702dcf0ffb59577",
+    "unit-sha": "9c847a23fa698bc1",
     "claim-sha": "e398973a89eab892",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::advertisedStaleLevel",
     "producer-sha": "03025d0ea296282d",
-    "break": "body of advertisedStaleLevel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of advertisedStaleLevel replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_RebuiltRecoversReceivedStale",
-    "unit-sha": "9702dcf0ffb59577",
+    "unit-sha": "9c847a23fa698bc1",
     "claim-sha": "7ca319a6577f7180",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::advertisedStaleLevel",
     "producer-sha": "03025d0ea296282d",
-    "break": "body of advertisedStaleLevel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of advertisedStaleLevel replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR",
-    "unit-sha": "f2d8f9c8e094e3db",
+    "unit-sha": "3f29fcd9e534fb2b",
     "claim-sha": "d1ee0b4098e6d2fc",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
-    "producer-sha": "f29395774282303c",
-    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP",
-    "unit-sha": "859487e46f27d35f",
+    "unit-sha": "68d11665ee254317",
     "claim-sha": "394a3f32d690287f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
-    "producer-sha": "f29395774282303c",
-    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",

@@ -1,13 +1,17 @@
 {
-  "note": "Forbidden: honouring an LLGR capability that arrives without GR. TestHandleEventOpenLLGR_NoGR sends an OPEN with code 71 and no code 64 and fails if peerLLGRCaps holds the peer (assert.False llgrOK). Negative: the same OPEN with code 64 keeps the decoded LLGR capability (Families, F bit, LLST 3600 asserted), so the removal is conditional on GR being absent.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr.go::forgetGRCapability": "881090e441f66c11",
+    "internal/component/bgp/plugins/gr/gr.go::handleOpenEvent": "f8f08daf58b9ca9a"
+  },
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.5 requires behaving as though LLGR was absent when GR is absent. Both whole JSON OPEN tests read. A valid code71-only OPEN leaves no GR or LLGR map entry; the valid code64+71 control keeps actual decoded family/F-bit/LLST3600 data and RestartTime120. The event carries owner701/connection41, and handleOpenEvent ends in forgetGRCapability when code64 was not found, so its removal is conditional on missing GR, not universal capability suppression. No new machine record exists for these tags; this is current source assertion judgment, not a new runtime observation.",
   "requirement_sha": "cbb5de307607c9dd",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "22ad123d24cafff0",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "22ad123d24cafff0"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "393a4c61833e66b4",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "393a4c61833e66b4"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "be6469aa934cdde6",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "a3dd810ebc2a1db9"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "b101d8747af22111",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "2f39f2b88c1d2d60"
   },
   "verdict": "enforced"
 }

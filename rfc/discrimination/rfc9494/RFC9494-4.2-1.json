@@ -3,88 +3,88 @@
     "rid": "RFC9494-4.2-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing",
-    "unit-sha": "674c248442488895",
+    "unit-sha": "d3578c8f2fa94cbd",
     "claim-sha": "752fe64b070fbbee",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines",
-    "unit-sha": "0ea0c1a3f8b3f7aa",
+    "unit-sha": "13d82eebe099a8c7",
     "claim-sha": "fc2c2954b02f6544",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-    "producer-sha": "1cfd1d46318b5141",
-    "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6dc251585f4cd125",
+    "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime",
-    "unit-sha": "798bd3118c85a40b",
+    "unit-sha": "ae839b8f9fff0a19",
     "claim-sha": "0f928683cd44ad0a",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-    "producer-sha": "1cfd1d46318b5141",
-    "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6dc251585f4cd125",
+    "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
-    "unit-sha": "773e6a916a350574",
+    "unit-sha": "ce7d142fb07f8071",
     "claim-sha": "085941d20277cd3f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry",
-    "unit-sha": "d1490ad751a79487",
+    "unit-sha": "d508b44fe53b341a",
     "claim-sha": "07118a54aa7250d7",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB",
-    "unit-sha": "04aeddb71a33de34",
+    "unit-sha": "3529593642ff1d36",
     "claim-sha": "85a4d6d17d7998b2",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry",
-    "unit-sha": "3cfecf1e484954d1",
+    "unit-sha": "f5cfaa8fdfb099f3",
     "claim-sha": "61eb3fc67b730a94",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyWithoutLLSTIsRemoved",
-    "unit-sha": "ac0a03fbbf4f2343",
+    "unit-sha": "80a4b29bf5fd3cfa",
     "claim-sha": "7188bf0c8cf44fab",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-    "producer-sha": "616c4eefc2bacdab",
-    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "66354c4e54e26d40",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

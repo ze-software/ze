@@ -1,23 +1,27 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after 0b323594c4). RFC 9494 Section 4.2: \"once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur\", with three bullets. All three now carry exact assertions on onSessionReestablished: F bit clear in the new LLGR capability while the new GR capability sets it (TestOnSessionReestablished_LLGRFBitClearPurges, purged == [ipv4/unicast], peer released), family omitted from the new LLGR capability with a listed sibling kept (TestOnSessionReestablished_FamilyAbsentFromLLGRPurges, purged == exactly ipv4/unicast, ipv6/unicast still retained), GR present with no LLGR capability (TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily), and neither capability (TestOnSessionReestablished_DuringLLGR_NoCaps). Each fixture sets the GR F bit, so the RFC 4724 rule cannot produce the purge and only the LLGR branch of reconnectKeepsFamily can: the former GR-seeded union would leave all three new positives empty. Negatives are conforming controls, not neighbouring errors: both F bits set keeps the family until EOR (TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily, TestOnSessionReestablished_DuringLLGR), and a family still in its GR period is not judged by the LLGR bullets (TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets), matching \"once the LLGR Period begins\" per family. A purge-every-LLGR-family fix turns those red. Residual seams: the tagged units decide at the state manager; the purge-stale dispatch over the returned families in gr.go handleStateEvent is the loop RFC4724-4.2-8 dispatch tests drive, and no .ci runs an LLGR reconnect with per-family LLGR F bits (llgr-reconnect-fbit-purge.ci needs a ze-peer option). 2026-10-18 (owner-approved claim edit): the DuringLLGR and DuringLLGR_NoCaps tag claims no longer cite line numbers or the removed newForwarding map, and now state only what their bodies assert (both F bits set: no family purged; neither capability: the one LLGR-period family purged and the peer no longer active). Assertions unchanged; fresh revert discrimination records on onSessionReestablished.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished": "9f8811b517bb8c78",
+    "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily": "566f92750e48fe40"
+  },
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Read all7whole tagged roots and source helper downIntoLLGR. The prior conventional-GR/LLGR per-family scope is preserved. New-capability F-clear, missing LLGR family and nil capability cases return exactly the affected purge families and release corresponding state; a sibling retained family survives. Both F bits set keeps an LLGR family, while a family still in GR is not judged by the LLGR bullets even when its sibling entered LLGR. A new physical connection42 is distinct from retained41; the old connection cannot reestablish itself. These are state-manager immediate-removal decisions. The physical purge dispatch is read in the shared structured UP handler, but no new end-to-end LLGR F-bit reconnect wire experiment is invented. Timer/synchronization/consecutive-restart gaps outside this row remain unchanged. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1311,1369,1429,1491,1553,1615,1677, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.",
   "requirement_sha": "2136b71bc93919d1",
   "tests": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "2baf27556af51960",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "2baf27556af51960",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "2baf27556af51960",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "2baf27556af51960",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "2baf27556af51960"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "d4a0cf3a9317b86b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "d4a0cf3a9317b86b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "d4a0cf3a9317b86b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "d4a0cf3a9317b86b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "d4a0cf3a9317b86b"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "ffd95a26a9021644",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "8c5eb7f4f1bb5c64",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "fe808462337ebdc1",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "fe4ace32fc65ad85",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "6afa3ae10acf39c5",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "f3ceb20b022003c0",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "53646d74f12683f8"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "3e4d2a602095d7d4",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "3998e37bfa31030d",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "e8bf13b73fed6c90",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "43c39d769254d8b2",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "7e5d437389e77805",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "54651047f4c5634f",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "ae18fc1f5c6ad03b"
   },
   "verdict": "enforced"
 }

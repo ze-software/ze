@@ -3,12 +3,12 @@
     "rid": "RFC9494-4.2-5",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
-    "unit-sha": "773e6a916a350574",
+    "unit-sha": "ce7d142fb07f8071",
     "claim-sha": "136d7501a09d01ce",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks",
-    "producer-sha": "067aa2cfe462e7b2",
-    "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d51fef8e0a156bfd",
+    "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.2-5",

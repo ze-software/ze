@@ -1,13 +1,16 @@
 {
-  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter": "0866a95102444b74"
+  },
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.6 permits partial delivery only to an internal neighbor. Both whole tests read. The external non-LLGR input requires mods.IsWithdraw; the internal non-LLGR input requires delivered, not withdrawn output modifications including exact NO_EXPORT0xffffff01 and LOCAL_PREF0. Current production uses dest.IsIBGP, the captured session classification, rather than comparing AS numbers; the migrated internal fixture explicitly sets it. Existing owner/physical-connection capability lookup prevents another destination capability from granting this branch. No new machine record or actual socket-wire observation exists for these filter-unit tags.",
   "requirement_sha": "e7ee81b6b57096e6",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "3e21e7522599819b",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "3e21e7522599819b"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "ae7137c4592b2dfc",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "ae7137c4592b2dfc"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "5f0ec8b5926d0128",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "d4b4c042358589f6"
   },
   "verdict": "enforced"
 }

@@ -1,13 +1,18 @@
 {
-  "note": "Forbidden: honouring code 71 received without code 64. TestHandleStructuredOpenLLGRNoGR sends an OPEN with only code 71 and fails if peerLLGRCaps holds the peer (assert.False llgrOK), which is the map onSessionDown reads. Negative: TestHandleStructuredOpenGRPlusLLGR keeps both capabilities when code 64 is present, with families, F bits and LLST 7200/3600 asserted.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr.go::extractGRCaps": "2a6ff9620542d93e",
+    "internal/component/bgp/plugins/gr/gr.go::forgetGRCapability": "881090e441f66c11",
+    "internal/component/bgp/plugins/gr/gr.go::handleStructuredOpen": "6ee95f26a461ac66"
+  },
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.1 requires disregarding LLGR received without GR. Both complete structured OPEN tests use correctly framed capability TLVs: absent code64 leaves neither capability in the owner701 map; the conforming code64+71 input preserves two families, F bits, RestartTime240 and exact received LLST7200/3600. These are exact absent/present capability outcomes, not malformed OPEN rejection. The captured original connection41 comes from grEventFixture and matches the stored capabilities. No new machine record exists for these two tags; the enforced verdict is the source assertion judgment, not a new runtime claim.",
   "requirement_sha": "c9df9da8f9bbf93f",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "22ad123d24cafff0",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "22ad123d24cafff0"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "393a4c61833e66b4",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "393a4c61833e66b4"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "9d7f7987bdd005ed",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "0e96b58e8f93ab83"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "c479c9f5ded68e5d",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "321adbfb261f250e"
   },
   "verdict": "enforced"
 }

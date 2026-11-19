@@ -3,23 +3,23 @@
     "rid": "RFC9494-5-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig",
-    "unit-sha": "cc6fb4179f0884bd",
+    "unit-sha": "839a0ccf235e7141",
     "claim-sha": "e0405ad1936d25e7",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr_exchange.go::exchangedLLGRLocked",
-    "producer-sha": "53ee09548c7492af",
-    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "70d642601d33a1e0",
+    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-5-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily",
-    "unit-sha": "829ef1f982d06b28",
+    "unit-sha": "560955cb348c6c8e",
     "claim-sha": "438c2c10cbd9bd15",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr_exchange.go::exchangedLLGRLocked",
-    "producer-sha": "53ee09548c7492af",
-    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "70d642601d33a1e0",
+    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-5-1",

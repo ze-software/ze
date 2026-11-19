@@ -1,24 +1,25 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "fc129c9ad20ea994",
-    "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked": "16a9e24462e8cb70",
-    "internal/component/bgp/plugins/gr/gr_state.go::handleLLSTExpired": "d61afc66048f44bf",
-    "internal/component/bgp/plugins/rib/rib_commands.go::purgeStaleCommand": "8415613ac2c8a276",
+    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "8bd0ae6ed1d8de5d",
+    "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked": "0f14d0d456655fe9",
+    "internal/component/bgp/plugins/gr/gr_state.go::handleLLSTExpired": "7f89bae8a3f71023",
+    "internal/component/bgp/plugins/rib/rib_commands.go::purgeStaleCommand": "60db74d2a9cdcccc",
+    "internal/component/bgp/plugins/rib/rib_source_commands.go::purgePhysicalSourceCommand": "d0ef0dc53098389d",
     "internal/component/bgp/plugins/rib/storage/peerrib.go::RemoveFamilyMatching": "39b5945f05e2a876"
   },
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc9494): \"If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining.\" purgeStaleCommand moved in 30ff1fce91: dispatchSentLifecycle now returns a refusal, and the command reports statusError with purgeStaleRefused after the purge. The deletion itself is unchanged and unconditional: RemoveFamilyMatching still removes every entry with StaleLevel > StaleLevelFresh for the family before the dispatch, and best-path changes are still published; the refusal only reports that a destination would not take the withdrawal. The tagged units still observe the stale routes absent at expiry. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires deletion of every stale route of the expired family. Read all4tag bindings/3distinct roots: the legacy callback-only family expiry, actual production wired purge-command observation and delayed-DOWN real registered-RIB positive/negative deadline test. The real RIB deadline controls require exact original family/owner/connection removal at expiry while the sibling remains before its own boundary. Current wireStateCallbacks dispatches source-scoped purge-stale; purgePhysicalSourceCommand removes only stale original received entries for the named family, with source ownership checked in the physical mutation consumer. Legacy purgeStaleCommand and RemoveFamilyMatching fingerprints are preserved as prior cited consumers, supplemented by the actually used physical-source boundary. No runtime guarantee is inferred from command text alone; real inventory/deadline checks supply the storage evidence. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1015,1107, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.",
   "requirement_sha": "3f738c50ccd28c69",
   "tests": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "b7a5f9e69090ca7b",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "b9cbfb5253395aa5",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "b9cbfb5253395aa5"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "398743d2d03dc53d",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "a8e84939edc430d3",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "a8e84939edc430d3"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "15bfa5baa205a4ca",
-    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "f18f8f81a9f85dd0",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "61a5be001e19f5b3",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "61a5be001e19f5b3"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "f410d52e40579124",
+    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "8908a92f92014c77",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "20c0b54bb6c5555b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "20c0b54bb6c5555b"
   },
   "verdict": "enforced"
 }

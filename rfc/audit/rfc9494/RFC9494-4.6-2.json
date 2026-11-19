@@ -1,15 +1,18 @@
 {
-  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Forbidden: a stale route delivered on the partial-deployment branch without NO_EXPORT. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a COMMUNITIES AttrModAdd with value 0xFFFFFF01 is emitted for an internal non-LLGR neighbor (hasCommunityAdd asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if any modification is emitted for an LLGR-capable neighbor.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter": "0866a95102444b74"
+  },
+  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.6 requires NO_EXPORT on the partial-deployment stale delivery. All3whole roots read. Loaded-state and unloaded-state internal non-LLGR inputs require a COMMUNITIES Add operation with exactly four bytes0xffffff01; presence is required independently of the loop, preventing an empty operations list from passing. The LLGR-capable peer is a valid contrast with mods.Len0. Current LLGREgressFilter selects partial delivery by captured IsIBGP and applies exact communityNoExport bytes. These are exact filter-operation assertions, not a newly observed destination wire encoding or machine mutant record.",
   "requirement_sha": "bc3c13cb72f95a87",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "3e21e7522599819b",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "3e21e7522599819b",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "3e21e7522599819b"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "ae7137c4592b2dfc",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "ae7137c4592b2dfc",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "ae7137c4592b2dfc"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "d4b4c042358589f6",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "6850a313069b0e1e",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "43d1892d41d01d28"
   },
   "verdict": "enforced"
 }
