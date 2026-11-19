@@ -73,6 +73,8 @@ reject=stdout:contains=record-plugin received
 # No id: the mandatory leaf is missing, refused before the plugin is asked.
 cmd=foreground:seq=4:exec=ze cli -c "show record-plugin argument"
 expect=stderr:contains=required argument missing: id
+expect=stderr:contains=This command needs id: Any value of 1 to 128 characters. The plugin echoes it back.
+expect=stderr:contains=fix: show record-plugin argument id <id>
 reject=stdout:contains=record-plugin received
 
 # 128 characters: at the bound, the id reaches the plugin.

@@ -14,9 +14,27 @@ An ExaBGP configuration is a different case and keeps its converter:
 written forms, set commands and nested blocks, and hashes plaintext passwords
 on the way.
 
+The daemon accepts the same conversion as `show config supplied migrate content
+<base64> [name <filename>] [format set|hierarchical]`. It returns the converted
+text without opening a caller filename or changing a candidate. The local file
+command and the supplied command use the same conversion producer. The browser
+discovers this operation from its registered file/paste input descriptor.
+<!-- source: internal/component/config/cli/config_supplied_tools.go -- suppliedMigrate -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- configMigrateBytes -->
+
 <!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
 <!-- source: internal/component/config/cli/cmd_fmt.go -- ze config fmt command -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- ze config validate command -->
+
+`ze config validate --limit environment` checks explicitly set registered
+environment values against their declared types, and includes range failures
+already recorded by their readers. It returns exit 1 for invalid values and
+keeps `-q` silent. `show config environment-validation` returns the same typed
+verdict and corrective commands through every command surface. Each route
+judges the environment of the process answering it; a local invocation does
+not claim to inspect another process's environment.
+<!-- source: internal/component/config/cli/config_environment.go -- environmentValidationAnswer -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- validateEnvironment -->
 
 ## Quick Start
 

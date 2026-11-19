@@ -1,3 +1,5 @@
+# Question: does the operator's completion command expose root sections after loading this complete config?
+# The executable's schema, config loading and completion dispatch must agree.
 # Test: ze config completion — full config with multiple sections
 # VALIDATES: Completion works with a comprehensive config across all sections
 
@@ -54,7 +56,7 @@ bgp {
 		}
 		# Graceful restart needs a process that may send UPDATEs for the peer.
 		attach process bgp-rib {
-			receive [ update state ]
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

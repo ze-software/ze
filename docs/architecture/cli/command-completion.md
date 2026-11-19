@@ -121,6 +121,12 @@ replaced by its actual Stage-1 declaration. Subsystem dispatch and recognition
 match complete command words, so an argument separator cannot be confused with
 a longer final word.
 
+Executing input uses `ScanExecution`, which refuses an open quote with its
+opening column before a local producer, dispatcher handler or monitor runs.
+Completion remains on `ScanInvocation`: incomplete values are expected while
+typing, so this execution check does not remove partial tokens from Tab or `?`.
+<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation, ScanExecution -->
+
 The local `set cli format` preference is offered only in the session's current
 operational mode. Browser completion preserves that distinction even when an
 operational prefix selects schema completion. An explicit config-mode `set`

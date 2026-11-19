@@ -94,6 +94,12 @@ probe), for example.
 
 
 `ze config fix --plan <file>` reports candidate repairs without editing files.
+The same plan is available through `show config supplied fix-plan content
+<base64> [name <filename>]` on the daemon's command surfaces, including the
+browser's registered file/paste inspection controls. Both forms use the same
+validation and repair-plan producer; an invalid source still returns its plan.
+<!-- source: internal/component/config/cli/cmd_fix.go -- fixPlanBytes -->
+<!-- source: internal/component/config/cli/config_supplied_tools.go -- suppliedFixPlan -->
 Where a repair is available, its diagnostic can carry a stable repair ID and a
 safety label such as `format-only`, `section-local`, `behavior-preserving` or
 `requires-human-review`. A diagnostic does not always have an automatic repair.

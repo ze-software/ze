@@ -9,6 +9,8 @@
 cmd=foreground:seq=1:exec=ze set debug module
 expect=exit:code=1
 expect=stderr:contains=required argument missing: module-name
+expect=stderr:contains=This command needs module-name: The subsystem name, as show debug lists it.
+expect=stderr:contains=fix: ze set debug module module-name <module-name>
 expect=stderr:contains=hint: run 'ze set debug module help'
 
 cmd=foreground:seq=2:exec=ze set debug module help

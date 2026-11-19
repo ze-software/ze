@@ -152,7 +152,7 @@ system {
 	})
 
 	// `show bgp peer list` declares name, group, remote-as, state and uptime.
-	first, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | display ")
+	first, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | display ", columnName, columnGroup, columnRemoteAS, columnState, columnUptime)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ system {
 
 	// The match is on the last token typed, so a second field completes too,
 	// and the one already typed is gone from the list.
-	second, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | display state ")
+	second, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | display state ", columnName, columnGroup, columnRemoteAS, columnUptime)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ system {
 	// `| fill` completes its keywords and never a field name. `overall` was
 	// removed because it required buffering every rendered cell before the
 	// first row could be written; it must not be offered.
-	ways, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | fill ")
+	ways, err := displayFillTabAfter(ctx, cliEnv, "show bgp peer list | fill ", "alpha", "reverse")
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ system {
 	return nil
 }
 
-func displayFillTabAfter(ctx context.Context, env []string, text string) (string, error) {
+func displayFillTabAfter(ctx context.Context, env []string, text string, offered ...string) (string, error) {
 	master, slave, err := displayFillOpenPTY()
 	if err != nil {
 		return "", fmt.Errorf("open pseudo-terminal: %w", err)
@@ -222,7 +222,7 @@ func displayFillTabAfter(ctx context.Context, env []string, text string) (string
 		return "", fmt.Errorf("close pseudo-terminal slave: %w", closeErr)
 	}
 
-	if _, err := displayFillReadAvailable(ctx, master, time.Now().Add(10*time.Second)); err != nil {
+	if _, err := displayFillReadUntil(ctx, master, client, sessionCommandPrompt); err != nil {
 		return "", err
 	}
 	if err := displayFillWrite(ctx, master, []byte(text)); err != nil {
@@ -234,11 +234,40 @@ func displayFillTabAfter(ctx context.Context, env []string, text string) (string
 	if err := displayFillWrite(ctx, master, []byte{'\t'}); err != nil {
 		return "", fmt.Errorf("write Tab to ze cli: %w", err)
 	}
-	screen, err := displayFillReadAvailable(ctx, master, time.Now().Add(10*time.Second))
+	screen, err := displayFillReadUntil(ctx, master, client, offered...)
 	if err != nil {
 		return "", err
 	}
 	return displayFillANSI.ReplaceAllString(screen, ""), nil
+}
+
+// displayFillReadUntil reads this turn's output until every wanted word is
+// present. A quiet terminal is not evidence that startup or completion ended.
+// The ten-second deadline bounds an absent offer; an exited client fails early.
+func displayFillReadUntil(ctx context.Context, master *os.File, client *displayFillProcess, wanted ...string) (string, error) {
+	deadline := time.Now().Add(10 * time.Second)
+	var screen strings.Builder
+	for time.Now().Before(deadline) {
+		chunk, err := displayFillReadAvailable(ctx, master, deadline)
+		if err != nil {
+			return screen.String(), err
+		}
+		screen.WriteString(displayFillANSI.ReplaceAllString(chunk, ""))
+		complete := true
+		for _, word := range wanted {
+			if !strings.Contains(screen.String(), word) {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			return screen.String(), nil
+		}
+		if displayFillExited(client) {
+			return screen.String(), fmt.Errorf("ze cli exited before its screen held %q:\n%s", wanted, screen.String())
+		}
+	}
+	return screen.String(), fmt.Errorf("ze cli screen never held %q before the deadline:\n%s", wanted, screen.String())
 }
 
 func displayFillStart(cmd *exec.Cmd) (*displayFillProcess, error) {

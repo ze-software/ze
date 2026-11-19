@@ -257,6 +257,20 @@ interpretation.
 
 ## Constraints
 
+Default session comparison and graphical browser review use one path-qualified
+renderer over typed pending records. Review reads current committed values under
+the same storage guard as the session's durable intent and projects removed
+values onto presentation copies. It never rewrites the metadata's original
+`Previous` value or rebuilds the candidate. Rename ancestry uses the same
+`committedPathOf` resolver as conflict checks. Explicit source, target and format
+comparisons retain their parsed-tree representation.
+The session count uses the same logical record collector as review, including
+saved metadata and unsaved structural intent. It reads that user's known
+change file directly instead of needing a census of other users' files.
+<!-- source: internal/component/cli/editor_pending_diff.go -- PendingReview, pendingReviewChanges, RenderPendingChanges -->
+<!-- source: internal/component/cli/editor.go -- pendingChanges, pendingSessionChanges -->
+<!-- source: internal/component/cli/model_load.go -- cmdShowPipe, ShowPipeOpts -->
+
 `PendingChange` has separate `config` and `contract` representations. Boundary
 conversion preserves the owner, kind, paths, member and values. The `config`
 representation also carries the session identifier used for internal selection

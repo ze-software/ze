@@ -382,7 +382,10 @@ the caller supplied out of band. A command that addresses one member of a set
 by a typed keyword (`name`, `id`, ...) does not set it. Its mandatory leaf is
 its guard: `command.ValidateArgs` binds the lone value typed after the action,
 or the keyword and value pair, and refuses a line with neither as
-`required argument missing: <leaf>` before the handler runs.
+`required argument missing: <leaf>` before the handler runs. The next line
+explains the argument's purpose from its declared description or help summary,
+and the `fix:` line supplies the whole command with the missing keyword and
+value form inserted. A model that declares no purpose is identified as such.
 `request plugin restart <name>` and `system command help <name>` are declared
 that way. Set on such a command, `RequiresSelector` refuses every line, because
 the value is bound to the typed leaf and never to `selector`.

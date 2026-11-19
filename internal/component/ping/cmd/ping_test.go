@@ -184,6 +184,8 @@ func TestMonitorPingParseArgsErrors(t *testing.T) {
 	_, err := monitorPingOf(t)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required argument missing: destination")
+	assert.Contains(t, err.Error(), "This command needs destination: The value is the first bare word of the command, or follows the destination")
+	assert.Contains(t, err.Error(), "\nfix: monitor ping destination <destination>")
 
 	for _, arg := range []string{"interval", "timeout", "count", "size"} {
 		_, err = monitorPingOf(t, "127.0.0.1", arg)
