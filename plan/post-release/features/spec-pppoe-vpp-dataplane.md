@@ -10,13 +10,13 @@
 | Depends | - |
 | Phase | 2/7 (shared PPP seam; full product acceptance remains owed) |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Doors: `ai/doors/system.md`, `ai/doors/forwarding.md` (vpp, iface, traffic), `ai/doors/access-security.md` (l2tp, PPPoE, PPP).
 
-## Implementation progress — 2026-11-18
+## Implementation progress — 2026-11-19
 
 This spec remains in phase 2/7. Implemented foundations land in separate commits
 while their remaining verification and dependent implementation stay open.
@@ -28,7 +28,8 @@ An implementation commit does not close an acceptance criterion by itself.
 | Counter guard discrimination | Verified for the creation library | C01–C06 each produced its intended semantic failure and a restored pass. C02's two restored native roots passed. Suppressing the original reader error in C06 failed the backend-closure assertion; after removing the overlay, all 15 creation roots passed again on Ze Linux 7.3 with no skips. Canonical files stayed unchanged and the overlays were removed. |
 | Native creation rejection | Committed in `db1ba06e7b`; scoped Linux population passed | The original serialized request header and complete validated reply batch distinguish a definitive negative acknowledgment from an uncertain creation outcome. All 58 selected counter and missing-link roots passed on Ze Linux 7.3, with no failures or skips (`job-counter-create-rejection-native-population-691e138c.log`); check, command and lab exits were zero and the guest stopped. This includes ten new rejection roots, the real exclusive-name collision with its original reader still productive, and all three missing-link producer regressions. C05–C10 discrimination, scoped lint and the typed setup retry integration remain owed. |
 | Shared kernel CoS cleanup and diagnostics | Committed in `a8101579b4`, with the native error repair in `1c2050e529` | All 94 CoS package roots and the registered cleanup YANG tests passed with race detection. Four RFC fixture judgments are recorded. Native replacement cleanup exposed an invalid missing-link error that panicked during rendering; preserving the original ENODEV fixed the unchanged test, then all six reached native CoS controls passed without skips. All three new missing-link producer regressions subsequently passed in the 58-root Linux run. Wider native VLAN, functional, RFC proof, discrimination and lint obligations remain open. |
-| VPP process, socket and statistics ownership | Foundation implemented | Earlier reached race and Linux runs passed. Subsequent coordinated cleanup changes require their own current evidence; those earlier runs do not validate the newer changes. |
+| VPP process, socket and statistics ownership | Lifecycle repair passed its focused run; complete package exposed eight override-byte failures | A configuration-apply regression reproduced loss of the original binder receipt by admitting a second manager during pending cleanup. The repair retains that manager and its cleanup receipt, including failed initial binding and independent child cleanup. Independent source review cleared it, and all four focused roots passed in the latest `job-unit-pkg-5a996052.log`. The full package run exposed eight driver-override read/write fidelity failures in `job-unit-pkg-d8f46fa3.log`; their producer and prerequisite reporting are being repaired. Linux, lint and subscriber restart checks remain owed. |
+| Guarded server and CPE writer consumers | Integrated; all eight reached package and race runs passed; cleanup reporting is being repaired before publication | The 24 server and 64 CPE Go files bind writes to the original unit and retain final counters, disconnect, physical retirement and current cleanup custody. Independent integration and bounded style reviews are clear. Their repairs passed five focused roots in `job-unit-pkg-2e8979e6.log`, then all eight packages passed in the latest `job-unit-pkg-53fa613e.log`; assertions were preserved. Commit preparation found four cleanup warnings without a declared doctor route. That reporting gap, Linux/native matrix, causal, lint, documentation and complete subscriber acceptance remain owed. |
 | Captured channel and session ownership | Committed in `668311841c`; all six reached package and race runs passed | The 194-file dependency closure carries typed session, worker, factory, client, relay and original-file query ownership. The latest `job-unit-pkg-6ba0b2be.log` records all six reached packages passing; kernel and outer L2TP integration packages also compiled for Linux arm64. The run includes the factory signature repair and independently approved realm fixture corrections. An unchanged PADS-before-PADT test exposed a missing pending-End wake in the exact-owner transition; that producer is repaired. Wider Linux consumer proof, native writer binding, scoped lint and complete subscriber acceptance remain owed. |
 | Passive original-unit retirement | Integrated; reached package and race run and both genuine Linux roots passed | The same created unit now joins its actual file close, short descriptor borrows and retained native-release duplicate. It keeps namespace cleanup and physical retirement outcomes separate. Alias refusal preserves both original error causes without closing either original. Ten logical controls are included in the passing kernel package run. Both genuine native roots passed in `job-ppp-original-unit-retirement-native-6f2512e9.log` on the matched Ze Linux 7.3 kernel and image, without skips, with all exits zero and the VM stopped. Scoped lint and retirement discrimination remain owed. |
 | Current netlink checks | Linux compilation and both repaired native roots passed | The broader native run (`job-native-access-lint-fixed-native-population-2f2483cd.log`) exposed an overlong fixture name and a retained-sibling progress failure under persistent timeout, followed by a secondary synctest deadlock. Cleanup now ends its spent turn without advancing past another sibling; the fixture uses a valid name and retains every lifecycle assertion. Both unchanged questions passed on Ze Linux 7.3 in `job-native-access-two-failure-rerun-58cfa4eb.log`, without skips, with all exits zero and the guest stopped. Independent source reviews cleared the product repair and the fixture correction; the native fixture approval is recorded. The reached population rerun, clean scoped lint and causal proof remain owed. |
@@ -38,9 +39,76 @@ An implementation commit does not close an acceptance criterion by itself.
 | Guarded Go PPP writer | Provider and ACK/history repairs implemented; four native provider roots and ten model roots passed | `job-ppp-genuine-replacement-writer-native-067735d2.log` records the actual same-index genuine PPP replacement, renamed original, foreign creator and IPv4/IPv6 address/route controls passing, with the reached models, no skips and all exits zero. The guest stopped. The replacement fixture received independent approval and retains its strict ESTALE and survivor checks. Terminal retirement, consumer wiring, race and scoped lint remain owed. |
 | Writer terminal custody and physical close | Implemented; five native provider roots and fifteen model roots passed | `job-ppp-writer-terminal-reached-population-067735d2.log` records all twenty roots passing without skips on the matching kernel/image. Five terminal model bodies first failed in `cb95ea42`. Real exact-socket close refusal then exposed twelve custody/teardown failures in `54996aa5`; the unchanged native question passed after retaining the physical-close error separately from historical write errors. Independent judgments cover the file-close oracles and both conservative custody-model corrections. Five further genuine unit/duplicate-retirement native tests still depend on the shared consumer integration; race, lint and full subscriber acceptance remain owed. |
 | Constructor cleanup custody | Implemented and independently reviewed; all 23 reached provider/model roots passed | `job-ppp-constructor-custody-native-red-2247b440.log` reproduces loss of a still-live original socket when Bind, name lookup or creator probe fails and physical Close is refused. All three unchanged native questions passed after the repair, followed by all 23 reached roots in `job-ppp-constructor-custody-reached-population-067735d2.log`, without skips, with all exits zero and the guest stopped. The refused partial writer retains the exact socket and both causes with zero mutation features. The wider genuine shared-consumer matrix, race and lint remain owed. |
-| IPv6 original-unit control sockets | Complete kernel source chain committed in `acc1e3798d`; one compiler repair reviewed and requalified | The first full build exposed a socket reference in the earlier socketless route helper. The repair checks the final route in the actual socket-bearing wrapper after fallback and DAD. All 21 canonical patches then passed strict composed-source forward, exact afterimage and inverse checks in `job-ppp-full21-route-wrapper-source-qualification-1530eaea.log`; independent review cleared both the repair and its context presentation. Rebuilding, a matching image and native constructor/packet/fragment acceptance remain owed. Eight new Go API/test files currently include an inert Linux scaffold pending a useful native failing control. The prior 84-root proof applies to the earlier matched pair only. |
+| IPv6 original-unit control sockets | Complete kernel/image built; real Go API passed four models and thirteen native roots | Kernel chain `acc1e3798d` plus routing repair `73108145a8` passed strict qualification and the full arm64 build. Kernel SHA-256 is `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884`, cache `77b841ae-5d7f6651`; matching image is `f92054020556fb26`. The useful API test first failed at the refusal scaffold in `99fcf86c`. The actual producer then passed all seventeen selected roots in `job-ppp-control-socket-real-api-native-population-2b2b0e6c.log`, with no skips and all exits zero. The scaffold is gone. Packet/carrier, multicast, fragment, race and lint acceptance remain owed. |
+| Current broader creation/guard population | 112 roots passed; one failed after newer caller integration | `job-ppp-complete-current-core-guard-native-population-c1e8b184.log` records 112 passes, one failure and no skips on the new matched pair, with the guest stopped. `TestCreatedUnitNativeRetirementJoinsRetainedOriginalDuplicate` fails at line134 with `ppp: original native mutation authority is unavailable`. This is an open current integration failure; the earlier retirement passes do not clear it. |
+| Terminal settlement history | Defect confirmed; regression sources checkpointed, producer repair not implemented | A matched explicit `Settle` clears pending custody but does not retain its terminal ACK/NACK history; final physical Close overwrites that history. New model and two genuine native regressions are not yet executed. Independent judgment approved the existing live-settlement Close oracle correction. These history questions are expected to fail until the provider repair; no new RED/GREEN is claimed. |
 | Compiled IPv6 control-socket declaration | Known bit9 recognized; runtime checks pending | The global support validator recognizes the enrolled control-socket ABI bit while retaining older valid declarations and unchanged session/bridge requirements. Two independently judged test updates retain unknown-bit11, malformed-reply and cleanup refusals. This recognition grants no original-unit or socket authority and does not activate the constructor. Current Linux execution remains owed. |
 | Full VPP subscriber service | Open | Forwarding, IPv6, policing, restart recovery, final accounting samples, release ordering, interoperability and scale acceptance are not complete. |
+
+## Resume checkpoint — 2026-11-19
+
+The owner paused this session for token availability and requested committed
+source and an explicit continuation record. This remains phase2/7, not closed.
+Other agents may continue their separately owned work. Recheck the current tree
+and this record before editing; their changes can supersede this snapshot.
+
+1. **Root provider history:** in `internal/plugins/iface/netlink/native_ppp_linux.go`,
+   retain a matched terminal result from explicit `Settle` and join existing
+   history when physically closing. Preserve immediate mutation/NACK behavior,
+   physical-close custody and absence of a pending marker after release.
+   First execute the new model and ACK/NACK history regressions to record their
+   actual failing assertions. Their sources and the five genuine retirement
+   questions are checkpointed; they have not passed current execution.
+2. **Shared-session owner:** the other PPP implementation session owns the
+   false-release projection in `ppp/kernel/session_release.go`. A failed original
+   unit-file Close must keep `NativeReleasePending` true even after its writer
+   and tracked duplicate close. Require the same unit's successful passive
+   retirement proof; namespace-only cleanup errors remain separate. It also
+   owns the current retained-duplicate failure above and server/client wiring.
+3. **Packet acceptance:** compile the current kernel dataplane tests and first
+   pass `TestNativeIPv6CarrierOriginalTraffic`. Then run all nine carrier roots.
+   The readiness fixture observes the real address and multicast route with a
+   bounded ticker, retaining exact tuple, DAD and wire assertions. Its last
+   attempted compile failed on an intervening factory signature, later repaired;
+   the corrected fixture has no current runtime pass. Promote the retained
+   five-root fragment draft only after that useful traffic baseline passes.
+4. **Fragment draft:** `internal/component/l2tp/pppoe/dataplane/kernel/testdata/ppp-ipv6-fragment-native-draft.go.txt`
+   retains the reviewed R2 source. It is deliberately outside compilation and
+   has not run. It checks useful global-address reassembly, distinct owners,
+   retired owner, rename and ordinary Ethernet, with actual FIFO/readiness
+   prerequisites. Promote to the planned integration test and remove this draft
+   in the same commit; never count a setup failure as ownership discrimination.
+5. **Accounting and finishing checks:** the L2TP session owns current counter,
+   authentication and accounting continuation. Its latest report has counter R6
+   applied with fourteen isolated race roots and the full PPP package passing;
+   its commit was still being prepared. Accounting and route receipt work
+   remain open. Root still owes scoped race/lint, docs and final independent
+   review of the socket/carrier/provider changes. No whole-tree verification
+   or push is authorized by this checkpoint.
+
+Use only the matched new kernel/image above for CONTROL6 tests. The earlier
+`b56187bb...7fba7` kernel and `411acf54456d0db2` image remain retained for other
+sessions; do not mix the pairs or evict them without checking their users.
+
+Decisive logs and the pending history proposal/judgment are under
+`tmp/session/2026-11-15-125434/scratch/`. The existing detailed owning record is
+`tmp/session/2026-11-15-204844/state/session-state-l2tp-session-identity-and-publish-stall-0636cd44-05d3-4d15-a39a-ca76b35afc15.md`,
+section “ROOT PPP native guard”. Retain the small current history judgment and
+source qualification manifest until the unresolved regressions have RED/GREEN
+and canonical evidence; then remove superseded temporary inputs. Kernel layout
+evidence currently measures selected compiled types only. Old/new native slab
+geometry remains unmeasured; no allocation-rate or complete layout claim follows.
+
+Main must rebuild the Linux integration ELF from the current main checkout,
+with `CGO_ENABLED=0` and the SSOT feature tags plus `integration`, before running
+native questions. Check `le job report`, run one CPU-intensive job at a time,
+and use `le test qemu docker-lab` with the explicit matched kernel/image.
+The provider history selector is
+`^TestNativePPP(ModelSettlementHistorySurvivesPhysicalClose|ProviderSettled(ACK|NACK)HistorySurvivesClose)$`;
+the socket API selector is `^TestCreatedUnitControlSocket` with
+`-ppp-control-socket-required=true`; provider native runs require
+`-ppp-provider-required=true`. Existing binaries are snapshot evidence, not
+proof of code another agent changes after this checkpoint.
 
 The creation-library results do not prove its pending session-constructor or
 subscriber integration. Commits record existing evidence and outstanding

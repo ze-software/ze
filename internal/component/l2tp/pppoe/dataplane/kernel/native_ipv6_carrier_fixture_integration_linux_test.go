@@ -245,27 +245,83 @@ func (f *nativeV6Fixture) open(t *testing.T, sid uint16) (dataplane.OpenedSessio
 	if err := handle.Connect(); err != nil {
 		t.Fatalf("enable actual connected IPv6 family: %v", err)
 	}
-	addresses, err := f.route.AddrList(link, netlink.FAMILY_V6)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ready := false
-	for _, address := range addresses {
-		if !address.IP.Equal(net.ParseIP("fe80::1")) {
-			continue
-		}
-		if address.Flags&unix.IFA_F_TENTATIVE != 0 {
-			t.Fatal("actual configured IPv6 source is still tentative")
-		}
-		ready = true
-	}
-	if !ready {
-		t.Fatal("original session IPv6 source was not installed")
-	}
+	f.requireAddress(t, link)
 	f.requireAdmission(t, link)
 	endpoint := *f.endpoint
 	endpoint.sid = sid
 	return opened, &endpoint
+}
+
+// requireAddress observes the exact installed pair after native DAD work.
+// Linux v7.3 addrconf_dad_start queues work even with accept_dad=0; the worker
+// clears TENTATIVE. Installation's ACK therefore does not establish readiness.
+func (f *nativeV6Fixture) requireAddress(t *testing.T, link netlink.Link) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), nativeV6Wait)
+	defer cancel()
+	const interval = 10 * time.Millisecond
+	local, peer := net.ParseIP("fe80::1"), net.ParseIP("fe80::2")
+	var addresses []netlink.Addr
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	const attempts = int(nativeV6Wait/interval) + 1
+	// Observe immediately, then wait only between native state reads. The
+	// context bounds readiness and the attempt limit bounds the loop itself.
+	for attempt := range attempts {
+		if ctx.Err() != nil {
+			break
+		}
+		var err error
+		addresses, err = f.route.AddrList(link, netlink.FAMILY_V6)
+		if err != nil {
+			t.Fatalf("read original session IPv6 readiness: %v", err)
+		}
+		for _, address := range addresses {
+			if address.IPNet == nil {
+				t.Fatal("native IPv6 address has no local prefix")
+			}
+			if !address.IP.Equal(local) {
+				continue
+			}
+			if address.Flags&unix.IFA_F_DADFAILED != 0 {
+				t.Fatalf("original session IPv6 source failed DAD: %+v", address)
+			}
+			if address.Peer == nil {
+				continue
+			}
+			if !address.Peer.IP.Equal(peer) {
+				continue
+			}
+			// Netlink decodes IFA_LOCAL as a host prefix; the request's
+			// /64 is retained on IFA_ADDRESS, exposed as the peer prefix.
+			localBits, localWidth := address.Mask.Size()
+			if localBits != 128 {
+				continue
+			}
+			if localWidth != 128 {
+				continue
+			}
+			peerBits, peerWidth := address.Peer.Mask.Size()
+			if peerBits != 64 {
+				continue
+			}
+			if peerWidth != 128 {
+				continue
+			}
+			if address.Flags&unix.IFA_F_TENTATIVE != 0 {
+				continue
+			}
+			return
+		}
+		if attempt+1 == attempts {
+			break
+		}
+		select {
+		case <-ctx.Done():
+		case <-ticker.C:
+		}
+	}
+	t.Fatalf("original session IPv6 pair fe80::1 peer fe80::2/64 did not become ready: %v; last native addresses: %+v", context.Cause(ctx), addresses)
 }
 
 // requireAdmission checks native state produced by the same public setup.
@@ -290,23 +346,51 @@ func (f *nativeV6Fixture) requireAdmission(t *testing.T, link netlink.Link) {
 		t.Fatalf("IPv6 is disabled on original PPP: %q", disabled)
 	}
 	filter := &netlink.Route{LinkIndex: actual.Attrs().Index, Table: unix.RT_TABLE_LOCAL}
-	routes, err := f.route.RouteListFiltered(netlink.FAMILY_V6, filter, netlink.RT_FILTER_OIF|netlink.RT_FILTER_TABLE)
-	if err != nil {
-		t.Fatal(err)
+	ctx, cancel := context.WithTimeout(t.Context(), nativeV6Wait)
+	defer cancel()
+	const interval = 10 * time.Millisecond
+	var routes []netlink.Route
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	const attempts = int(nativeV6Wait/interval) + 1
+	// Wait for the existing native route; no route or device mode is changed.
+	for attempt := range attempts {
+		if ctx.Err() != nil {
+			break
+		}
+		var err error
+		routes, err = f.route.RouteListFiltered(netlink.FAMILY_V6, filter, netlink.RT_FILTER_OIF|netlink.RT_FILTER_TABLE)
+		if err != nil {
+			t.Fatalf("read original PPP multicast admission: %v", err)
+		}
+		for _, route := range routes {
+			if route.Dst == nil {
+				continue
+			}
+			if !route.Dst.IP.Equal(net.ParseIP("ff00::")) {
+				continue
+			}
+			bits, width := route.Dst.Mask.Size()
+			if bits != 8 {
+				continue
+			}
+			if width != 128 {
+				continue
+			}
+			if route.Type != unix.RTN_MULTICAST {
+				continue
+			}
+			return
+		}
+		if attempt+1 == attempts {
+			break
+		}
+		select {
+		case <-ctx.Done():
+		case <-ticker.C:
+		}
 	}
-	for _, route := range routes {
-		if route.Dst == nil {
-			continue
-		}
-		if route.Dst.String() != "ff00::/8" {
-			continue
-		}
-		if route.Type != unix.RTN_MULTICAST {
-			continue
-		}
-		return
-	}
-	t.Fatalf("original PPP has no native ff00::/8 multicast admission route after admin-up/address installation: %+v", routes)
+	t.Fatalf("original PPP has no native ff00::/8 multicast admission route after admin-up/address installation: %v; last native routes: %+v", context.Cause(ctx), routes)
 }
 
 func nativeV6Acquire(t *testing.T, opened dataplane.OpenedSession) ppp.IPv6Carrier {

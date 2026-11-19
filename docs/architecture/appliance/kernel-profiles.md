@@ -540,6 +540,21 @@ and family-escape operations before their native effects. The compiled
 capability declaration does not establish native or release acceptance.
 <!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- private source preconditions, receive-only scope -->
 
+`CreatedUnit.OpenIPv6ControlSocket` exposes this constructor to shared PPP
+callers through the existing joined original-namespace helper. It validates the
+kind and context, then runs creator-only query51 and constructor43 in one short
+borrow of the same original file. It enters no namespace and duplicates no
+creator file. A missing control capability refuses construction.
+The caller MUST Close every nonnil returned control file, including descriptor
+zero or a file accompanied by a late borrow or context error. The caller's
+session/carrier adapter owns any `net.FilePacketConn` conversion and cleanup.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_control_socket.go -- CreatedUnit.OpenIPv6ControlSocket, IPv6ControlSocketKind -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_control_socket_linux.go -- CreatedUnit.openIPv6ControlSocket, validateCreatedUnitControlOwner -->
+
+Constructor and option tests cover this file API and its refusal boundaries.
+Actual carrier packets, multicast cleanup and fragment isolation require their
+separate native tests before shared PPP acceptance is complete.
+
 ## Runtime requirements
 
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
