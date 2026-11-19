@@ -123,7 +123,7 @@ those two rows true rather than changing them.
 | D-11 PPPoE Session-Timeout and Idle-Timeout | open |
 | D-12 failed counter read treated as idle | open |
 | D-13 PPPoE ifindex truncated to 16 bits in the driver and pool keys | open |
-| D-14 PPPoE subscriber routes never reach redistribute | open |
+| D-14 PPPoE subscriber routes never reach redistribute | fixed and verified for AC-23 |
 | I-1 emit-without-subscribe guard | open |
 | I-2 vacuity-trap and sibling-audit rows | open |
 | I-3 poll-sleep, VPP evidence image, checkVPPVersion | open |
@@ -461,7 +461,7 @@ tests instead.
 | `coa-disconnect` | `test/pppoe/coa-disconnect.ci` | a Disconnect-Request tears down a PPPoE session | |
 | `renegotiation-preserves-session` | `test/l2tp/renegotiation-preserves-session.ci` | a mid-session Configure-Request leaves accounting and timeouts intact | |
 | `flowexport-reload-epoch` | `test/plugin/flowexport-reload-epoch.ci` | sysUpTime does not regress across a reload | |
-| `redistribute-subscriber-route` | `test/pppoe/redistribute-subscriber-route.ci` | a PPPoE subscriber's assigned address is announced through `redistribute` and withdrawn when the subscriber disconnects (AC-23) | |
+| `redistribute-subscriber-route` | `test/pppoe/redistribute-subscriber-route.ci` | BGP receives each PPPoE subscriber's assigned host route and RADIUS Framed-Route. Each disconnect withdraws its own routes while the other session stays up (AC-23) | 80 guest iterations passed, followed by a pass on the regular suite path |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -580,7 +580,7 @@ tests instead.
    - Tests: `TestCoAUnappliedAnswersNAK`, `TestPPPoESessionDrivesSubscriberRoutes`, `TestPPPoESubscriberRoutesCannotCollideWithL2TP`, plus the disconnect, framed-route and `test/pppoe/redistribute-subscriber-route.ci` functional tests
    - Files: `authradius/coa.go`, `pppoe/subsystem.go`, `route_observer.go`, `redistribute.go`, `subscriber/handler_registry.go`
    - Verify: AC-15, AC-16 and AC-23 end to end; the route observer is keyed on the subscriber session before PPPoE drives it, so the keyspace phase precedes this one
-   - Under the recommended D-14 design (pending Thomas): the observer subscribes to `subevents.SessionIPAssigned` and `SessionDown`; the direct calls in `reactor_kernel.go` and `teardown.go` are deleted in the same commit; the `pppoe` source is registered from the PPPoE package; an L2TP test proves a teardown still follows the address it withdraws once the observer is reached through the bus
+   - D-14 uses `subevents.SessionIPAssigned` and `SessionDown`. The PPPoE package registers the `pppoe` source. The L2TP ticket-order test proves a teardown follows the address assignment it withdraws through the shared events.
 8. **Phase: Standalone defects** - IKE rekey continuity and flow-export epoch
    - Tests: `TestIKERekeyPreservesEstablishedAt`, `TestFlowExportReloadPreservesSysUpTime`
    - Files: `ike/engine/rekey.go`, `flowexport/register.go`
@@ -705,6 +705,16 @@ timed out waiting for `10.99.23.10/32` and `198.51.100.0/24`.
 
 The corrected fixture passed all 80 guest iterations with no skipped cases.
 It passed again after promotion to `test/pppoe/redistribute-subscriber-route.ci`.
+
+The strict `l2tp-many-sessions-kl2tpd` lab passed in Ze's Linux guest. The
+checker observed 48 assigned sessions, then 47 and 46 after the targeted
+disconnects, with traffic still flowing on the surviving sessions. Its build
+used a process-local overlay for the committed Fleet files from `81ea5827e1`
+because concurrent Fleet changes did not compile.
+
+The L2TP, PPP, PPPoE, and subscriber-event package checks passed. The scoped
+lint planner stopped when concurrent Fleet edits changed its inputs on both
+attempts, before a lint verdict was produced.
 
 Hold the PPPoE SID through terminal publication. The held-Down test fails
 when cleanup can release it before the pool reader returns. Wait for
