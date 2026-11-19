@@ -57,9 +57,11 @@ Interim-Update waits on a silent server, that two live sessions with the same
 tunnel and session ID keep separate records, and that a Stop after the client
 is replaced still reaches the session's original server, and the new server
 receives none of the old session's records. The
-daemon test, `test/draft/l2tp/slow-accounting-control.ci`, ends one session
+daemon test, `test/l2tp/slow-accounting-control.ci`, ends one session
 with the LAC's CDN while its Stop goes unanswered and checks that another
-tunnel's HELLO is still acknowledged. It is a draft, outside the live suite.
+tunnel's HELLO is still acknowledged. It runs in the live L2TP suite.
+<!-- source: test/l2tp/slow-accounting-control.ci -->
+<!-- source: internal/test/fixture/tunnel_fixture_l2tp_slow_accounting.go -- tunnelL2TPSlowAccountingControl -->
 <!-- source: internal/component/l2tp/plugins/authradius/acct_original_task_test.go -- TestAccountingDownReturnsWhileStartAwaitsRadius, TestAccountingDownReturnsWhileInterimAwaitsRadius, TestAccountingOverlappingBirthsKeepDistinctRecords, TestAccountingTerminalKeepsItsOriginalEndpoint -->
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown -->
 
