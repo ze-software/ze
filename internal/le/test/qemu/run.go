@@ -587,7 +587,10 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 			argv = append(argv, "-bios", bios)
 		}
 	} else {
-		argv = append(argv, "-machine", b.Str("accel=").Str(acceleration).String())
+		// -cpu max, as on arm64: the host's CPU under KVM or HVF, the fullest
+		// model under TCG. QEMU's default qemu64 advertises no SSE4 or AVX, which
+		// code built in the guest (VPP's vector intrinsics) needs.
+		argv = append(argv, "-machine", b.Str("accel=").Str(acceleration).String(), "-cpu", "max")
 	}
 	b.Reset()
 	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(port)).Str("-:22").String()

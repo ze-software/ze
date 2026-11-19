@@ -195,6 +195,11 @@ type dockerLabVM struct {
 // never changed (spec AC-9). The cidata volume is the last virtio disk, where
 // Lima attaches it. The console is a virtio console (hvc0, the image's last
 // console=), written to console.
+//
+// Both architectures ask for -cpu max: the host's own CPU under KVM or HVF, the
+// fullest model under TCG. Without it an amd64 guest gets QEMU's qemu64
+// baseline, which advertises no SSE4 or AVX, and a VPP build in the guest fails
+// on its vector intrinsics (u32x4_gather, u32x4_is_all_equal).
 func (vm dockerLabVM) argv() []string {
 	var b textbuf.Buffer
 	argv := []string{runQEMUBinary(vm.goarch)}
@@ -202,7 +207,7 @@ func (vm dockerLabVM) argv() []string {
 		argv = append(argv, "-machine", b.Str("virt,highmem=on,accel=").Str(vm.accelerator).String(),
 			"-cpu", "max", "-bios", vm.firmware)
 	} else {
-		argv = append(argv, "-machine", b.Str("q35,accel=").Str(vm.accelerator).String())
+		argv = append(argv, "-machine", b.Str("q35,accel=").Str(vm.accelerator).String(), "-cpu", "max")
 	}
 	b.Reset()
 	image := b.Str("file=").Str(vm.image).Str(",format=raw,if=virtio,snapshot=on").String()

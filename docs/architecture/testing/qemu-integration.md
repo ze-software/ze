@@ -77,6 +77,14 @@ before its software fallback. Hardware-only runs still require the host's usable
 hypervisor and do not permit TCG.
 <!-- source: internal/le/test/qemu/run.go -- acceleration -->
 
+The run guest and the docker-lab guest ask for `-cpu max` on both
+architectures: the host's own CPU under KVM or HVF, QEMU's fullest model under
+TCG. Without it an amd64 guest gets QEMU's `qemu64` baseline, which advertises
+no SSE4 or AVX even under KVM, and code built in the guest that needs them
+fails: VPP's vector intrinsics (`u32x4_gather`) do not compile.
+<!-- source: internal/le/test/qemu/run.go -- qemuArgs -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabVM.argv -->
+
 The first run fetches the Alpine ISO and Go toolchain. Alpine is cached under
 `${XDG_CACHE_HOME:-$HOME/.cache}/ze/alpine-iso/`; Go archives remain under
 `tmp/qemu/go-dl/`. Later runs reuse those downloads.

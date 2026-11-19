@@ -19,7 +19,7 @@ import (
 // VALIDATES: spec AC-9's boot, TestDockerLabBootsTheDockerHostImage's row:
 // QEMU boots the docker-host image (snapshot=on, so the cached file is never
 // written), then the cidata volume as the last virtio disk; arm64 names its
-// UEFI firmware and amd64 none; every share is exported at its host path; and
+// UEFI firmware and amd64 none; both ask for -cpu max; every share is exported at its host path; and
 // no Alpine kernel, initramfs or ISO is on the line.
 // PREVENTS: a boot that writes the shared image, an arm64 guest with no
 // firmware, a share the guest mounts somewhere a bind mount does not look, and
@@ -41,6 +41,12 @@ func TestDockerLabBootsTheDockerHostImage(t *testing.T) {
 			}
 			if hasFirmware := strings.Contains(argv, "-bios /fw/edk2-aarch64-code.fd"); hasFirmware != (goarch == ArchARM64) {
 				t.Errorf("firmware on the line = %v for %s:\n%s", hasFirmware, goarch, argv)
+			}
+			// -cpu max on both: an amd64 guest left on QEMU's qemu64 baseline
+			// advertises no SSE4 or AVX, and VPP's vector intrinsics
+			// (u32x4_gather) do not build in it.
+			if !strings.Contains(argv, "-cpu max") {
+				t.Errorf("%s argv lacks -cpu max:\n%s", goarch, argv)
 			}
 			for _, want := range []string{
 				"-virtfs local,path=/Users/someone/ze,mount_tag=zelab0,",
