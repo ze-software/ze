@@ -1,0 +1,96 @@
+# Question: does a config file that maps a subsystem to a syslog facility make
+# the daemon send that subsystem's records on that facility, at the severity of
+# each record's level? A unit test drives slogutil alone; only a daemon booted
+# from a config proves the environment block reaches the loggers that BGP
+# creates, and that the datagram a collector receives carries the PRI field.
+#
+# The runner starts the syslog collector and sets ze.log.backend=syslog and
+# ze.log.destination. The config sets bgp.server to debug and maps bgp to
+# local7, so a bgp.server debug record has PRI 23*8+7 = 191 (RFC 5424 Section
+# 6.2.1). No bgp.server record may arrive with a PRI from 20 to 39, the range
+# that holds every daemon PRI (24 to 31), where it went before this feature.
+
+expect=syslog:pattern=^<191>.*subsystem=bgp\.server
+reject=syslog:pattern=^<[23][0-9]>.*subsystem=bgp\.server
+
+
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Static route UPDATE
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    log {
+        bgp.server debug
+        syslog {
+            bgp local7
+        }
+    }
+}
+
+plugin {
+    internal gr {
+        use bgp-gr
+    }
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+			    ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+			    graceful-restart {
+			        restart-time 120
+			    }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	
+	
+	
+	    update {
+	        attribute {
+	            origin igp
+	            local-preference 100
+	            next-hop 10.0.0.1
+	        }
+	        nlri {
+	            ipv4/unicast add 192.168.1.0/24
+	        }
+	    }
+	
+	    attach process gr {
+	    	receive [ open-received state eor ]
+	    	send [ update ]
+	    }
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
