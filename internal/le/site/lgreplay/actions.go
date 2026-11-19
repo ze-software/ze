@@ -329,7 +329,9 @@ func readCheckout(ctx context.Context, root string) (checkout, error) {
 	if err != nil {
 		return checkout{}, gitFailure(err, root)
 	}
-	status, err := gitAnswer(ctx, root, "status", "--porcelain")
+	// The recording file is this action's own product, not code that answered:
+	// a file left by an earlier run does not make the tree uncommitted.
+	status, err := gitAnswer(ctx, root, "status", "--porcelain", "--", ".", ":(exclude)"+File)
 	if err != nil {
 		return checkout{}, gitFailure(err, root)
 	}
