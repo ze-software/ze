@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -27,6 +28,9 @@ func TestSubsystemPreRegistrationOwnsCommandNames(t *testing.T) {
 // Start owns handler.mu while it calls this sink; the test follows that contract.
 func TestSubsystemDeclarationReplacesPreRegistration(t *testing.T) {
 	handler := NewSubsystemHandler(SubsystemConfig{Name: "recognition-declare", Commands: []string{"request old task"}})
+	// Start creates the external Process before Stage 1. This ordinary
+	// declaration reserves no cleanup capacity and needs no running child.
+	handler.proc = process.NewProcess(plugin.PluginConfig{Name: "subsystem-" + handler.config.Name})
 	sink := &hubStartupSink{h: handler}
 	handler.mu.Lock()
 	err := sink.onRegistration(&rpc.DeclareRegistrationInput{Commands: []rpc.CommandDecl{{Name: "request current task"}}})
