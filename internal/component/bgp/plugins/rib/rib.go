@@ -761,8 +761,8 @@ func runRIBPlugin(conn net.Conn) int {
 			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
 		return 1
 	}
-	// SDK refresh MUST be bound before the run can admit its first UP.
-	if err := selected.setRefreshSender(p.SelectRefresh); err != nil {
+	// Both final refresh writers must be bound before the first UP.
+	if err := selected.setRefreshWriters(p.SelectRefresh, r.replayConfiguredRefresh); err != nil {
 		logger().Error("BGP selected refresh could not start", "error", err,
 			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
 		return 1

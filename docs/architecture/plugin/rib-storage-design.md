@@ -300,9 +300,17 @@ Ordinary Route Refresh carries its receiving Peer owner and exact Session
 through both public event rails. The existing destination worker coalesces at
 most one pending request per registered family beside one active replay. It
 awaits Begin, captures that family's current desired keys and possible output,
-then awaits each fresh selected-route receipt before End. It never replays SENT
-history for an ordinary destination. Source/recipient locks are not held across
-these operations; other recipients continue independently.
+then awaits each fresh selected-route receipt. Before End, it also joins replay
+of current configured announcements from the requested family and the original
+destination's SENT inventory. A replay requires the original writer's local
+origin receipt as well as the configured marker. The engine checks the original
+write receipt against that session's live output before admitting the replay.
+A configured replay carries no source policy epoch, so the writer refuses a
+learned receipt even if it receives one. The worker releases source and
+recipient locks before calling the engine, so other recipients continue independently.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh_configured.go -- replayConfiguredSent, sendConfiguredRefreshRoute -->
+<!-- test: internal/component/bgp/plugins/rib/rib_selected_configured_refresh_test.go TestSelectedRefreshJoinsOnlyCurrentConfiguredOutput -->
+<!-- test: test/plugin/refresh-config-static.ci -->
 
 The initial cut bounds keys and source receipt identities. Replacement writes
 outside that cut retain one conservative uncertainty bit until End rather than
@@ -3896,11 +3904,12 @@ a later call's NotDispatched cannot settle an earlier original writer.
 `clear bgp rib out-excluding-owner owner <id> [family <afi/safi>]` omits one
 configured destination owner, including when another owner shares its address.
 It captures each remaining live owner's current UP receipt before output.
-Ordinary destinations use their existing selected refresh worker and its final
-End receipt, rather than an auxiliary SENT projection. Auxiliary destinations
+Ordinary destinations use their existing selected refresh worker, including
+its configured-announcement replay and final End receipt. Omitting the family
+also includes families carrying only configured announcements. Auxiliary destinations
 replay immutable SENT attributes through bound markers and route requests; a
 replaced destination cannot lend its successor to the rest of that bracket.
 No same-session replay emits an initial readiness report. The command reports
 refreshed and refused destination counts and returns an error when any captured
 operation is unresolved; another destination's success does not clear it.
-<!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, resend, resendExcludedSent -->
+<!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, selected, resend, resendExcludedSent -->

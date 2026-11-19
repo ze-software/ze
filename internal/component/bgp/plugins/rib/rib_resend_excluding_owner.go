@@ -181,6 +181,23 @@ func (request *ownerExcludedResend) selected(r *RIBManager, target excludedResen
 	if r.selectedDispatch == nil {
 		return excludedSelectedReplay{}, errors.New("an ordinary destination has no deciding refresh worker")
 	}
+	families := make(map[family.Family]struct{})
+	if request.family == (family.Family{}) {
+		// The configured writer also serves families with no selected route.
+		// Finish reading SENT state before taking the dispatcher lock.
+		r.peerMu.RLock()
+		for fam, routes := range r.ribOut[target.owner] {
+			for _, route := range routes {
+				if route.configuredForSession(target.session) {
+					families[fam] = struct{}{}
+					break
+				}
+			}
+		}
+		r.peerMu.RUnlock()
+	} else {
+		families[request.family] = struct{}{}
+	}
 	d := r.selectedDispatch
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -191,10 +208,7 @@ func (request *ownerExcludedResend) selected(r *RIBManager, target excludedResen
 	if destination.owner != target.owner {
 		return excludedSelectedReplay{}, errors.New("the captured ordinary destination has another owner")
 	}
-	families := make(map[family.Family]struct{})
-	if request.family != (family.Family{}) {
-		families[request.family] = struct{}{}
-	} else {
+	if request.family == (family.Family{}) {
 		for key := range d.current {
 			families[key.family] = struct{}{}
 		}

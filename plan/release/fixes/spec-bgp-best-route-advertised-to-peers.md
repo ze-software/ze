@@ -104,7 +104,7 @@ Those commits do not close the spec or claim release readiness.
 | Owner-scoped selected refresh completion | Test companions committed in `305be7110c` | All 14 scoped roots passed with race detection; four producing-code cuts reached meaningful failures. Scoped RIB lint still has 46 findings; this test publication closes no acceptance criterion |
 | Auxiliary source output leases and captured SENT provenance | Test companions committed in `e28d1fb0c2`, `8f19a1e20b` and `5d8b28ffc7` | All ten selected RIB roots and the standalone reactor and server roots passed with race detection. Four producing-code walks exposed unknown-completion acceptance, retained completed-batch references and lost original SENT session provenance |
 | GR fixture migration and semantic RFC record renewal | Committed in `1524eb4085`; all 65 selected roots across the eight-carrier group passed with race detection | All six planned semantic records are observed: RFC4724-4.2-11 positive/negative for EOR purge and family scoping, RFC4724-4.2-7 positive/negative for expiry and timely reconnect, and RFC4724-4.2-8 positive/negative for absent and preserved forwarding state. The separate untagged writer-lock producer cut also reached its own assertion failure. This finite run is not full-package qualification or RFC conformance |
-| LLGR source-bound proof renewal, AC-7 | `588d0025a4` records 32 observed healthy-to-broken GR-local checks and 12 independent audit renewals. `3d1123f269` preserves the stale-route preference verdict, and `25fc8e8758` carries the original-Session replay fixture and nine proof records | Four RIB replay mutations failed at the stale metadata assertions, and five existing reactor proofs failed at their original producer breaks after healthy baselines. The two NO_LLGR daemon proofs reached the source-scoped deletion operation. The no-capability egress baseline still fails before readvertisement, at the source-best check |
+| LLGR source-bound proof renewal, AC-7 | `588d0025a4` records 32 observed healthy-to-broken GR-local checks and 12 independent audit renewals. `3d1123f269` preserves the stale-route preference verdict, and `25fc8e8758` carries the original-Session replay fixture and nine proof records | Four RIB replay mutations failed at the stale metadata assertions, and five existing reactor proofs failed at their original producer breaks after healthy baselines. The two NO_LLGR daemon proofs reached source-scoped deletion. A terminal host route repaired the egress fixture's original next-hop prerequisite. The repaired case passed 80 stress runs and its promoted run. Cutting NO_EXPORT left the initial reflection and the stale replay with LOCAL_PREF 0 intact, and failed the expected community assertion |
 | Scoped origin admission, election and settlement | Test companions committed in `6297ed3ef0` | All 18 roots passed with race detection. They cover preference, retained alternatives, exact removal, original receipts, cancellation and uncertain completion across the native and framed SDK transports. Existing redistribution rejection and rule-narrowing roots separately passed; the origin tests alone do not prove a complete system-route and learned-route TCP lifecycle |
 | Configured redistribution, AC-17 | Forked RIB config fix and transaction tests committed in `076b002dae`. The test passed 80 Linux draft stress executions and two post-promotion Linux runs | The per-route override beat learned BGP and the configured default lost. Removing the rule restored the learned path without another source UPDATE. The unadmitted system route stayed off the wire and both original sessions survived. Omitting only the forked RIB's `rib` config root caused the higher-distance static route K to appear on the wire before the API fence |
 | Explicit export rejection of a scoped origin, AC-15 | Fixed and verified on the original recipient sessions | The initial socket test showed a stale local route and zero withdrawals after rejection. The repaired path withdraws only the affected recipient's output. Rollback and later acceptance reoffer the retained selected origin. The direct one-shot route stays out until the API sends it again. The other recipient keeps its learned route |
@@ -118,6 +118,8 @@ Those commits do not close the spec or claim release readiness.
 | Scoped ordinary wire regressions, AC-1 to AC-4 and AC-6 | All seven original socket regressions passed in `job-advertiser-bgp-core-and-forwardability-controls-ab66c9c9.log` | The original connections saw the elected winner, replacement and withdrawal. The useful controls covered external-to-internal export, internal split horizon, and explicit denial of the selected route |
 | Ordinary transit RFC evidence, AC-1 | `710dee74b9` adds an independently rejudged RFC4271-9.2-7 positive for ordinary initial IPv4 output | Both RIB placements passed. Removing selected publication prevented the internal recipient UPDATE after election and stopped the forked RIB before election could be observed. The two existing route-server proofs remain |
 | Advertiser RFC checklist | Twelve existing proof records were renewed across RFC 4271, RFC 8212, RFC 4456 and RFC 7947 | The split-horizon audit retains its enforced verdict. The own-AS reachability retakes cover the existing direct API. The scoped admission and redistribution tests separately exercise selected output |
+| Existing LLGR egress | `22d64ad58a` renews the RFC 9494 test with a reachable original next hop | The original wire assertions passed in 80 draft executions. The promoted daemon case failed when the output omitted only `NO_EXPORT` |
+| Configured-route refresh | Selected refresh now joins the current configured announcement on the same worker | The original enhanced wire test passed. The worker tests checked session, family, origin, completion and all-families owner-excluded replay. The reactor wire test accepted local replay at epoch zero and refused learned replay at that epoch |
 | Ended destination and disconnected scope, AC-9 and AC-12 | Two new regressions reproduced the lifecycle defects and passed after the fix. The scoped dispatcher, origin and retained-source race run passed | A timed-out DOWN kept its in-flight obligation until the worker joined, then released the exact session. Withdrawn origins stopped leaving selection rows in disconnected scopes. Active fallback revisions and same-address independent owners survived |
 | Attachment grants, AC-25 | Validate and candidate commit tests in `483ca1bc0a`. Three daemon startup refusals in `6f1b436d3e`. Completed-grant refresh case promoted | Each startup case passed 80 stress invocations and a fresh post-promotion run. The completed graph passed 80 stress invocations and a fresh post-promotion run. In both RIB placements, a late peer received the elected route, sent a real ROUTE-REFRESH, and received the same route on its original socket without a new source UPDATE |
 | Default AIGP without ordinary transit, AC-26 | The two-peer config passed validation and both editor commit paths. Its partial-RIB comparison was refused | `bgp-best-route-api-only.ci` observed both received routes in Adj-RIB-In and useful API announcements on both original sockets, with no learned route passed between them. The draft passed 80 stress invocations, and the promoted test passed on a fresh daemon |
@@ -204,10 +206,14 @@ fixture reading an asynchronously changed map without its lock, and stopped
 the RIB package at a fixture callback closing its channel twice. The latter
 fixture had exposed its manager before the SDK runtime was ready. Reviewed
 repairs use the actual readiness handshake and locked observation. All six
-reached roots then passed with race detection; repeated and full-package
-reruns remain owed. That run did not reach the large-event root. Its isolated
-170,000-route race run passed, so the earlier full-run timeout remains under
-investigation rather than being declared resolved.
+reached roots then passed with race detection. Before stopping, that RIB run
+passed both `TestSDKEventBusWholeFamilyFrames` subtests. The unchanged
+170,000-route redistribution subtest took 15.33 seconds in
+`job-advertiser-qualified-rs-redist-rib-packages-34810b66.log:2486–2491` and
+15.34 seconds in the other package run `482cf80b:1491–1496`. The earlier
+integrated `9d3857e0:2668–2674` reached the 30-second request deadline. The
+15.20-second isolated race pass and the two later package passes preserve
+the original input size and assertions.
 
 The four promoted GR/RTR scenarios cover retained-route advertisement,
 withdrawal and restoration on recipient TCP. Purge reconnects with GR state
@@ -1559,7 +1565,7 @@ the design gate, including unchanged callers and non-Go clients.
 | 6 | Has a user guide page? | Yes | `docs/guide/route-reflection.md` documents the ordinary role. `docs/guide/bgp-policy.md` describes the missing export policy default. `docs/guide/netlab.md` describes its migrated topology |
 | 7 | Wire format changed? | Yes | `docs/architecture/api/process-protocol.md` documents the plugin wire contracts for selected output, source receipts and the Stage 1 fence. Ordinary UPDATEs use the existing BGP encoding |
 | 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md` covers the typed/framed selected operation. `docs/architecture/api/ipc_protocol.md` explains acknowledged cancellation |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md` tracks RFC4271-9.2-7. The ordinary discrimination record is owed. `rfc/short/rfc8212.md` tracks the existing external default preserved by this change |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `710dee74b9` records the RFC4271-9.2-7 ordinary discrimination. `rfc/short/rfc8212.md` tracks the external default preserved by this change. Final scoped RFC freshness remains pending |
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md` names the two native test topologies and their observable checks. The tests use the existing interop runner |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` describes what the FRR and BIRD ordinary-transit checks assert. Passing interop is separate native evidence |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/rib-transition.md` documents ordinary selected output and the owner decisions on grants, policy and preference. `docs/architecture/plugin/plugin-system.md` describes registered roles and destination ownership |
@@ -1700,3 +1706,263 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+
+- One explicitly attached `bgp-rib` instance owns ordinary selected output. Its bounded destination workers carry retained winners through the authenticated selected operation and the existing writer. A newly established or refreshing recipient receives the current exportable selection. Explicit eligible RS/RR roles own their own destinations.
+- The engine derives export route kind from the selected owner's role and the original source or local admission receipt. The configured export policy governs ordinary learned routes on both session types. RFC 8212 still governs the external absent-policy default. Reload retires affected learned output and reoffers current winners, with the original API output preserved.
+- Scoped API origins and configured redistribution compete using the existing distance and override rules. Both SDK transports can report a retained loser with zero announcements. Removing the winner exposes a still-admitted replacement. Source and destination removal join their exact outstanding work.
+- The Netlab reference profile uses ordinary transit. Native FRR and BIRD scenarios, live Linux Netlab, and the named daemon and socket cases exercised the operator outcomes.
+
+### Bugs Found/Fixed
+
+| Defect | Producing fix | Regression |
+|--------|---------------|------------|
+| Origin or destination history survived after its last current obligation | `ee5e8af111`, `selectedDispatch.destinationFinished` and scoped origin pruning | `TestSelectedDispatchEndedWorkerReleasesAfterCanceledDown`, `TestSelectedDispatchWithdrawnOriginsLeaveNoDisconnectedScopeRows` |
+| Automatic auxiliary replay could advertise an unresolved path to a replacement recipient | `96dc0b610e`, selected-owner advisory from the captured destination session | `TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute` plus the public advisory and FlowSpec controls |
+| Forked RIB missed configured system distances | `076b002dae`, `runRIBPlugin` requests the RIB configuration root | `bgp-best-route-redistribution-selected.ci` fails on the original recipient when the higher-distance static candidate appears |
+| Captured initial replay could stall or follow held live output | `3917f8277d`, bounded held-live overflow and distinct initial debt | The 16 scoped captured-order and readiness roots in `job-unit-pkg-7acedd0d.log` pass three times under race detection |
+| Source-bound forwarding fixtures used missing or unrelated original-session identities | `656d53a26b`, `041dc4f436` and `3917f8277d` restore original receive callbacks and exact destination receipts. `797f988f3f` corrects the automatic unnegotiated EOR case | The cached-source and Prefix-SID controls, four original FlowSpec role tests and five readiness roots retain their route and ownership assertions |
+
+### Documentation Updates
+
+- `16295fe31a` records the user path and evidence in both BGP feature pages, anchored to `dissemination_validate.go`, `rib_ordinary_destination.go`, `rib_selected_refresh.go` and `internal/component/bgp/filterapi/export_kind.go`. The feature level remains experimental.
+- `067a0c5b30`, `020e93cc22` and `519b3d188f` carry the operator, process protocol and writer documentation. Source anchors include `PolicyAbsences`, `Server.selectRoutes`, `ResolveDisseminationOwner` and the captured forwarding queue. The documentation verification table identifies the corresponding pages.
+- The retained native `doc check links` found three unrelated links and zero selected links. `doc check all` could not complete its command catalog when it hit the host Go-cache permission failure. Its other reported items were CoS/Fleet declarations and the generated documentation index. `spec citation` exited zero. The final scoped freshness and review results remain pending.
+
+### Deviations from Plan
+
+- The retained-advertisement producer is split across `rib_advertise_capture.go`, `rib_selected_dispatch.go` and `rib_ordinary_destination.go`. The original proposed test names below are mapped to the actual executed entry points.
+- The accepted-loser wire test uses the API path on both transports. The redistribution consumer's retained output and logging are verified in its separate complete package run, and the configured redistribution lifecycle is verified in the Linux daemon case.
+- RFC 4271 clauses 9.2-2 and 9.2-3 carry explicit partial annotations for the remaining RFC-wide boundaries at `ef5cd38788`. Selected-path evidence does not grant whole-requirement credit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|------------------------|----------------|--------|
+| approach | The no-capability LLGR daemon baseline stopped before stale readvertisement | The reflected UPDATE was useful, while the source /24 covered its own unresolved next hop in the Loc-RIB | `4a26147f` observed the first reflection and an empty selected-best result | Added an independently verified terminal /32 in the same fixture. In `f497f32b:57–73`, cutting NO_EXPORT leaves the reflected winner and stale replay intact and fails the original community assertion |
+| approach | Early distance and attachment retakes compiled against an incomplete shared Fleet update | Those runs stopped before reaching their useful baselines | `ded8fee4` shows the compiler error before the two early functional cuts | Retook the exact cases after the shared prerequisite cleared. `4caeb12d:8,35,105,128` records each healthy run and its intended behavioral failure |
+
+## Implementation Audit
+
+Native receipts named below are in the owning session's `scratch/` directory.
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Forward the elected route under ordinary transit | Done | `internal/component/bgp/plugins/rib/rib_advertise_capture.go:168`, `internal/component/bgp/reactor/reactor_api_selected.go:105` | The existing final writer constructs actual announcements and withdrawals for the exact destination Session |
+| Require one explicit RIB with complete grants and preserve RS/RR | Done | `internal/component/plugin/server/dissemination.go:48`, `internal/component/plugin/server/dissemination_validate.go:17` | Destination scope and alias-instance identity control ownership |
+| Require configured export policy on ordinary learned output | Done | `internal/component/bgp/reactor/dissemination_snapshot.go:51`, `internal/component/bgp/filterapi/export_kind.go:33` | The design's authorized local and explicit-role defaults share the external RFC 8212 guard |
+| Honor configured origin preference and admission | Done | `internal/component/bgp/plugins/rib/rib_origins.go:280`, `internal/component/bgp/plugins/rib/rib_origin_preferences.go:73` | Existing accepted system-route admission controls the origin's scope |
+| Join replacement, refresh and withdrawal on the original recipient | Done | `internal/component/bgp/reactor/selected_flush.go:18`, `internal/component/bgp/plugins/rib/rib_selected_refresh.go:73` | Observed on the actual daemon, socket and interop cases below |
+| Migrate the reference transit configuration | Done | `contrib/netlab/ze/ze.j2` | Clean Linux live lab in `job-advertiser-netlab-live-transit-5d32ed9f.log` |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `internal/component/bgp/plugins/rib/rib_advertise_capture.go:168` | Same global winner in both RIB placements and native FRR/BIRD |
+| AC-2 | Done | `internal/component/bgp/reactor/reactor_api_selected.go:105` | Useful eBGP-learned route reaches the accepting internal recipient |
+| AC-3 | Done | `internal/component/bgp/reactor/reactor_api_selected.go:174` | Shared egress keeps an ordinary received internal route off the second internal peer |
+| AC-4 | Done | `internal/component/bgp/plugins/rib/rib_advertise_capture.go:196`, `internal/component/bgp/reactor/selected_flush.go:120` | Replacement and final withdrawal retire the exact old output |
+| AC-5 | Done | `internal/component/plugin/server/dissemination.go:48`, `internal/component/bgp/plugins/rib/rib_ordinary_destination.go:16` | Explicit role, ordinary sibling and ambiguous-role refusal are separate witnesses |
+| AC-6 | Done | `internal/component/bgp/reactor/selected_flush.go:18,120` | Excluded winner retires prior output. An unrelated useful route survives |
+| AC-7 | Done | `internal/component/bgp/plugins/rib/rib_advertise_capture.go:97`, `internal/component/bgp/reactor/reactor_api_selected.go:105` | Retained winner lifecycle and the LLGR-specific egress question have distinct daemon receipts |
+| AC-8 | Done | `internal/component/bgp/plugins/rib/rib_source_output.go::settleSourceOutput`, `internal/component/bgp/reactor/selected_flush.go:18` | Retention revocation joins queued work |
+| AC-9 | Done | `internal/component/bgp/plugins/rib/rib_selected_dispatch.go::selectedDispatch.run` | Blocked recipient's cancellation and healthy sibling progress |
+| AC-10 | Done | `internal/component/plugin/server/replay_fence.go::validateReplayFenceDeclaration`, `internal/component/bgp/reactor/peer_initial_sync.go` | Actual external child wire ordering, separate framed/typed declaration parity |
+| AC-11 | Done | `internal/component/bgp/reactor/reactor_api_selected.go:194`, `internal/component/bgp/reactor/selected_flush.go:120` | Source path ID zero and opaque keys survive exact comparison |
+| AC-12 | Done | `internal/component/bgp/plugins/rib/rib_selected_dispatch.go:527`, `internal/component/bgp/plugins/rib/rib_origins.go:280` | Current, installed and in-flight keys bound remaining state |
+| AC-13 | Done | `internal/component/bgp/plugins/rib/source_policy.go:99`, `internal/component/bgp/plugins/rib/rib_selected_runtime.go:29` | Source policy phases, source expiry and stop covered by distinct recorded schedules |
+| AC-14 | Done | `internal/component/bgp/plugins/rib/rib_selected_diagnostic.go:16` | Failed obligations stay owed, with reported cause and successful clear |
+| AC-15 | Done | `internal/component/bgp/plugins/rib/rib_origins.go:280`, `internal/component/bgp/reactor/policy_reload.go:34` | The denied origin retires only for its authorized recipient |
+| AC-16 | Done | `internal/component/bgp/plugins/rib/rib_origin_preferences.go:73` | Reload re-elects on the same socket and losing withdrawal spares the winner |
+| AC-17 | Done | `internal/component/bgp/plugins/rib/rib.go:744` | Configured static admission, higher-distance loser, rule removal and system-only control |
+| AC-18 | Done | `internal/component/bgp/reactor/reactor_api_selected.go:105`, `internal/component/bgp/plugins/rib/rib_origin_preferences.go:73` | The old held writer cannot overwrite the current selected origin |
+| AC-19 | Done | `internal/component/bgp/plugins/rib/rib_origins.go:280`, `internal/component/bgp/reactor/origin_intake.go:138` | True retained result, withheld count and true admission failure on typed/framed rails |
+| AC-20 | Done | `internal/component/bgp/filterapi/export_kind.go:33`, `internal/component/bgp/reactor/policy_reload.go:34` | Learned and locally issued routes keep their distinct absent-policy and reload outcomes |
+| AC-21 | Done | `internal/component/bgp/reactor/policy_absence.go:22` | Separate internal diagnostic reason and external RFC 8212 reason |
+| AC-22 | Done | `internal/component/bgp/reactor/dissemination_snapshot.go:51` | Reflected internal and unreflected external routes reach the explicit RR client. RFC 8212 prevents external RS output |
+| AC-23 | Done | `internal/component/bgp/reactor/policy_reload.go:34`, `internal/component/bgp/reactor/selected_flush.go:18` | Removal, restore, rollback and late-write refusal checked on their respective schedules |
+| AC-24 | Done | `internal/component/plugin/server/delivery_graph.go:249`, `internal/component/bgp/reactor/send_permission.go:134` | Unattached receive and receive-only send boundaries remain enforced beside useful selected routes |
+| AC-25 | Done | `internal/component/plugin/server/dissemination_validate.go:17`, `internal/component/bgp/plugins/rib/rib_selected_refresh.go:73` | Both transport placements with full grants, and three distinct incomplete startup shapes |
+| AC-26 | Done | `internal/component/bgp/reactor/origin_intake.go:138` | Default AIGP uses the existing API writer with no selected owner |
+| AC-27 | Done | `internal/component/bgp/reactor/peer_selected_state.go:18`, `internal/component/bgp/plugins/rib/rib_ordinary_destination.go:16` | Replacement recipient gets useful selected routes and unresolved output waits for real resolution |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Seven original ordinary socket tests | Done | `internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go`, `internal/component/bgp/reactor/rfc4271_selected_boundaries_test.go` | All seven named PASS in `ab66c9c9`. The same run includes three selected forwardability regressions |
+| Admission, retained loser, scoped denial, preference and reconnect | Changed | `internal/component/bgp/reactor/selected_origin_result_test.go`, `internal/component/bgp/reactor/policy_scoped_origin_reject_test.go`, `internal/component/bgp/reactor/selected_origin_writer_lifecycle_test.go`, `internal/component/bgp/plugins/rib/rib_origins_test.go` and two origin daemon fixtures | Actual root names and placement split appear under AC-15 to AC-19 below |
+| Learned export defaults, role exemption, diagnostics and reload | Changed | `internal/component/bgp/reactor/policy_selected_reload_test.go`, `internal/component/bgp/reactor/policy_selected_rollback_test.go`, `internal/component/bgp/reactor/export_kind_context_test.go` and the policy daemon fixtures | Actual successful, absent-policy and policy-drained routes are distinct assertions |
+| Captured source, retention, stale dispatch, failure recovery, bounded independent output and external readiness | Changed | `internal/component/bgp/reactor/external_replay_fence_test.go`, `internal/component/bgp/plugins/rib/rib_selected_lifecycle_test.go`, `internal/component/bgp/plugins/rib/rib_selected_dispatch_test.go` and the retained-validation fixtures | Actual cases use original-owner and successor writers with isolated held-work schedules |
+| Path ID zero, opaque native keys, frame bounds and churn | Changed | `internal/component/bgp/reactor/selected_*_test.go`, `pkg/plugin/rpc/selected_sizes_test.go`, `internal/component/bgp/plugins/rib/rib_selected_origin_lifetime_test.go` | Native NLRI/path framing, exact per-key retirement, bounded pending work |
+| Nine named functional scenarios and the separate startup and retained validation cases | Done | `test/plugin/` | Native receipts in the wiring and AC verification tables |
+| FRR and BIRD dynamic route lifecycle | Done | `test/interop/scenarios/bgp-best-route-transit-{frr,bird}/` | Healthy, selected-publication failure at assertion 5, clean rebuild |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Selected-output RPC, SDK and final writer | Changed | `pkg/plugin/rpc/selected.go`, `pkg/plugin/sdk/sdk_selected.go`, `internal/component/plugin/server/dispatch_selected.go`, `internal/component/bgp/reactor/reactor_api_selected.go` and `internal/component/bgp/reactor/selected_flush.go` implement the proposed partition |
+| Origin admission and selection | Done | `internal/component/bgp/plugins/rib/rib_origins.go`, `internal/component/bgp/reactor/origin_intake.go`, `internal/component/bgp/reactor/origin_write.go` and the existing BGP redistribution consumer |
+| Selection capture, replay and lifecycle | Changed | `internal/component/bgp/plugins/rib/rib_advertise_capture.go`, `internal/component/bgp/plugins/rib/rib_selected_dispatch.go`, `internal/component/bgp/plugins/rib/rib_selected_refresh.go` and the existing source policy and shutdown hooks |
+| Explicit grant checking and role declarations | Done | `internal/component/plugin/server/dissemination.go`, `internal/component/plugin/server/dissemination_validate.go`, `internal/component/bgp/plugins/rib/rib_dissemination.go` and existing role registrations |
+| Route-kind default and export reload | Done | `internal/component/bgp/filterapi/export_kind.go`, `internal/component/bgp/reactor/dissemination_snapshot.go`, `internal/component/bgp/reactor/policy_reload.go`, `internal/component/bgp/reactor/policy_selected_retire.go` |
+| Diagnostic and dry-run surfaces | Done | `internal/component/bgp/reactor/policy_absence.go`, `internal/component/bgp/reactor/policy_dryrun.go`, `internal/component/bgp/config/policy_absence_doctor.go` and the policy command YANG and handler |
+| Required new scenarios | Done | `test/plugin/bgp-best-route-transit-default.ci`, `test/plugin/bgp-best-route-needs-export-policy.ci`, `test/interop/scenarios/bgp-best-route-transit-{frr,bird}/` |
+| User and architecture docs and Netlab template | Done | Document anchors and implementation commits in the documentation verification table |
+
+### Audit Summary
+
+- **Total items:** 48.
+- **Done:** 42.
+- **Partial:** 0.
+- **Skipped:** 0.
+- **Changed:** 6 planned carrier or test-name groupings. The requirements and acceptance criteria retain their original scope.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Forward the elected and replacement routes from ordinary BGP peers, with final withdrawal | Native daemon and interop | `bgp-best-route-transit-default.ci` passes internal and forked RIB placement. Disabling selected publication fails the actual path. Native FRR 10.7.1 and BIRD 3.4.0 recipients observe the winner, backup and withdrawal, retain the control prefix, and exclude the denied prefix. `287b6e8e` and `74115676` record the healthy runs and assertion-5 failures under the cut |
+| Require explicit attachments and the configured learned export policy | Functional daemon and socket | `bgp-best-route-needs-export-policy.ci` restores the selected learned route on the same socket after policy is added. Both diagnostics daemons observe useful ordinary and reflector routes, preserve the local API route, and check absent policy on internal and external destinations. `bgp-best-route-attach-isolation.ci` passes and fails at the intended unauthorized event under the attachment cut |
+| Let admitted local and learned candidates compete by configured preference | Linux daemon and SDK/socket | `4caeb12d:8,35` distinguishes learned from stale static output after a distance change. Linux `9d1cbbf5:25,82` checks the configured override, keeps the higher-distance static route off wire, and checks rule removal and the unadmitted-route control. Both `TestSelectedOriginResultRetainsLoserAcrossTransports` subtests show retained zero output and later real replacement |
+| Keep the reference deployment usable without route-server transit | Live Linux Netlab | `job-advertiser-netlab-live-transit-5d32ed9f.log` records correct protocol adjacencies, two installed kernel static routes, six sourced loopback pings and `clean true` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None transferred in the selected implementation scope | Final verification and artifact checks below remain part of this spec | This spec |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | Pending exact prospective-tree `le spec review record` |
+| `./le spec review check` | Pending |
+| Rounds | Pending completed independent review |
+| Reviewer lenses used | Exact source and test evidence, route-leak boundaries, source and destination lifetimes, allocation and writer order, protocol and documentation |
+
+### Configured route refresh
+
+The original `refresh-config-static.ci` baseline sent the configured UPDATE
+at startup, then returned an empty enhanced-refresh bracket on the same socket.
+`job-advertiser-final-legacy-refresh-daemon-proof-e628f1ae.log:25–52,132`
+records that failure. The selected worker now joins configured replay for
+the original destination, session and requested family before sending End.
+It requires the authenticated local origin as well as the configured marker.
+The engine checks the original SENT receipt against live output. The unchanged
+socket test passed in `job-advertiser-configured-refresh-final-proof-9809bf24.log:8`.
+Removing the SENT producer caused the same test to fail after the initial
+UPDATE and EOR (`:29,44–49,110`). The final origin guard passed both worker
+variants (`job-unit-pkg-f230526a.log:51–56`) and the original socket test
+(`job-advertiser-configured-refresh-final-wire-6acef1f4.log:7–8`). The latter
+compiled the current BGP code with only concurrent IKE changes pinned to
+their committed versions. The BGP-only reactor race test separately proved
+that a zero source policy epoch permits local replay and refuses learned
+replay (`job-advertiser-configured-refresh-engine-guard-d5d1f341.log:72,76,78`).
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Enhanced refresh omitted configured output from its bracket | `internal/component/bgp/plugins/rib/rib_selected_refresh.go::refreshStep` | Join configured output on the same worker using the exact destination and current SENT receipt |
+| 2 | ISSUE | Configured replay reserved memory for every SENT entry in the family | `internal/component/bgp/plugins/rib/rib_selected_refresh_configured.go::replayConfiguredSent` | Allocate the pending slice only as configured keys are added |
+| 3 | ISSUE | Owner-excluded replay without a family skipped destinations with only configured output | `internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go::selected` | Include families with configured SENT entries for the captured owner and session |
+| 4 | ISSUE | A learned SENT entry can inherit the peer's configured marker while writes interleave | `internal/component/bgp/reactor/reactor_notify.go::notifyOneMessage` | Require the writer's authenticated local origin in each configured refresh lookup |
+
+### Security Review
+
+| Boundary | Source and evidence |
+|----------|---------------------|
+| Authenticated owner and exact recipient | `internal/component/plugin/server/dispatch_selected.go::selectRoutes` gets the real process lease and validates the bounded batch. `internal/component/bgp/reactor/reactor_api_selected.go::selectedDestination` checks both original recipient identity and the send grant. `internal/component/plugin/server/selected_current.go::CurrentSelection` verifies the calling process incarnation, connection and response before accepting a current revision |
+| Learned export and local-origin provenance | `internal/component/bgp/reactor/dissemination_snapshot.go::ExportKind` derives authority from the destination's installed role. `internal/component/bgp/reactor/selected_origin.go::selectOrigin` uses the local class only after matching the issued origin, captured destination, immutable build and native key. `internal/component/bgp/reactor/selected_flush.go::writeSelected` checks authorization and policy again at final use. Both policy diagnostics daemons and the AC-19 typed/framed test exercise distinct useful and refused cases |
+| Bounded input, work and completion | `internal/component/plugin/selected.go::NewSelectedBatch` rejects an overlarge request or response before cloning fields. `internal/component/bgp/plugins/rib/rib_selected_dispatch.go::admitBatchLocked` bounds one admitted batch per recipient. The captured-forward queue has a separate bounded initial carrier and current-session overflow accounting. The race controls verify release and sibling progress at cancellation |
+| Operator configuration and process resources | The existing config tree, registered commands, authenticated plugin transport and peer socket carry the new work. The network packet and plugin DTO validations use existing binary codecs and bounded fields. The daemon's own reconciliation status is reported by its runtime doctor check |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-best-route-transit-default.ci` | Yes | Internal and forked published daemon cases, source and recipient socket steps |
+| `test/plugin/bgp-best-route-needs-export-policy.ci` | Yes | Original recipient, reload and wire-fence steps |
+| `test/plugin/bgp-policy-diagnostics-internal.ci` and `test/plugin/bgp-policy-diagnostics-forked.ci` | Yes | Both files carry independent config and daemon setup |
+| `test/plugin/bgp-best-route-refresh-selected.ci` | Yes | Initial and refreshed routes in both placements with the original recipient |
+| `test/plugin/bgp-best-route-api-only.ci` | Yes | Startup and direct-origin controls on both original peers |
+| `test/plugin/bgp-best-route-origin-distance.ci`, `test/plugin/bgp-best-route-redistribution-selected.ci` and `test/plugin/bgp-best-route-attach-isolation.ci` | Yes | All three promoted carriers and separate observer driver registrations |
+| `test/plugin/bgp-best-route-start-source-state-only.ci`, `test/plugin/bgp-best-route-start-destination-send-only.ci`, `test/plugin/bgp-best-route-start-split-instances.ci` | Yes | Exact distinct refusal carriers for the three partial grant cases |
+| `test/interop/scenarios/bgp-best-route-transit-frr/` | Yes | `README.md`, `ze.conf`, and `frr.conf`, `frr-backup.conf`, `frr-sink.conf` |
+| `test/interop/scenarios/bgp-best-route-transit-bird/` | Yes | `README.md`, `ze.conf`, and `bird.conf`, `bird-backup.conf`, `bird-sink.conf` |
+| `website/changes/fragments/bgp-best-route-advertised-to-peers.md` | Yes | Commit A's operator fragment has the matching spec, BGP topic, feature ID and six required sections |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Selected output reaches the ordinary peer | `TestRFC4271OrdinarySelectedWinnerReachesPeer` in `ab66c9c9`. `710dee74b9` records both promoted daemon placements and the selected-publication cut |
+| AC-2 | Useful external source reaches an internal recipient | `TestRFC4271OrdinarySelectedIBGPSplitHorizon` in `ab66c9c9` has an external-source control. Both policy diagnostics place useful external-learned output on B's socket |
+| AC-3 | Ordinary internal split horizon | Same exact test observes selection and useful permitted output before rejecting redistribution to the internal peer |
+| AC-4 | Winner withdrawal and fallback on original recipient | `TestRFC4271OrdinarySelectedReplacementLifecycle` passes in `ab66c9c9`. Native FRR/BIRD preserve recipient sessions through backup and final withdrawal |
+| AC-5 | Eligible exclusive role and scoped ordinary sibling | `TestDisseminationOwnerScopesExplicitClaim` and `TestDisseminationOwnerRefusesAmbiguousClaim` pass in `3398f67f`. Two role diagnostics daemons and captured readiness/RS selected socket controls in `7acedd0d` pass |
+| AC-6 | Denied winner retires old output | `TestRFC4271OrdinarySelectedExportDenialWithdraws` passed in `ab66c9c9`. `90755426:4,11,15` compares healthy output and the missing final withdrawal |
+| AC-7 | Eligible retained path reaches a new recipient | Four actual GR/RTR daemon scenarios run 80 times each (`765484dfd3`). LLGR absent-capability egress passes clean and fails its own NO_EXPORT assertion, `f497f32b:8,57–73,163–166` |
+| AC-8 | Retained revocation joins and discards queued stale output | `TestSelectedWriterRetainedRevocationJoinsBlockedFlush` and the real internal/forked retained purge/expiry witnesses. `1219a62b:430–436` observes queued cleanup on both transports |
+| AC-9 | Unblocked sibling progresses | `be7fc961:222` passes `TestSelectedWriterBlockedDestinationDoesNotBlockSibling`. The same scoped run checks canceled flush joins |
+| AC-10 | Real external fence and typed/framed parity | `9b18f2e5` observes `TestOrdinarySelectedExternalFenceDeclaration` with the actual unregistered TLS child, useful opt-out and replay before live wire. `3398f67f:3419–3421` gives both SDK declaration subcases |
+| AC-11 | Exact path-ID zero and opaque key retirement | `be7fc961` passes `TestSelectedWriterSourcePathZeroReplacement` and `TestSelectedWriterOpaqueKeysRetireIndependently` |
+| AC-12 | Pending state tracks only current obligations | `TestSelectedDispatchBlockedRecipientDoesNotRetainChurn` passes in `3398f67f`. The two named regressions and repair in `ee5e8af111` release ended recipient and withdrawn scope rows |
+| AC-13 | Join source apply/abort and expiry/shutdown boundaries | `3398f67f:11354–11356,12028,12052,12422,12498` records both quiesce transports, uncertainty/barrier and scoped source-policy roots. `1219a62b:430–436` covers held expiry/purge/release on both rails, and `a3d1da20:66` covers stop joining a canceled marker |
+| AC-14 | Report failed selected debt and clear after useful recovery | `3398f67f:12040,12054` passes `TestSelectedDispatchFailureDoesNotCompleteBarrier` and `TestSelectedDispatchDestinationFailureClearsAfterUsefulOutput`. `rib_selected_diagnostic.go::reportSelectedDestinations` projects the failed keys and owned cause |
+| AC-15 | Deny only the selected recipient's admitted scoped origin | `2434540ff3` records socket and SDK regressions. `TestPolicyScopedOriginRejectRetiresOnlyItsRecipient` asserts exact withdrawal on the original recipient, preserved learned route on its sibling, and one rollback reoffer |
+| AC-16 | Existing distance reload selects learned replacement | `4caeb12d:8,35,94` shows healthy output and exact old static AS_PATH after cutting the configured preference update |
+| AC-17 | Configured redistribution competes and removes only its source | `9d1cbbf5:25,35,82,150` shows healthy Linux guest exit and causal higher-distance static output after the exact forked RIB root cut |
+| AC-18 | Held old origin output cannot overwrite its replacement | `de4a47ad2f` exact final-writer overlap, original held receipt releases and unchanged sibling output |
+| AC-19 | Retained loser result, actual failure, later replacement | `job-unit-pkg-ed92dcd7.log` passes both `TestSelectedOriginResultRetainsLoserAcrossTransports` subcases three times under race detection. `ded8fee4:42,47,56` reaches both intended missing-local-route failures. Separate consumer and command roots cover logging and withheld count |
+| AC-20 | Missing learned export policy preserves admitted local output | Both `bgp-best-route-needs-export-policy.ci` placements pass, plus `TestPolicySelectedFinalReloadRestoresSameSession` in `58da13db` |
+| AC-21 | Report the learned route absence reason and usable fix | Both diagnostics daemon variants plus `TestLearnedExportWarningReportsAndClears` in `58da13db` distinguish the internal reason from RFC 8212 |
+| AC-22 | Scoped RR exception and external RS default refusal | Both diagnostics daemon variants observe external-learned unreflected, internal-learned reflected, ordinary API fence and external RS absence on their own sockets |
+| AC-23 | Remove, restore and roll back learned export without resending API output | `TestPolicySelectedFinalReloadRestoresSameSession` and `TestPolicySelectedFinalReloadKeepsOriginIntakeLocal` pass in `58da13db`. `35fcb311` records the rollback socket pass and `6be2ab20` its exact undo failure. The final writer rechecks the current route kind and policy on late work |
+| AC-24 | No widening of receive or send permission | `4caeb12d:105,128,187` records the useful baseline and decoded unauthorized receive when the exact delivery-graph guard is cut. Clean fixture also observes send refusal |
+| AC-25 | Complete grants on the same configured instance | Validate/commit receipt `483ca1bc0a`, three startup cases `6f1b436d3e`, and completed late peer and real refresh `17a2a32947` |
+| AC-26 | API-only startup with default AIGP and no ordinary owner | `92a0743524` validates config and editor paths. The promoted daemon proves both original recipient sockets in `7fc14767`. The direct-origin cut in `12b576c3` fails the first API route |
+| AC-27 | Original-session replacement gets only current eligible learned output | Three named forwardability/FlowSpec roots pass in `ab66c9c9`. The advisory, readiness and same-context controls pass in `7bce5d57`. Disabling the `ordinary-replay-owned` guard produces the expected failure in `d7e5742a` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Original iBGP UPDATE to the no-RS ordinary node, with accepting eBGP recipient | `test/plugin/bgp-best-route-transit-default.ci` | Two real daemon placements exercise parsed source/destination grants, terminal next hops, election, original wire announcement and withdrawal, and final API fence |
+| Original eBGP UPDATE to internal peers and live policy apply | `test/plugin/bgp-best-route-needs-export-policy.ci`, `test/plugin/bgp-policy-diagnostics-internal.ci`, `test/plugin/bgp-policy-diagnostics-forked.ci` | Retained learned release on original sockets, useful local origin and role controls, distinct validate/log/doctor explanations |
+| Late recipient establishes, then sends ROUTE-REFRESH | `test/plugin/bgp-best-route-refresh-selected.ci` | Both placements send initial and requested selection on the original recipient. The driver checks that source UPDATE counts stayed unchanged |
+| Original API announcement with default AIGP and no transit attachment | `test/plugin/bgp-best-route-api-only.ci` | Real startup, both local outputs, Adj-RIB-In observation before the ordered no-transit wire fence |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Confirmed | `rib_bestchange.go::publishBestChanges` already published to enrichment and BMP, which do not write peer UPDATEs. Current peer output is supplied by the independently wired `commitAdvertise` selected path |
+| A-2 | Confirmed | Original `ef1a3cf33d` Netlab with/without-RS contrast, corrected no-RS baseline failed after actual next-hop and API controls, then selected-path daemon, native FRR/BIRD and clean live Netlab passed |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature level and exact real-path coverage | `16295fe31a`, `features/bgp-protocol.md` and `docs/features/bgp-protocol.md` anchor ordinary transit to `ValidateDisseminationBindings`, `updateSelectedDestination`, `requestRefresh` and `UnconfiguredExportAccepts` | Yes |
+| Operator config syntax | `docs/guide/route-reflection.md#without-route-reflection` and `docs/guide/bgp-peering.md` use existing attachment grammar. Same forms are parsed by the ordinary, refresh and startup `.ci` cases | Existing grammar |
+| CLI and export dry-run display | `docs/guide/command-reference.md` and `docs/guide/bgp-policy.md` are anchored to `reactor/policy_dryrun.go` and `cmd/policy/handler.go`. The policy test command accepts learned/local only on export | Yes |
+| Engine API, SDK and protocol | `docs/architecture/api/{architecture,process-protocol,ipc_protocol,update-syntax}.md` and `docs/plugin-development/protocol.md` describe the selected receipt, admitted origin, framed/typed declarations and acknowledged cancellation. Anchors `Server.selectRoutes`, `SelectRoutes`, `SelectedCallContext` and `opCancelRequest` | Yes |
+| Plugin, role ownership and migration | `docs/guide/{plugins,netlab}.md` and `docs/architecture/plugin/plugin-system.md` match `ResolveDisseminationOwner`, `ValidateDisseminationBindings`, the runtime fence and the exact Netlab render | Yes |
+| RIB and final writer | `docs/architecture/{rib-transition,update-building,forward-congestion-pool}.md` and `docs/architecture/plugin/rib-storage-design.md`, anchored to `commitAdvertise`, final selected writes and captured replay carriers. Last captured replay and negotiated-marker docs in `519b3d188f` | Yes |
+| RFC evidence | `rfc/short/rfc4271.md` 9.2-2/3 partial and 9.2-7 ordinary positive, existing RFC8212 default guard, plus affected protocol proof records in their owning RFCs | Current scoped native freshness pending |
+| Comparison and interoperability | `docs/comparison.md`, `docs/architecture/testing/interop.md` and both scenario directories match native recipient conditions | Yes |
+| Monitoring and doctor | `docs/guide/monitoring.md` and `docs/architecture/doctor-and-health-checks.md` refer to metrics from `rib_selected_metrics.go::recordSelectedBatch` and diagnostics from `PolicyAbsences` and `advertiseDoctorDeclaration` | Yes |
+| Free-form route metadata and BGP UPDATE encoding | `pkg/plugin/rpc/selected.go` uses explicit protocol fields. `internal/component/bgp/reactor/selected_flush.go` uses the existing UPDATE writer and `internal/component/bgp/reactor/selected_origin.go` uses the shared batch builder | Existing wire and metadata formats |
+| Source anchors, surviving spec citations and news | Ordinary selected route and writer anchors read in the three surviving architecture destinations. Four sibling specs carry the five exact repoints in Commit A. `git grep` for the full old path finds no other tracked consumer after those repoints | Yes |

@@ -116,6 +116,7 @@ type selectedDispatch struct {
 	cancel       context.CancelFunc
 	send         rpc.SelectRoutesHandler
 	refresh      selectedRefreshSender
+	configured   selectedConfiguredReplay
 	ready        func(context.Context, string, uint64) error
 	reporter     *selectedReporter
 	current      map[advertiseKey]*selectedScopedRoute

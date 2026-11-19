@@ -3,29 +3,29 @@
     "rid": "RFC2918-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh",
-    "unit-sha": "6ae56a4359d8d219",
+    "unit-sha": "a959fa47d58676b0",
     "claim-sha": "08eef7c8adfedc90",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesForFamily",
-    "producer-sha": "41e954d84046339e",
-    "break": "body of collectGroupedRibOutRoutesForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rib/ribout_entry.go::collectRibOutRoutes",
+    "producer-sha": "994bf7760a4676c1",
+    "break": "body of collectRibOutRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer",
-    "unit-sha": "d7421049036a68c9",
+    "unit-sha": "c4dcae6e4bf2c19d",
     "claim-sha": "cc8cea8b01d8ded9",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
-    "producer-sha": "aaaaba231975ab79",
-    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "877df789f93608fb",
+    "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState",
-    "unit-sha": "f5d2c3f50819a0a6",
+    "unit-sha": "3ddf80d223a19fbf",
     "claim-sha": "365dcdddfa2cf2a0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
@@ -40,7 +40,7 @@
     "claim-sha": "e0533dc06e5cb1c2",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterFromFacts",
-    "producer-sha": "b0f608d9f2cb8c26",
+    "producer-sha": "0edf7685ed14fadb",
     "break": "body of Reactor.exportFilterFromFacts replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,14 +51,14 @@
     "claim-sha": "9a5292ee3b9e32eb",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterFromFacts",
-    "producer-sha": "b0f608d9f2cb8c26",
+    "producer-sha": "0edf7685ed14fadb",
     "break": "body of Reactor.exportFilterFromFacts replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin",
-    "unit-sha": "3ae0ab6bb6d7c131",
+    "unit-sha": "4b1960da646b8d0b",
     "claim-sha": "c89ca1a7c20cd43b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",
@@ -73,7 +73,7 @@
     "claim-sha": "def37428f24761e2",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-    "producer-sha": "fdc9b2b3e82ae894",
+    "producer-sha": "695ee0ab06d9b20d",
     "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801"
   }

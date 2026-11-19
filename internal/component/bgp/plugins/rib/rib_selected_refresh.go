@@ -21,6 +21,7 @@ const (
 	selectedRefreshUnspecified selectedRefreshPhase = iota
 	selectedRefreshBegin
 	selectedRefreshRoutes
+	selectedRefreshConfigured
 	selectedRefreshEnd
 )
 
@@ -28,10 +29,11 @@ const (
 // history. The initial cut bounds keys and sources; current captures are read
 // again when a batch is built. Only the destination's existing worker advances it.
 type selectedRefreshRun struct {
-	input   rpc.SelectRefreshInput
-	phase   selectedRefreshPhase
-	keys    map[advertiseKey]struct{}
-	sources map[uint64]struct{}
+	input      rpc.SelectRefreshInput
+	phase      selectedRefreshPhase
+	keys       map[advertiseKey]struct{}
+	sources    map[uint64]struct{}
+	configured selectedConfiguredRefresh
 	// sourceUncertain is one bounded conservative obligation, not a history
 	// of every replacement source. It lasts until this replay's final End.
 	sourceUncertain bool
@@ -54,6 +56,12 @@ func selectedRefreshFamilies() map[family.Family]struct{} {
 // setRefreshSender MUST precede destination admission. Its caller MUST bind
 // the SDK's final-receipt operation, not an enqueue-only or bare-IP command.
 func (d *selectedDispatch) setRefreshSender(send selectedRefreshSender) error {
+	return d.setRefreshWriters(send, nil)
+}
+
+// setRefreshWriters binds the marker and configured replay operations before
+// any destination can start a refresh.
+func (d *selectedDispatch) setRefreshWriters(send selectedRefreshSender, configured selectedConfiguredReplay) error {
 	if send == nil {
 		return errors.New("selected refresh has no final marker writer; bind the SDK refresh operation")
 	}
@@ -63,6 +71,7 @@ func (d *selectedDispatch) setRefreshSender(send selectedRefreshSender) error {
 		return errors.New("selected refresh writer was bound after destination admission; restart the deciding process")
 	}
 	d.refresh = send
+	d.configured = configured
 	return nil
 }
 
@@ -195,7 +204,7 @@ func (d *selectedDispatch) refreshStep(destination *selectedDestination, refresh
 			d.itemsForKeysLocked(destination, refresh.keys))
 		if len(items) == 0 {
 			if err == nil {
-				refresh.phase = selectedRefreshEnd
+				refresh.phase = selectedRefreshConfigured
 				d.signalChangeLocked()
 			}
 			d.mu.Unlock()
@@ -214,6 +223,19 @@ func (d *selectedDispatch) refreshStep(destination *selectedDestination, refresh
 		}
 		d.mu.Unlock()
 		return nil
+	case selectedRefreshConfigured:
+		if d.configured != nil {
+			if err := d.configured(destination.ctx, refresh.input, &refresh.configured); err != nil {
+				return err
+			}
+		}
+		d.mu.Lock()
+		if destination.ctx.Err() == nil {
+			refresh.phase = selectedRefreshEnd
+			d.signalChangeLocked()
+		}
+		d.mu.Unlock()
+		return destination.ctx.Err()
 	case selectedRefreshEnd:
 		if err := d.refreshMarker(destination, refresh, rpc.SelectedRefreshEnd); err != nil {
 			return err
