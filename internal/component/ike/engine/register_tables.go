@@ -1,5 +1,6 @@
 // Design: docs/architecture/firewall/table-ownership-and-shutdown-flush.md -- Rule 2b, a producer's table name is reserved
 // Related: source_guard.go -- sourceGuardOwner, sourceGuardTableName
+// Related: icmp_error_return.go -- icmpErrorReturnOwner, icmpErrorReturnTableName
 
 package engine
 
@@ -17,4 +18,9 @@ func init() {
 		Decides: "the IPsec site-to-site peers of the configuration and their tunnel addresses",
 		Command: "show firewall ruleset ipsec_source_guard",
 	}, sourceGuardTableName)
+	firewall.MustReserveTableNames(icmpErrorReturnOwner, firewall.TableControl{
+		Plugin:  "IKE engine's ICMP error return mapping",
+		Decides: "`vpn ipsec unmatched` and the remote traffic selectors of the IPsec peers with icmp-error-check true",
+		Command: "show firewall ruleset ipsec_icmp_error_return",
+	}, icmpErrorReturnTableName)
 }

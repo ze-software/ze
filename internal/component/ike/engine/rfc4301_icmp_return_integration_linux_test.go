@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -271,6 +272,30 @@ func icmpReturnPeerCapture(t *testing.T, lab *espPolLab) int {
 	return fd
 }
 
+// icmpReturnMapping installs what applyConfig installs after the catch-all for this
+// lab's peer (icmp-error-check true, remote selector 10.1.0.0/24) under `unmatched
+// discard`: the ICMP error return entries and their nft drop table, through the
+// production producer and the nft firewall backend. Cleanup releases both.
+func icmpReturnMapping(t *testing.T, entries map[string]ipsec.SPDPolicy) {
+	t.Helper()
+	if err := firewall.LoadBackend("nft"); err != nil {
+		t.Fatalf("load the nft firewall backend: %v", err)
+	}
+	cfg := &ipsec.IPsecConfig{
+		Unmatched: dataplane.SPActionDiscard,
+		Peers: map[string]ipsec.SiteToSitePeer{"forward-icmp": {TrafficSelectors: []ipsec.TrafficSelectorPolicy{{
+			LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePrefix: mustCIDRNet(t, "10.1.0.0/24"),
+		}}}},
+		Policies: entries,
+	}
+	mapping := newICMPErrorReturns(kernelICMPErrorReturn{})
+	mapping.apply(dataplane.Get(), cfg, slogutil.DiscardLogger())
+	t.Cleanup(func() { mapping.release(dataplane.Get(), slogutil.DiscardLogger()) })
+	if len(mapping.problems) != 0 || len(mapping.installed) != 2 {
+		t.Fatalf("the ICMP error return mapping did not install whole: %d entries, problems %q", len(mapping.installed), mapping.problems)
+	}
+}
+
 //ze:guest-root
 func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	lab := newEspPolLab(t)
@@ -280,7 +305,8 @@ func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	decoder := newICMPReturnDecoder(t, child, true)
 	controlSender := icmpReturnControlSocket(t)
 	// This is the operator's receive permission for errors from the protected side.
-	// Its missing FWD projection is part of this gateway path, not a test-only bypass.
+	// Since D-3 it also installs its transit projection (spdEntryPolicies), as the
+	// production reconciler does, so it is part of this gateway path, not a test-only bypass.
 	entries := map[string]ipsec.SPDPolicy{"icmp-from-protected-host": {
 		Name: "icmp-from-protected-host", Action: dataplane.SPActionBypass, Order: 1000,
 		Direction: ipsec.SPDDirIn, Protocol: sadSelProtoICMP,
@@ -292,6 +318,7 @@ func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
+	icmpReturnMapping(t, entries)
 	for index, quotedDestination := range []string{fragmentHostAddress, icmpForwardUnmatched} {
 		tag := uint16(0x7a10 + index*2)
 		quote := icmpReturnUDP(sadSelInnerRemote, quotedDestination, tag)

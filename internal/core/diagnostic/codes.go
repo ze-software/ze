@@ -100,6 +100,7 @@ const (
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorIPsecSPDInstallRefused               = "doctor-ipsec-spd-install-refused"
 	CodeDoctorIPsecSPDUndoIncomplete               = "doctor-ipsec-spd-undo-incomplete"
+	CodeDoctorIPsecICMPErrorReturn                 = "doctor-ipsec-icmp-error-return"
 	CodeDoctorIPsecIKESocketBypass                 = "doctor-ipsec-ike-socket-bypass"
 	CodeDoctorIPsecRedistributionSource            = "doctor-ipsec-redistribution-source"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
@@ -1449,6 +1450,21 @@ var builtinCodes = append([]CodeMeta{
 			"The doctor finding names the direction, the selector, the priority and the dataplane's " +
 			"answer. Restart the daemon so it installs the running configuration whole: ze signal restart.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-undo-incomplete"},
+	},
+	{
+		Code:  CodeDoctorIPsecICMPErrorReturn,
+		Title: "A forwarded ICMP error is discarded instead of sent through its return Child SA",
+		Description: "Under `vpn ipsec unmatched discard`, Ze installs an SPD entry for each ICMP error type " +
+			"Linux can map, towards the remote traffic selectors of every peer with icmp-error-check true, " +
+			"and the nft table ze_ipsec_icmp_error_return, which drops such an error when it does not " +
+			"leave through a Child SA. Together they let Linux send a forwarded ICMP error through the " +
+			"Child SA that carries the return traffic of the packet the error reports (RFC 4301 Section " +
+			"6.2). The kernel refused the table, an entry, or the removal of one, usually because Ze runs " +
+			"without CAP_NET_ADMIN or the kernel lacks nf_tables. Ze installs no entry without the table, " +
+			"so nothing leaves in clear: the SPD catch-all discards the error instead. The doctor finding " +
+			"names the step, the destination and the kernel's answer. Fix the cause, then reload: " +
+			"ze signal reload.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-icmp-error-return"},
 	},
 	{
 		Code:  CodeDoctorIPsecIKESocketBypass,

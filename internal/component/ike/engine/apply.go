@@ -449,6 +449,9 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
 		return err
 	}
+	// RFC 4301 Section 6.2. After the catch-all, which these entries rank above; a
+	// failure is logged and reported and leaves the error discarded, never refused.
+	icmpReturns.apply(dataplane.Get(), cfg, s.log)
 	if firstApply {
 		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
 			// The catch-all is in force, so the refusal of an implicit discard on the
@@ -825,6 +828,9 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	defer releaseApplicationOverride(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
 	s.pruneXFRMInterfaceEntries(dp, xfrmInterfacePlan{})
+	// The ICMP error return entries go before the catch-all they rank above, and
+	// their drop table after them (icmpErrorReturns.release).
+	icmpReturns.release(dp, log)
 	if warnSPDLeft(dp, log) {
 		return
 	}

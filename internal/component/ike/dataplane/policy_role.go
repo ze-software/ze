@@ -52,6 +52,10 @@ const (
 	// PolicyRoleSocketOverride is any other per-socket policy: an application's
 	// override of the SPD (RFC 4301 Section 4.4.1).
 	PolicyRoleSocketOverride
+	// PolicyRoleICMPErrorReturn is an out ALLOW entry for one ICMP error type towards
+	// a peer's remote selector, which lets a forwarded error reach the kernel's
+	// return-SA mapping under `unmatched discard` (engine/icmp_error_return.go).
+	PolicyRoleICMPErrorReturn
 )
 
 // unknownName is the word a renderer shows for a value Ze holds no name for: a
@@ -72,6 +76,7 @@ var policyRoleNames = [...]string{
 	PolicyRoleOSPF:               "ospf",
 	PolicyRoleESPFormSocket:      "esp-form-socket",
 	PolicyRoleSocketOverride:     "socket-override",
+	PolicyRoleICMPErrorReturn:    "icmp-error-return",
 }
 
 // socketPolicyRole names a per-socket policy from its priority, the mark Ze writes
