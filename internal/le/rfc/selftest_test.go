@@ -179,7 +179,10 @@ func TestSelftestCoversDiscriminationProperties(t *testing.T) {
 		// corpus check is not yet a proof: the fingerprints have to still match.
 		"discrimination/stale-proof-refused":      false,
 		"discrimination/comment-edit-keeps-proof": false,
-		"discrimination/half-written-refusal":     false,
+		// The proof belongs to the test (ai/META-DECISIONS.md, "Test changes"),
+		// so a behavioral edit of the producer leaves it standing.
+		"discrimination/producer-edit-keeps-proof": false,
+		"discrimination/half-written-refusal":      false,
 	}
 	if len(rows) < len(wanted) {
 		t.Fatalf("the discrimination stage contributed %d row(s), want one per refusal and count", len(rows))

@@ -10,7 +10,8 @@ import (
 )
 
 // A requirement report must publish only its selected proof and tag status.
-// Ambiguous producers in the same or another stem must stay out of that output.
+// Stale records with ambiguous tagged units in the same or another stem must
+// stay out of that output.
 // This checks output selection, not which sources the verifier reads.
 func TestDiscriminationStatusIDOutputExcludesOtherIDs(t *testing.T) {
 	for _, otherRID := range []string{selftestRIDDrop, selftestRIDUpdater} {
@@ -20,7 +21,7 @@ func TestDiscriminationStatusIDOutputExcludesOtherIDs(t *testing.T) {
 				return rid == selftestRIDSend
 			})
 			if err != nil {
-				t.Fatalf("an unrelated producer blocked the selected requirement: %v", err)
+				t.Fatalf("an unrelated stale record blocked the selected requirement: %v", err)
 			}
 			if len(status.Records) != 1 {
 				t.Fatalf("selected requirement has %d proofs, want its one valid proof", len(status.Records))
@@ -46,7 +47,7 @@ func TestDiscriminationStatusStemOutputExcludesOtherStems(t *testing.T) {
 		return hasRIDStem(rid, selftestStem)
 	})
 	if err != nil {
-		t.Fatalf("another stem's producer blocked the selected stem: %v", err)
+		t.Fatalf("another stem's stale record blocked the selected stem: %v", err)
 	}
 	if len(status.Records) != 1 {
 		t.Fatalf("selected stem has %d proofs, want its one valid proof", len(status.Records))
@@ -59,7 +60,7 @@ func TestDiscriminationStatusStemOutputExcludesOtherStems(t *testing.T) {
 	}
 }
 
-// An ambiguous selected producer resolves as absent, so its record becomes
+// An ambiguous selected tagged unit resolves as absent, so its record becomes
 // stale and its positive tag becomes unproven. Both selectors must retain the
 // fixture's existing unproven negative tag, and the stem retains its valid proof.
 func TestDiscriminationStatusSelectedAmbiguityIsStale(t *testing.T) {
@@ -78,18 +79,18 @@ func TestDiscriminationStatusSelectedAmbiguityIsStale(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			status, err := discriminationStatusOf(root, tc.selector, "", tc.selected)
 			if err != nil {
-				t.Fatalf("read the selected ambiguous producer's status: %v", err)
+				t.Fatalf("read the selected ambiguous unit's status: %v", err)
 			}
 			if len(status.Records) != tc.proofs {
 				t.Fatalf("verified proofs = %d, want %d", len(status.Records), tc.proofs)
 			}
 			for index := range status.Records {
 				if status.Records[index].RID != selftestRIDSend {
-					t.Errorf("an ambiguous producer published a verified proof: %+v", status.Records[index])
+					t.Errorf("an ambiguous unit published a verified proof: %+v", status.Records[index])
 				}
 			}
 			if len(status.Stale) != 1 {
-				t.Fatalf("stale proofs = %d, want the one ambiguous producer", len(status.Stale))
+				t.Fatalf("stale proofs = %d, want the one whose unit is ambiguous", len(status.Stale))
 			}
 			want := Cover{RID: selftestRIDDrop, Polarity: PolarityPositive,
 				Unit: discriminationScopeTestPath + "::TestOtherWidget"}
@@ -116,9 +117,38 @@ func TestDiscriminationStatusSelectedAmbiguityIsStale(t *testing.T) {
 	}
 }
 
-// A selected proof whose unit, claim or producer moved must remain stale and
-// return its tag to unproven. Scoping must never bypass fingerprint checks.
+// A selected proof whose unit or claim moved must remain stale and return its
+// tag to unproven. Scoping must never bypass fingerprint checks. A changed
+// producer is the case just outside: the proof belongs to the test
+// (ai/META-DECISIONS.md, "Test changes"), so it stays verified and its tag proven.
 func TestDiscriminationStatusSelectedStaleProofUnproven(t *testing.T) {
+	t.Run("producer stands", func(t *testing.T) {
+		files, proof := discriminationFixture(t)
+		putDiscrimination(t, files, proof)
+		changed := strings.Replace(files[selftestProducerPath], "return count", "return 0", 1)
+		if changed == files[selftestProducerPath] {
+			t.Fatal("the producer rewrite changed nothing, so the case tests nothing")
+		}
+		files[selftestProducerPath] = changed
+		status, err := discriminationStatusOf(discriminationTree(t, files), selftestRIDSend, "", func(rid string) bool {
+			return rid == selftestRIDSend
+		})
+		if err != nil {
+			t.Fatalf("read the selected proof beside a changed producer: %v", err)
+		}
+		if len(status.Records) != 1 {
+			t.Fatalf("verified proofs = %d, want 1: the tagged unit and its claim are unchanged", len(status.Records))
+		}
+		if status.Records[0].Cover() != proof.Cover() {
+			t.Errorf("verified proof names %+v, want %+v", status.Records[0].Cover(), proof.Cover())
+		}
+		if len(status.Stale) != 0 {
+			t.Errorf("a changed producer staled the proof: %+v", status.Stale)
+		}
+		if len(status.Unproven) != 0 {
+			t.Errorf("a changed producer returned the tag to unproven: %+v", status.Unproven)
+		}
+	})
 	cases := []struct {
 		name string
 		path string
@@ -127,7 +157,6 @@ func TestDiscriminationStatusSelectedStaleProofUnproven(t *testing.T) {
 	}{
 		{"unit", selftestTestPath, "!= 1", "== 1"},
 		{"claim", selftestTestPath, "SendWidget answers the count", "SendWidget preserves the count"},
-		{"producer", selftestProducerPath, "return count", "return 0"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -192,15 +221,20 @@ const (
 	discriminationScopeTestPath     = "internal/sample/scope_test.go"
 )
 
-// discriminationScopeFixture seals both records while their producers resolve,
-// then adds a second same-named method. The stored bare Count key becomes
-// ambiguous without invalidating the JSON or the selected SendWidget proof.
+// discriminationScopeFixture seals both records while their tagged units
+// resolve, then adds a second method of the tagged unit's name on another
+// receiver. The stored bare TestOtherWidget unit key becomes ambiguous, so the
+// other record's unit no longer resolves, without invalidating the JSON or the
+// selected SendWidget proof. The ambiguity is on the UNIT key because only the
+// unit and its claim stale a proof: an ambiguous producer leaves it standing
+// (ai/META-DECISIONS.md, "Test changes").
 func discriminationScopeFixture(t *testing.T, otherRID string) map[string]string {
 	t.Helper()
 	files, proof := discriminationFixture(t)
 	files[discriminationScopeTestPath] = "package sample\n\n" +
+		"type ScopeSuite struct{}\n\n" +
 		"// RFC requirement: " + otherRID + " positive -- Count returns one widget.\n" +
-		"func TestOtherWidget() {\n\tif (ScopeSender{}).Count() != 1 {\n" +
+		"func (ScopeSuite) TestOtherWidget() {\n\tif (ScopeSender{}).Count() != 1 {\n" +
 		"\t\tpanic(\"BUG: the widget was not counted\")\n\t}\n}\n"
 	files[discriminationScopeProducerPath] = "package sample\n\n" +
 		"type ScopeSender struct{}\n\nfunc (ScopeSender) Count() int {\n\treturn 1\n}\n"
@@ -211,7 +245,7 @@ func discriminationScopeFixture(t *testing.T, otherRID string) map[string]string
 		Break:    "body of Count replaced by a halt",
 	})
 	putDiscrimination(t, files, proof, other)
-	files[discriminationScopeProducerPath] += "\ntype ScopeReceiver struct{}\n\n" +
-		"func (ScopeReceiver) Count() int {\n\treturn 2\n}\n"
+	files[discriminationScopeTestPath] += "\ntype ScopeShadow struct{}\n\n" +
+		"func (ScopeShadow) TestOtherWidget() {}\n"
 	return files
 }

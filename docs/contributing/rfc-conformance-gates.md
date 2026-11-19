@@ -1949,9 +1949,9 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `claim-sha` | the hash of what the TAG claims, which is a separate field because `behaviorBytes` strips comments and a claim IS a comment. Without it a sealed proof survives a reworded claim, and a widened sentence would be published as proven with no code edit at all |
 | `route` | `mutant` for a one-line substitution from a gomu-format report entry, `revert` for a producer function replaced by a halt, `no-break` for the escape |
 | `producer` | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
-| `producer-sha` | that function's behavior hash when the break was applied |
+| `producer-sha` | that function's behavior hash when the break was applied. It records which version of the producer was broken, for a reviewer; no verdict reads it, because a proof belongs to its test and a producer change leaves it standing |
 | `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
-| `paired` | the further breaks applied together with `producer`'s in the one broken run, each a `producer`, `producer-sha` and `break` of its own. Absent on a single-break record. A paired producer that is gone or changed stales the record exactly as `producer` does |
+| `paired` | the further breaks applied together with `producer`'s in the one broken run, each a `producer`, `producer-sha` and `break` of its own. Absent on a single-break record. A paired producer that is gone or changed leaves the record standing exactly as `producer` does |
 | `solo` | present exactly when `paired` is: one entry per break, `producer` first then each paired break, holding `producer`, `break`, `seconds` and `green`, the line of a run with that break ALONE that showed the unit passing. Missing, short, out of order or naming another break is refused |
 | `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer. On a `kernel-producer` escape it is a span of the tag's own claim instead, and required |
 | `reason` | why no break exists, for the escape only, out of the closed vocabulary below |
@@ -1984,8 +1984,15 @@ The full artifact contract is `rfc/discrimination/README.md`.
 `verifyDiscrimination` re-checks each record's fingerprints against the working
 tree, `baselineRecordBlobs` (`internal/le/rfc/check_baseline.go`) reads what HEAD
 holds for the same files, and `checkDiscriminationRatchet`
-(`internal/le/rfc/check_ratchets.go`) judges what all three answered. Eleven
+(`internal/le/rfc/check_ratchets.go`) judges what all three answered. Ten
 refusals exist today.
+
+A proof belongs to its test. It goes stale only when the tagged unit or its
+claim changes: a change to the code the test checks, the producer the record
+broke included, changed, renamed or removed, leaves the record verified,
+because the unchanged test still catches what it caught (`ai/META-DECISIONS.md`,
+"Test changes"). The producer stays in the record so a reviewer can read what
+was broken, and so a re-take names the code to break again.
 
 | Refuses | Why |
 |---------|-----|
@@ -1993,19 +2000,18 @@ refusals exist today.
 | A polarity, a route, a key or a fingerprint outside its closed form | A half-read record is the shape a false proof takes |
 | A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
-| A record whose `producer` no longer resolves in the tree | The break was applied to code that is gone |
-| A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit, which `./le commit create` refuses unless it also carries the re-taken record ("The commit carries the record it stales", below). HEAD and the tree are compared at the granularity the record FINGERPRINTS, which is the producer or unit FUNCTION: comparing whole files let any unrelated uncommitted edit elsewhere in that file silence the author's own violation |
+| A record whose `unit-sha` or `claim-sha` no longer matches COMMITTED code | Nothing observed the red in the test that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a tagged test would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit, which `./le commit create` refuses unless it also carries the re-taken record ("The commit carries the record it stales", below). HEAD and the tree are compared at the granularity the record FINGERPRINTS, which is the unit FUNCTION (the producer, for an escape whose precondition it no longer holds): comparing whole files let any unrelated uncommitted edit elsewhere in that file silence the author's own violation |
 | A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and Thomas's release check, `./le verify worktree`, checks the commit under test out detached, where a tag that commit added IS the tip. A carrier file the tip RENAMED with its bytes unchanged added nothing: the baseline follows a rename whose blob id is identical, so its covers keep their proofs and owe none. A rename that changes even one byte is reviewed as an edit, and every unproven cover in it is owed |
 | A record committed at HEAD, deleted from the tree, while the tag it proved is still there | The proven set only goes up. Deleting a record beside a standing tag takes a proof off the published ledger and leaves the claim behind it |
 | Nothing, when a record's TAG is gone | A record dies with the tag it proves, so an orphan has nothing left to be wrong about. It is REPORTED as removable, on a `discrimination:` line of its own, and counted as proven by nothing |
 | A functional or interop record citing an assertion its carrier does not contain, or citing none | No generated break reaches either carrier, so the citation is what ties the recorded red to one assertion rather than to the whole suite. An interop citation is checked against the numbers the checker WRITES OUT, so an assertion numbered by expression -- `fail(index+2, err)` inside a loop -- cannot be cited until its checker writes the number |
 | An escape whose reason is outside the closed vocabulary, whose precondition no longer holds, or that names code the tagged unit does not reach | An unconditioned reason is the blanket opt-out the escape exists to refuse, and a reason checked over any file an author picks is unconditioned in practice |
 
-The three fingerprints are minted by `sealDiscrimination`, the one place a hash
-is computed. `unit-sha` and `producer-sha` hash `behaviorBytes` rather than the
-raw text. An unrelated comment, a reflow, an inserted header and a blank line
-each leave a record verified; a changed assertion or a rewritten producer voids
-it. That is the same predicate `ChangedTags` uses, so a record goes stale
+The fingerprints are minted by `sealDiscrimination`, the one place a hash is
+computed. `unit-sha` and `producer-sha` hash `behaviorBytes` rather than the
+raw text, and only `unit-sha` and `claim-sha` are compared. An unrelated
+comment, a reflow, an inserted header and a blank line each leave a record
+verified, and so does a rewritten producer; a changed assertion voids it. That is the same predicate `ChangedTags` uses, so a record goes stale
 exactly when the obligation says its unit moved, and the re-stamp burden
 the RFC 7606 audit verdicts recorded does not repeat here. Measured over this
 checkout's own records: a nine-line header prepended to every file they name,
@@ -2027,18 +2033,20 @@ a typo fix included, stales the record and owes a re-record.
 ### The commit carries the record it stales
 
 A record lands in the same commit as the change that stales it. A commit that
-changes a tagged unit's behavior, rewords its claim, or changes, renames or
-removes a producer or paired producer a record broke carries the record
+changes a tagged unit's behavior or rewords its claim carries the record
 `./le rfc record` re-took over the code the commit leaves, in
 `rfc/discrimination/<stem>/<requirement-id>.json`. The alternative is to remove
 the tag, which the `ze-test-judge` approves through the RFC-tagged test change
-gate. `./le commit create` refuses the commit otherwise. The refusal names each
+gate. `./le commit create` refuses the commit otherwise. A commit that changes,
+renames or removes only a producer or paired producer a record broke stales
+nothing: the proof belongs to the test, and the unchanged test still catches
+what it caught (`ai/META-DECISIONS.md`, "Test changes"). The refusal names each
 record, why it went stale (the verdict state and the key that moved) and the
-`./le rfc record` line that re-takes it, written from the record's own fields:
-its route, its producer, its citation, and an escape's reason and kernel
-fields. A `mutant` record also gets the `./le rfc discriminate` proposer line,
-because the mutant selector moved with the code. A removed producer is
-printed as `<file>::<Func>`, for the function that now holds its code.
+`./le rfc record` line that re-takes it on the route it was recorded on,
+written from the record's own fields: its route, its producer, its citation,
+and an escape's reason and kernel fields. A `mutant` record also gets the
+`./le rfc discriminate` proposer line, because the mutant selector moves with
+the code.
 
 The gate is the change-set check `rfc check` (`judgeStaleRecords`). It judges
 only what the commit does, so it is a refusal and never a red, and it holds
@@ -2047,7 +2055,8 @@ before release:
 | Record | Verdict |
 |--------|---------|
 | Verifies against the parent, and the record the commit leaves for its requirement, polarity and unit verifies against the tree the commit leaves | admitted |
-| Verifies against the parent, and fails against the tree the commit leaves (unit, claim or producer changed or gone, citation gone, escape unfounded) | refused |
+| Verifies against the parent, and fails against the tree the commit leaves (unit or claim changed, citation gone, escape unfounded, solo runs owed) | refused |
+| Its tagged unit's file is unchanged, and only a producer or paired producer it names changed or went | not read: a producer change stales no proof |
 | Verifies against the parent, and the commit deletes it while its tag stays | refused |
 | Its tag or tagged unit is gone from the tree the commit leaves | admitted: the record dies with its tag |
 | Already fails against the parent | admitted: debt the commit did not make |
@@ -2057,12 +2066,13 @@ The verdict on each side is `verifyOneDiscrimination`, the verifier
 comment-only edit stales nothing. The tree the commit leaves is the carried
 selection for the paths the commit carries, nothing for the paths it removes,
 and the parent everywhere else, never another session's working-tree edit.
-The gate stays cheap on every commit. A commit that touches no carrier, no Go
-file and no record file reads nothing. Otherwise the parent's record files are
-read in one git batch (`changecheck.Change.BeforeUnder`), and only the files
-that name a changed path are decoded. Only the records whose unit, producer or
-paired producer sits in a changed file, or whose own file the commit changes,
-are verified, at the function each fingerprints.
+The gate stays cheap on every commit. A commit that touches no carrier a tagged
+unit can sit in and no record file reads nothing, so a commit that changes only
+production code pays nothing for this gate. Otherwise the parent's record files
+are read in one git batch (`changecheck.Change.BeforeUnder`), and only the files
+that name a changed carrier are decoded. Only the records whose tagged unit sits
+in a changed carrier, or whose own file the commit changes, are verified, at the
+function each fingerprints.
 <!-- source: internal/le/rfc/discriminate_commit.go -- judgeStaleRecords, recordGate, retakeLines -->
 <!-- source: internal/le/commit/changechecks.go -- committedUnder -->
 
@@ -2262,9 +2272,9 @@ recorder ran solo runs, still loads, so the derived files every hook builds stay
 readable, and its verdict is `solo-owed`. That verdict is a violation wherever
 the record stands, committed or not, because no working-tree edit can explain a
 proof that was never taken, and the violation names the repair: re-take the
-record with `./le rfc record`, which runs each break alone. It
-re-checks each paired producer's fingerprint against HEAD as it does
-`producer`'s. It cannot re-run the solo runs: the record keeps what the recorder
+record with `./le rfc record`, which runs each break alone. It reads no
+producer fingerprint, the paired ones included, because a proof belongs to its
+test. It cannot re-run the solo runs: the record keeps what the recorder
 observed, as it does for the red.
 <!-- source: internal/le/rfc/discriminate_action.go -- mutantBreak, selectMutant -->
 <!-- source: internal/le/rfc/discriminate_observe.go -- observeBreaks, requireSoloGreen, wantsProfile -->

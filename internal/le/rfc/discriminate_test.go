@@ -82,12 +82,14 @@ func discriminationTree(t *testing.T, files map[string]string) string {
 	return root
 }
 
-// VALIDATES: R-6 and A-7 -- a record is keyed on the producer function NAME and the
-// tagged unit's behavior hash, so it survives every mechanical edit that changes no
-// behavior, and dies on every edit that changes one.
-// METHOD: one record verified against five trees. The first is the tree it was recorded
+// VALIDATES: R-6 and A-7 -- a record is keyed on the tagged unit's behavior hash, so it
+// survives every mechanical edit that changes no behavior, and dies on every edit that
+// changes the TEST's behavior. A behavioral edit of the producer leaves it standing: the
+// proof belongs to the test (ai/META-DECISIONS.md, "Test changes").
+// METHOD: one record verified against six trees. The first is the tree it was recorded
 // against. Three are mechanical: a file-top header that shifts every line, a comment
-// inside both units, and a reflow. The last inverts the assertion.
+// inside both units, and a reflow. One inverts the assertion, and one rewrites the
+// producer's behavior.
 // PREVENTS: the re-stamp burden the RFC 7606 audit verdicts recorded, where a 9-line inserted
 // header shifted every key and cost two whole paragraphs of mechanical re-sealing.
 func TestDiscriminationRecordKeyedOnUnitHashNotLine(t *testing.T) {
@@ -129,15 +131,30 @@ func TestDiscriminationRecordKeyedOnUnitHashNotLine(t *testing.T) {
 		"the tagged unit's assertion inverted": {
 			selftestTestPath: strings.Replace(selftestTestSource, "!= 1", "== 1", 1),
 		},
-		"the producer rewritten": {
-			selftestProducerPath: strings.Replace(selftestProducerSource, "return count", "return 0", 1),
-		},
 	}
 	for name, overlay := range behavioral {
 		t.Run(name, func(t *testing.T) {
 			verdicts := verifyFixture(t, files, overlay, record)
 			if verdicts[0].Verified() {
-				t.Fatalf("the record still verified under %s; the red was never re-observed over that code", name)
+				t.Fatalf("the record still verified under %s; the red was never observed by that test", name)
+			}
+		})
+	}
+
+	// A behavioral edit of the PRODUCER leaves the proof standing: the proof
+	// belongs to the test, and the unchanged test still catches what it caught
+	// (ai/META-DECISIONS.md, "Test changes").
+	producer := map[string]map[string]string{
+		"the producer rewritten": {
+			selftestProducerPath: strings.Replace(selftestProducerSource, "return count", "return 0", 1),
+		},
+	}
+	for name, overlay := range producer {
+		t.Run(name, func(t *testing.T) {
+			verdicts := verifyFixture(t, files, overlay, record)
+			if !verdicts[0].Verified() {
+				t.Fatalf("the record went %s under %s; a producer edit leaves the test's proof standing",
+					verdicts[0].State, name)
 			}
 		})
 	}
@@ -156,11 +173,16 @@ func TestDiscriminationRecordDiesWithItsUnit(t *testing.T) {
 		t.Fatalf("a renamed tagged unit answered %q, want %q", verdicts[0].State, ProofUnitGone)
 	}
 
+	// The PRODUCER renamed is not the unit renamed: the tagged unit still holds
+	// the code the red was observed in, so the proof stands. The test fixture
+	// calls SendWidget, so only the producer file is renamed here, which leaves
+	// the unit's own text, and so its fingerprint, unchanged.
 	verdicts = verifyFixture(t, files, map[string]string{
 		selftestProducerPath: strings.Replace(selftestProducerSource, "SendWidget", "EmitWidget", 2),
 	}, record)
-	if verdicts[0].State != ProofProducerGone {
-		t.Fatalf("a renamed producer answered %q, want %q", verdicts[0].State, ProofProducerGone)
+	if !verdicts[0].Verified() {
+		t.Fatalf("a renamed producer answered %q (%s), want %q: the proof belongs to the test",
+			verdicts[0].State, verdicts[0].Detail, ProofVerified)
 	}
 }
 
@@ -799,7 +821,7 @@ func TestDiscriminationCitationMustExistInCarrier(t *testing.T) {
 // TWICE, once unchanged and once with a nine-line header prepended, which shifts every
 // line in it and changes what no unit DOES. The unheadered replay is the baseline, and
 // only a record that verified there is required to verify with the header on. A record
-// already stale in this checkout says a commit moved a producer it fingerprints, which is
+// already stale in this checkout says a commit changed its tagged unit or claim, which is
 // the ratchet reporting a real change; asserting over it would make this test fail for
 // something it does not test. The test still fails if EVERY record is already stale,
 // because then the header was never put to the question.
@@ -828,7 +850,7 @@ func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 	// would refuse the interop record's own unit as evidence nothing executes.
 	// plain carries the same files WITHOUT the header. A record can be stale
 	// before this test touches anything, because a commit by anyone can move a
-	// producer this checkout's records fingerprint, and that staleness is the
+	// tagged unit this checkout's records fingerprint, and that staleness is the
 	// ratchet working rather than a defect here. The question R-6 asks is
 	// whether the HEADER changes a verdict, so the unheadered tree is the
 	// baseline each verdict is compared against.
@@ -862,9 +884,9 @@ func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 			raw, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 			if errors.Is(readErr, fs.ErrNotExist) {
 				// A record naming a file the checkout no longer holds is the state
-				// verifyOneDiscrimination answers ProofUnitGone or ProofProducerGone,
-				// and discriminationRemovable reports those for removal rather than
-				// refusing them. Both replays then read the same absence, so the record
+				// verifyOneDiscrimination answers ProofUnitGone, and
+				// discriminationRemovable reports it for removal rather than refusing
+				// it; a producer file gone moves no verdict at all. Both replays then read the same absence, so the record
 				// lands in the already-stale arm below, which is where a verdict the
 				// header did not move belongs.
 				continue
@@ -903,9 +925,9 @@ func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 	shifted, carried := 0, 0
 	for index := range verdicts {
 		if !base[index].Verified() {
-			// Stale before the header went on. Someone's commit moved a producer
-			// this record fingerprints, which is the ratchet reporting a real
-			// change rather than anything the header did.
+			// Stale before the header went on. Someone's commit changed this
+			// record's tagged unit or claim, which is the ratchet reporting a
+			// real change rather than anything the header did.
 			carried++
 			continue
 		}

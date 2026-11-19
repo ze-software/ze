@@ -723,7 +723,7 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 	// One verdict per call: several verdicts of ONE record share a cover key, so
 	// a single call would refuse the second as a duplicate and never reach the
 	// staleness each one is here to prove.
-	refusedNames := []string{staleUnit, staleProducer, staleRenamed, staleTagless, staleReworded}
+	refusedNames := []string{staleUnit, staleRenamed, staleTagless, staleReworded}
 	staleErrs := map[string][]string{}
 	staleProven := 0
 	for _, name := range refusedNames {
@@ -731,6 +731,11 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 		proven, _ := discriminationRouteCounts([]DiscriminationVerdict{stale[name].verdict})
 		staleProven += proven
 	}
+	// The producer rewritten is not stale: the proof belongs to the test
+	// (ai/META-DECISIONS.md, "Test changes"), so its tree is judged apart and
+	// owes no refusal.
+	staleErrs[keptProducer] = selftestRecordRatchet(stale[keptProducer].files, requirements,
+		stale[keptProducer].verdict)
 
 	// The obligation half. A cover is (requirement, polarity, tagged unit), so
 	// these rows are built from the fixture's own cover rather than from a tag
@@ -813,9 +818,12 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 		selftestResult("discrimination/stale-proof-refused",
 			staleProven == 0 &&
 				selftestStaleRefused(staleErrs[staleUnit], ProofUnitChanged) &&
-				selftestStaleRefused(staleErrs[staleProducer], ProofProducerChanged) &&
 				selftestStaleRefused(staleErrs[staleReworded], ProofClaimChanged),
 			"a record whose stored fingerprints no longer match the tree was published as proven"),
+		selftestResult("discrimination/producer-edit-keeps-proof",
+			stale[keptProducer].verdict.State == ProofVerified && len(staleErrs[keptProducer]) == 0,
+			"a behavioral edit of the producer voided a proof; the proof belongs to the test, so "+
+				"only the tagged unit or its claim changing stales it"),
 		selftestResult("discrimination/reworded-claim-stales-the-proof",
 			stale[staleReworded].verdict.State == ProofClaimChanged,
 			"widening a tag's claim left the old red published as a proof of the new sentence"),
@@ -935,7 +943,7 @@ func selftestStaleRefused(errs []string, state string) bool {
 // The trees one proof is re-verified over, named by what each one moved.
 const (
 	staleUnit      = "the tagged unit's assertion inverted"
-	staleProducer  = "the producer rewritten"
+	keptProducer   = "the producer rewritten"
 	staleRenamed   = "the tagged unit renamed"
 	staleTagless   = "the tag deleted, the unit kept"
 	staleReworded  = "the claim reworded, the unit kept"
@@ -949,14 +957,17 @@ const (
 // everything would satisfy the refusals on its own, and the comment tree is
 // what says the record survives an edit that changed no behavior (R-6, A-7).
 // The reworded tree is the pair to it: a claim is a comment too, and that one
-// MUST void the proof while the doc comment beside it does not.
+// MUST void the proof while the doc comment beside it does not. The producer
+// tree pairs with the unit tree the same way: a behavioral edit of the test
+// voids the proof, and one of the producer it checks leaves it standing,
+// because the proof belongs to the test (ai/META-DECISIONS.md, "Test changes").
 func discriminationStaleVerdicts(records []DiscriminationRecord) (map[string]staleReplay, error) {
 	proof := records[0]
 	proof.Source = selftestDiscriminationRel
 	trees := map[string]map[string]string{
-		staleUnit:     {selftestTestPath: strings.Replace(selftestTestSource, "!= 1", "== 1", 1)},
-		staleProducer: {selftestProducerPath: strings.Replace(selftestProducerSource, "return count", "return 0", 1)},
-		staleRenamed:  {selftestTestPath: strings.Replace(selftestTestSource, "TestWidget", "TestGadget", 1)},
+		staleUnit:    {selftestTestPath: strings.Replace(selftestTestSource, "!= 1", "== 1", 1)},
+		keptProducer: {selftestProducerPath: strings.Replace(selftestProducerSource, "return count", "return 0", 1)},
+		staleRenamed: {selftestTestPath: strings.Replace(selftestTestSource, "TestWidget", "TestGadget", 1)},
 		staleTagless: {selftestTestPath: strings.Replace(selftestTestSource,
 			"// RFC requirement: RFC9999-2-1 positive -- SendWidget answers the count it\n"+
 				"// was given, so a speaker that sends one widget sends exactly one.\n", "", 1)},

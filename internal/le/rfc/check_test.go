@@ -1137,8 +1137,10 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 // VALIDATES: AC-1 -- a record whose stored break no longer reddens its tagged unit reds
 // the public gate with exit 2, and the violation names the requirement, the polarity, the
 // tagged unit key, the mutated text and the producer function.
-// METHOD: one record recorded against the fixture's producer, then the producer rewritten
-// under it. The proven count is checked to stay at zero, so the figure a reader trusts
+// METHOD: one record recorded against the fixture's tagged unit, then that unit's behavior
+// rewritten under it: a proof belongs to the test, so the test changing is what stales it
+// (ai/META-DECISIONS.md, "Test changes"). The proven count is checked to stay at zero, so
+// the figure a reader trusts
 // cannot be derived from a claim the gate refused.
 // PREVENTS: the hole Phase 1 left standing -- a record that passes the schema and the
 // corpus check counted as proven, so a hand-written record publishes a red nobody observed
@@ -1162,18 +1164,18 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 			code, len(report.Violations), report.Text())
 	}
 
-	// The producer is rewritten under the record, which is exactly the state a
+	// The tagged unit is rewritten under the record, which is exactly the state a
 	// hand-written record starts in: a fingerprint nothing was observed against.
 	// COMMITTED, because that is the only drift the ratchet refuses since the owner
 	// decision of 2026-08-31; the uncommitted half is its own test.
-	files[selftestProducerPath] = strings.Replace(selftestProducerSource, "return count", "return 0", 1)
+	files[selftestCIPath] += "expect=stdout:contains=a-line-the-red-never-saw\n"
 	report, code := Check(commitFixtureTree(t, files, nil), nil)
 	if code != 1 || len(report.Violations) != 1 {
 		t.Fatalf("a broken proof answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
 	for _, want := range []string{selftestRIDSend, PolarityPositive, selftestCIPath,
-		selftestBreak, selftestProducerUnit, ProofProducerChanged} {
+		selftestBreak, selftestProducerUnit, ProofUnitChanged} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
@@ -1624,7 +1626,7 @@ func TestCheckReportsUnscannedProductionTags(t *testing.T) {
 
 // VALIDATES: owner decision of 2026-08-31 -- a record staled by an edit NOBODY HAS
 // COMMITTED is reported, never refused, and the same edit committed reds the gate.
-// METHOD: one sealed record and one producer rewrite, run twice over the same fixture:
+// METHOD: one sealed record and one rewrite of its tagged unit, run twice over the same fixture:
 // once as a working-tree overlay on a commit that still holds the original, and once as
 // the commit itself. The pair is the property. A rule that reported everything would
 // satisfy the first half alone, and the rule this replaced refused both.
@@ -1640,10 +1642,10 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	putDiscrimination(t, committed, proof)
-	broken := strings.Replace(selftestProducerSource, "return count", "return 0", 1)
+	broken := strings.Replace(fixtureGadgetCI, "contains=gadget", "contains=gizmo", 1)
 
 	report, code := Check(commitFixtureTree(t, committed,
-		map[string]string{selftestProducerPath: broken}), nil)
+		map[string]string{fixtureGadgetCIPath: broken}), nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("an uncommitted edit under a record answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1652,7 +1654,7 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 		t.Fatalf("the drifted list carries %d record(s), want the 1 the edit staled:\n%s",
 			len(report.DiscriminationDrifted), report.Text())
 	}
-	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, ProofProducerChanged} {
+	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, ProofUnitChanged} {
 		if !strings.Contains(report.DiscriminationDrifted[0], want) {
 			t.Errorf("the drifted line omits %q: %s", want, report.DiscriminationDrifted[0])
 		}
@@ -1663,13 +1665,13 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 	}
 
 	// The same edit, committed. It is now the author's, and it reds.
-	committed[selftestProducerPath] = broken
+	committed[fixtureGadgetCIPath] = broken
 	refused, code := Check(commitFixtureTree(t, committed, nil), nil)
 	if code != 1 || len(refused.Violations) != 1 {
 		t.Fatalf("a committed edit under a record answered %d with %d violation(s):\n%s",
 			code, len(refused.Violations), refused.Text())
 	}
-	if !strings.Contains(refused.Violations[0], ProofProducerChanged) {
+	if !strings.Contains(refused.Violations[0], ProofUnitChanged) {
 		t.Errorf("the violation does not name the fingerprint that moved: %s", refused.Violations[0])
 	}
 }
@@ -1730,58 +1732,121 @@ func TestCheckDiscriminationBacklogIsMeasuredNotBilled(t *testing.T) {
 	}
 }
 
-// fixtureProducerPair is the producer file with a SECOND function beside the one
-// a record fingerprints. Two functions are what tells a file-level comparison
-// from a unit-level one: an edit to the second says nothing about the first.
-const fixtureProducerPair = "package sample\n\n" +
-	"// SendWidget answers the widget the speaker sends.\n" +
-	"func SendWidget(count int) int {\n\treturn count\n}\n\n" +
-	"// WidgetName answers the name this speaker gives a widget.\n" +
-	"func WidgetName() string {\n\treturn \"widget\"\n}\n"
+// fixtureTestPair is the tagged test file with a SECOND function beside the tagged
+// unit a record fingerprints. Two functions are what tells a file-level comparison
+// from a unit-level one: an edit to the second says nothing about the first. The
+// tagged unit is the compiling form renameTestSource holds, because Check vets every
+// tagged Go package and `func TestWidget()` is a signature the go command refuses.
+const fixtureTestPair = renameTestSource + "\n" +
+	"// widgetLabel answers the label the test prints.\n" +
+	"func widgetLabel() string {\n\treturn \"widget\"\n}\n"
 
 // VALIDATES: the drift a record went stale against is judged at the granularity the record
-// FINGERPRINTS -- the producer FUNCTION -- so an unrelated uncommitted edit elsewhere in
-// the producer's file cannot downgrade a committed drift from a violation to a report.
-// METHOD: one record sealed against SendWidget, that function rewritten and COMMITTED, and
+// FINGERPRINTS -- the tagged unit FUNCTION -- so an unrelated uncommitted edit elsewhere in
+// the tagged unit's file cannot downgrade a committed drift from a violation to a report.
+// METHOD: one record sealed against TestWidget, that function rewritten and COMMITTED, and
 // a second function in the same file rewritten and left uncommitted. The pair beside
 // TestCheckDiscriminationDriftIsJudgedAgainstHead is what makes it a property: an
-// uncommitted edit to the fingerprinted function itself still only reports.
+// uncommitted edit to the fingerprinted function itself still only reports. The unit and
+// not the producer, because a proof goes stale only when its test or claim changes
+// (ai/META-DECISIONS.md, "Test changes").
 // PREVENTS: the fail-open shape the file-level comparison had. Any session editing any
-// line of a producer's file silenced the author's own violation, and the record went on
+// line of a tagged unit's file silenced the author's own violation, and the record went on
 // being published as unproven with nobody billed for re-recording it.
 func TestCheckDiscriminationDriftIsJudgedAtUnitGranularity(t *testing.T) {
 	sealed := fixtureCorpus()
-	sealed[fixtureGadgetCIPath] = fixtureGadgetCI
-	sealed[selftestProducerPath] = fixtureProducerPair
+	// A compiling Go test file whose every tag cites rfc9999 must be named for
+	// it, or Check's file-name rule adds a second violation, so the unit lives
+	// at the name that rule asks for.
+	delete(sealed, selftestTestPath)
+	unitPath := "internal/sample/rfc9999_widget_test.go"
+	sealed[unitPath] = fixtureTestPair
+	// Check type-checks every Go package that carries a tag (check_compile.go),
+	// which needs a module; it is committed with the rest, so HEAD carries it too.
+	sealed["go.mod"] = "module example.com/widget\n\ngo 1.27.0\n"
 	proof := sealFixture(t, sealed, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
-		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
+		Unit: unitPath + "::TestWidget", Route: RouteMutant,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	putDiscrimination(t, sealed, proof)
 
-	// The fingerprinted function rewritten, and COMMITTED. The drift is the
+	// The fingerprinted unit rewritten, and COMMITTED. The drift is the
 	// commit's, so the author owes a re-record and the gate says so.
 	committed := maps.Clone(sealed)
-	committed[selftestProducerPath] = strings.Replace(fixtureProducerPair, "return count", "return 0", 1)
+	committed[unitPath] = strings.Replace(fixtureTestPair, "!= 1", "!= 2", 1)
 	// A DIFFERENT function in the same file, edited and left uncommitted. It
 	// explains none of the drift above it.
-	elsewhere := strings.Replace(committed[selftestProducerPath], `return "widget"`, `return "gadget"`, 1)
+	elsewhere := strings.Replace(committed[unitPath], `return "widget"`, `return "gadget"`, 1)
 
 	report, code := Check(commitFixtureTree(t, committed,
-		map[string]string{selftestProducerPath: elsewhere}), nil)
+		map[string]string{unitPath: elsewhere}), nil)
 	if code != 1 || len(report.Violations) != 1 {
 		t.Fatalf("a committed drift beside an unrelated uncommitted edit answered %d with "+
 			"%d violation(s), want exit 1 and the one violation the commit owes:\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	if !strings.Contains(report.Violations[0], ProofProducerChanged) {
+	if !strings.Contains(report.Violations[0], ProofUnitChanged) {
 		t.Errorf("the violation does not name the fingerprint that moved: %s", report.Violations[0])
 	}
 	if len(report.DiscriminationDrifted) != 0 {
 		t.Errorf("the drifted list carries %d record(s), want 0: the drift was committed, so "+
 			"it is a violation rather than somebody's working copy:\n%s",
 			len(report.DiscriminationDrifted), report.Text())
+	}
+}
+
+// VALIDATES: ai/META-DECISIONS.md, "Test changes" -- an RFC proof record belongs to its
+// tagged test, so a COMMITTED change to the producer the break was applied to, a rewrite of
+// its behavior or a rename that takes the function out of the tree, leaves the record
+// verified and counted as proven by `./le rfc check`.
+// METHOD: one sealed record over the gadget carrier, its proven count read over the tree it
+// was sealed against, then the producer rewritten and, separately, renamed, each committed.
+// Committed, because a committed drift is the one the ratchet refuses: an uncommitted one
+// would pass whatever the verifier answered.
+// PREVENTS: a refactor of production code staling every proof whose test still catches
+// what it caught, which bills the refactor for re-records the rule does not owe.
+func TestCheckDiscriminationProducerChangeLeavesTheProofStanding(t *testing.T) {
+	committed := fixtureCorpus()
+	committed[fixtureGadgetCIPath] = fixtureGadgetCI
+	proof := sealFixture(t, committed, &DiscriminationRecord{
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
+		Producer: selftestProducerUnit, Break: selftestBreak,
+	})
+	putDiscrimination(t, committed, proof)
+	intact, code := Check(commitFixtureTree(t, committed, nil), nil)
+	if code != 0 || len(intact.Violations) != 0 || intact.DiscriminationProven == 0 {
+		t.Fatalf("the intact proof answered %d with %d violation(s) and %d proven, want 0, 0 "+
+			"and at least 1:\n%s", code, len(intact.Violations), intact.DiscriminationProven, intact.Text())
+	}
+
+	producerEdits := map[string]string{
+		"the producer rewritten": strings.Replace(selftestProducerSource, "return count", "return 0", 1),
+		"the producer renamed":   strings.Replace(selftestProducerSource, "SendWidget", "EmitWidget", 2),
+	}
+	for name, producer := range producerEdits {
+		t.Run(name, func(t *testing.T) {
+			if producer == selftestProducerSource {
+				t.Fatal("the fixture edit changed nothing")
+			}
+			tree := maps.Clone(committed)
+			tree[selftestProducerPath] = producer
+			report, code := Check(commitFixtureTree(t, tree, nil), nil)
+			if code != 0 || len(report.Violations) != 0 {
+				t.Fatalf("%s and committed answered %d with %d violation(s), want 0 and none: "+
+					"the tagged unit and its claim are unchanged:\n%s",
+					name, code, len(report.Violations), report.Text())
+			}
+			if len(report.DiscriminationDrifted) != 0 {
+				t.Errorf("%s drifted %d record(s), want 0:\n%s",
+					name, len(report.DiscriminationDrifted), report.Text())
+			}
+			if report.DiscriminationProven != intact.DiscriminationProven {
+				t.Errorf("%s left %d proven, want the %d the intact tree counts",
+					name, report.DiscriminationProven, intact.DiscriminationProven)
+			}
+		})
 	}
 }
 

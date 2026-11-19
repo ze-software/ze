@@ -807,27 +807,22 @@ func discriminationStaleError(verdict *DiscriminationVerdict) string {
 		tb.Str(". The break ").Quoted(record.Break).Str(" was observed to redden that unit ").
 			Str("when applied to ").Str(record.Producer)
 	}
-	return tb.Str(". `./le rfc check` replays nothing: it compares the fingerprints the ").
-		Str("proof was taken against, so a moved fingerprint means the red was never ").
-		Str("re-observed over the code that is there now. Re-record it with ").
+	return tb.Str(". `./le rfc check` replays nothing: it compares the tagged unit and ").
+		Str("claim fingerprints the proof was taken against, so a moved fingerprint means the ").
+		Str("red was never observed by the test, or for the claim, that is there now. Re-record it with ").
 		Str("`./le rfc discriminate`, or delete the record with the tag it proved").String()
 }
 
 // driftedKey answers which fingerprint key of a non-verifying record moved.
 //
-// The paired producer that moved when one did (DiscriminationVerdict.Moved), the
-// producer for a record whose PRODUCER moved, and the tagged unit for
-// everything else. An escape that names no producer -- foreign-producer, whose
-// facts are the carrier kind and the citation -- is judged over its unit for the
-// same reason: that is the text its check reads.
+// The producer for an escape whose precondition the producer no longer holds,
+// because that is the text the escape check reads, and the tagged unit for
+// everything else: a proof goes stale only when its tagged unit or claim
+// changes, never its producer (ai/META-DECISIONS.md, "Test changes"). An escape
+// that names no producer -- foreign-producer, whose facts are the carrier kind
+// and the citation -- is judged over its unit for the same reason.
 func driftedKey(verdict *DiscriminationVerdict) string {
 	record, state := &verdict.Record, verdict.State
-	if verdict.Moved != "" {
-		return verdict.Moved
-	}
-	if state == ProofProducerGone || state == ProofProducerChanged {
-		return record.Producer
-	}
 	if state == ProofEscapeUnfounded && record.Producer != "" {
 		return record.Producer
 	}

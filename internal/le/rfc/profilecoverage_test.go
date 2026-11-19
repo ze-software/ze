@@ -50,7 +50,7 @@ func coverageFixture() ([]Requirement, []DiscriminationVerdict) {
 	}
 	verdicts := []DiscriminationVerdict{
 		verdict("RFC1-1-1", RouteRevert, ProofVerified),
-		verdict("RFC1-1-3", RouteRevert, "producer-changed"),
+		verdict("RFC1-1-3", RouteRevert, ProofUnitChanged),
 		verdict("RFC1-1-4", RouteNoBreak, ProofVerified),
 		verdict("RFC1-1-5", RouteRevert, ProofVerified),
 		verdict("RFC1-1-6", RouteRevert, ProofVerified),
@@ -598,7 +598,7 @@ func TestLowerLayerWithANonVerifyingRecordIsNotOSVerified(t *testing.T) {
 		route string
 		state string
 	}{
-		{"stale producer", RouteRevert, ProofProducerChanged},
+		{"stale unit", RouteRevert, ProofUnitChanged},
 		{"unit gone", RouteRevert, ProofUnitGone},
 		{"unfounded escape", RouteNoBreak, ProofEscapeUnfounded},
 		{"no-break escape", RouteNoBreak, ProofVerified},

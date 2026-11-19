@@ -34,14 +34,18 @@ func pairedFixture() map[string]string {
 }
 
 // VALIDATES: a record that applied two breaks together names both, fingerprints
-// both, survives the artifact round trip, and goes stale when EITHER producer
-// changes, exactly as the single-break record does for its one producer.
+// both, survives the artifact round trip, and stays verified when the second
+// producer changes or goes, exactly as the single-break record does for its one
+// producer: the proof belongs to the test, so only the unit and its claim stale
+// it (ai/META-DECISIONS.md, "Test changes").
 // METHOD: seal a two-break record with the production minter, render it into the
 // tree, load it back through the gate's loader, then verify it over the tree it
-// was sealed against and over a tree where only the second producer changed.
+// was sealed against, over a tree where only the second producer changed, and
+// over one where the second producer is gone.
 // PREVENTS: the RFC4271-5.1.2-3 negative, whose red needs the AS_PATH dispatch in
-// ASPathEdit.Record and planAttr's advertise gate broken together, being either
-// unrecordable or recorded with the second break unchecked by `./le rfc check`.
+// ASPathEdit.Record and planAttr's advertise gate broken together, being
+// unrecordable, and a refactor of either producer voiding a proof the unchanged
+// test still carries.
 func TestDiscriminationPairedBreakIsFingerprintedAndReverified(t *testing.T) {
 	files := pairedFixture()
 	record := sealFixture(t, files, &DiscriminationRecord{
@@ -74,16 +78,22 @@ func TestDiscriminationPairedBreakIsFingerprintedAndReverified(t *testing.T) {
 		t.Fatalf("the record went %s over the tree it was sealed against: %s",
 			verdicts[0].State, verdicts[0].Detail)
 	}
-	changed := map[string]string{
-		pairedProducerPath: strings.Replace(pairedProducerSource, "count > 0", "count > 1", 1),
+	producerEdits := map[string]map[string]string{
+		"the second producer changed": {
+			pairedProducerPath: strings.Replace(pairedProducerSource, "count > 0", "count > 1", 1),
+		},
+		"the second producer gone": {
+			pairedProducerPath: strings.Replace(pairedProducerSource, "GateWidget", "AdmitWidget", 2),
+		},
 	}
-	verdicts := verifyFixture(t, files, changed, record)
-	if verdicts[0].State != ProofProducerChanged {
-		t.Fatalf("the second producer changed and the record went %s; want %s",
-			verdicts[0].State, ProofProducerChanged)
-	}
-	if !strings.Contains(verdicts[0].Detail, pairedProducerUnit) {
-		t.Fatalf("the stale verdict does not name the paired producer: %s", verdicts[0].Detail)
+	for name, overlay := range producerEdits {
+		t.Run(name, func(t *testing.T) {
+			verdicts := verifyFixture(t, files, overlay, record)
+			if !verdicts[0].Verified() {
+				t.Fatalf("%s and the record went %s (%s); want %s, because the tagged unit "+
+					"and its claim are unchanged", name, verdicts[0].State, verdicts[0].Detail, ProofVerified)
+			}
+		})
 	}
 }
 

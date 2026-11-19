@@ -3,11 +3,14 @@
 // Related: register.go -- where this gate registers into the changecheck seam
 //
 // discriminate_commit.go is the commit gate for the discrimination records:
-// `./le commit create` refuses a commit that stales an RFC proof record
-// without carrying the record `./le rfc record` re-took (ai/META-DECISIONS.md,
-// "Test changes"). It judges what the commit itself does, so it is a refusal
-// and never a red: a record the parent already held stale is debt the commit
-// did not make, and it refuses nothing here.
+// `./le commit create` refuses a commit that changes a tagged test or its
+// claim without carrying the record `./le rfc record` re-took
+// (ai/META-DECISIONS.md, "Test changes"). The proof belongs to the test, so a
+// commit that changes only the code the test checks, the producer the record
+// broke included, stales nothing and this gate reads nothing for it. It judges
+// what the commit itself does, so it is a refusal and never a red: a record the
+// parent already held stale is debt the commit did not make, and it refuses
+// nothing here.
 
 package rfc
 
@@ -20,18 +23,14 @@ import (
 	"github.com/ze-software/ze/internal/le/commit/changecheck"
 )
 
-// recordGoneWord stands for a producer the commit removed, in the re-take
-// line: the record names the function that is gone, and the author names the
-// function that now holds its code.
-const recordGoneWord = "<file>::<Func>"
-
 // ze point: rfc-compliance/directives/prove-a-new-tag-discriminates-its-claim
 // judgeStaleRecords answers the refusal for every discrimination record this
 // commit stales, or "" when it stales none.
 //
-// A record is judged only when the commit can have staled it: one of its keys
-// (the tagged unit, the producer, a paired producer) names a file the commit
-// carries or removes, or the commit carries or removes the record's own file.
+// A record is judged only when the commit can have staled it: its tagged unit
+// sits in a carrier file the commit carries or removes, or the commit carries
+// or removes the record's own file. A producer file is not one of those: a
+// change to it leaves the unchanged test catching what it caught.
 // It is staled when it verifies against the parent and does not verify against
 // what the commit leaves. The record the commit leaves is the one its After
 // side holds for the same requirement, polarity and unit, so a re-taken record
@@ -73,9 +72,9 @@ func judgeStaleRecords(change changecheck.Change) (string, error) {
 // parent and the tree it leaves, each read lazily through the seam.
 type recordGate struct {
 	change changecheck.Change
-	// sources are the changed paths a record key can name: a carrier a tagged
-	// unit sits in, or a Go file a producer sits in.
-	sources map[string]bool
+	// units are the changed carrier paths a tagged unit can sit in. A record's
+	// producer is not judged, so the files producers sit in are not collected.
+	units map[string]bool
 	// records are the changed paths under rfc/discrimination.
 	records map[string]bool
 	carried map[string]bool
@@ -97,7 +96,7 @@ type recordSide struct {
 func newRecordGate(change changecheck.Change) *recordGate {
 	gate := &recordGate{
 		change:  change,
-		sources: map[string]bool{},
+		units:   map[string]bool{},
 		records: map[string]bool{},
 		carried: map[string]bool{},
 		removed: map[string]bool{},
@@ -121,29 +120,27 @@ func newRecordGate(change changecheck.Change) *recordGate {
 	return gate
 }
 
-// touchesAnyRecord answers whether the commit changes a path a record can
-// name or a record file. A commit that changes neither stales no record, so
-// the gate reads nothing for it.
+// touchesAnyRecord answers whether the commit changes a carrier a tagged unit
+// can sit in or a record file. A commit that changes neither stales no record,
+// so the gate reads nothing for it: a commit that changes only producer code
+// lands here.
 func (g *recordGate) touchesAnyRecord() bool {
-	if len(g.sources) > 0 {
+	if len(g.units) > 0 {
 		return true
 	}
 	return len(g.records) > 0
 }
 
-// classify files one changed path as a record file, a file a key can name, or
-// neither.
+// classify files one changed path as a record file, a carrier a tagged unit can
+// sit in, or neither. A Go file that is no carrier holds producers only, and a
+// producer change stales no record.
 func (g *recordGate) classify(rel string) {
 	if _, record := evidenceAt(discriminationRel, rel); record {
 		g.records[rel] = true
 		return
 	}
-	if goScoped(rel) {
-		g.sources[rel] = true
-		return
-	}
 	if _, carrier := CarrierFor(rel, g.table); carrier {
-		g.sources[rel] = true
+		g.units[rel] = true
 	}
 }
 
@@ -215,34 +212,16 @@ func (g *recordGate) failed() error {
 	return g.after.failed
 }
 
-// touches answers whether one of the record's keys names a file the commit
-// changes.
-func (g *recordGate) touches(record *DiscriminationRecord) bool {
-	if g.sources[keyFile(record.Unit)] {
-		return true
-	}
-	// An escape may name no producer, and keyFile("") names no changed file.
-	if g.sources[keyFile(record.Producer)] {
-		return true
-	}
-	for _, paired := range record.Paired {
-		if g.sources[keyFile(paired.Producer)] {
-			return true
-		}
-	}
-	return false
-}
-
 // concerns is the cheap filter over one record file of the parent: the commit
-// changes the file itself, or its raw text spells a changed path. A file that
-// does neither holds no record this commit can stale, so only the files that
-// do are decoded.
+// changes the file itself, or its raw text spells a changed carrier. A file
+// that does neither holds no record this commit can stale, so only the files
+// that do are decoded.
 func (g *recordGate) concerns(rel, text string) bool {
 	if g.records[rel] {
 		return true
 	}
-	for source := range g.sources {
-		if strings.Contains(text, source) {
+	for unit := range g.units {
+		if strings.Contains(text, unit) {
 			return true
 		}
 	}
@@ -250,12 +229,15 @@ func (g *recordGate) concerns(rel, text string) bool {
 }
 
 // judges answers whether one record of a file the commit concerns is judged:
-// the commit changes the record's own file, or a file one of its keys names.
+// the commit changes the record's own file, or the carrier its tagged unit
+// sits in. A changed file that only its producer names is not enough, so a
+// record file that spells a changed path in its producer key is decoded and
+// its records then pass here unjudged.
 func (g *recordGate) judges(rel string, record *DiscriminationRecord) bool {
 	if g.records[rel] {
 		return true
 	}
-	return g.touches(record)
+	return g.units[keyFile(record.Unit)]
 }
 
 // staleRecord is one record the commit stales, and what it left.
@@ -392,9 +374,10 @@ func (g *recordGate) judgeLeft(file evidenceFile, record *DiscriminationRecord,
 func staleRecordsText(stale []staleRecord) string {
 	var tb textbuf.Buffer
 	tb.Str("This commit stales ").Int(int64(len(stale))).Str(" RFC proof record(s). A record proves ").
-		Str("that its tagged unit was seen to go red under a break of the code it names, and its ").
-		Str("fingerprints say which code that was. This commit changes that code, so the record would ").
-		Str("publish a proof nobody observed. Carry the record `./le rfc record` re-takes in this commit ").
+		Str("that its tagged test was seen to go red under a break of the code it checks, and its ").
+		Str("fingerprints say which test and which claim that was. This commit changes the test or ").
+		Str("its claim, or deletes the record while the tag stays, so the record would publish a ").
+		Str("proof nobody observed. Carry the record `./le rfc record` re-takes in this commit ").
 		Str("(the main thread runs it; an agent lists it as owed), or remove the tag with the ").
 		Str("ze-test-judge's approval.\n")
 	for position := range stale {
@@ -411,34 +394,29 @@ func staleRecordText(stale *staleRecord) string {
 		Str(" record for ").Str(record.RID).Byte(' ').Str(record.Polarity).Str(" at ").Str(record.Unit)
 	if stale.unreadable != nil {
 		return tb.Str(" cannot be read in the file this commit carries: ").Err(stale.unreadable).
-			Str(". Repair the file, or re-take the record:\n    ").Str(retakeLines(stale, false)).Byte('\n').String()
+			Str(". Repair the file, or re-take the record:\n    ").Str(retakeLines(stale)).Byte('\n').String()
 	}
 	if stale.withdrawn {
 		tb.Str(" is deleted by this commit while its tag stays, which takes a proof off the ledger ").
 			Str("and leaves the claim behind it. Restore the record, re-take it, or remove the tag:\n    ")
-		return tb.Str(retakeLines(stale, false)).Byte('\n').String()
+		return tb.Str(retakeLines(stale)).Byte('\n').String()
 	}
 	verdict := &stale.verdict
-	gone := verdict.State == ProofProducerGone
 	tb.Str(" goes stale (").Str(verdict.State).Str(", ").Str(driftedKey(verdict)).Str("): ").
-		Str(verdict.Detail).Str(". Re-take it")
-	if gone {
-		tb.Str(", naming the function that now holds what ").Str(driftedKey(verdict)).Str(" did")
-	}
-	return tb.Str(":\n    ").Str(retakeLines(stale, gone)).Byte('\n').String()
+		Str(verdict.Detail).Str(". Re-take it on the route it was recorded on")
+	return tb.Str(":\n    ").Str(retakeLines(stale)).Byte('\n').String()
 }
 
-// retakeLines answers the command lines that re-take one record, with every
-// argument the record holds written out from it. gone writes a placeholder
-// for the producer the commit removed.
-func retakeLines(stale *staleRecord, gone bool) string {
+// retakeLines answers the command lines that re-take one record on the route
+// it was recorded on, with every argument the record holds written out from it.
+func retakeLines(stale *staleRecord) string {
 	record := &stale.record
 	var tb textbuf.Buffer
 	head := "./le rfc record " + keyID + " " + recordWord(record.RID) + " " + keyPolarity + " " +
 		recordWord(record.Polarity) + " " + keyUnit + " " + recordWord(record.Unit) + " " + keyRoute + " "
 	switch record.Route {
 	case RouteRevert:
-		tb.Str(head).Str(RouteRevert).Byte(' ').Str(keyProducer).Byte(' ').Str(producerWord(record.Producer, gone))
+		tb.Str(head).Str(RouteRevert).Byte(' ').Str(keyProducer).Byte(' ').Str(recordWord(record.Producer))
 		appendCitation(&tb, record)
 	case RouteMutant:
 		report := "<gomu-report.json>"
@@ -457,7 +435,7 @@ func retakeLines(stale *staleRecord, gone bool) string {
 	case RouteNoBreak:
 		tb.Str(head).Str(RouteNoBreak).Byte(' ').Str(keyReason).Byte(' ').Str(recordWord(record.Reason))
 		if record.Producer != "" {
-			tb.Byte(' ').Str(keyProducer).Byte(' ').Str(producerWord(record.Producer, gone))
+			tb.Byte(' ').Str(keyProducer).Byte(' ').Str(recordWord(record.Producer))
 		}
 		appendCitation(&tb, record)
 		for _, function := range record.KernelFunctions {
@@ -483,15 +461,6 @@ func appendCitation(tb *textbuf.Buffer, record *DiscriminationRecord) {
 		return
 	}
 	tb.Byte(' ').Str(keyCitation).Byte(' ').Str(recordWord(record.Citation))
-}
-
-// producerWord answers the producer argument: the record's own key, or the
-// placeholder where the commit removed it.
-func producerWord(producer string, gone bool) string {
-	if gone {
-		return recordGoneWord
-	}
-	return recordWord(producer)
 }
 
 // recordWord answers one argument as a shell reads it back: bare when every

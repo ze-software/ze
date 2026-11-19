@@ -44,11 +44,19 @@ records that no longer verify (308 unit-changed, 256 producer-changed, 17
 producer-gone), 201 SHIFTED audit verdicts over 39 stems, 179 STALE audit
 verdicts, and 32 others. The counts are that run's snapshot, recorded to
 size the work; the live set is whatever `./le rfc check` names at HEAD, and
-the ACs below are settled against it, never against this list. The backlog
-grew because no commit was refused for staling a record. Commit 6eec153998
-added that refusal (`rfc check` in `./le commit create`), so the set shrinks
-from here and only this spec's re-takes, plus records other sessions have
-already re-taken, move it. Rows another spec owns stay with that spec, see
+the ACs below are settled against it, never against this list. Of those
+records only the 308 unit-changed ones, and any claim-changed, are owed. The
+owner ruled after that run that a proof belongs to its test: it goes stale
+only when the tagged test or its claim changes, and a change to the code the
+test checks, the function the record broke included, leaves it standing
+(`ai/META-DECISIONS.md`, "Test changes"). `./le rfc check` no longer reports
+producer-changed or producer-gone, so the 256 and the 17 are not debt and
+this spec owes them nothing. The backlog grew because no commit was refused
+for changing a tagged test without re-taking its record. Commit 6eec153998
+added that refusal (`rfc check` in `./le commit create`), now narrowed to a
+commit that changes a tagged unit or its claim, or deletes a record whose tag
+stays, so the set shrinks from here and only this spec's re-takes, plus
+records other sessions have already re-taken, move it. Rows another spec owns stay with that spec, see
 AC-33. RFC4271-9.2-2 and RFC4271-9.2-3 fall to AC-28 and AC-30: their owner,
 `spec-bgp-best-route-advertised-to-peers`, closed in 56fb8b5663 with both
 records stale and both verdicts naming a producer the code map no longer
@@ -61,12 +69,12 @@ longer names the rows of AC-1, AC-2, AC-9 to AC-15, AC-17, AC-20, AC-21 and
 AC-23. Still named: RFC2545-3-2 and 3-3 (AC-4 to AC-7), RFC4659-3.2.1.1-3
 (AC-8), RFC1661-5.8-2 (AC-16), RFC2516-x-9 (AC-18), RFC4271-5.1.4-1 (AC-19),
 RFC8907-8.3-4 (AC-22), RFC1997-Well-1 (AC-24), and every row of AC-28 to
-AC-32.
+AC-30 and AC-32. That count predates the owner ruling above, so it includes
+records staled only by a producer change, which `./le rfc check` no longer
+names.
 
-Each record is taken once. AC-28's re-takes use the `mutant` route where
-gomu can mutate the producer, so they also pay the revert-to-mutant upgrade
-`spec-rfc-evidence-strength-2-revert-upgrade-burndown.md` owes for the same
-unit, instead of a revert re-take that spec would redo. AC-4 to AC-6 run
+Each record is taken once. AC-28's re-takes use the record's recorded route.
+AC-4 to AC-6 run
 after `spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md` lands its fix,
 because that fix changes the RFC 2545 next-hop path both arms of
 `checkRFC2545NextHops` test; if that spec re-takes them under the commit
@@ -89,7 +97,7 @@ approve a product design or a diagnostic exception to the RFC.
 
 ### Architecture Docs
 - [ ] `docs/contributing/rfc-conformance-gates.md` - every gate this spec clears
-  → Decision: a record says a named tagged unit was OBSERVED to fail under a named break; `./le rfc check` replays nothing and compares fingerprints, so a moved unit or producer fingerprint means the red must be observed again ("The discrimination record")
+  → Decision: a record says a named tagged unit was OBSERVED to fail under a named break; `./le rfc check` replays nothing and compares fingerprints, so a moved unit or claim fingerprint means the red must be observed again; a producer change leaves the proof standing, because a proof belongs to its test ("The discrimination record", `ai/META-DECISIONS.md` "Test changes")
   → Constraint: `./le rfc reseal stem <stem>` re-stamps only a verdict whose unit is byte-identical and shifted; it cannot re-judge changed scope, and it re-stamps only the stems named ("The artifacts", the `rfc/audit` row)
   → Constraint: a STALE verdict is re-made by a judge and stored with `./le rfc audit-stamp stem <stem> from <path> mode rejudge`; an upgrade from `weak`, `wrong` or `partial` to `enforced` over unchanged units needs an `upgrade_reason`
   → Constraint: a unit test file named for a stem carries a tag for it or the `// RFC naming: untagged -- <reason>` marker. A tracked rename uses the commit-owned `file`/`remove` route, not `./le rfc move`, which removes its source immediately ("Moving a tagged test file", "Test file names")
@@ -247,10 +255,10 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 | AC-24 | SHIFTED audit RFC1997-Well-1, cause c782411791 (`checkNoExportBoundary` moved, byte-identical) | `./le rfc reseal stem rfc1997` re-stamps it; `./le rfc check` no longer names it |
 | AC-25 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures`, which hit its 10-minute limit under load | Run alone on a quiet host through `./le job run label rfc-selftest command go test -count=1 -run TestRFCSelftestRealTreeRowReportsOwnedCheckFailures -timeout 30m ./internal/le/rfc/`. A pass in time records the earlier red as load; a failing assertion is a defect fixed at its producer; a run that still exceeds 10 minutes alone is a defect in the test's cost, fixed so it completes inside its limit without dropping what it asserts |
 | AC-26 | `TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog`, failing deterministically | `./le job run label rfc-prior command go test -count=1 -run TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog ./internal/le/rfc/` passes after the prior-evidence reader is fixed, and the run is red with the fix reverted |
-| AC-28 | Every discrimination record `./le rfc check` names as unit-changed, claim-changed or producer-changed at HEAD, outside the rows AC-1 to AC-24 and AC-33 already name | Each is re-taken once, by `./le rfc record`, against the unit and producer as they are, and observed red. The route is `mutant` wherever gomu can mutate the producer (`./le rfc discriminate stem <stem>` proposes the candidates), and `revert` only where it cannot, so the re-take also pays the unit's upgrade owed under `spec-rfc-evidence-strength-2-revert-upgrade-burndown.md` and no record is taken twice; a record whose break no longer reddens its unit is a finding on that test (the test or the producer is fixed here, through `ze-test-judge` where a test changes), never a hand-written record. Settled when `./le rfc check` names no such record |
+| AC-28 | Every discrimination record `./le rfc check` names as unit-changed or claim-changed at HEAD, outside the rows AC-1 to AC-24 and AC-33 already name | Each is re-taken once, by `./le rfc record`, on the record's recorded route against the unit as it is, and observed red; a record whose break no longer reddens its unit is a finding on that test (the test or the producer is fixed here, through `ze-test-judge` where a test changes), never a hand-written record. Settled when `./le rfc check` names no such record |
 | AC-29 | Every SHIFTED audit verdict `./le rfc check` names at HEAD, outside AC-24 | `./le rfc reseal stem <stem>` for each stem it names; settled when `./le rfc check` names no SHIFTED verdict |
 | AC-30 | Every STALE audit verdict `./le rfc check` names at HEAD, outside the rows AC-7 to AC-23 and AC-33 already name | Re-made by an independent `/ze-rfc-audit` agent (R-2), stamped with `audit-stamp ... mode rejudge`; a `weak` or `wrong` verdict sends its test or producer back to be fixed here. Settled when `./le rfc check` names no STALE verdict |
-| AC-31 | Every record `./le rfc check` names as producer-gone | The function that now holds the removed producer's code is named from `git log -S` of the removal, the record is re-taken against it, and observed red; where no function holds it, the tag's claim no longer has a producer and goes to `ze-test-judge` with the evidence. Settled when `./le rfc check` names no producer-gone record |
+| AC-31 | Records whose producer was removed | No longer owed: a proof belongs to its test (`ai/META-DECISIONS.md`, "Test changes"), so `./le rfc check` no longer reports producer-gone, and a record whose unit or claim changed falls to AC-28 |
 | AC-32 | Rows no spec owned at the CI run: RFC4271-5-3 and RFC4271-5-4 (no negative test since 6c22530c23 removed four negative tags, its body carrying `RFC-approval-owed:` for three units), RFC8955-4-3 and RFC9252-3.3-2 (partial scope with no current verified mutant or revert) | RFC 4271 5-3 and 5-4: a negative test that takes the case just outside each clause (`ai/META-DECISIONS.md`, "Test changes"), tagged and recorded, plus the owed judge verdicts; `{single-polarity}` is not used where a negative exists. RFC 8955 and 9252: a fresh record for each partial scope. Settled when `./le rfc check` names none of these rows |
 | AC-33 | Rows another spec owns | Left to it, and not counted against this spec: RFC7752-3.4-1 and RFC9552-5.5-1 (`spec-bgp-next-hop-auto-rewrites-for-ebgp.md` AC-12); the filter-wire umbrella's rows. A row whose owning spec closes without clearing it falls to this spec |
 | AC-34 | Closure | `./le rfc check` at HEAD names no stale record, no SHIFTED and no STALE verdict outside AC-33, and the commit-time refusal of 6eec153998 is still registered (`TestCommitGateIsRegistered`) |
@@ -343,7 +351,7 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
    - Verify: scenario red with the break, the image rebuilt; `./le rfc check` drops all RFC 2545 lines
 5. **Phase: Reseal** -- AC-29, mechanical and first among the backlog phases because it runs no test
    - Verify: `./le rfc check` names no SHIFTED verdict
-6. **Phase: Backlog records** -- AC-28 and AC-31, batched by stem (largest first: rfc4271, rfc5176, rfc9494, rfc2545, rfc8277, rfc7311), one `./le rfc record` at a time in the main thread under `./le job run`; unit records before interop and QEMU records, which need a quiet host
+6. **Phase: Backlog records** -- AC-28, batched by stem (largest first: rfc4271, rfc5176, rfc9494, rfc2545, rfc8277, rfc7311), one `./le rfc record` at a time in the main thread under `./le job run`; unit records before interop and QEMU records, which need a quiet host
    - Verify: per stem, `./le rfc check` names none of that stem's stale records; each stem's re-takes land in a commit of their own
 7. **Phase: Backlog audits** -- AC-30, one independent auditor per stem, after that stem's records in phase 6
    - Verify: stamped with `mode rejudge`; `./le rfc check` names no STALE verdict

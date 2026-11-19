@@ -646,7 +646,30 @@ func TestPartialAuditRequiresVerifiedClaims(t *testing.T) {
 			}
 		})
 	}
-	for _, failure := range []string{"no-records", "one-cover", "changed-claim", "changed-unit", "changed-producer", "no-marker", "bad-source", "no-break"} {
+	// The proof belongs to its test (ai/META-DECISIONS.md, "Test changes"): the
+	// producer the records broke rewritten after they were sealed leaves both
+	// covers verified, so the partial audit still stamps. It is the case just
+	// outside changed-claim and changed-unit below, which stale a cover and refuse.
+	t.Run("changed-producer-stands", func(t *testing.T) {
+		files := partialFiles()
+		records := partialRecords(t, files)
+		changed := strings.Replace(files[selftestProducerPath], "return count", "return count + 1", 1)
+		if changed == files[selftestProducerPath] {
+			t.Fatal("the producer rewrite changed nothing, so the case tests nothing")
+		}
+		files[selftestProducerPath] = changed
+		putDiscrimination(t, files, records...)
+		root := stampTree(t, nil)
+		writeFixtureFiles(t, root, files)
+		from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
+		if _, err := auditStamp(root, selftestStem, from, stampModeNew); err != nil {
+			t.Fatalf("a changed producer refused a partial audit whose tests and claims are unchanged: %v", err)
+		}
+		if len(readStampAudit(t, root)) == 0 {
+			t.Fatal("the admitted stamp wrote no audit")
+		}
+	})
+	for _, failure := range []string{"no-records", "one-cover", "changed-claim", "changed-unit", "no-marker", "bad-source", "no-break"} {
 		t.Run(failure, func(t *testing.T) {
 			files := partialFiles()
 			records := partialRecords(t, files)
@@ -659,8 +682,6 @@ func TestPartialAuditRequiresVerifiedClaims(t *testing.T) {
 				files[selftestCIPath] = strings.Replace(files[selftestCIPath], "receipt accepts zero", "receipt accepts all", 1)
 			case "changed-unit":
 				files[selftestCIPath] += "expect=stdout:contains=other\n"
-			case "changed-producer":
-				files[selftestProducerPath] = strings.Replace(files[selftestProducerPath], "return count", "return count + 1", 1)
 			case "no-marker":
 				files[selftestSummaryRel] = strings.Replace(files[selftestSummaryRel], " "+partialMarker, "", 1)
 			case "bad-source":

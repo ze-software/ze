@@ -1,14 +1,16 @@
 // VALIDATES: `./le commit create` refuses a commit that stales an RFC proof
-// record (it changes the tagged unit, its claim, or a producer the record
-// broke) unless it carries the re-taken record, and names each stale record,
-// why, and the `./le rfc record` line that re-takes it.
+// record (it changes the tagged unit or its claim, or deletes the record while
+// its tag stays) unless it carries the re-taken record, and names each stale
+// record, why, and the `./le rfc record` line that re-takes it. A commit that
+// changes only the producer a record broke stales nothing, because the proof
+// belongs to the test (ai/META-DECISIONS.md, "Test changes").
 // METHOD: the selftest's sealed record over its two sources is the parent; each
 // test edits the tree the commit leaves and judges the change through the
 // registered Judge, with Before, After and BeforeUnder read from maps.
-// PREVENTS: a commit that moves a producer or a tagged test without re-taking
-// its record, which leaves a published proof nobody observed (581 such records
-// accumulated at HEAD), and a gate that bills a commit for a record the parent
-// already held stale.
+// PREVENTS: a commit that changes a tagged test or its claim without re-taking
+// its record, which leaves a published proof nobody observed, a gate that bills
+// a commit for a record the parent already held stale, and one that bills a
+// producer refactor for a proof the unchanged test still carries.
 package rfc
 
 import (
@@ -153,16 +155,16 @@ func TestCommitGateAdmitsAChangedUnitWithItsRetakenRecord(t *testing.T) {
 	requireAdmitted(t, judgeCommit(t, before, after))
 }
 
-// VALIDATES: (c) a commit that changes the producer the record broke is
-// refused, naming the producer and the re-take line with its producer.
-func TestCommitGateRefusesAChangedProducer(t *testing.T) {
+// VALIDATES: (c) a commit that changes the behavior of the producer the record
+// broke, and touches no tagged unit, is admitted: the proof belongs to the test,
+// and the unchanged test still catches what it caught (ai/META-DECISIONS.md,
+// "Test changes").
+func TestCommitGateAdmitsAChangedProducer(t *testing.T) {
 	before, _ := recordedParent(t, revertRecord())
 	after := maps.Clone(before)
 	after[selftestProducerPath] = strings.Replace(selftestProducerSource, "return count", "return 0", 1)
 
-	requireRefusal(t, judgeCommit(t, before, after),
-		ProofProducerChanged, selftestProducerUnit,
-		retakePrefix+"revert producer "+selftestProducerUnit)
+	requireAdmitted(t, judgeCommit(t, before, after))
 }
 
 // VALIDATES: (d) a record the parent already holds stale is debt the commit did
@@ -185,7 +187,8 @@ func TestCommitGateAdmitsARecordAlreadyStaleAtTheParent(t *testing.T) {
 }
 
 // VALIDATES: the gate judges at the function a record fingerprints: an edit to
-// an unrelated function of the unit's file leaves a fresh record fresh.
+// an unrelated function of the unit's file leaves a fresh record fresh. The
+// producer-file edit beside it is not a key the gate judges at all.
 func TestCommitGateAdmitsAnUnrelatedFunctionInTheUnitFile(t *testing.T) {
 	before, _ := recordedParent(t, mutantRecord())
 	after := maps.Clone(before)
@@ -195,8 +198,8 @@ func TestCommitGateAdmitsAnUnrelatedFunctionInTheUnitFile(t *testing.T) {
 	requireAdmitted(t, judgeCommit(t, before, after))
 }
 
-// VALIDATES: (e) a comment-only edit inside the unit and the producer changes no
-// fingerprint, so the commit is admitted.
+// VALIDATES: (e) a comment-only edit inside the unit changes no fingerprint, and
+// the producer edit beside it stales nothing, so the commit is admitted.
 func TestCommitGateAdmitsACommentOnlyEdit(t *testing.T) {
 	before, _ := recordedParent(t, mutantRecord())
 	after := maps.Clone(before)
@@ -209,9 +212,10 @@ func TestCommitGateAdmitsACommentOnlyEdit(t *testing.T) {
 }
 
 // VALIDATES: (f) a commit that removes the producer, from its file or with its
-// file, is refused naming the producer gone and the placeholder the author
-// replaces with the function that now holds its code.
-func TestCommitGateRefusesARemovedProducer(t *testing.T) {
+// file, and touches no tagged unit, is admitted without reading the parent's
+// records: a producer file is not a key this gate judges, because the proof
+// belongs to the test (ai/META-DECISIONS.md, "Test changes").
+func TestCommitGateAdmitsARemovedProducer(t *testing.T) {
 	removals := map[string]func(map[string]string){
 		"the function removed": func(after map[string]string) { after[selftestProducerPath] = "package sample\n" },
 		"the file removed":     func(after map[string]string) { delete(after, selftestProducerPath) },
@@ -221,11 +225,17 @@ func TestCommitGateRefusesARemovedProducer(t *testing.T) {
 			before, _ := recordedParent(t, revertRecord())
 			after := maps.Clone(before)
 			remove(after)
+			change := commitOf(before, after)
+			change.BeforeUnder = func(string) (map[string]string, error) {
+				t.Fatal("the gate listed the parent's records for a commit that touches only a producer")
+				return nil, errors.New("unreachable: t.Fatal stops the test")
+			}
 
-			requireRefusal(t, judgeCommit(t, before, after),
-				ProofProducerGone, "is no longer in the tree", selftestProducerUnit,
-				"naming the function that now holds what "+selftestProducerUnit+" did",
-				retakePrefix+"revert producer "+recordGoneWord)
+			text, err := judgeStaleRecords(change)
+			if err != nil {
+				t.Fatalf("the gate could not judge the fixture commit: %v", err)
+			}
+			requireAdmitted(t, text)
 		})
 	}
 }
@@ -250,7 +260,8 @@ func TestCommitGateAdmitsARemovedTag(t *testing.T) {
 }
 
 // VALIDATES: a commit that deletes a record while its tag stays is refused, so a
-// deletion is not a way past a stale record.
+// deletion is not a way past a stale record. The producer edit beside it stales
+// nothing by itself: the refusal is the deletion's.
 func TestCommitGateRefusesADeletedRecordBesideItsTag(t *testing.T) {
 	before, _ := recordedParent(t, revertRecord())
 	after := maps.Clone(before)

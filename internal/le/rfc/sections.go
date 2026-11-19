@@ -396,7 +396,7 @@ func renderDiscrimination(in RenderInput) []string {
 			Str("names a break of the producing code, and it stores the observation that ").
 			Str("the tagged unit went RED under that break and green again after it. ").
 			Str("`./le rfc check` replays the fingerprints on every run and refuses a ").
-			Str("record whose unit, claim or producer has moved since.").String(),
+			Str("record whose unit or claim has moved since.").String(),
 		"",
 		counts.Str("Proven: ").Int(int64(proven)).Byte(' ').Str(routePhrase(byRoute)).
 			Str(". Escaped: ").

@@ -413,9 +413,12 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 		for _, count := range figures[stem].MandatoryByKind {
 			sum += count
 		}
-		if figures[stem].Walked && sum != figures[stem].Mandatory.Proven {
+		// The kinds include kindOS, so they sum to MustProven: the Ze-proven
+		// rows plus the OS verified ones (profilecoverage.go, countKind).
+		figure := figures[stem]
+		if figure.Walked && sum != figure.MustProven() {
 			t.Errorf("%s splits %d proven MUST row(s) into evidence kinds summing to %d, so the Evidence cell hides some",
-				stem, figures[stem].Mandatory.Proven, sum)
+				stem, figure.MustProven(), sum)
 		}
 	}
 	if checked != len(stemOf) {

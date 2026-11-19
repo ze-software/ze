@@ -36,8 +36,11 @@ const jsonSuffix = ".json"
 // What the tree says about one recorded proof now. Mutually exclusive and
 // total: verifyDiscrimination answers exactly one of these for every record.
 const (
-	// ProofVerified: both fingerprints match, so the tree still holds the code
-	// the red was observed against.
+	// ProofVerified: the tagged unit and its claim are the ones the red was
+	// observed against. The proof belongs to the test, so a change to the code
+	// the test checks, the producer the break was applied to included, leaves
+	// it standing: the unchanged test still catches what it caught
+	// (ai/META-DECISIONS.md, "Test changes").
 	ProofVerified = "verified"
 	// ProofUnitGone: the tagged unit the break reddened is no longer in the tree.
 	ProofUnitGone = "unit-gone"
@@ -49,10 +52,6 @@ const (
 	ProofClaimChanged = "claim-changed"
 	// ProofUnitChanged: the tagged unit is there and its behavior changed.
 	ProofUnitChanged = "unit-changed"
-	// ProofProducerGone: the code the break was applied to is no longer in the tree.
-	ProofProducerGone = "producer-gone"
-	// ProofProducerChanged: the producer is there and its behavior changed.
-	ProofProducerChanged = "producer-changed"
 	// ProofCitationGone: the assertion the record rests on is not in the
 	// carrier the record names.
 	ProofCitationGone = "citation-gone"
@@ -69,11 +68,18 @@ const (
 // applied to, and Break states the break itself, which no gate parses and a
 // reviewer reads.
 //
-// The three fingerprints are what makes a stored proof re-checkable without
-// running anything. Two are the behavior hash of the unit their key names,
-// taken when the red was observed; the third is the hash of what the tag
-// claims. A hash that no longer matches says the observation was never repeated
-// over THIS code, or was never made about THIS claim, and neither is a proof.
+// Two fingerprints are what makes a stored proof re-checkable without running
+// anything: the behavior hash of the tagged unit, taken when the red was
+// observed, and the hash of what the tag claims. A hash that no longer matches
+// says the observation was never made by THIS test, or about THIS claim, and
+// neither is a proof. The proof belongs to the test, so those two are the only
+// ones a verdict reads (ai/META-DECISIONS.md, "Test changes").
+//
+// ProducerSHA, and each paired break's, is the behavior hash of the code the
+// break was applied to, taken when it was applied. It records which version of
+// that code was broken, for a reviewer reading the break, and no verdict reads
+// it: a change to the producer leaves the unchanged test catching what it
+// caught.
 type DiscriminationRecord struct {
 	RID      string `json:"rid"`
 	Polarity string `json:"polarity"`
@@ -98,7 +104,7 @@ type DiscriminationRecord struct {
 	// Paired names the breaks applied TOGETHER with Producer's in the one
 	// broken run, for a property two checks guard on the same path: breaking
 	// either alone leaves the unit green, so no single break can be the red.
-	// Each is fingerprinted and re-verified exactly as Producer is, and a record
+	// Each is fingerprinted when applied exactly as Producer is, and a record
 	// with none is the single-break record every earlier record is.
 	Paired []PairedBreak `json:"paired,omitempty"`
 	// Solo is the evidence that every break of a pair is needed: each break
@@ -455,10 +461,6 @@ type DiscriminationVerdict struct {
 	State  string               `json:"state"`
 	// Detail names what moved, for the violation a reader has to act on.
 	Detail string `json:"detail,omitempty"`
-	// Moved is the paired producer whose fingerprint moved, empty for every
-	// other state: the record's own keys say which of them a state is about,
-	// and a paired producer is the one key they cannot name.
-	Moved string `json:"moved,omitempty"`
 }
 
 // Verified answers whether the tree still holds the code the red was observed
@@ -607,38 +609,11 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 			unit: unit, tagged: tagged, record: *record}
 		return escape.verdict(), nil
 	}
+	// The producer and the paired producers are not read here. The proof
+	// belongs to the test: a producer changed, renamed or removed leaves the
+	// unchanged unit catching what it caught (ai/META-DECISIONS.md, "Test
+	// changes"), so only the unit and its claim stale a proof.
 
-	producer, producerHeld, err := resolveKeyText(reader.read, index, record.Producer, record.Source)
-	if err != nil {
-		return DiscriminationVerdict{}, err
-	}
-	if !producerHeld {
-		return DiscriminationVerdict{Record: *record, State: ProofProducerGone,
-			Detail: "the producer the break was applied to is no longer in the tree"}, nil
-	}
-	if behaviorSHA(keyFile(record.Producer), producer) != record.ProducerSHA {
-		return DiscriminationVerdict{Record: *record, State: ProofProducerChanged,
-			Detail: "the producer's behavior changed since the break was applied to it"}, nil
-	}
-	for _, paired := range record.Paired {
-		text, held, err := resolveKeyText(reader.read, index, paired.Producer, record.Source)
-		if err != nil {
-			return DiscriminationVerdict{}, err
-		}
-		var tb textbuf.Buffer
-		// A paired producer gone from the tree refuses the record: the miss is the verdict.
-		// refuse-by-default: guards ProofProducerGone -- the miss is the refusing verdict
-		if !held {
-			return DiscriminationVerdict{Record: *record, State: ProofProducerGone,
-				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
-					Str(" is no longer in the tree").String()}, nil
-		}
-		if behaviorSHA(keyFile(paired.Producer), text) != paired.ProducerSHA {
-			return DiscriminationVerdict{Record: *record, State: ProofProducerChanged,
-				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
-					Str("'s behavior changed since the break was applied to it").String()}, nil
-		}
-	}
 	// A pair taken before the recorder ran each break alone loads, so every
 	// derived file stays buildable, and is refused here as owing that proof.
 	if len(record.Paired) > 0 && len(record.Solo) == 0 {
