@@ -340,6 +340,9 @@ in the spec or commit it applies to.
 
 - Run the `./le` commands needed for authorized work without asking Thomas
   for permission again.
+- An agent never runs a command on a production network device. When it needs
+  information from one, it gives Thomas the exact command to run there and
+  says what the output will settle; he runs it and returns the output.
 - Before the first edit in each checkout, `git fetch` and confirm
   `git rev-list --count HEAD..@{u}` is zero; pull with
   `git pull --rebase --no-autostash` only when it is not. A dirty tree is no
