@@ -6,9 +6,9 @@
     "unit-sha": "f75f6b995ab6b166",
     "claim-sha": "102885fcae66997e",
     "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "39273e1897dc1430",
-    "break": "line 846: \"if err := s.dataplane.SetMTU(int(mru)); err != nil {\" -\u003e \"if err := s.dataplane.SetMTU(int(MaxFrameLen)); err != nil {\""
+    "producer": "internal/component/l2tp/ppp/session_run.go::activateNetwork",
+    "producer-sha": "d08bf56ad94784c9",
+    "break": "line 931: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
   },
   {
     "rid": "RFC1332-2.1-4",
@@ -17,8 +17,8 @@
     "unit-sha": "f75f6b995ab6b166",
     "claim-sha": "c3d7ae58bf224aec",
     "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "39273e1897dc1430",
-    "break": "line 846: \"if err := s.dataplane.SetMTU(int(mru)); err != nil {\" -\u003e \"if err := s.dataplane.SetMTU(int(MaxFrameLen)); err != nil {\""
+    "producer": "internal/component/l2tp/ppp/session_run.go::activateNetwork",
+    "producer-sha": "d08bf56ad94784c9",
+    "break": "line 931: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
   }
 ]
