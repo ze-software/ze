@@ -8,7 +8,7 @@
 | Release reason | Shipped-daemon defects an operator meets on an LNS with more than one tunnel: a subscriber's route is withdrawn or its session is cleared because a session on another tunnel holds the same session id, and every tunnel stops answering while one RADIUS server is slow. |
 | RFC gaps | - |
 | Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
-| Phase | 4/5: readable interfaces, captured RADIUS actions, task-owned accounting Stop (`93ff938cdb`), checked AC-8 withdrawal (`668a254aec`, `54fce2e657`) and captured-identity-only session reach (`1ed4cebeab`) landed; follow-ups `df9561a463`, `35cc9074ac`, `a3038dfec0`, `938cf958c1`, `23cfe9880f`. AC-4 and AC-8 daemon tests passed 80/80 stress and were promoted (`c801ecfe26`); the six CQM Linux causal checks, the `handleTick` Linux proof and the scale lab on `938cf958c1` passed. The selector-scope test passed 80/80 stress at `23cfe9880f` and is promoted to `test/l2tp/session-selector-scope.ci`. Reopened 2026-11-19: the closure review found that a removed session with unconfirmed cleanup frees its tunnel's admission slot, so retained cleanup roots have no bound. Open: AC-12 (in fix, see Blocker), then a round-2 review and closure |
+| Phase | 4/5: readable interfaces, captured RADIUS actions, task-owned accounting Stop (`93ff938cdb`), checked AC-8 withdrawal (`668a254aec`, `54fce2e657`) and captured-identity-only session reach (`1ed4cebeab`) landed; follow-ups `df9561a463`, `35cc9074ac`, `a3038dfec0`, `938cf958c1`, `23cfe9880f`. AC-4 and AC-8 daemon tests passed 80/80 stress and were promoted (`c801ecfe26`); the six CQM Linux causal checks, the `handleTick` Linux proof and the scale lab on `938cf958c1` passed. The selector-scope test passed 80/80 stress at `23cfe9880f` and is promoted to `test/l2tp/session-selector-scope.ci`. Reopened 2026-11-19: the closure review found that a removed session with unconfirmed cleanup frees its tunnel's admission slot, so retained cleanup roots have no bound. AC-12 fixed in `1cd941a108`; the Linux fixture defect it exposed fixed in `e93e1b37c2`. Closure: round-2 review clean, closing in this commit pair |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -16,14 +16,15 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Closure review round 1 (resolved)
 
 The closure Review Gate (`/ze-close` step 5, round 1, 2026-11-19) found one
-ISSUE in this spec's production code. The closing agent was told to edit no
-code, so it hands the spec back.
+ISSUE in this spec's production code and handed the spec back. It is resolved:
+AC-12 landed in `1cd941a108`, and the Linux fixture defect found while proving
+it landed in `e93e1b37c2`. Round 2 is in the Review Gate section below.
 
-| What blocks | Producer | What clears it |
-|-------------|----------|----------------|
+| What blocked | Producer | What cleared it |
+|--------------|----------|-----------------|
 | `l2tpReactor.retiredSessions` states no bound (style pass, "What bounds this loop, queue, retry, or cache?", `docs/contributing/ze-go-style.md`). `retainRemovedSessions` adds every ended session, and `pruneRetiredSessionsLocked` drops one only once its PPP and native release is confirmed. Under a permanent native cleanup failure on a churning LAC the map grows with every teardown, and the prune walks it under `tunnelsMu` on every teardown batch and every `CaptureSession` | `internal/component/l2tp/reactor.go` field `retiredSessions`; `internal/component/l2tp/session_retirement.go` `retainRemovedSessions`, `pruneRetiredSessionsLocked` | State the bound in the code above the field and above `retainRemovedSessions`: one entry per removed admission whose PPP or native release is unconfirmed, so it never outnumbers the PPP workers and kernel-worker owners still held. If that bound is judged insufficient, bound the map instead. Then a round-2 review over that fix, the review record and the two closure commits. **Superseded by AC-12 (in fix), 2026-11-19:** the stated bound does not hold, because a removed session frees its admission slot. `sessionCount` is `len(t.sessions)` (`session.go`), and it is the only count `handleICRQ` and `handleOCRQ` (`session_fsm.go`) and `newInitiatorSession` (`session_initiator.go`) check against `maxSessions`. A removed session leaves `t.sessions` and moves to `reactor.retiredSessions` (`session_retirement.go` `retainRemovedSessions`, `pruneRetiredSessionsLocked`). A failed raw Close or a native release error keeps `CleanupStatus.Err` set forever (`kernel_linux.go` `teardownSessionFDsLocked`, `originalCleanupStatusLocked`; `ppp/native_release_budget.go` `closeSessionOwnerLocked`; `ppp_construction.go` `pppConstruction.finish`, `cleanupStatus`), and `NewNativeReleaseBudget` has no non-test caller. The contract the admission path breaks, the doc comment of `SessionControl.CloseCanceledOwner` (`ppp/session_cleanup.go`): "The caller MUST retain its existing admission slot until CleanupStatus reports Released && Err==nil; no quota/MaxSessions is clamped." |
 
 Round 1 also corrected one stale public claim, a prose fix the closing agent
@@ -35,7 +36,7 @@ Round 1 NOTEs. They do not block:
 
 | # | NOTE | Location |
 |---|------|----------|
-| 1 | Stale `test/draft/l2tp/...` paths in test-only fixture comments after promotion | `internal/test/fixture/tunnel_fixture_l2tp_session_selector.go` lines 9 and 54, and line 3 of its `_test.go`; `tunnel_fixture_l2tp_slow_accounting.go` lines 11 and 494, and line 3 of its `_test.go` |
+| 1 | Stale `test/draft/l2tp/...` paths in test-only fixture comments after promotion (fixed in `1cd941a108`) | `internal/test/fixture/tunnel_fixture_l2tp_session_selector.go` lines 9 and 54, and line 3 of its `_test.go`; `tunnel_fixture_l2tp_slow_accounting.go` lines 11 and 494, and line 3 of its `_test.go` |
 | 2 | A retired original whose cleanup is pending makes a bare `clear l2tp session id <id>` ambiguous even when only one live session holds the ID. The refusal lists the live one with `expected-id`, which then selects it, so it fails closed and stays usable | `session_capture.go` `CaptureSession`; `cmd/session_read.go` `sessionSelectorCandidates` |
 | 3 | `teardownSessionOnTunnel` still selects by tuple after `TeardownAllSessions` releases its walk lock. It serves only clear-all, so ending a same-label replacement matches that command's intent | `internal/component/l2tp/teardown.go` |
 | 4 | `./le test weakened check base origin/main` reports 10 findings, all in IKE files that hold another session's uncommitted work. `./le repo check` reports `AddProcess` in `plugin/process/manager.go`, which is another session's uncommitted edit. Neither belongs to this spec | working tree |
@@ -334,6 +335,7 @@ One row per goal stated in the Task section. A commit, a test name or a guest ru
 | Each session has its own route record and event history (AC-2) | `TestRouteObserverKeepsSameSessionIDOnTwoTunnelsApart`, `TestRouteObserverSessionDownKeepsOtherTunnelReplay`, `TestRouteObserverKeepsSameTupleOnTwoListenersApart`, `TestObserverKeepsSameSessionIDOnTwoTunnelsApart`, `TestObserverSessionDownKeepsOtherTunnelHistory`, `TestObserverKeepsSameTupleOnTwoListenersApart`; scale runs exercising equal SIDs on distinct tunnels (`191adcb4a6`, and again at `938cf958c1`); six CQM Linux causal checks at `8c341d7e94` | met |
 | A clear, a Disconnect-Request and both timers end only the session they name (AC-3) | `TestSessionTimersCannotEndReplacement`, `TestDisconnectExactAccountingMatchKeepsEqualSIDSurvivor`, `TestCapturedSessionRegisteredCommandConfirmsCleanupAndRefusesOldBirth`; the scale run's exact accounting-ID Disconnect and peer CDN each retired only their own subscriber (`191adcb4a6`, again at `938cf958c1`); `test/l2tp/session-selector-scope.ci` passed at `23cfe9880f` with a causal red and 80/80 stress | met |
 | A slow accounting server delays only its own record (AC-4) | `93ff938cdb`; `test/l2tp/slow-accounting-control.ci` passed at `27b60e5401`, went red with `<-sess.finished` restored, passed 80/80 stress at `8c341d7e94`, was promoted in `c801ecfe26` and passes at `23cfe9880f`; wire order Start before Stop for a Down before the Start (`938cf958c1`, causal red when the Stop goes first) | met |
+| Retained cleanup roots are bounded: an unconfirmed removed session keeps its tunnel's admission slot (AC-12) | `1cd941a108`: `TestSession_UnconfirmedCleanupHoldsSlotICRQ`, `TestSession_UnconfirmedCleanupHoldsSlotOCRQ`, `TestSession_UnconfirmedCleanupHoldsSlotLocalCall`, `TestSession_ConfirmedCleanupFreesSlotAtOnce`, `TestReactor_DiscardedTunnelWithUnconfirmedCleanupHoldsTunnelSlot` pass on the Mac and on Linux (claude server) at `e93e1b37c2`; removing the slot count at `removeSession` turns them red, restored green. The whole l2tp package and the integration-tagged `TestL2TPStartSessionCarriesLCPRestartConfig` pass on Linux at `e93e1b37c2` | met |
 
 ## 🧪 TDD Test Plan
 
@@ -343,7 +345,8 @@ The first three names came from
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSession_UnconfirmedCleanupHoldsSlotICRQ`, `TestSession_UnconfirmedCleanupHoldsSlotOCRQ`, `TestSession_UnconfirmedCleanupHoldsSlotLocalCall`, `TestSession_ConfirmedCleanupFreesSlotAtOnce`, `TestReactor_DiscardedTunnelWithUnconfirmedCleanupHoldsTunnelSlot` | `internal/component/l2tp/session_admission_cleanup_test.go` | AC-12: unconfirmed removed sessions hold their slot (ICRQ and OCRQ refused with CDN RC=4, local calls refused, doctor-ppp-cleanup warning), a confirmed cleanup frees its slot at the next admission, and a discarded tunnel holding unconfirmed cleanup keeps its max-tunnels slot | written, not yet run: red-before and green-after runs owed |
+| `TestSession_UnconfirmedCleanupHoldsSlotICRQ`, `TestSession_UnconfirmedCleanupHoldsSlotOCRQ`, `TestSession_UnconfirmedCleanupHoldsSlotLocalCall`, `TestSession_ConfirmedCleanupFreesSlotAtOnce`, `TestReactor_DiscardedTunnelWithUnconfirmedCleanupHoldsTunnelSlot` | `internal/component/l2tp/session_admission_cleanup_test.go` | AC-12: unconfirmed removed sessions hold their slot (ICRQ and OCRQ refused with CDN RC=4, local calls refused, doctor-ppp-cleanup warning), a confirmed cleanup frees its slot at the next admission, and a discarded tunnel holding unconfirmed cleanup keeps its max-tunnels slot | landed in `1cd941a108`; pass on the Mac and on Linux at `e93e1b37c2`; red with the `removeSession` slot count removed, green restored |
+| `deliverOwnedKernelSuccess` fixture | `internal/component/l2tp/reactor_ppp_linux_test.go` | Linux PPP handoff tests reach their assertions: the fixture admits its session through `newFixtureL2TPSession` and bounds each `StartSession` wait at 2 s | fixed in `e93e1b37c2`: it built a bare session after `6ee99f1e49` required an admitted identity, so every Linux test on it hung; the whole l2tp package passes on Linux at `e93e1b37c2` |
 | `TestLatePPPEventIsRefusedOnAReusedSessionID` | `internal/component/l2tp/late_ppp_event_test.go` | AC-1 | landed in `1ed4cebeab`, passing in its race run |
 | `TestRouteObserverKeepsSameSessionIDOnTwoTunnelsApart` | `internal/component/l2tp/route_identity_test.go` | AC-2 at the route observer | landed with the birth-keyed records of `6ee99f1e49` |
 | `TestObserverKeepsSameSessionIDOnTwoTunnelsApart` | `internal/component/l2tp/observer_identity_test.go` | AC-2 at the CQM observer | landed in `6ee99f1e49`; original-birth CQM ownership completed in `8f9c0fad72` (`Observer.sessions` keyed by `subscriberid.L2TPBirth`) |
@@ -989,3 +992,124 @@ from processing the same event and changing login quality state twice.
 | History reader | Collect active and retained reactor roots under Subsystem.mu and acquire their row locks before releasing it. Capture the exact original row, observer and generation consistently; read that capture's exact Birth outside the subsystem lock without allocating a ring. Fresh reads discover retained roots, and closed observers preserve readonly snapshots |
 | Disconnect history | Route the captured snapshot's generation and Birth to that original observer. An explicit event for an already-captured negotiating row may allocate its original retained ring; it never falls back to the current observer. Existing optional bounded CQM behavior is preserved, separately from command audit |
 | Proof | Controlled overlapping old/new publications with the same login must affect each original observer once; an old unknown birth cannot enter a retained observer, and a callback paused before Stop cannot mutate a closed observer |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Logical birth minted at admission and carried by every lifecycle event; route and CQM observers, accounting and CoS keyed by it (`9e2a9a9e67`, `6ee99f1e49`, `8f9c0fad72`)
+- PPP event fence on admitted control, birth and subscriber ID (`98b534756d`, `1ed4cebeab`)
+- Captured-session selection for every read and teardown, with `tunnel-id`, `listener`, `expected-id` (`ca08d37b88`, `04233cee8f`, `1ed4cebeab`)
+- Accounting-Stop on the session's own task (`93ff938cdb`); AC-8 diagnostics and checked withdrawal (`6974cea4f1`, `668a254aec`, `54fce2e657`); AC-5 peer index key (`59f29eb1df`); AC-12 admission slots held by unconfirmed cleanup (`1cd941a108`)
+
+### Bugs Found/Fixed
+- The seven owned journal rows (Owned journal rows table), each with its test; AC-12 found by the closure review; the Linux `deliverOwnedKernelSuccess` fixture hang (`e93e1b37c2`)
+
+### Documentation Updates
+- Guide, subscriber model, observer, CoS, doctor and digest pages changed with each phase's commit; `features/l2tpv2-bng.md` draft claim corrected in `17d8440f69`
+
+### Deviations from Plan
+- AC-12 added at closure after round 1 showed the stated `retiredSessions` bound did not hold
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: tunnel IDs unique across reactors | Reactor-local allocation; equal TID/SID across listeners | Source read | Birth-keyed identity |
+| assumption | A-3: Accounting-Stop is the only remote wait on the publisher | Shaper and CoS are synchronous too | Source read | Proof scoped to accounting |
+| approach | Removed sessions released their admission slot | `CloseCanceledOwner` contract requires the slot held | Closure review round 1 | AC-12, `1cd941a108` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Working, tested lab | Done | `l2tp-many-sessions-kl2tpd` | passed at `938cf958c1` |
+| Readable selectors resolve to one captured identity | Done | `session_capture.go` `CaptureSession` | |
+| Prometheus retention refusal, CQM isolation, arithmetic, probe unwind, AC-8, strict48 | Done | see Goal Validation | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-11 | Done | Goal Validation rows | |
+| AC-12 | Done | `session_admission_cleanup_test.go` five tests | `1cd941a108` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All Unit Tests rows | Done | TDD Test Plan table | statuses there |
+| `session-selector-scope`, `slow-accounting-control`, `radius-framed-route-overflow` | Done | `test/l2tp/` | promoted |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify / Create | Done | final names in the owning packages (`session_capture.go`, `session_retirement.go`) |
+
+### Audit Summary
+- **Total items:** 12 ACs
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-12 added (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every Task goal | interop, functional, unit | The Goal Validation table above, one row per goal, all met |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC met | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/l2tp-session-identity-and-publish-stall-f45c76e0-7659-497f-917a-30cb537e95d1.md` |
+| `./le spec review check` | run by `./le commit create` on commit B |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: wiring, logic, security and style over the central producers; round 2: the fixes `1cd941a108` and `e93e1b37c2` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `retiredSessions` had no real bound | `reactor.go`, `session_retirement.go`, `session.go` | `1cd941a108` (AC-12) |
+| 2 | ISSUE | Public claim called the promoted slow-accounting test a draft | `features/l2tpv2-bng.md` | `17d8440f69` |
+
+Round 2: 0 BLOCKER, 0 ISSUE. NOTE: `releaseCleanupSlotLocked` panics on a slot count below one; the only producer of a retained root is `removeSession`, which takes the slot, so only a Ze defect reaches it.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/l2tp/session-selector-scope.ci`, `test/l2tp/slow-accounting-control.ci` | yes | grep hits in round 1 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-12 | slot held by unconfirmed cleanup | `session.go` `removeSession` takes `retainedCleanups++`; tests pass on Linux at `e93e1b37c2` |
+| AC-3 | teardown by captured original | `session_capture.go` `Teardown`; `teardownSessionByID` absent |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `clear l2tp session id` | `test/l2tp/session-selector-scope.ci` | runs `le test fixture l2tp/session-selector-scope` |
+| CDN with silent RADIUS | `test/l2tp/slow-accounting-control.ci` | runs `le test fixture l2tp/slow-accounting-control` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | current `pppSessionLocked`; regression test |
+| A-2 | broken | `allocateLocalTID` per reactor |
+| A-3 | broken | shaper and CoS synchronous |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide selector grammar | `cmd/session_teardown.go` `resolveSelector`, `sessionJSON` `birth` key | yes |
+| Slow-accounting test location | `test/l2tp/slow-accounting-control.ci` | yes |

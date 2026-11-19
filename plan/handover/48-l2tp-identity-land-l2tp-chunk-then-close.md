@@ -1,8 +1,7 @@
 # Handover 48: l2tp session identity, land the l2tp chunk, then finish and close
 
-Spec: `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` (in-progress; the
-claim is held by session a0dbf7da, which hands off here: claim it in the new session with
-`./le spec claim plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md`).
+Spec: spec-l2tp-session-identity-and-publish-stall (closed 2026-11-19; at the time of this
+handover it was in-progress, and the claim held by session a0dbf7da passed to the next session).
 Owner instruction for this work: "complete it fully".
 Per-spec state: `tmp/session/2026-11-19-133437/state/session-state-l2tp-session-identity-and-publish-stall-a0dbf7da-0df3-4dcf-b508-ccd3962ff523.md`.
 

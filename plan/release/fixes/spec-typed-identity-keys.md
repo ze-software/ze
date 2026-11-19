@@ -415,7 +415,7 @@ expectations are unverified.
 |------------|------|-----------------|--------------|
 | key-omits-a-fact-the-builder-uses | 2026-10-11 | cli `computeDiff` path-less set comparison | `plan/release/fixes/spec-web-cli-config-one-off-defects.md` |
 | key-omits-a-fact-the-builder-uses | 2026-10-13 | `show bfd session address` first map hit | `plan/release/fixes/spec-ospf-isis-bfd-vrrp-one-off-defects.md` |
-| index-key-derived-from-mutable-field | 2026-08-10 | l2tp `discardTunnelLocked` | `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` |
+| index-key-derived-from-mutable-field | 2026-08-10 | l2tp `discardTunnelLocked` | spec-l2tp-session-identity-and-publish-stall (closed: fixed in `59f29eb1df`) |
 | index-key-derived-from-mutable-field | 2026-08-11 | iface dhcp route removal metric | `plan/release/fixes/spec-network-services-one-off-defects.md` |
 | identifier-reused-after-its-owner-is-gone | 2026-08-19 | iface vpp GRE, IPIP, VXLAN create | `plan/release/fixes/spec-network-services-one-off-defects.md` |
 | identifier-reused-after-its-owner-is-gone | 2026-08-18 | netlink monitor late event name | `plan/release/fixes/spec-network-services-one-off-defects.md` |

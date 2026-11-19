@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
-| Depends | The AC-2 proof uses the session identity fixes tracked in `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` |
+| Depends | The AC-2 proof uses the session identity fixes of spec-l2tp-session-identity-and-publish-stall (closed 2026-11-19) |
 | Phase | 5/5 lab implementation landed. AC-2 verified. AC-3 verified |
 | Updated | 2026-11-19 |
 
@@ -112,7 +112,7 @@ Added 2026-11-15 for AC-2 and AC-3; the older work items fill their rows at desi
 | L2TP interop lab | `internal/le/interoplab/l2tp/` (scenario checkers, `register_images.go`), `test/interop-l2tp/` (`Dockerfile.lac`, `scenarios/`), `docs/architecture/testing/interop.md` | Runs xl2tpd and pppd as the LAC, one session per tunnel, against Ze as LNS | Extends: AC-2 adds a kl2tpd LAC image built on the same pppd 2.5.5 and a scenario of its own; the xl2tpd scenarios stay |
 | AVP relay and its PPP frame reader | `avprelay/pppinject.go` `relayData`, `injectFrames`, `pppFrameBehind`; `ppp_code_reject.go` `relayPPPFrames`, `pppInformation` | Logs every data datagram after the checker's marker and injects PPP probes; the reader refuses a frame with no `ff 03` | Extends: AC-3 logs from the first data datagram, retains the original arming boundary explicitly, tags the existing `ff 03` refusal as the proof, and adds one injected compressed LCP packet for the negative |
 | Per-tunnel notification order | `docs/architecture/l2tp/subscriber-session-model.md`, "The order of one L2TP session's notifications" | Orders one tunnel's route observer calls and events with a ticket | Does not change: AC-2 is the first lab load on it with many sessions in one tunnel |
-| Session identity across tunnels | `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` | Owns the fix for observers and teardown keyed on the session id alone | Does not apply here: AC-2 proves that fix end to end and goes red until it lands |
+| Session identity across tunnels | spec-l2tp-session-identity-and-publish-stall (closed 2026-11-19) | Owns the fix for observers and teardown keyed on the session id alone | Does not apply here: AC-2 proves that fix end to end and goes red until it lands |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
