@@ -92,6 +92,9 @@ in the spec or commit it applies to.
 - RFC 9463 (encrypted DNS resolver discovery, DNR) may be added later and is
   not in the first release. Work done before it shapes learned DNS resolvers
   so DNR can extend them without undoing anything.
+- DNS zone transfer (AXFR, IXFR) is wanted after the first release and is
+  not declined. Its requirements stay recorded as gaps owed after the
+  release, never annotated `{feature-declined}` or called out of scope.
 - A question the RFC text answers is not asked. Where the RFC is silent or
   unclear, the goal is interoperability: Ze must work with BIRD and FRR, so read
   their source and do what lets Ze interoperate with both. freeRtr's source
