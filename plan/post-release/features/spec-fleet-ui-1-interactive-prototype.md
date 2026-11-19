@@ -8,7 +8,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-11-19 |
 
@@ -543,7 +543,7 @@ What the five page families decided that departs from or adds to this spec and i
 
 | # | Page | What the owner said | Change made | Applied to |
 |---|------|---------------------|-------------|------------|
-| | | | | |
+| 1 | Whole prototype (review build at commit `fc44d67279`) | 2026-11-19: "the prototype is excellent". No correction stated | None | AC-10 met: the prototype is approved as built; children 2 to 6 may start |
 
 ## Checklist
 
