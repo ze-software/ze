@@ -4,6 +4,7 @@ package redistribute
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
@@ -90,18 +91,24 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 	logger().Debug("bgp consumer: update-route ok", "added", result.Announced, "withdrawn", result.Withdrawn)
 }
 
-func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, removal redistribute.RouteRemoval) {
+// WithdrawRoute withdraws every admitted scope of the exact source contribution
+// and answers the joined failures. A scope whose withdrawal failed keeps its
+// original admission ID as a withdraw-only record, so the next WithdrawRoute of
+// the same contribution at this consumer retries it under that same ID. nil
+// means every surviving scope was confirmed withdrawn, or none was admitted.
+func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, removal redistribute.RouteRemoval) error {
 	release, err := c.accepted.begin(ctx)
 	if err != nil {
 		c.reportFailure(ctx, "withdraw", "*", removal.Prefix, fam, "", err)
-		return
+		return err
 	}
 	defer release()
 	records, err := c.accepted.retiring(fam, removal)
 	if err != nil {
 		c.reportFailure(ctx, "withdraw", "*", removal.Prefix, fam, "", err)
-		return
+		return err
 	}
+	var failures []error
 	// Only the actual admitted scopes of this exact source are withdrawn.
 	for _, record := range records {
 		peer := record.snapshot.Peer
@@ -117,10 +124,12 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, remo
 		}
 		if err != nil {
 			c.reportFailure(ctx, "withdraw", peer, removal.Prefix, fam, command, err)
+			failures = append(failures, err)
 			continue
 		}
 		c.accepted.withdrawn(record)
 	}
+	return errors.Join(failures...)
 }
 
 // formatAnnounce builds the `update text ... add <prefix>` command. When

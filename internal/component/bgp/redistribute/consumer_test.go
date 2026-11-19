@@ -120,7 +120,7 @@ func TestBGPConsumerWithdrawRoute(t *testing.T) {
 
 	seedBGPAcceptedRemoval(t, c, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.1/32"))
 
-	c.WithdrawRoute(context.Background(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.1/32"))
+	require.NoError(t, c.WithdrawRoute(context.Background(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.1/32")))
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
@@ -202,7 +202,7 @@ func TestBGPConsumerWithdrawRouteIPv6(t *testing.T) {
 
 	seedBGPAcceptedRemoval(t, c, family.IPv6Unicast, bgpAcceptedRemoval(t, "2001:db8::/64"))
 
-	c.WithdrawRoute(context.Background(), family.IPv6Unicast, bgpAcceptedRemoval(t, "2001:db8::/64"))
+	require.NoError(t, c.WithdrawRoute(context.Background(), family.IPv6Unicast, bgpAcceptedRemoval(t, "2001:db8::/64")))
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)

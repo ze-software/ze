@@ -67,8 +67,8 @@ func TestUnknownWithdrawalReportsOriginalRuntime(t *testing.T) {
 			replacement, other := startWithdrawalReporter(t, transport)
 			consumer := &stubConsumer{name: "diagnostic-consumer"}
 			entry := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: netip.MustParsePrefix("192.0.2.0/24")}
-			dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
-				"unregistered-withdrawal-source", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0)
+			require.ErrorIs(t, dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
+				"unregistered-withdrawal-source", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0), errWithdrawalSourceUnregistered)
 			reporter.queue.Flush()
 			other.queue.Flush()
 			require.Empty(t, consumer.snapshotWithdrawn(), "unknown source cannot remove the consumer route")
@@ -95,8 +95,8 @@ func TestUnknownWithdrawalReportsOriginalRuntime(t *testing.T) {
 				require.NotEqual(t, rpc.MethodReportIssue, call.Method, "another live runtime cannot borrow the original report")
 			}
 			redistevents.RegisterProtocol("fakeredist")
-			dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
-				"fakeredist", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0)
+			require.NoError(t, dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
+				"fakeredist", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0), "a registered source's confirmed withdrawal answers nil")
 			reporter.queue.Flush()
 			require.Len(t, consumer.snapshotWithdrawn(), 1)
 			require.Equal(t, "192.0.2.0/24", consumer.snapshotWithdrawn()[0].prefix)
@@ -126,8 +126,8 @@ func TestUnknownWithdrawalAfterReporterStopRefusesOriginalQueue(t *testing.T) {
 			consumer := &stubConsumer{name: "late-diagnostic-consumer"}
 			entry := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: netip.MustParsePrefix("198.51.100.0/24")}
 			lateCallback := func() {
-				dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
-					"late-unregistered-withdrawal-source", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0)
+				require.ErrorIs(t, dispatchEntryToConsumer(reporter.ctx, consumer, family.IPv4Unicast,
+					"late-unregistered-withdrawal-source", "", 0, nil, &entry, nil, ribpolicy.Sets{}, 0), errWithdrawalSourceUnregistered)
 			}
 			reporter.queue.Stop()
 			lateCallback()

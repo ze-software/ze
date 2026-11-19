@@ -491,6 +491,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix, instance: entry.SourceInstance, table: entry.Table}
 		sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
 		sent.generation = gen
+		sent.episode = consumer
 		dispatched := false
 		if accepted {
 			dispatched = beginDispatchedAdd(key, &route, &sent, true)
@@ -503,9 +504,9 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 	logger().Debug("redistribute-orchestrator: replayed source", "source", name, "destination", destination, "peer", peer, "entries", len(b.Entries))
 }
 
-// dispatchReplayed sends one replayed entry and counts it.
+// dispatchReplayed sends one replayed Add entry and counts it.
 func dispatchReplayed(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, b *redistevents.RouteChangeBatch, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) {
-	dispatchEntryToConsumer(ctx, consumer, fam, source, peer, b.OriginASN, b.Community, entry, view, sets, generation)
+	injectEntryToConsumer(ctx, consumer, fam, source, peer, b.OriginASN, b.Community, entry, view, sets, generation)
 	if m := getMetrics(); m != nil && m.replayTotal != nil {
 		m.replayTotal.With(source).Inc()
 	}

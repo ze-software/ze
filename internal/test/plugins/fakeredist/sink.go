@@ -61,11 +61,12 @@ func (s *sink) InjectRoute(_ context.Context, _ family.Family, entry configredis
 	s.prefixes[entry.Prefix] = struct{}{}
 }
 
-func (s *sink) WithdrawRoute(_ context.Context, _ family.Family, removal configredist.RouteRemoval) {
+func (s *sink) WithdrawRoute(_ context.Context, _ family.Family, removal configredist.RouteRemoval) error {
 	prefix := removal.Prefix
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.prefixes, prefix)
+	return nil
 }
 
 // held answers the sorted prefix list, so a scenario's assertion is on a stable

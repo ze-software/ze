@@ -3467,6 +3467,18 @@ original queue: its refused offer is logged with `report-error`, rather than
 sent through a replacement runtime.
 <!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnknownWithdrawal -->
 <!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
+
+`RedistConsumer.WithdrawRoute` answers an error when it cannot confirm the
+removal. Every held record names the consumer instance (episode) that accepted
+it. A re-registration moves the earlier instance's records aside rather than
+forgetting them, so a Remove withdraws at that instance first and then at the
+current one. A record leaves only on a confirmed withdrawal; an unconfirmed
+one stays with its episode and is withdrawn there again by the next Remove of
+the route or the next reload, and the same report queue carries
+`doctor-redistribute-withdrawal-unconfirmed`. Every consumer call and report
+runs with the held set's lock released.
+<!-- source: internal/plugins/redistribute/held.go -- heldRoutes, retireEpisode, claimRemove, settleWithdrawal, withdrawClaim -->
+<!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnconfirmedWithdrawal -->
 <!-- test: internal/plugins/redistribute/withdrawal_diagnostic_test.go TestUnknownWithdrawalReportsOriginalRuntime -->
 <!-- test: internal/plugins/redistribute/withdrawal_diagnostic_test.go TestUnknownWithdrawalAfterReporterStopRefusesOriginalQueue -->
 
@@ -3495,11 +3507,14 @@ It transfers that instance to the rekey successor, then publishes changed
 selectors. Independent children retain different instances even with the same
 interface and remote prefix. An SPI, interface ID or peer label is not that identity.
 
-L2TP retains its actual `(tunnel ID, session ID)` tuple in one uint32.
-Address and framed-prefix add, replay and removal carry that same instance,
-even when two sessions contribute the same prefix. The live record map uses
-that full tuple. Equal session IDs on different tunnels stay independent
-through assignment, replay and removal.
+L2TP draws a separate instance for each route lifetime from a process-wide
+sequence when the session's first address is assigned. The instance is never
+recycled within the process and is never derived from the tunnel or session
+ID, so a reused session ID cannot alias an earlier contribution. Address and
+framed-prefix add, replay and removal carry that same instance, even when two
+sessions contribute the same prefix. The live record map is keyed by the
+session's full subscriber identity, so equal session IDs on different tunnels
+stay independent through assignment, replay and removal.
 
 Static alone currently carries a configured per-route distance override on
 this feed. Its named-table routes remain excluded.
@@ -3519,7 +3534,8 @@ admission remain part of the advertiser work in progress.
 <!-- source: internal/plugins/kernel/kernel.go -- emit -->
 <!-- source: internal/plugins/as112/redistribute.go -- emit -->
 <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteChange -->
-<!-- source: internal/component/l2tp/route_observer.go -- routeInstance, emitAdd, emitRemove, reemitAll, emitFramedRoutes -->
+<!-- source: internal/component/l2tp/route_observer.go -- assign, emitAdd, emitRemove, reemitAll, emitFramedRoutes -->
+<!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence -->
 <!-- source: internal/component/config/redistribute/consumer.go -- RouteEntry -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer -->
 <!-- source: internal/plugins/redistribute/held.go -- sentRoute, newSentRoute, matches -->

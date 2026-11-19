@@ -21,10 +21,17 @@ var ErrConsumerConflict = errors.New("redistribute: consumer already registered"
 
 // RedistConsumer is the interface that destination protocols implement to receive
 // redistributed routes. Each protocol registers one consumer at startup.
+//
+// WithdrawRoute answers nil when the consumer confirmed the removal, held
+// nothing for it to remove, or refused it for a reason a retry would meet the
+// same way (it logs that refusal itself). Any other answer is the reason it
+// could not confirm: the orchestrator then keeps the contribution held at this
+// same consumer instance and withdraws it there again on a later trigger, so a
+// consumer MUST NOT answer nil for a removal a retry could still complete.
 type RedistConsumer interface {
 	Name() string
 	InjectRoute(ctx context.Context, fam family.Family, entry RouteEntry)
-	WithdrawRoute(ctx context.Context, fam family.Family, removal RouteRemoval)
+	WithdrawRoute(ctx context.Context, fam family.Family, removal RouteRemoval) error
 }
 
 // RouteRemoval identifies the accepted source contribution being removed.

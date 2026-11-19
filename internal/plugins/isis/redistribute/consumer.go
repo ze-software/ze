@@ -303,7 +303,12 @@ func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry conf
 // the source through the withdraw path), so the consumer recovers the source label
 // it recorded at inject time (forgetSource), mirroring the inject path's
 // sourceLabel(entry.Source). A prefix it never injected resolves to "unknown".
-func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) {
+//
+// It answers nil: the prefix leaves the origination state in this call. A
+// failed re-origination is logged and counted (reoriginate), and a repeated
+// withdrawal would find the prefix already gone and originate nothing, so an
+// error here would only hold a retry that cannot help.
+func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) error {
 	prefixStr := removal.Prefix
 	c.offerMu.Lock()
 	defer c.offerMu.Unlock()
@@ -312,6 +317,7 @@ func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal
 		delete(c.offered, prefix.Masked())
 	}
 	c.removeRoute(ctx, fam, prefixStr)
+	return nil
 }
 
 // removeRoute is WithdrawRoute under offerMu: it takes prefixStr out of the

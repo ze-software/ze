@@ -593,7 +593,7 @@ removes that record without changing another pool. Rollback rebuilds the old
 ranges from the records held then, so it also preserves sessions admitted
 after apply.
 <!-- source: internal/component/l2tp/plugins/pool/reload.go -- carryIPv4, carryIPv6 -->
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- onSessionDown, releasePrefix -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- onSessionDown, releasePrefixBySubscriberID -->
 
 RADIUS admission checks the same live records before reserving an assignment.
 An IPv4 address stays exclusive even outside every current range. The pool

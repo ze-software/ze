@@ -155,7 +155,7 @@ func TestBGPConsumerFailedReplacementKeepsOriginalCleanup(t *testing.T) {
 				return &rpc.UpdateRouteOutput{Withdrawn: 1}, nil
 			}
 			removal := configredist.RouteRemoval{Prefix: entry.Prefix, Protocol: entry.Protocol, SourceInstance: entry.SourceInstance, Table: entry.Table}
-			consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, removal)
+			require.ErrorContains(t, consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, removal), "original cleanup remains unconfirmed", "an unconfirmed original cleanup is the withdrawal's answer")
 			require.Len(t, d.calls, 3)
 			require.Equal(t, []uint64{oldIDs[0], oldIDs[1], newID}, []uint64{d.calls[0].input.OriginAdmissionID, d.calls[1].input.OriginAdmissionID, d.calls[2].input.OriginAdmissionID})
 			require.Equal(t, []string{first.Peer, second.Peer, "*"}, []string{d.calls[0].input.PeerSelector, d.calls[1].input.PeerSelector, d.calls[2].input.PeerSelector})
@@ -167,7 +167,7 @@ func TestBGPConsumerFailedReplacementKeepsOriginalCleanup(t *testing.T) {
 			_, err = d.query(siblingID, rpc.OriginIntakeAnnounce, "192.0.2.7")
 			require.NoError(t, err)
 			d.calls, d.answer = nil, nil
-			consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, removal)
+			require.NoError(t, consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, removal), "the retry confirms the last original cleanup")
 			require.Len(t, d.calls, 1, "retry reaches an original ID even after the current group is gone")
 			require.Equal(t, oldIDs[0], d.calls[0].input.OriginAdmissionID)
 			require.Equal(t, first.Peer, d.calls[0].input.PeerSelector)
@@ -212,7 +212,9 @@ func TestBGPConsumerConfirmedReplacementKeepsOriginalReplay(t *testing.T) {
 			targeted := replacement
 			targeted.Peer = "192.0.2.7"
 			targeted.AdmissionGeneration = 2
-			d.answer = func(rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) { return nil, errors.New("targeted replay transport failed") }
+			d.answer = func(rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+				return nil, errors.New("targeted replay transport failed")
+			}
 			consumer.InjectRoute(t.Context(), family.IPv4Unicast, targeted)
 			require.Equal(t, newID, d.calls[2].input.OriginAdmissionID)
 			original, err := d.query(newID, rpc.OriginIntakeAnnounce, targeted.Peer)

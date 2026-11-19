@@ -162,8 +162,11 @@ func run(ctx context.Context) {
 func watchConsumers(bus ze.EventBus, coord *replayCoordinator) func() {
 	configredist.SetConsumerObserver(func(name string) {
 		// A consumer registering here, first time or again, holds nothing yet:
-		// the replay below is what it will hold.
-		consumerHeld.forgetConsumer(name)
+		// the replay below is what it will hold. An instance it replaced keeps
+		// what it accepted, so a later withdrawal still reaches that instance.
+		if current, ok := configredist.LookupConsumer(name); ok {
+			consumerHeld.retireEpisode(name, current)
+		}
 		coord.onConsumerRegistered(bus, name)
 	})
 	replayConsumers(bus, coord)
@@ -283,21 +286,21 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 				// Empty peer selector: the incremental path fans out to all peers.
 				sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
 				sent.generation = gen
+				sent.episode = consumer
 				dispatched := false
 				if accepted {
 					dispatched = beginDispatchedAdd(key, &route, &sent, false)
 				}
 				if dispatched {
-					dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets, gen)
+					injectEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets, gen)
 				}
 				settleDispatchedAdd(ctx, consumer, key, gen, dispatched, accepted, &route, &sent, entry, "", b.OriginASN, b.Community)
 			case redistevents.ActionRemove:
 				if !accepted {
-					removeReplacedRoute(ctx, consumer, key)
+					removeReplacedRoute(ctx, key)
 					continue
 				}
-				dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets, gen)
-				consumerHeld.release(key)
+				withdrawAccepted(ctx, consumer, key, entry)
 			case redistevents.ActionUnspecified:
 				logger().Warn(Name+": skipping entry with no action", "source", name, "prefix", entry.Prefix)
 			default:
@@ -321,8 +324,9 @@ func beginDispatchedAdd(key heldKey, view *configredist.RedistRoute, sent *sentR
 // the evaluator of generation gen, and sends the consumer what a reload that
 // landed in between makes owed: the route again with the installed rules'
 // sets, or its withdraw (heldRoutes.settleAdd). dispatched says the batch sent
-// the Add. An entry with an invalid prefix reached no consumer
-// (dispatchEntryToConsumer), so it changes nothing.
+// the Add to sent.episode. The withdraw goes to the episode settleAdd names,
+// which keeps the route until it confirms. An entry with an invalid prefix
+// reached no consumer (injectEntryToConsumer), so it changes nothing.
 func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsumer, key heldKey, gen uint64, dispatched, accepted bool, view *configredist.RedistRoute, sent *sentRoute, produced *redistevents.RouteChangeEntry, peer string, originASN uint32, community []uint32) {
 	if !key.prefix.IsValid() {
 		return
@@ -332,14 +336,21 @@ func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsum
 	case settlementSettled:
 	case settlementResend:
 		logger().Debug(Name+": reloaded rules resend the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
-		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, peer, originASN, community, produced, view, sets, sent.generation)
+		injectEntryToConsumer(ctx, consumer, key.family, key.source, peer, originASN, community, produced, view, sets, sent.generation)
 	case settlementWithdraw:
 		logger().Debug(Name+": rejected entry withdraws the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
-		withdrawHeld(ctx, consumer, key)
+		withdrawClaim(ctx, heldClaim{key: key, episode: sent.episode, receipt: sent.receipt})
 	case settlementUnspecified:
 		panic("BUG: redistribute: settleAdd answered no settlement")
 	default:
 		panic("BUG: redistribute: settleAdd answered an unknown settlement")
+	}
+	if !sent.refused {
+		return
+	}
+	// A refused replacement also replaces what earlier episodes hold of it.
+	for _, claim := range consumerHeld.claimRetired(key) {
+		withdrawClaim(ctx, claim)
 	}
 }
 
@@ -407,16 +418,38 @@ func entrySource(protocol string, entry *redistevents.RouteChangeEntry) string {
 	return protocol
 }
 
+// withdrawAccepted withdraws a Remove the import rules accept. Each episode
+// holding the route is sent the withdraw at itself, earlier episodes first, and
+// keeps the route until it confirms (heldRoutes.claimRemove, withdrawClaim). A
+// route no episode holds still reaches consumer, the one registered now, as an
+// accepted Remove always has: nothing is held for it, so nothing is kept, and
+// an unconfirmed answer is reported.
+func withdrawAccepted(ctx context.Context, consumer configredist.RedistConsumer, key heldKey, produced *redistevents.RouteChangeEntry) {
+	claims, held := consumerHeld.claimRemove(key)
+	if held {
+		for _, claim := range claims {
+			withdrawClaim(ctx, claim)
+		}
+		return
+	}
+	err := dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, produced, nil, ribpolicy.Sets{}, 0)
+	if err != nil {
+		reportUnconfirmedWithdrawal(ctx, key, err)
+	}
+}
+
 // dispatchEntryToConsumer hands one entry to consumer. peer is the single-peer
 // selector for the replay path (empty means the normal all-peers fan-out).
 // view is the route the import chain judged and sets what its accepting chain
-// set; a withdraw carries neither and passes nil and the zero Sets.
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) {
+// set; a withdraw carries neither and passes nil and the zero Sets. It answers
+// the error a withdraw could not be confirmed with; an Add answers nil, because
+// InjectRoute reports its own failures.
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) error {
 	adjusted := applySets(produced, sets)
 	entry := &adjusted
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
-		return
+		return nil
 	}
 	if entry.Action == redistevents.ActionAdd {
 		if m := getMetrics(); m != nil {
@@ -459,7 +492,7 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			HasMetric:           sets.HasMetric,
 			Route:               route,
 		})
-		return
+		return nil
 	}
 	if entry.Action == redistevents.ActionRemove {
 		if m := getMetrics(); m != nil {
@@ -467,11 +500,22 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 		}
 		protocol, known := redistevents.ProtocolIDOf(source)
 		if !known {
+			// Nothing confirmed it, so the caller keeps what it held.
 			reportUnknownWithdrawal(ctx, source, fam, entry.Prefix)
-			return
+			return errWithdrawalSourceUnregistered
 		}
-		consumer.WithdrawRoute(ctx, fam, configredist.RouteRemoval{Prefix: entry.Prefix.String(), Source: source, Protocol: protocol, SourceInstance: produced.SourceInstance, Table: produced.Table})
-		return
+		return consumer.WithdrawRoute(ctx, fam, configredist.RouteRemoval{Prefix: entry.Prefix.String(), Source: source, Protocol: protocol, SourceInstance: produced.SourceInstance, Table: produced.Table})
 	}
 	logger().Warn(Name+": skipping entry with invalid action", "action", entry.Action, "prefix", entry.Prefix)
+	return nil
+}
+
+// injectEntryToConsumer dispatches one Add entry (dispatchEntryToConsumer). An
+// Add answers no error: InjectRoute reports its own failures. A caller MUST
+// pass an Add.
+func injectEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets, generation uint64) {
+	if produced.Action != redistevents.ActionAdd {
+		panic("BUG: redistribute: injectEntryToConsumer called with an entry that is not an Add")
+	}
+	dispatchEntryToConsumer(ctx, consumer, fam, source, peer, originASN, community, produced, view, sets, generation) //nolint:errcheck // an Add always answers nil
 }

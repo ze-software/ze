@@ -52,7 +52,9 @@ func TestBGPConsumerFailureReachesOwningReportBus(t *testing.T) {
 			consumer := NewBGPConsumer(dispatcher)
 			if withdraw {
 				seedBGPAcceptedRemoval(t, consumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
-				consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+				if err := consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24")); !errors.Is(err, cause) {
+					t.Fatalf("failed withdrawal answered %v, want its cause %v", err, cause)
+				}
 			} else {
 				consumer.InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24", Peer: "192.0.2.7"})
 			}
@@ -90,7 +92,9 @@ func TestBGPConsumerRetainedLoserDoesNotRaiseFailure(t *testing.T) {
 	dispatcher.output = &rpc.UpdateRouteOutput{Withdrawn: 1}
 	withdrawConsumer := NewBGPConsumer(dispatcher)
 	seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
-	withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+	if err := withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24")); err != nil {
+		t.Fatalf("completed withdrawal answered %v, want nil", err)
+	}
 	if len(dispatcher.issues) != 0 {
 		t.Fatalf("completed withdrawal was reported as failure: %+v", dispatcher.issues)
 	}
@@ -179,7 +183,9 @@ func TestBGPConsumerDiagnosticUsesActualSDKConnection(t *testing.T) {
 			})
 			withdrawConsumer := NewBGPConsumer(updater)
 			seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
-			withdrawConsumer.WithdrawRoute(ctx, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+			if err := withdrawConsumer.WithdrawRoute(ctx, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24")); err == nil || !strings.Contains(err.Error(), cause.Error()) {
+				t.Fatalf("refused withdrawal answered %v, want its cause %v", err, cause)
+			}
 			select {
 			case issue := <-reported:
 				if issue.Action != rpc.ReportRaise || issue.Severity != rpc.ReportError || issue.Code != "doctor-bgp-redistribution" || !strings.Contains(issue.Message, cause.Error()) || issue.Fix != "ze show bgp peers" {
@@ -203,7 +209,9 @@ func TestBGPConsumerReportRefusalKeepsOriginalFailureVisible(t *testing.T) {
 	dispatcher := &consumerDiagnosticDispatcher{cause: cause, reportCause: reportCause}
 	withdrawConsumer := NewBGPConsumer(dispatcher)
 	seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
-	withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+	if err := withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24")); !errors.Is(err, cause) {
+		t.Fatalf("refused withdrawal answered %v, want its cause %v", err, cause)
+	}
 	output := buffer.String()
 	if len(dispatcher.issues) != 1 || !strings.Contains(output, cause.Error()) || !strings.Contains(output, reportCause.Error()) || strings.Count(output, "code=doctor-bgp-redistribution") != 2 {
 		t.Fatalf("route/report refusal was hidden or lost its doctor owner: %s", output)

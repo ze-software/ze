@@ -279,8 +279,11 @@ func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry conf
 // WithdrawRoute MaxAge-purges the Type 5 AS-External-LSA for prefix and re-floods so
 // peers withdraw the external (AC-5). A prefix that was never injected is a no-op.
 // The generic WithdrawRoute carries no source, so the consumer recovers the source
-// label it recorded at inject time (forgetSource).
-func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) {
+// label it recorded at inject time (forgetSource). It answers nil: the only
+// purge refusal is the deterministic default-route family check
+// (engine.withdrawDefaultExternal), which a retry would refuse the same way, so
+// removeRoute logs it once and the orchestrator releases the contribution.
+func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal configredist.RouteRemoval) error {
 	prefixStr := removal.Prefix
 	c.offerMu.Lock()
 	defer c.offerMu.Unlock()
@@ -290,6 +293,7 @@ func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, removal
 		delete(c.offered, unmap4in6Prefix(prefix).Masked())
 	}
 	c.removeRoute(ctx, fam, prefixStr)
+	return nil
 }
 
 // removeRoute is WithdrawRoute under offerMu, also used when the export chain

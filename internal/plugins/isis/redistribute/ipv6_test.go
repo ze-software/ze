@@ -73,7 +73,9 @@ func TestISISRedistConsumerIPv6Withdraw(t *testing.T) {
 	if len(inj.snapshotV6(lsdb.Level1)) != 1 {
 		t.Fatal("inject did not record the IPv6 prefix")
 	}
-	c.WithdrawRoute(context.Background(), family.IPv6Unicast, configredist.RouteRemoval{Prefix: "2001:db8:9::/64"})
+	if err := c.WithdrawRoute(context.Background(), family.IPv6Unicast, configredist.RouteRemoval{Prefix: "2001:db8:9::/64"}); err != nil {
+		t.Fatalf("withdrawal answered %v; this consumer confirms every removal with nil", err)
+	}
 	if got := inj.snapshotV6(lsdb.Level1); len(got) != 0 {
 		t.Errorf("withdraw left %d IPv6 prefixes, want 0", len(got))
 	}

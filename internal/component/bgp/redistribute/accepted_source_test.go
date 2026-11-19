@@ -285,7 +285,7 @@ func TestBGPAcceptedActualSDKRetainedResult(t *testing.T) {
 			require.Equal(t, uint32(99), snapshot.Metric)
 			require.True(t, snapshot.HasDistanceOverride)
 			require.Zero(t, snapshot.DistanceOverride)
-			consumer.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: entry.Prefix, Protocol: entry.Protocol, SourceInstance: entry.SourceInstance, Table: entry.Table})
+			require.NoError(t, consumer.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: entry.Prefix, Protocol: entry.Protocol, SourceInstance: entry.SourceInstance, Table: entry.Table}), "the confirmed withdrawal answers nil")
 			mu.Lock()
 			captured = append([]rpc.OriginAdmissionSnapshot(nil), snapshots...)
 			raised = reports

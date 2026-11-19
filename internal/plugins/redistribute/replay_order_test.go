@@ -130,7 +130,7 @@ func TestWithdrawScanSparesNewerAcceptedVersion(t *testing.T) {
 // replacement Add is in flight when a reload rejects it is withdrawn once: the
 // scan leaves it to the Add's settlement.
 //
-// VALIDATES: releaseRejected skips an in-flight key, and settleAdd withdraws it.
+// VALIDATES: claimRejected skips an in-flight key, and settleAdd withdraws it.
 // PREVENTS: the scan and the settlement each sending the same withdraw.
 func TestReloadDuringDispatchWithdrawsHeldRouteOnce(t *testing.T) {
 	resetState(t)
@@ -145,7 +145,8 @@ func TestReloadDuringDispatchWithdrawsHeldRouteOnce(t *testing.T) {
 	entry := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: k.prefix, Tag: 7}
 	held := redistRoute(reloadSource, id, family.IPv4Unicast, &entry)
 	_, gen := consumerHeld.evaluator()
-	sent := sentRoute{}
+	// Every held record names the episode that accepted it.
+	sent := sentRoute{episode: consumer}
 	consumerHeld.settleAdd(k, &held, &sent, false, true, gen)
 
 	handleBatch(context.Background(), skipIDs(), &redistevents.RouteChangeBatch{Protocol: id, AFI: afiIPv4, SAFI: safiUnicst, Entries: []redistevents.RouteChangeEntry{entry}})

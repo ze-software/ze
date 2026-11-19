@@ -52,11 +52,12 @@ func (s *stubConsumer) InjectRoute(_ context.Context, fam family.Family, entry c
 	s.injected = append(s.injected, injectedEntry{fam: fam, entry: entry})
 }
 
-func (s *stubConsumer) WithdrawRoute(_ context.Context, fam family.Family, removal configredist.RouteRemoval) {
+func (s *stubConsumer) WithdrawRoute(_ context.Context, fam family.Family, removal configredist.RouteRemoval) error {
 	prefix := removal.Prefix
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.withdrawn = append(s.withdrawn, withdrawnEntry{fam: fam, prefix: prefix})
+	return nil
 }
 
 func (s *stubConsumer) snapshotInjected() []injectedEntry {
@@ -131,6 +132,7 @@ func (h *heldRoutes) reset() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	clear(h.set)
+	clear(h.retired)
 	clear(h.inflight)
 }
 

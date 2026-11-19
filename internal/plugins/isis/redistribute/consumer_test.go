@@ -126,7 +126,9 @@ func TestISISExportReloadRejudges(t *testing.T) {
 	c.InjectRoute(ctx, v4, exportEntry("198.51.100.0/24"))
 	c.InjectRoute(ctx, v6, exportEntry("2001:db8::1/128"))
 	c.InjectRoute(ctx, v4, exportEntry("203.0.113.1/32"))
-	c.WithdrawRoute(ctx, v4, configredist.RouteRemoval{Prefix: "203.0.113.1/32"})
+	if err := c.WithdrawRoute(ctx, v4, configredist.RouteRemoval{Prefix: "203.0.113.1/32"}); err != nil {
+		t.Fatalf("withdrawal answered %v; this consumer confirms every removal with nil", err)
+	}
 
 	SetExportChain(acceptAll{metric: 30})
 	c.Rejudge(ctx)

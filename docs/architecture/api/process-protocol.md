@@ -5328,6 +5328,21 @@ not reported as a zero-peer failure. When the accepting Process ends, the
 engine retires its redistributed contributions through the live deciding
 connection. Ordinary local/API keep-and-reoffer behavior is unchanged.
 
+The consumer's withdrawal answers the joined failures of its `update-route`
+results, so the orchestrator learns whether the withdrawal was confirmed. The
+orchestrator sends each withdrawal to the consumer instance that accepted the
+contribution, never to a replacement registered later under the same name, and
+releases its held contribution only after that instance confirms. An
+unconfirmed withdrawal keeps that instance and, inside the consumer, its
+original withdraw-only admission IDs; the next removal of the contribution or
+the next reload of the rules withdraws it there again, with no timer. Each
+failure is reported as `doctor-redistribute-withdrawal-unconfirmed` with the
+original source instance and table. These held records share the held set's
+bound: one per accepted contribution not yet confirmed withdrawn.
+<!-- source: internal/component/bgp/redistribute/consumer.go -- BGPConsumer.WithdrawRoute -->
+<!-- source: internal/plugins/redistribute/held.go -- retireEpisode, claimRemove, settleWithdrawal -->
+<!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnconfirmedWithdrawal -->
+
 This boundary consumes already-accepted redistribution data. Upstream kernel,
 IPsec, OSPF and IS-IS producer lifetime and replay mechanisms remain owned by
 redistribution. The shared removal value includes exact source identity;

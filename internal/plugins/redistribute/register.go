@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -30,6 +31,14 @@ func init() {
 	policy.MustRegisterRouteAttachment(Name, chainAttachment,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric})
+
+	// A withdrawal its consumer could not confirm (withdrawal_diagnostic.go).
+	if err := diagnostic.Register(unconfirmedWithdrawalMeta); err != nil {
+		panic("BUG: redistribution withdrawal diagnostic registration: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: unconfirmedWithdrawalCode}); err != nil {
+		panic("BUG: redistribution withdrawal event registration: " + err.Error())
+	}
 
 	reg := registry.Registration{
 		Name:        Name,
@@ -76,6 +85,8 @@ func runPlugin(conn net.Conn) int {
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
+	// The consumer episodes a previous run dispatched to ended with it.
+	consumerHeld.beginRun()
 
 	ctx, cancel := sdk.SignalContext()
 	issues := issuequeue.Start(p)
@@ -111,11 +122,9 @@ func runPlugin(conn net.Conn) int {
 	factoryConsumers := constructFactoryConsumers(p)
 	p.OnStarted(func(ctx context.Context) error {
 		publishFactoryConsumers(factoryConsumers)
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
+		workers.Go(func() {
 			run(withRedistributionIssues(ctx, issues))
-		}()
+		})
 		return nil
 	})
 
