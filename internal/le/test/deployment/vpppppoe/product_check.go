@@ -585,7 +585,17 @@ func finishProductCapture(ctx context.Context, lab interoplab.CheckerLab) error 
 }
 
 func productRoutesGone(ctx context.Context, lab interoplab.CheckerLab, rows []productLink) error {
-	_, _, err := interoplab.Wait(ctx, productWait("released native host routes"), func(ctx context.Context) (string, error) {
+	prefixes := make([]string, 0, len(rows))
+	for _, row := range rows {
+		prefixes = append(prefixes, row.Address+"/32")
+	}
+	return productPrefixesGone(ctx, lab, "released native host routes", prefixes)
+}
+
+// productPrefixesGone waits until no listed prefix remains in the native
+// IPv4 table, each prefix written as format_fib_entry prints it.
+func productPrefixesGone(ctx context.Context, lab interoplab.CheckerLab, description string, prefixes []string) error {
+	_, _, err := interoplab.Wait(ctx, productWait(description), func(ctx context.Context) (string, error) {
 		return cli(ctx, lab, showCommand, "ip", "fib")
 	}, func(output string) bool {
 		// A positive default-route control proves the native table was read.
@@ -593,8 +603,8 @@ func productRoutesGone(ctx context.Context, lab interoplab.CheckerLab, rows []pr
 		if !productField(output, "0.0.0.0/0") {
 			return false
 		}
-		for _, row := range rows {
-			if productField(output, row.Address+"/32") {
+		for _, prefix := range prefixes {
+			if productField(output, prefix) {
 				return false
 			}
 		}

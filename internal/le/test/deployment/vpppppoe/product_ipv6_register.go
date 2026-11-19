@@ -21,7 +21,7 @@ func answerProductIPv6(args leaction.Arguments) (any, int) {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	report := runProductSuite(ctx, root, args.One(imageKeyword), true)
+	report := runProductSuite(ctx, root, args.One(imageKeyword), productSuiteIPv6)
 	if report.Code != 0 {
 		leaction.ReportError(opererr.New("the IPv6 product acceptance is incomplete", "The named scenario must establish RA, both DHCPv6 associations, native paths and isolated family closure.", "./le --name session test qemu docker-lab lab \"test deployment vpp-pppoe product-ipv6\" timeout 3600s"))
 	}

@@ -21,10 +21,58 @@ import (
 // Docker/kernel preflight and Suite resource lifetime. No helper impersonates
 // the access concentrator: the staged daemon owns PPP, native sessions and FIB.
 func RunProduct(ctx context.Context, root, image string) (report interoplab.SuiteReport) {
-	return runProductSuite(ctx, root, image, false)
+	return runProductSuite(ctx, root, image, productSuiteIPv4)
 }
 
-func runProductSuite(ctx context.Context, root, image string, ipv6 bool) (report interoplab.SuiteReport) {
+// productSuite names which acceptance package one product run carries.
+type productSuite uint8
+
+const (
+	productSuiteUnspecified productSuite = iota
+	// productSuiteIPv4 is the base: four IPv4 topologies with local auth.
+	productSuiteIPv4
+	// productSuiteIPv6 is the IPv6 service in three topologies.
+	productSuiteIPv6
+	// productSuiteFramed is one RADIUS subscriber with a non-peer Framed-Route.
+	productSuiteFramed
+)
+
+// images names the registered images a suite's peers run.
+func (suite productSuite) images() []string {
+	names := []string{buildvpp.ImageName, clientImage}
+	if suite == productSuiteFramed {
+		names = append(names, interoplab.FreeRADIUSImageName)
+	}
+	return names
+}
+
+// plans builds the suite's scenario plans over this run's scratch.
+func (suite productSuite) plans(root, work string) ([]interoplab.ScenarioPlan, error) {
+	pid := strconv.Itoa(os.Getpid())
+	var plans []interoplab.ScenarioPlan
+	switch suite {
+	case productSuiteIPv6:
+		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
+			plans = append(plans, productIPv6Plan(root, work, pid+"-"+mode.name(), mode))
+		}
+	case productSuiteIPv4:
+		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
+			plans = append(plans, productPlan(root, work, pid+"-"+mode.name(), mode, 1))
+		}
+		plans = append(plans, productPlan(root, work, pid+"-hundred", modePlain, 100))
+	case productSuiteFramed:
+		plan, err := productFramedPlan(root, work, pid+"-framed")
+		if err != nil {
+			return nil, err
+		}
+		plans = append(plans, plan)
+	case productSuiteUnspecified:
+		return nil, errors.New("BUG: product run names no acceptance suite")
+	}
+	return plans, nil
+}
+
+func runProductSuite(ctx context.Context, root, image string, suite productSuite) (report interoplab.SuiteReport) {
 	paths, err := lepath.ResolveSession(root, true)
 	if err != nil {
 		return setupFailure(err)
@@ -50,7 +98,7 @@ func runProductSuite(ctx context.Context, root, image string, ipv6 bool) (report
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: filepath.Join(relative, "ze")},
 		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{helpCommand}},
 	}
-	builds, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root}, []string{buildvpp.ImageName, clientImage})
+	builds, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root}, suite.images())
 	if err != nil {
 		return setupFailure(err)
 	}
@@ -71,6 +119,14 @@ func runProductSuite(ctx context.Context, root, image string, ipv6 bool) (report
 				builds[index].Tag = image
 				continue
 			}
+			// Suite pulls nothing under NoBuild, so a pinned pulled peer
+			// (FreeRADIUS) is made available here; its tag is its digest.
+			if builds[index].Pull {
+				if err := docker.Pull(ctx, builds[index].Tag, 0); err != nil {
+					return setupFailure(err)
+				}
+				continue
+			}
 			built, err := docker.Build(ctx, builds[index])
 			if err != nil {
 				return setupFailure(err)
@@ -79,17 +135,9 @@ func runProductSuite(ctx context.Context, root, image string, ipv6 bool) (report
 			builds[index].Tag = built.Reference
 		}
 	}
-	var plans []interoplab.ScenarioPlan
-	if ipv6 {
-		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
-			plans = append(plans, productIPv6Plan(root, work, strconv.Itoa(os.Getpid())+"-"+mode.name(), mode))
-		}
-	} else {
-		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
-			plan := productPlan(root, work, strconv.Itoa(os.Getpid())+"-"+mode.name(), mode, 1)
-			plans = append(plans, plan)
-		}
-		plans = append(plans, productPlan(root, work, strconv.Itoa(os.Getpid())+"-hundred", modePlain, 100))
+	plans, err := suite.plans(root, work)
+	if err != nil {
+		return setupFailure(err)
 	}
 	return (&interoplab.Suite{Docker: docker, Checkout: root, Preflight: preflight, StagedZe: interoplab.StagedZePath(root, binaries), Images: builds, Scenarios: plans, NoBuild: image != ""}).Run(ctx)
 }
@@ -126,7 +174,17 @@ func productPlan(root, work, suffix string, mode mechanismMode, count int) inter
 	return plan
 }
 
+// productLocalAuth is the base lab's subscriber authentication: Ze's own
+// local user, so no RADIUS server takes part.
+const productLocalAuth = `auth { local { user alice { password s3cr3t; } } }`
+
 func productConfig(access, namespace string) string {
+	return productConfigWith(access, namespace, productLocalAuth)
+}
+
+// productConfigWith is the product daemon configuration with auth as the
+// l2tp authentication block, which PPPoE subscribers share.
+func productConfigWith(access, namespace, auth string) string {
 	return fmt.Sprintf(`interface { backend vpp; }
 vpp {
  enabled true;
@@ -145,12 +203,12 @@ pppoe {
  interface %s { }
 }
 l2tp {
- auth { local { user alice { password s3cr3t; } } }
+ %s
  pool { ipv4 { gateway 10.20.0.1; start 10.20.0.2; end 10.20.0.102;
  dns-primary 192.0.2.53; dns-secondary 192.0.2.54; } }
 }
 environment {
  api-server { token %q; rest { enabled true; server main { ip 127.0.0.1; port 9099; } } }
 }
-`, namespace, access, productToken)
+`, namespace, access, auth, productToken)
 }

@@ -27,3 +27,18 @@ func answerProduct(args leaction.Arguments) (any, int) {
 	}
 	return report, report.Code
 }
+
+func answerProductFramed(args leaction.Arguments) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err, "the framed-route PPPoE lab cannot find the checkout", "Its fresh daemon, FreeRADIUS and independent peers cannot be prepared.", "./le test deployment vpp-pppoe product-framed"))
+		return nil, 1
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	report := runProductSuite(ctx, root, args.One(imageKeyword), productSuiteFramed)
+	if report.Code != 0 {
+		leaction.ReportError(opererr.New("the configured Ze PPPoE lab did not establish its RADIUS Framed-Route result", "Read the named scenario's evidence below; only an attached native route through the session that carries traffic and leaves with it establishes the framed route.", "./le --name session test qemu docker-lab lab \"test deployment vpp-pppoe product-framed\" timeout 3600s"))
+	}
+	return report, report.Code
+}

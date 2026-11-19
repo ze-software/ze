@@ -203,12 +203,45 @@ func productOwner(output, address string, sessions []productSession) (productSes
 	return found, nil
 }
 
+// productPathShape names which native path types an owned route may carry.
+type productPathShape uint8
+
+const (
+	productPathUnspecified productPathShape = iota
+	// productPathAnyAttached accepts an attached interface or an attached
+	// next hop on it: the subscriber's own host route may name the peer.
+	productPathAnyAttached
+	// productPathAttachedOnly accepts only an attached interface with no
+	// next hop, the device route Ze installs for a non-peer gateway.
+	productPathAttachedOnly
+)
+
+// productHostRoute requires the subscriber's own /32 at preference 0 through
+// the named session interface, attached or through an attached next hop.
+func productHostRoute(output, address, name string) error {
+	host, err := netip.ParseAddr(address)
+	if err != nil {
+		return fmt.Errorf("subscriber host route has invalid address %q", address)
+	}
+	return productOwnedPath(output, netip.PrefixFrom(host, host.BitLen()), name, 0, productPathAnyAttached)
+}
+
 // The pinned format_fib_entry prints each two-space source header followed
 // by that source's four-space path-list and six-space path headers. Only an
 // attached interface on that exact source's path counts; the later forwarding
 // DPO and another source's paths cannot supply the missing association.
-func productHostRoute(output, address, name string) error {
-	prefix := address + "/32"
+// VPP v25.10 format_fib_path prints the path type name ("attached",
+// "attached-nexthop") and the configured preference on the path header, then
+// the interface alone on the next line for an attached path, or the next hop
+// and the interface for an attached next hop.
+func productOwnedPath(output string, destination netip.Prefix, name string, preference int, shape productPathShape) error {
+	switch shape {
+	case productPathAnyAttached, productPathAttachedOnly:
+	case productPathUnspecified:
+		return errors.New("BUG: owned path check names no path shape")
+	}
+	prefix := destination.String()
+	preferenceField := "pref=" + strconv.Itoa(preference)
 	entries, ownedSources, paths, matches := 0, 0, 0, 0
 	inEntry, inSource, needAttached, needNextHop := false, false, false, false
 	for line := range strings.SplitSeq(output, "\n") {
@@ -252,23 +285,26 @@ func productHostRoute(output, address, name string) error {
 			paths++
 			needAttached, needNextHop = false, false
 			if !productField(line, "ip4") {
-				return errors.New("owned host path is not IPv4")
+				return fmt.Errorf("owned path of %s is not IPv4", prefix)
 			}
 			if !productField(line, "weight=1") {
-				return errors.New("owned host path has another weight")
+				return fmt.Errorf("owned path of %s has another weight", prefix)
 			}
-			if !productField(line, "pref=0") {
-				return errors.New("owned host path has another preference")
+			if !productField(line, preferenceField) {
+				return fmt.Errorf("owned path of %s lacks preference %d", prefix, preference)
 			}
 			if productField(line, "attached:") {
 				needAttached = true
 			}
 			if productField(line, "attached-nexthop:") {
+				if shape == productPathAttachedOnly {
+					return fmt.Errorf("owned path of %s has a next hop where a device route through the session belongs", prefix)
+				}
 				needNextHop = true
 			}
 			if !needAttached {
 				if !needNextHop {
-					return errors.New("owned host path is not an attached interface")
+					return fmt.Errorf("owned path of %s is not an attached interface", prefix)
 				}
 			}
 			continue
@@ -307,16 +343,16 @@ func productHostRoute(output, address, name string) error {
 		}
 	}
 	if entries != 1 {
-		return fmt.Errorf("native FIB has %d exact host entries for %s", entries, address)
+		return fmt.Errorf("native FIB has %d exact entries for %s", entries, prefix)
 	}
 	if ownedSources != 1 {
-		return fmt.Errorf("native host entry has %d ze-pppoe sources", ownedSources)
+		return fmt.Errorf("native entry %s has %d ze-pppoe sources", prefix, ownedSources)
 	}
 	if paths != 1 {
-		return fmt.Errorf("owned host source has %d paths", paths)
+		return fmt.Errorf("owned source of %s has %d paths", prefix, paths)
 	}
 	if matches != 1 {
-		return fmt.Errorf("owned host path does not name %s", name)
+		return fmt.Errorf("owned path of %s does not name %s", prefix, name)
 	}
 	if needAttached {
 		return errors.New("owned attached path is truncated")
