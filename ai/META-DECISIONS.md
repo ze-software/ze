@@ -196,6 +196,13 @@ in the spec or commit it applies to.
   the violating input being refused: a positive alone proves nothing.
 - A tag claims no more than its test body asserts. A claim wider than the
   assertion publishes an unproven MUST as proven.
+- A commit that stales an RFC proof record carries its re-taken record. A
+  record goes stale when the commit changes the tagged test, its claim, or the
+  code the record broke (a producer changed, renamed or removed). The commit
+  either carries the fresh record that `./le rfc record` wrote, or removes the
+  tag with the judge's approval, and the commit gate refuses it otherwise.
+  This is a refusal of what the commit itself does, never a red, so it holds
+  before release.
 
 ## Code and dependencies
 
