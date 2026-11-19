@@ -1,0 +1,114 @@
+# Test: a silent accounting server holds no other tunnel.
+# QUESTION:  when the RADIUS server does not answer one session's
+#            Accounting-Stop, does the daemon still acknowledge a HELLO on
+#            another, healthy tunnel before that LAC's first retransmission,
+#            keep the healthy tunnel up, and still retry the held Stop?
+# VALIDATES: spec-l2tp-session-identity-and-publish-stall AC-4, through the
+#            real entry points: two LACs over UDP, kernel PPP, a RADIUS server
+#            on the wire, `show l2tp sessions` and `show subscriber` over SSH.
+# PREVENTS:  a SessionDown reader that sends the Stop synchronously on the
+#            publisher, which for a peer hang-up is the L2TP reactor, so one
+#            unanswered Stop stops the control packets of every tunnel.
+#
+# Why not a unit test: only the daemon joins real PPP admission, the control
+# reactor, the accounting plugin and a real RADIUS retry.
+#
+# The LAC ends the first session with its own CDN (Result Code 3, which ze
+# maps to Acct-Terminate-Cause 6, Admin Reset). ze handles a peer's CDN on its
+# reactor goroutine and publishes the session's Down there, so a Stop sent
+# synchronously by the Down reader would stall the reactor. An operator clear
+# is not used: it publishes on the CLI handler's goroutine, so the healthy
+# tunnel would be answered even with that stall, and the test could not fail.
+#
+# The RADIUS server withholds the first Stop until the healthy tunnel's HELLO
+# ZLB (its tunnel, session 0, Nr one past the HELLO's Ns) has been read. It
+# then answers only a real delayed retry carrying the original attributes with
+# a new Identifier and Request Authenticator. `timeout 5` and `retries 2` are
+# the daemon's own settings: two attempts, so the retry lands five seconds
+# after the first, inside the accounting record's bound. No daemon timeout,
+# retry or deadline is shortened.
+#
+# The server's UDP write does not prove daemon accounting completion; the
+# accounting owner completion and retirement units remain independently
+# required. Every readiness wait polls state. The one-second HELLO deadline is
+# the LAC's protocol retransmission event, not an elapsed-time success.
+#
+# Before the CDN the peer waits until `show l2tp sessions` and `show
+# subscriber` list the session: those positive controls make the empty answers
+# after the CDN mean the session is gone, not that a command is broken.
+#
+# A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
+# CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS server (auth and
+# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
+# reaches through the three ze.ssh.* variables below.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier slow-accounting-lns
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.8.1
+            start 10.99.8.10
+            end 10.99.8.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/slow-accounting-control/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=le test fixture l2tp/slow-accounting-control $PORT:timeout=180s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: show l2tp sessions lists session
+expect=stdout:contains=OK: show subscriber lists an active l2tp subscriber with address 10.99.8.10
+expect=stdout:pattern=OK: the LAC sent a CDN with Result Code 3 for session [0-9]+
+expect=stdout:contains=OK: healthy tunnel acknowledged HELLO while the original Accounting-Stop was unanswered
+expect=stdout:contains=OK: the original delayed Stop retry received a server wire response and the healthy tunnel still acknowledged HELLO
+expect=stdout:contains=OK: show l2tp sessions lists no session after the LAC's CDN
+expect=stdout:contains=OK: show subscriber lists no subscriber after the LAC's CDN, total 0

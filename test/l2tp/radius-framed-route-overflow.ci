@@ -1,0 +1,87 @@
+# Test: a genuine RADIUS overflow refuses the whole daemon route update.
+# QUESTION: does a 65-valid-route Access-Accept reach the actual admitted PPP
+# subscriber's reactor, refuse redistribution atomically, preserve the useful
+# 64-route other Birth and replay tokens, and retain original diagnostics on
+# the daemon's registered error-history and doctor command surfaces?
+# Why not a unit: direct observer calls cannot prove RADIUS extraction,
+# metadata custody, real CHAP/IPCP, reactor publication and daemon RPC wiring.
+# The existing unit roots own private counters, record pointers and the
+# existing-Birth interleaving. This .ci makes no native counter/cleanup claim.
+#
+# Two real UDP LAC peers use the existing radius-acct-wire PPPoL2TP helper.
+# Its CHAP/IPCP reaches the production Driver; no event or observer callback is
+# used to manufacture successful authorization. The independent RADIUS mock
+# returns 64 then65 valid routes, keyed by actual opaque NAS-Port-Id. Each real
+# SessionIPAssigned must carry the exact original Birth, wire coordinates and
+# full route count. An external observer subscribes before admission, records
+# actual route-change events and requests the existing registered replay.
+# Request quiesce joins plugin event application after the producer barrier;
+# it is not used to guess that an unestablished peer exists. No BGP peer is
+# part of this question. Native route source tokens are observed in the
+# daemon's route events, not inferred from a successful delivery count.
+#
+# The first peer remains served while the second negotiates and diagnostics
+# are read. Every new observer wait is bounded state Poll; all serving loops
+# are canceled and joined before their owned sockets close. The observer uses
+# the existing startup/failure-sentinel/shutdown flow. No skip-kernel-probe.
+# A SKIP or setup-only run is not evidence for this test.
+
+stdin=config:terminator=EOF_CONF
+plugin {
+    external route-overflow-test {
+        run "le test fixture l2tp/radius-framed-route-overflow $PORT"
+        encoder json
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    ncp {
+        enable-ipv6cp false
+    }
+    auth {
+        radius {
+            nas-identifier overflow-lns
+            nas-port-id-format "{tunnel-id}.{session-id}"
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.9.1
+            start 10.99.9.10
+            end 10.99.9.11
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=timeout:value=180s
+
+cmd=background:seq=1:exec=le test fixture l2tp/radius-framed-route-overflow/radius $PORT2 testing123
+# The observer is an external daemon plugin. Its assertion error reaches the
+# runner through ZE-OBSERVER-FAIL before it requests the daemon's shutdown.
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=180s
+expect=exit:code=0
+expect=stderr:pattern=level=WARN.*code=doctor-l2tp-framed-route-limit
+expect=stderr:contains=OK: real RADIUS 65-route refusal preserved the useful 64-route Birth and exact replay tokens; daemon errors and doctor retained original context
