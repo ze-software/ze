@@ -7,8 +7,8 @@
     "claim-sha": "3219e253beeab038",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rpki/rpki.go::buildDecisions",
-    "producer-sha": "a37847bb7d668b33",
-    "break": "line 1135: \"reject = originInvalidAction == ASPAPolicyReject\" -\u003e \"reject = true\""
+    "producer-sha": "3e57a722d113d384",
+    "break": "line 1189: \"reject = originInvalidAction == ASPAPolicyReject\" -\u003e \"reject = true\""
   },
   {
     "rid": "RFC6811-3-1",
@@ -18,7 +18,7 @@
     "claim-sha": "c77df423db50f2f8",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rpki/rpki.go::buildDecisions",
-    "producer-sha": "a37847bb7d668b33",
-    "break": "line 1134: \"case ValidationInvalid:\" -\u003e \"case ValidationInvalid, ValidationValid:\""
+    "producer-sha": "3e57a722d113d384",
+    "break": "line 1188: \"case ValidationInvalid:\" -\u003e \"case ValidationInvalid, ValidationValid:\""
   }
 ]
