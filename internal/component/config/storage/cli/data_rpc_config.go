@@ -151,11 +151,30 @@ func unservedClientRefusal(target *DataRPCTarget, problem, name, client string) 
 			fixAddHubClient)
 	}
 	if !target.ServesClient(client) {
-		return opererr.New(problem,
-			name+" is the config this hub serves to the managed client "+client+", and the hub has no client entry named "+client+" under plugin hub server, so no client would ever fetch it",
-			fixAddHubClient)
+		return undeclaredClientRefusal(problem, name, client)
 	}
 	return nil
+}
+
+// ServedClientRefusal is the refusal UnservedClientConfigRefusal answers, for
+// a caller that holds its own predicate of the clients the hub's server
+// blocks declare: the hub's fleet divergence commands, which also run against
+// a stopped hub's stored configuration. It refuses a writer of
+// client-<client>.conf when serves does not declare client, and answers nil
+// when it does. problem is the caller's first line. serves MUST NOT be nil.
+func ServedClientRefusal(problem, client string, serves func(string) bool) *opererr.Error {
+	if serves(client) {
+		return nil
+	}
+	return undeclaredClientRefusal(problem, pluginserver.ClientConfigKey(client), client)
+}
+
+// undeclaredClientRefusal is the refusal of a write of name, the config of
+// client, which no client entry of a server block declares.
+func undeclaredClientRefusal(problem, name, client string) *opererr.Error {
+	return opererr.New(problem,
+		name+" is the config this hub serves to the managed client "+client+", and the hub has no client entry named "+client+" under plugin hub server, so no client would ever fetch it",
+		fixAddHubClient)
 }
 
 // importDaemonConfig imports content as the daemon's own config, through the

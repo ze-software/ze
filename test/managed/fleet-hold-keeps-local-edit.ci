@@ -5,14 +5,15 @@
 #           stay connected and tell the hub, while a device nobody changed
 #           still follows its hub across a restart?
 #           (spec-fleet-6-config-freeze, AC-3, AC-4,
-#           AC-5, AC-9, AC-18, user stories 1 and 6;
+#           AC-5, AC-9, AC-18, user stories 1 and 6; spec-fleet-7 E-10:
+#           the device tells the hub by sending its copy and a holding ack;
 #           docs/architecture/fleet-config.md, "The baseline and the hold".)
 # WHY NOT A UNIT TEST: the answer is a path across two daemons and their
 #           stores. The baseline is written by the daemon's own reload of a
 #           push, read back by the next `ze start` of the same store, compared
 #           with what a raw pointer write made the daemon boot, and the
-#           refusal has to cross the TLS session and reach the hub's
-#           `show doctor`. TestFetchHoldsWhenActiveDiffersFromBaseline proves
+#           copy and the holding ack have to cross the TLS session and reach
+#           the hub's `show doctor`. TestFetchHoldsWhenActiveDiffersFromBaseline proves
 #           the comparison over callbacks a test supplies, and not that a real
 #           start, a real pointer write and a real push agree on which bytes
 #           are "active".
@@ -28,16 +29,18 @@
 #            what the hold keeps is a change the freeze missed on a managed
 #            device. The device starts on that earlier configuration and
 #            keeps it: its active pointer and its baseline do not change, the
-#            hub's `show doctor` lists doctor-managed-client-rejected for it
-#            with the hold text and both hashes, and a further
-#            `ze data import` on the hub is refused again with no new
-#            connection to the hub.
+#            hub's `show doctor` lists doctor-managed-client-diverged for it
+#            with the device's hash, the hash the hub serves and the copy it
+#            keeps, and no refusal text, and a further `ze data import` on
+#            the hub is held against again with no new connection to the
+#            hub, the hub's row then naming the further hash it serves.
 # PREVENTS: a device that holds after every restart; a device that applies its
 #           hub's configuration over a local change the freeze did not
 #           refuse; a hold that reads the plain file/active mirror instead of
 #           the version the daemon runs; a hold that ends the
 #           connection, so the device reconnects and holds about once a
-#           second; a hold the hub never hears of.
+#           second; a hold the hub never hears of; a hold the hub still
+#           shows as a refused configuration once it keeps the copy.
 #
 # Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
 # transport and $PORT3 its managed listener. The device skips the hub's

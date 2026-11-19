@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -117,6 +118,9 @@ func prepareConfigRename(owned *store, held *guard, oldName, newName string) (*c
 		if present[key] {
 			return nil, fmt.Errorf("rename configuration %s: unfinished identity transaction at %s; finish or recover it before renaming", oldName, key)
 		}
+	}
+	if heldKey := zefs.KeyConfigHeld.Key(oldName); present[heldKey] {
+		return nil, heldRenameRefusal(oldName, heldKey)
 	}
 	for _, key := range keys {
 		if _, owned := configRenameTarget(key, newName, newName, explicit); owned {
@@ -253,4 +257,17 @@ func removeConfigRenameTargets(held *guard, entries []configRenameEntry) error {
 		}
 	}
 	return errors.Join(failures...)
+}
+
+// heldRenameRefusal is the refusal of a rename of a configuration whose held
+// record exists: the copy a managed client sent of the configuration it holds
+// belongs to that client's configuration name, and a rename would leave it
+// under a name no client fetches. A rollback or an import of the same
+// configuration is not refused (admitConfigRollbackLocked, ImportConfig): it
+// keeps the name, and only changes what the hub holds.
+func heldRenameRefusal(oldName, heldKey string) *opererr.Error {
+	return opererr.New(
+		"configuration "+oldName+" cannot be renamed: a managed client holds a configuration of its own, and the hub keeps its copy at "+heldKey,
+		"the copy belongs to this configuration name; after a rename no client would fetch it, and the hold could not be resolved from the hub",
+		"show fleet divergence list")
 }

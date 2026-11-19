@@ -13,11 +13,15 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	// The help plugin is hand-wired outside plugin/all (it imports
 	// cli/client, which cycles with plugin/all), so this binary links it here.
 	_ "github.com/ze-software/ze/internal/plugins/help"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -39,7 +43,11 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 72/72 local-data commands and local one-shot save"
+// coverageHeldClient is the managed client whose held configuration the
+// workspace store keeps for the two divergence views.
+const coverageHeldClient = "coverage-01"
+
+const CompletionMarker = "OK: 74/74 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -71,6 +79,8 @@ func Evidence() []Invocation {
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show data check --path %s | json compact", Evidence: "show data check"},
 		{Command: "show fleet status | json compact", Evidence: "show fleet status"},
+		{Command: "show fleet divergence list | json compact", Evidence: "show fleet divergence list"},
+		{Command: "show fleet divergence name " + coverageHeldClient + " | json compact", Evidence: "show fleet divergence name"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
 		{Command: "show yang tree --config | json compact", Evidence: "show yang tree"},
 		{Command: "show yang completion --min-prefix 2 | json compact", Evidence: "show yang completion"},
@@ -820,6 +830,10 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
+	if err := runDivergenceCommands(output, work); err != nil {
+		return err
+	}
+
 	commandTree, err := localJSON("show yang tree --commands | json compact", "show yang tree", output)
 	if err != nil {
 		return err
@@ -1113,4 +1127,71 @@ func runScenario(output io.Writer, work string) error {
 		return fmt.Errorf("write coverage completion: %w", err)
 	}
 	return nil
+}
+
+// runDivergenceCommands seeds the workspace store with the configuration a hub
+// serves coverageHeldClient and the copy that client holds, whose edit added a
+// secret, and runs both divergence views over it. The workspace has no
+// configuration of its own, so no server block declares the client: the list
+// reports the copy as orphaned. Neither answer carries the secret.
+func runDivergenceCommands(output io.Writer, work string) error {
+	const secret = "coverage-held-token-of-32-characters"
+	served := "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n}\n"
+	held := "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n" +
+		"    api-server {\n        token \"" + secret + "\";\n    }\n}\n"
+	record, err := json.Marshal(struct {
+		Version    string    `json:"version"`
+		Config     []byte    `json:"config"`
+		ReceivedAt time.Time `json:"received-at"`
+	}{fleet.VersionHash([]byte(held)), []byte(held), time.Date(2026, 11, 19, 10, 0, 0, 0, time.UTC)})
+	if err != nil {
+		return fmt.Errorf("encode the held configuration fixture: %w", err)
+	}
+	recordPath := filepath.Join(work, "held-record.json")
+	servedPath := filepath.Join(work, "served-client.conf")
+	if err := writeFixture(recordPath, string(record)); err != nil {
+		return err
+	}
+	if err := writeFixture(servedPath, served); err != nil {
+		return err
+	}
+	if err := seedData(pluginserver.HeldRecordKey(coverageHeldClient), recordPath); err != nil {
+		return err
+	}
+	if err := seedData("file/active/"+pluginserver.ClientConfigKey(coverageHeldClient), servedPath); err != nil {
+		return err
+	}
+
+	payload, err := localJSON("show fleet divergence list | json compact", "show fleet divergence list", output)
+	if err != nil {
+		return err
+	}
+	values, err := rows(payload, "clients")
+	if err != nil {
+		return err
+	}
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		return row["client"] == coverageHeldClient && row["declared"] == false &&
+			row["device-version"] == fleet.VersionHash([]byte(held)) && row["hub-version"] == fleet.VersionHash([]byte(served))
+	}, "divergence list lost the orphaned held copy: %#v", values); err != nil {
+		return err
+	}
+
+	command := "show fleet divergence name " + coverageHeldClient + " | json compact"
+	payload, err = localJSON(command, "show fleet divergence name", output)
+	if err != nil {
+		return err
+	}
+	detail, isDetail := object(payload)
+	if err := require(isDetail && detail["client"] == coverageHeldClient && detail["diff-available"] == true &&
+		detail["change-count"] == float64(1),
+		"divergence show did not answer the one change of the held copy: %#v", payload); err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode the divergence show: %w", err)
+	}
+	return require(!strings.Contains(string(encoded), secret) && strings.Contains(string(encoded), config.SecretDataPlaceholder),
+		"divergence show did not mask the held secret: %s", encoded)
 }

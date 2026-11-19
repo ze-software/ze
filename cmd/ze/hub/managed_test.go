@@ -204,3 +204,87 @@ func TestBaselineUnchangedWhenPushFails(t *testing.T) {
 	assert.Equal(t, before, baseline, "a failed push moved the baseline")
 	assert.NotEqual(t, fleet.VersionHash([]byte("new")), baseline.Hash())
 }
+
+// managedLocalStamp is the stamp of the local commit the revert tests land
+// after the client read the hash the revert discards.
+const managedLocalStamp = "20260524-100000.000"
+
+// TestWireManagedRevertAppliesOverChecked proves a revert whose check accepts
+// the configuration active under the lock applies as a push does: it runs the
+// wired OnRevert with a reload that promotes the staged candidate.
+//
+// VALIDATES: spec-fleet-7 AC-13 at the device's stage: check reads the active
+// configuration ("old"), the hub's configuration becomes active, and the
+// baseline is recorded.
+// PREVENTS: a revert the stage never applies, or a check handed other bytes
+// than the active configuration.
+//
+// MUTATION: stage through StageMachineCandidate in OnRevert, ignoring check,
+// and the check is never called.
+func TestWireManagedRevertAppliesOverChecked(t *testing.T) {
+	store, configPath := managedPushStore(t)
+	client := &managed.ClientConfig{}
+	wireManagedCommit(client, store, configPath, func() error {
+		return storage.PromoteCandidate(store, configPath)
+	}, nil, nil)
+	var checked []string
+
+	require.NotNil(t, client.OnRevert)
+	require.NoError(t, client.OnRevert([]byte("new"), func(active []byte) error {
+		checked = append(checked, string(active))
+		return nil
+	}))
+
+	assert.Equal(t, []string{"old"}, checked, "the stage did not hand check the active configuration once")
+	activeData, err := storage.ReadActiveConfig(store, configPath)
+	require.NoError(t, err)
+	assert.Equal(t, "new", string(activeData))
+	baseline, err := managed.BaselineVersion(store)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.VersionHash([]byte("new")), baseline.Hash())
+}
+
+// TestWireManagedRevertRefusedOverLocalCommit proves a revert decided on a
+// configuration a local commit replaced since never overwrites that commit:
+// the local commit lands after the client read the hash, and the check refuses
+// the configuration the stage reads under the lock.
+//
+// VALIDATES: spec-fleet-7 AC-15 (a newer local edit always wins), review note
+// N1: the stage answers the check's refusal as is, stages and reloads
+// nothing, and leaves the local edit active and the baseline alone.
+// PREVENTS: a revert that discards a change the hub's operator never saw.
+//
+// MUTATION: stage through StageMachineCandidate in OnRevert, ignoring check,
+// and the local edit is overwritten.
+func TestWireManagedRevertRefusedOverLocalCommit(t *testing.T) {
+	store, configPath := managedPushStore(t)
+	before, err := managed.RecordActiveAsBaseline(store)
+	require.NoError(t, err)
+	require.NoError(t, store.WriteVersion(configPath, []byte("local"), mustParseReloadStamp(t, managedLocalStamp)))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, managedLocalStamp)
+	reloaded := false
+	client := &managed.ClientConfig{}
+	wireManagedCommit(client, store, configPath, func() error {
+		reloaded = true
+		return storage.PromoteCandidate(store, configPath)
+	}, nil, nil)
+	changed := errors.New("the active configuration is not the discarded one")
+
+	err = client.OnRevert([]byte("new"), func(active []byte) error {
+		if string(active) != "old" {
+			return changed
+		}
+		return nil
+	})
+
+	require.ErrorIs(t, err, changed)
+	assert.False(t, reloaded, "the refused revert reloaded the daemon")
+	_, ok := configPointer(t, store, configPath, zefs.KeyConfigCandidate)
+	assert.False(t, ok, "the refused revert staged a candidate")
+	activeData, err := storage.ReadActiveConfig(store, configPath)
+	require.NoError(t, err)
+	assert.Equal(t, "local", string(activeData), "the revert overwrote the local commit")
+	baseline, err := managed.BaselineVersion(store)
+	require.NoError(t, err)
+	assert.Equal(t, before, baseline, "a refused revert moved the baseline")
+}

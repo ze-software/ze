@@ -1778,6 +1778,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			serving.ServesClient = managedServer.Serves
 			storagecli.InstallDataRPC(&serving)
 		}
+		// The divergence commands act on the held copies this server keeps.
+		// Deferred after Stop, so the target is withdrawn before the server
+		// stops and before the store is returned.
+		managed.InstallDivergenceTarget(&managed.DivergenceTarget{
+			Store:               store,
+			ServesClient:        managedServer.Serves,
+			NotifyConfigChanged: managedServer.NotifyConfigChanged,
+		})
+		defer managed.InstallDivergenceTarget(nil)
 	}
 
 	if clientOwner != nil {

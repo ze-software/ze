@@ -4,7 +4,7 @@
 #           differs from its baseline, report doctor-managed-diverged with its
 #           fix, with the daemon stopped and with it running, and say nothing
 #           of the same difference on a device that is not managed?
-#           (spec-fleet-6-config-freeze, AC-8;
+#           (spec-fleet-6-config-freeze, AC-8; spec-fleet-7 E-12;
 #           docs/architecture/doctor-and-health-checks.md, "External plugin
 #           and managed fleet checks".)
 # WHY NOT A UNIT TEST: the question is whether the check runs in the report an
@@ -18,8 +18,11 @@
 #            baseline: no doctor-managed-diverged row. Managed with a baseline
 #            that differs from the active hash, daemon stopped: one such row,
 #            a warning that says the configuration differs from the last one
-#            its hub sent, names the baseline, and gives both fixes (the
-#            import on the hub, `request fleet disable` on the device). The
+#            its hub sent, names the active and baseline versions, and whose
+#            fix names the hub commands over the client and the active
+#            version (`show fleet divergence name`, adopt, revert), and not
+#            the manual routes of a configuration too large for the hub's
+#            copy (`ze data import client-`, `request fleet disable`). The
 #            same with the daemon running and answering: the same one row.
 #            The managed flag set to false: no such row.
 # PREVENTS: a hold the operator of the device cannot see; a check that reports

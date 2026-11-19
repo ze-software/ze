@@ -20,7 +20,7 @@ var managedServerLog = slogutil.LazyLogger("hub.managed-server")
 // nil when managed config is not configured (or fails to start, which is logged at
 // Error). The server:
 //   - authenticates each managed client with its per-client secret,
-//   - answers config-fetch/config-ack/ping,
+//   - answers config-fetch/config-ack/config-held/ping,
 //   - reads each client's config from the blob at file/active/client-<name>.conf,
 //   - pushes config-changed when that blob is written (via the storage write observer).
 //
@@ -69,6 +69,9 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		ReadConfig: func(name string) ([]byte, error) {
 			return store.ReadFile(pluginserver.ClientConfigKey(name))
 		},
+		// The same store keeps the copy each holding client sends of its
+		// configuration, beside that client's configuration.
+		Store: store,
 		Metrics: registry.GetMetricsRegistry(),
 		// The resolver and the authority are both injected because pki imports
 		// plugin/server. A named certificate wins and fails closed when it does

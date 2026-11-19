@@ -53,8 +53,8 @@ func holdDevice(t *testing.T, active, earlier string) storage.Storage {
 }
 
 // holdClient is a client configuration for edge-01 over access. applied
-// receives each configuration the client commits; a test that expects none
-// reads it empty.
+// receives each configuration the client commits, by a push or a revert; a
+// test that expects none reads it empty.
 func holdClient(server string, access *BaselineAccess) (cfg ClientConfig, validated *atomic.Bool, applied chan []byte) {
 	validated = &atomic.Bool{}
 	applied = make(chan []byte, 4)
@@ -65,6 +65,20 @@ func holdClient(server string, access *BaselineAccess) (cfg ClientConfig, valida
 			return nil
 		}},
 		OnCommit: func(data []byte) error {
+			applied <- data
+			return nil
+		},
+		// OnRevert stands for the daemon's stage: it hands check the
+		// configuration the store holds as active now, and commits only when
+		// check accepts it (storage.StageMachineCandidateOver).
+		OnRevert: func(data []byte, check func(active []byte) error) error {
+			held, err := access.held()
+			if err != nil {
+				return err
+			}
+			if err := check(held.content); err != nil {
+				return err
+			}
 			applied <- data
 			return nil
 		},
@@ -215,16 +229,22 @@ func TestFetchHoldsWhenActiveDiffersFromBaseline(t *testing.T) {
 //
 // VALIDATES: AC-4. The config-ack is ok:false, names the hold and both
 // hashes, carries the version the hub offered and no configuration content,
-// and fetchAndProcess answers nil, which keeps the connection.
+// and fetchAndProcess answers nil, which keeps the connection. The hub
+// answers every request, the copy of the held configuration the device sends
+// before its ack included (uploadHeld).
 // PREVENTS: a hold that ends the connection, so the device reconnects and
 // holds again about once a second, and a refusal that leaks configuration.
 func TestHoldAcknowledgesRefusalAndKeepsConnection(t *testing.T) {
 	store := holdDevice(t, holdDeviceConfig, holdEarlierConfig)
 	cfg, _, _ := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
+	mc, seen := holdPipe(t, hubHolding("", struct{}{}))
 
-	ack, err := applyOnce(t, &cfg, []byte(holdHubConfig))
+	err := fetchAndProcess(t.Context(), mc, &cfg)
 
 	require.NoError(t, err, "a hold MUST keep the connection")
+	require.Equal(t, fleet.VerbConfigFetch, nextRequest(t, seen).Method)
+	require.Equal(t, fleet.VerbConfigHeld, nextRequest(t, seen).Method)
+	ack := ackOf(t, seen)
 	assert.False(t, ack.OK)
 	assert.Equal(t, fleet.VersionHash([]byte(holdHubConfig)), ack.Version, "the ack names the version the hub offered")
 	assert.Contains(t, ack.Error, holdRefusalPrefix)

@@ -8,7 +8,8 @@
 // answer is in the store, which any `ze` process reads: the managed flag, the
 // hub the configuration declares, the baseline and the hash of the active
 // configuration. The rest lives only in a running daemon: whether its hub
-// client runs, whether it is connected, whether it holds a fetch. So the local
+// client runs, whether it is connected, whether it holds a fetch, and what the
+// hub's last fetch answer said of its copy of the hold. So the local
 // route asks a running daemon first and draws its answer, and answers from the
 // store alone, saying no daemon answered, when none does. A failed ask is
 // never read as a client that is stopped.
@@ -38,6 +39,7 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -76,6 +78,19 @@ const (
 	// compared with it.
 	holdYes = "holding"
 	holdNo  = "not-holding"
+	// hubAnswerNotFetched: no fetch the hub answered in this run of the hub
+	// client, or no hub client runs, so nothing is known of the hub's copy.
+	hubAnswerNotFetched = "not-fetched"
+	// heldNone: the hub's last fetch answer named no copy of a hold
+	// (held-version absent). Otherwise held-by-hub is the version it named.
+	heldNone = "none"
+	// revertNone: the hub's last fetch answer offered no revert
+	// (discard-version absent). revertOffered: it offered to discard the
+	// version this device runs. revertStale: it offered to discard another
+	// version, so the offer does not apply to what this device runs.
+	revertNone    = "none"
+	revertOffered = "offered"
+	revertStale   = "stale"
 )
 
 // The note of a leave or rejoin answer: what the command did, in one sentence.
@@ -107,6 +122,81 @@ type ClientState struct {
 	Connected bool
 	// Holding says the client's last fetch applied nothing the hub sent.
 	Holding bool
+	// HubAnswer is what the hub's last fetch answer said of its copy of a
+	// hold. Its zero value is a client with no answered fetch yet.
+	HubAnswer HubAnswer
+}
+
+// RevertOffer is what one fetch answer said of a revert: whether the hub
+// offered to discard a version (discard-version), and whether that version is
+// the one the device runs. The zero value is RevertUnfetched: no answer was
+// read, so nothing is known.
+type RevertOffer uint8
+
+const (
+	// RevertUnfetched: no fetch answer was read.
+	RevertUnfetched RevertOffer = iota
+	// RevertAbsent: the answer carried no discard-version.
+	RevertAbsent
+	// RevertForActive: the answer offered to discard the version the device
+	// runs.
+	RevertForActive
+	// RevertForOther: the answer offered to discard another version, so the
+	// offer is stale for the configuration the device runs.
+	RevertForOther
+)
+
+// HubAnswer is what a fetch answer said of the hub's copy of a hold, as the
+// client read it with the version the device ran then. Only hubAnswerOf
+// builds a fetched one; the zero value is no answer read.
+type HubAnswer struct {
+	// HeldVersion is the held-version the answer named, empty when the hub
+	// holds no copy for this client.
+	HeldVersion string
+	// Revert is what the answer said of a revert.
+	Revert RevertOffer
+}
+
+// hubAnswerOf reads one fetch answer the hub gave a device that ran active.
+// An answer that names a discard-version names the device's own version or
+// another one: only the first is the device's to take.
+func hubAnswerOf(resp fleet.ConfigFetchResponse, active ConfigVersion) HubAnswer {
+	answer := HubAnswer{HeldVersion: resp.HeldVersion, Revert: RevertAbsent}
+	if resp.DiscardVersion == "" {
+		return answer
+	}
+	if resp.DiscardVersion == active.Hash() {
+		answer.Revert = RevertForActive
+		return answer
+	}
+	answer.Revert = RevertForOther
+	return answer
+}
+
+// heldByHubWord words the held-by-hub field of one answer.
+func heldByHubWord(answer HubAnswer) string {
+	if answer.Revert == RevertUnfetched {
+		return hubAnswerNotFetched
+	}
+	if answer.HeldVersion == "" {
+		return heldNone
+	}
+	return answer.HeldVersion
+}
+
+// revertOfferedWord words the revert-offered field of one answer.
+func revertOfferedWord(offer RevertOffer) string {
+	switch offer {
+	case RevertUnfetched:
+		return hubAnswerNotFetched
+	case RevertAbsent:
+		return revertNone
+	case RevertForActive:
+		return revertOffered
+	case RevertForOther:
+		return revertStale
+	}
+	panic("BUG: managed.revertOfferedWord: a RevertOffer outside its named set")
 }
 
 // FleetTarget is what the fleet commands act on in a daemon that started
@@ -157,29 +247,42 @@ func InstallFleetTarget(target *FleetTarget) {
 	fleetTarget.Store(target)
 }
 
-// clientReport is the three fields of an answer that only a running daemon
-// fills: its hub client, that client's connection, and whether it holds.
+// clientReport is the fields of an answer that only a running daemon fills:
+// its hub client, that client's connection, whether it holds, and what the
+// hub's last fetch answer said of its copy of the hold and of a revert.
 type clientReport struct {
-	client     string
-	connection string
-	holding    string
+	client        string
+	connection    string
+	holding       string
+	heldByHub     string
+	revertOffered string
 }
 
 // noDaemonReport is the report of an answer no daemon gave.
-var noDaemonReport = clientReport{client: runtimeNoDaemon, connection: runtimeNoDaemon, holding: runtimeNoDaemon}
+var noDaemonReport = clientReport{
+	client: runtimeNoDaemon, connection: runtimeNoDaemon, holding: runtimeNoDaemon,
+	heldByHub: runtimeNoDaemon, revertOffered: runtimeNoDaemon,
+}
 
 // daemonClientReport is the report a daemon gives: its hub client's state, or,
-// with no target, that it started unmanaged and so started no client.
+// with no target, that it started unmanaged and so started no client and read
+// no fetch answer.
 func daemonClientReport(target *FleetTarget) clientReport {
 	if target == nil {
-		return clientReport{client: clientNotStarted, connection: connectionDown, holding: holdNo}
+		return clientReport{
+			client: clientNotStarted, connection: connectionDown, holding: holdNo,
+			heldByHub: hubAnswerNotFetched, revertOffered: hubAnswerNotFetched,
+		}
 	}
 	return reportOf(target.ClientState())
 }
 
 // reportOf words one state of a hub client.
 func reportOf(state ClientState) clientReport {
-	report := clientReport{client: clientStopped, connection: connectionDown, holding: holdNo}
+	report := clientReport{
+		client: clientStopped, connection: connectionDown, holding: holdNo,
+		heldByHub: heldByHubWord(state.HubAnswer), revertOffered: revertOfferedWord(state.HubAnswer.Revert),
+	}
 	if state.Running {
 		report.client = clientRunning
 	}
@@ -197,7 +300,7 @@ func reportOf(state ClientState) clientReport {
 
 // fleetStatus is the `show fleet status` answer, one document. The first
 // group is read from the store and the active configuration on every route.
-// The last four say what a running daemon knows.
+// The last six say what a running daemon knows.
 type fleetStatus struct {
 	// Managed is meta/instance/managed: the device follows a hub.
 	Managed bool `json:"managed"`
@@ -230,6 +333,14 @@ type fleetStatus struct {
 	Client     string `json:"client"`
 	Connection string `json:"connection"`
 	Holding    string `json:"holding"`
+	// HeldByHub is the held-version of the hub's last fetch answer: the
+	// version of the copy of this device's hold the hub keeps, none when it
+	// keeps none, not-fetched before the client's first answered fetch, or
+	// no-daemon. RevertOffered is what that answer said of a revert: none,
+	// offered (discard the version this device runs), stale (discard another
+	// version), not-fetched or no-daemon.
+	HeldByHub     string `json:"held-by-hub"`
+	RevertOffered string `json:"revert-offered"`
 }
 
 // errNotFleetStatus is a daemon answer that is not a daemon's fleet status.
@@ -265,7 +376,7 @@ func answerFleetStatusWith(validated command.ValidatedArgs, ask daemonAsk) comma
 }
 
 // storeFleetStatus answers from the store of this host, with report in the
-// three fields only a running hub client can fill.
+// fields only a running hub client can fill.
 func storeFleetStatus(daemonAnswered bool, report clientReport) command.LocalAnswer {
 	folder := resolve.StoreDir("")
 	store, err := storage.OpenReadOnly(folder, folder)
@@ -286,6 +397,8 @@ func storeFleetStatus(daemonAnswered bool, report clientReport) command.LocalAns
 	status.Client = report.client
 	status.Connection = report.connection
 	status.Holding = report.holding
+	status.HeldByHub = report.heldByHub
+	status.RevertOffered = report.revertOffered
 	return command.LocalAnswer{Payload: status}
 }
 

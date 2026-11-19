@@ -306,6 +306,9 @@ ze-log:bgp-log-levels
 ze-log:bgp-log-recent
 ze-log:bgp-log-set
 ze-managed:fleet-disable
+ze-managed:fleet-divergence-adopt
+ze-managed:fleet-divergence-revert
+ze-managed:fleet-divergence-show
 ze-managed:fleet-enable
 ze-meta:bgp-command-complete
 ze-meta:bgp-command-help

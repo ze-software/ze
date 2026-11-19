@@ -1,0 +1,38 @@
+# Test: adopt on the hub ends the hold of a managed device
+#
+# QUESTION: does `update fleet divergence name <client> adopt version <hash>`
+#           on the hub end a hold by making the configuration the device runs
+#           the one its hub serves it, after refusing a hash the operator did
+#           not see? (spec-fleet-7-config-reconnect-resolution, AC-11, AC-12,
+#           user story 3; docs/guide/fleet-config.md, "End the Hold".)
+# WHY NOT A UNIT TEST: the hold ends across two daemons. The adopt publishes
+#           the held bytes in the hub's store, the store's write observer
+#           pushes config-changed over the TLS session, the device fetches its
+#           own hash, the hub answers current, and the device records its
+#           baseline. The unit tests prove the publication and the removal
+#           over one store, not that a real session and a real device agree
+#           that the hold has ended.
+#
+# VALIDATES: a device that took its hub's configuration and was then given
+#            another one with its daemon stopped holds, and the hub lists its
+#            copy. `ze update fleet divergence ... adopt` beside the hub with
+#            the hash of the hub's own configuration is refused, names the
+#            copy's hash and the show, and the copy stays listed. The same
+#            adopt over the hub's SSH with the copy's hash is answered: the
+#            device records that hash as its baseline and no longer diverges,
+#            the hub no longer lists the copy, and `show audit` names the
+#            adopt of the client.
+# PREVENTS: an adopt of a copy the operator never saw; an adopt that answers
+#           done and leaves the device holding; a copy that outlives its adopt.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers and
+# the device's status: internal/test/fixture/misc_fixture_managed_fleet_divergence_adopt.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-adopt $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: adopt on the hub ended the hold of a managed device

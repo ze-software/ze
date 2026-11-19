@@ -301,3 +301,35 @@ func TestConfigRenameKeepsTheCompleteDestinationWhenRestorationFails(t *testing.
 	require.NoError(t, err)
 	require.Equal(t, "active", string(active))
 }
+
+// TestRenameRefusedWithHeldRecord proves that a configuration whose held
+// record exists keeps its name: a rename of it is refused, naming the record's
+// key, and moves nothing.
+//
+// VALIDATES: AC-18. prepareConfigRename refuses while
+// meta/config/<name>/held exists, with an operator error whose fix is the
+// command that lists the holds.
+// PREVENTS: the hub's copy of a holding client's configuration left under a
+// name no client fetches.
+//
+// MUTATION: drop the KeyConfigHeld check of prepareConfigRename and the
+// rename succeeds.
+func TestRenameRefusedWithHeldRecord(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			source := backend.newStore(t, t.TempDir())
+			seedConfigRename(t, source)
+			heldKey := zefs.KeyConfigHeld.Key("router.conf")
+			require.NoError(t, source.WriteKey(heldKey, []byte(`{"version":"0000000000000000"}`)))
+			before := configRenameSnapshot(t, source)
+
+			err := renameConfigUnderTest(t, source)
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), heldKey)
+			require.True(t, strings.HasSuffix(err.Error(), "show fleet divergence list"),
+				"the refusal's last line is not its fix: %s", err)
+			require.Equal(t, before, configRenameSnapshot(t, source), "a refused rename changed the store")
+		})
+	}
+}

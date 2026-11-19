@@ -330,6 +330,8 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show data check --path %s | json compact", Evidence: "show data check"},
 		{Command: "show fleet status | json compact", Evidence: "show fleet status"},
+		{Command: "show fleet divergence list | json compact", Evidence: "show fleet divergence list"},
+		{Command: "show fleet divergence name " + coverageHeldClient + " | json compact", Evidence: "show fleet divergence name"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
 		{Command: "show yang tree --config | json compact", Evidence: "show yang tree"},
 		{Command: "show yang completion --min-prefix 2 | json compact", Evidence: "show yang completion"},
@@ -394,7 +396,7 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 72/72 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 74/74 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

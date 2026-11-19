@@ -423,21 +423,30 @@ and they are different.
 |---------------------|-----------------|----------------------|
 | No baseline, or the active hash equals the baseline | A configuration | It validates, applies and acknowledges as in "Config Change (Two-Phase)". The push records the new baseline |
 | Anything | `current` | It applies nothing. When the active hash is not the baseline already, it records the active hash as the baseline. A client that was holding then sends a `config-ack` with `ok:true` |
-| The active hash differs from the baseline | A configuration | It holds |
+| The active hash differs from the baseline | A configuration whose `discard-version` is the active hash | It applies the configuration as a hub push, which records the new baseline (see "Revert" below) |
+| The active hash differs from the baseline | A configuration with no `discard-version`, or one naming another hash | It holds |
 | The active configuration or the baseline cannot be read | Nothing: no fetch is sent | It applies nothing, sends a `config-ack` with `ok:false` that says it could not compare, logs one warning under `doctor-managed-diverged`, and keeps the connection |
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline, holdFetched, refuseUncompared -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline, holdFetched, applyReverted, refuseUncompared -->
 <!-- source: internal/component/managed/baseline.go -- Diverged, ActiveVersion, activeConfig -->
 
 **A client that holds** does these things, and no others:
 
 - It does not decode, validate, store or apply the configuration the hub
-  returned. The fetch is only how the client learns that the hub holds
-  another configuration.
-- It sends a `config-ack` with `ok:false`. The error text starts with
-  `holding:` and carries the active hash and the baseline. It carries no
-  configuration content.
+  returned, unless the answer's `discard-version` is the hash it runs: that
+  is a revert, and it stops holding (see "Revert" below). Otherwise the
+  fetch is only how the client learns that the hub holds another
+  configuration.
+- It sends its hub a copy of the configuration it runs, with `config-held`,
+  before it answers (see "The hub's copy of a hold" below).
+- It sends a `config-ack` with `ok:false` and `holding:true`. The error text
+  starts with `holding:`, carries the active hash and the baseline, and says
+  whether the copy was sent. It carries no configuration content.
 - It logs one warning under `doctor-managed-diverged`, with the active, the
-  baseline and the offered hashes.
+  baseline and the offered hashes. Its fix names the hub commands only while
+  the hub keeps a copy of the active version (the hub's `held-version`, or an
+  upload the hub took: `uploadHeld` answers `kept`, `heldFix` picks the fix);
+  otherwise it names the manual routes.
+  <!-- source: internal/component/managed/client.go -- uploadHeld, heldFix -->
 - It keeps the connection and keeps answering the heartbeat. A hold is not a
   connection error: the backoff starts again at each successful
   authentication, so a client that closed the connection would reconnect and
@@ -446,13 +455,22 @@ and they are different.
   fetches and refuses. The hub therefore gets one refusal for each of its
   writes.
 
-A client that holds applies nothing, so it does not follow a change of the hub
-block either. A hub that moves, or changes that client's secret, while the
+<!-- source: internal/component/managed/client.go -- holdFetched -->
+<!-- test: internal/component/managed/client_held_test.go TestHoldAckSaysHolding -->
+
+A client that holds applies nothing until a revert, so it does not follow a
+change of the hub block either. A hub that moves, or changes that client's secret, while the
 client holds loses it.
 <!-- source: internal/component/managed/client.go -- holdFetched, handleConfigChangedRequest, applyFetched -->
 
-**What the hub sees.** The hub records a failed `config-ack` as that client's
-last refusal, and `show doctor` on the hub lists it under
+**What the hub sees.** A `config-ack` with `holding:true` from a client
+whose copy the hub keeps is not a refusal: the hub clears that client's
+refused-configuration row, and the hold is shown from the copy. The copy must
+be of the version the client named in its last `config-fetch` on that
+connection, the one it runs (`managedSession`, `holdShownFromCopy`): a client
+that edited again and whose newer copy was refused or too large still has
+only its older copy on the hub, so its ack is recorded as a refusal. Otherwise the
+hub records a failed `config-ack` as that client's last refusal, and `show doctor` on the hub lists it under
 `doctor-managed-client-rejected` with the client's own text (see "What doctor
 reads from the managed listener"). The hub reads nothing in that text. The row
 is the one of any refused configuration, so its fix line is the fix of a
@@ -463,10 +481,174 @@ client whose hold ends on a `current` answer sends one, with the hash of the
 configuration it runs as the version, although it applied nothing: without it
 the hub would go on listing a client whose hold was resolved. A client that
 was not holding sends none for a `current` answer.
-<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
+A holding client whose copy the hub does not keep (too large, refused, never
+sent, or a client built before `config-held`) stays on that row, so no hold
+is invisible on the hub.
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest, handleConfigAck, holdShownFromCopy -->
 <!-- source: internal/component/managed/client.go -- fetchAgainstBaseline -->
 <!-- test: internal/component/managed/client_hold_test.go TestHoldEndedOnCurrentTellsTheHub, TestFirstBaselineSendsNoAck -->
+<!-- test: internal/component/plugin/server/managed_held_test.go TestHoldingAckWithRecordClearsRefusal, TestHoldingAckWithoutRecordRecordsText -->
+
+**The hub's copy of a hold.** A client that holds sends its hub the
+configuration it runs, so the hub's operator can see the hold. The client
+reads the bytes, their version hash and the stamp of the active version in
+one read, so the copy is exactly the configuration whose hash it names. The
+stamp is when that version was written into the client's store: a commit
+writes the version it then runs, and a rollback runs again a version written
+earlier, with that earlier time. A configuration with no active pointer has
+no stamp, and the copy carries no `edited-at`.
+<!-- source: internal/component/managed/baseline.go -- readHeldConfig, activeConfigStamped -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfigStamped -->
+<!-- test: internal/component/managed/baseline_test.go TestHeldReadAnswersActivationStamp -->
+
+The client sends no copy when:
+
+| Condition | Why |
+|-----------|-----|
+| The hub's `config-fetch` answer names the active version as `held-version` | The hub keeps that copy already, so a client that holds sends it once, not at each hub write |
+| The configuration is larger than 1 MiB (1048576 bytes) | The upload runs on the client's notification loop. The client logs a warning under `doctor-managed-diverged` naming the manual routes, and its ack says why no copy was sent |
+| An upload of this version failed earlier in this run of the client | The same bytes fail the same way. A new version is sent; the same one waits for the client to restart |
+| This connection's hub answered `config-held` with an error that carries no `config-held-refused` code | A hub built before the verb answers it as an unknown method. The next connection tries once more |
+
+One upload waits at most 5 seconds (`heldUploadTimeout`), below the hub's
+10-second bound on a `config-changed` round-trip (`ManagedPushTimeout`): the
+client answers no `config-changed` while it uploads. An upload that fails is
+logged and the connection is kept.
+<!-- source: internal/component/managed/client.go -- uploadHeld, heldUploads, heldUploadTimeout -->
+<!-- test: internal/component/managed/client_held_test.go TestHoldSkipsUploadWhenHubHoldsActive, TestHoldUploadRefusedOverBound, TestHoldUploadsAtBound, TestHeldUploadDeadline, TestHeldUploadNotRetriedAfterFailure, TestHeldUploadOncePerConnectionOldHub -->
+
+The hub takes the name from the authenticated session. It refuses, with the
+`config-held-refused` code and nothing written, a copy larger than 1 MiB
+decoded (checked on the encoded length first), a copy whose bytes do not hash
+to the version it names, and a copy that does not parse with the hub's
+schema. A section of an external plugin the hub did not start is accepted,
+and the plugin is noted in the record. The record is one JSON value under
+`meta/config/client-<name>.conf/held` (`version`, `config`, `edited-at`,
+`received-at`, `unchecked-plugins`, and `revert` once a revert is decided),
+written under the writer lock of `client-<name>.conf`, and a newer copy
+replaces it whole, without the revert decision of the copy it replaces. It is in the store,
+so it survives a hub restart, and each `config-fetch` answer that carries a
+configuration names it as `held-version`. A record that does not decode is an
+error, never "no record"; the fetch then names no `held-version`, so the
+client's next copy replaces it. Each copy counts in
+`ze_managed_config_held_total{result}` (`stored`, `refused`).
+<!-- source: internal/component/plugin/server/managed_held.go -- handleConfigHeld, takeHeld, checkHeldConfig, heldRecords, ReadHeldRecord -->
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
+<!-- test: internal/component/plugin/server/managed_held_test.go TestHeldArmWritesRecordUnderAuthName, TestHeldArmRefusesOversize, TestHeldArmRefusesHashMismatch, TestHeldUploadMalformedRefused, TestHeldUploadUncheckedPluginSection, TestHeldArmReplacesRecord, TestHeldRecordDecodeStrict, TestFetchAnswersHeldVersion -->
+
+The record is removed when the hub answers `current` to that client, when
+the client acknowledges a configuration with `ok:true` (either proves the hub
+and the client hold the same configuration, and the second is how a revert
+ends), and by adopt. A rename of
+`client-<name>.conf` is refused while its record exists, because the copy
+would be left under a name no client fetches. A rollback or an import of the
+same configuration is not refused: it keeps the name and changes only what
+the hub holds.
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleConfigAck -->
+<!-- source: internal/component/config/storage/rename_config.go -- prepareConfigRename, heldRenameRefusal -->
+<!-- test: internal/component/plugin/server/managed_held_test.go TestFetchCurrentClearsRecord, TestAckOKClearsRecord -->
+<!-- test: internal/component/config/storage/rename_config_test.go TestRenameRefusedWithHeldRecord -->
+<!-- test: internal/component/config/storage/rollback_config_test.go TestRollbackAndImportIgnoreHeldRecord -->
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- managedRejectedRow -->
+
+**Adopt: the hub keeps the client's change.** `update fleet divergence name
+<client> adopt version <hash>` makes the copy the configuration the hub
+serves that client. `<hash>` is the copy's device hash the operator saw in
+`show fleet divergence name <client>`. Under one writer lock of `client-<name>.conf`, the
+lock the `config-held` arm takes to write a copy, the hub:
+
+1. refuses a client no server block declares, with the refusal every hub
+   writer of an unserved client configuration answers
+2. reads the record, and refuses when there is none or when its hash is not
+   `<hash>`: the client sent another copy after the operator looked
+3. publishes the copy's bytes as a new active version of
+   `client-<name>.conf` (`storage.CommitConfigWithGuard`), and refuses,
+   keeping the copy, while a change of that configuration is staged
+4. removes the record
+
+One lock across the four steps is what keeps a newer copy out of the middle:
+it lands before, and step 2 refuses, or after, and it is kept. When the lock
+is released, the store's write observer tells the client that its
+configuration changed. The client fetches with the hash it runs, which is now
+the hub's, the hub answers `current`, and the hold ends as below. Adopt
+writes nothing on the client: the client already runs that configuration.
+
+In the daemon, adopt acts on the store the daemon owns through the
+`DivergenceTarget` the hub installs, and the dispatcher records the
+`fleet-divergence-adopt` audit action. Beside a running hub, the local
+`ze update` sends the line to that daemon. With the hub stopped it is
+refused, fix `ze start`: only the running hub records the audit action
+`fleet-divergence-adopt`, so an adopt is taken only there.
+A copy over the 1 MiB bound is never sent, so the hub holds nothing to adopt,
+and the manual import of "End the Hold" in the guide stays the route.
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, adoptLocal, adoptHeld, adoptHeldLocked -->
+<!-- source: internal/component/plugin/server/managed_held.go -- ReadHeldRecordWithGuard -->
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- ServedClientRefusal -->
+<!-- test: internal/component/managed/cmd_divergence_adopt_test.go TestAdoptServesHeldBytes, TestAdoptRemovesHeldCopy, TestAdoptTakesOneGuard, TestAdoptNotifiesClient, TestAdoptRefusesStaleHash, TestAdoptRefusesStagedCandidate -->
+
+**Revert: the client drops its change.** `request fleet divergence name
+<client> revert version <hash> hub-version <hash>` decides that the client
+discards the configuration it holds and takes the one the hub serves it.
+`version` is the copy's device hash D and `hub-version` the hash V of the
+configuration the hub serves the client, both as the operator saw them in
+the show. Under the same writer lock, the hub refuses as adopt does (an
+undeclared client, no record, a record of another hash), reads the
+configuration it serves the client and refuses unless it still hashes to V,
+and writes the record back carrying the decision: D, V, the user and the
+time (`HeldRecord.WithRevert`). V is always the operator's hash, never the
+configuration as it stands when the decision is taken, so a hub write
+between the show and the revert refuses the revert rather than binding it
+to a configuration nobody saw. It writes no `client-<name>.conf`, so after the lock
+is released the handler tells the client itself (`NotifyConfigChanged`). A
+client that is not connected learns it at its next connection's fetch.
+
+The hub's `config-fetch` answer carries the decision as `discard-version` =
+D only while two things still hold: the client fetches with version D, and
+the configuration the hub serves it still hashes to V
+(`RevertDecision.OfferedFor`). The client, in `fetchAgainstBaseline`, beside
+the hold, applies the answer only when `discard-version` is exactly the hash
+it runs (`applyReverted`). It applies it through `ClientConfig.OnRevert`,
+which the device daemon wires to `applyManagedPush` staged with
+`storage.StageMachineCandidateOver`: the machine entry the freeze exempts,
+which re-reads the active configuration under the configuration's writer
+lock and stages nothing unless it still hashes to D, then
+`recordPushBaseline`. A local commit that lands while the fetch is answered
+therefore wins: nothing is applied, and the device fetches once more naming
+that newer edit (`refetchOverLocalCommit`), so its hold, its upload and its
+holding ack answer a fetch of the version it runs, which is what lets the hub
+show the hold from the copy rather than record a refusal. That second fetch
+cannot fetch again: if the store changed during it too, the device holds,
+sends nothing more, and fetches at its next connection or hub notification.
+It acks `ok:true` once applied, which removes the record.
+<!-- source: internal/component/managed/client.go -- applyReverted, refetchOverLocalCommit, ClientConfig -->
+<!-- source: cmd/ze/hub/managed.go -- wireManagedCommit, applyManagedPush -->
+<!-- source: internal/component/config/storage/pointer.go -- StageMachineCandidateOver --> A confirmed-commit window open on the client refuses the push as
+today: the ack is `ok:false`, the client still holds, and the decision stays
+for its next fetch.
+
+The two bindings make a stale decision inert on both sides:
+
+| What changed after the decision | Effect |
+|---------------------------------|--------|
+| The client's operator edited again (active D2) | The client fetches with D2, so the hub offers nothing; the client holds and sends D2, whose record replaces the one the decision was on. `show fleet divergence name` reports `revert` `none` |
+| The hub's configuration for the client was written again (V2) | The hub offers nothing, the client holds, and the show reports `revert` `void`, with the revert to decide again as the fix of `revert-void` |
+| The client names another hash than its own in `discard-version` | It holds, and `show fleet status` on it reports `revert-offered` `stale` |
+
+A hub can make a holding client apply only a configuration bound to the
+client's own hash. A client built before `discard-version` ignores the field
+and keeps holding; it is resolved by hand. With the hub stopped, the local
+`ze request` refuses with `ze start` as the fix: only the running hub's
+dispatcher records the `fleet-divergence-revert` audit action, and a stopped
+hub offers nothing to a client anyway. Beside a running hub, the local command
+sends the line to it.
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, revertLocal, revertHeld, revertHeldLocked -->
+<!-- source: internal/component/plugin/server/managed_held.go -- RevertDecision, HeldRecord.WithRevert, WriteHeldRecordWithGuard, heldRecords.offer -->
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, applyReverted -->
+<!-- source: internal/component/managed/cmd_divergence_show.go -- divergenceRowOf, revertVoidReason -->
+<!-- test: internal/component/plugin/server/managed_held_test.go TestFetchOffersDiscardOnlyForDAndV, TestHeldArmReplacesAndDropsDecision, TestHeldRecordKeepsDecision -->
+<!-- test: internal/component/managed/client_held_test.go TestDiscardAppliesWhenActiveMatches, TestDiscardIgnoredWhenActiveDiffers, TestDiscardRefusedApplyStillHolds -->
+<!-- test: internal/component/managed/cmd_divergence_revert_test.go TestRevertStoresDecisionAndNotifies, TestShowDivergenceReportsVoidDecision -->
 
 **What the client's operator sees.** `ze doctor` on the client reports
 `doctor-managed-diverged`, a warning, from the `managed-diverged` check. The
@@ -477,12 +659,17 @@ hashes and whether they differ.
 <!-- source: internal/component/managed/doctor.go -- checkManagedDiverged, diagnoseManagedDiverged -->
 <!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus -->
 
-**How a hold ends.** Only one thing ends a hold: the hub answers `current` to
-the hash the client sent. That answer proves that the hub and the client hold
-the same configuration, so the client records that hash as its baseline and
-tells the hub with a `config-ack` (see "What the hub sees"). No other message
-from the hub ends a hold, and the hub cannot make a client apply a
-configuration while the client holds.
+**How a hold ends.** Two things end a hold. The first is the hub answering
+`current` to the hash the client sent. That answer proves that the hub and
+the client hold the same configuration, so the client records that hash as
+its baseline and tells the hub with a `config-ack` (see "What the hub
+sees"). Adopt and the manual import both end a hold this way: each makes the
+hub hold the client's configuration. The second is a revert: a `config-fetch`
+answer whose `discard-version` is exactly the hash the client runs, which the
+client applies as a hub push (see "Revert" above). That is the one way the
+hub makes a holding client apply a configuration, and only one the operator
+decided on, bound to the configuration the client runs and to the one the
+operator saw. No other message from the hub ends a hold.
 
 **A client with no baseline is not holding.** A client provisioned before the
 baseline existed, or again with `ze init --managed --force`, has none. It
@@ -610,8 +797,26 @@ After `#0 auth`, the hub knows the client's name. All RPCs are scoped to that na
 |------|-----------|---------|----------|
 | `config-fetch` | Client to hub | `{"version":"<hash-or-empty>"}` | `ok {"version":"<hash>","config":"<base64>"}` or `ok {"status":"current"}` |
 | `config-changed` | Hub to client | `{"version":"<hash>"}` | `ok {}` |
-| `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}` | `ok {}` |
+| `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}`, and `"holding":true` on a hold | `ok {}` |
+| `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>"}` | `ok {}`; an error with code `config-held-refused` for a copy the hub refused; any other error from a hub that does not take the verb |
 | `ping` | Either direction | `{}` | `ok {}` |
+
+The `config-fetch` answer that carries a configuration may also carry
+`"held-version":"<hash>"` and `"discard-version":"<hash>"`. Every field added
+after the first four verbs is optional and omitted when unset, and the
+payload of `config-held` names no client: the hub takes the name from the
+authenticated session. A peer built before them decodes each message as it
+did, because Go's JSON decoder ignores a key its type does not declare, and a
+hub built before `config-held` answers it with an unknown-method error.
+
+| Field | Message | Meaning |
+|-------|---------|---------|
+| `held-version` | `config-fetch` answer | The version hash of the configuration the hub holds as this client's held copy. Absent when the hub holds none |
+| `discard-version` | `config-fetch` answer | Present only when the hub's operator decided that a client running exactly this version drops it and applies the configuration of the answer |
+| `holding` | `config-ack` | `true` when the client refused because it holds a configuration of its own, not because the hub's one is invalid |
+| `edited-at` | `config-held` | When the version the client runs was written into its store (the stamp of its active version). Absent when the client's store records no such stamp |
+<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, ConfigHeld, ConfigFetchResponse, ConfigAck -->
+<!-- test: pkg/fleet/envelope_test.go TestConfigHeldEnvelopeRoundTrip, TestOldPeerIgnoresNewFields -->
 
 ### Version Hash
 

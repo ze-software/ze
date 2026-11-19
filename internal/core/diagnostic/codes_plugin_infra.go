@@ -51,6 +51,7 @@ const (
 	CodeDoctorManagedClientNotifyDropped    = "doctor-managed-client-notify-dropped"
 	CodeDoctorHubClientMissing              = "doctor-hub-client-missing"
 	CodeDoctorManagedDiverged               = "doctor-managed-diverged"
+	CodeDoctorManagedClientDiverged         = "doctor-managed-client-diverged"
 	CodeDoctorPluginRemovalUnrecovered     = "doctor-plugin-removal-unrecovered"
 	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
 	CodeDoctorCommandEnsureRollbackFailed   = "doctor-command-ensure-rollback-failed"
@@ -373,6 +374,17 @@ var pluginInfraCodes = []CodeMeta{
 			"`show fleet status` shows both hashes.",
 		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-diverged"},
 		RelatedCodes: []string{CodeDoctorHubClientMissing},
+	},
+	{
+		Code:  CodeDoctorManagedClientDiverged,
+		Title: "Hub holds the configuration a managed client kept",
+		Description: "This hub holds a copy of the configuration a managed client runs in place of the one the hub serves it, " +
+			"under meta/config/client-<name>.conf/held: the client holds and applies nothing the hub sends until an operator resolves it. " +
+			"`show fleet divergence name <client>` shows what differs, `update fleet divergence name <client> adopt version <hash>` makes the client's configuration the hub's, " +
+			"and `request fleet divergence name <client> revert version <hash> hub-version <hash>` makes the client take the hub's, both hashes as the show answers them. " +
+			"A copy for a client no hub server block declares is orphaned: the client cannot connect, so declare it again or remove the copy with the hub stopped.",
+		Examples:     []string{exampleShowDoctor, "ze show fleet divergence list", "ze show diagnostic doctor-managed-client-diverged"},
+		RelatedCodes: []string{CodeDoctorManagedDiverged, CodeDoctorManagedClientRejected},
 	},
 	{
 		Code:  CodeDoctorManagedClientNotifyDropped,

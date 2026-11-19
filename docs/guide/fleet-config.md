@@ -472,25 +472,90 @@ ze doctor
 ze show fleet status
 ```
 
-`ze doctor` reports `doctor-managed-diverged`. `show fleet status` shows the
-hash of the configuration the client runs, the hash of the last one its hub
-gave it, and `diverged`. Both commands answer with the client running or
-stopped. A running client that refused its hub's configuration at its last
-fetch also shows `holding` in the `holding` field.
+`ze doctor` reports `doctor-managed-diverged`, and its fix names the hub
+commands that end the hold, with the client's name and the hash of the
+configuration it runs: `show fleet divergence name <client>`, then adopt or
+revert. For a configuration larger than 1 MiB, which the client does not send
+its hub, it names the two manual routes of "End the Hold" instead.
+`show fleet status` shows the hash of the configuration the client runs, the
+hash of the last one its hub gave it, and `diverged`. Both commands answer
+with the client running or stopped. A running client that refused its hub's
+configuration at its last fetch also shows `holding` in the `holding` field,
+`held-by-hub` with the hash of the copy the hub keeps (`none` when it keeps
+none), and `revert-offered`, which says whether the hub offered to discard
+the client's change (`offered`) or offered it for a version the client no
+longer runs (`stale`).
 
-On the hub, `show doctor` lists the client under
-`doctor-managed-client-rejected`. The reason starts with `holding:` and gives
-the same two hashes.
-<!-- source: internal/component/managed/doctor.go -- checkManagedDiverged -->
-<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus, reportOf -->
+On the hub, `ze doctor` and `show doctor` list each client whose copy the hub
+keeps under `doctor-managed-client-diverged`, with both hashes and the three
+commands, with the hub running or stopped. A copy for a client no server
+block declares any more is reported as orphaned. A client whose copy the hub
+does not keep is listed under `doctor-managed-client-rejected` instead: the
+reason starts with `holding:` and gives the same two hashes.
+
+To see what the client changed, on the hub:
+
+```bash
+ze show fleet divergence list
+ze show fleet divergence name edge-01
+```
+
+The list gives each client whose copy the hub keeps, its two hashes, when the
+client's configuration was written and when the hub received the copy, and
+`declared` false for an orphaned copy. The show of one client adds the
+changes from the hub's configuration to the client's, every secret masked,
+and their count. It never shows either configuration's text. When the client's
+configuration holds a section of an external plugin the hub did not start, the
+hub cannot compare the two: the show says so and names the plugins, and adopt
+and revert still work.
+<!-- source: internal/component/managed/doctor.go -- checkManagedDiverged, managedDivergedFix, checkHubClientsDiverged -->
+<!-- source: internal/component/managed/cmd_divergence_show.go -- readDivergenceList, readDivergenceDetail, divergenceParseRefusal -->
+<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus, reportOf, hubAnswerOf -->
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- managedRejectedRow -->
 
 ### End the Hold
 
-The hold ends when the hub holds the same configuration as the client. There
-are two ways to get there.
+The hold ends when the hub and the client hold the same configuration. You
+keep the client's change on the hub with adopt, or discard it with revert.
 
-**Keep the client's configuration.** Give it to the hub. On the client, print
+**Keep the client's configuration.** Adopt the copy the hub keeps. Read
+its hash in the show, then give that hash to adopt, on the hub:
+
+```bash
+ze show fleet divergence name edge-01
+ze update fleet divergence name edge-01 adopt version <device-version>
+```
+
+`<device-version>` is the `device-version` the show answered. The hub makes
+its copy the configuration it serves the client, and tells the client. The
+client finds that the hub now holds the configuration it runs, and it stops
+holding. It applies nothing: it already runs that configuration.
+`show fleet status` on the client no longer shows `diverged`, and the hub no
+longer lists the client in `show fleet divergence list`.
+
+Adopt is refused, and writes nothing, when:
+
+- the hash is not the one the hub keeps: the client sent a newer copy after
+  you looked. The refusal names the hash the hub keeps. Read the show again
+- the hub keeps no copy for the client. The refusal names
+  `show fleet divergence list`
+- no server block declares the client. Add the client entry with
+  `ze config edit`
+- a change to `client-edge-01.conf` is staged. Commit or discard it with
+  `ze config edit client-edge-01.conf`
+
+Beside a running hub, `ze update` sends the line to it. With the hub stopped
+it is refused, fix `ze start`: only the running hub records the audit action
+`fleet-divergence-adopt`, so an adopt is taken only there. Adopt needs the
+edit permission, as every `update` command does, and the hub records it in
+its audit log (`show audit action fleet-divergence-adopt`).
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, adoptLocal, adoptHeld, adoptHeldLocked -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline -->
+
+**Keep it by hand.** The hub keeps no copy, and there is nothing to adopt,
+when the configuration is larger than 1 MiB, when the hub or the client runs
+a version of Ze that does not send or keep the copy, or when the hub refused
+the copy. Give the configuration to the hub yourself. On the client, print
 the configuration it runs into a file named for the hub:
 
 ```bash
@@ -503,10 +568,8 @@ Copy that file to the hub's host and import it there:
 ze data import client-edge-01.conf
 ```
 
-The hub tells the client. The client finds that the hub now holds the
-configuration it runs, and it stops holding. It applies nothing: it already
-runs that configuration. The file must be the client's configuration byte for
-byte. If `show fleet status` on the client still shows `diverged` after the
+The hub tells the client, and the hold ends as it does for adopt. The file
+must be the client's configuration byte for byte. If `show fleet status` on the client still shows `diverged` after the
 import, the two copies differ.
 
 The client also tells the hub that it no longer holds, and the hub removes
@@ -515,8 +578,51 @@ the `doctor-managed-client-rejected` row of that client from `show doctor`.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdCat, importConfigs -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
 
-**Discard the client's configuration.** Take the client out of the fleet,
-put it back on the version its hub sent, and let it rejoin. On the client,
+**Discard the client's configuration.** Revert the client from the hub.
+Read the two hashes in the show, the copy's `device-version` and the
+`hub-version` of the configuration the hub serves the client, then give both
+to revert, on the hub:
+
+```bash
+ze show fleet divergence name edge-01
+ze request fleet divergence name edge-01 revert version <device-version> hub-version <hub-version>
+```
+
+The hub stores your decision with its copy and tells the client. At its next
+fetch the client applies the configuration the hub serves it, in the same way
+as any change from its hub, and it stops holding: `show fleet status` on the
+client no longer shows `diverged`, and the hub no longer lists the client. A
+client that is not connected takes the revert when it next connects, and the
+show answers `revert` `pending` until then.
+
+The decision is bound to the two hashes you gave. When the hub's
+configuration for the client was written between your show and your revert,
+the revert is refused and stores nothing: read the show again. The client
+applies nothing, and holds, when either hash changed after you decided and
+before it fetched:
+
+- the client's operator edited again. The client sends the hub its newer
+  copy, which replaces the one you reverted, and the show answers `revert`
+  `none`. Read the show again, and decide on the newer copy
+- the hub's configuration for the client was written again. You did not see
+  that configuration when you decided, so the client does not take it. The
+  show answers `revert` `void` and, in `revert-void`, the revert to run again
+  after you read the diff
+
+Revert is refused, and stores nothing, in the cases where adopt is refused,
+and when the hub holds no configuration for the client. It needs the hub to
+run: run it again after `ze start`. Revert needs the edit permission, and the
+hub records it in its audit log (`show audit action fleet-divergence-revert`).
+A client with a confirmed commit open refuses the revert as it refuses any
+change from its hub, and takes it at the fetch after the window closes.
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, revertLocal, revertHeld, revertHeldLocked -->
+<!-- source: internal/component/managed/cmd_divergence_show.go -- divergenceRowOf, revertVoidReason -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, applyReverted -->
+
+**Discard it by hand.** A client whose copy the hub does not keep, or that
+runs a version of Ze that ignores a revert, is put back on the version its hub
+sent from the client itself. Take the client out of the fleet, put it back
+on the version its hub sent, and let it rejoin. On the client,
 `ze config history` lists the versions of its configuration. Restore the one
 the hub sent:
 
@@ -535,7 +641,7 @@ holds again when it rejoins.
 The client then runs the configuration its hub last gave it, so it does not
 hold when it rejoins. It connects to the hub at once and takes the hub's
 configuration if the hub's copy changed meanwhile.
-<!-- source: internal/component/managed/doctor.go -- managedDivergedFix -->
+<!-- source: internal/component/managed/doctor.go -- managedDivergedManualFix -->
 <!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, enableOnDaemon, readFleetStatus -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 

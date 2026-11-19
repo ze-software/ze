@@ -165,3 +165,35 @@ func TestConfigRollbackPreservesAnUnfinishedFileCommit(t *testing.T) {
 	require.Contains(t, err.Error(), "file commit")
 	require.Equal(t, before, configRenameSnapshot(t, source))
 }
+
+// TestRollbackAndImportIgnoreHeldRecord proves that a held record fences only
+// a rename: a rollback and an import of the same configuration are accepted
+// while it exists, and leave it in place.
+//
+// VALIDATES: AC-18 and E-11. A rollback or an import keeps the configuration's
+// name and changes only what the hub holds, which is how fleet-6's manual
+// route (import the device's configuration on the hub) still ends a hold.
+// PREVENTS: the record joining the intent refusals of admitConfigRollbackLocked
+// or ImportConfig, which would make the manual route refuse.
+func TestRollbackAndImportIgnoreHeldRecord(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			source := backend.newStore(t, t.TempDir())
+			seedConfigRollback(t, source)
+			heldKey := zefs.KeyConfigHeld.Key("router.conf")
+			held := []byte(`{"version":"0000000000000000"}`)
+			require.NoError(t, source.WriteKey(heldKey, held))
+
+			_, _, err := rollbackConfigUnderTest(t, source, 2)
+			require.NoError(t, err, "a held record refused a rollback")
+			require.NoError(t, ImportConfig(source, "router.conf", []byte("imported revision")), "a held record refused an import")
+
+			active, err := ReadActiveConfig(source, "router.conf")
+			require.NoError(t, err)
+			require.Equal(t, "imported revision", string(active))
+			kept, err := source.ReadKey(heldKey)
+			require.NoError(t, err)
+			require.Equal(t, held, kept, "a rollback or an import changed the held record")
+		})
+	}
+}

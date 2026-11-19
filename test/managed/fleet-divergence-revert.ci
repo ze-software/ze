@@ -1,0 +1,42 @@
+# Test: revert on the hub makes a holding device take its hub's configuration
+#
+# QUESTION: does `request fleet divergence name <client> revert version <hash>
+#           hub-version <hash>` on the hub make a holding device drop the configuration it runs
+#           and take its hub's, through the push path, whether the device is
+#           connected when the revert is decided or connects later?
+#           (spec-fleet-7-config-reconnect-resolution, AC-13, AC-14, user
+#           story 4; docs/guide/fleet-config.md, "End the Hold".)
+# WHY NOT A UNIT TEST: the revert crosses two daemons. The hub stores the
+#           decision with its copy and tells the device over the TLS session;
+#           the device fetches with its own hash, the hub's answer carries
+#           discard-version, the device applies the hub's configuration
+#           through the machine entry its freeze exempts, records the new
+#           baseline and acks ok:true, and the hub removes the copy. The unit
+#           tests prove each side over a pipe and one store, not that a real
+#           session and a real frozen device agree.
+#
+# VALIDATES: a device that took its hub's configuration and was then given
+#            another one with its daemon stopped holds, and the hub lists its
+#            copy. The revert over the hub's SSH with the copy's hash is
+#            answered: the device runs the hub's configuration with its hash
+#            as the baseline, the hub no longer lists the copy, and
+#            `show audit` names the revert of the client. The same device,
+#            given a second local configuration, holds again, is stopped, and
+#            the revert is decided while it is away: the show reports it
+#            pending, and the device takes the hub's configuration at its next
+#            connection.
+# PREVENTS: a revert decided on the hub that the device never applies; a
+#           revert lost for a device that was offline; a copy that outlives
+#           the revert.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers and
+# the device's store: internal/test/fixture/misc_fixture_managed_fleet_divergence_revert.go.
+
+option=timeout:value=400s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-revert $PORT $PORT2 $PORT3:timeout=400s
+expect=exit:code=0
+expect=stderr:contains=OK: revert on the hub made a holding device take its hub's configuration

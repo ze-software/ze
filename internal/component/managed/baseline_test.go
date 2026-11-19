@@ -115,3 +115,32 @@ func TestActiveHashReadsThePointedVersion(t *testing.T) {
 	require.Len(t, diags, 1)
 	assert.Contains(t, diags[0].Message, "runs (version "+want+")", "the doctor check")
 }
+
+// TestHeldReadAnswersActivationStamp proves the held read answers the bytes,
+// their version and the stamp of the version the active pointer names, from
+// one read, and no stamp for a configuration no version describes.
+//
+// VALIDATES: A-4 as settled at the source: the stamp is when the active
+// version was written into the store (storage.ReadActiveConfigStamped). A
+// plain file with no pointer answers the zero time, which the upload omits.
+// PREVENTS: an edited-at that belongs to another version than the bytes sent,
+// or a time invented for a configuration that has none.
+//
+// MUTATION: answer time.Now() or the plain file's stamp in
+// ReadActiveConfigStamped and this fails.
+func TestHeldReadAnswersActivationStamp(t *testing.T) {
+	stamp := time.Date(2026, time.November, 19, 10, 30, 5, 123_000_000, time.Local)
+	pointed := holdDevice(t, holdEarlierConfig, "")
+	_, _, err := storage.EnsureActiveVersion(pointed, fleetStatusConfigName, []byte(holdDeviceConfig), stamp)
+	require.NoError(t, err)
+
+	held, err := readHeldConfig(pointed)
+	require.NoError(t, err)
+	assert.Equal(t, holdDeviceConfig, string(held.content))
+	assert.Equal(t, versionOf([]byte(holdDeviceConfig)), held.version)
+	assert.True(t, held.editedAt.Equal(stamp), "edited-at %s, want %s", held.editedAt, stamp)
+
+	plain, err := readHeldConfig(holdDevice(t, holdDeviceConfig, ""))
+	require.NoError(t, err)
+	assert.True(t, plain.editedAt.IsZero(), "a configuration with no active pointer has a stamp: %s", plain.editedAt)
+}

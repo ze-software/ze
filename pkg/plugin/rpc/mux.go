@@ -239,6 +239,13 @@ func (m *MuxConn) SendError(ctx context.Context, id uint64, message string) erro
 	return m.conn.SendError(ctx, id, message)
 }
 
+// SendCodedError sends an error RPC response that carries a short
+// machine-readable code beside its message, which the caller reads as
+// RPCCallError.Code.
+func (m *MuxConn) SendCodedError(ctx context.Context, id uint64, code, message string) error {
+	return m.conn.SendCodedError(ctx, id, code, message)
+}
+
 // AnswerWriter returns the writer one answer sequence for an inbound request is
 // written to. See Conn.AnswerWriter for what each Write owes.
 func (m *MuxConn) AnswerWriter(ctx context.Context) io.Writer {

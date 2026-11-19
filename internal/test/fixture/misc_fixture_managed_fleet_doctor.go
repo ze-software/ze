@@ -28,9 +28,21 @@ const (
 	// a report that carries this row read this device's configuration.
 	fleetDoctorHubUnreachableCode = "doctor-hub-unreachable"
 	fleetDoctorDivergedMessage    = "differs from the last one its hub sent"
-	// The two ways out that the fix names: one on the hub, one on the device.
-	fleetDoctorFixKeep    = "ze data import client-"
-	fleetDoctorFixDiscard = "request fleet disable"
+	// The fix names the hub commands that end the hold over the version the
+	// device runs, the version of the copy the hub keeps (doctor.go,
+	// managedDivergedFix; spec-fleet-7 E-12): see what differs, keep this
+	// device's configuration (adopt), or discard it (revert). Each is followed
+	// by the client's name, adopt and revert then by "version <hash>", and
+	// revert last by "hub-version <hub-version>" (E-13). The judge requires
+	// the whole fix, so these are its three parts in the producer's order.
+	fleetDoctorFixShow    = "on the hub, see what differs: show fleet divergence name "
+	fleetDoctorFixKeep    = "to keep this device's configuration: update fleet divergence name "
+	fleetDoctorFixDiscard = "to discard it: request fleet divergence name "
+	// The manual routes, the fix only of a configuration larger than a copy
+	// the hub takes (doctor.go, managedDivergedManualFix). A device whose
+	// configuration fits MUST NOT be sent there.
+	fleetDoctorFixManualKeep    = "ze data import client-"
+	fleetDoctorFixManualDiscard = "request fleet disable"
 )
 
 // managedFleetDivergedDoctorDriver answers one question: does `ze doctor`
@@ -74,6 +86,9 @@ func managedFleetDivergedDoctorDriver(ctx context.Context, args []string) error 
 		return err
 	}
 
+	// The version the device runs: the hash of the bytes it imported. The fix
+	// names it as the version of the copy the hub would keep.
+	active := managedVersionHash([]byte(fleetStatusConfig(*pluginPort, *hubPort, *sshPort)))
 	if err := scenario.writeKey(ctx, fleetStatusKeyBaseline, fleetStatusOtherBaseline); err != nil {
 		return err
 	}
@@ -89,7 +104,7 @@ func managedFleetDivergedDoctorDriver(ctx context.Context, args []string) error 
 		return fmt.Errorf("managed, diverged, daemon stopped: the report lacks %s, so it is not known to be the local route's: %s",
 			fleetDoctorNotCheckedCode, doctorConfigClaimsJSON(stopped))
 	}
-	if err := fleetDoctorJudgeDiverged(stopped, "managed, diverged, daemon stopped", fleetStatusOtherBaseline); err != nil {
+	if err := fleetDoctorJudgeDiverged(stopped, "managed, diverged, daemon stopped", fleetStatusClientName, fleetStatusOtherBaseline, active); err != nil {
 		return err
 	}
 
@@ -98,7 +113,7 @@ func managedFleetDivergedDoctorDriver(ctx context.Context, args []string) error 
 		if err != nil {
 			return err
 		}
-		return fleetDoctorJudgeDiverged(running, "managed, diverged, daemon running", fleetStatusOtherBaseline)
+		return fleetDoctorJudgeDiverged(running, "managed, diverged, daemon running", fleetStatusClientName, fleetStatusOtherBaseline, active)
 	}); err != nil {
 		return err
 	}
@@ -176,18 +191,20 @@ func fleetDoctorCount(report []doctorConfigClaimsDiagnostic, code string) (int, 
 
 // fleetDoctorRequireDiverged runs `ze doctor --json` with env and judges its
 // report with fleetDoctorJudgeDiverged.
-func fleetDoctorRequireDiverged(ctx context.Context, env []string, state, baseline string) error {
+func fleetDoctorRequireDiverged(ctx context.Context, env []string, state, client, baseline, active string) error {
 	report, err := fleetDoctorReport(ctx, env)
 	if err != nil {
 		return err
 	}
-	return fleetDoctorJudgeDiverged(report, state, baseline)
+	return fleetDoctorJudgeDiverged(report, state, client, baseline, active)
 }
 
 // fleetDoctorJudgeDiverged requires report to carry exactly one
 // doctor-managed-diverged row: a warning that says the configuration differs
-// from the last one the hub sent, names baseline, and gives both ways out.
-func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, baseline string) error {
+// from the last one the hub sent, names active and baseline, and whose fix
+// names the three hub commands over client and active, and not the manual
+// routes of a configuration too large for the hub's copy.
+func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, client, baseline, active string) error {
 	rows, err := doctorConfigClaimsFilter(report, fleetDoctorDivergedCode)
 	if err != nil {
 		return fmt.Errorf("%s: %w", state, err)
@@ -199,9 +216,8 @@ func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, base
 	wants := []struct{ field, text string }{
 		{"severity", severityWarning},
 		{fieldMessage, fleetDoctorDivergedMessage},
-		{fieldMessage, baseline},
-		{fieldFix, fleetDoctorFixKeep},
-		{fieldFix, fleetDoctorFixDiscard},
+		{fieldMessage, "(version " + active + ")"},
+		{fieldMessage, "(version " + baseline + ")"},
 	}
 	for _, want := range wants {
 		got, fieldErr := doctorConfigClaimsField(rows[0], want.field)
@@ -210,6 +226,26 @@ func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, base
 		}
 		if !strings.Contains(got, want.text) {
 			return fmt.Errorf("%s: the %s of the %s row lacks %q: %s", state, want.field, fleetDoctorDivergedCode, want.text, got)
+		}
+	}
+	fix, err := doctorConfigClaimsField(rows[0], fieldFix)
+	if err != nil {
+		return fmt.Errorf("%s: the %s row: %w", state, fleetDoctorDivergedCode, err)
+	}
+	// The whole fix, as divergenceCommandsFix writes it: the device cannot
+	// know the hash of what its hub serves, so the revert's hub-version is the
+	// placeholder the show's hub-version field fills.
+	wantFix := fleetDoctorFixShow + client +
+		"; " + fleetDoctorFixKeep + client + " adopt version " + active +
+		"; " + fleetDoctorFixDiscard + client + " revert version " + active + " hub-version <hub-version>"
+	if fix != wantFix {
+		return fmt.Errorf("%s: the fix of the %s row is not the one the hold owes:\n got: %s\nwant: %s",
+			state, fleetDoctorDivergedCode, fix, wantFix)
+	}
+	for _, manual := range []string{fleetDoctorFixManualKeep, fleetDoctorFixManualDiscard} {
+		if strings.Contains(fix, manual) {
+			return fmt.Errorf("%s: the fix of the %s row names the manual route %q of a configuration too large for the hub's copy: %s",
+				state, fleetDoctorDivergedCode, manual, fix)
 		}
 	}
 	return nil

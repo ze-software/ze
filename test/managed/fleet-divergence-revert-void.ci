@@ -1,0 +1,41 @@
+# Test: a revert decision that went stale does nothing
+#
+# QUESTION: does a revert decided on the hub do nothing once the device's
+#           operator edited again, or once the hub's configuration for the
+#           client changed, so a newer local edit is kept and a hub
+#           configuration the operator did not see is not applied?
+#           (spec-fleet-7-config-reconnect-resolution, AC-15, AC-16, user
+#           story 5, R-2, R-3.)
+# WHY NOT A UNIT TEST: the two bindings are kept by two daemons. The device
+#           applies only a discard-version equal to the hash it runs, and its
+#           newer copy replaces the hub's record and drops the decision; the
+#           hub offers the decision only while it serves the configuration the
+#           decision was taken on. The unit tests prove each check over a pipe
+#           and one store, not that the real fetch, upload and hub write
+#           interleave as designed.
+#
+# VALIDATES: a device holds and the hub lists its copy D; the device is
+#            stopped and the revert of D is decided. Given a newer
+#            configuration D2 and started, the device keeps D2 and holds, the
+#            hub lists D2 and the show reports no decision. The device is
+#            stopped, the revert of D2 is decided, and the hub's configuration
+#            for the client is written again: a revert naming the hub hash
+#            shown before is refused, and the show reports the decision
+#            void, its reason ending with the revert as the fix. Started
+#            again, the device is told the hub holds D2, is offered no revert,
+#            and keeps running D2.
+# PREVENTS: a stale revert discarding a local change the hub's operator never
+#           saw; a revert applying a hub configuration the operator never saw;
+#           a show that reports pending a revert the hub no longer offers.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers and
+# the device's status: internal/test/fixture/misc_fixture_managed_fleet_divergence_revert.go.
+
+option=timeout:value=400s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-revert-void $PORT $PORT2 $PORT3:timeout=400s
+expect=exit:code=0
+expect=stderr:contains=OK: a revert decision went void on a newer local edit and on a newer hub write

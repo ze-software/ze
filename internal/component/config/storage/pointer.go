@@ -111,7 +111,9 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 // The permitted callers are the writers that change a device's own
 // configuration with no operator deciding it, all in cmd/ze/hub:
 //
-//   - applyManagedPush: the hub's push, which is what a managed device follows
+//   - applyManagedPush: the hub's push, which is what a managed device follows,
+//     and through StageMachineCandidateOver the revert its hub's operator
+//     decided
 //   - confirmRevert: the revert of an unconfirmed commit on a running daemon
 //   - publishRecoveredConfig: the same revert at boot (restoreConfirmOnStart)
 //     and the schema recovery of a configuration an older Ze wrote
@@ -129,6 +131,31 @@ func StageMachineCandidate(store Storage, configPath string, data []byte, stamp 
 		return "", err
 	}
 	defer func() { err = releaseGuard(guard, err) }()
+	return stageCandidateLocked(store, guard, configPath, data, stamp)
+}
+
+// StageMachineCandidateOver is StageMachineCandidate for a machine writer that
+// may replace only the configuration it decided to replace. Under the config
+// lock of configPath, the lock every writer of that configuration takes, it
+// reads the configuration active now (ReadActiveConfigWithGuard) and hands it
+// to check, and it stages nothing when check refuses it, answering check's
+// error as is. The read and the stage share the lock, so no commit lands
+// between them; once staged, the candidate refuses every other stage until the
+// reload promotes or clears it (ErrCandidateExists). check MUST NOT be nil and
+// MUST NOT use store: it runs while the lock is held.
+func StageMachineCandidateOver(store Storage, configPath string, data []byte, stamp time.Time, check func(active []byte) error) (stampStr string, err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+	active, err := ReadActiveConfigWithGuard(store, guard, configPath)
+	if err != nil {
+		return "", fmt.Errorf("read the active configuration of %s: %w", configPath, err)
+	}
+	if err := check(active); err != nil {
+		return "", err
+	}
 	return stageCandidateLocked(store, guard, configPath, data, stamp)
 }
 
@@ -555,24 +582,42 @@ func HasActivePointer(store Storage, configPath string) (bool, error) {
 // bytes the daemon booted from: they are the accepted configuration before
 // they are durable.
 func ReadActiveConfig(store Storage, configPath string) ([]byte, error) {
-	if data, pending := pendingBootConfig(store, configPath); pending {
-		return data, nil
+	data, _, _, err := ReadActiveConfigStamped(store, configPath)
+	return data, err
+}
+
+// ReadActiveConfigStamped is ReadActiveConfig that also answers the stamp of
+// the version the active pointer names, from the same pointer read, so the
+// bytes and the time always belong to one version. The stamp is when that
+// version was written into the store: a commit writes the version it then
+// points at, and a rollback points again at a version written earlier, whose
+// stamp is that earlier time. stamped is false when no stamp describes the
+// bytes: no active pointer (the plain file), or a pending boot record (the
+// bytes the daemon booted from, not yet a version).
+func ReadActiveConfigStamped(store Storage, configPath string) (data []byte, stamp time.Time, stamped bool, err error) {
+	if booted, pending := pendingBootConfig(store, configPath); pending {
+		return booted, time.Time{}, false, nil
 	}
-	stamp, ok, err := readPointer(store, configPath, pointerActive)
+	pointed, ok, err := readPointer(store, configPath, pointerActive)
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, false, err
 	}
-	if ok {
-		data, err := store.ReadVersion(configPath, stamp)
-		if err != nil {
-			// An existing active pointer never falls back to the mirror: the
-			// error names the pointer and the stamp that did not resolve, and
-			// keeps fs.ErrNotExist when the entry or object is absent.
-			return nil, fmt.Errorf("%w: %s names %s: %w", ErrActiveUnresolved, activePointerKey(configPath), stamp, err)
-		}
-		return data, nil
+	if !ok {
+		data, err = store.ReadFile(configPath)
+		return data, time.Time{}, false, err
 	}
-	return store.ReadFile(configPath)
+	data, err = store.ReadVersion(configPath, pointed)
+	if err != nil {
+		// An existing active pointer never falls back to the mirror: the
+		// error names the pointer and the stamp that did not resolve, and
+		// keeps fs.ErrNotExist when the entry or object is absent.
+		return nil, time.Time{}, false, fmt.Errorf("%w: %s names %s: %w", ErrActiveUnresolved, activePointerKey(configPath), pointed, err)
+	}
+	stamp, err = parseVersionStamp(pointed)
+	if err != nil {
+		return nil, time.Time{}, false, fmt.Errorf("%s names %s, which is not a version stamp: %w", activePointerKey(configPath), pointed, err)
+	}
+	return data, stamp, true, nil
 }
 
 // activePointerKey names the active pointer of configPath for an error.

@@ -155,7 +155,8 @@ func TestFreezeRefusesOperatorStaging(t *testing.T) {
 // device's own configuration while the device is managed.
 //
 // VALIDATES: AC-17, at the store: StageMachineCandidate (the hub push, the
-// reverts, the boot record, schema recovery) and StageSourceCandidate (the
+// reverts, the boot record, schema recovery), StageMachineCandidateOver (the
+// revert a hub's operator decided) and StageSourceCandidate (the
 // signal reload) do not ask the freeze.
 // PREVENTS: a managed device that refuses its own hub push or its own boot
 // recovery.
@@ -173,6 +174,20 @@ func TestFreezeAdmitsMachineEntry(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, present, "the machine entry staged no candidate")
 			assert.Equal(t, stamp, stagedStamp)
+			assert.Equal(t, freezeChange, string(staged))
+		})
+		t.Run(backend.name+"/machine candidate over", func(t *testing.T) {
+			owner := backend.newStore(t, t.TempDir())
+			freezeSeed(t, owner, freezeOwnConfig, "true\n")
+			store := BindConfigSource(owner, freezeOwnConfig, ConfigSourceStored)
+
+			_, err := StageMachineCandidateOver(store, freezeOwnConfig, []byte(freezeChange), time.Now(),
+				func([]byte) error { return nil })
+			require.NoError(t, err)
+
+			staged, _, present, err := ReadCandidateConfig(store, freezeOwnConfig)
+			require.NoError(t, err)
+			require.True(t, present, "the revert's machine entry staged no candidate")
 			assert.Equal(t, freezeChange, string(staged))
 		})
 		t.Run(backend.name+"/source candidate", func(t *testing.T) {
@@ -460,5 +475,39 @@ func TestOwnConfigFrozenFollowsTheBinding(t *testing.T) {
 				assert.Equal(t, want.frozen, frozen)
 			})
 		}
+	}
+}
+
+// TestStageMachineCandidateOverRefusesChangedActive proves the revert's stage
+// hands its check the configuration active under the lock and stages nothing
+// when the check refuses it.
+//
+// VALIDATES: spec-fleet-7 review note N1, at the store: check receives the
+// active bytes, its refusal is answered as is, and the store is left as it
+// was found (no version written, no candidate).
+// PREVENTS: a revert decided on a configuration a local commit replaced
+// overwriting that commit.
+//
+// MUTATION: drop the check call of StageMachineCandidateOver and this fails:
+// a candidate is staged.
+func TestStageMachineCandidateOverRefusesChangedActive(t *testing.T) {
+	for _, backend := range freezeLiveStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			owner := backend.newStore(t, t.TempDir())
+			freezeSeed(t, owner, freezeOwnConfig, "true\n")
+			store := BindConfigSource(owner, freezeOwnConfig, ConfigSourceStored)
+			before := freezeStateOf(t, store, freezeOwnConfig)
+			changed := errors.New("the active configuration is not the discarded one")
+			var checked []string
+
+			_, err := StageMachineCandidateOver(store, freezeOwnConfig, []byte(freezeChange), time.Now(), func(active []byte) error {
+				checked = append(checked, string(active))
+				return changed
+			})
+
+			require.ErrorIs(t, err, changed)
+			assert.Equal(t, []string{freezeActive}, checked, "check was not handed the active configuration once")
+			assert.Equal(t, before, freezeStateOf(t, store, freezeOwnConfig), "a refused stage changed the store")
+		})
 	}
 }

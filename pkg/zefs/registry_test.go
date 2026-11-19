@@ -297,6 +297,8 @@ func TestPrivateKeysMarked(t *testing.T) {
 		"meta/config/{name}/file-commit": true,
 		// The confirmed-commit record carries a whole rollback config.
 		"meta/config/{name}/confirm-pending": true,
+		// The hub's held copy carries a client's whole configuration and its secrets.
+		"meta/config/{name}/held": true,
 	}
 
 	for _, e := range AllEntries() {

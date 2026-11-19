@@ -60,7 +60,8 @@ func noFlagWrite() error { return nil }
 // waits, so state answers while a stop waits for its client.
 type managedClientOwner struct {
 	build ManagedClientBuilder
-	// wire sets what a built client needs from the running daemon (OnCommit).
+	// wire sets what a built client needs from the running daemon (OnCommit,
+	// OnRevert).
 	wire func(*managed.ClientConfig)
 	// run is the client: managed.RunManagedClient, or a test's stand-in. It
 	// MUST return once its context is canceled.
@@ -87,6 +88,26 @@ type managedClientRun struct {
 	done      chan struct{}
 	connected atomic.Bool
 	holding   atomic.Bool
+	// hubAnswer is what the client's last answered fetch said of the hub's
+	// copy of a hold; nil until the client read one.
+	hubAnswer atomic.Pointer[managed.HubAnswer]
+}
+
+// storeHubAnswer keeps the client's last report of a fetch answer
+// (managed.ClientConfig.OnHubAnswer).
+func (r *managedClientRun) storeHubAnswer(answer managed.HubAnswer) {
+	r.hubAnswer.Store(&answer)
+}
+
+// lastHubAnswer answers the client's last report of a fetch answer, or the
+// zero HubAnswer, which says no fetch was answered, before the first one.
+func (r *managedClientRun) lastHubAnswer() managed.HubAnswer {
+	answer := r.hubAnswer.Load()
+	// refuse-by-default: guards managedClientRun -- nil is the client before its first answered fetch, and the zero HubAnswer names that as not fetched
+	if answer == nil {
+		return managed.HubAnswer{}
+	}
+	return *answer
 }
 
 // finished reports whether the client's goroutine has returned, read from
@@ -106,7 +127,9 @@ func (r *managedClientRun) state() managed.ClientState {
 	if r.finished() {
 		return managed.ClientState{}
 	}
-	return managed.ClientState{Running: true, Connected: r.connected.Load(), Holding: r.holding.Load()}
+	return managed.ClientState{
+		Running: true, Connected: r.connected.Load(), Holding: r.holding.Load(), HubAnswer: r.lastHubAnswer(),
+	}
 }
 
 // stoppingState answers what this client is doing while a stop joins it: it
@@ -179,6 +202,7 @@ func (o *managedClientOwner) startWith(storeFlag func() error) (bool, error) {
 	run := &managedClientRun{done: make(chan struct{})}
 	client.OnConnection = run.connected.Store
 	client.OnHold = run.holding.Store
+	client.OnHubAnswer = run.storeHubAnswer
 	ctx, cancel := context.WithCancel(context.Background())
 	run.cancel = cancel
 	go o.serve(ctx, run, *client)

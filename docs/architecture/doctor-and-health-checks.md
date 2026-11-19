@@ -1555,22 +1555,31 @@ and no client was served.
 | `managed-listener-unbound` | runtime | `doctor-managed-listener-unbound` (error) | each managed listen address that did not bind, with the kernel's error; a collision with the plugin acceptor is `hub-managed-listener`'s | free the address or give the server block another ip and port, then restart ze |
 | `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, a config it refused to apply, a token that is not its secret, or a name the hub has no client entry for | the cause's own fix |
 
-The managed client has three checks of its own, registered by
-`internal/component/managed`. All three are post-config checks, so they report
-with the daemon running or stopped. The first two read the configuration tree.
-The third reads the store only: the managed flag, the hash of the configuration
-the device runs, and the baseline. A client that holds is also seen from its
-hub, as a config it refused to apply, in the `managed-client-rejected` row
+The managed client has three checks of its own, and its hub one more, all
+registered by `internal/component/managed`. All four are post-config checks,
+so they report with the daemon running or stopped. The first two read the
+configuration tree. The third reads the store only: the managed flag, the hash
+of the configuration the device runs, and the baseline. The fourth runs on a
+hub and reads the copies the hub keeps of what holding clients run, and the
+serving blocks of the tree. A client that holds is seen from its hub in that
+fourth row once the hub keeps its copy; a hold with no copy (a configuration
+over the bound, a copy that failed, a client built before the copy existed)
+stays a config it refused to apply, in the `managed-client-rejected` row
 above.
 <!-- source: internal/component/managed/register.go -- init -->
-<!-- source: internal/component/managed/doctor.go -- hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck -->
+<!-- source: internal/component/managed/doctor.go -- hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck -->
 
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|
 | `hub-unreachable` | post-config | `doctor-hub-unreachable` (warning) | a configuration whose first hub `client` block names a hub that does not answer a TCP probe | start the hub at that address, or correct the `host` and `port` of the block on the hub |
 | `hub-client-missing` | post-config | `doctor-hub-client-missing` (warning) | a managed client (`meta/instance/managed` is `true`) whose configuration has no hub `client` block, so it follows no hub | add the block on the hub, then `ze init --managed --force` |
-| `managed-diverged` | post-config | `doctor-managed-diverged` (warning) | a managed client whose active configuration differs from its baseline (`meta/managed/base-version`), so it holds and applies nothing its hub sends; also a managed client whose store cannot answer one of the two values. Silent on a device that is not managed, on one with no baseline, and on one whose two hashes are equal | one line that names both ways to end the hold: give the hub the device's configuration, or discard it on the device (`docs/guide/fleet-config.md`, "When a Client Holds"). `ze show data check` when the store cannot answer |
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, diagnoseManagedUncompared -->
+| `managed-diverged` | post-config | `doctor-managed-diverged` (warning) | a managed client whose active configuration differs from its baseline (`meta/managed/base-version`), so it holds and applies nothing its hub sends; also a managed client whose store cannot answer one of the two values. Silent on a device that is not managed, on one with no baseline, and on one whose two hashes are equal | one line that names the hub commands over the device's name and the version it runs: `show fleet divergence name <client>`, then `update fleet divergence name <client> adopt version <hash>` to keep it or `request fleet divergence name <client> revert version <hash> hub-version <hub-version>` to discard it, the hub hash being the one the hub's show answers. For a configuration larger than the 1 MiB copy a hub takes, the two manual routes instead: give the hub the device's configuration, or discard it on the device (`docs/guide/fleet-config.md`, "When a Client Holds"). `ze show data check` when the store cannot answer |
+| `managed-client-diverged` | post-config | `doctor-managed-client-diverged` (warning) | on a hub, each copy it keeps of the configuration a holding client runs (`meta/config/client-<name>.conf/held`), with the client, the copy's version, the version the hub serves it and when the copy was edited and received; a copy whose client no `plugin hub server` block declares is reported orphaned, because that client cannot connect. Also a copy, or the list of copies, the store cannot answer. Read from the store and the serving blocks, so it reports with the hub running or stopped, and after a hub restart | the three hub commands over the client and the copy's version, the revert also over the version the hub serves it. For an orphaned copy: declare the client again in a server block, or remove the copy with the hub stopped: `ze data rm meta/config/client-<name>.conf/held`. `ze show data check` when the store cannot answer |
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, diagnoseManagedUncompared, managedDivergedFix, managedDivergedManualFix, checkHubClientsDiverged, diagnoseHeldClient, diagnoseHeldOrphan -->
+<!-- source: internal/component/plugin/server/managed_held.go -- HeldClients, ReadHeldRecord, HeldRecordKey -->
+<!-- test: internal/component/managed/doctor_test.go TestDivergedFixNamesHubCommands -->
+<!-- test: internal/component/managed/doctor_test.go TestHubDivergedCheckDeclared -->
+<!-- test: internal/component/managed/doctor_test.go TestHubDivergedCheckOrphan -->
 <!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion, Diverged -->
 <!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorCheck -->
 <!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorSilentWhenUnmanaged -->

@@ -1,0 +1,47 @@
+# Test: a managed device that holds sends its configuration to its hub
+#
+# QUESTION: does a managed device that holds send the configuration it runs
+#           to its hub, once, so that the hub lists the client with both
+#           hashes, shows what differs without the configuration text, and
+#           stops reporting the hold as a refused configuration?
+#           (spec-fleet-7-config-reconnect-resolution, AC-1, AC-2, AC-10,
+#           user stories 1 and 2; docs/architecture/fleet-config.md,
+#           "The baseline and the hold" and "Protocol".)
+# WHY NOT A UNIT TEST: the answer is a path across two daemons and their
+#           stores. The device hashes and sends the bytes its own store makes
+#           active, the copy crosses the TLS session as config-held, the hub
+#           writes it into its store under the authenticated name, and the
+#           hub's show commands and show doctor read it back. The unit tests
+#           of the client and of the managed listener prove each side over
+#           callbacks, not that a real store, a real session and a real
+#           command agree on which bytes are held.
+#
+# VALIDATES: a device that took its hub's configuration and was then given
+#            another one with its daemon stopped holds when it starts again.
+#            The hub's `show fleet divergence list` lists the client, declared,
+#            with the hash of the device's configuration and the hash of the
+#            hub's, and the time the copy was received.
+#            `show fleet divergence name <client>` answers the same hashes and
+#            a change count equal to its changes, at least one. The secret the
+#            device's edit added outside its hub block is a change answered
+#            masked. Neither answer carries the client's secret, the added
+#            secret or the configuration text. The hub's
+#            `show doctor` does not list the hold as a refused configuration.
+#            After a further write on the hub, the device holds again, and the
+#            list names the hub's new hash with the same device hash and the
+#            same received time: no second upload.
+# PREVENTS: a hold the hub can only show as a refused configuration; a copy
+#           recorded under a name the payload chose; a show that answers the
+#           configuration text and its secrets; an upload at every hub write.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers and
+# the device's log: internal/test/fixture/misc_fixture_managed_fleet_divergence.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-upload $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: a holding managed device sent its configuration to its hub once

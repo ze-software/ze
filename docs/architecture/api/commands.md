@@ -597,13 +597,67 @@ gave. When no daemon answers, it reads the store and marks the answer
 `daemon-answered` false, with `no-daemon` in the client fields. On the daemon
 route the same handler reads the store, fills the client fields from the owner
 of the daemon's hub client (`managed.FleetTarget`, which the hub installs on a
-managed start; with none the client is `not-started`), marks the answer
+managed start; with none the client is `not-started`), among them `held-by-hub`
+and `revert-offered`, which the client reports from each fetch answer its hub
+gave (`managed.ClientConfig.OnHubAnswer`, `not-fetched` before the first), marks the answer
 `daemon-answered` true, and asks nobody. That mark is also how the local route recognizes a
 daemon's document: a reply of another shape, or one a store alone produced, is
 no answer. It registers no RPC, so it holds no `wire-methods.snapshot` row.
 <!-- source: internal/component/managed/cmd_fleet.go -- answerFleetStatusWith, storeFleetStatus, askDaemonOverSSH, decodeDaemonFleetStatus, daemonClientReport, FleetTarget -->
 <!-- source: internal/component/managed/register.go -- show fleet status registration -->
 <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
+
+`show fleet divergence list` and `show fleet divergence name <client>`
+(`internal/component/managed`) answer the same way, for the copies a hub keeps
+of the configurations its holding clients run
+(`meta/config/client-<name>.conf/held`, `pluginserver.ReadHeldRecord`). Every
+fact but one is in the store. The one is whether a server block declares the
+client, which the running managed server knows (`DivergenceTarget.ServesClient`).
+So the local route sends the line to the daemon over SSH and answers the
+daemon's document, decoded strictly; when none answers, it reads the store and
+the server blocks of the hub's stored configuration (`servedClientNames`, the
+rule the hub's `doctor-managed-client-diverged` check uses). The show of one
+client answers the whole-tree diff of `infra.DiffConfigs`, secret-masked, and
+no configuration text; a configuration the hub cannot parse leaves the diff
+unavailable with the reason, and the rest of the answer holds. The list is a
+plain local-data command and registers no RPC. The show is also registered as
+the builtin `ze-managed:fleet-divergence-show` over the same handler
+(`pluginserver.AnswerLocalData`), as `show doctor` is, so that it declares the
+completer of its client name (`completeDivergenceClients`); that RPC holds a
+`wire-methods.snapshot` row.
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceListWith, answerDivergenceShowWith, storeDivergence, storedServedClients, daemonServedClients, decodeDivergence, handleDivergenceShow, completeDivergenceClients -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence list and show fleet divergence name registration -->
+
+`update fleet divergence name <client> adopt version <hash>` changes what the
+hub serves, so its daemon form is the RPC `ze-managed:fleet-divergence-adopt`
+with the audit action `fleet-divergence-adopt`. It acts on the store handle
+the daemon owns, reached through the `DivergenceTarget` the hub installs once
+its managed server serves; a daemon with none refuses. The local route opens
+the store as its writer: while a daemon owns it (`storage.ErrBusy`) the line
+goes to that daemon through `daemonroute`, and the answer is decoded and
+checked to name the client; with the store free it refuses with `ze start` as
+the fix, because the audit action is recorded only by the running hub's
+dispatcher. The daemon runs one producer, `adoptHeld`, which holds the writer lock of `client-<name>.conf` across the
+hash check, `storage.CommitConfigWithGuard` and the removal of the record.
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, adoptLocal, adoptThroughDaemon, adoptDaemonRefusal, adoptHeld -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-adopt registration -->
+
+`request fleet divergence name <client> revert version <hash> hub-version
+<hash>` changes what the hub offers a holding client, so its daemon form is the RPC
+`ze-managed:fleet-divergence-revert` with the audit action
+`fleet-divergence-revert`, over the same `DivergenceTarget`. `revertHeld`
+holds the writer lock of `client-<name>.conf` across the device hash check,
+the check that the configuration the hub serves the client still hashes to
+the `hub-version` given, and the write of the record carrying the decision (`HeldRecord.WithRevert`,
+`WriteHeldRecordWithGuard`); the handler then calls
+`DivergenceTarget.NotifyConfigChanged`, because the decision writes no
+configuration the store's write observer would report. The local route sends
+the line to the daemon that owns the store as adopt does; with the store free
+it refuses with `ze start` as the fix, because the audit action is recorded
+only by the running hub's dispatcher.
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, revertLocal, revertThroughDaemon, revertDaemonRefusal, revertHeld -->
+<!-- source: internal/component/plugin/server/managed_held.go -- RevertDecision, WriteHeldRecordWithGuard -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-revert registration -->
 
 #### Local commands already served by the daemon under the same path
 

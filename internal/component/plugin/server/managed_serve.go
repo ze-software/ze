@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -46,13 +47,15 @@ const managedAuthTimeout = 10 * time.Second
 // within managedAuthTimeout or is dropped). Mirrors the plugin acceptor's cap.
 const managedMaxConns = 128
 
-// managedPushTimeout bounds a single config-changed round-trip so a client that
+// ManagedPushTimeout bounds a single config-changed round-trip so a client that
 // accepts the notification but never replies cannot stall the notify worker
 // indefinitely. A healthy client replies immediately (it acks before fetching).
-const managedPushTimeout = 10 * time.Second
+// A managed client bounds every round-trip that keeps its notification loop
+// busy below it (the client's heldUploadTimeout).
+const ManagedPushTimeout = 10 * time.Second
 
 // managedNotifyWorkers is the size of the config-changed push pool. More than one so a
-// single slow/stalled client (blocking up to managedPushTimeout) does not delay pushes
+// single slow/stalled client (blocking up to ManagedPushTimeout) does not delay pushes
 // to other clients.
 const managedNotifyWorkers = 4
 
@@ -70,6 +73,13 @@ type ManagedServerConfig struct {
 	Listeners  []ManagedListener // One per server block that declares client entries.
 	ReadConfig ConfigReader      // Reads a client's config by name (over the hub blob store).
 	Metrics    metrics.Registry  // Optional; nil installs no-op counters.
+
+	// Store is the hub's store, which keeps the copy each holding client
+	// sends of its configuration (HeldRecord, under KeyConfigHeld). It is
+	// borrowed: the caller MUST keep it open until Stop returned. nil keeps
+	// no copy: every config-held is refused and no config-fetch answer names
+	// a held version.
+	Store storage.Storage
 
 	// Certificate names the pki store certificate the listener serves
 	// (plugin/hub/server/certificate). An empty name serves a leaf that
@@ -119,7 +129,7 @@ const managedLeafCommonName = "ze-managed-hub"
 const managedLoopbackHost = "127.0.0.1"
 
 // ManagedServer authenticates managed fleet clients (per-client secret), answers
-// config-fetch/config-ack/ping over MuxConn, and pushes config-changed to connected
+// config-fetch/config-ack/config-held/ping over MuxConn, and pushes config-changed to connected
 // clients. It owns its listeners and one goroutine per connection.
 type ManagedServer struct {
 	svc *ManagedConfigService
@@ -157,7 +167,7 @@ type ManagedServer struct {
 	// notifyWake tells a notifyWorker that pending is not empty. One token is
 	// enough: a worker that takes a name and leaves others puts the token back.
 	notifyWake chan struct{}
-	// pushTimeout is managedPushTimeout. A test shortens it.
+	// pushTimeout is ManagedPushTimeout. A test shortens it.
 	pushTimeout time.Duration
 	sem         chan struct{} // Bounds concurrent connection handlers (managedMaxConns).
 
@@ -166,6 +176,7 @@ type ManagedServer struct {
 	mConnected metrics.Gauge      // ze_managed_clients_connected
 	mFetch     metrics.CounterVec // ze_managed_config_fetch_total{result}
 	mPushed    metrics.Counter    // ze_managed_config_changed_pushed_total
+	mHeld      metrics.CounterVec // ze_managed_config_held_total{result}
 
 	listeners []managedBound
 	ctx       context.Context
@@ -211,8 +222,10 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	} else {
 		managedPanics().guard.SetMetricsRegistry(reg)
 	}
+	svc := newManagedConfigService(cfg.ReadConfig)
+	svc.records = newHeldRecords(cfg.Store)
 	return &ManagedServer{
-		svc:            newManagedConfigService(cfg.ReadConfig),
+		svc:            svc,
 		listens:        listens,
 		served:         served,
 		getCertificate: getCertificate,
@@ -222,7 +235,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		pending:        make(map[string]struct{}),
 		pushing:        make(map[string]struct{}),
 		notifyWake:     make(chan struct{}, 1),
-		pushTimeout:    managedPushTimeout,
+		pushTimeout:    ManagedPushTimeout,
 		sem:            make(chan struct{}, managedMaxConns),
 		mConnected: reg.Gauge("ze_managed_clients_connected",
 			"Number of managed fleet clients currently connected to the hub."),
@@ -230,6 +243,8 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 			"Managed config-fetch requests served, by result (served|current|error).", []string{"result"}),
 		mPushed: reg.Counter("ze_managed_config_changed_pushed_total",
 			"config-changed notifications pushed to connected managed clients."),
+		mHeld: reg.CounterVec("ze_managed_config_held_total",
+			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{"result"}),
 	}, nil
 }
 
@@ -506,15 +521,26 @@ func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
 	managedLogger().Info("managed client disconnected", "name", name)
 }
 
+// managedSession is what the hub remembers of one client connection between
+// its requests. serve owns it and handles one request at a time, so it needs
+// no lock, and it ends with the connection.
+type managedSession struct {
+	// fetched is the version the client named in its last config-fetch on
+	// this connection, the configuration it runs; empty before its first
+	// fetch.
+	fetched string
+}
+
 // serve reads inbound RPCs from a connected client until disconnect or shutdown.
 func (s *ManagedServer) serve(name string, mc *rpc.MuxConn) {
+	var session managedSession
 	for {
 		select {
 		case req, ok := <-mc.Requests():
 			if !ok {
 				return
 			}
-			s.handleRequest(name, mc, req)
+			s.handleRequest(name, mc, req, &session)
 		case <-mc.Done():
 			return
 		case <-s.ctx.Done():
@@ -523,7 +549,9 @@ func (s *ManagedServer) serve(name string, mc *rpc.MuxConn) {
 	}
 }
 
-func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Request) {
+// handleRequest answers one request of client name on mc. session is that
+// connection's memory, which only serve's loop passes.
+func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Request, session *managedSession) {
 	switch req.Method {
 	case fleet.VerbConfigFetch:
 		var fr fleet.ConfigFetchRequest
@@ -533,6 +561,7 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 				return
 			}
 		}
+		session.fetched = fr.Version
 		resp, err := s.svc.HandleConfigFetch(name, fr)
 		if err != nil {
 			s.mFetch.With("error").Inc()
@@ -553,15 +582,11 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 	case fleet.VerbConfigAck:
 		var ack fleet.ConfigAck
 		_ = json.Unmarshal(req.Params, &ack) //nolint:errcheck // ack is informational; log best-effort
-		if ack.OK {
-			s.doctor.clearRejected(name)
-			managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
-		} else {
-			s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
-			managedLogger().Warn("managed client rejected config", "code", diagnostic.CodeDoctorManagedClientRejected,
-				"name", name, "error", ack.Error)
-		}
+		s.handleConfigAck(name, ack, session.fetched)
 		_ = mc.SendOK(s.ctx, req.ID)
+
+	case fleet.VerbConfigHeld:
+		s.handleConfigHeld(name, mc, req)
 
 	case fleet.VerbPing:
 		_ = mc.SendOK(s.ctx, req.ID)
@@ -572,6 +597,57 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		tb.Str("unknown method: ").Str(req.Method)
 		_ = mc.SendError(s.ctx, req.ID, tb.String())
 	}
+}
+
+// handleConfigAck records what client name's config-ack says. ok:true clears
+// its refusal and its held record: the client runs what the hub holds, so
+// neither shows anything to resolve. A refusal is recorded as the client's
+// last refusal, unless the client says it holds and the hub keeps a copy of
+// what it holds: the hold is then shown from that copy, never as a refused
+// configuration. A holding client whose copy the hub does not keep (too
+// large, refused, or never sent) is recorded as a refusal, so the hold stays
+// visible. fetched is the version the client named in its last config-fetch
+// on this connection, the one it runs.
+func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetched string) {
+	if ack.OK {
+		s.doctor.clearRejected(name)
+		if err := s.svc.records.clear(name); err != nil {
+			managedLogger().Warn("the hub could not remove the held copy of a managed client that applied its config",
+				"code", diagnostic.CodeDoctorStoreIntegrity, "name", name, "error", err)
+		}
+		managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
+		return
+	}
+	if s.holdShownFromCopy(name, ack, fetched) {
+		s.doctor.clearRejected(name)
+		managedLogger().Info("managed client holds a configuration of its own, and the hub keeps a copy of it",
+			"name", name, "version", ack.Version)
+		return
+	}
+	s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
+	managedLogger().Warn("managed client rejected config", "code", diagnostic.CodeDoctorManagedClientRejected,
+		"name", name, "error", ack.Error)
+}
+
+// holdShownFromCopy reports whether a refusing ack is a hold the hub shows
+// from the copy it keeps: the client says it holds, and the record is a copy
+// of fetched, the version the client named in its last config-fetch, the one
+// it runs. A record of an older version is not the hold the client reports:
+// its newer copy was refused or too large to send, so the hub keeps no copy
+// of what it runs, and the ack is recorded as a refusal. A record that cannot
+// be read is logged and answers false, so the hold is recorded as a refusal
+// rather than shown nowhere.
+func (s *ManagedServer) holdShownFromCopy(name string, ack fleet.ConfigAck, fetched string) bool {
+	if !ack.Holding {
+		return false
+	}
+	held, err := s.svc.records.version(name)
+	if err != nil {
+		managedLogger().Warn("the hub could not read the held copy of a managed client that holds",
+			"code", diagnostic.CodeDoctorStoreIntegrity, "name", name, "error", err)
+		return false
+	}
+	return held != "" && held == fetched
 }
 
 // NotifyConfigChanged marks the named client as owed a config-changed push. It

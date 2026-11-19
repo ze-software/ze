@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
@@ -151,16 +152,18 @@ func RecordActiveAsBaseline(store storage.Storage) (ConfigVersion, error) {
 }
 
 // BaselineAccess is what a managed client reads and writes in the device's
-// store to decide whether it may apply what its hub sends. The client holds
-// these three operations and never the store, as it holds CheckManaged and
-// OnCommit. The zero value is not usable: build one with NewBaselineAccess.
+// store to decide whether it may apply what its hub sends, and to send its hub
+// a copy of the configuration it holds. The client holds these four
+// operations and never the store, as it holds CheckManaged and OnCommit. The
+// zero value is not usable: build one with NewBaselineAccess.
 type BaselineAccess struct {
 	active   func() (ConfigVersion, error)
 	baseline func() (ConfigVersion, error)
 	store    func(ConfigVersion) error
+	held     func() (heldConfig, error)
 }
 
-// NewBaselineAccess binds the three operations to store through the readers
+// NewBaselineAccess binds the four operations to store through the readers
 // and the writer of this file. store is borrowed: the caller MUST keep it open
 // until the client that holds the result has returned (RunManagedClient).
 func NewBaselineAccess(store storage.Storage) *BaselineAccess {
@@ -168,6 +171,7 @@ func NewBaselineAccess(store storage.Storage) *BaselineAccess {
 		active:   func() (ConfigVersion, error) { return ActiveVersion(store) },
 		baseline: func() (ConfigVersion, error) { return BaselineVersion(store) },
 		store:    func(version ConfigVersion) error { return StoreBaseline(store, version) },
+		held:     func() (heldConfig, error) { return readHeldConfig(store) },
 	}
 }
 
@@ -193,18 +197,55 @@ func (access *BaselineAccess) read() (active, baseline ConfigVersion, err error)
 // would make the device hold over bytes it never ran. stored is false when the
 // store holds no configuration under the device's own name.
 func activeConfig(store storage.Storage) (content []byte, stored bool, err error) {
+	content, _, stored, err = activeConfigStamped(store)
+	return content, stored, err
+}
+
+// activeConfigStamped is activeConfig that also answers when the version it
+// read was written into the store, from the same pointer read
+// (storage.ReadActiveConfigStamped). stamp is the zero time when no version
+// stamp describes the bytes: the plain file, or the bytes of a pending boot.
+func activeConfigStamped(store storage.Storage) (content []byte, stamp time.Time, stored bool, err error) {
 	configName, err := resolve.DefaultConfig(store)
 	if err != nil {
-		return nil, false, err
+		return nil, time.Time{}, false, err
 	}
-	content, err = storage.ReadActiveConfig(store, configName)
+	content, stamp, _, err = storage.ReadActiveConfigStamped(store, configName)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, false, nil
+		return nil, time.Time{}, false, nil
 	}
 	if err != nil {
-		return nil, false, err
+		return nil, time.Time{}, false, err
 	}
-	return content, true, nil
+	return content, stamp, true, nil
+}
+
+// heldConfig is the configuration a holding device runs, from one read: its
+// bytes, their version, and when that version was written into the store. The
+// version is the hash of exactly these bytes, so the copy a device sends its
+// hub is the configuration whose hash it reported.
+type heldConfig struct {
+	content []byte
+	version ConfigVersion
+	// editedAt is the zero time when the store records no stamp for the
+	// bytes (activeConfigStamped). fleet.ConfigHeld omits a zero EditedAt,
+	// which is how the hub learns that the device knows no such time.
+	editedAt time.Time
+}
+
+// readHeldConfig reads the configuration the device runs for an upload to its
+// hub. A store that holds no configuration under the device's own name is
+// errNoActiveConfig: a device with none never holds (Diverged), so reaching
+// here without one means the store changed under the hold.
+func readHeldConfig(store storage.Storage) (heldConfig, error) {
+	content, stamp, stored, err := activeConfigStamped(store)
+	if err != nil {
+		return heldConfig{}, err
+	}
+	if !stored {
+		return heldConfig{}, errNoActiveConfig
+	}
+	return heldConfig{content: content, version: versionOf(content), editedAt: stamp}, nil
 }
 
 // versionOf is the version of configuration bytes a store held.

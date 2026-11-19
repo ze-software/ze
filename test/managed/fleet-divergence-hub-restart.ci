@@ -1,0 +1,31 @@
+# Test: the hub's copy of a held configuration survives a hub restart
+#
+# QUESTION: does the copy a hub keeps of the configuration a managed device
+#           holds survive a restart of the hub, so that the hub still lists
+#           and shows it and adopt still ends the hold?
+#           (spec-fleet-7-config-reconnect-resolution, AC-17, R-8, E-11.)
+# WHY NOT A UNIT TEST: the copy lives in the hub's store, and the question is
+#           whether a new hub process reads it back, answers held-version from
+#           it so the reconnecting device sends no second copy, and adopts it.
+#           A unit test holds one store handle in one process.
+#
+# VALIDATES: a device that holds sent its copy and the hub lists it. The hub
+#            is stopped and started again on the same store while the device
+#            runs. The list then names the same two hashes and the same
+#            received time, the show answers the same hashes and its changes,
+#            and adopt with the copy's hash ends the hold: the device records
+#            the hash as its baseline and the hub no longer lists the copy.
+# PREVENTS: a copy kept in memory only, lost with the hub process; a device
+#           that uploads again after every hub restart.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers and
+# the device's status: internal/test/fixture/misc_fixture_managed_fleet_divergence_adopt.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-hub-restart $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: the hub kept the copy of a held configuration across its restart

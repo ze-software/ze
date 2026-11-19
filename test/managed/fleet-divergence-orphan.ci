@@ -1,0 +1,58 @@
+# Test: the hub keeps, reports and never serves the copy of a client it no longer declares
+#
+# QUESTION: when the operator removes a holding client from every serving
+#           block, does the hub keep the copy that client sent, report it
+#           orphaned with a fix that names the way out, never serve it, and
+#           lose it only to the command that fix names?
+#           (spec-fleet-7-config-reconnect-resolution, AC-18, AC-19, A-8,
+#           R-4, R-9; docs/architecture/fleet-config.md, "The hub's copy of a
+#           hold"; docs/architecture/doctor-and-health-checks.md,
+#           managed-client-diverged.)
+# WHY NOT A UNIT TEST: the orphan exists only across a real upload, a change
+#           of the hub's own configuration and a restart of its daemon. The
+#           copy is written by the hub's managed listener from a real device's
+#           session, survives in the store while the hub is stopped and given
+#           a configuration that no longer declares the client, and is then
+#           read by the restarted daemon's doctor and show commands. The unit
+#           test of the check (TestHubDivergedCheckOrphan) builds the tree and
+#           the store by hand: it cannot prove the record a real device
+#           uploads is the one the restarted hub finds, that the device's
+#           connection is refused, or that the command the fix prints works
+#           on the hub's real store.
+#
+# VALIDATES: a device that took its hub's configuration and was given another
+#            one with its daemon stopped holds and uploads its copy. While a
+#            server block declares the client, the hub's `ze doctor` reports
+#            the copy under doctor-managed-client-diverged as held, not
+#            orphaned, and `ze config rename` of client-edge-01.conf is refused
+#            as the identity of a client the hub serves, and the copy stays
+#            listed unchanged. The hub is then stopped, given a configuration
+#            that declares another client in place of the device's, and
+#            started. Its `ze doctor` reports the copy orphaned under
+#            doctor-managed-client-diverged, at the device's version, with a
+#            fix that declares the client again or removes the copy with the
+#            hub stopped by `ze data rm` of the copy's key. `show fleet
+#            divergence list` lists it undeclared with the same copy, and the
+#            same rename is refused because of the copy, which stays
+#            unchanged. The device started again is refused as a client
+#            the hub does not serve (doctor-managed-client-rejected), keeps
+#            its own configuration, and the copy is unchanged. With the hub
+#            stopped, the command the fix names removes the copy, and the hub
+#            started again reports and lists nothing for the client.
+# PREVENTS: a copy lost or served when its client leaves the serving blocks;
+#           an orphan reported as a declared hold whose adopt and revert would
+#           refuse; a rename that strands the copy under a name no client
+#           fetches; an orphan fix whose command does not remove the copy.
+#
+# Both ends are `ze start`. $PORT is the hub's SSH, $PORT2 its plugin
+# transport and $PORT3 its managed listener.
+#
+# The assertions are compiled because the verdicts are the hub's answers, its
+# store and the device's state across two hub restarts:
+# internal/test/fixture/misc_fixture_managed_fleet_orphan.go.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-divergence-orphan $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stderr:contains=OK: the hub kept the copy of a client no serving block declares

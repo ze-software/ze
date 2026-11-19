@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-6-config-freeze (closed 2026-11-19) |
-| Phase | - |
+| Phase | 6/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -42,7 +42,10 @@ Six pieces, in the order they land:
    (verified by a run on 2026-11-19). One exported whole-tree, secret-masked,
    structured diff producer replaces that comparison. `ze config diff` and the
    hub's divergence command both use it. It lands in its own commit with its
-   own test.
+   own test. Found while moving the masking into the producer and fixed with
+   it (AC-26): a changed dynamic BGP group printed its md5 password, because
+   `ResolveBGPTree` answers dynamic groups as structs whose `Template` map the
+   name-based masking never walked.
 2. **Upload and record.** A device that holds sends the configuration it holds
    to its hub with a new device-to-hub verb, `config-held` (E-8). The hub
    keeps one record per client in its store, under
@@ -58,8 +61,9 @@ Six pieces, in the order they land:
    the device configuration becomes the hub's configuration for that client.
    The device is already running it, so fleet-6's `current` answer ends the
    hold (E-6).
-5. **Revert.** `request fleet divergence name <client> revert version <hash>`:
-   the device drops its change and takes the hub's configuration. The hub
+5. **Revert.** `request fleet divergence name <client> revert version <hash>
+   hub-version <hash>`: the device drops its change and takes the hub's
+   configuration (E-13). The hub
    offers this in its `config-fetch` answer, bound to the device hash and the
    hub hash the operator saw. No new hub-to-device verb (E-4).
 6. **Doctor and status.** A hub doctor code for a diverged client and for an
@@ -253,8 +257,8 @@ with its page (E-2).
 | Store key `meta/config/client-<name>.conf/held` (new, `KeyConfigHeld`) | writer | The `config-held` arm (write, replace); the revert command (decision); the adopt command (remove); `HandleConfigFetch` on `current` (remove); the `config-ack` arm on `ok:true` (remove) | New | New, under the writer lock of `client-<name>.conf` |
 | same | reader | `HandleConfigFetch`; the two show commands; the hub doctor check; `prepareConfigRename` | New | New reads |
 | same | reader / remover (generic) | `show data list`, `show data cat` (hidden from `show data registered`: Private); `ze data rm` with the hub stopped | Generic key tools | Preserved; `RuntimeKey` keeps the running daemon's `update data key` and `delete data key` off it |
-| Command RPCs `ze-managed:fleet-divergence-list`, `-show`, `-adopt`, `-revert` (new) | writer | Every command surface and the local `ze` route | New | New |
-| same | reader | Handlers in `internal/component/managed` | New | New; `wire-methods.snapshot` updated |
+| Command RPCs `ze-managed:fleet-divergence-adopt`, `-revert` and local-data commands `show fleet divergence list`, `show fleet divergence` (YANG `ze-managed:fleet-divergence-list`, `-show`) (new) | writer | Every command surface and the local `ze` route | New | New |
+| same | reader | Handlers in `internal/component/managed` | New | New; `wire-methods.snapshot` gains the two RPCs; the two local-data commands owe an `internal/test/localdatacoverage` row each |
 | `show fleet status` answer fields `held-by-hub`, `revert-offered` (new) | writer | `internal/component/managed/cmd_fleet.go` `readFleetStatus` and the daemon's client report | New runtime fields | New, with the existing no-daemon value when no daemon answered |
 | same | reader | `cmd_fleet.go` `decodeDaemonFleetStatus` (the local route reads the daemon's JSON); `test/managed/fleet-status.ci`; the `internal/test/localdatacoverage` evidence row | Found by reading the local route | Changed in step: decoder and test gain the fields |
 | `ze config diff` and `show config diff` answer (content change) | writer | `internal/component/config/cli/cmd_diff.go` `diffSources`, moved into the new producer | BGP-only today | Changed: every root compared; the `ConfigDiff` shape is unchanged |
@@ -291,12 +295,12 @@ closure fills this table.
 | A-1 | The hash the hub computes over the uploaded bytes equals the device's active hash, because the device hashes exactly the bytes it sends | `fleet.VersionHash` of one `activeConfig` read on the device; the same function on the hub | The record never matches the device and adopt never ends the hold | `TestHeldUploadHashesWhatItSends`; `fleet-divergence-adopt.ci` ends with the device in sync | unvalidated |
 | A-2 | `CommitConfigWithGuard` of `client-<name>.conf` writes the plain mirror the hub's `ReadConfig` reads, so the next fetch hashes the adopted bytes | `restore.go` "the plain active file is written with the same bytes" | Adopt leaves the hub serving the old configuration | `TestAdoptServesHeldBytes` | unvalidated |
 | A-3 | The write observer fires for the adopt's write of `file/active/client-<name>.conf` | `managed_server.go` observer over every written key | The device is told nothing until it reconnects | `fleet-divergence-adopt.ci`, connected device | unvalidated |
-| A-4 | The stamp of the active version pointer is the time that version became active, and a configuration with no pointer has no such time | `storage.ReadActiveConfig` reads the pointer stamp; `StageMachineCandidate` stamps with the time of staging | `edited-at` is wrong or missing | `TestHeldReadAnswersActivationStamp`; an absent stamp sends no `edited-at` | unvalidated |
+| A-4 | The stamp of the active version pointer is the time that version became active, and a configuration with no pointer has no such time | `storage.ReadActiveConfig` reads the pointer stamp; `StageMachineCandidate` stamps with the time of staging | `edited-at` is wrong or missing | `TestHeldReadAnswersActivationStamp`; an absent stamp sends no `edited-at` | unvalidated. Settled at source by reading (phase 3): the stamp is when the active version was WRITTEN into the store (`storage.ReadActiveConfigStamped`, one pointer read with the bytes). A commit writes the version it then runs, so the two agree; a rollback points again at an older version, whose stamp is that older write time, not the rollback time. A pending boot record and a plain file with no pointer answer no stamp. `fleet-config.md` states this meaning; the test run is owed |
 | A-5 | Go's JSON decoder in an old peer ignores the new fields | `encoding/json` default | An old peer refuses the payload | `TestOldPeerIgnoresNewFields` decodes each new payload into the pre-change types | unvalidated |
 | A-6 | The hub's in-daemon parse of a client configuration refuses a section of an external plugin it did not start, and `DeclaredSchemas.Explain` identifies it | `declared_schemas.go` `SchemaWithDeclaredPlugins` comment | A malformed upload is stored, or a good one refused | `TestHeldUploadUncheckedPluginSection`, `TestHeldUploadMalformedRefused` | unvalidated |
 | A-7 | `internal/component/config/infra` can host the producer: `internal/component/managed` can import it with no cycle, and `config/cli` (which links `plugin/all`) cannot be imported by `managed` | `config/cli` imports `plugin/all`; `infra` imports `config` | The producer needs another home | Compile of `internal/component/managed` with the import, run by the main thread | unvalidated |
 | A-8 | `ze data rm` removes a `meta/config/` key with the hub stopped | `internal/component/config/storage/cli/main.go` registers `rm` | The orphan fix names a command that refuses | `fleet-divergence-orphan.ci` runs it | unvalidated |
-| A-9 | The hub's post-config check can read the serving blocks' client names from the tree with the extraction the managed server is built from | `startManagedServer` reads `HubConfig.Servers[].Clients` | Orphans cannot be told from declared clients at post-config | `TestHubDivergedCheckOrphan` | unvalidated |
+| A-9 | The hub's post-config check can read the serving blocks' client names from the tree with the extraction the managed server is built from | `startManagedServer` reads `HubConfig.Servers[].Clients` | Orphans cannot be told from declared clients at post-config | `TestHubDivergedCheckOrphan` | unvalidated. Settled at source by reading (phase 7): `config.ExtractHubConfig` (`loader_extract.go`) fills `Servers[].Clients` from each `server` block's `client` list, the value `startManagedServer` is handed; `checkHubClientsDiverged` reads it through `servedClientNames`. The test run is owed |
 | A-10 | A 1 MiB configuration, base64 in JSON, crosses a healthy link within `heldUploadTimeout` | 1.4 MB frame; a LAN or WAN link above about 3 Mbit/s | Uploads time out on slow links (R-1) | `TestHeldUploadDeadline` with a stalled hub; `fleet-divergence-upload.ci` | unvalidated |
 
 ### Risks
@@ -316,6 +320,8 @@ closure fills this table.
 | R-12 | The record carries the client's secrets (its hub secret, any password) | A secret in `show` output or a log line | The command never answers configuration text; the diff masks every secret leaf; the key is Private; the hub's store already holds the same secrets in `client-<name>.conf` |
 | R-13 | A device whose apply of the reverted configuration fails acks `ok:false`, and the hub offers the revert at every fetch | Repeated refused configurations after a revert | Bounded by fetches, as every refused push is; the refusal shows on the hub with the device's reason, and the record stays for the operator to adopt instead |
 | R-14 | The whole-tree diff changes `ze config diff` output for an input whose non-BGP roots differ | A `.ci` expecting "No differences" over such inputs | The census found none; AC-22 pins the new case; every existing diff test stays in the managed and parse runs |
+| R-15 | The resolved bgp paths carry no root name, so a root named like a top-level bgp setting (an external plugin names its own root) would give two values one diff path | A diff entry that hides another | `infra.DiffConfigs` refuses such a pair with an operator error naming the root (`TestWholeTreeDiffRefusesSharedPath`); no compiled-in root has such a name today (the only shared name, `rib`, is `config false` under `bgp`) |
+| R-16 | A revert decided with the hub stopped would be recorded in no audit log: the daemon's log is `<boot-config-name>.audit.jsonl` relative to the daemon's working directory (`cmd/ze/hub/audit.go` `defaultAuditPath`), which a local process cannot find | A decision no `show audit` names | Phase 6: the local route sends the line to a running hub (its dispatcher records `fleet-divergence-revert`) and refuses with the hub stopped, fix `ze start`; a stopped hub offers nothing to a client, so nothing is lost (`TestRevertLocalOnStoppedHubRefused`). The stopped-hub local adopt refuses the same way, with `ze start` as the fix (`adoptLocal`, `TestAdoptLocalOnStoppedHubRefused`) |
 
 ## Blast Radius
 
@@ -332,7 +338,7 @@ closure fills this table.
 | A holding device connects to a hub with no record | → | Upload in `fetchAgainstBaseline`; the `config-held` arm writes the record | `test/managed/fleet-divergence-upload.ci` |
 | `show fleet divergence list` and `name` on the hub | → | The show handlers over the record and the diff producer | `test/managed/fleet-divergence-upload.ci` |
 | `update fleet divergence name <client> adopt version <hash>` | → | Publication, record removal, `current`, baseline | `test/managed/fleet-divergence-adopt.ci` |
-| `request fleet divergence name <client> revert version <hash>` | → | Decision, notification, discard field, device apply | `test/managed/fleet-divergence-revert.ci` |
+| `request fleet divergence name <client> revert version <hash> hub-version <hash>` | → | Decision, notification, discard field, device apply | `test/managed/fleet-divergence-revert.ci` |
 | A local edit or hub write after a revert decision | → | The D and V bindings | `test/managed/fleet-divergence-revert-void.ci` |
 | A hub restart with a record | → | `held-version` from the store | `test/managed/fleet-divergence-hub-restart.ci` |
 | A record for an undeclared client; a rename of a client configuration with a record | → | Hub doctor check; rename refusal | `test/managed/fleet-divergence-orphan.ci` |
@@ -354,8 +360,8 @@ closure fills this table.
 | AC-9 | Client X uploads | The record is written under X's authenticated name only; no payload field names a client | None: the name never comes from the payload |
 | AC-10 | `show fleet divergence name <client>` for a record | Answers the diff entries (added, removed, changed, every secret masked), their count, D, V, edited-at, received-at and the revert state. For a record whose text holds a section of an external plugin the hub did not start, it answers the hashes, the times and an operator error naming the plugins and why the diff is unavailable | No configuration text is answered: the texts carry secrets |
 | AC-11 | `update fleet divergence name <client> adopt version D` while the record holds D, the client is declared and connected | `client-<name>.conf` holds the record's bytes as a new active version, the record is removed, the device is notified, fetches D, gets `current`, stores D as its baseline and acks `ok:true`; `show fleet status` on the device reports in sync; one audit entry of the adopt action names the user and the client | With the client not connected the same happens at its next connection |
-| AC-12 | Adopt or revert with a hash that is not the record's device hash, or for a client with no record | Refused with an operator error naming the record's current hash (or that none exists) and, last, the show command; nothing is written | None |
-| AC-13 | `request fleet divergence name <client> revert version D` while the record holds D, the hub's configuration hashes to V and the device is connected | The record stores the decision (D, V); the device is notified; its fetch answer carries the discard field D; it applies V through the push path; its baseline becomes the hash of its new active configuration; it acks `ok:true`; the hub removes the record; one audit entry of the revert action | A device with a confirmed-commit window open refuses the push as today and the decision stays for its next fetch |
+| AC-12 | Adopt or revert with a hash that is not the record's device hash, a revert whose `hub-version` is not the hash of the configuration the hub serves the client now (written between the show and the revert), or either for a client with no record | Refused with an operator error naming the current hash (or that no record exists) and, last, the show command; nothing is written and no decision is stored (E-13) | None |
+| AC-13 | `request fleet divergence name <client> revert version D hub-version V` while the record holds D, the hub's configuration hashes to V and the device is connected | The record stores the decision (D, V); the device is notified; its fetch answer carries the discard field D; it applies V through the push path; its baseline becomes the hash of its new active configuration; it acks `ok:true`; the hub removes the record; one audit entry of the revert action | A device with a confirmed-commit window open refuses the push as today and the decision stays for its next fetch |
 | AC-14 | A revert is decided while the device is not connected | At its next connection the device takes the revert as in AC-13 | None |
 | AC-15 | After a revert decision for D, the device's operator edits again (active D2) before the device fetches | The device holds, uploads D2, the record is replaced and the decision dropped; the device does not apply V | None: a newer local edit always wins over an older decision (E-4) |
 | AC-16 | After a revert decision bound to V, the hub's configuration for the client is written again (V2) | The fetch answer carries no discard field, the device holds, and `show fleet divergence name` reports the decision void because the hub configuration changed, with the revert command as its fix | None: the operator saw V, not V2 (E-4) |
@@ -368,6 +374,7 @@ closure fills this table.
 | AC-23 | A device that is not diverged, and every existing managed flow | Fetch, apply, ack, push, restore and notification behave as before; every test under `test/managed/` passes | None |
 | AC-24 | A user whose profile denies the edit section runs adopt or revert | Refused by authorization; the show commands answer | None |
 | AC-25 | The hub's configuration for a client is made equal to D by an import (fleet-6's manual route), or the client acks `ok:true` | The record is removed at the `current` answer or the ack | None: either proves hub and device agree |
+| AC-26 | `ze config diff` of two configurations whose dynamic BGP group's md5 password differs | A change is reported and neither password is printed, in the text and the JSON shape | None |
 
 ## End-to-End User Stories
 
@@ -405,19 +412,35 @@ closure fills this table.
 | `TestHeldUploadUncheckedPluginSection` | `internal/component/plugin/server/managed_held_test.go` | An unknown external plugin section: stored, plugins noted (A-6) | |
 | `TestHeldArmReplacesAndDropsDecision` | `internal/component/plugin/server/managed_held_test.go` | A newer upload replaces the record and drops the decision | |
 | `TestFetchAnswersHeldVersion` | `internal/component/plugin/server/managed_test.go` | `held-version` from the record | |
-| `TestFetchOffersDiscardOnlyForDAndV` | `internal/component/plugin/server/managed_test.go` | Discard field only while the decision names the request version and the hub hashes to V | |
+| `TestFetchOffersDiscardOnlyForDAndV` | `internal/component/plugin/server/managed_held_test.go` | Discard field only while the decision names the request version and the hub hashes to V | |
 | `TestFetchCurrentClearsRecord` | `internal/component/plugin/server/managed_test.go` | `current` removes the record (AC-25) | |
 | `TestAckOKClearsRecord` | `internal/component/plugin/server/managed_serve_test.go` | `ok:true` removes the record | |
 | `TestHoldingAckWithRecordClearsRefusal` | `internal/component/plugin/server/managed_serve_test.go` | With a record, no `ManagedRejectConfigRejected` | |
 | `TestHoldingAckWithoutRecordRecordsText` | `internal/component/plugin/server/managed_serve_test.go` | With none, the hold text is the refusal, as today (R-10) | |
+| `TestHoldingAckWithOlderRecordRecordsText` | `internal/component/plugin/server/managed_held_test.go` | A record of D while the client last fetched with D2 (its D2 copy refused or too large): the holding ack keeps the refused row (AC-4) | |
+| `TestHoldingAckAfterFetchOfNewerEditClearsRefusal` | `internal/component/plugin/server/managed_held_test.go` | A record of D, then fetch(D2), held(D2) and a holding ack through the request arms: no refused row, the record is D2 (review round 2) | |
+| `TestHeldClearKeepsRecordWrittenAfterRead` | `internal/component/plugin/server/managed_held_test.go` | A record written between clear's unlocked read and its lock is kept | |
 | `TestHeldRecordDecodeStrict` | `internal/component/plugin/server/managed_held_test.go` | An undecodable record is an error, never "no record" | |
-| `TestAdoptServesHeldBytes` | `internal/component/managed/cmd_divergence_test.go` | Publication of the held bytes, record removed under one guard (A-2) | |
-| `TestAdoptRefusesStaleHash` | `internal/component/managed/cmd_divergence_test.go` | Another hash or no record refused, nothing written | |
-| `TestAdoptRefusesUndeclaredClient` | `internal/component/managed/cmd_divergence_test.go` | An undeclared client refused | |
-| `TestAdoptRefusesStagedCandidate` | `internal/component/managed/cmd_divergence_test.go` | A staged candidate refused with its fix (R-11) | |
-| `TestRevertStoresDecisionAndNotifies` | `internal/component/managed/cmd_divergence_test.go` | Decision D and V stored, notification called | |
+| `TestAdoptServesHeldBytes` | `internal/component/managed/cmd_divergence_adopt_test.go` | Publication of the held bytes, record removed under one guard (A-2) | |
+| `TestAdoptRefusesStaleHash` | `internal/component/managed/cmd_divergence_adopt_test.go` | Another hash or no record refused, nothing written | |
+| `TestAdoptRefusesUndeclaredClient` | `internal/component/managed/cmd_divergence_adopt_test.go` | An undeclared client refused | |
+| `TestAdoptRefusesStagedCandidate` | `internal/component/managed/cmd_divergence_adopt_test.go` | A staged candidate refused with its fix (R-11) | |
+| `TestAdoptRemovesHeldCopy` | `internal/component/managed/cmd_divergence_adopt_test.go` | The record is removed by a successful adopt (AC-11, E-11) | |
+| `TestAdoptTakesOneGuard` | `internal/component/managed/cmd_divergence_adopt_test.go` | The check, the publication and the removal run under one writer lock | |
+| `TestAdoptNotifiesClient` | `internal/component/managed/cmd_divergence_adopt_test.go` | The adopt write reaches the store write observer under the client name (A-3) | |
+| `TestAdoptRefusesWithoutRecord` | `internal/component/managed/cmd_divergence_adopt_test.go` | No record: refused, nothing written (AC-12) | |
+| `TestAdoptDaemonWithoutTarget` | `internal/component/managed/cmd_divergence_adopt_test.go` | A daemon with no managed server refuses | |
+| `TestAdoptLocalOnStoppedHubRefused` | `internal/component/managed/cmd_divergence_adopt_test.go` | With no daemon the local route refuses the adopt and writes nothing (only the running hub audits it, as for revert) | |
+| `TestAdoptIsAnEditCommand` | `internal/component/managed/cmd_divergence_adopt_test.go` | Adopt is a write for authorization, the shows are reads (AC-24) | |
+| `TestRevertStoresDecisionAndNotifies` | `internal/component/managed/cmd_divergence_revert_test.go` | Decision D and V stored, notification called | |
+| `TestRevertRefusesHubWrittenSinceShow` | `internal/component/managed/cmd_divergence_revert_test.go` | A hub configuration written between the show and the revert refuses the revert, and no decision is stored (E-13) | |
+| `TestRevertThroughDaemonSendsBothHashes` | `internal/component/managed/cmd_divergence_revert_test.go` | The local route's line carries `version` and `hub-version` (E-13) | |
+| `TestShowDivergenceListAnswersUnreadableRow` | `internal/component/managed/cmd_divergence_test.go` | One undecodable copy is an unreadable row whose cell is the one-line problem; the other rows hold | |
+| `TestShowDivergenceListKeepsCopyOfUnservedRow` | `internal/component/managed/cmd_divergence_test.go` | A row whose served configuration is unreadable keeps the copy's version and times, no hub version or revert state, and a one-line reason (review round 2) | |
+| `TestDivergenceRefusalNamesTypedCommand` | `internal/component/managed/cmd_divergence_test.go` | Every problem line names the command as typed, with the client or `<client>` (review round 2) | |
+| `TestDiscardFetchesAgainOnlyOnce` | `internal/component/managed/client_held_test.go` | A revert that meets a local commit fetches again once; a second change ends the fetch with no third (review round 2) | |
 | `TestShowDivergenceMasksSecrets` | `internal/component/managed/cmd_divergence_test.go` | No text, secrets masked, count equals the entries | |
-| `TestShowDivergenceReportsVoidDecision` | `internal/component/managed/cmd_divergence_test.go` | A decision whose V no longer matches is reported void | |
+| `TestShowDivergenceReportsVoidDecision` | `internal/component/managed/cmd_divergence_revert_test.go` | A decision whose V no longer matches is reported void | |
 | `TestHubDivergedCheckDeclared` | `internal/component/managed/doctor_test.go` | A declared client's record: warning with the three commands | |
 | `TestHubDivergedCheckOrphan` | `internal/component/managed/doctor_test.go` | An undeclared client's record: orphaned with its fix (A-9) | |
 | `TestDivergedFixNamesHubCommands` | `internal/component/managed/doctor_test.go` | `managedDivergedFix` names show, adopt and revert | |
@@ -427,6 +450,8 @@ closure fills this table.
 | `TestWholeTreeDiffNonBGPRoot` | `internal/component/config/infra/diff_test.go` | A change outside BGP is an entry | |
 | `TestWholeTreeDiffMasksSecrets` | `internal/component/config/infra/diff_test.go` | A secret leaf outside BGP is masked | |
 | `TestWholeTreeDiffKeepsBGPPaths` | `internal/component/config/infra/diff_test.go` | BGP entries keep their resolved paths | |
+| `TestWholeTreeDiffMasksDynamicGroupSecret` | `internal/component/config/infra/diff_test.go` | A dynamic group's md5 password is masked (AC-26) | |
+| `TestWholeTreeDiffRefusesSharedPath` | `internal/component/config/infra/diff_test.go` | A root named like a bgp setting is refused (R-15) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -440,7 +465,7 @@ closure fills this table.
 | `fleet-divergence-upload` | `test/managed/fleet-divergence-upload.ci` | A device edited with its daemon stopped holds; the hub lists it, shows the diff with a masked secret, the doctor names the commands; a further hub write causes no second upload | |
 | `fleet-divergence-adopt` | `test/managed/fleet-divergence-adopt.ci` | Adopt with the shown hash: the device reports in sync; a stale hash is refused first | |
 | `fleet-divergence-revert` | `test/managed/fleet-divergence-revert.ci` | Revert with the shown hash, device connected, then a second device offline: both run the hub's configuration | |
-| `fleet-divergence-revert-void` | `test/managed/fleet-divergence-revert-void.ci` | A local edit after the decision keeps the edit; a hub write after the decision voids it | |
+| `fleet-divergence-revert-void` | `test/managed/fleet-divergence-revert-void.ci` | A local edit after the decision keeps the edit; a hub write after the decision voids it, and a revert naming the hub hash shown before it is refused (E-13) | |
 | `fleet-divergence-hub-restart` | `test/managed/fleet-divergence-hub-restart.ci` | The record and the adopt survive a hub restart | |
 | `fleet-divergence-orphan` | `test/managed/fleet-divergence-orphan.ci` | Rename refused; an undeclared client's record reported orphaned and removed by `ze data rm` (A-8) | |
 | `cli-config-diff-whole-tree` | `test/parse/cli-config-diff-whole-tree.ci` | Two configurations differing in a `plugin hub client` host and secret: both listed, secret masked | |
@@ -470,7 +495,7 @@ Every new `.ci` is drafted under `test/draft/managed/` (and `test/draft/parse/`)
 - `internal/component/config/storage/pointer.go` - a sibling of `ReadActiveConfig` that answers the bytes and the active pointer's stamp from one pointer read
 - `internal/component/config/cli/cmd_diff.go` - use the producer; remove `diffSources` and the masking helpers it moves
 - `internal/core/diagnostic/codes_plugin_infra.go` - `doctor-managed-client-diverged` and its catalog entry
-- `internal/component/plugin/all/testdata/wire-methods.snapshot` - four RPCs
+- `internal/component/plugin/all/testdata/wire-methods.snapshot` - the two RPCs, adopt and revert. The two shows are local-data commands (Integration Checklist, "Pipe completeness"), which register no RPC and owe no snapshot row (`ai/patterns/cli-command.md`, "Local-data commands: what the route owes"); corrected in phase 1
 - `docs/architecture/fleet-config.md` - "Protocol" table and two-phase table, "The baseline and the hold" ("How a hold ends", "What the hub sees"), the store keys
 - `docs/guide/fleet-config.md` - "When a Client Holds", "End the Hold", "See Where a Client Stands", "What the Client Keeps in Its Store"
 - `docs/architecture/doctor-and-health-checks.md` - the new check row
@@ -482,9 +507,11 @@ Every new `.ci` is drafted under `test/draft/managed/` (and `test/draft/parse/`)
 - `internal/component/config/infra/diff.go` - the exported whole-tree producer
 - `internal/component/plugin/server/managed_held.go` - the record type, its codec and its locked read, write and remove
 - `internal/component/managed/cmd_divergence.go` - the four handlers, `DivergenceTarget`, the local routes
+- `internal/component/managed/cmd_divergence_show.go` - the two shows (phase 4): the held copies, both hashes, the masked diff, the daemon ask, the name completer; the show is also the builtin `ze-managed:fleet-divergence-show` so it can declare that completer (a local-data path declares none), so `wire-methods.snapshot` gains its row
 - `internal/core/audit/action_fleet_divergence.go` - the adopt and revert actions
 - The test files named in the TDD Test Plan
 - The `.ci` files of the Functional Tests table, drafted under `test/draft/`
+- `internal/test/fixture/misc_fixture_managed_fleet_divergence_revert.go`, `register_managed_fleet_divergence_revert.go` - the drivers of the two revert `.ci` (phase 6)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -493,7 +520,7 @@ Every new `.ci` is drafted under `test/draft/managed/` (and `test/draft/parse/`)
 | YANG validation constraints | Yes | `name` takes the client-name type the hub `client` list key uses; `version` takes a pattern of 16 lower-case hex characters (`fleet.VersionHash`) |
 | YANG custom validators | Yes | `name` completes from the record keys through a `CompleteFn` |
 | CLI commands/flags | Yes | `internal/component/managed/cmd_divergence.go`, registered from `register.go`. No flag |
-| CLI grammar (keyword before value) | Yes | `show fleet divergence list`, `show fleet divergence name <client>`, `update fleet divergence name <client> adopt version <hash>`, `request fleet divergence name <client> revert version <hash>`; `./le cli grammar`, `./le cli ownership`, `./le cli catalog` |
+| CLI grammar (keyword before value) | Yes | `show fleet divergence list`, `show fleet divergence name <client>`, `update fleet divergence name <client> adopt version <hash>`, `request fleet divergence name <client> revert version <hash> hub-version <hash>`; `./le cli grammar`, `./le cli ownership`, `./le cli catalog` |
 | Editor autocomplete | Yes | From the YANG command tree, `name` from the `CompleteFn` |
 | Functional test for new RPC/API | Yes | The `fleet-divergence-*.ci` set |
 | Pipe completeness | Yes | The two shows register their shapes and columns as local-data commands, each with its `internal/test/localdatacoverage` row |
@@ -523,7 +550,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this through the `ai/
 | 13 | Route metadata keys added/changed? | No | None |
 | 14 | Prometheus counters added/changed? | Yes | `docs/architecture/fleet-config.md`, the managed metrics list |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The command inventory and `wire-methods.snapshot` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md`. Known now: `docs/architecture/fleet-config.md` anchors `client.go` (`fetchAgainstBaseline`, `holdFetched`), `baseline.go`, `managed_serve.go`, `cmd_fleet.go` and `doctor.go`. Declared by `// Design:` headers of changed files, run 2026-11-19: `docs/architecture/config/syntax.md` (`cmd_diff.go`) is unaffected: its diff paragraph is about `DiffMaps` attributing inactive intent, which the producer keeps, and it states no BGP-only scope. `docs/architecture/storage-backends.md` (`rename_config.go`) is unaffected: it documents no rename refusal list (`grep -n -i "unfinished identity\|confirm-pending" docs/architecture/storage-backends.md` finds none). Mentioned only: `docs/guide/config-editor.md` "Secrets are masked on every display path" stays true and gains no edit; `docs/features/fleet-management.md` is row 1 |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/post-release/features/spec-fleet-7-config-reconnect-resolution.md`. Known now: `docs/architecture/fleet-config.md` anchors `client.go` (`fetchAgainstBaseline`, `holdFetched`), `baseline.go`, `managed_serve.go`, `cmd_fleet.go` and `doctor.go`. Declared by `// Design:` headers of changed files, run 2026-11-19: `docs/architecture/config/syntax.md` (`cmd_diff.go`) was wrong as first recorded here: its `ze config diff` paragraph said the order comparison "does not add general value comparison for other non-BGP configuration"; phase 2 rewrote it, with `docs/features/cli-commands.md`, `docs/architecture/api/commands.md` and `docs/guide/web-interface.md`, which said the same. `docs/architecture/storage-backends.md` (`rename_config.go`) is unaffected: it documents no rename refusal list (`grep -n -i "unfinished identity\|confirm-pending" docs/architecture/storage-backends.md` finds none). Mentioned only: `docs/guide/config-editor.md` "Secrets are masked on every display path" stays true and gains no edit; `docs/features/fleet-management.md` is row 1 |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/fleet-config.md` "End the Hold" examples; the guide's `ze config diff` examples if any name BGP-only scope |
 
 ## Implementation Steps
@@ -738,10 +765,11 @@ The redesign runs through `/ze-spec` after fleet-6's design is approved.
 | E-3 | Research | The `ze config diff` / `show config diff` BGP-only defect (verified by run: a changed `plugin hub client` host shows "No differences"; producer `internal/component/config/cli/cmd_diff.go` `compareDiffInputs` / `diffSources` diffs only `infra.ResolveBGPTree`) is fixed inside fleet-7: one exported whole-tree, secret-masked, structured diff producer, used by the hub command and by `ze config diff`, in its own commit with its own test. The Task names it and an AC covers it (AC-22) |
 | E-4 | Design | Revert: a flag in the `config-fetch` answer, "discard D", bound to the device hash D and the hub hash V the operator saw; offered only while the hub's configuration for that client still hashes to V. A device whose active hash is exactly D applies the hub configuration through fleet-6's machine path (`applyFetched` -> `OnCommit` -> `applyManagedPush` -> `StageMachineCandidate`, `recordPushBaseline`). A newer local edit (active differs from D) or a newer hub write (hub differs from V) voids it. Works for an offline device at its next fetch; an old device ignores the field and keeps holding. No new hub-to-device verb. The device-side check lives in the same function as the hold (`fetchAgainstBaseline`) |
 | E-5 | Design | Size bound of the upload: a fixed 1 MiB of raw configuration. A larger held configuration is refused on the device with an operator error, and the hold is resolved by hand. The upload has its own context deadline |
-| E-6 | Design | Hub commands: `show fleet divergence list`; `show fleet divergence name <client>` (diff, change count, both hashes, edited-at); `update fleet divergence name <client> adopt version <hash>`; `request fleet divergence name <client> revert version <hash>`. `<hash>` is the record's device hash the operator saw; a changed record refuses. Owner `internal/component/managed`, wire prefix `ze-managed:`, reached through an installed target as `FleetTarget` / `DataRPCTarget`. The mutating commands are in the edit section by verb; audit actions for adopt and revert |
+| E-6 | Design | Hub commands: `show fleet divergence list`; `show fleet divergence name <client>` (diff, change count, both hashes, edited-at); `update fleet divergence name <client> adopt version <hash>`; `request fleet divergence name <client> revert version <hash> hub-version <hash>` (E-13). `version` is the record's device hash the operator saw; a changed record refuses. Owner `internal/component/managed`, wire prefix `ze-managed:`, reached through an installed target as `FleetTarget` / `DataRPCTarget`. The mutating commands are in the edit section by verb; audit actions for adopt and revert |
 | E-7 | Design | Page fields: the device sends the time its active version became active (`edited-at`) with the upload; the hub's change count is the number of entries in its diff |
 | E-8 | Main thread, owner-approved design | Verb name `config-held` (`config-push` already means hub-to-device delivery) |
 | E-9 | Main thread, owner-approved design | The hub's `config-fetch` answer carries `held-version` (the hash of the record it holds for this client). The device uploads only when it differs from its active hash. With an old hub (field absent) the device uploads at most once per connection and stops for that connection when the hub refuses the verb |
 | E-10 | Main thread, owner-approved design | The ack gains optional `holding: true`; the hub then records no `ManagedRejectConfigRejected` for it. A new hub doctor code `doctor-managed-client-diverged`: the check reads the store record; its fix names the adopt and revert commands. An old device's hold keeps today's refused-config row |
 | E-11 | Main thread, owner-approved design | Record: key `meta/config/client-<name>.conf/held` (new `KeyConfigHeld` in `pkg/zefs/keys.go`), JSON (held bytes, device hash, edited-at, pending revert decision D/V), written with the writer lock. Cleared by adopt (same guard as the write), by the hub answering `current` to that client, by an ack `ok:true`; replaced by a newer upload. `prepareConfigRename` refuses a rename while a record exists (`rename_config.go`). It does not join `admitConfigRollbackLocked` or `ImportConfig`'s intent refusal. A record whose client no serving block declares is reported as orphaned, never served. It survives a hub restart (store, not memory) |
 | E-12 | Main thread, owner-approved design | Device status: `show fleet status` adds `held-by-hub` (the hash from `held-version`) and `revert-offered`; `managedDivergedFix` (`internal/component/managed/doctor.go`) names the hub commands |
+| E-13 | Owner, 2026-11-19 | Revert names both hashes the operator saw in `show fleet divergence name`: `request fleet divergence name <client> revert version <device-hash> hub-version <hub-hash>`, both mandatory, `hub-version` a YANG leaf with the same 16-hex constraint as `version`. It is refused (operator error, fix `show fleet divergence name <client>`) when the record's device hash is not `<device-hash>` or the hub's configuration for that client no longer hashes to `<hub-hash>`. `revertHeldLocked` binds V to the operator's `<hub-hash>`, never to the configuration at decision time. Daemon and local routes carry both; the show's void fix and the hub doctor fix print both hashes; the device doctor fix prints `<hub-version>` as a placeholder, because only the hub's show answers it |

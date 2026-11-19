@@ -31,6 +31,7 @@ var (
 	KeyConfigRecovery           = MustRegister(KeyEntry{Pattern: "meta/config/{name}/recovery", Description: "Operator-selected recovery config version pointer"})
 	KeyConfigFileCommit         = MustRegister(KeyEntry{Pattern: "meta/config/{name}/file-commit", Description: "Durable explicit-file commit intent", Private: true})
 	KeyConfigConfirmPending     = MustRegister(KeyEntry{Pattern: "meta/config/{name}/confirm-pending", Description: "Open confirmed-commit window: owner, deadline and rollback config (JSON)", Private: true})
+	KeyConfigHeld               = MustRegister(KeyEntry{Pattern: "meta/config/{name}/held", Description: "Hub copy of the configuration a managed client holds: its bytes, hash, activation time and any revert decision (JSON)", Private: true})
 	KeyOSPFGRFact               = MustRegister(KeyEntry{Pattern: "meta/ospf/gr-fact-{instance}", Description: "OSPF graceful restart state"})
 	KeyFileActive               = MustRegister(KeyEntry{Pattern: "file/active/{basename}", Description: "Current active config file"})
 	KeyFileCandidate            = MustRegister(KeyEntry{Pattern: "file/candidate/{basename}", Description: "Candidate config file"})

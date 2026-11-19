@@ -102,6 +102,7 @@ func TestFleetStatusStoreOnly(t *testing.T) {
 		got := fleetStatusOn(t, command.AnswerLocal, noDaemon)
 		assert.Equal(t, fleetStatus{
 			Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Holding: runtimeNoDaemon,
+			HeldByHub: runtimeNoDaemon, RevertOffered: runtimeNoDaemon,
 		}, got)
 	})
 
@@ -115,6 +116,7 @@ func TestFleetStatusStoreOnly(t *testing.T) {
 			HubDeclared: true, HubName: "edge-01", HubAddress: "10.0.0.1:1791",
 			ActiveRecorded: true, ActiveHash: activeHash,
 			Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Holding: runtimeNoDaemon,
+			HeldByHub: runtimeNoDaemon, RevertOffered: runtimeNoDaemon,
 		}, got)
 	})
 
@@ -692,4 +694,62 @@ func TestFleetCommandTakesNoArgument(t *testing.T) {
 
 	require.NotNil(t, refusal)
 	assert.Equal(t, pathFleetDisable, refusal.Fix())
+}
+
+// TestFleetStatusHeldFields proves the two fields `show fleet status` takes
+// from the hub's last fetch answer: held-by-hub and revert-offered, read by
+// the client from the answer and worded by the report, on the daemon route
+// and with no daemon, and carried through the JSON the local route decodes.
+//
+// VALIDATES: spec-fleet-7 AC-21 and E-12: held-by-hub is the held-version the
+// hub named, or none; revert-offered is none, offered (the version the device
+// runs) or stale (another version); before a fetch was answered both say
+// not-fetched, and with no daemon both say no-daemon.
+// PREVENTS: a status that reads "the hub holds no copy" when no answer was
+// read, a stale offer shown as one the device takes, and a daemon's answer
+// whose new fields the local route drops.
+// MUTATION: compare DiscardVersion with HeldVersion in hubAnswerOf and the
+// stale case fails; word RevertUnfetched as none and the not-fetched case
+// fails.
+func TestFleetStatusHeldFields(t *testing.T) {
+	active := versionOf([]byte("the configuration this device runs\n"))
+	const hubCopy = "0123456789abcdef"
+
+	cases := []struct {
+		name          string
+		resp          fleet.ConfigFetchResponse
+		heldByHub     string
+		revertOffered string
+	}{
+		{"no copy, no offer", fleet.ConfigFetchResponse{Version: "fedcba9876543210"}, heldNone, revertNone},
+		{"copy held", fleet.ConfigFetchResponse{HeldVersion: hubCopy}, hubCopy, revertNone},
+		{"offer for the active version", fleet.ConfigFetchResponse{HeldVersion: active.Hash(), DiscardVersion: active.Hash()}, active.Hash(), revertOffered},
+		{"offer for another version", fleet.ConfigFetchResponse{HeldVersion: hubCopy, DiscardVersion: hubCopy}, hubCopy, revertStale},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			report := reportOf(ClientState{Running: true, Holding: true, HubAnswer: hubAnswerOf(tc.resp, active)})
+			assert.Equal(t, tc.heldByHub, report.heldByHub)
+			assert.Equal(t, tc.revertOffered, report.revertOffered)
+		})
+	}
+
+	t.Run("no fetch answered", func(t *testing.T) {
+		report := reportOf(ClientState{Running: true})
+		assert.Equal(t, hubAnswerNotFetched, report.heldByHub)
+		assert.Equal(t, hubAnswerNotFetched, report.revertOffered)
+		unmanaged := daemonClientReport(nil)
+		assert.Equal(t, hubAnswerNotFetched, unmanaged.heldByHub)
+		assert.Equal(t, hubAnswerNotFetched, unmanaged.revertOffered)
+	})
+	t.Run("no daemon", func(t *testing.T) {
+		assert.Equal(t, runtimeNoDaemon, noDaemonReport.heldByHub)
+		assert.Equal(t, runtimeNoDaemon, noDaemonReport.revertOffered)
+	})
+	t.Run("the local route decodes both fields", func(t *testing.T) {
+		status, err := decodeDaemonFleetStatus(`{"daemon-answered":true,"held-by-hub":"` + hubCopy + `","revert-offered":"stale"}`)
+		require.NoError(t, err)
+		assert.Equal(t, hubCopy, status.HeldByHub)
+		assert.Equal(t, revertStale, status.RevertOffered)
+	})
 }

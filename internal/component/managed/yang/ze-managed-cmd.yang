@@ -3,7 +3,7 @@ module ze-managed-cmd {
     prefix managedcmd;
     import ze-extensions { prefix ze; }
     description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
-    revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back."; }
+    revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back. Added the hub's fleet divergence commands: show fleet divergence list and name, update fleet divergence name adopt and request fleet divergence name revert, which show and resolve a managed client that holds."; }
 
     container request {
         config false;
@@ -38,6 +38,125 @@ module ze-managed-cmd {
                              stores the flag, and the next ze start follows it.";
                 ze:help "Rejoin the fleet: follow the hub again.";
             }
+
+            container divergence {
+                config false;
+                description "Resolve a managed client that holds, from the hub that serves it.";
+                ze:help "Resolve a client that holds.";
+
+                // The client is typed by its selector keyword before the action
+                // (request fleet divergence name <client> revert ...), the
+                // <verb> <noun> <selector-kind> <selector-value> <action> shape
+                // of docs/architecture/cli/root-namespace-grammar.md.
+                container name {
+                    config false;
+                    description "The managed client the revert below acts on, named before the action.";
+                    ze:help "The managed client to resolve.";
+                    leaf name {
+                        type string { length "1..64"; }
+                        mandatory true;
+                        description "The name of a managed client, as the client entry of a hub server
+                                     block names it. The hub keeps one held copy for each client.";
+                        ze:help "Managed client name";
+                    }
+
+                    container revert {
+                        config false;
+                        ze:command "ze-managed:fleet-divergence-revert";
+                        description "Decides that the client drops the configuration it holds and takes
+                                     the configuration this hub serves it, then tells the client. The
+                                     decision is bound to the two hashes given here, the client's and the
+                                     hub's, both as show fleet divergence name answered them: a revert
+                                     whose hashes no longer match is refused, and a later edit on the
+                                     client, or a later write of the client's configuration on the hub,
+                                     voids a stored decision. A client that is not connected takes it at
+                                     its next connection.";
+                        ze:help "Make a client that holds take the hub's configuration.";
+                        leaf name {
+                            type string { length "1..64"; }
+                            mandatory true;
+                            description "The name of a managed client, as the client entry of a hub server
+                                         block names it. The hub keeps one held copy for each client.";
+                            ze:help "Managed client name";
+                        }
+                        leaf version {
+                            type string { length "16"; pattern "[0-9a-f]{16}"; }
+                            mandatory true;
+                            description "The version hash of the client's configuration, as show fleet
+                                         divergence name answers it. A held copy with another hash is
+                                         refused, so a decision is made only on the copy the operator saw.";
+                            ze:help "Device configuration hash";
+                        }
+                        leaf hub-version {
+                            type string { length "16"; pattern "[0-9a-f]{16}"; }
+                            mandatory true;
+                            description "The version hash of the configuration this hub serves the client,
+                                         as show fleet divergence name answers it. A hub configuration
+                                         written since hashes otherwise and is refused, so the client is
+                                         reverted only to the configuration the operator saw.";
+                            ze:help "Hub configuration hash";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    container update {
+        config false;
+
+        container fleet {
+            config false;
+            description "Change what the hub keeps for the managed clients it serves.";
+            ze:help "The managed clients of this hub.";
+
+            container divergence {
+                config false;
+                description "Resolve a managed client that holds, from the hub that serves it.";
+                ze:help "Resolve a client that holds.";
+
+                // The client is typed by its selector keyword before the action
+                // (update fleet divergence name <client> adopt ...), as the
+                // revert under request is.
+                container name {
+                    config false;
+                    description "The managed client the adopt below acts on, named before the action.";
+                    ze:help "The managed client to resolve.";
+                    leaf name {
+                        type string { length "1..64"; }
+                        mandatory true;
+                        description "The name of a managed client, as the client entry of a hub server
+                                     block names it. The hub keeps one held copy for each client.";
+                        ze:help "Managed client name";
+                    }
+
+                    container adopt {
+                        config false;
+                        ze:command "ze-managed:fleet-divergence-adopt";
+                        description "Makes the configuration the client holds this hub's configuration
+                                     for that client, as a new version of client-<name>.conf, and
+                                     removes the held copy. The client already runs it, so its next
+                                     fetch is answered current and its hold ends. The hash given here
+                                     must be the held copy's.";
+                        ze:help "Make the configuration a client holds the hub's configuration for it.";
+                        leaf name {
+                            type string { length "1..64"; }
+                            mandatory true;
+                            description "The name of a managed client, as the client entry of a hub server
+                                         block names it. The hub keeps one held copy for each client.";
+                            ze:help "Managed client name";
+                        }
+                        leaf version {
+                            type string { length "16"; pattern "[0-9a-f]{16}"; }
+                            mandatory true;
+                            description "The version hash of the client's configuration, as show fleet
+                                         divergence name answers it. A held copy with another hash is
+                                         refused, so a decision is made only on the copy the operator saw.";
+                            ze:help "Device configuration hash";
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -60,6 +179,39 @@ module ze-managed-cmd {
                              ze show fleet status answers with no daemon too, and the answer
                              says whether a running daemon gave it.";
                 ze:help "Whether this device follows a hub and matches its last configuration.";
+            }
+
+            container divergence {
+                config false;
+                description "On a hub: the managed clients that hold, and what differs for one.";
+                ze:help "Managed clients that hold.";
+
+                container name {
+                    config false;
+                    ze:command "ze-managed:fleet-divergence-show";
+                    description "On a hub: what differs between the configuration this hub serves a
+                                 managed client and the one the client holds, as a list of changes
+                                 with every secret masked, their count, both hashes, when the
+                                 client's configuration became active and when the hub received it,
+                                 and any revert decision. It answers no configuration text.";
+                    ze:help "What differs for a managed client that holds.";
+                    leaf name {
+                        type string { length "1..64"; }
+                        mandatory true;
+                        description "The name of a managed client, as the client entry of a hub server
+                                     block names it. The hub keeps one held copy for each client.";
+                        ze:help "Managed client name";
+                    }
+                }
+
+                container list {
+                    config false;
+                    ze:command "ze-managed:fleet-divergence-list";
+                    description "On a hub: every managed client whose held configuration this hub
+                                 keeps, with both hashes, the two times, the revert decision and
+                                 whether a server block still declares the client.";
+                    ze:help "The managed clients that hold, and what the hub keeps for each.";
+                }
             }
         }
     }

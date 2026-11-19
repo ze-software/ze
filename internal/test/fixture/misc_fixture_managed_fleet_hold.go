@@ -38,6 +38,18 @@ const (
 	fleetHoldRejectedCode = "doctor-managed-client-rejected"
 	fleetHoldRefusalText  = "refused to apply the config the hub serves it: " +
 		"holding: the configuration this device runs differs from the last one this hub sent"
+	// The code of the hub's doctor row for a client that holds and whose
+	// configuration the hub keeps a copy of (internal/component/managed,
+	// doctor.go, diagnoseHeldClient). A device that holds sends its
+	// configuration and acknowledges the hold with holding: the hub then keeps
+	// the copy and shows the hold under this code, not as a refusal
+	// (spec-fleet-7 E-10).
+	fleetHoldDivergedCode = "doctor-managed-client-diverged"
+	// The parts of that row's message: the client holds at its own version,
+	// the hub serves it another, and the hub keeps the copy.
+	fleetHoldDivergedHolds  = "the managed client " + caTrustClientName + " holds: it runs version "
+	fleetHoldDivergedServes = "this hub serves it version "
+	fleetHoldDivergedCopy   = "this hub keeps a copy of its configuration"
 	// What every doctor code starts with: a failed `show doctor` that names
 	// one printed a report.
 	fleetHoldDoctorCodePrefix = "doctor-"
@@ -49,7 +61,7 @@ const (
 	fleetHoldFollowAttempts = 300
 	// Each attempt is a whole `ze cli` process and an SSH session to the hub.
 	fleetHoldDoctorAttempts = 150
-	// The device logs its hold after it sent the refusal, and the hub pushes a
+	// The device logs its hold after it acknowledged it, and the hub pushes a
 	// change within its push timeout of 10 seconds.
 	fleetHoldLogAttempts = 300
 	// The device's active version pointer (pkg/zefs KeyConfigActive): the
@@ -96,9 +108,10 @@ type fleetHoldScenario struct {
 // then written back to the version of the first push with `ze data write`: a
 // route the freeze does not cover (spec-fleet-6 D-5), which changes what the
 // daemon boots. Started again, it MUST keep that configuration (its active
-// pointer is not moved), the hub's `show doctor` MUST list the refusal with
-// both hashes, and a further change on the hub MUST be refused on the same
-// connection.
+// pointer is not moved), the hub's `show doctor` MUST list the hold under
+// doctor-managed-client-diverged with the device's hash and the one the hub
+// serves, and no refusal (spec-fleet-7 E-10), and a further change on the hub
+// MUST be refused on the same connection.
 //
 // Args: <hub-ssh-port> <hub-plugin-port> <hub-managed-port>.
 func managedFleetHoldKeepsLocalEditDriver(ctx context.Context, args []string) error {
@@ -164,8 +177,9 @@ func managedFleetHoldKeepsLocalEditDriver(ctx context.Context, args []string) er
 // that client's configuration. The device's baseline MUST become its active
 // hash, `show fleet status` beside it MUST report it not diverged,
 // `ze doctor` beside it MUST stop reporting doctor-managed-diverged, and the
-// hub's `show doctor` MUST stop listing the device's refusal (spec-fleet-6
-// AC-9), with the device still running its own configuration.
+// hub's `show doctor` MUST stop listing the device's hold (spec-fleet-6
+// AC-9; spec-fleet-7 E-10: the hold is the doctor-managed-client-diverged
+// row), with the device still running its own configuration.
 //
 // Args: <hub-ssh-port> <hub-plugin-port> <hub-managed-port>.
 func managedFleetHoldClearsOnMatchDriver(ctx context.Context, args []string) error {
@@ -185,7 +199,7 @@ func managedFleetHoldClearsOnMatchDriver(ctx context.Context, args []string) err
 		}
 
 		fmt.Fprintln(os.Stderr, "OK: a holding managed device stopped holding once its hub was given the configuration it runs, "+ //nolint:errcheck // fixture progress line
-			"and the hub stopped listing its refusal, baseline and active:", s.version(fleetHoldLocalRouterID))
+			"and the hub stopped listing its hold, baseline and active:", s.version(fleetHoldLocalRouterID))
 		return nil
 	})
 }
@@ -389,10 +403,16 @@ func (s *fleetHoldScenario) deviceStoredConfig(ctx context.Context) ([]byte, err
 // edit reaches the store whether or not the device is frozen. The active
 // pointer the import left is recorded as the edit's.
 func (s *fleetHoldScenario) editStopped(ctx context.Context, routerID string) error {
+	return s.editStoppedTo(ctx, s.config(routerID))
+}
+
+// editStoppedTo is editStopped with the whole configuration the edit gives
+// the device.
+func (s *fleetHoldScenario) editStoppedTo(ctx context.Context, content string) error {
 	if err := s.deviceOperator.writeKey(ctx, fleetStatusKeyManaged, "false"); err != nil {
 		return err
 	}
-	if err := caTrustImportConfig(ctx, s.device, caTrustClientName+".conf", s.config(routerID)); err != nil {
+	if err := caTrustImportConfig(ctx, s.device, caTrustClientName+".conf", content); err != nil {
 		return err
 	}
 	stamp, err := s.storeKey(ctx, fleetHoldActivePointerKey)
@@ -475,31 +495,38 @@ func (s *fleetHoldScenario) requireFollows(ctx context.Context, daemon *cachedBo
 }
 
 // requireHold requires the state of a device that holds: the hub's
-// `show doctor` lists its refusal with the hold text and both hashes, the
-// active hash being that of config(local), which the device computes from
-// the version its active pointer names; that pointer is still the one the
-// stopped edit left, so nothing was made active over it; and its baseline is
-// still the hash of config(sent), the last configuration the hub made active
-// on it. The pointer, and not the plain file/active mirror, is what the
-// daemon runs: an edit of the pointer alone leaves the mirror on the last
-// push. The hub records the refusal when the device has finished the fetch,
-// so the store is read after it.
-func (s *fleetHoldScenario) requireHold(ctx context.Context, daemon *cachedBootDaemon, local, sent, state string) error {
-	detail := fleetHoldRefusalText + " (active " + s.version(local) + ", baseline " + s.version(sent) + ")"
+// `show doctor` lists its hold under doctor-managed-client-diverged, with the
+// device's hash, that of config(local), which the device computes from the
+// version its active pointer names and sends with its copy, and the hash of
+// config(served), what the hub serves it now; the same report lists no
+// refusal for it, because a holding acknowledgement clears the refusal row
+// once the hub keeps the copy (spec-fleet-7 E-10). The device's active
+// pointer is still the one the stopped edit left, so nothing was made active
+// over it; and its baseline is still the hash of config(sent), the last
+// configuration the hub made active on it. The pointer, and not the plain
+// file/active mirror, is what the daemon runs: an edit of the pointer alone
+// leaves the mirror on the last push. The hub keeps the copy when the device
+// has finished the fetch, so the store is read after it.
+func (s *fleetHoldScenario) requireHold(ctx context.Context, daemon *cachedBootDaemon, local, sent, served, state string) error {
+	wants := []string{
+		fleetHoldDivergedCode,
+		fleetHoldDivergedHolds + s.version(local),
+		fleetHoldDivergedServes + s.version(served),
+		fleetHoldDivergedCopy,
+	}
 	var answer string
 	listed := cachedBootWait(ctx, daemon, fleetHoldDoctorAttempts, func() bool {
 		answer, _ = storageLiveRequest(ctx, s.hubOperator, "show doctor") //nolint:errcheck // a report that carries a warning may exit non-zero; the answer is what is judged
-		if !strings.Contains(answer, fleetHoldRejectedCode) {
-			return false
+		for _, want := range wants {
+			if !strings.Contains(answer, want) {
+				return false
+			}
 		}
-		if !strings.Contains(answer, caTrustClientName) {
-			return false
-		}
-		return strings.Contains(answer, detail)
+		return !strings.Contains(answer, fleetHoldRefusalText)
 	})
 	if !listed {
-		return fmt.Errorf("%s: show doctor on the hub never listed %s for %s with %q, or the device stopped; the last answer:\n%s",
-			state, fleetHoldRejectedCode, caTrustClientName, detail, answer)
+		return fmt.Errorf("%s: show doctor on the hub never listed %s for %s with %q and no refusal %q, or the device stopped; the last answer:\n%s",
+			state, fleetHoldDivergedCode, caTrustClientName, wants[1:], fleetHoldRefusalText, answer)
 	}
 
 	pointed, err := s.storeKey(ctx, fleetHoldActivePointerKey)
@@ -525,10 +552,10 @@ func (s *fleetHoldScenario) requireHold(ctx context.Context, daemon *cachedBootD
 // MUST hold on connecting, and hold again on the same connection when the
 // hub's copy changes once more.
 func (s *fleetHoldScenario) requireHoldsAcrossHubChange(ctx context.Context, daemon *cachedBootDaemon, local string) error {
-	if err := s.requireHold(ctx, daemon, local, fleetHoldChangedRouterID, "on connecting"); err != nil {
+	if err := s.requireHold(ctx, daemon, local, fleetHoldChangedRouterID, fleetHoldChangedRouterID, "on connecting"); err != nil {
 		return err
 	}
-	// The device logs its hold after it sent the refusal the hub now shows.
+	// The device logs its hold after it acknowledged the hold the hub now shows.
 	// The connections are counted once that line is written, so a connection
 	// the hub refused earlier (a name it had not yet released) is in the count.
 	warned := cachedBootWait(ctx, daemon, fleetHoldLogAttempts, func() bool {
@@ -559,14 +586,16 @@ func (s *fleetHoldScenario) requireHoldsAcrossHubChange(ctx context.Context, dae
 		return fmt.Errorf("the device connected to its hub %d times before the further change and %d after it: "+
 			"a hold MUST keep the connection", connections, after)
 	}
-	return s.requireHold(ctx, daemon, local, fleetHoldChangedRouterID, "after the hub's further change")
+	// The baseline stays the last configuration the hub made active, and the
+	// hub now serves the further change.
+	return s.requireHold(ctx, daemon, local, fleetHoldChangedRouterID, fleetHoldFurtherRouterID, "after the hub's further change")
 }
 
 // requireHoldEndsOnMatch is the device started on its own configuration while
 // the hub holds another: it MUST hold, and stop holding once the hub is given
 // the device's configuration.
 func (s *fleetHoldScenario) requireHoldEndsOnMatch(ctx context.Context, daemon *cachedBootDaemon) error {
-	if err := s.requireHold(ctx, daemon, fleetHoldLocalRouterID, restoreClientServedRouterID, "on connecting"); err != nil {
+	if err := s.requireHold(ctx, daemon, fleetHoldLocalRouterID, restoreClientServedRouterID, restoreClientServedRouterID, "on connecting"); err != nil {
 		return err
 	}
 	holding, err := s.deviceOperator.ask(ctx)
@@ -577,7 +606,8 @@ func (s *fleetHoldScenario) requireHoldEndsOnMatch(ctx context.Context, daemon *
 		return fmt.Errorf("show fleet status beside a holding device does not report it diverged: %+v", holding)
 	}
 	// Without this row before the import, its absence after it proves nothing.
-	if err := fleetDoctorRequireDiverged(ctx, s.deviceOperator.env, "a holding device", s.version(restoreClientServedRouterID)); err != nil {
+	if err := fleetDoctorRequireDiverged(ctx, s.deviceOperator.env, "a holding device", caTrustClientName,
+		s.version(restoreClientServedRouterID), s.version(fleetHoldLocalRouterID)); err != nil {
 		return err
 	}
 
@@ -628,17 +658,19 @@ func (s *fleetHoldScenario) requireHoldEndsOnMatch(ctx context.Context, daemon *
 	if err := fleetDoctorRequireSilent(ctx, s.deviceOperator.env, "a device whose hub holds its configuration", ""); err != nil {
 		return err
 	}
-	return s.requireHubDroppedRefusal(ctx, daemon)
+	return s.requireHubDroppedHold(ctx, daemon)
 }
 
-// requireHubDroppedRefusal waits until `show doctor` on the hub no longer
-// lists the device's hold. requireHold read the row in the same report before
-// the hold ended, so its absence is a change and not a report that never had
-// it. The device acknowledges the end of its hold after it recorded the
+// requireHubDroppedHold waits until `show doctor` on the hub no longer lists
+// the device's hold: no doctor-managed-client-diverged row, the code of the
+// hold whose copy the hub keeps (spec-fleet-7 E-10), and no refusal text
+// either. requireHold read the row in the same report before the hold ended,
+// so its absence is a change and not a report that never had it. The hub
+// drops its copy when the device's fetch matches what it serves, after the
 // baseline the caller waited for, so the report is polled. An answer that is
 // no doctor report (the command failed and printed no doctor code) proves
 // nothing and is "not yet".
-func (s *fleetHoldScenario) requireHubDroppedRefusal(ctx context.Context, daemon *cachedBootDaemon) error {
+func (s *fleetHoldScenario) requireHubDroppedHold(ctx context.Context, daemon *cachedBootDaemon) error {
 	var answer string
 	var askErr error
 	dropped := cachedBootWait(ctx, daemon, fleetHoldDoctorAttempts, func() bool {
@@ -649,6 +681,9 @@ func (s *fleetHoldScenario) requireHubDroppedRefusal(ctx context.Context, daemon
 			if !strings.Contains(answer, fleetHoldDoctorCodePrefix) {
 				return false
 			}
+		}
+		if strings.Contains(answer, fleetHoldDivergedCode) {
+			return false
 		}
 		return !strings.Contains(answer, fleetHoldRefusalText)
 	})

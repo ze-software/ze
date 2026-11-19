@@ -2,6 +2,7 @@
 // Related: client.go -- the managed client whose hub dependency this check guards
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck
 // Related: baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion and Diverged, the one reader of each fact the checks judge
+// Related: ../plugin/server/managed_held.go -- HeldClients and ReadHeldRecord, the hub's copies the hub-side check reports
 
 // The managed component owns the plugin/hub/client dependency (a node's outbound
 // connection to a management hub), so it owns this doctor check
@@ -16,12 +17,18 @@ package managed
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -86,19 +93,203 @@ var managedDivergedDoctorCheck = diagnostic.DoctorCheck{
 	Check:        checkManagedDiverged,
 }
 
-// managedDivergedFix names the two ways out of a hold: give the hub the
+// hubDivergedDoctorCheck reports, on a hub, each managed client whose
+// configuration the hub keeps a copy of because the client holds
+// (pluginserver.HeldRecord). Registered from register.go. It reads the store
+// records and the serving blocks of the configuration tree, which answer the
+// same in the operator's process and in the daemon's, so it is a post-config
+// check: a record outlives a hub restart, and it is reported with the hub
+// running or stopped.
+var hubDivergedDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "managed-client-diverged",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        733,
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorManagedClientDiverged},
+	Check:        checkHubClientsDiverged,
+}
+
+// checkHubClientsDiverged warns once per record this hub keeps: a declared
+// client's record is a hold the hub's operator can resolve, and the record of
+// a client no serving block declares is orphaned, because that client cannot
+// connect to be resolved.
+//
+// It answers nothing when it cannot look at the serving blocks: no tree, no
+// store, or a hub block config validation refuses, which is that check's
+// finding. A record list or a record that cannot be read is reported: it may
+// hold the only copy of a client's configuration.
+func checkHubClientsDiverged(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok {
+		return nil
+	}
+	if tree == nil {
+		return nil
+	}
+	if ctx.Store == nil {
+		return nil
+	}
+	hubCfg, err := config.ExtractHubConfig(tree)
+	if err != nil {
+		return nil // Config validation reports a hub block it cannot read.
+	}
+	clients, err := pluginserver.HeldClients(ctx.Store)
+	if err != nil {
+		return []diagnostic.Diagnostic{diagnoseHeldUnread("the list of client configurations this hub keeps a copy of", err)}
+	}
+	declared := servedClientNames(hubCfg)
+	var diags []diagnostic.Diagnostic
+	for _, name := range clients {
+		record, held, err := pluginserver.ReadHeldRecord(ctx.Store, name)
+		if err != nil {
+			diags = append(diags, diagnoseHeldUnread("the copy of the configuration client "+name+" holds", err))
+			continue
+		}
+		if !held {
+			continue // Removed since the list was read: nothing is held now.
+		}
+		if !declared[name] {
+			diags = append(diags, diagnoseHeldOrphan(name, record))
+			continue
+		}
+		hubPhrase, hubVersion := hubVersionOf(ctx.Store, name)
+		diags = append(diags, diagnoseHeldClient(name, record, hubPhrase, hubVersion))
+	}
+	return diags
+}
+
+// servedClientNames answers the names the serving blocks of hubCfg declare,
+// the clients the managed server admits (startManagedServer reads the same
+// blocks).
+func servedClientNames(hubCfg plugin.HubConfig) map[string]bool {
+	names := make(map[string]bool)
+	for _, server := range hubCfg.Servers {
+		for name := range server.Clients {
+			names[name] = true
+		}
+	}
+	return names
+}
+
+// hubVersionOf words what the hub serves client name, and answers its hash as
+// the fetch hashes it (startManagedServer's ReadConfig reads the same file):
+// the hub hash a revert names. The hash is empty when the hub serves no
+// configuration or it could not be read.
+func hubVersionOf(store storage.Storage, name string) (phrase, version string) {
+	data, err := store.ReadFile(pluginserver.ClientConfigKey(name))
+	if err == nil {
+		version = fleet.VersionHash(data)
+		return "this hub serves it version " + version, version
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return "this hub serves it no configuration", ""
+	}
+	return "the configuration this hub serves it could not be read (" + err.Error() + ")", ""
+}
+
+// heldTimePhrase words when a record's version was edited on the client; the
+// zero time is a client whose store recorded none.
+func heldTimePhrase(at time.Time) string {
+	if at.IsZero() {
+		return "at a time the client did not record"
+	}
+	return "at " + at.UTC().Format(time.RFC3339)
+}
+
+// diagnoseHeldClient reports the record of a declared client: the client
+// holds, and the hub's operator resolves it with the three hub commands over
+// the record's version and hubVersion, the hash of what the hub serves it
+// (empty when it serves none). hub words that configuration.
+func diagnoseHeldClient(name string, record pluginserver.HeldRecord, hub, hubVersion string) diagnostic.Diagnostic {
+	help := "show fleet divergence name " + name + " lists what differs; adopt makes the client's configuration the hub's, revert makes the client take the hub's"
+	if unchecked := record.UncheckedPlugins(); len(unchecked) > 0 {
+		help = "the copy holds sections of external plugins this hub did not start (" + strings.Join(unchecked, ", ") +
+			"), so the difference cannot be shown; adopt and revert still work"
+	}
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Severity: diagnostic.SeverityWarning,
+		Message: "the managed client " + name + " holds: it runs version " + record.Version() + ", edited " + heldTimePhrase(record.EditedAt()) +
+			", and " + hub + ", so it applies nothing this hub sends; this hub keeps a copy of its configuration, received at " +
+			record.ReceivedAt().UTC().Format(time.RFC3339),
+		Help: help,
+		Fix:  divergenceCommandsFix(name, record.Version(), placeholderOr(hubVersion, placeholderHubVersion)),
+	}
+}
+
+// diagnoseHeldOrphan reports the record of a client no serving block
+// declares. The client cannot connect, so neither a fetch nor an ack ends the
+// hold, and adopt and revert refuse an undeclared client. The record stays:
+// it is the only copy of what the client runs.
+func diagnoseHeldOrphan(name string, record pluginserver.HeldRecord) diagnostic.Diagnostic {
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Severity: diagnostic.SeverityWarning,
+		Message: "this hub keeps a copy of the configuration client " + name + " holds (version " + record.Version() +
+			"), and no plugin hub server block declares " + name + ", so the copy is orphaned: the client cannot connect and the hold cannot be resolved",
+		Help: "declaring the client again lets it connect, and the hold is then resolved from this hub; the copy is the only one this hub keeps of what the client runs",
+		Fix: "declare client " + name + " again in a plugin hub server block, or remove the copy with the hub stopped: ze data rm " +
+			pluginserver.HeldRecordKey(name),
+	}
+}
+
+// diagnoseHeldUnread reports what of the hub's copies could not be read from
+// the store.
+func diagnoseHeldUnread(what string, cause error) diagnostic.Diagnostic {
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Severity: diagnostic.SeverityWarning,
+		Message:  what + " could not be read from the store, so whether a managed client holds is unknown: " + cause.Error(),
+		Fix:      fixCheckStore,
+	}
+}
+
+// managedDivergedFix names the hub commands that end a hold: show what
+// differs, then keep this device's configuration (adopt) or discard it
+// (revert). Both name version, the version the device runs, which is the
+// version of the copy the hub keeps once the device sent it (config-held).
+// The revert also names the hash of what the hub serves the device, which
+// only the hub's show answers, so the device's fix carries a placeholder for
+// it. client is the name the device's hub client block gives it; empty when
+// the configuration names no client, and the fix then shows the placeholder.
+func managedDivergedFix(client, version string) string {
+	return divergenceCommandsFix(placeholderOr(client, "<name>"), placeholderOr(version, "<hash>"), placeholderHubVersion)
+}
+
+// placeholderHubVersion stands for the hub hash of a revert in a fix that
+// cannot know it: the show's hub-version field answers it.
+const placeholderHubVersion = "<hub-version>"
+
+// divergenceCommandsFix is the fix of a hold the hub keeps a copy of, on the
+// device and on the hub alike: the three hub commands over client, the copy's
+// version and hubVersion, the hash of the configuration the hub serves client.
+func divergenceCommandsFix(client, version, hubVersion string) string {
+	return "on the hub, see what differs: show fleet divergence name " + client +
+		"; to keep this device's configuration: update fleet divergence name " + client + " adopt version " + version +
+		"; to discard it: request fleet divergence name " + client + " revert version " + version + " hub-version " + hubVersion
+}
+
+// managedDivergedManualFix names the two ways out of a hold the hub keeps no
+// copy of, because the configuration is larger than a copy may be
+// (fleet.HeldConfigMax) or the copy did not reach the hub: give the hub the
 // configuration this device runs, or leave the fleet, return to the hub's
 // configuration and rejoin. Each ends at a fetch the hub answers "current",
-// which is what records a new baseline. client is the name the device's hub
-// client block gives it, which names its configuration on the hub
-// (client-<name>.conf); empty when the configuration names no client, and the
-// fix then shows the placeholder.
-func managedDivergedFix(client string) string {
-	if client == "" {
-		client = "<name>"
-	}
+// which is what records a new baseline. client is as for managedDivergedFix.
+func managedDivergedManualFix(client string) string {
+	client = placeholderOr(client, "<name>")
 	return "to keep this device's configuration, on the hub: ze data import client-" + client + ".conf; " +
 		"to discard it, on this device: request fleet disable, roll back to the version the hub sent, request fleet enable"
+}
+
+// placeholderOr answers value, or placeholder when value is empty: a fix
+// whose name is unknown shows where the operator puts it.
+func placeholderOr(value, placeholder string) string {
+	if value == "" {
+		return placeholder
+	}
+	return value
 }
 
 // checkManagedDiverged warns when this node is a managed client and the
@@ -134,7 +325,7 @@ func checkManagedDiverged(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 	if stored {
 		active = versionOf(content)
 	}
-	return diagnoseManagedDiverged(active, baseline, clientNameOf(content))
+	return diagnoseManagedDiverged(active, baseline, clientNameOf(content), len(content) > fleet.HeldConfigMax)
 }
 
 // clientNameOf answers the name the hub client block of content gives this
@@ -152,18 +343,25 @@ func clientNameOf(content []byte) string {
 // store answered. The text says the configuration differs and never that it
 // was edited: a recovery or a confirmed-commit revert changes it with no
 // operator involved.
-// client is the device's name on its hub, empty when unknown.
-func diagnoseManagedDiverged(active, baseline ConfigVersion, client string) []diagnostic.Diagnostic {
+// client is the device's name on its hub, empty when unknown. oversize says
+// the configuration is larger than a copy the hub takes, so the hub cannot
+// resolve the hold and the fix names the manual routes.
+func diagnoseManagedDiverged(active, baseline ConfigVersion, client string, oversize bool) []diagnostic.Diagnostic {
 	if !Diverged(active, baseline) {
 		return nil
+	}
+	fix := managedDivergedFix(client, active.Hash())
+	if oversize {
+		fix = managedDivergedManualFix(client)
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     diagnostic.CodeDoctorManagedDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: "the configuration this managed client runs (version " + active.Hash() + ") differs from the last one its hub sent (version " +
 			baseline.Hash() + "), so it holds: it applies nothing the hub sends",
-		Help: "the hold ends when the hub holds the same configuration as this device; show fleet status reports both hashes",
-		Fix:  managedDivergedFix(client),
+		Help: "the hold ends when the hub holds the same configuration as this device, or when the hub's operator discards this device's change; " +
+			"show fleet status reports both hashes and the version of the copy the hub keeps (held-by-hub)",
+		Fix: fix,
 	}}
 }
 

@@ -42,6 +42,9 @@ const (
 	fleetStatusConnected     = "connected"
 	fleetStatusNotConnected  = "not-connected"
 	fleetStatusNotHolding    = "not-holding"
+	// The words of held-by-hub and revert-offered before the hub answered a
+	// fetch of this run of the hub client, or with no hub client at all.
+	fleetStatusNotFetched = "not-fetched"
 	fleetStatusPollDelay     = 250 * time.Millisecond
 	// The hub allows its plugins 30 seconds to complete startup
 	// (cmd/ze/hub/main.go, WaitForStartupComplete).
@@ -66,6 +69,8 @@ type fleetStatusAnswer struct {
 	Client           string `json:"client"`
 	Connection       string `json:"connection"`
 	Holding          string `json:"holding"`
+	HeldByHub        string `json:"held-by-hub"`
+	RevertOffered    string `json:"revert-offered"`
 }
 
 // managedFleetStatusDriver answers one question: does `show fleet status`
@@ -82,7 +87,8 @@ type fleetStatusAnswer struct {
 // answer MUST carry the same store facts, and say whether a daemon gave it.
 // The managed daemon MUST report a hub client that runs with no connection and
 // holds nothing, because its hub never answers, and the unmanaged daemon MUST
-// report that it started none.
+// report that it started none. Neither has a fetch answer, so held-by-hub and
+// revert-offered MUST say not-fetched; with no daemon they say no-daemon.
 
 // The environment knobs the managed drivers set on their daemons, named once
 // so the drivers cannot drift apart on a spelling.
@@ -153,6 +159,11 @@ func managedFleetStatusDriver(ctx context.Context, args []string) error {
 			fleetStatusClientRunning, fleetStatusNotConnected, fleetStatusNotHolding); err != nil {
 			return err
 		}
+		// No hub answered a fetch, so nothing is known of a copy of the hold
+		// or of a revert: neither field may read as "none".
+		if err := fleetStatusRequireHubAnswer(running, "daemon running, managed", fleetStatusNotFetched); err != nil {
+			return err
+		}
 		if !running.BaselineRecorded || running.BaselineHash != fleetStatusOtherBaseline || !running.Diverged {
 			return fmt.Errorf("daemon running, managed: a baseline other than the active hash is not reported as diverged: %+v", running)
 		}
@@ -188,8 +199,11 @@ func managedFleetStatusDriver(ctx context.Context, args []string) error {
 		}
 		// A daemon that started unmanaged owns no hub client at any moment of
 		// its life, so its first answer already says so.
-		return fleetStatusRequireClient(running, "daemon running, not managed",
-			fleetStatusClientNone, fleetStatusNotConnected, fleetStatusNotHolding)
+		if err := fleetStatusRequireClient(running, "daemon running, not managed",
+			fleetStatusClientNone, fleetStatusNotConnected, fleetStatusNotHolding); err != nil {
+			return err
+		}
+		return fleetStatusRequireHubAnswer(running, "daemon running, not managed", fleetStatusNotFetched)
 	}); err != nil {
 		return err
 	}
@@ -319,7 +333,22 @@ func fleetStatusRequireNoDaemon(answer fleetStatusAnswer, state string) error {
 	if answer.DaemonAnswered {
 		return fmt.Errorf("%s: the answer says a daemon gave it: %+v", state, answer)
 	}
-	return fleetStatusRequireClient(answer, state, fleetStatusNoDaemon, fleetStatusNoDaemon, fleetStatusNoDaemon)
+	if err := fleetStatusRequireClient(answer, state, fleetStatusNoDaemon, fleetStatusNoDaemon, fleetStatusNoDaemon); err != nil {
+		return err
+	}
+	return fleetStatusRequireHubAnswer(answer, state, fleetStatusNoDaemon)
+}
+
+// fleetStatusRequireHubAnswer requires the two fields a hub's fetch answer
+// fills, held-by-hub and revert-offered, to carry word.
+func fleetStatusRequireHubAnswer(answer fleetStatusAnswer, state, word string) error {
+	if answer.HeldByHub != word {
+		return fmt.Errorf("%s: held-by-hub is %q, want %q: %+v", state, answer.HeldByHub, word, answer)
+	}
+	if answer.RevertOffered != word {
+		return fmt.Errorf("%s: revert-offered is %q, want %q: %+v", state, answer.RevertOffered, word, answer)
+	}
+	return nil
 }
 
 // fleetStatusRequireClient requires the three fields that describe the

@@ -6,7 +6,10 @@
 #           hashes, whether they differ), answer from the store when no daemon
 #           runs, and draw the running daemon's answer, with the state of its
 #           hub client, when one does?
-#           (spec-fleet-6-config-freeze, AC-15, AC-22;
+#           Do held-by-hub and revert-offered, the two fields a hub's fetch
+#           answer fills, say no-daemon with no daemon and not-fetched while
+#           no hub answered?
+#           (spec-fleet-6-config-freeze, AC-15, AC-22; spec-fleet-7, AC-21;
 #           docs/architecture/api/commands.md, "Local-data commands".)
 # WHY NOT A UNIT TEST: the question is which process answers. The local route
 #           reaches a running daemon over its SSH listener with the credential
@@ -25,12 +28,15 @@
 #            then the device with its managed flag set to false, stopped
 #            (the three fields no-daemon) and running (managed false, frozen
 #            false, the hub block still reported, client not-started,
-#            connection not-connected, holding not-holding).
+#            connection not-connected, holding not-holding). In every
+#            answer held-by-hub and revert-offered are no-daemon with no
+#            daemon and not-fetched from a running daemon, managed or not.
 # PREVENTS: a status that needs a running daemon; a local answer read from the
 #           store beside a running daemon; a daemon that does not serve the
 #           command; an absent baseline read as diverged; a daemon that cannot
 #           say what its hub client is doing; a diverged store reported as a
-#           held fetch when no fetch was answered.
+#           held fetch when no fetch was answered; a hub's copy or revert
+#           offer reported as "none" when no hub answered.
 #
 # $PORT is the device's own plugin transport. $PORT2 is the hub port its config
 # names: nothing binds it, so the managed client runs and never connects, which

@@ -88,7 +88,10 @@ func TestFleetStatusDaemonRouteAsksTheDaemonsHandle(t *testing.T) {
 func TestFleetStatusReportsStopping(t *testing.T) {
 	report := reportOf(ClientState{Stopping: true, Connected: true})
 
-	assert.Equal(t, clientReport{client: clientStopping, connection: connectionUp, holding: holdNo}, report)
+	assert.Equal(t, clientReport{
+		client: clientStopping, connection: connectionUp, holding: holdNo,
+		heldByHub: hubAnswerNotFetched, revertOffered: hubAnswerNotFetched,
+	}, report)
 }
 
 // TestFleetEnableAnswersWhatFailed proves that a rejoin whose hub client did

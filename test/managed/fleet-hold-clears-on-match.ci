@@ -2,9 +2,9 @@
 #
 # QUESTION: does a managed device that holds stop holding once its hub is
 #           given the configuration the device runs, keep running it, and
-#           does the hub stop listing it as refusing?
+#           does the hub stop listing it as holding?
 #           (spec-fleet-6-config-freeze, AC-6, AC-9,
-#           user story 4; docs/guide/fleet-config.md, "When a Client Holds".)
+#           user story 4; spec-fleet-7 E-10, E-12; docs/guide/fleet-config.md, "When a Client Holds".)
 # WHY NOT A UNIT TEST: the answer is a path across two daemons and three
 #           commands. `ze data import` beside the running hub writes the
 #           client's configuration, the hub notifies the connected device, the
@@ -14,18 +14,23 @@
 #           proves the last step over a stub hub, and not that the hub's hash
 #           of an imported file equals the device's hash of the same file.
 #           TestHoldEndedOnCurrentTellsTheHub proves the device acknowledges,
-#           and not that a real hub then drops the row an operator reads.
+#           and not that a real hub then drops the copy and the row an
+#           operator reads.
 #
 # VALIDATES: a device that took its hub's configuration, was then given
 #            another one with its daemon stopped, and holds: the hub's
-#            `show doctor` lists the refusal, `show fleet status` beside the
-#            device reports diverged true and `ze doctor` beside it reports
-#            doctor-managed-diverged. After `ze data import` of the device's
+#            `show doctor` lists doctor-managed-client-diverged with the
+#            device's hash and the one it serves, and no refusal,
+#            `show fleet status` beside the device reports diverged true and
+#            `ze doctor` beside it reports doctor-managed-diverged, whose fix
+#            names the hub's show, adopt and revert commands over the
+#            device's version. After `ze data import` of the device's
 #            configuration on the hub, `show fleet status` reports diverged
 #            false with the baseline hash equal to the active hash, the device
 #            still runs its own configuration, `ze doctor` no longer reports
 #            doctor-managed-diverged, and the hub's `show doctor` no longer
-#            lists the refusal it listed while the device held.
+#            lists the doctor-managed-client-diverged row it listed while the
+#            device held, nor any refusal.
 # PREVENTS: a hold with no way out short of provisioning the device again; a
 #           hub and a device that hash the same configuration differently, so
 #           the hold never ends; a device that applies something when the hub
