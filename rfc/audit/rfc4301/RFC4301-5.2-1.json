@@ -1,16 +1,16 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "8bba1bbc898a8fcd",
-    "internal/component/ike/engine/apply.go::releaseSPD": "b10358ff6c559d68",
+    "internal/component/ike/engine/apply.go::applyConfig": "e553c8860ebdb1c1",
+    "internal/component/ike/engine/apply.go::releaseSPD": "9af1232bcd690bb9",
     "internal/component/ike/engine/apply.go::shutdown": "159a230bf190c6cc",
     "internal/component/ike/engine/spd_left.go::warnSPDLeft": "6ab3bbc52a6f0410",
-    "internal/component/ike/engine/unmatched.go::installUnmatched": "1961efd8437d8443",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
     "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "6aec367cbfc81f98",
     "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Rejudged against RFC 4301 Section 4.4.1: Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded. applyConfig still establishes the final disposition before operator policies or peers on first apply, and shutdown stops peers before releaseSPD. installUnmatched now owns the namespace FWD default through ForwardDefaultInstaller and omits explicit FWD catch-alls for that backend; installXFRMInterfaceEntries likewise omits redundant interface FWD catch-alls. IN and OUT final entries remain explicit. releaseSPD retains final disposition while warnSPDLeft reports a remaining entry, then removeUnmatched releases the FWD default after successful policy removal. These changes preserve enforcement for the IKE-owned XFRM SPD but do not supply the two declared absent cases: VPP refuses node-wide SPDs and runs unmatched bypass without a final entry, and OSPF manual-key entries can exist without the IKE engine and without their own final entry. vppPolicyInterface and defaultDataplaneSource confirm those boundaries. The explicit gap remains and no conformance claim is upgraded.",
+  "note": "Re-judged 2026-11-19 after D-4 (e700fb7392), ce5c276457, 50b89fb51b, 072ef5bf1f and 516671704b changed the cited producers. RFC 4301 Section 4.4.1: \"Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.\" applyConfig still installs the catch-all first on the first apply, and releaseSPD still removes it last and keeps it when warnSPDLeft reports another entry left; Ze's IKE is exempt per socket (bypassIKESocket), not by an SPD entry, as the annotation already says. The two uncovered paths are unchanged: vppBackend.CatchAllSupported still answers ErrNoNodeWideSPD (vppPolicyInterface refuses an unbound entry), and the OSPF installer change adds removal reporting only, so the RFC 4552 manual-key entries still have no final DISCARD entry with no vpn ipsec block, after releaseSPD, under unmatched bypass, or on VPP. The gap stands.",
   "requirement_sha": "627457a03bb75173",
   "verdict": "unimplemented"
 }

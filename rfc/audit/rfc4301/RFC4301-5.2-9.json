@@ -1,16 +1,16 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "8bba1bbc898a8fcd",
-    "internal/component/ike/engine/apply.go::releaseSPD": "b10358ff6c559d68",
+    "internal/component/ike/engine/apply.go::applyConfig": "e553c8860ebdb1c1",
+    "internal/component/ike/engine/apply.go::releaseSPD": "9af1232bcd690bb9",
     "internal/component/ike/engine/apply.go::shutdown": "159a230bf190c6cc",
     "internal/component/ike/engine/spd_left.go::warnSPDLeft": "6ab3bbc52a6f0410",
-    "internal/component/ike/engine/unmatched.go::installUnmatched": "1961efd8437d8443",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
     "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "6aec367cbfc81f98",
     "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Rejudged against RFC 4301 Section 5.2 step 3b: (No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic. The current IKE XFRM lifecycle installs final disposition first and removes it last: installUnmatched applies the owned namespace FWD default and explicit IN/OUT catch-alls; interface FWD catch-alls are omitted only under that shared default. applyConfig installs this state before operator entries and peers. shutdown stops peers before releaseSPD, which preserves final disposition when warnSPDLeft reports leftovers; removal releases the FWD default only after explicit removals succeed. The known missing cases are unchanged: VPP runs no node-wide final entry, and the independent OSPF manual-key installer can hold protocol-89 SPD entries without the IKE catch-all. No code in these changes supplies final discard to those databases. The explicit gap remains unimplemented.",
+  "note": "Re-judged 2026-11-19 after D-4 (e700fb7392), ce5c276457, 50b89fb51b, 072ef5bf1f and 516671704b changed the cited producers. RFC 4301 Section 5.2: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" The same producers and the same two uncovered paths as RFC4301-5.2-1: on XFRM under the IKE engine the catch-all is installed first and removed last (applyConfig, releaseSPD, warnSPDLeft), and Ze's IKE is exempt per socket; on VPP no catch-all can be installed (CatchAllSupported answers ErrNoNodeWideSPD), and the OSPF RFC 4552 manual-key entries have no final DISCARD entry outside the IKE engine's window, the OSPF change adding removal reporting only. The gap stands.",
   "requirement_sha": "85de5f441399996b",
   "verdict": "unimplemented"
 }

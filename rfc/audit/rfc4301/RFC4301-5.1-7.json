@@ -1,9 +1,9 @@
 {
   "code": {
     "internal/component/ike/engine/child.go::installChildSA": "8459d4e5e8e76b2b",
-    "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "43179de637274da1"
+    "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "5b9bc0cef7c94047"
   },
-  "note": "Rejudged against RFC 4301 Section 5.1: If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA. If SA creation succeeds, a new outbound (SPD-S) cache entry is created, along with outbound and inbound SAD entries, otherwise the packet is discarded. installChildSA now checks negotiated pairs before installation and installs their states and policies only after an IKE exchange already produced the Child SA. parseSPDPolicy accepts only bypass and discard operator entries; it does not register packet-triggered negotiation. The current non-vendor internal, pkg and cmd trees contain no XFRM_MSG_ACQUIRE or XFRMNLGRP_ACQUIRE consumer. The state-scope and selector changes do not add an acquire path. The declared packet-triggered key-management gap therefore remains unimplemented.",
+  "note": "Re-judged 2026-11-19 after child.go (forward entries, direction, rekey source) and ipsec/spd_policy.go (rank range) changed. RFC 4301 Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" installChildSA still installs a Child SA's PROTECT entries only with the SA an IKE exchange already negotiated. parseSPDPolicy still accepts only bypass and discard as an operator action. No XFRM acquire consumer exists in the non-vendor internal, pkg or cmd trees. The packet-triggered key-management gap stands.",
   "requirement_sha": "fd7074473f3565e7",
   "verdict": "unimplemented"
 }

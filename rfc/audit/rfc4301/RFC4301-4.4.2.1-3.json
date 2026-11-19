@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "ecf2bc50bc605ab4",
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d",
     "internal/component/ike/engine/rekey.go::newLifetimeState": "ec8a5aaeb7223f1e"
   },
-  "note": "Rejudged the current xfrmStateFromParams and newLifetimeState against RFC 4301 Section 4.4.2.1: Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren't doing things the same way. The current state builder projects selector scope through xfrmStateScopeFromParams and still sets no byte lifetime in state.Limits. newLifetimeState initializes softTime and hardTime from a time lifetime; lifetimeState.softBytes and byteCount have no non-test producer writes. No byte-count lifetime exists whose end counters could be handled. The explicit gap remains accurate and has no test tags; this rejudgment refreshes the cited producer without upgrading the absent capability.",
+  "note": "Re-judged 2026-11-19 after xfrmStateFromParams gained the SA direction and the outbound anti-replay refusal (3977cef525). RFC 4301 Section 4.4.2.1: \"Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren't doing things the same way.\" xfrmStateFromParams still sets no byte limit in state.Limits; newLifetimeState (engine/rekey.go, unchanged) sets a time lifetime only, and lifetimeState.softBytes and byteCount still have no non-test writer. No byte-count lifetime exists whose end counters could fall out of synch. The gap stands; no test is tagged.",
   "requirement_sha": "c34a4dddcbd80efb",
   "verdict": "unimplemented"
 }
