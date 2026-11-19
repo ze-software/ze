@@ -277,6 +277,50 @@ func TestManagedServeConfigAckRecorded(t *testing.T) {
 	_ = fetch(t, mc, "")
 }
 
+// TestHubRecordsHoldRefusal proves that a device that holds reaches the hub's
+// doctor record with no hub change: a client sends the config-ack a hold sends
+// (ok:false with the hold text), then a successful one.
+//
+// VALIDATES: fleet-6 AC-9 and A-8. The refusal is that client's last refusal,
+// under the "refused configuration" cause, with the device's text kept as it
+// was sent; the hub parses nothing in it. The next successful acknowledgement
+// clears it.
+// PREVENTS: a hold only the device knows about, and a hub that needs the
+// wording of the refusal to record it.
+func TestHubRecordsHoldRefusal(t *testing.T) {
+	srv, addr := startTestManagedServer(t)
+	mc := dialTestClient(t, addr, testClientName, testClientSecret)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	hold := "holding: the configuration this device runs differs from the last one this hub sent " +
+		"(active 1111111111111111, baseline 2222222222222222); the device applied nothing and stays connected"
+	offered := fleet.VersionHash([]byte(testClientConfig))
+
+	if _, err := mc.CallRPC(ctx, fleet.VerbConfigAck, fleet.ConfigAck{Version: offered, OK: false, Error: hold}); err != nil {
+		t.Fatalf("config-ack of a hold: %v", err)
+	}
+
+	// The hub records before it answers the ack, so the record is there now.
+	rejection := waitForRejection(t, srv, testClientName)
+	if rejection.Cause != ManagedRejectConfigRejected {
+		t.Errorf("cause = %v, want the refused-configuration cause", rejection.Cause)
+	}
+	if rejection.Detail != hold {
+		t.Errorf("detail = %q, want the device's hold text %q", rejection.Detail, hold)
+	}
+	// The device stays connected while it holds, and the hub keeps serving it.
+	_ = fetch(t, mc, "")
+
+	if _, err := mc.CallRPC(ctx, fleet.VerbConfigAck, fleet.ConfigAck{Version: offered, OK: true}); err != nil {
+		t.Fatalf("config-ack after the hold ended: %v", err)
+	}
+	for _, left := range srv.doctor.snapshot().Rejected {
+		if left.Client == testClientName {
+			t.Errorf("the hold is still recorded after a successful acknowledgement: %+v", left)
+		}
+	}
+}
+
 // TestManagedServeConfigIsolation: AC-10 -- a client only ever receives its own config.
 // The served config is keyed by the authenticated session name, and config-fetch carries
 // no name field, so a client authenticated as edge-02 gets edge-02's config, never

@@ -1,0 +1,66 @@
+module ze-managed-cmd {
+    namespace "urn:ze:managed:cmd";
+    prefix managedcmd;
+    import ze-extensions { prefix ze; }
+    description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
+    revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back."; }
+
+    container request {
+        config false;
+
+        container fleet {
+            config false;
+            description "Take this device out of the fleet its hub manages, or put it back.";
+            ze:help "Leave or rejoin the fleet.";
+
+            container disable {
+                config false;
+                ze:command "ze-managed:fleet-disable";
+                description "Stores the managed flag as false, then ends the hub connection of a
+                             daemon that started managed, and answers once that connection has
+                             ended. A configuration the device was applying is applied first.
+                             The device keeps the configuration it runs, and its hub can no
+                             longer change it. The command needs no hub and no connection, and
+                             takes no argument. With no daemon running, ze request fleet disable
+                             stores the flag, and the next ze start follows it.";
+                ze:help "Leave the fleet: end the hub connection and stop following the hub.";
+            }
+
+            container enable {
+                config false;
+                ze:command "ze-managed:fleet-enable";
+                description "Stores the managed flag as true. A daemon that started managed then
+                             starts its hub client from the configuration it runs, with no
+                             restart; a daemon that started unmanaged connects to its hub at the
+                             next ze start, and the answer says so. The command is refused, and
+                             the flag left as it was, while the configuration names no hub. It
+                             takes no argument. With no daemon running, ze request fleet enable
+                             stores the flag, and the next ze start follows it.";
+                ze:help "Rejoin the fleet: follow the hub again.";
+            }
+        }
+    }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container fleet {
+            config false;
+            description "Inspect how this device stands with the hub that manages its configuration.";
+            ze:help "This device and its hub.";
+
+            container status {
+                config false;
+                ze:command "ze-managed:show-fleet-status";
+                description "Reports whether this device is managed and frozen, the hub its
+                             configuration declares, the hash of the last configuration the hub
+                             gave it (the baseline), the hash of the configuration it runs, and
+                             whether the two differ. It reads the store and changes nothing, so
+                             ze show fleet status answers with no daemon too, and the answer
+                             says whether a running daemon gave it.";
+                ze:help "Whether this device follows a hub and matches its last configuration.";
+            }
+        }
+    }
+}

@@ -36,7 +36,9 @@ This guide follows the order of a first deployment:
 4. [Start the client](#4-start-the-client)
 
 Then the daily work: [change a client's configuration](#change-a-clients-configuration),
-[what happens when the hub is down](#when-the-hub-is-down) and
+[what happens when the hub is down](#when-the-hub-is-down),
+[how a client leaves and rejoins the fleet](#leave-and-rejoin-the-fleet),
+[what to do when a client holds](#when-a-client-holds) and
 [troubleshooting](#troubleshooting). The [reference](#reference) is at the end.
 
 ## 1. Set Up the Hub
@@ -236,16 +238,27 @@ request data restore path /var/backups/edge-01.zefs config client edge-01
 The hub pushes the restored configuration as it pushes any change.
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
 
-**To edit with the configuration editor,** on the hub's own host:
+**To edit with the configuration editor,** on the hub's own host, in the
+folder that holds the hub's store (its `ze.config.dir`):
 
 ```bash
 ze config edit client-edge-01.conf
 ```
 
+The command opens the store of the folder its path names, so a bare name
+typed in another folder finds no store there.
+<!-- source: internal/core/resolve/resolve.go -- StoreDir -->
+
 The editor runs inside the running hub. When you commit, the hub records a new
 version of that client's configuration and pushes it to the client, as it
 pushes an import. The file must exist first: give the hub the first version
 with `ze data import`.
+
+The hub refuses to open the editor on the configuration of a client that its
+own configuration does not declare, as it refuses to import one. Add the
+`client` entry to the hub first. The client does not have to be connected: a
+client that is away gets the change the next time it connects.
+<!-- source: cmd/ze/hub/session_factory.go -- undeclaredClientSessionRefusal -->
 
 The history and the archive of a client's configuration use the same name:
 
@@ -275,6 +288,261 @@ each time, up to 60 seconds.
 <!-- source: internal/component/managed/reconnect.go -- newBackoff -->
 <!-- source: internal/component/managed/client.go -- RunManagedClient -->
 
+## Leave and Rejoin the Fleet
+
+A client can leave its fleet and rejoin it. Neither command changes the
+client's configuration, and neither needs a restart of a client that was
+started as a managed client.
+
+### Leave the Fleet
+
+On the client:
+
+```bash
+ze request fleet disable
+```
+
+The command does two things, in this order:
+
+1. It stores `meta/instance/managed` as `false`.
+2. It closes the connection to the hub, and answers when the connection is
+   closed. If the client was applying a configuration from the hub at that
+   moment, it applies that configuration first.
+
+The client keeps running the configuration it has. What the hub writes for
+that client after this does not reach it.
+
+The command needs no hub. It works when the hub cannot be reached, when the
+client has no connection, and when the client's configuration names no hub.
+It also works when the client is stopped: it stores the flag, and the next
+`ze start` starts the client outside the fleet.
+<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, disableStopped, changeFleetLocal -->
+<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, stopWith, join -->
+
+### Rejoin the Fleet
+
+On the client:
+
+```bash
+ze request fleet enable
+```
+
+The command stores `meta/instance/managed` as `true`. What happens next
+depends on the client:
+
+| The client | What the command does |
+|------------|-----------------------|
+| Runs, and was started as a managed client | It starts the hub connection at once, from the configuration the client runs at that moment. The client does not restart |
+| Runs, and was started outside the fleet | It stores the flag only. The answer says that the hub connection starts at the next `ze start` |
+| Is stopped | It stores the flag. The next `ze start` starts the client as a managed client |
+
+The command is refused, and the flag stays as it was, while the client's
+configuration has no `client` block. Such a client has no hub to follow. Add
+the block to the client's configuration on the hub, then run
+`ze init --managed --force` on the client.
+
+What a client does after it rejoins depends on what happened while it was
+away:
+
+- Nobody changed the client. It follows its hub: it fetches the hub's
+  configuration, and applies it if it is a different one.
+- The client was changed. It holds, and `ze doctor` on the client reports
+  `doctor-managed-diverged` with the two ways to end the hold. See
+  [When a Client Holds](#when-a-client-holds).
+<!-- source: internal/component/managed/cmd_fleet.go -- enableOnDaemon, enableStopped, requireDeclaredHub, noDeclaredHub -->
+<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, startWith -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline -->
+
+### See Where a Client Stands
+
+```bash
+ze show fleet status
+```
+
+The answer says whether the client is managed, which hub its configuration
+names, and the two hashes that decide a hold. Three fields describe the hub
+connection of a running client:
+
+| Field | Value | Meaning |
+|-------|-------|---------|
+| `client` | `running` | The client is connected to its hub, or tries to connect |
+| `client` | `stopping` | `request fleet disable` is closing the hub connection. The status does not wait for the close |
+| `client` | `stopped` | The client was started as a managed client and makes no attempt to connect: it left the fleet, its configuration names no hub, or its hub block could not be read at start |
+| `client` | `not-started` | The client was started outside the fleet. A hub connection starts only at its next `ze start` |
+| `connection` | `connected`, `not-connected` | Whether the hub accepted the client and that connection is still open |
+| `holding` | `holding`, `not-holding` | Whether the client took nothing from its hub at its last fetch |
+
+When the client is stopped, each of the three fields says `no-daemon`.
+
+Use the two commands to leave and to rejoin. Another write of
+`meta/instance/managed`, with `update data key` or `ze data write`, decides
+the next start and does not close a connection that is open.
+<!-- source: internal/component/managed/cmd_fleet.go -- daemonClientReport, reportOf, noDaemonReport -->
+<!-- source: internal/component/managed/client.go -- RunManagedClient -->
+
+## When a Client Refuses Your Change
+
+A managed client takes its configuration from its hub. While it is managed,
+it refuses a change that you make on the client itself, with the daemon
+running or stopped. The refusal reads:
+
+```
+the configuration was not changed: this device is managed by a hub
+local changes are frozen while it follows a hub, so that a hub push cannot overwrite one
+fix: request fleet disable
+```
+<!-- source: internal/component/config/storage/freeze.go -- ErrConfigFrozen, refuseFrozenConfigLocked -->
+
+A commit in the editor, an import, a restore and a rollback all give this
+problem, reason and fix, and the fix is always the last line. Some of them
+put the command or the step that failed in front of the first line, for
+example `write candidate:`.
+
+With the daemon stopped, `ze config rollback <N> <file>` is the exception: it
+rolls back the file it names on disk and does not touch the stored
+configuration, so it is not refused. A configuration read from a file is
+never frozen.
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- daemonConfigImportRefusal -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- rollbackStoredConfig, storedRollbackRefusal, cmdRollbackThrough -->
+
+Nothing was written. The client runs the configuration it ran before.
+
+To change the configuration of a client that stays in the fleet, change it
+on the hub (see "Change a Client's Configuration").
+
+To change it on the client, take the client out of the fleet first:
+
+```bash
+ze request fleet disable
+```
+
+The client then accepts your change. `show fleet status` reports `frozen` as
+`false`. When the client rejoins with `request fleet enable`, it holds until
+its hub has the same configuration (see "When a Client Holds").
+<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus -->
+
+The refusal covers the commands that record a new version of the
+configuration. These change the client's configuration without a refusal:
+
+- a raw write of a store key, with `ze data write` or `update data key`,
+  such as a write of the active version pointer back to an earlier version
+- the restore of a whole store
+- a rename of a stored configuration
+- the first import of a configuration name the store does not hold yet
+
+A change made that way is not lost either: the client holds when it next
+compares its configuration with its hub's.
+<!-- source: internal/component/config/storage/import_config.go -- ImportConfig -->
+
+A daemon that was started from a configuration file or from standard input,
+and not from its store, follows no hub. It refuses nothing: its input is its
+configuration. `show fleet status` reports `frozen` as `false` there, even
+when `managed` is `true`.
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
+
+## When a Client Holds
+
+A client remembers which configuration its hub last gave it. When the
+configuration it runs is a different one, the client takes nothing from the
+hub. It holds.
+
+The hold protects a change made on the client itself, for example during an
+emergency. Without it, the next configuration from the hub would replace that
+change, and nothing would say so.
+
+A client that holds:
+
+- keeps running its own configuration
+- stays connected to the hub
+- refuses each configuration the hub offers, and tells the hub why
+
+A restart is not a change. A client that nobody changed follows its hub after
+a restart, as before.
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, holdFetched -->
+<!-- source: internal/component/managed/baseline.go -- Diverged -->
+
+### See That a Client Holds
+
+On the client:
+
+```bash
+ze doctor
+ze show fleet status
+```
+
+`ze doctor` reports `doctor-managed-diverged`. `show fleet status` shows the
+hash of the configuration the client runs, the hash of the last one its hub
+gave it, and `diverged`. Both commands answer with the client running or
+stopped. A running client that refused its hub's configuration at its last
+fetch also shows `holding` in the `holding` field.
+
+On the hub, `show doctor` lists the client under
+`doctor-managed-client-rejected`. The reason starts with `holding:` and gives
+the same two hashes.
+<!-- source: internal/component/managed/doctor.go -- checkManagedDiverged -->
+<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus, reportOf -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- managedRejectedRow -->
+
+### End the Hold
+
+The hold ends when the hub holds the same configuration as the client. There
+are two ways to get there.
+
+**Keep the client's configuration.** Give it to the hub. On the client, print
+the configuration it runs into a file named for the hub:
+
+```bash
+ze data cat file/active/edge-01.conf > client-edge-01.conf
+```
+
+Copy that file to the hub's host and import it there:
+
+```bash
+ze data import client-edge-01.conf
+```
+
+The hub tells the client. The client finds that the hub now holds the
+configuration it runs, and it stops holding. It applies nothing: it already
+runs that configuration. The file must be the client's configuration byte for
+byte. If `show fleet status` on the client still shows `diverged` after the
+import, the two copies differ.
+
+The client also tells the hub that it no longer holds, and the hub removes
+the `doctor-managed-client-rejected` row of that client from `show doctor`.
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline -->
+<!-- source: internal/component/config/storage/cli/main.go -- cmdCat, importConfigs -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
+
+**Discard the client's configuration.** Take the client out of the fleet,
+put it back on the version its hub sent, and let it rejoin. On the client,
+`ze config history` lists the versions of its configuration. Restore the one
+the hub sent:
+
+```bash
+ze request fleet disable
+ze config history edge-01.conf
+ze config rollback <N> edge-01.conf
+ze show fleet status
+ze request fleet enable
+```
+
+`show fleet status` must no longer show `diverged` before the last command.
+If it does, the restored version is not the one the hub sent, and the client
+holds again when it rejoins.
+
+The client then runs the configuration its hub last gave it, so it does not
+hold when it rejoins. It connects to the hub at once and takes the hub's
+configuration if the hub's copy changed meanwhile.
+<!-- source: internal/component/managed/doctor.go -- managedDivergedFix -->
+<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, enableOnDaemon, readFleetStatus -->
+<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
+
+A client provisioned before Ze recorded this, or provisioned again with
+`ze init --managed --force`, has no record of what its hub gave it. It does
+not hold. It takes the hub's configuration once, and holds from then on when
+it is changed.
+<!-- source: internal/component/managed/baseline.go -- Diverged -->
+
 ## Troubleshooting
 
 Start with `show doctor` on the hub, and `ze doctor` on the client.
@@ -292,9 +560,20 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-managed-client-notify-dropped` on the hub | A connected client did not accept the notice of a change | Nothing in most cases: the hub disconnects that client, and it fetches when it reconnects |
 | `doctor-hub-unreachable` on the client | The client cannot reach the hub's address | Check the address and the route. The client keeps running and retrying |
 | `doctor-hub-client-missing` on the client | The client applied a configuration with no `client` block, so it follows no hub | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
+| `doctor-managed-diverged` on the client | The client runs a configuration that is not the last one its hub gave it, so it holds | See [When a Client Holds](#when-a-client-holds) |
+| `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
+| A client holds after `request fleet enable` | The client was changed while it was out of the fleet | See [When a Client Holds](#when-a-client-holds) |
+| `request fleet enable` is refused: the configuration names no hub | The client's configuration has no `client` block, so the client has no hub to rejoin | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
+| `show fleet status` shows `managed` false | The client left the fleet with `request fleet disable`, and takes nothing from its hub | Run `ze request fleet enable` on the client |
+| `show fleet status` shows `managed` true and `client` `not-started` | The client was started outside the fleet, and `request fleet enable` ran after that | Restart Ze on the client: the hub connection starts at `ze start` |
+| `show fleet status` shows `managed` true and `client` `stopped` | The client's configuration names no hub | See the `doctor-hub-client-missing` row |
+| `show fleet status` shows `managed` true and `client` `stopped`, and the configuration names a hub | The client left the fleet with `request fleet disable`, and `meta/instance/managed` was then written back to `true` with `ze data write` or `update data key`. A raw write starts no client | Run `ze request fleet enable` on the client |
+| `show fleet status` shows `managed` true and `client` `stopped`, and the client logged `config-hub-invalid` at start | The client could not read the `client` block of its configuration, so it started no hub client | Correct the `client` block in its configuration on the hub, and check it there with `ze config validate`. Then run `ze init --managed --force` on the client, and start it |
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
+<!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared -->
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->
+<!-- source: internal/component/managed/cmd_fleet.go -- noDeclaredHub, daemonClientReport, reportOf -->
 
 ## Reference
 
@@ -356,16 +635,20 @@ MIIB...
 
 | Key | Holds | Written by |
 |-----|-------|------------|
-| `meta/instance/managed` | `true` for a managed client | `ze init --managed` |
+| `meta/instance/managed` | `true` for a managed client, `false` for one that left the fleet | `ze init --managed`, `request fleet disable`, `request fleet enable` |
 | `meta/instance/name` | The client's name | `ze init` |
 | `meta/managed/hub/address` | The hub's address, for the first start | `ze init --managed` |
 | `meta/managed/hub/token` | The client's secret, for the first start | `ze init --managed` |
 | `meta/managed/hub/ca` | The hub's root | `ze init --hub-ca`, or the first start with first use |
 | `meta/managed/hub/trust` | `first-use` when first use was chosen | `ze init --hub-trust-first-use` |
+| `meta/managed/base-version` | The hash of the last configuration the hub gave this client. See [When a Client Holds](#when-a-client-holds) | The client: at its first start, each time it applies a configuration from the hub, and when the hub confirms that it holds the configuration the client runs |
 
-Set `meta/instance/managed` to `false` to make a client stop following its hub
-with no change to its configuration.
-<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust -->
+`request fleet disable` and `request fleet enable` change
+`meta/instance/managed` with no change to the client's configuration. See
+[Leave and Rejoin the Fleet](#leave-and-rejoin-the-fleet).
+<!-- source: internal/component/managed/cmd_fleet.go -- storeManagedFlag -->
+<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust, KeyManagedBaseVersion -->
+<!-- source: internal/component/managed/baseline.go -- StoreBaseline -->
 <!-- source: cmd/ze/ze_core_start.go -- isManaged -->
 
 The design, the protocol and the reasons are in

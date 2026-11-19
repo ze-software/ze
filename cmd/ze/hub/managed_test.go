@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -127,4 +128,76 @@ func mustParseManagedStamp(t *testing.T, stamp string) time.Time {
 	t.Helper()
 	parsed := mustParseReloadStamp(t, stamp)
 	return parsed
+}
+
+// managedPushStore is a device store whose configuration the boot record has
+// versioned, as a managed client holds it before a hub push. It answers the
+// store and the configuration path the push is given.
+func managedPushStore(t *testing.T) (storage.Storage, string) {
+	t.Helper()
+	dir := t.TempDir()
+	store := newTestStore(t, dir)
+	configPath := filepath.Join(dir, "ze.conf")
+	activeStamp := "20260524-090000.000"
+	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
+	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
+	return store, configPath
+}
+
+// TestBaselineWrittenAfterPush proves that a hub push records the device's
+// baseline: it runs the wired OnCommit with a reload that promotes the staged
+// candidate, as the daemon's reload does, on a store that held no baseline.
+//
+// VALIDATES: AC-1. meta/managed/base-version holds the hash of the
+// configuration the store answers as active after the push, which is the one
+// the managed client then compares (managed.ActiveVersion).
+// PREVENTS: a device with no record of what its hub gave it, which is what
+// lets the next fetch overwrite a local change.
+//
+// MUTATION: drop recordPushBaseline from applyManagedPush and this fails: the
+// baseline is not recorded.
+func TestBaselineWrittenAfterPush(t *testing.T) {
+	store, configPath := managedPushStore(t)
+	client := &managed.ClientConfig{}
+	wireManagedCommit(client, store, configPath, func() error {
+		return storage.PromoteCandidate(store, configPath)
+	}, nil, nil)
+
+	require.NoError(t, client.OnCommit([]byte("new")))
+
+	baseline, err := managed.BaselineVersion(store)
+	require.NoError(t, err)
+	require.True(t, baseline.Recorded(), "a successful push recorded no baseline")
+	active, err := managed.ActiveVersion(store)
+	require.NoError(t, err)
+	assert.Equal(t, active, baseline, "the baseline is not the hash of the active configuration")
+	versioned, err := storage.ReadActiveConfig(store, configPath)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.VersionHash(versioned), baseline.Hash(), "the baseline is not the hash of the store's active version")
+}
+
+// TestBaselineUnchangedWhenPushFails proves that a push that made nothing
+// active leaves the baseline alone: it runs the wired OnCommit with a reload
+// that fails, on a store whose baseline is the configuration it runs.
+//
+// VALIDATES: AC-1, permitted survivor. The baseline is still the hash of the
+// configuration the device runs, not of the bytes the hub sent.
+// PREVENTS: a refused push moving the baseline to a configuration the device
+// never ran, so the device holds against its own hub from then on.
+func TestBaselineUnchangedWhenPushFails(t *testing.T) {
+	store, configPath := managedPushStore(t)
+	before, err := managed.RecordActiveAsBaseline(store)
+	require.NoError(t, err)
+	client := &managed.ClientConfig{}
+	wireManagedCommit(client, store, configPath, func() error {
+		return errors.New("verify rejected")
+	}, nil, nil)
+
+	require.Error(t, client.OnCommit([]byte("new")))
+
+	baseline, err := managed.BaselineVersion(store)
+	require.NoError(t, err)
+	assert.Equal(t, before, baseline, "a failed push moved the baseline")
+	assert.NotEqual(t, fleet.VersionHash([]byte("new")), baseline.Hash())
 }

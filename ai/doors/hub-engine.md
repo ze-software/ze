@@ -29,9 +29,10 @@ repeat it.
   `SetReactor` and `OnPostStartup` (`internal/component/bgp/plugin/register.go`).
   That is the wiring, not the design: BGP and its plugins stay one subsystem
   that `ze_bgp` compiles out.
-- **The plugin server is the EventBus and does the forking.** `eng.Start` runs
-  before any plugin process exists. The five startup phases run later, in
-  `apiServer.StartWithContext` (`cmd/ze/hub/main.go`).
+- **The plugin server is the EventBus; its process spawner owns forking.**
+  The hub binds the server's complete startup to the plugin manager before
+  `eng.Start`. That call joins plugin initialization before starting registered
+  subsystems (`cmd/ze/hub/main.go`, `plugin/manager/startup_runner.go`).
 - **Managed configuration has two sides in this tree.** The client is
   `internal/component/managed` `RunManagedClient`. The hub side is
   `startManagedServer` (`cmd/ze/hub/managed_server.go`) over

@@ -305,6 +305,8 @@ ze-ldp:show-neighbor
 ze-log:bgp-log-levels
 ze-log:bgp-log-recent
 ze-log:bgp-log-set
+ze-managed:fleet-disable
+ze-managed:fleet-enable
 ze-meta:bgp-command-complete
 ze-meta:bgp-command-help
 ze-meta:bgp-command-list

@@ -56,9 +56,13 @@ func stopConfirmWindow(window *confirm.Window) {
 // candidate and accepted through the same reload a commit uses, so the
 // daemon runs it before it is promoted. Editor.Rollback is not used: it writes
 // the config without the candidate and reload path (A-6).
+//
+// No operator decides a revert, so it stages through the store's machine
+// entry: a device that joined a fleet while its window was open still reverts
+// (storage.StageMachineCandidate).
 func confirmRevert(store storage.Storage, configPath string, reload func() error) confirm.Reverter {
 	return func(rollback []byte) error {
-		if _, err := storage.WriteCandidateVersion(store, configPath, rollback, time.Now()); err != nil {
+		if _, err := storage.StageMachineCandidate(store, configPath, rollback, time.Now()); err != nil {
 			return fmt.Errorf("revert unconfirmed commit: %w", err)
 		}
 		if err := reload(); err != nil {

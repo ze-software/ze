@@ -115,7 +115,15 @@ func configRolledBack(name string, revision int, selected storage.VersionInfo, s
 	}
 }
 
+// configRollbackRefusal answers a rollback that did not finish. An operator
+// error the store gave (the freeze of a managed device, a key the freeze could
+// not read) is answered as the store wrote it: it is already the whole
+// operator error, and wrapping it would end the answer on another fix than its
+// own.
 func configRollbackRefusal(problem string, cause error) *zePlugin.Response {
+	if refusal, given := storage.FreezeRefusal(cause); given {
+		return zePlugin.OperatorErrorResponse(refusal)
+	}
 	return zePlugin.OperatorErrorResponse(opererr.Wrap(cause,
 		"request data config rollback: "+problem,
 		"no different revision is substituted; inspect the reported history or pending transaction before retrying",

@@ -775,6 +775,20 @@ active, rollback or recovery, including after a crash between pointer
 publications, and clears a candidate pointer whose entry is already absent.
 Nameless legacy pointers are never read.
 
+Candidate staging has two entries. `WriteCandidateVersion` and
+`WriteCandidateVersionWithGuard` stage an operator's change, and first ask the
+freeze of a managed device: its own stored configuration is refused with
+`ErrConfigFrozen` before anything is written. `StageMachineCandidate` stages
+for a writer no operator decides (a hub push, a revert, a boot record, schema
+recovery) and `StageSourceCandidate` stages the source's own bytes for the
+signal reload; neither asks the freeze. `RestoreConfig`, `ImportConfig` over
+an existing configuration, `RollbackConfig` and `CommitConfigWithGuard` stage
+through the operator entry. `EnsureActiveVersion` and `PublishArtifactConfig`
+write a version without staging a candidate and are not frozen. The scope and
+the reason are in `fleet-config.md`, "The freeze".
+<!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersionWithGuard, StageMachineCandidate, StageSourceCandidate, stageCandidateLocked -->
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked, ErrConfigFrozen -->
+
 ### The boot record
 
 A daemon no longer records the configuration it booted from (for an explicit

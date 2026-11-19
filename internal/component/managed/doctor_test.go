@@ -2,12 +2,15 @@ package managed
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/zefs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -135,4 +138,104 @@ func TestHubClientDoctorCheck(t *testing.T) {
 		assert.Nil(t, checkHubClientDeclared(diagnostic.DoctorCheckContext{Tree: nil}))
 		assert.Nil(t, checkHubClientDeclared(diagnostic.DoctorCheckContext{Tree: "not a tree"}))
 	})
+}
+
+// divergedDoctorStore creates a device store that holds holdDeviceConfig as
+// its configuration, the hash of earlier as its baseline when earlier is not
+// empty, and flag as its managed flag when flag is not empty.
+func divergedDoctorStore(t *testing.T, flag, earlier string) storage.Storage {
+	t.Helper()
+	store := holdDevice(t, holdDeviceConfig, earlier)
+	if flag != "" {
+		require.NoError(t, store.WriteKey(zefs.KeyInstanceManaged.Pattern, []byte(flag)))
+	}
+	return store
+}
+
+// TestDivergedDoctorCheck proves when the managed-diverged check reports: it
+// runs the registered check function over real stores of a managed client.
+//
+// VALIDATES: AC-8. A managed client whose configuration is not the last one
+// its hub sent is reported as a warning under doctor-managed-diverged, with
+// both hashes and the fix; one whose configuration is the baseline, and one
+// with no baseline (D-6), report nothing.
+// PREVENTS: a device that holds with nothing in `ze doctor` to say so, and a
+// finding that says the configuration was edited when a recovery changed it.
+func TestDivergedDoctorCheck(t *testing.T) {
+	t.Run("managed and differing warns", func(t *testing.T) {
+		store := divergedDoctorStore(t, managedFlagTrue, holdEarlierConfig)
+
+		diags := managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store})
+
+		require.Len(t, diags, 1)
+		assert.Equal(t, diagnostic.CodeDoctorManagedDiverged, diags[0].Code)
+		assert.Contains(t, managedDivergedDoctorCheck.Codes, diags[0].Code, "the check reports a code it does not declare")
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.Equal(t, managedDivergedFix(""), diags[0].Fix, "a configuration that names no hub client keeps the placeholder")
+		assert.Contains(t, diags[0].Message, "differs from the last one its hub sent")
+		assert.Contains(t, diags[0].Message, versionOf([]byte(holdDeviceConfig)).Hash())
+		assert.Contains(t, diags[0].Message, versionOf([]byte(holdEarlierConfig)).Hash())
+		assert.NotContains(t, diags[0].Message, "edit")
+	})
+	t.Run("managed and equal to the baseline is quiet", func(t *testing.T) {
+		store := divergedDoctorStore(t, managedFlagTrue, holdDeviceConfig)
+		assert.Nil(t, managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}))
+	})
+	t.Run("managed with no baseline is quiet", func(t *testing.T) {
+		store := divergedDoctorStore(t, managedFlagTrue, "")
+		assert.Nil(t, managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}))
+	})
+	t.Run("no store is quiet", func(t *testing.T) {
+		assert.Nil(t, managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{}))
+	})
+}
+
+// TestDivergedDoctorFixNamesTheClient proves that the fix of the hold names
+// the device's own configuration on its hub: the device runs a configuration
+// whose hub client block is named edge-01, which differs from its baseline.
+//
+// VALIDATES: the fix names client-edge-01.conf, the name the hub stores the
+// client's configuration under, and no placeholder.
+// PREVENTS: a fix the operator must edit before it runs.
+func TestDivergedDoctorFixNamesTheClient(t *testing.T) {
+	store := holdDevice(t, fleetStatusConfig, holdEarlierConfig)
+	require.NoError(t, store.WriteKey(zefs.KeyInstanceManaged.Pattern, []byte(managedFlagTrue)))
+
+	diags := managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store})
+
+	require.Len(t, diags, 1)
+	assert.Contains(t, diags[0].Fix, "ze data import client-edge-01.conf;")
+	assert.NotContains(t, diags[0].Fix, "<name>")
+}
+
+// TestDivergedDoctorSilentWhenUnmanaged proves the check is gated on the
+// managed flag itself: it runs over stores whose configuration differs from a
+// recorded baseline, with the flag false and with no flag.
+//
+// VALIDATES: AC-8 and AC-22. Outside a fleet a local change is not a problem.
+// PREVENTS: a fleet warning on a device that left its fleet with `request
+// fleet disable` and was then changed, which is what leaving is for.
+func TestDivergedDoctorSilentWhenUnmanaged(t *testing.T) {
+	for _, flag := range []string{"false", ""} {
+		store := divergedDoctorStore(t, flag, holdEarlierConfig)
+		assert.Nil(t, managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}), "managed flag %q", flag)
+	}
+}
+
+// TestDivergedDoctorReportsWhatItCannotCompare proves that a managed client
+// whose store could not answer is reported, by building the finding from a
+// read failure.
+//
+// VALIDATES: "cannot compare" is a warning under doctor-managed-diverged that
+// carries the cause and the command that checks the store.
+// PREVENTS: a store that cannot be read shown as a device that is in sync
+// while its client applies nothing.
+func TestDivergedDoctorReportsWhatItCannotCompare(t *testing.T) {
+	diags := diagnoseManagedUncompared("the baseline", errors.New("the key did not decode"))
+
+	require.Len(t, diags, 1)
+	assert.Equal(t, diagnostic.CodeDoctorManagedDiverged, diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	assert.Equal(t, fixCheckStore, diags[0].Fix)
+	assert.Contains(t, diags[0].Message, "the key did not decode")
 }

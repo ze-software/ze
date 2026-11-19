@@ -196,8 +196,11 @@ func startManagedLifetimeHub(t *testing.T, store storage.Storage, client *manage
 	hub := &managedLifetimeHub{done: make(chan struct{})}
 	go func() {
 		defer close(hub.done)
+		// The daemon builds its hub client through a builder; this one hands
+		// it the client the test controls.
 		hub.exit = runYANGConfig(store, "-", config, nil, 0, -1,
-			false, false, "", false, "", "", false, client)
+			false, false, "", false, "", "", false,
+			func() (*managed.ClientConfig, error) { return client, nil })
 	}()
 	select {
 	case hub.dispatch = <-dispatchReady:

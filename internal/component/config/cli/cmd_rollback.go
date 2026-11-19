@@ -137,19 +137,29 @@ func rollbackStoredConfig(store storage.Storage, name string, revision int) int 
 		return rollbackErr
 	})
 	if err != nil {
-		// Keep the recorded window's boot recovery command on the final line.
-		if stopped, recorded := err.(*confirm.StoppedWindowError); recorded { //nolint:errorlint // WriteOutsideRecorded returns this refusal directly, before apply.
-			var refusal *opererr.Error = stopped.OperatorError() //nolint:modernize,staticcheck // inferdecl/ST1023: Pin the complete stopped-window refusal type at the stderr boundary.
-			fmt.Fprintln(os.Stderr, "error:", refusal)
-			return exitError
-		}
-		fmt.Fprintln(os.Stderr, "error:", opererr.Wrap(err,
-			"ze config rollback: the stored rollback could not finish",
-			"The requested publication was not confirmed. Inspect its history before retrying.",
-			configRollbackHistoryLine(name)))
+		fmt.Fprintln(os.Stderr, "error:", storedRollbackRefusal(name, err))
 		return exitError
 	}
 	return printConfigRollback(revision, selected.Date)
+}
+
+// storedRollbackRefusal is the operator error of a stored rollback that did
+// not finish. An operator error the store gave (the freeze of a managed
+// device, a key the freeze could not read) is answered as the store wrote it:
+// wrapping it would end the message on another fix than its own.
+func storedRollbackRefusal(name string, err error) *opererr.Error {
+	// Keep the recorded window's boot recovery command on the final line.
+	if stopped, recorded := err.(*confirm.StoppedWindowError); recorded { //nolint:errorlint // WriteOutsideRecorded returns this refusal directly, before apply.
+		var refusal *opererr.Error = stopped.OperatorError() //nolint:modernize,staticcheck // inferdecl/ST1023: Pin the complete stopped-window refusal type at the stderr boundary.
+		return refusal
+	}
+	if refusal, given := storage.FreezeRefusal(err); given {
+		return refusal
+	}
+	return opererr.Wrap(err,
+		"ze config rollback: the stored rollback could not finish",
+		"The requested publication was not confirmed. Inspect its history before retrying.",
+		configRollbackHistoryLine(name))
 }
 
 func printConfigRollback(revision int, selected time.Time) int {

@@ -39,7 +39,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 71/71 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 72/72 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -70,6 +70,7 @@ func Evidence() []Invocation {
 		{Command: "show data list --path %s | json compact", Evidence: "show data list"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show data check --path %s | json compact", Evidence: "show data check"},
+		{Command: "show fleet status | json compact", Evidence: "show fleet status"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
 		{Command: "show yang tree --config | json compact", Evidence: "show yang tree"},
 		{Command: "show yang completion --min-prefix 2 | json compact", Evidence: "show yang completion"},
@@ -798,6 +799,24 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 	if err := require(verdict["entries"] != float64(0), "data check counted no entry in the seeded store: %#v", verdict); err != nil {
+		return err
+	}
+	// No daemon runs in the private workspace, so the answer is the store's
+	// alone and says so: the workspace store holds no managed flag.
+	payload, err = localJSON("show fleet status | json compact", "show fleet status", output)
+	if err != nil {
+		return err
+	}
+	fleet, isFleet := payload.(map[string]any)
+	if err := require(isFleet, "fleet status answered %T, want the status document", payload); err != nil {
+		return err
+	}
+	if err := require(fleet["managed"] == false && fleet["frozen"] == false && fleet["diverged"] == false,
+		"fleet status did not answer an unmanaged device for the workspace store: %#v", fleet); err != nil {
+		return err
+	}
+	if err := require(fleet["daemon-answered"] == false && fleet["client"] == "no-daemon",
+		"fleet status did not say that no daemon answered: %#v", fleet); err != nil {
 		return err
 	}
 

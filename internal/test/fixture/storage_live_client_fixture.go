@@ -170,11 +170,7 @@ func restoreClientDaemon(ctx context.Context, base, role string, managedClient b
 // order caTrustHubConfig explains.
 func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
 	var b textbuf.Buffer
-	b.Str("system {\n    authentication {\n        user admin {\n")
-	b.Str("            password \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n")
-	b.Str("        }\n    }\n}\n")
-	b.Str("environment {\n    ssh {\n        enabled true\n        server main {\n")
-	b.Str("            ip 127.0.0.1;\n            port ").Str(sshPort).Str(";\n        }\n    }\n}\n")
+	b.Str(restoreClientSSHListener(sshPort))
 	b.Str("plugin {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(pluginPort).
 		Str("; secret \"").Str(caTrustPluginSecret).Str("\"; }\n")
@@ -183,6 +179,18 @@ func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
 	b.Str("            client ").Str(caTrustClientName).Str(" { secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("        }\n    }\n}\n")
 	b.Str("bgp {\n    session { asn { local 65000; } }\n    router-id 10.0.0.1\n}\n")
+	return b.String()
+}
+
+// restoreClientSSHListener is the part of a config that serves SSH on sshPort
+// to the login restoreClientDaemon gave `ze init`: the user, then the listener.
+func restoreClientSSHListener(sshPort string) string {
+	var b textbuf.Buffer
+	b.Str("system {\n    authentication {\n        user admin {\n")
+	b.Str("            password \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n")
+	b.Str("        }\n    }\n}\n")
+	b.Str("environment {\n    ssh {\n        enabled true\n        server main {\n")
+	b.Str("            ip 127.0.0.1;\n            port ").Str(sshPort).Str(";\n        }\n    }\n}\n")
 	return b.String()
 }
 

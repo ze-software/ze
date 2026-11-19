@@ -1,6 +1,7 @@
 // Design: ai/rules/repo-maintenance.md -- management hub reachability readiness check
 // Related: client.go -- the managed client whose hub dependency this check guards
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck
+// Related: baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion and Diverged, the one reader of each fact the checks judge
 
 // The managed component owns the plugin/hub/client dependency (a node's outbound
 // connection to a management hub), so it owns this doctor check
@@ -15,7 +16,6 @@ package managed
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -33,16 +33,27 @@ var hubProbeTimeout = 3 * time.Second
 // diagnostic logic without real network I/O (radiusAdminProbe convention).
 var hubProbe = hubReachable
 
+// doctorComponent is the component every check of this package reports under,
+// and doctorNeedsConfigTree the dependency each one declares: all three read
+// the configuration tree.
+const (
+	doctorComponent       = "managed"
+	doctorNeedsConfigTree = "config-tree"
+	// codeHubUnreachable is the code hubDoctorCheck declares. A hub exchange
+	// that fails on a live connection logs under it too.
+	codeHubUnreachable = "doctor-hub-unreachable"
+)
+
 // hubDoctorCheck is the readiness check registered from register.go. It reads
 // the parsed config tree, so it depends on config-tree and runs post-config.
 var hubDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "hub-unreachable",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        730,
-	Component:    "managed",
-	Dependencies: []string{"config-tree"},
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{"doctor-hub-unreachable"},
+	Codes:        []string{codeHubUnreachable},
 	Check:        checkHubReachable,
 }
 
@@ -52,11 +63,120 @@ var hubClientDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "hub-client-missing",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        731,
-	Component:    "managed",
-	Dependencies: []string{"config-tree"},
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorHubClientMissing},
 	Check:        checkHubClientDeclared,
+}
+
+// managedDivergedDoctorCheck reports a managed client whose configuration is
+// not the last one its hub gave it. Registered from register.go. It reads the
+// store alone, which answers the same in the operator's process and in the
+// daemon's, so it is a post-config check and reports with the daemon running
+// or stopped.
+var managedDivergedDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "managed-diverged",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        732,
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorManagedDiverged},
+	Check:        checkManagedDiverged,
+}
+
+// managedDivergedFix names the two ways out of a hold: give the hub the
+// configuration this device runs, or leave the fleet, return to the hub's
+// configuration and rejoin. Each ends at a fetch the hub answers "current",
+// which is what records a new baseline. client is the name the device's hub
+// client block gives it, which names its configuration on the hub
+// (client-<name>.conf); empty when the configuration names no client, and the
+// fix then shows the placeholder.
+func managedDivergedFix(client string) string {
+	if client == "" {
+		client = "<name>"
+	}
+	return "to keep this device's configuration, on the hub: ze data import client-" + client + ".conf; " +
+		"to discard it, on this device: request fleet disable, roll back to the version the hub sent, request fleet enable"
+}
+
+// checkManagedDiverged warns when this node is a managed client and the
+// configuration it runs differs from its baseline. The managed client then
+// holds: it applies nothing its hub sends.
+//
+// A node that is not managed reports nothing, whatever its store holds:
+// outside a fleet a local change is not a problem. A flag that cannot be read
+// reports nothing either, as in checkHubClientDeclared. A managed node whose
+// baseline or configuration cannot be read is reported: its client applies
+// nothing while that lasts (refuseUncompared), so "cannot compare" is never
+// shown as "not diverged".
+func checkManagedDiverged(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	if ctx.Store == nil {
+		return nil
+	}
+	managed, err := ManagedFlag(ctx.Store)
+	if err != nil {
+		return nil // The managed flag cannot be read: this check has nothing to judge.
+	}
+	if !managed {
+		return nil
+	}
+	content, stored, err := activeConfig(ctx.Store)
+	if err != nil {
+		return diagnoseManagedUncompared("the configuration of this device", err)
+	}
+	baseline, err := BaselineVersion(ctx.Store)
+	if err != nil {
+		return diagnoseManagedUncompared("the baseline ("+zefs.KeyManagedBaseVersion.Pattern+")", err)
+	}
+	var active ConfigVersion
+	if stored {
+		active = versionOf(content)
+	}
+	return diagnoseManagedDiverged(active, baseline, clientNameOf(content))
+}
+
+// clientNameOf answers the name the hub client block of content gives this
+// device, or empty when content names none or its block cannot be read: the
+// name only fills the fix, which then shows the placeholder.
+func clientNameOf(content []byte) string {
+	endpoint, err := DeclaredEndpoint(content)
+	if err != nil {
+		return "" // No client name to show: the fix keeps its placeholder.
+	}
+	return endpoint.Name
+}
+
+// diagnoseManagedDiverged is checkManagedDiverged on what a managed node's
+// store answered. The text says the configuration differs and never that it
+// was edited: a recovery or a confirmed-commit revert changes it with no
+// operator involved.
+// client is the device's name on its hub, empty when unknown.
+func diagnoseManagedDiverged(active, baseline ConfigVersion, client string) []diagnostic.Diagnostic {
+	if !Diverged(active, baseline) {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     diagnostic.CodeDoctorManagedDiverged,
+		Severity: diagnostic.SeverityWarning,
+		Message: "the configuration this managed client runs (version " + active.Hash() + ") differs from the last one its hub sent (version " +
+			baseline.Hash() + "), so it holds: it applies nothing the hub sends",
+		Help: "the hold ends when the hub holds the same configuration as this device; show fleet status reports both hashes",
+		Fix:  managedDivergedFix(client),
+	}}
+}
+
+// diagnoseManagedUncompared reports a managed node whose store could not
+// answer what, one of the two values the hold compares.
+func diagnoseManagedUncompared(what string, cause error) []diagnostic.Diagnostic {
+	return []diagnostic.Diagnostic{{
+		Code:     diagnostic.CodeDoctorManagedDiverged,
+		Severity: diagnostic.SeverityWarning,
+		Message: what + " could not be read from the store, so this managed client cannot compare it with the last configuration its hub sent " +
+			"and applies nothing the hub sends: " + cause.Error(),
+		Fix: fixCheckStore,
+	}}
 }
 
 // hubClientMissingFix is what brings a managed client with no hub block back
@@ -81,15 +201,15 @@ func checkHubClientDeclared(ctx diagnostic.DoctorCheckContext) []diagnostic.Diag
 	if ctx.Store == nil {
 		return nil
 	}
-	flag, err := ctx.Store.ReadFile(zefs.KeyInstanceManaged.Pattern)
+	managed, err := ManagedFlag(ctx.Store)
 	if err != nil {
-		return nil // No managed flag to read: this check has nothing to judge.
+		return nil // The managed flag cannot be read: this check has nothing to judge.
 	}
 	hubCfg, err := config.ExtractHubConfig(tree)
 	if err != nil {
 		return nil // Config validation reports a hub block it cannot read.
 	}
-	return diagnoseHubClientDeclared(strings.TrimSpace(string(flag)) == "true", len(hubCfg.Clients))
+	return diagnoseHubClientDeclared(managed, len(hubCfg.Clients))
 }
 
 // diagnoseHubClientDeclared is checkHubClientDeclared on what it read.
@@ -146,9 +266,11 @@ func diagnoseHubReachability(clients []plugin.HubClientConfig) []diagnostic.Diag
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-hub-unreachable",
+		Code:     codeHubUnreachable,
 		Severity: diagnostic.SeverityWarning,
 		Message:  "the configured management hub is not reachable",
+		Fix: "start the hub at " + primary.Address() + ", or correct the host and port of this device's " +
+			"plugin hub client block in its configuration on the hub; ze doctor on the hub reports a managed listener that did not bind",
 	}}
 }
 

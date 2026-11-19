@@ -12,11 +12,13 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
 	"github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -319,4 +321,108 @@ func TestFirstUseRefusesAHubThatPresentsNoAuthority(t *testing.T) {
 // tlsStateWith is the connection state of a hub that presented chain.
 func tlsStateWith(chain ...*x509.Certificate) tls.ConnectionState {
 	return tls.ConnectionState{PeerCertificates: chain}
+}
+
+// TestBaselineWrittenOnFirstStart proves that the first start records the
+// device's baseline: it fetches the configuration from a real hub as the first
+// start does and caches it with the function the first start calls.
+//
+// VALIDATES: AC-2. meta/managed/base-version holds the hash of the cached
+// configuration, read back from the store, before any managed client runs.
+// PREVENTS: a device whose first reconnect finds no baseline, or one taken
+// from the fetched bytes and never checked against what the store holds.
+//
+// MUTATION: drop RecordActiveAsBaseline from cacheFirstConfig and this fails:
+// the baseline is not recorded.
+func TestBaselineWrittenOnFirstStart(t *testing.T) {
+	addr, root := bootHub(t)
+	store := bootStore(t)
+	writeKey(t, store, zefs.KeyInstanceName.Pattern, bootClient)
+	fetched, _, err := fetchInitialConfig(managedBootstrap{server: addr, name: bootClient, token: bootToken, root: root.Certificate()})
+	if err != nil {
+		t.Fatalf("fetchInitialConfig: %v", err)
+	}
+
+	if cacheErr := cacheFirstConfig(store, bootClient+".conf", fetched); cacheErr != nil {
+		t.Fatalf("cacheFirstConfig: %v", cacheErr)
+	}
+
+	baseline, err := managed.BaselineVersion(store)
+	if err != nil {
+		t.Fatalf("BaselineVersion: %v", err)
+	}
+	if !baseline.Recorded() {
+		t.Fatal("the first start recorded no baseline")
+	}
+	active, err := managed.ActiveVersion(store)
+	if err != nil {
+		t.Fatalf("ActiveVersion: %v", err)
+	}
+	if baseline != active {
+		t.Errorf("baseline %q is not the hash of the active configuration %q", baseline.Hash(), active.Hash())
+	}
+	if want := fleet.VersionHash([]byte(bootConfig)); baseline.Hash() != want {
+		t.Errorf("baseline %q, want the hash of the hub's configuration %q", baseline.Hash(), want)
+	}
+}
+
+// TestBaselineStableAcrossRestart proves that a device nobody changed is not
+// diverged after a restart: it caches a first configuration, lets the boot
+// record version it as a stored-source daemon does (storage.EnsureActiveVersion),
+// closes the store, opens it again and compares the two hashes.
+//
+// VALIDATES: A-1 and AC-3. The hash of the active configuration equals the
+// baseline in the reopened store, and the start path gives the managed client
+// it builds from that store its baseline access, so the client compares the
+// two and applies what its hub sends.
+// PREVENTS: a device that holds after every restart.
+func TestBaselineStableAcrossRestart(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.Create(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+	configName := bootClient + ".conf"
+	writeKey(t, store, zefs.KeyInstanceName.Pattern, bootClient)
+	if cacheErr := cacheFirstConfig(store, configName, []byte(managedClientConfigText)); cacheErr != nil {
+		t.Fatalf("cacheFirstConfig: %v", cacheErr)
+	}
+	booted, err := storage.ReadActiveConfig(store, configName)
+	if err != nil {
+		t.Fatalf("ReadActiveConfig: %v", err)
+	}
+	if _, _, ensureErr := storage.EnsureActiveVersion(store, configName, booted, time.Now()); ensureErr != nil {
+		t.Fatalf("EnsureActiveVersion: %v", ensureErr)
+	}
+	if closeErr := store.Close(); closeErr != nil {
+		t.Fatalf("close store: %v", closeErr)
+	}
+
+	reopened, err := storage.Open(dir)
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	t.Cleanup(func() { reopened.Close() }) //nolint:errcheck // test cleanup
+
+	active, err := managed.ActiveVersion(reopened)
+	if err != nil {
+		t.Fatalf("ActiveVersion: %v", err)
+	}
+	baseline, err := managed.BaselineVersion(reopened)
+	if err != nil {
+		t.Fatalf("BaselineVersion: %v", err)
+	}
+	if !baseline.Recorded() {
+		t.Fatal("the baseline did not survive the restart")
+	}
+	if managed.Diverged(active, baseline) {
+		t.Errorf("an unchanged device is diverged after a restart: active %q, baseline %q", active.Hash(), baseline.Hash())
+	}
+	clientCfg, err := extractManagedClientConfig(reopened, configName)
+	if err != nil {
+		t.Fatalf("the start path built no managed client from a configuration that names a hub: %v", err)
+	}
+	if clientCfg.Baseline == nil {
+		t.Error("the start path built a managed client with no baseline access, so it would not hold")
+	}
 }

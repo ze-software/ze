@@ -50,7 +50,8 @@ const (
 	CodeDoctorManagedClientRejected         = "doctor-managed-client-rejected"
 	CodeDoctorManagedClientNotifyDropped    = "doctor-managed-client-notify-dropped"
 	CodeDoctorHubClientMissing              = "doctor-hub-client-missing"
-	CodeDoctorPluginRemovalUnrecovered      = "doctor-plugin-removal-unrecovered"
+	CodeDoctorManagedDiverged               = "doctor-managed-diverged"
+	CodeDoctorPluginRemovalUnrecovered     = "doctor-plugin-removal-unrecovered"
 	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
 	CodeDoctorCommandEnsureRollbackFailed   = "doctor-command-ensure-rollback-failed"
 	CodeDoctorCommandDeprecatedUsed         = "doctor-command-deprecated-used"
@@ -362,6 +363,16 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "This node is a managed client (meta/instance/managed is true) and its configuration has no plugin hub client block, so it connects to no hub and receives no configuration change. " +
 			"A hub can no longer correct this node: the configuration it serves for this node lost the block, and the node applied it.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-hub-client-missing"},
+	},
+	{
+		Code:  CodeDoctorManagedDiverged,
+		Title: "Managed client configuration differs from the hub's last one",
+		Description: "This node is a managed client (meta/instance/managed is true) and the configuration it runs differs from the last one its hub gave it: " +
+			"the hash of the active configuration is not the baseline in meta/managed/base-version. " +
+			"The difference can come from a local change or from a recovery that replaced the configuration. " +
+			"`show fleet status` shows both hashes.",
+		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-diverged"},
+		RelatedCodes: []string{CodeDoctorHubClientMissing},
 	},
 	{
 		Code:  CodeDoctorManagedClientNotifyDropped,

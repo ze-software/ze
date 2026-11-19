@@ -217,3 +217,38 @@ func TestManagedInitFromFlags(t *testing.T) {
 		})
 	}
 }
+
+// TestInitForceRemovesBaseline proves that provisioning a managed client
+// again returns it to a device with no baseline: it initializes a managed
+// store, records a baseline in it as a hub push does, and runs the forced
+// init over it.
+//
+// VALIDATES: fleet-6 AC-21 and D-6. meta/managed/base-version is gone with the
+// rest of the replaced store, and the device is still managed, so its next
+// start is a first start that records a fresh baseline.
+// PREVENTS: a device provisioned again that holds against its hub's first
+// configuration because of a baseline left from its previous life.
+func TestInitForceRemovesBaseline(t *testing.T) {
+	dir := t.TempDir()
+	if code := runInitFleet(strings.NewReader(managedInput), nil, dir, managedInit{enabled: true}, "", "", false, false); code != 0 {
+		t.Fatalf("first init: exit = %d", code)
+	}
+	previous, err := storage.Open(dir)
+	if err != nil {
+		t.Fatalf("open the initialized store: %v", err)
+	}
+	if writeErr := previous.WriteKey(zefs.KeyManagedBaseVersion.Pattern, []byte("0123456789abcdef\n")); writeErr != nil {
+		t.Fatalf("record a baseline: %v", writeErr)
+	}
+	if closeErr := previous.Close(); closeErr != nil {
+		t.Fatalf("close the initialized store: %v", closeErr)
+	}
+
+	if code := runInitFleet(strings.NewReader(managedInput), nil, dir, managedInit{enabled: true}, "", "", false, true); code != 0 {
+		t.Fatalf("forced init: exit = %d", code)
+	}
+
+	store := openInitStore(t, dir)
+	assertAbsent(t, store, zefs.KeyManagedBaseVersion.Pattern)
+	assertStoreFile(t, store, zefs.KeyInstanceManaged.Pattern, "true")
+}

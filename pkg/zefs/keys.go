@@ -130,6 +130,15 @@ var KeySupportArchive = MustRegister(KeyEntry{Pattern: "support/archive/{name}",
 // image writes or reads it.
 var KeyPluginLastStop = MustRegister(KeyEntry{Pattern: "meta/plugin/last-stop", Description: "Why ze last stopped because of a plugin, or ran a stop cleanup late (JSON)"})
 
+// The baseline of a managed client: the version hash (fleet.VersionHash) of
+// the last configuration that became active from its hub. Comparing it with
+// the hash of the configuration the device runs says whether the device
+// changed since its hub last gave it one. An absent key is a valid state: no
+// baseline was recorded yet. It sits beside the meta/managed/hub keys, because
+// meta/instance/managed is a value and the store refuses a key below a value.
+// It is its own declaration for the reason given above KeyCACert.
+var KeyManagedBaseVersion = MustRegister(KeyEntry{Pattern: "meta/managed/base-version", Description: "Version hash of the last configuration a managed client took from its hub (absent until one is recorded)"})
+
 // ManagedHubTrustFirstUse is the one value KeyManagedHubTrust holds: the
 // managed client keeps the certificate authority its hub presents on the
 // first connection, and authenticates the hub against it from then on.

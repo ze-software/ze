@@ -22,6 +22,11 @@ module ze-storage-cli-cmd {
                 ze:command "ze-config-storage:show-data-list";
                 description "Lists the keys in the selected store. Use 'show data cat <key>' to read one value.";
                 ze:help "List the keys in the selected store.";
+                leaf prefix {
+                    type string { length "1..512"; }
+                    description "Return only keys beginning with this prefix. Omit it to list every key.";
+                    ze:help "Storage key prefix";
+                }
             }
 
             container cat {
@@ -44,6 +49,46 @@ module ze-storage-cli-cmd {
                 ze:command "ze-config-storage:show-data-registered";
                 description "Lists the storage key patterns registered by subsystems.";
                 ze:help "List the key patterns registered by all subsystems.";
+                leaf pattern {
+                    type string { length "1..512"; }
+                    description "Read one exact registered key pattern. An unknown pattern is refused.";
+                    ze:help "Exact registered key pattern";
+                }
+            }
+
+            container encode {
+                config false;
+                ze:command "ze-config-storage:show-data-encode";
+                description "Encode supplied bytes with the same netcapstring producer as ze data encode.
+No store is read or changed. The answer is the exact frame, header or CRC bytes.";
+                ze:help "Encode supplied bytes as a ZeFS frame, header or checksum.";
+                leaf content {
+                    type string {
+                        length "0..261120";
+                        pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?";
+                    }
+                    mandatory true;
+                    description "The bytes to encode, in padded base64. Empty input encodes an empty frame.
+The encoded bound leaves space for the command within one SSH request.";
+                    ze:help "Padded base64 input bytes";
+                }
+                leaf part {
+                    type enumeration {
+                        enum full { ze:help "Complete encoded frame"; }
+                        enum header { ze:help "Frame header only"; }
+                        enum crc { ze:help "CRC32c checksum only"; }
+                    }
+                    default full;
+                    description "Choose the complete frame, its header or its checksum. Header and checksum
+answers end with a newline, as the standalone command does.";
+                    ze:help "Frame part to return";
+                }
+                leaf capacity {
+                    type uint32 { range "0..8388480"; }
+                    description "Reserved frame bytes, at least the input length. The default adds ten percent
+to the input length. The maximum leaves room for a header in one remote answer.";
+                    ze:help "Reserved frame capacity in bytes";
+                }
             }
 
             container check {

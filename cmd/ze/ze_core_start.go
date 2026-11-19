@@ -35,7 +35,6 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -322,13 +321,16 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	})
 }
 
-// isManaged returns true if the store has meta/instance/managed=true.
+// isManaged returns true if the store has meta/instance/managed=true. It reads
+// the flag through the one reader every caller shares (managed.ManagedFlag).
+// A flag that cannot be read starts the daemon unmanaged, as before that
+// reader existed: ze doctor reports the store that cannot answer.
 func isManaged(store storage.Storage) bool {
-	data, err := store.ReadFile(zefs.KeyInstanceManaged.Pattern)
+	flag, err := managed.ManagedFlag(store)
 	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(string(data)) == booleanTextTrue
+	return flag
 }
 
 // cmdStartManaged handles ze start for managed clients.
@@ -341,11 +343,18 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
-	if store.Exists(configName) {
-		clientCfg := extractManagedClientConfig(store, configName)
+	// The daemon is handed a builder, never a built client: it builds one each
+	// time it starts its hub client, at boot and at every `request fleet
+	// enable`, from the configuration the store holds then. A start whose
+	// configuration names no hub therefore still owns a hub client it can
+	// start once the configuration names one.
+	buildClient := func() (*managed.ClientConfig, error) {
+		return extractManagedClientConfig(store, configName)
+	}
 
+	if store.Exists(configName) {
 		return withPanicCapture(func() int {
-			return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, clientCfg)
+			return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, buildClient)
 		})
 	}
 
@@ -383,9 +392,8 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			"ze data import client-"+boot.name+".conf   (on the hub, after correcting that file)"))
 	}
 
-	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
-		return firstStartRefused(opererr.Wrap(writeErr, "the config fetched from the hub could not be cached",
-			"a managed client starts from its cached copy", "ze doctor"))
+	if cacheErr := cacheFirstConfig(store, configName, configData); cacheErr != nil {
+		return firstStartRefused(cacheErr)
 	}
 
 	if judgedAtBoot {
@@ -404,30 +412,63 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		}
 	}
 
-	clientCfg := extractManagedClientConfig(store, configName)
-
 	return withPanicCapture(func() int {
-		return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, clientCfg)
+		return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, buildClient)
 	})
 }
 
-// extractManagedClientConfig reads config from the store and extracts the hub client block.
-func extractManagedClientConfig(store storage.Storage, configName string) *managed.ClientConfig {
-	data, err := store.ReadFile(configName)
+// cacheFirstConfig caches the configuration a first start fetched from the hub
+// and records it as the device's baseline: the hash of the cached copy, read
+// back from the store. The first start does not pass the push path
+// (hub applyManagedPush), so this is where its baseline is written, before the
+// managed client makes its first connection.
+//
+// A baseline that cannot be recorded refuses the start. The configuration
+// stays cached, so the next start runs it with no baseline, which is a clean
+// device: the fetch its client makes on connecting is answered "current" and
+// records the baseline then.
+func cacheFirstConfig(store storage.Storage, configName string, configData []byte) error {
+	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
+		return opererr.Wrap(writeErr, "the config fetched from the hub could not be cached",
+			"a managed client starts from its cached copy", "ze doctor")
+	}
+	if _, baselineErr := managed.RecordActiveAsBaseline(store); baselineErr != nil {
+		return opererr.Wrap(baselineErr, "the baseline of the config fetched from the hub could not be recorded",
+			"the baseline is how this device tells a local change from the configuration its hub gave it",
+			"ze show data check")
+	}
+	return nil
+}
+
+// extractManagedClientConfig builds the hub client configuration from the
+// active version of the config the store holds under configName now: the hub
+// its client block names and the callbacks that read this store. It is the
+// daemon's builder (hub.ManagedClientBuilder), called at each start of the hub
+// client. It answers managed.ErrNoHubClient for a config with no hub client
+// block, and an operator error naming the config, with its fix, when the
+// config or its hub block cannot be read; the daemon reports either to
+// whoever asked for the client.
+func extractManagedClientConfig(store storage.Storage, configName string) (*managed.ClientConfig, error) {
+	// The configuration the device runs is the version the active pointer
+	// names, as `request fleet enable` checks it and as the hold and the fleet
+	// status read it (managed.ActiveVersion): the plain mirror can differ.
+	data, err := storage.ReadActiveConfig(store, configName)
 	if err != nil {
-		slog.Warn("managed: cannot read config for hub extraction", "config", configName, "error", err)
-		return nil
+		return nil, opererr.Wrap(err,
+			"the configuration "+configName+" could not be read from the store",
+			"its plugin hub block names the hub this device follows, so no hub client was built",
+			"ze show data check")
 	}
 
 	endpoint, err := hubClientEndpoint(data)
 	if errors.Is(err, managed.ErrNoHubClient) {
-		return nil
+		return nil, err
 	}
 	if err != nil {
-		slog.Warn("managed: cannot read the plugin hub block of the config, so this daemon runs with no managed client; "+
-			"correct the block, then check it with: ze config validate",
-			"config", configName, "error", err, "code", diagnostic.CodeConfigHubInvalid)
-		return nil
+		return nil, opererr.Wrap(err,
+			"the plugin hub block of the configuration "+configName+" could not be read",
+			"it names the hub this device follows, so no hub client was built",
+			"ze config validate")
 	}
 
 	return &managed.ClientConfig{
@@ -447,7 +488,6 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		// The same reading for every config the hub pushes later, so a push
 		// that changes the hub block changes the running client.
 		Endpoint: hubClientEndpoint,
-		Version:  fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.ReadConfig(string(cfgData), "", nil)
@@ -457,7 +497,13 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		CheckManaged: func() bool {
 			return isManaged(store)
 		},
-	}
+		// The hold: before each fetch the client compares the configuration
+		// this store holds as active with the last one the hub gave, and
+		// applies nothing the hub sends while they differ. This is the one
+		// place the client is given the store's baseline, beside the other
+		// callback that reads the store.
+		Baseline: managed.NewBaselineAccess(store),
+	}, nil
 }
 
 // hubClientEndpoint reads the hub connection the config in data declares: its
@@ -467,24 +513,11 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 // config with no such block: an override replaces a value and never stands in
 // for the block.
 func hubClientEndpoint(data []byte) (managed.Endpoint, error) {
-	// The hub client block is under `plugin`, which the first pass reads on
-	// its own. A full parse here would refuse a config that holds a section
-	// of an external plugin, whose schema the daemon learns only at boot, and
-	// would build values that keep the module set before boot publishes it.
-	firstPass, err := config.FirstPass(string(data), "", nil)
+	// The block itself is read by the managed component, which `show fleet
+	// status` asks too, so the two cannot disagree on which block is the hub.
+	endpoint, err := managed.DeclaredEndpoint(data)
 	if err != nil {
 		return managed.Endpoint{}, err
-	}
-	if len(firstPass.Hub.Clients) == 0 {
-		return managed.Endpoint{}, managed.ErrNoHubClient
-	}
-	cli := firstPass.Hub.Clients[0]
-	endpoint := managed.Endpoint{
-		Name:          cli.Name,
-		Server:        cli.Address(),
-		Token:         cli.Secret,
-		CA:            cli.CA,
-		SourceAddress: cli.SourceAddress,
 	}
 	if server := env.Get("ze.managed.server"); server != "" {
 		endpoint.Server = server

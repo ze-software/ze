@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
+	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
@@ -50,13 +51,21 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		// daemon's own config asks for the bare strings.
 		namedConfig := ""
 		if request.ConfigName != "" {
-			if request.ConfigName != filepath.Base(configPath) {
+			daemonOwnConfig := request.ConfigName == filepath.Base(configPath)
+			if !daemonOwnConfig {
 				configPath = request.ConfigName
 				commitReload = nil
 				namedConfig = request.ConfigName
 			}
 			if params.Store == nil {
 				return nil, fmt.Errorf("configuration %q unavailable: no persistent store", request.ConfigName)
+			}
+			// The daemon's own config is never a client's, whatever its name,
+			// as for the import (handleDataConfigUpdate).
+			if !daemonOwnConfig {
+				if refusal := undeclaredClientSessionRefusal(request.ConfigName); refusal != nil {
+					return nil, refusal
+				}
 			}
 			if !params.Store.Exists(configPath) {
 				return nil, fmt.Errorf("configuration %q does not exist", request.ConfigName)
@@ -203,6 +212,32 @@ func sessionConfigAuthorizer(username, remoteAddr string, authorizer plugin.Auth
 	return func(permission string) bool {
 		return policy.Authorize(username, remoteAddr, permission, false)
 	}
+}
+
+// undeclaredClientSessionRefusal refuses a session that names
+// client-<name>.conf, the config a hub serves to one managed client, when no
+// serving block of this daemon declares that client, and when the daemon
+// serves no client at all: the editor's commit would record a version no
+// client ever fetches. The import, the restore and the rollback refuse the
+// same case, and the reason and the fix come from the import's producer.
+//
+// It answers nil for any other stored config and for a declared client. It
+// never asks whether the client is connected: the hub may write a declared
+// client's config at any time, and a client that is away fetches when it
+// connects (docs/architecture/fleet-config.md, "Config Storage (Hub Side)").
+//
+// This is not an authorization check: it reads no profile and no user, and
+// which users may open the editor is decided elsewhere.
+//
+// The declared clients are read when the session opens. The factory is built
+// before the managed server starts, so a value captured at build time would
+// name no client.
+func undeclaredClientSessionRefusal(configName string) error {
+	refusal := storagecli.UnservedClientConfigRefusal("config edit: "+configName+" was not opened", configName)
+	if refusal == nil {
+		return nil
+	}
+	return refusal
 }
 
 // buildCommandTree builds a command.Node tree from YANG command modules.

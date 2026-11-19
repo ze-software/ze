@@ -42,7 +42,9 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 		return err
 	}
 	unresolved := err
-	if _, err := storage.WriteCandidateVersion(store, path, content, time.Now()); err != nil {
+	// The boot record is the daemon's own write, never an operator's change,
+	// so it stages through the machine entry the freeze does not refuse.
+	if _, err := storage.StageMachineCandidate(store, path, content, time.Now()); err != nil {
 		return err
 	}
 	if err := storage.PromoteCandidate(store, path); err != nil {
@@ -276,7 +278,10 @@ func publishRecoveredConfig(store storage.Storage, path string, expected, conten
 	if err := initializeConfigSource(store, path, expected); err != nil {
 		return err
 	}
-	if _, err := storage.WriteCandidateVersion(store, path, content, time.Now()); err != nil {
+	// A recovery at boot (a schema migration, the revert of an unconfirmed
+	// commit) runs with no operator deciding it, on a managed device too, so
+	// it stages through the machine entry the freeze does not refuse.
+	if _, err := storage.StageMachineCandidate(store, path, content, time.Now()); err != nil {
 		return err
 	}
 	return promoteConfigCandidate(store, path)

@@ -10,6 +10,9 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // wireManagedCommit makes a hub push the daemon's config: staged as a
@@ -30,14 +33,41 @@ func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, conf
 	}
 }
 
-// applyManagedPush is a managed push once the window allows it.
+// applyManagedPush is a managed push once the window allows it. A push whose
+// reload succeeded is the hub's configuration made active, so its hash becomes
+// the baseline (recordPushBaseline). A push that was refused or whose reload
+// failed made nothing active and leaves the baseline alone.
+//
+// The push stages through the store's machine entry: a managed device freezes
+// an operator's change to its own configuration, and the hub's push is the
+// one change it exists to take (storage.StageMachineCandidate).
 func applyManagedPush(store storage.Storage, configPath string, data []byte, reload func() error, recorder audit.Recorder) error {
-	if _, err := storage.WriteCandidateVersion(store, configPath, data, time.Now()); err != nil {
+	if _, err := storage.StageMachineCandidate(store, configPath, data, time.Now()); err != nil {
 		return err
 	}
 	if err := reload(); err != nil {
 		return withUnwind(err, unwindStep{unwindCandidateCleanup, storage.ClearCandidate(store, configPath)})
 	}
+	recordPushBaseline(store)
 	recordDaemonReloadAudit(recorder, "managed", "local", audit.System, "managed config push")
 	return nil
+}
+
+// recordPushBaseline records the configuration a hub push made active as the
+// device's baseline: the hash of what the store now holds as active, read
+// back, never the hash of the bytes the hub sent.
+//
+// A baseline that cannot be recorded does not fail the push: the daemon runs
+// the pushed configuration, and telling the hub otherwise would be false. The
+// failure is logged under doctor-managed-diverged, because the device then
+// compares its configuration with an older baseline and holds at the next hub
+// change. The next fetch the hub answers "current" records the baseline
+// (managed fetchAgainstBaseline), and that fetch is the one the managed client
+// makes when it next connects.
+func recordPushBaseline(store storage.Storage) {
+	if _, err := managed.RecordActiveAsBaseline(store); err != nil {
+		slogutil.Logger("hub.managed").Warn("the hub's configuration is active and its baseline could not be recorded, "+
+			"so this device holds at the next hub change unless it reconnects to its hub first; check the store with: ze show data check",
+			"code", diagnostic.CodeDoctorManagedDiverged, "key", zefs.KeyManagedBaseVersion.Pattern, "error", err)
+	}
 }

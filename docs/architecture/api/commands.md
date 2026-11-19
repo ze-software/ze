@@ -585,6 +585,26 @@ command with it.
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
 
+`show fleet status` (`internal/component/managed`) is one handler behind both
+routes that still asks the daemon first, as `ze doctor` does. Its answer is
+where a managed device stands with its hub. Most of that is in the store, which
+any `ze` process reads: the managed flag, the hub the configuration declares,
+the baseline (`meta/managed/base-version`) and the hash of the active
+configuration. The state of the hub client lives only in a running daemon. So
+on the local route (`ValidatedArgs.Route().CallerLocal()`) the handler sends
+`show fleet status` to the daemon over SSH and answers the document the daemon
+gave. When no daemon answers, it reads the store and marks the answer
+`daemon-answered` false, with `no-daemon` in the client fields. On the daemon
+route the same handler reads the store, fills the client fields from the owner
+of the daemon's hub client (`managed.FleetTarget`, which the hub installs on a
+managed start; with none the client is `not-started`), marks the answer
+`daemon-answered` true, and asks nobody. That mark is also how the local route recognizes a
+daemon's document: a reply of another shape, or one a store alone produced, is
+no answer. It registers no RPC, so it holds no `wire-methods.snapshot` row.
+<!-- source: internal/component/managed/cmd_fleet.go -- answerFleetStatusWith, storeFleetStatus, askDaemonOverSSH, decodeDaemonFleetStatus, daemonClientReport, FleetTarget -->
+<!-- source: internal/component/managed/register.go -- show fleet status registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
+
 #### Local commands already served by the daemon under the same path
 
 A few local registrations share their path with a daemon RPC the owner
@@ -598,6 +618,7 @@ registered itself. The two routes call one producer, so they cannot drift:
 | `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
 | `show version` | `zeversion.Answer` | `printVersion` prints it (`ze show version`, `ze version`, `ze --version`) | `handleShowVersion`; `--extended` reaches both routes as a token, since the model declares no leaf |
 | `create agent skill`, `show agent skill`, `delete agent skill` | `agentPlan`, the skills plugin's plan producer: per harness, the stub and, in its local form, the hook item, at the default paths relative to the home directory | `createAgentSkillLocal`, `showAgentSkillLocal`, `deleteAgentSkillLocal` (`localAnswer`): they resolve the caller's own harness directories and write, inspect or remove each item of the local form | `handleCreateAgentSkill`, `handleShowAgentSkill`, `handleDeleteAgentSkill` (`remoteAnswer`), the RPCs for `ze-skills:create-agent-skill` and its siblings: they call no file or environment function and answer the remote form, every row `not-inspected`, with the stub a remote agent places |
+| `request fleet disable`, `request fleet enable` | `storeManagedFlag`, the one writer of the managed flag for both commands, and for a rejoin `requireDeclaredHub`, which refuses a configuration that names no hub | `requestFleetDisableLocal`, `requestFleetEnableLocal` (`changeFleetLocal`): with the store free they open it as its writer and store the flag (`disableStopped`, `enableStopped`); while a daemon owns the store they send the same line to that daemon (`daemonroute.Send`) and print its answer | `handleFleetDisable`, `handleFleetEnable`, the RPCs for `ze-managed:fleet-disable` and `ze-managed:fleet-enable`, each recording the `data-key-change` audit action: they store the flag through the daemon's own store handle, then stop or start the daemon's hub client through `managed.FleetTarget` (`disableOnDaemon`, `enableOnDaemon`). A daemon that started unmanaged installs no target and changes the flag alone |
 | `show agent context` | `sharedContextFacts`, the skills plugin's context producer | `showAgentContextLocal` adds the bounded dial and the config directory | `handleShowAgentContext`, the RPC for `ze-skills:show-agent-context`, answers the shared facts with no path and no dial |
 | `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; SSH exec and `ze cli -c` stream from the same producer (`streamMonitorPing`, `streamMonitorTraceroute`), and the one-shot RPC answers a sample of it: `handleMonitorPing` the rows of a bounded run, `handleMonitorTraceroute` one probe round |
 
@@ -614,7 +635,10 @@ client's process: it is a shell on the daemon (`sshclient.RunInteractive`),
 where every typed line is dispatched. The agent setup commands are plain local
 because a person sets their agent up at a shell, where the handler reaches
 their home; `ze cli` is the router's CLI, so every form of it gets the
-daemon's answer. `doctor config <file>` is confined on the
+daemon's answer. The two fleet commands are plain local for the same reason:
+`ze cli` asks the daemon, which owns the hub client, and only `ze request
+fleet ...` at a shell writes the store itself, when no daemon holds it.
+`doctor config <file>` is confined on the
 daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
 <!-- source: internal/core/version/version.go -- Answer -->
@@ -627,6 +651,8 @@ daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/plugins/skills/agent_skill.go -- agentPlan, createAgentSkillLocal, handleCreateAgentSkill -->
 <!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
 <!-- source: internal/plugins/skills/register.go -- agent setup registrations -->
+<!-- source: internal/component/managed/cmd_fleet.go -- changeFleetLocal, changeFleetThroughDaemon, handleFleetDisable, handleFleetEnable, storeManagedFlag -->
+<!-- source: internal/component/managed/register.go -- request fleet disable and enable registration -->
 <!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <!-- source: internal/component/cli/client/main.go -- runInteractiveSession, execute -->
 <!-- source: internal/component/ping/cmd/monitor.go -- handleMonitorPing, streamMonitorPing -->

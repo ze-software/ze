@@ -77,6 +77,9 @@ func writePointerLocked(store Storage, guard WriteGuard, configPath string, poin
 }
 
 // WriteCandidateVersion writes a timestamped candidate version and points candidate at it.
+// It is the staging step of an operator's change, so it asks the freeze
+// (WriteCandidateVersionWithGuard). A writer that is not an operator MUST use
+// StageMachineCandidate.
 func WriteCandidateVersion(store Storage, configPath string, data []byte, stamp time.Time) (stampStr string, err error) {
 	guard, err := store.AcquireLock(configPath)
 	if err != nil {
@@ -87,7 +90,52 @@ func WriteCandidateVersion(store Storage, configPath string, data []byte, stamp 
 }
 
 // WriteCandidateVersionWithGuard writes a candidate while the caller already holds the config lock.
+//
+// Every versioned write an operator makes passes here: a commit, an import, a
+// restore and a rollback (restoreConfigLocked). So this is where the freeze
+// is asked, before anything is written: a managed device's own stored
+// configuration is refused with ErrConfigFrozen, and a refused write leaves
+// no version and no candidate pointer (refuseFrozenConfigLocked, freeze.go).
 func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath string, data []byte, stamp time.Time) (stampStr string, err error) {
+	if err := refuseFrozenConfigLocked(store, guard, configPath); err != nil {
+		return "", err
+	}
+	return stageCandidateLocked(store, guard, configPath, data, stamp)
+}
+
+// StageMachineCandidate stages data as the candidate of configPath for a
+// writer that is not an operator. It is WriteCandidateVersion without the
+// freeze: it does not read meta/instance/managed, so it stages on a managed
+// device too.
+//
+// The permitted callers are the writers that change a device's own
+// configuration with no operator deciding it, all in cmd/ze/hub:
+//
+//   - applyManagedPush: the hub's push, which is what a managed device follows
+//   - confirmRevert: the revert of an unconfirmed commit on a running daemon
+//   - publishRecoveredConfig: the same revert at boot (restoreConfirmOnStart)
+//     and the schema recovery of a configuration an older Ze wrote
+//   - initializeConfigSource: the boot record of an explicit file
+//
+// StageSourceCandidate is the entry of the signal reload and skips the freeze
+// the same way. An operator route (an editor commit, an import, a restore, a
+// rollback, an upload) MUST NOT call either: it MUST stage through
+// WriteCandidateVersion or WriteCandidateVersionWithGuard, so that a managed
+// device refuses it. A machine writer the freeze refuses stops a managed
+// device from following its hub or from recovering at boot.
+func StageMachineCandidate(store Storage, configPath string, data []byte, stamp time.Time) (stampStr string, err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+	return stageCandidateLocked(store, guard, configPath, data, stamp)
+}
+
+// stageCandidateLocked writes the version and points candidate at it, for the
+// operator entry once the freeze admitted it and for the machine entries. The
+// caller MUST hold guard, the config lock of configPath.
+func stageCandidateLocked(store Storage, guard WriteGuard, configPath string, data []byte, stamp time.Time) (stampStr string, err error) {
 	if _, ok, err := readPointerLocked(store, guard, configPath, pointerCandidate); err != nil || ok {
 		if err != nil {
 			return "", err
@@ -160,6 +208,11 @@ func freeVersionTimeLocked(store Storage, guard WriteGuard, configPath string, s
 // source before taking the lock let a whole commit land between the read and
 // the write: the signal reload then staged and applied the configuration the
 // commit had replaced, undoing it.
+//
+// It is the machine entry of the signal reload (cmd/ze/hub
+// stageSIGHUPCandidate): it stages the bytes the source already holds, which
+// changes nothing an operator decides here, so it does not ask the freeze. An
+// operator route that carries new bytes MUST NOT call it (StageMachineCandidate).
 func StageSourceCandidate(store Storage, configPath string, stamp time.Time) (stampStr string, err error) {
 	guard, err := store.AcquireLock(configPath)
 	if err != nil {
@@ -178,7 +231,7 @@ func StageSourceCandidate(store Storage, configPath string, stamp time.Time) (st
 	if err != nil {
 		return "", fmt.Errorf("read config source: %w", err)
 	}
-	return WriteCandidateVersionWithGuard(store, guard, configPath, data, stamp)
+	return stageCandidateLocked(store, guard, configPath, data, stamp)
 }
 
 // readSourceLocked is ReadConfigSource for a caller holding the config lock:

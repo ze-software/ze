@@ -94,25 +94,57 @@ func handleDataConfigUpdate(ctx *pluginserver.CommandContext, validated command.
 		return importDaemonConfig(ctx.Context(), target, name, content), nil
 	}
 	if client, isClient := pluginserver.ClientNameFromConfigKey(name); isClient {
-		if refusal := unservedClientRefusal(target, name, client); refusal != nil {
+		problem := pathUpdateDataConfig + ": " + name + " was not imported"
+		if refusal := unservedClientRefusal(target, problem, name, client); refusal != nil {
 			return zePlugin.OperatorErrorResponse(refusal), nil
 		}
 	}
 	return importOtherConfig(target, name, content), nil
 }
 
-// fixAddHubClient is the fix of a client config import this daemon would never
-// serve: the editor, where the client entry under plugin hub server is added.
+// fixAddHubClient is the fix of a write to a client config this daemon would
+// never serve: the editor, where the client entry under plugin hub server is
+// added.
 const fixAddHubClient = "ze config edit"
 
-// unservedClientRefusal refuses the import of client-<client>.conf, the config
-// a hub serves to one managed client, when this daemon serves no such client:
+// UnservedClientConfigRefusal refuses a writer of the stored config name when
+// name is client-<client>.conf, the config a hub serves to one managed client,
+// and the running daemon serves no such client. problem is the caller's first
+// line: the command the operator typed and what it did not do. The reason and
+// the fix are the ones the import answers (handleDataConfigUpdate), from the
+// same producer.
+//
+// It answers nil for a name that is not a client config, and for a client a
+// serving block declares, whether or not that client is connected: a client
+// that is away fetches when it connects.
+//
+// The served clients are read from the installed target at each call, never
+// captured, because the hub publishes them only once its managed server has
+// started (InstallDataRPC). With no target installed nobody can say which
+// clients are served, so the writer is refused rather than admitted.
+// Safe for concurrent use.
+func UnservedClientConfigRefusal(problem, name string) *opererr.Error {
+	client, isClient := pluginserver.ClientNameFromConfigKey(name)
+	if !isClient {
+		return nil
+	}
+	target := dataRPC.Load()
+	if target == nil {
+		return opererr.New(problem,
+			name+" is the config a hub serves to the managed client "+client+", and the daemon publishes the clients it serves only while its store is open, so it is starting or stopping and cannot tell whether a client would ever fetch it",
+			"ze doctor")
+	}
+	return unservedClientRefusal(target, problem, name, client)
+}
+
+// unservedClientRefusal refuses a write of client-<client>.conf, the config a
+// hub serves to one managed client, when this daemon serves no such client:
 // the version would be committed and no client would ever fetch it, which is
 // why `request data restore ... client` refuses the same case
-// (restoreConfigFromSource). It answers nil when the hub serves the client: the
-// write observer then pushes config-changed to it.
-func unservedClientRefusal(target *DataRPCTarget, name, client string) *opererr.Error {
-	problem := pathUpdateDataConfig + ": " + name + " was not imported"
+// (restoreConfigFromSource). problem is the first line the caller owns. It
+// answers nil when the hub serves the client: the write observer then pushes
+// config-changed to it.
+func unservedClientRefusal(target *DataRPCTarget, problem, name, client string) *opererr.Error {
 	if target.ServesClient == nil {
 		return opererr.New(problem,
 			name+" is the config a hub serves to the managed client "+client+", and this daemon serves no managed client, so no client would ever fetch it",
@@ -149,7 +181,15 @@ func importDaemonConfig(ctx context.Context, target *DataRPCTarget, name string,
 // imported: an open confirmed-commit window (its own refusal, naming its
 // owner), a change somebody else staged, or the reload's refusal of the
 // config. In each case nothing became active.
+//
+// An operator error the store gave (the freeze of a managed device, a key the
+// freeze could not read) is answered as the store wrote it: it is already the
+// whole operator error, and wrapping it would end the answer on another fix
+// than its own.
 func daemonConfigImportRefusal(name string, err error) *opererr.Error {
+	if refusal, given := storage.FreezeRefusal(err); given {
+		return refusal
+	}
 	problem := pathUpdateDataConfig + ": " + name + " was not imported"
 	if _, open := errors.AsType[*confirm.OtherUserError](err); open {
 		return opererr.Wrap(err, problem,

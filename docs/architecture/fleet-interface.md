@@ -92,14 +92,17 @@ by the specs that make each page functional.
 <!-- source: internal/component/web/fleetui/source_activity.go -- ActivitySource, Alarm, Task -->
 <!-- source: internal/component/web/fleetui/source_config.go -- ConfigSource -->
 <!-- source: internal/component/web/fleetui/source_views.go -- DeviceViewSource -->
-<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper -->
-<!-- source: internal/component/web/fleetui/sample/register.go -- init -->
+<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper, Source, New -->
+<!-- source: internal/component/web/fleetui/sample/register/register.go -- init -->
 
 ### The sample source
 
 The sample source answers every method of `Source` from a fixed estate of 44
-devices, so every page can be opened and judged. `newEstate` makes it, and
-its register file makes it the build's source.
+devices, so every page can be opened and judged. `New(clock)` makes one and
+registers nothing, so a tool can serve it beside any other source: le records
+the pages from it (`./le site fleet-demo render`). The sub-package
+`sample/register` holds only the `init()` that makes `New(time.Now)` the
+build's source, and the hub's sample-tagged import names that sub-package.
 
 | Part | Rule |
 |------|------|
@@ -112,7 +115,7 @@ its register file makes it the build's source.
 
 The only state that changes is the script's, and every list it grows is cut
 to a bound, so the source stays the same size however long the build runs.
-<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper -->
+<!-- source: internal/component/web/fleetui/sample/source.go -- estate, newEstate, Stepper, Source, New -->
 <!-- source: internal/component/web/fleetui/sample/history.go -- historyRetention, historyPointsMax -->
 <!-- source: internal/component/web/fleetui/sample/script.go -- scriptPeriod, scriptSteps -->
 <!-- source: internal/component/web/fleetui/sample/activity.go -- alarmRows, alarmsAt -->
@@ -271,8 +274,24 @@ the page (the object header with the breadcrumb and the tab row, the tree, the
 tree view selector, the administration list, the side panel) as out-of-band
 swaps. Any other request, the one that restores a page from history included,
 gets the whole shell. Either way the address reproduces the view.
+
+Every such answer carries the content region, and the region says where the
+page is: `data-fleet-path` is the path the browser asked for, without its
+query, `data-fleet-address` the same address with its query,
+`data-fleet-base` the fleet prefix, `data-fleet-fragments` the fragment
+prefix, and `data-fleet-events` the live event stream when the page has one.
+The script reads the page in hand there and never from the browser's
+location, so a page plays wherever it is shown, inside a recording's frame
+included. It changes page only through htmx: a script that opens an address,
+as the tree view selector does, asks for it into the content region and
+pushes it, or replaces it for the remembered tree view at load, the way a
+link does. No script assigns the location, and the live interface needs no
+full reload. Going back and forward is htmx's: it restores the page, and the
+script reads the restored region.
 <!-- source: internal/component/web/fleetui/pages.go -- MustRegisterPage, Page, PageRequest, NewPageRequest, ReadSnapshot -->
-<!-- source: internal/component/web/fleetui/handler_shell.go -- fleetHandler.ServeHTTP, resolvePage, describeObject, failureStatus, asksPart -->
+<!-- source: internal/component/web/fleetui/handler_shell.go -- fleetHandler.ServeHTTP, shellView, resolvePage, describeObject, failureStatus, asksPart -->
+<!-- source: internal/component/web/fleetui/shell.templ -- contentRegion, fragmentBase -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- pageAttribute, fragmentURL, navigate -->
 <!-- source: internal/component/web/fleetui/shell_states.go -- failureHeroView, notBuiltHeroView -->
 <!-- source: internal/component/web/fleetui/shell.templ -- Shell, pageUpdate -->
 
@@ -507,8 +526,18 @@ the count.
 
 ## Routes
 
-The package registers its routes with the web route registry from `init()`,
-and the hub mounts them when the web server starts.
+Each route is declared once, from `init()` in the register file of the family
+that owns it (`mustRegisterRoute`: its pattern, its wrap, and the builder of
+its handler over a source). The list is read two ways. The package registers
+every route with the web route registry, and the hub mounts them when the web
+server starts, over the build's registered source. `NewRoutes(source,
+account)` mounts the same routes on one handler over the source it is given,
+with every request carrying that account name the way
+`web.InsecureMiddleware` gives `insecure` (`web.AccountMiddleware`), and with
+no login and no origin check: it is for a caller that serves the interface in
+process, le's recording of the pages and the tests. A handler takes its
+source from its builder and never from the slot, so two sources can be served
+in one process.
 
 | Pattern | Serves |
 |---------|--------|
@@ -533,7 +562,9 @@ because the interface has its own shell and the server forbids framing a page.
 
 So a build that links the package and no source serves no fleet route and
 lists no fleet entry. That is every shipped build today.
-<!-- source: internal/component/web/fleetui/register.go -- init, sourceRegistered, stepperRegistered, buildShellHandler, buildActionHandler, buildAuditExportHandler -->
+<!-- source: internal/component/web/fleetui/register.go -- init, fleetRoute, mustRegisterRoute, NewRoutes, sourceRegistered, stepperRegistered, stepperOf -->
+<!-- source: internal/component/web/fleetui/register_device_pages.go -- the console route -->
+<!-- source: internal/component/web/auth.go -- AccountMiddleware -->
 <!-- source: cmd/ze/hub/service_web.go -- startWebServer, the RegisteredWebRoutes loop -->
 <!-- source: internal/component/web/fleetui/register_test.go -- TestFleetRoutesAbsentWithoutSource -->
 
@@ -542,7 +573,7 @@ lists no fleet entry. That is every shipped build today.
 | Tag | In `feature-gates.txt` | Links | Set by |
 |-----|------------------------|-------|--------|
 | `ze_fleet_ui` | Yes | `internal/component/web/fleetui`, through `cmd/ze/hub/register_fleet_ui.go` (`//go:build ze_web && ze_fleet_ui`) | Every standard build, like every gate |
-| `ze_fleet_ui_sample` | No | `internal/component/web/fleetui/sample`, through `cmd/ze/hub/register_fleet_ui_sample.go` (`//go:build ze_web && ze_fleet_ui && ze_fleet_ui_sample`) | A review build only |
+| `ze_fleet_ui_sample` | No | `internal/component/web/fleetui/sample/register`, and through it the sample, by `cmd/ze/hub/register_fleet_ui_sample.go` (`//go:build ze_web && ze_fleet_ui && ze_fleet_ui_sample`) | A review build only |
 
 `ze_fleet_ui` is a dependent gate: the package nests under the web package, so
 it exists only in a `ze_web` build. Neither package carries a source build
@@ -553,7 +584,9 @@ files", states why.
 The sample tag is outside the manifest because every manifest tag is set by
 every shipped build, and sample data in a shipped build would be shown as a
 real estate. `TestShippedZeLinksNoFleetSample` lists the dependencies of every
-shipped flavor and refuses the sample package.
+shipped flavor and refuses the sample package and its registration. le links
+the sample package, never its registration, to record the pages: le is
+development tooling, and no shipped `ze` links le.
 <!-- source: feature-gates.txt -- the ze_fleet_ui row -->
 <!-- source: cmd/ze/hub/register_fleet_ui.go -- the tagged blank import -->
 <!-- source: cmd/ze/hub/register_fleet_ui_sample.go -- the tagged blank import -->

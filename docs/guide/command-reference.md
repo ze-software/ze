@@ -1081,6 +1081,114 @@ daemon at each Tab, so the marks follow the plugin's state. Shell completion
 <!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
 
+### request fleet disable
+
+Takes this device out of the fleet its hub manages. It takes no argument.
+
+```
+ze request fleet disable
+ze cli -c "request fleet disable"
+```
+
+The command stores the managed flag (`meta/instance/managed`) as false, then
+ends the hub connection, and answers once the connection has ended. A
+configuration the device was applying is applied first. The device keeps the
+configuration it runs. The command needs no hub and no connection, so it also
+works on a managed device whose configuration names no hub.
+
+With no daemon running, `ze request fleet disable` writes the flag into the
+store and the next `ze start` follows it. While a daemon owns the store, the
+same line is sent to that daemon.
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The flag the command stored: `false` |
+| `client` | The daemon's hub client after the command: `stopped`, `not-started` in a daemon that started unmanaged, `no-daemon` when the flag was written with no daemon running |
+| `connection` | `not-connected`, or `no-daemon` |
+| `note` | What the command did, in one sentence: the hub connection was closed, there was none to close, or no daemon runs |
+
+<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, disableStopped, changeFleetLocal, fleetChange -->
+<!-- source: internal/component/managed/register.go -- request fleet disable registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable -->
+
+### request fleet enable
+
+Puts this device back in the fleet. It takes no argument.
+
+```
+ze request fleet enable
+ze cli -c "request fleet enable"
+```
+
+The command stores the managed flag as true. A daemon that started managed
+then starts its hub client from the configuration it runs, with no restart,
+and the device fetches from its hub. A daemon that started unmanaged stores
+the flag and answers that the hub connection starts at the next `ze start`.
+With no daemon running, `ze request fleet enable` writes the flag into the
+store and the next `ze start` follows it.
+
+The command is refused, and the flag left as it was, while the configuration
+the device runs names no hub-level `client` block. Add the block to this
+device's configuration on the hub, then provision the device again:
+
+```
+ze init --managed --force
+```
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The flag the command stored: `true` |
+| `client` | The daemon's hub client after the command: `running`, `not-started` in a daemon that started unmanaged, `no-daemon` when the flag was written with no daemon running |
+| `connection` | `connected`, `not-connected` while the client is still connecting, or `no-daemon` |
+| `note` | What the command did, in one sentence: the hub client started, one already ran, or the connection starts at the next `ze start` |
+
+<!-- source: internal/component/managed/cmd_fleet.go -- enableOnDaemon, enableStopped, requireDeclaredHub, noDeclaredHub -->
+<!-- source: internal/component/managed/register.go -- request fleet enable registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable -->
+
+### show fleet status
+
+Where this device stands with the hub that manages its configuration.
+Read-only. It takes no argument.
+
+```
+ze show fleet status
+ze cli -c "show fleet status | json"
+```
+
+The answer is one document. Most of it is read from the store, so the command
+answers with no daemon running. With a daemon running, `ze show fleet status`
+asks it first and prints its answer, and `daemon-answered` says which of the
+two you are reading.
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The device follows a hub: the store key `meta/instance/managed` is `true` |
+| `frozen` | The store refuses a local change to the device's own configuration, naming `request fleet disable`. True when the device is managed and its daemon runs a stored configuration, or when no daemon runs and the device is managed. A daemon started from a file or from standard input is never frozen, so `frozen` is false there even when `managed` is true |
+| `hub-declared` | The device's configuration holds a hub-level `client` block |
+| `hub-name`, `hub-address` | The name and `host:port` of that block, empty when `hub-declared` is false |
+| `baseline-recorded` | The store holds a baseline in `meta/managed/base-version` |
+| `baseline-hash` | The version hash of the last configuration the hub gave, empty when none is recorded |
+| `active-recorded` | The store holds the device's own configuration |
+| `active-hash` | The version hash of that configuration, empty when the store holds none |
+| `diverged` | Both hashes are recorded and they differ. A device with no baseline is not diverged |
+| `daemon-answered` | A running daemon produced this answer |
+| `client` | The daemon's hub client: `running`, `stopping` while a stop such as `request fleet disable` is in progress (the status never waits for it), `stopped`, or `not-started` in a daemon that started unmanaged and so owns no hub client. `no-daemon` when no daemon answered |
+| `connection` | `connected` once the hub accepted the client, until that connection ends; `not-connected` otherwise. `no-daemon` when no daemon answered |
+| `holding` | `holding` when the client's last fetch applied nothing, because the configuration the device runs differs from its baseline or could not be compared with it; `not-holding` otherwise. `no-daemon` when no daemon answered |
+
+The command refuses, and prints no status, when the store cannot be opened or
+one of the keys above cannot be read: `ze show data check` says why. It also
+refuses when the `plugin` block of the configuration cannot be read, and names
+`ze config validate`.
+
+<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport -->
+<!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion -->
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
+<!-- source: cmd/ze/hub/managed_owner.go -- state -->
+<!-- source: internal/component/managed/register.go -- show fleet status registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
@@ -4375,6 +4483,9 @@ active after enabling debug or applying a profile.
 | `show command catalog [filter <text>]` | read-only | Every command this binary carries, with its grammar and summary: the daemon form of `ze help command` |
 | `show command reference [cli] [api] [mcp] [dispatch] [all]` | read-only | The agent reference built from this binary's registries: the daemon form of `ze help ai` <!-- source: internal/plugins/help/yang/ze-help-cmd.yang -- module ze-help-cmd --> |
 | `show doctor [config <file>] [kernel-capabilities]` | read-only | The readiness checks, with the daemon's plugin checks: the daemon form of `ze doctor` <!-- source: internal/component/doctor/yang/ze-doctor-cmd.yang -- container doctor --> |
+| `request fleet disable` | write | Leave the fleet: store the managed flag as false, end the hub connection and answer once it has ended. Needs no hub and no connection <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable --> |
+| `request fleet enable` | write | Rejoin the fleet: store the managed flag as true and start the hub client with no restart, or, in a daemon that started unmanaged, at the next `ze start`. Refused while the configuration names no hub <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable --> |
+| `show fleet status` | read-only | Whether this device follows a hub, the hub its configuration declares, and its baseline and active hashes: the same answer `ze show fleet status` gives <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet --> |
 | `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
 | `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
 

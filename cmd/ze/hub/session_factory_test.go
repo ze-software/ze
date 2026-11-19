@@ -18,10 +18,12 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -190,6 +192,102 @@ func TestSessionFactoryRefusesUnavailableEditTarget(t *testing.T) {
 	model, err = storeless(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{Mode: "edit"})
 	require.Error(t, err)
 	require.Nil(t, model)
+}
+
+// clientSessionFactory builds the session factory of a daemon whose own config
+// is router.conf and whose store also holds the client configs named, so a
+// refusal under test is never the one for a config that does not exist.
+func clientSessionFactory(t *testing.T, clientConfigs ...string) zessh.SessionModelFactory {
+	t.Helper()
+	store := newTestStore(t)
+	require.NoError(t, store.WriteFile("router.conf", nil, 0o600))
+	for _, name := range clientConfigs {
+		require.NoError(t, store.WriteFile(name, nil, 0o600))
+	}
+	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
+	require.NoError(t, err)
+	return buildSessionModelFactory(server, infra.HookParams{Store: store, ConfigPath: "router.conf"}, nil, nil)
+}
+
+// TestSessionEditorRefusesUndeclaredClient opens the session editor on
+// client-ghost.conf, which the store holds, on three daemons: a hub whose
+// serving blocks declare another client, a daemon that serves no client, and a
+// daemon that has not published what it serves. Each MUST refuse the session
+// with an operator error whose reason and fix are the import's.
+//
+// VALIDATES: spec-fleet-6 AC-20 -- the session editor refuses a client config
+// no serving block declares, as the import, the restore and the rollback do.
+// PREVENTS: a commit that records a version of a config no client ever fetches.
+func TestSessionEditorRefusesUndeclaredClient(t *testing.T) {
+	cases := []struct {
+		name   string
+		target *storagecli.DataRPCTarget
+		why    string
+		fix    string
+	}{
+		{
+			name:   "hub declares another client",
+			target: &storagecli.DataRPCTarget{ServesClient: func(name string) bool { return name == "edge" }},
+			why:    "the hub has no client entry named ghost under plugin hub server, so no client would ever fetch it",
+			fix:    "ze config edit",
+		},
+		{
+			name:   "daemon serves no client",
+			target: &storagecli.DataRPCTarget{},
+			why:    "this daemon serves no managed client, so no client would ever fetch it",
+			fix:    "ze config edit",
+		},
+		{
+			name:   "daemon has not published what it serves",
+			target: nil,
+			why:    "cannot tell whether a client would ever fetch it",
+			fix:    "ze doctor",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			storagecli.InstallDataRPC(tc.target)
+			t.Cleanup(func() { storagecli.InstallDataRPC(nil) })
+			factory := clientSessionFactory(t, "client-ghost.conf")
+
+			model, err := factory(t.Context(), "operator", "192.0.2.10:2222", nil,
+				zessh.SessionRequest{ConfigName: "client-ghost.conf", Mode: "edit"})
+
+			require.Nil(t, model)
+			var refusal *opererr.Error
+			require.ErrorAs(t, err, &refusal, "the refusal must be an operator error")
+			assert.Equal(t, "config edit: client-ghost.conf was not opened", refusal.Problem())
+			assert.Contains(t, refusal.Why(), tc.why)
+			assert.Equal(t, tc.fix, refusal.Fix())
+		})
+	}
+}
+
+// TestSessionEditorOpensDeclaredClient opens the session editor on
+// client-edge.conf on a hub whose serving blocks declare edge. No managed
+// client is connected: the predicate the hub installs answers "declared", and
+// nothing in the factory asks for a connection. The session MUST open in
+// config mode.
+//
+// VALIDATES: spec-fleet-6 AC-20 survivor and D-2 -- a declared client's config
+// opens whether or not that client is connected.
+// PREVENTS: the declared-client guard growing into a connected-only rule, which
+// would refuse provisioning a client that has never connected.
+func TestSessionEditorOpensDeclaredClient(t *testing.T) {
+	storagecli.InstallDataRPC(&storagecli.DataRPCTarget{ServesClient: func(name string) bool { return name == "edge" }})
+	t.Cleanup(func() { storagecli.InstallDataRPC(nil) })
+	factory := clientSessionFactory(t, "client-edge.conf")
+
+	created, err := factory(t.Context(), "operator", "192.0.2.10:2222", nil,
+		zessh.SessionRequest{ConfigName: "client-edge.conf", Mode: "edit"})
+
+	require.NoError(t, err)
+	model, ok := created.(cli.Model)
+	require.True(t, ok, "session model type = %T, want cli.Model", created)
+	if closer, closes := created.(io.Closer); closes {
+		t.Cleanup(func() { _ = closer.Close() })
+	}
+	assert.Contains(t, model.View().Content, "ze#", "a declared client's config must open in editor config mode")
 }
 
 // typeSessionLine types line into a session model, presses Enter, and runs

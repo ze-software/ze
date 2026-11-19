@@ -2,6 +2,7 @@
 // Related: handler.go — processes config responses from hub
 // Related: reconnect.go — backoff for connection retries
 // Related: heartbeat.go — liveness detection
+// Related: baseline.go — BaselineAccess and Diverged, which decide a hold
 
 package managed
 
@@ -15,6 +16,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
@@ -52,11 +54,14 @@ var logger = slogutil.LazyLogger("hub.managed")
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {
-	Name        string // Client identity (from hub client block name)
-	Server      string // Hub address (host:port)
-	Token       string // Auth token
-	Version     string // Current config version hash (empty on first boot)
-	TLSInsecure bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
+	Name   string // Client identity (from hub client block name)
+	Server string // Hub address (host:port)
+	Token  string // Auth token
+	// Version is the config version hash a fetch sends while Baseline is nil
+	// (empty on first boot). With Baseline set a fetch sends the hash of the
+	// active configuration, read from the store at fetch time.
+	Version     string
+	TLSInsecure bool // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
 	// CA names the pki ca entry holding the hub's certificate authority root
 	// (plugin/hub/client/ca). It authenticates a hub whose certificate no
 	// public CA issued, which is what a private fleet hub presents, and it
@@ -74,6 +79,12 @@ type ClientConfig struct {
 	Handler        *Handler
 	OnCommit       func([]byte) error // Called to transactionally commit fetched config
 	CheckManaged   func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	// Baseline reads the hash of the configuration the device runs and the
+	// baseline (the hash of the last configuration its hub gave it), and
+	// stores the baseline. With it the client holds: it applies nothing the
+	// hub sends while the two differ (fetchAgainstBaseline). nil means the
+	// client compares nothing and applies every configuration the hub returns.
+	Baseline *BaselineAccess
 	// Endpoint reads the hub connection a config declares. The client calls it
 	// with each config it has applied, so a push that changes the hub address,
 	// the secret, the certificate authority, the source address or the client
@@ -81,6 +92,31 @@ type ClientConfig struct {
 	// It answers ErrNoHubClient for a config with no hub client block. nil
 	// means the connection settings are fixed for the life of the client.
 	Endpoint func(config []byte) (Endpoint, error)
+	// OnConnection is told true once the hub accepted this client's
+	// authentication, and false when that connection ended. OnHold is told,
+	// after each fetch the hub answered, whether the client applied nothing
+	// because the configuration the device runs differs from its baseline or
+	// could not be compared with it. The daemon's owner of this client reports
+	// both in `show fleet status`. The client calls them from its own goroutine
+	// and MUST NOT be blocked by them. nil reports nothing.
+	OnConnection func(connected bool)
+	OnHold       func(holding bool)
+}
+
+// reportConnection tells the owner of this client whether it holds a hub
+// connection (ClientConfig.OnConnection).
+func (cfg *ClientConfig) reportConnection(connected bool) {
+	if cfg.OnConnection != nil {
+		cfg.OnConnection(connected)
+	}
+}
+
+// reportHold tells the owner of this client whether its last fetch was held
+// (ClientConfig.OnHold).
+func (cfg *ClientConfig) reportHold(holding bool) {
+	if cfg.OnHold != nil {
+		cfg.OnHold(holding)
+	}
 }
 
 // Endpoint is the hub connection a config declares: who the client is and
@@ -91,6 +127,33 @@ type Endpoint struct {
 	Token         string // Auth token.
 	CA            string // pki ca entry holding the hub's root; empty means the system pool.
 	SourceAddress string // Optional source IP for the outbound connection.
+}
+
+// DeclaredEndpoint reads the hub connection the config in data declares: its
+// first hub-level client block, as written. It answers ErrNoHubClient for a
+// config with no such block. The daemon's start path lays its troubleshooting
+// overrides on top (cmd/ze hubClientEndpoint); `show fleet status` reports the
+// block itself.
+func DeclaredEndpoint(data []byte) (Endpoint, error) {
+	// The hub client block is under `plugin`, which the first pass reads on
+	// its own. A full parse here would refuse a config that holds a section
+	// of an external plugin, whose schema the daemon learns only at boot, and
+	// would build values that keep the module set before boot publishes it.
+	firstPass, err := config.FirstPass(string(data), "", nil)
+	if err != nil {
+		return Endpoint{}, err
+	}
+	if len(firstPass.Hub.Clients) == 0 {
+		return Endpoint{}, ErrNoHubClient
+	}
+	declared := firstPass.Hub.Clients[0]
+	return Endpoint{
+		Name:          declared.Name,
+		Server:        declared.Address(),
+		Token:         declared.Secret,
+		CA:            declared.CA,
+		SourceAddress: declared.SourceAddress,
+	}, nil
 }
 
 // endpoint returns the hub connection cfg holds now.
@@ -147,7 +210,8 @@ func (cfg *ClientConfig) connectTimeout() time.Duration {
 // reconnect and heartbeat. Blocks until ctx is canceled. This is a
 // long-lived goroutine -- one per managed client instance.
 // A caller that starts a goroutine MUST cancel ctx and wait for this function
-// to return before releasing resources borrowed by CheckManaged or OnCommit.
+// to return before releasing resources borrowed by CheckManaged, OnCommit or
+// Baseline.
 func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 	backoff := newBackoff(1*time.Second, 60*time.Second, 0.1)
 
@@ -257,6 +321,8 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 
 	// Auth succeeded -- reset backoff for fresh retry delays on next disconnect.
 	backoff.Reset()
+	cfg.reportConnection(true)
+	defer cfg.reportConnection(false)
 
 	// Wrap in MuxConn for multiplexed RPCs.
 	rc := rpc.NewConn(conn, conn)
@@ -303,21 +369,152 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	return notificationLoop(ctx, mc, cfg, hbDone)
 }
 
+// fetchStatusCurrent is the status of a config-fetch answer that says the hub
+// holds the configuration whose hash the client sent (pkg/fleet
+// ConfigFetchResponse).
+const fetchStatusCurrent = "current"
+
+// holdRefusalPrefix opens the config-ack error of a device that holds. The
+// hub stores the text as that client's last refusal and parses nothing in it.
+const holdRefusalPrefix = "holding: the configuration this device runs differs from the last one this hub sent"
+
 // fetchAndProcess fetches config from hub, validates, commits, and ACKs the result.
 // It returns errEndpointChanged or errHubClientRemoved when the config it
 // applied changes or removes the hub connection: the ACK is already sent, and
-// the caller MUST end the connection.
+// the caller MUST end the connection. A device that holds, or that cannot
+// compare its configuration with its baseline, applies nothing and answers
+// nil: the connection is kept.
 func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) error {
+	if cfg.Baseline != nil {
+		return fetchAgainstBaseline(ctx, mc, cfg, cfg.Baseline)
+	}
 	resp, err := FetchConfig(ctx, mc, cfg.Version)
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
-
-	if resp.Status == "current" || resp.Config == "" {
+	if resp.Status == fetchStatusCurrent {
 		logger().Debug("config is current", "version", cfg.Version)
 		return nil
 	}
+	if resp.Config == "" {
+		logger().Debug("config is current", "version", cfg.Version)
+		return nil
+	}
+	return applyFetched(ctx, mc, cfg, resp)
+}
 
+// fetchAgainstBaseline is fetchAndProcess for a client that holds: it sends
+// the hash of the configuration the device runs, read now, and applies what
+// the hub returns only while that configuration is the last one the hub gave
+// (Diverged). The hub's "current" answer is the one thing that ends a hold:
+// it proves hub and device hold the same configuration, so that hash becomes
+// the baseline, and the device acknowledges it so the hub drops the refusal
+// it recorded while the device held.
+func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess) error {
+	active, baseline, err := access.read()
+	if err != nil {
+		refuseUncompared(ctx, mc, cfg, err)
+		cfg.reportHold(true)
+		return nil
+	}
+	resp, err := FetchConfig(ctx, mc, active.Hash())
+	if err != nil {
+		return fmt.Errorf("fetch: %w", err)
+	}
+	if resp.Status == fetchStatusCurrent {
+		settleBaseline(cfg, access, active, baseline)
+		if Diverged(active, baseline) {
+			// The hub last heard a refusal from this device. Nothing was
+			// applied, so no ack would otherwise follow, and the hub would go
+			// on listing a device that holds after its operator resolved it.
+			sendAck(ctx, mc, fleet.ConfigAck{Version: active.Hash(), OK: true})
+		}
+		cfg.reportHold(false)
+		return nil
+	}
+	if resp.Config == "" {
+		logger().Debug("the hub sent no config", "version", active.Hash())
+		return nil
+	}
+	if Diverged(active, baseline) {
+		holdFetched(ctx, mc, cfg, resp, active, baseline)
+		cfg.reportHold(true)
+		return nil
+	}
+	cfg.reportHold(false)
+	return applyFetched(ctx, mc, cfg, resp)
+}
+
+// settleBaseline records active as the baseline after the hub answered
+// "current" for it. A baseline that already equals it is left alone, and so is
+// a device with no stored configuration, which sent no hash the hub could
+// have agreed with. A baseline that cannot be stored is logged and the
+// connection is kept: nothing was applied, and the next fetch settles again.
+func settleBaseline(cfg *ClientConfig, access *BaselineAccess, active, baseline ConfigVersion) {
+	if !active.Recorded() {
+		return
+	}
+	if active == baseline {
+		logger().Debug("config is current", "version", active.Hash())
+		return
+	}
+	if err := access.store(active); err != nil {
+		logger().Warn("the hub holds the configuration this device runs, and the device could not record that as its baseline, "+
+			"so it holds at the next hub change if the two still differ then; check the store with: "+fixCheckStore,
+			"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "version", active.Hash(), "error", err)
+		return
+	}
+	logger().Info("the hub holds the configuration this device runs, recorded as the baseline",
+		"name", cfg.Name, "version", active.Hash())
+}
+
+// holdFetched refuses the configuration the hub returned because the device
+// runs one that differs from its baseline. The hub's configuration is neither
+// decoded, validated nor committed. The hub is told in a config-ack that
+// carries the two hashes and no configuration content, and the device logs
+// one warning. The caller MUST keep the connection: ending it would make the
+// device reconnect and hold again about once a second.
+func holdFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion) {
+	sendAck(ctx, mc, fleet.ConfigAck{
+		Version: resp.Version,
+		OK:      false,
+		Error: holdRefusalPrefix + " (active " + active.Hash() + ", baseline " + baseline.Hash() + "); " +
+			"the device applied nothing and stays connected, and ze doctor on the device names the two ways to resolve it",
+	})
+	logger().Warn("this device holds: the configuration it runs differs from the last one its hub sent, so it applied nothing from the hub",
+		"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name,
+		"active", active.Hash(), "baseline", baseline.Hash(), "offered", resp.Version, "fix", managedDivergedFix(cfg.Name))
+}
+
+// refuseUncompared is a fetch the client did not make because the store could
+// not say what the device runs or what its baseline is. Applying blindly could
+// overwrite a local change, so nothing is fetched or applied; holding in
+// silence would hide it, so the hub is told in a config-ack and the device
+// logs one warning. The caller MUST keep the connection: the next fetch reads
+// the store again.
+func refuseUncompared(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, cause error) {
+	sendAck(ctx, mc, fleet.ConfigAck{
+		OK: false,
+		Error: "this device could not compare the configuration it runs with the last one this hub sent, " +
+			"so it fetched and applied nothing: " + cause.Error(),
+	})
+	logger().Warn("this device could not compare the configuration it runs with the last one its hub sent, "+
+		"so it fetched and applied nothing from the hub; check the store with: "+fixCheckStore,
+		"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "error", cause)
+}
+
+// sendAck sends ack to the hub. An ack that cannot be sent is logged: the
+// connection that lost it ends on its own, and the next one fetches again.
+func sendAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) {
+	if ackErr := SendConfigAck(ctx, mc, ack); ackErr != nil {
+		logger().Warn("send ack failed", "code", codeHubUnreachable, "error", ackErr)
+	}
+}
+
+// applyFetched validates, commits and acknowledges a configuration the hub
+// returned. It returns errEndpointChanged or errHubClientRemoved as
+// fetchAndProcess documents.
+func applyFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse) error {
 	data, ack := cfg.Handler.ValidateConfig(resp)
 	if ack.OK {
 		if cfg.OnCommit == nil {
@@ -328,9 +525,7 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 			ack.Error = fmt.Sprintf("commit config: %v", err)
 		}
 	}
-	if ackErr := SendConfigAck(ctx, mc, ack); ackErr != nil {
-		logger().Warn("send ack failed", "error", ackErr)
-	}
+	sendAck(ctx, mc, ack)
 	if !ack.OK {
 		logger().Warn("config rejected", "error", ack.Error)
 		return nil

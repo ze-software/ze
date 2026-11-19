@@ -7,24 +7,17 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/paths"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // DefaultConfigName is the config filename a store with no usable instance
-// name answers with. DefaultConfig is the only producer, so the name is
-// written once here rather than at each arm that falls back to it.
-const DefaultConfigName = "ze.conf"
-
-// validInstanceName matches alphanumeric names with hyphens, max 64 chars.
-// Prevents path traversal in blob keys.
-var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
+// name answers with. It is derived from the storage package's constant, which
+// the name rule (storage.InstanceConfigName) owns, so the two cannot differ.
+const DefaultConfigName = storage.DefaultConfigName
 
 // StoreDir resolves the live store's config folder. A supplied config path
 // outranks the environment; stdin has no folder and uses the same resolution
@@ -49,9 +42,10 @@ func StorageFor(configPath string) (storage.Storage, error) {
 
 // DefaultConfig returns the config filename from meta/instance/name, or
 // "ze.conf" when no store is given, the key is absent or blank, or the stored
-// name is not a valid file stem. A read that fails for any other reason (a CRC
-// mismatch, an I/O error) is an error: answering "ze.conf" for it served the
-// default config on a device whose own name could not be read.
+// name is not a valid file stem (storage.InstanceConfigName holds that rule,
+// which the store's freeze applies too). A read that fails for any other
+// reason (a CRC mismatch, an I/O error) is an error: answering "ze.conf" for
+// it served the default config on a device whose own name could not be read.
 func DefaultConfig(store storage.Storage) (string, error) {
 	if store == nil {
 		return DefaultConfigName, nil
@@ -64,16 +58,5 @@ func DefaultConfig(store storage.Storage) (string, error) {
 		return "", fmt.Errorf("cannot read the instance name (%s), so the config to use is unknown; "+
 			"check the store with `ze doctor` or set it with `ze init`: %w", zefs.KeyInstanceName.Pattern, err)
 	}
-	name := strings.TrimSpace(string(data))
-	if name == "" {
-		return DefaultConfigName, nil
-	}
-	// Guard: `ze init` stores the host name as the instance name, and a host
-	// name such as "edge.example" is not a valid file stem, so such a store
-	// names its config "ze.conf". The regex also keeps "../evil" out of a key.
-	if !validInstanceName.MatchString(name) {
-		return DefaultConfigName, nil
-	}
-	var tb textbuf.Buffer
-	return tb.Str(name).Str(".conf").String(), nil
+	return storage.InstanceConfigName(data), nil
 }

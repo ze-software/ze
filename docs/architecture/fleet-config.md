@@ -229,6 +229,20 @@ config sessions edit the hub's own configuration only.
 <!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
 
+The editor refuses the session when no serving block declares the client the
+file is named for, and when the daemon serves no client at all, as the import,
+the restore and the rollback do: the commit would record a version that no
+client ever fetches. The refusal carries the reason and the fix of the import,
+from the same producer. The hub reads the declared clients when the session
+opens, so the answer is the one the data commands get. It does not ask whether
+the client is connected. The hub may write the configuration of a declared
+client at any time, and a client that is away fetches it when it connects.
+This rule decides which files a hub writes. It does not decide which users may
+open the editor.
+<!-- source: cmd/ze/hub/session_factory.go -- undeclaredClientSessionRefusal -->
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- UnservedClientConfigRefusal, unservedClientRefusal -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- Serves -->
+
 A running hub also takes a client config from a file: `ze data import
 client-<name>.conf` beside it, or `update data config name client-<name>.conf
 content <base64>` on any command surface, commits a new version through the
@@ -287,8 +301,66 @@ The managed client's local tree caches the config received from the hub. The con
 | BGP config | `bgp { }` block |
 | Local plugins | `server local { }` block |
 | Managed mode toggle | `meta/instance/managed` in the live store |
+| Baseline: the hash of the last configuration the hub made active | `meta/managed/base-version` in the live store (see "The baseline and the hold") |
+<!-- source: pkg/zefs/keys.go -- KeyInstanceManaged, KeyManagedBaseVersion -->
 
-The `meta/instance/managed` flag controls whether the client actually connects to the hub. Toggling it severs or establishes the hub connection without changing the config.
+The `meta/instance/managed` flag says whether the device follows its hub. Two
+commands change it, and with it the hub connection, without changing the
+config.
+
+`request fleet disable` stores the flag as false, then ends the hub connection.
+The daemon cancels its hub client and waits for it, so a configuration the
+client was applying is applied, and its baseline stored, before the connection
+closes. The command needs no hub, no connection and no client, so it is the way
+out for a managed device whose configuration names no hub.
+
+`request fleet enable` stores the flag as true, then starts the hub client
+again, with no restart. The client is built from the version of the
+configuration the daemon runs at that moment, the one the active pointer
+names, never from what the daemon read at boot. The command is
+refused, and the flag left as it was, while that configuration names no
+hub-level `client` block. Its fix is the one `doctor-hub-client-missing` gives.
+
+A daemon that started managed owns its hub client for its whole life, whether
+or not its configuration named a hub at start. The owner runs one client at
+most, on a context no other worker of the daemon shares, refuses a second
+start, and is joined before the daemon returns its store. A daemon that started
+with the flag false owns no hub client. There `request fleet enable` stores the
+flag and answers that the hub connection starts at the next `ze start`: an
+unmanaged start runs services a managed start does not, and a hub client is
+never attached to it. `request fleet disable` on such a daemon stores the flag.
+
+The daemon runs one disable or enable at a time, from its flag write to the
+end of its stop or its start. Two commands sent at once
+therefore never leave the flag saying one thing and the client doing the
+other: the flag and the client agree once each command has answered.
+
+With no daemon running, `ze request fleet disable` and `ze request fleet
+enable` write the flag into the store and the next `ze start` follows it.
+While a daemon owns the store the same line is sent to that daemon. A flag
+written by another route (`update data key`, `ze data write`) decides the next
+start and is read by the running client before its next connection attempt. It
+does not end a connection in use.
+
+`show fleet status` reports the flag. From a running daemon it also reports
+`client` (`running`, `stopping` while a stop is in progress, `stopped`, or
+`not-started` for a daemon that started unmanaged), `connection`
+(`connected`, `not-connected`) and `holding` (`holding`, `not-holding`). The
+report never waits for a stop to finish.
+
+`frozen` is true only when the store refuses an operator's change to the
+device's own configuration (see "The freeze"): the device is managed and its
+daemon runs a stored configuration, or no daemon runs and the device is
+managed. A daemon started from a file or from standard input is never frozen,
+so it reports `frozen` false even while `managed` is true.
+<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, enableOnDaemon, requireDeclaredHub, changeFleetLocal, FleetTarget, daemonClientReport -->
+<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus, frozenHandle -->
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked, OwnConfigFrozen -->
+<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, startWith, stopWith, join, shutdown, state -->
+<!-- source: cmd/ze/hub/main.go -- RunWithManagedClient, runYANGConfig -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStartManaged, extractManagedClientConfig -->
+<!-- source: internal/component/managed/client.go -- RunManagedClient -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container request -->
 
 The running client follows the hub block of each config it applies. After a
 pushed or fetched config is committed and acknowledged, the client reads that
@@ -307,6 +379,218 @@ the client's configuration on the hub, then provision the client again with
 <!-- source: internal/component/managed/doctor.go -- checkHubClientDeclared -->
 <!-- source: internal/component/managed/client.go -- adoptEndpoint, RunManagedClient -->
 <!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint -->
+
+### The baseline and the hold
+
+A managed client must not lose a configuration change made on the client
+itself. The client therefore records which configuration its hub last gave it,
+and applies nothing from the hub while it runs a different one.
+
+**The baseline** is the version hash of the last configuration that became
+active on the client from its hub. The store holds it under
+`meta/managed/base-version`, as the 16 characters of the hash and a newline.
+The hash is computed from the configuration the store holds as active, read
+back after the write. It is never computed from the bytes the hub sent, so a
+write that changed the text cannot make a client differ from its hub.
+<!-- source: internal/component/managed/baseline.go -- StoreBaseline, RecordActiveAsBaseline, BaselineVersion -->
+
+Three places write the baseline, and nothing else does:
+
+| When | Writer | When the write fails |
+|------|--------|----------------------|
+| A hub push whose reload succeeded | `applyManagedPush`, through `recordPushBaseline` | The push stays acknowledged as applied, because the daemon runs it. One warning is logged under `doctor-managed-diverged` |
+| The first start, when the fetched configuration is cached and before the client connects again | `cacheFirstConfig` | The start is refused with an operator error whose fix is `ze show data check`. The configuration stays cached, so the next start runs it with no baseline |
+| A fetch that the hub answers `current` | `settleBaseline` | One warning is logged under `doctor-managed-diverged`. The connection is kept, and the next fetch records it |
+<!-- source: cmd/ze/hub/managed.go -- applyManagedPush, recordPushBaseline -->
+<!-- source: cmd/ze/ze_core_start.go -- cacheFirstConfig -->
+<!-- source: internal/component/managed/client.go -- settleBaseline -->
+
+A push that was refused, or whose reload failed, made nothing active and
+leaves the baseline as it was. `ze init --managed --force` replaces the whole
+store, so the baseline goes with it.
+<!-- source: internal/plugins/init/main.go -- Run, the --force flag -->
+<!-- test: internal/plugins/init/managed_hub_test.go TestInitForceRemovesBaseline -->
+
+**The comparison.** Before each fetch, on a new connection and after each
+`config-changed`, the client reads two hashes from its store: the hash of the
+configuration the daemon runs, and the baseline. The configuration the daemon
+runs is the version that the active pointer names. It is the plain file only
+while no version is pointed. The client sends the first hash as the version of
+its `config-fetch`. One rule, `Diverged`, compares the two: both are recorded,
+and they are different.
+
+| What the store says | The hub answers | What the client does |
+|---------------------|-----------------|----------------------|
+| No baseline, or the active hash equals the baseline | A configuration | It validates, applies and acknowledges as in "Config Change (Two-Phase)". The push records the new baseline |
+| Anything | `current` | It applies nothing. When the active hash is not the baseline already, it records the active hash as the baseline. A client that was holding then sends a `config-ack` with `ok:true` |
+| The active hash differs from the baseline | A configuration | It holds |
+| The active configuration or the baseline cannot be read | Nothing: no fetch is sent | It applies nothing, sends a `config-ack` with `ok:false` that says it could not compare, logs one warning under `doctor-managed-diverged`, and keeps the connection |
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline, holdFetched, refuseUncompared -->
+<!-- source: internal/component/managed/baseline.go -- Diverged, ActiveVersion, activeConfig -->
+
+**A client that holds** does these things, and no others:
+
+- It does not decode, validate, store or apply the configuration the hub
+  returned. The fetch is only how the client learns that the hub holds
+  another configuration.
+- It sends a `config-ack` with `ok:false`. The error text starts with
+  `holding:` and carries the active hash and the baseline. It carries no
+  configuration content.
+- It logs one warning under `doctor-managed-diverged`, with the active, the
+  baseline and the offered hashes.
+- It keeps the connection and keeps answering the heartbeat. A hold is not a
+  connection error: the backoff starts again at each successful
+  authentication, so a client that closed the connection would reconnect and
+  hold again about once a second.
+- It holds again at each later `config-changed`: it answers the notification,
+  fetches and refuses. The hub therefore gets one refusal for each of its
+  writes.
+
+A client that holds applies nothing, so it does not follow a change of the hub
+block either. A hub that moves, or changes that client's secret, while the
+client holds loses it.
+<!-- source: internal/component/managed/client.go -- holdFetched, handleConfigChangedRequest, applyFetched -->
+
+**What the hub sees.** The hub records a failed `config-ack` as that client's
+last refusal, and `show doctor` on the hub lists it under
+`doctor-managed-client-rejected` with the client's own text (see "What doctor
+reads from the managed listener"). The hub reads nothing in that text. The row
+is the one of any refused configuration, so its fix line is the fix of a
+configuration the client could not validate. The client's text names
+`ze doctor` on the client, which gives the two ways to end a hold. The hub
+clears the row when that client next sends a `config-ack` with `ok:true`. A
+client whose hold ends on a `current` answer sends one, with the hash of the
+configuration it runs as the version, although it applied nothing: without it
+the hub would go on listing a client whose hold was resolved. A client that
+was not holding sends none for a `current` answer.
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline -->
+<!-- test: internal/component/managed/client_hold_test.go TestHoldEndedOnCurrentTellsTheHub, TestFirstBaselineSendsNoAck -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- managedRejectedRow -->
+
+**What the client's operator sees.** `ze doctor` on the client reports
+`doctor-managed-diverged`, a warning, from the `managed-diverged` check. The
+check reads the store only, so it reports with the daemon running or stopped.
+It reports nothing on a client that is not managed, on one with no baseline,
+and on one whose two hashes are equal. `show fleet status` reports both
+hashes and whether they differ.
+<!-- source: internal/component/managed/doctor.go -- checkManagedDiverged, diagnoseManagedDiverged -->
+<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus -->
+
+**How a hold ends.** Only one thing ends a hold: the hub answers `current` to
+the hash the client sent. That answer proves that the hub and the client hold
+the same configuration, so the client records that hash as its baseline and
+tells the hub with a `config-ack` (see "What the hub sees"). No other message
+from the hub ends a hold, and the hub cannot make a client apply a
+configuration while the client holds.
+
+**A client with no baseline is not holding.** A client provisioned before the
+baseline existed, or again with `ze init --managed --force`, has none. It
+applies its hub's configuration as before and records a baseline from then
+on. The first fetch of such a client is the one fetch the baseline does not
+protect.
+<!-- source: internal/component/managed/baseline.go -- Diverged -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline -->
+
+### The freeze
+
+While `meta/instance/managed` is `true`, the store refuses an operator's
+change to the client's own stored configuration. The store writes one operator
+error:
+
+```
+the configuration was not changed: this device is managed by a hub
+local changes are frozen while it follows a hub, so that a hub push cannot overwrite one
+fix: request fleet disable
+```
+<!-- source: internal/component/config/storage/freeze.go -- ErrConfigFrozen -->
+
+Every route answers the same problem, reason and fix, and the fix is always
+the last line. Some routes put the command or the step that failed in front
+of the first line, such as `write candidate:` or `restore config <name>:`.
+The import, restore and rollback commands do not wrap the refusal under a fix
+of their own, so their answer ends on `request fleet disable` too.
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- daemonConfigImportRefusal -->
+<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- configRollbackRefusal -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- rollbackStoredConfig -->
+
+**Where.** The refusal sits at the store's candidate staging step,
+`WriteCandidateVersionWithGuard`, before any version is written. Every
+versioned write an operator makes passes it: a session, console, web or API
+commit, `update data config`, `request data restore ... config`, the rollback
+command, and with the daemon stopped `ze config import` of a configuration
+the store already holds, `ze data import` and `ze data restore ... config`. No
+route carries a check of its own. With the daemon stopped,
+`ze config rollback <N> <file>` is not one of them: it rolls back the disk file
+it names, through a file editor, and never writes the store, and a configuration
+read from a file is never frozen. The flag is read under the configuration lock
+the staging already holds, so a refused write leaves no version and no
+candidate pointer: a candidate left behind would make the next hub push fail.
+<!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersion, WriteCandidateVersionWithGuard -->
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked, configFrozen, managedFlagRead -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWrite -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough -->
+<!-- source: internal/component/config/storage/restore.go -- restoreConfigLocked -->
+
+**What is frozen.** Only the client's own stored configuration:
+
+| Store handle | Frozen configuration |
+|--------------|----------------------|
+| A daemon started from its store (`BindConfigSource` with `ConfigSourceStored`) | The name the handle is bound to |
+| A daemon started from a file or from standard input | None. That input is the authority, and such a daemon runs no hub client |
+| A tool that opened the store with the daemon stopped | The name `meta/instance/name` selects, by the rule `ze start` uses (`InstanceConfigName`) |
+| An explicit blob artifact, such as a backup | None. A backup carries the flag of the device it came from and is not that device |
+
+Every other configuration in the same store stays writable. A hub that is
+itself managed still writes the `client-<name>.conf` of each client it
+declares, and records each as a version, while its own configuration is
+refused.
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked, configFrozen, unboundConfigFrozen, OwnConfigFrozen, isBlobArtifact, sameConfigName -->
+<!-- test: cmd/ze/hub/managed_hub_freeze_test.go TestManagedHubImportsDeclaredClientConfig -->
+<!-- source: internal/component/config/storage/config_name.go -- InstanceConfigName -->
+
+**What is exempt.** A writer that no operator decides stages through a
+separately named entry, `StageMachineCandidate`, which does not read the
+flag: the hub's push (`applyManagedPush`), the revert of an unconfirmed commit
+on a running daemon (`confirmRevert`) and at boot (`restoreConfirmOnStart`),
+the boot record of an explicit file (`initializeConfigSource`) and schema
+recovery (`publishRecoveredConfig`). The signal reload stages the bytes the
+source already holds through `StageSourceCandidate`, which skips the flag the
+same way. A machine writer the freeze refused would stop a managed client from
+following its hub or from recovering at boot.
+<!-- source: internal/component/config/storage/pointer.go -- StageMachineCandidate, StageSourceCandidate -->
+<!-- source: cmd/ze/hub/managed.go -- applyManagedPush -->
+<!-- source: cmd/ze/hub/confirm_window.go -- confirmRevert, restoreConfirmOnStart -->
+<!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource, publishRecoveredConfig -->
+
+**A flag the store cannot read refuses the write.** An absent flag means not
+managed. A read that fails for any other reason refuses, naming
+`meta/instance/managed` and the fix `ze show data check`. With the daemon
+stopped, the same holds for `meta/instance/name` on a managed client.
+<!-- source: internal/component/config/storage/freeze.go -- managedFlagRead, ownConfigNameRead, frozenUnknown -->
+<!-- source: internal/component/config/storage/publication_intent.go -- readAdmissionKey, readAdmissionKeyLocked -->
+
+**The freeze is best effort, and the hold is the guarantee.** The freeze tells
+an operator early. It covers the writes that stage a version, and nothing
+else. These routes change a managed client's configuration unrefused:
+
+- a raw key write (`ze data write`, and `update data key` for a key it
+  reaches), including a write of the active version pointer
+  `meta/config/<name>/active` back to an earlier version the store holds
+- a full-store restore
+- a rename of a stored configuration
+- the first import of a configuration name the store does not hold yet,
+  which writes the key directly
+- any change on a daemon started from a file or from standard input, whose
+  input is not frozen at all
+
+A change made that way is kept by the hold above: the client's active hash
+then differs from its baseline, and it applies nothing its hub sends until
+the two agree again. `test/managed/fleet-hold-keeps-local-edit.ci` proves it
+with the active pointer written back to an earlier version while the client
+is stopped and still managed.
+<!-- source: internal/component/config/storage/import_config.go -- ImportConfig -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, activePointerKey -->
 
 ---
 
@@ -368,6 +652,12 @@ window's revert would wipe the push, and the client answers
 `config-ack {"ok":false}` carrying that refusal. The client keeps its old
 version, so a later fetch, on the next `config-changed` or reconnection,
 delivers the push again; nothing retries it when the window closes.
+
+A client whose running configuration differs from its baseline fetches and
+then goes no further: it does not validate or apply what the hub returned. It
+holds, and answers `config-ack {"ok":false}` with the hold text (see "The
+baseline and the hold").
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, holdFetched -->
 
 The client controls timing. A router in the middle of graceful restart or convergence is not forced to reload.
 

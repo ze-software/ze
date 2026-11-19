@@ -235,13 +235,15 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 |-----------|---------|---------|
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
 | `meta/plugin/last-stop` | Why ze last stopped itself because of a plugin (a `fatal` failure policy, a boot refusal, a start refused for a config, command or rpc YANG module an external plugin declared) or ran a stop-time cleanup late: JSON entries of reason, plugin, detail, the fix the refusal named when it named one, and time, with `run`, the start time of the ze process that wrote the record, written by the plugin server before the stop, deleted on the next clean start, read by the next `ze doctor` | `meta/plugin/last-stop` |
+| `meta/managed/base-version` | The baseline of a managed client: the version hash (`fleet.VersionHash`) of the last configuration its hub gave it. `show fleet status` reports it beside the hash of the configuration the device runs. An absent key is a valid state, no baseline recorded. It sits under `meta/managed/`, beside the hub bootstrap keys, because `meta/instance/managed` is a value and the store refuses a key below a value | `meta/managed/base-version` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
 | `file/draft/` | Live edits in progress | `file/draft/router.conf` |
 | `file/<date>/` | Historical config version entries, each holding `sha256:<hex>` | `file/20260318-100000.000/router.conf` |
 | `object/` | Config version bytes, named by their lowercase SHA-256; reached by raw key only | `object/9f86d081884c7d65...` |
 | `support/archive/` | A support archive (tar.gz, secrets redacted) the daemon collected for `request support archive` from a caller in another process; `show data cat <key>` reads it back | `support/archive/ze-support-router1-20261102-101500.tar.gz` |
 | `meta/container/` | The container image store's records, written by the container plugin only: the digest each image reference is bound to, keyed by the SHA-256 of the reference because a reference holds a slash; each container's current and previous image with its last 20 events; the counter of storage project ids. The images, layers and volumes themselves are folders on the data directory, never keys | `meta/container/binding/<sha256>`, `meta/container/generation/web`, `meta/container/project-id` |
-<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername, KeySupportArchive, KeyPluginLastStop, KeyContainerBinding, KeyContainerGeneration, KeyContainerProjectID -->
+<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername, KeySupportArchive, KeyPluginLastStop, KeyContainerBinding, KeyContainerGeneration, KeyContainerProjectID, KeyManagedBaseVersion -->
+<!-- source: internal/component/managed/baseline.go -- BaselineVersion -->
 <!-- source: internal/component/plugin/server/last_stop.go -- RecordLastStop, ReadLastStop, clearLastStop -->
 
 The configuration storage layer maps config paths into this key space and also

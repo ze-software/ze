@@ -159,13 +159,20 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	return run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, len(cliAttach) > 0 && cliAttach[0], nil)
 }
 
-// RunWithManagedClient executes the hub and starts the managed client after
-// the runtime commit hook is available.
-func RunWithManagedClient(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, managedClient *managed.ClientConfig) int {
-	return run(store, configPath, plugins, chaosSeed, chaosRate, false, "", false, "", "", false, managedClient)
+// RunWithManagedClient executes the hub as a managed start: the daemon owns a
+// hub client, which it builds with buildClient and starts once the runtime
+// commit hook is available, and again at each `request fleet enable`.
+// buildClient MUST NOT be nil.
+func RunWithManagedClient(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, buildClient ManagedClientBuilder) int {
+	if buildClient == nil {
+		panic("BUG: hub.RunWithManagedClient called with no client builder")
+	}
+	return run(store, configPath, plugins, chaosSeed, chaosRate, false, "", false, "", "", false, buildClient)
 }
 
-func run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int {
+// run is Run and RunWithManagedClient. A nil buildClient is an unmanaged
+// start, which owns no hub client.
+func run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, buildClient ManagedClientBuilder) int {
 	// A plugin that could not set itself up recorded that from its own init(),
 	// before main(). Read it here, ahead of every irreversible act in this
 	// function, so a daemon the operator cannot rely on says why and stops
@@ -245,7 +252,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	// boots here, `plugin {}` on its own included: a config that passes
 	// `ze config validate` must boot, and a second runtime with its own parser
 	// is how the two used to disagree.
-	return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, managedClient)
+	return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, buildClient)
 }
 
 func clearStaleCandidateOnBoot(store storage.Storage, configPath string) error {
@@ -406,7 +413,7 @@ func installNoBGPAAADispatch(d *pluginserver.Dispatcher) {
 	d.SetAccountingHook(newLiveAAABundleAccountant())
 }
 
-func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) (exitStatus int) { //nolint:cyclop // startup orchestration
+func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, buildClient ManagedClientBuilder) (exitStatus int) { //nolint:cyclop // startup orchestration
 	// Nil means every observed cleanup succeeded. This first defer runs after
 	// all borrowers, including deferred service owners, and is the final verdict
 	// the outer store owner MUST use before applying a pending full restore.
@@ -1551,8 +1558,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	apiServer.SetFullReloadFunc(newRequestReloadFunc(commitReloads, signalReloads, apiServer.WaitForStartupComplete, gnmiReloadNotify, apiServer, eng, configProvider, store, configPath, loadBoth, lm))
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
-	if managedClient != nil && store != nil {
-		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog, daemonConfirmWindow.Load)
+	// A managed start owns a hub client for its whole life, whether or not its
+	// configuration names a hub now. The owner builds each client it starts
+	// from the configuration of that moment, and wires that client's commit of
+	// a hub push to this daemon's reload. The server above shares managedCtx
+	// with nothing of the client: the owner cancels a context of its own.
+	var clientOwner *managedClientOwner
+	if buildClient != nil {
+		if store != nil {
+			clientOwner = newManagedClientOwner(buildClient, func(client *managed.ClientConfig) {
+				wireManagedCommit(client, store, configPath, reloadAfterCommit, auditLog, daemonConfirmWindow.Load)
+			})
+		}
 	}
 	if apiCfgOK {
 		// bootUsers and the auth-mode report were resolved above; the boot-time
@@ -1763,18 +1780,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	if managedClient != nil && store != nil {
+	if clientOwner != nil {
 		// Cancellation alone cannot end a callback already inside storage.
-		// The hub MUST join the complete runner, including pre-reload writes.
-		managedDone := make(chan struct{})
-		defer func() {
-			managedCancel()
-			<-managedDone
-		}()
-		go func(client managed.ClientConfig) {
-			defer close(managedDone)
-			managed.RunManagedClient(managedCtx, client)
-		}(*managedClient)
+		// The hub MUST join the complete runner, including pre-reload writes,
+		// before it returns the borrowed store. The deferred calls run in
+		// reverse: the fleet commands lose their target first, then the owner
+		// ends its client and refuses every later start.
+		defer clientOwner.shutdown()
+		managed.InstallFleetTarget(clientOwner.target())
+		defer managed.InstallFleetTarget(nil)
+		clientOwner.startAtBoot()
 	}
 
 	if cliAttach {

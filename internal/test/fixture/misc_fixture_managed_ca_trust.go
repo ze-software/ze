@@ -3,7 +3,6 @@
 package fixture
 
 import (
-	"bytes"
 	"context"
 	"encoding/pem"
 	"errors"
@@ -143,7 +142,8 @@ func runManagedCATrustScenario(ctx context.Context, scenario string, pluginPort,
 type caTrustDaemon struct {
 	command *exec.Cmd
 	done    chan error
-	output  *bytes.Buffer
+	// output is read while the daemon still writes it, so it is the locked buffer.
+	output  *synchronizedBuffer
 	dir     string
 	dbPath  string
 	env     []string
@@ -235,7 +235,7 @@ func startCATrustClient(ctx context.Context, base string, managedPort int, ancho
 // caTrustStart launches `ze start` in the daemon's own directory and collects
 // its output, which is where a refused handshake is reported.
 func caTrustStart(ctx context.Context, daemon *caTrustDaemon) error {
-	daemon.output = &bytes.Buffer{}
+	daemon.output = &synchronizedBuffer{}
 	command := exec.CommandContext(ctx, "ze", "start") //nolint:gosec // the fixture chooses the program
 	command.Dir = daemon.dir
 	command.Env = daemon.env
