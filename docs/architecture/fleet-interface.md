@@ -274,8 +274,31 @@ address. The page handler answers such a request (`HX-Request`, with the
 request type `partial`) with the content region, then the regions that follow
 the page (the object header with the breadcrumb and the tab row, the tree, the
 tree view selector, the administration list, the side panel) as out-of-band
-swaps. Any other request, the one that restores a page from history included,
-gets the whole shell. Either way the address reproduces the view.
+swaps. A navigation that stays on its object, where only the tab, the sort,
+the page, the filter or the range differs, cannot change the tree rows or the
+administration list, so they are left out: htmx names the page the request
+leaves in `HX-Current-URL`, and the handler keeps the sidebar when that page
+shows the same estate, group node or device under the same tree view
+(`keepsSidebar`). The administration is never kept, since its list marks the
+page in hand, and a request that names no page it leaves gets every region.
+Any other request, the one that restores a page from history included, gets
+the whole shell. Either way the address reproduces the view.
+
+The eye of a table row and the side panel's close control are `PanelLink`s.
+Each is a real link to the page with the row in `id`, or without it to close,
+so a reload or a shared link opens the whole page with the panel open. With
+the script, a control of the page in hand asks for the `side-panel` fragment
+of that address, replaces the side panel region with it alone and pushes the
+page's address: opening a row sends neither the table nor the regions around
+it. An eye whose address is another page's, as in the header's task panel or
+the component gallery, navigates there instead (`panelLink` compares the
+address with the page the answer draws). The region carries
+`data-fleet-address`, the address it was drawn for, and `data-fleet-row`, the
+row it shows; after a swap the script copies the address to the content
+region, so the fragments the page fetches next name the row, and moves the
+selected band and the eye's current mark to that row (`followPanel`). The
+table's own links keep the view they were drawn with until the content is
+drawn again, by a navigation or a live event.
 
 Every such answer carries the content region, and the region says where the
 page is: `data-fleet-path` is the path the browser asked for, without its
@@ -291,9 +314,10 @@ link does. No script assigns the location, and the live interface needs no
 full reload. Going back and forward is htmx's: it restores the page, and the
 script reads the restored region.
 <!-- source: internal/component/web/fleetui/pages.go -- MustRegisterPage, Page, PageRequest, NewPageRequest, ReadSnapshot -->
-<!-- source: internal/component/web/fleetui/handler_shell.go -- fleetHandler.ServeHTTP, shellView, resolvePage, describeObject, failureStatus, asksPart -->
+<!-- source: internal/component/web/fleetui/handler_shell.go -- fleetHandler.ServeHTTP, shellView, resolvePage, sidePanelOf, describeObject, failureStatus, asksPart, keepsSidebar, panelLink -->
 <!-- source: internal/component/web/fleetui/shell.templ -- contentRegion, fragmentBase -->
-<!-- source: internal/component/web/fleetui/assets/fleet.js -- pageAttribute, fragmentURL, navigate -->
+<!-- source: internal/component/web/fleetui/assets/fleet.js -- pageAttribute, fragmentURL, navigate, followPanel -->
+<!-- source: internal/component/web/fleetui/component_action.templ -- PanelLink, PanelLinkView -->
 <!-- source: internal/component/web/fleetui/shell_states.go -- failureHeroView, notBuiltHeroView -->
 <!-- source: internal/component/web/fleetui/shell.templ -- Shell, pageUpdate -->
 
@@ -330,6 +354,7 @@ so the region shows it. An `item` longer than a filter may be is refused.
 | `object` | The object header, the breadcrumb and the tab row | - |
 | `content` | The tab's content | - |
 | `panel` | The side panel's content | - |
+| `side-panel` | The side panel region, whole: open on the row `id` names, its sentence with no row, hidden for a page with no panel | - |
 | `tasks` | The task panel, whole | The tab to show it on; empty for the closed panel |
 | `header` | The Tasks button with its count and its failed dot | - |
 | `search` | The devices, then the pages, matching typed text, at most ten | The text |

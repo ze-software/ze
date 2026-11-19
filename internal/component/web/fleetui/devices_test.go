@@ -4,6 +4,7 @@ package fleetui
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -306,4 +307,86 @@ func TestDevicesDuration(t *testing.T) {
 	} {
 		assert.Equal(t, tc.want, devicesDuration(tc.age), "%s", tc.age)
 	}
+}
+
+// devicesEye finds the eye control of one row: its address, the address of
+// the side panel fragment it asks for, the region it replaces and the
+// address it pushes.
+func devicesEye(t *testing.T, body, row string) (href, panel, pushed string) {
+	t.Helper()
+
+	eye := regexp.MustCompile(`<a class="fleet-icon-button" href="([^"]+)" hx-get="([^"]+)" hx-target="#fleet-side-panel" ` +
+		`hx-swap="outerHTML" hx-push-url="([^"]+)" data-fleet-eye="` + regexp.QuoteMeta(row) + `"`)
+	match := eye.FindStringSubmatch(body)
+	require.NotNil(t, match, "the row %s has an eye that asks for the side panel alone", row)
+
+	return html.UnescapeString(match[1]), html.UnescapeString(match[2]), html.UnescapeString(match[3])
+}
+
+// TestOpeningAPanelAnswersOnlyThePanel opens a row's side panel by its eye,
+// and closes it by the panel's close control, as the browser asks them.
+//
+// VALIDATES: the eye of a row asks for the side panel fragment of the page
+// with the row, replaces the side panel region with it and pushes the page's
+// address with the row; the fragment answers the panel open on the row, with
+// the address it was drawn for, and none of the table; its close control asks
+// for the panel without the row, which answers the empty panel alone.
+// PREVENTS: an eye that re-renders the whole table and the regions around it
+// to show one row's details.
+func TestOpeningAPanelAnswersOnlyThePanel(t *testing.T) {
+	handler := devicesTestHandler(t)
+	fragments := http.HandlerFunc(handler.serveFragment)
+	opened := devicesTestPath + "?id=" + coreLon01
+
+	href, panel, pushed := devicesEye(t, devicesGet(t, devicesTestPath), coreLon01)
+	assert.Equal(t, opened, href, "without the script the eye opens the page with the row")
+	assert.Equal(t, opened, pushed, "the address bar takes the page with the row")
+	assert.Equal(t, fragmentBase+SidePanelFragment+"/estate/devices/?id="+coreLon01, panel)
+
+	answer := getFleet(t, fragments, panel, headerHTMXRequest, htmxTrue, headerHTMXType, htmxPartial)
+	require.Equal(t, http.StatusOK, answer.Code)
+	body := answer.Body.String()
+
+	assert.Contains(t, body, `<aside class="fleet-side-panel" id="fleet-side-panel"`, "the answer is the panel region")
+	assert.Contains(t, body, `data-fleet-panel="open"`)
+	assert.Contains(t, body, `data-fleet-address="`+html.EscapeString(opened)+`"`, "the region names the page with the row")
+	assert.Contains(t, body, `data-fleet-row="`+coreLon01+`"`, "the region names the row the table marks")
+	assert.Contains(t, body, `<h2 class="fleet-panel-title">`+coreLon01+`</h2>`)
+	assert.NotContains(t, body, "<table", "the table is not sent again")
+	assert.NotContains(t, body, `data-fleet-select-row`, "no row of the table is sent again")
+	assert.NotContains(t, body, `id="fleet-content-body"`, "the content region is not sent again")
+	assert.NotContains(t, body, `hx-swap-oob`, "no region around the panel is sent")
+
+	closer := regexp.MustCompile(`href="` + regexp.QuoteMeta(devicesTestPath) + `" hx-get="([^"]+)" hx-target="#fleet-side-panel" ` +
+		`hx-swap="outerHTML" hx-push-url="` + regexp.QuoteMeta(devicesTestPath) + `"`)
+	match := closer.FindStringSubmatch(body)
+	require.NotNil(t, match, "the panel's close control asks for the panel without the row")
+	assert.Equal(t, fragmentBase+SidePanelFragment+"/estate/devices/", html.UnescapeString(match[1]))
+
+	closed := getFleet(t, fragments, html.UnescapeString(match[1]), headerHTMXRequest, htmxTrue, headerHTMXType, htmxPartial)
+	require.Equal(t, http.StatusOK, closed.Code)
+	assert.Contains(t, closed.Body.String(), `data-fleet-panel="empty"`)
+	assert.Contains(t, closed.Body.String(), "Click the eye to see details")
+	assert.NotContains(t, closed.Body.String(), "<table")
+}
+
+// TestPanelAddressStillReproducesTheView asks for the address the eye pushes
+// as the browser does on a reload or a shared link.
+//
+// VALIDATES: AC-4 -- the page with a row in its address is the whole shell
+// with the panel open on that row, the row marked with the selected band and
+// its eye marked current, and the panel region names the page's address.
+// PREVENTS: a panel that only the eye's fragment can open, so a reload or a
+// bookmark loses it.
+func TestPanelAddressStillReproducesTheView(t *testing.T) {
+	opened := devicesTestPath + "?id=" + coreLon01
+	body := devicesGet(t, opened)
+
+	assert.Contains(t, body, "<html", "a reload is the whole page")
+	assert.Contains(t, body, `data-fleet-panel="open"`)
+	assert.Contains(t, body, `data-fleet-address="`+html.EscapeString(opened)+`" data-fleet-row="`+coreLon01+`"`)
+	assert.Contains(t, body, `<h2 class="fleet-panel-title">`+coreLon01+`</h2>`)
+	assert.Contains(t, body, `class="fleet-table-row fleet-table-row--opened"`, "the row shown in the panel is marked")
+	assert.Contains(t, body, `data-fleet-eye="`+coreLon01+`" aria-current="page"`, "its eye is marked current")
+	assert.Len(t, devicesRows(body), PageSizeDefault, "the table is drawn under the panel")
 }

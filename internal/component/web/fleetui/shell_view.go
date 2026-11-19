@@ -236,6 +236,12 @@ type SidePanelView struct {
 	Open bool
 	// CloseHref is the page's address without its row.
 	CloseHref string
+	// Row is the row the panel shows while Open.
+	Row string
+	// PageAddress is the address of the page the region was drawn for, with
+	// its query. A side panel swapped in alone carries it to the content
+	// region, so the page in hand names the row it shows.
+	PageAddress string
 }
 
 // SearchResultsView is what the header search answers for typed text.

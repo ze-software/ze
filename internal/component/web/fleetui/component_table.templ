@@ -244,7 +244,7 @@ templ tableRow(table TableView, row RowView) {
 		if table.Controls {
 			<td class="fleet-table-controls">
 				if row.EyeHref != "" {
-					@NavLink(NavLinkView{Href: row.EyeHref, Class: "fleet-icon-button", Name: "Show the details of " + row.Name, Current: row.Opened}) {
+					@PanelLink(panelLink(ctx, row.EyeHref, row.ID, "Show the details of "+row.Name, row.Opened)) {
 						@Icon("eye")
 					}
 				}

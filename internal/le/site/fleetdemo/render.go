@@ -3,14 +3,15 @@
 // Design: docs/contributing/gh-pages.md -- the fleet interface demonstration: what a render records and writes
 // Related: actions.go -- the action that calls render, and the demonstration it is given
 // Related: render_absent.go -- render in a le built without the fleet interface
+// Related: tour.go -- the requests a render records, its chunks and its bounds
 // Detail: host.go -- the host page that mounts the frame
 
 package sitefleetdemo
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"io"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -18,8 +19,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/html"
 
 	"github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/component/web/fleetui"
@@ -47,19 +46,53 @@ const (
 	// the largest shared script are well under a megabyte.
 	answerBytesMax = 16 << 20
 
-	// The files of the demonstration, in demoDirectory.
+	// The files of the demonstration, in demoDirectory, beside one file per
+	// chunk.
 	hostFile      = "index.html"
 	frameFile     = "frame.html"
 	recordingFile = "recording.json"
 
-	// viaTour marks the declared question in a recording (Exchange.Via).
-	viaTour = "tour"
+	// What the player shows for a request outside the recording, in the
+	// fleet stylesheet's own banner.
+	playerTitle   = "Ze fleet interface, recorded demonstration"
+	playerSubject = "Ze fleet interface"
+	noticeText    = "This is not part of the recorded demonstration: " + sitelgreplay.NoticeRequestToken
+	noticeClass   = "fleet-banner"
+
+	// actionNotSent is the toast a posted action answers, and
+	// consoleNotSent the terminal's answer to a command it does not suggest.
+	actionNotSent  = "Recorded demonstration: this action was not sent"
+	consoleNotSent = "This is not part of the recorded demonstration: the command was not sent. Run one of the suggested commands."
+
+	htmlContentType = "text/html; charset=utf-8"
+	// viaFallback marks a fallback's answer (Exchange.Via).
+	viaFallback = "fallback"
 )
 
-// render records the estate dashboard of the sample estate at the
-// demonstration's clock, with every file it loads, and writes the host page,
-// the frame and the recording into the output's demoDirectory. It writes
-// nowhere else.
+// plainSource exposes the sample estate as a fleetui.Source that says it is
+// sample data, and nothing more: the prototype's stepping, which the shell
+// looks for beside it, is hidden by it.
+type plainSource struct {
+	fleetui.Source
+}
+
+// SampleData keeps the header's sample-data tag (fleetui.SampleSource): the
+// demonstration says it shows sample data.
+func (plainSource) SampleData() {}
+
+// recorded is one recording of the tour, the bytes of each of its chunk
+// files by chunk name, and what each chunk and the whole hold by kind of
+// request: by chunk name, and the whole's under wholeTour.
+type recorded struct {
+	recording sitelgreplay.Recording
+	contents  map[string][]byte
+	sizes     map[string][]kindSize
+}
+
+// render records the tour over the sample estate at the demonstration's
+// clock, and writes the host page, the frame, the recording's index and one
+// file per chunk into the output's demoDirectory. It writes nowhere else, and
+// nothing when a bound is passed.
 func render(ctx context.Context, demo demonstration) (rendered, error) {
 	directory, err := demoDirectoryIn(demo.output)
 	if err != nil {
@@ -71,32 +104,47 @@ func render(ctx context.Context, demo demonstration) (rendered, error) {
 			"The frame carries the player inline, as the looking glass replay's does, so no frame can be written without it.",
 			"git -C "+demo.repository+" status -- "+site.ReplayPlayerSource)
 	}
-	recording, err := recordEstate(ctx, demo)
+	made, err := recordTour(ctx, demo)
 	if err != nil {
 		return rendered{}, err
 	}
+	recording := made.recording
 
-	encoded, err := recording.Encode()
-	if err != nil {
-		return rendered{}, err
-	}
 	frame, err := site.ReplayFrameDocument(recording, string(player))
 	if err != nil {
 		return rendered{}, opererr.Wrap(err, "The frame of the demonstration could not be written",
 			"The recording was made, and the frame writer refused it, so nothing was written.",
 			RenderCommand)
 	}
-	host := hostPage(demo.provenance)
+	if err := tourBounds.check(recording.Chunks, len(frame), made.sizes); err != nil {
+		return rendered{}, err
+	}
+	encoded, err := recording.Encode()
+	if err != nil {
+		return rendered{}, err
+	}
+	chunkFiles, err := sitelgreplay.ChunkFiles(recording.Chunks)
+	if err != nil {
+		return rendered{}, err
+	}
 
-	files := []struct {
+	type demoFile struct {
 		name    string
 		content []byte
-	}{
-		{name: hostFile, content: host},
+	}
+	files := []demoFile{
+		{name: hostFile, content: hostPage(demo.provenance, chunkFiles)},
 		{name: frameFile, content: frame},
 		{name: recordingFile, content: encoded},
 	}
-	written := rendered{exchanges: len(recording.Exchanges), assets: len(recording.Assets)}
+	written := rendered{exchanges: len(recording.Exchanges), assets: len(recording.Assets), kinds: made.sizes[wholeTour]}
+	for _, chunk := range recording.Chunks {
+		files = append(files, demoFile{name: chunk.File, content: made.contents[chunk.Name]})
+		written.chunks = append(written.chunks, writtenChunk{
+			name: chunk.Name, exchanges: len(chunk.Keys), size: chunk.Size, kinds: made.sizes[chunk.Name],
+		})
+		written.exchanges += len(chunk.Keys)
+	}
 	for _, file := range files {
 		target := filepath.Join(directory, file.name)
 		if err := os.WriteFile(target, file.content, 0o644); err != nil { //nolint:gosec // a page of the website output's unpublished tmp/
@@ -153,148 +201,190 @@ func writeFailure(cause error, path string) *opererr.Error {
 		RenderCommand)
 }
 
-// recordEstate serves the fleet pages over a new sample estate at the
-// demonstration's clock, and records the estate dashboard with every file it
-// loads. The estate's script is held, so no event changes it meanwhile.
-func recordEstate(ctx context.Context, demo demonstration) (sitelgreplay.Recording, error) {
+// recordTour serves the fleet pages over a new sample estate at the
+// demonstration's clock, records the tour with every file its pages load, and
+// splits the answers into one chunk per object. The estate's script is held,
+// so no event changes it meanwhile.
+func recordTour(ctx context.Context, demo demonstration) (recorded, error) {
 	source := sample.New(demo.clock)
 	defer source.Close()
 	source.Hold()
 
 	renderer, err := web.NewRenderer()
 	if err != nil {
-		return sitelgreplay.Recording{}, err
+		return recorded{}, err
 	}
+	// The routes see the estate through plainSource only, so the shell
+	// draws no prototype control and mounts no step routes: in the
+	// recording they would do nothing.
+	served := plainSource{Source: source}
 	mux := http.NewServeMux()
-	mux.Handle(entryPath, fleetui.NewRoutes(source, demoAccount))
+	mux.Handle(entryPath, fleetui.NewRoutes(served, demoAccount))
 	mux.Handle(webAssetsPrefix, http.StripPrefix(webAssetsPrefix, renderer.AssetHandler()))
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	entry, err := ask(ctx, server, entryPath)
+	plan, err := planTour(ctx, served, demoAccount, demo.scope)
 	if err != nil {
-		return sitelgreplay.Recording{}, err
+		return recorded{}, err
 	}
-	key := sitelgreplay.ExchangeKey(http.MethodGet, entryPath, nil, nil, false)
-	exchange := sitelgreplay.Exchange{
-		Key: key, Method: http.MethodGet, Path: entryPath, Via: viaTour,
-		Status: entry.status, ContentType: entry.contentType, Body: entry.body,
+	crawler := sitelgreplay.Crawler{
+		Base: server.URL, Client: server.Client(),
+		AssetPrefixes: []string{fleetAssetsPrefix, webAssetsPrefix}, BodyBytesMax: answerBytesMax,
+	}
+	crawled, err := crawlTour(ctx, crawler, &plan)
+	if err != nil {
+		return recorded{}, err
 	}
 
-	linked, err := linkedAssets(entry.body)
-	if err != nil {
-		return sitelgreplay.Recording{}, err
-	}
-	assets := make([]sitelgreplay.Asset, 0, len(linked))
-	for _, path := range linked {
-		answer, err := ask(ctx, server, path)
-		if err != nil {
-			return sitelgreplay.Recording{}, err
+	entry := sitelgreplay.ExchangeKey(http.MethodGet, entryPath, nil, nil, false)
+	names := make(map[string]string, len(crawled.Exchanges))
+	byChunk := map[string][]sitelgreplay.Exchange{}
+	for index := range crawled.Exchanges {
+		exchange := crawled.Exchanges[index]
+		if exchange.Key == entry {
+			continue
 		}
-		assets = append(assets, sitelgreplay.Asset{Path: path, ContentType: answer.contentType, Body: answer.body})
+		name, err := chunkOf(exchange)
+		if err != nil {
+			return recorded{}, err
+		}
+		names[exchange.Key] = name
+		byChunk[name] = append(byChunk[name], exchange)
+	}
+	sizes := map[string][]kindSize{wholeTour: sizeByKind(crawled.Exchanges)}
+	for name, exchanges := range byChunk {
+		sizes[name] = sizeByKind(exchanges)
+	}
+	split, err := sitelgreplay.SplitChunks(crawled.Exchanges, func(exchange sitelgreplay.Exchange) string { return names[exchange.Key] })
+	if err != nil {
+		return recorded{}, err
+	}
+	fallbacks, err := demoFallbacks(ctx)
+	if err != nil {
+		return recorded{}, err
 	}
 
-	return sitelgreplay.Recording{
-		Schema:     sitelgreplay.Schema,
-		Provenance: demo.provenance,
-		Entry:      key,
-		Tour:       []sitelgreplay.TourStep{{Caption: entryCaption, Exchange: key}},
-		Exchanges:  []sitelgreplay.Exchange{exchange},
-		Assets:     assets,
+	return recorded{
+		recording: sitelgreplay.Recording{
+			Schema:     sitelgreplay.Schema,
+			Provenance: demo.provenance,
+			Entry:      entry,
+			Tour:       []sitelgreplay.TourStep{{Caption: entryCaption, Exchange: entry}},
+			Exchanges:  split.Inline,
+			Assets:     crawled.Assets,
+			Player: &sitelgreplay.Player{
+				Title: playerTitle, Subject: playerSubject, HostPage: hostFile,
+				AssetPrefixes: []string{fleetAssetsPrefix, webAssetsPrefix},
+				NoticeText:    noticeText, NoticeClass: noticeClass,
+				// The page's stream client sees a quiet stream; the shell
+				// script resolves its addresses against the pushed one; a
+				// dialog form closes as the browser closes it.
+				SilentEventSource: true, KeepPushedAddress: true, PlainForms: true,
+			},
+			Chunks:    split.Chunks,
+			Fallbacks: fallbacks,
+		},
+		contents: split.Contents,
+		sizes:    sizes,
 	}, nil
 }
 
-// answer is one recorded answer of the fleet routes.
-type answer struct {
-	status      int
-	contentType string
-	body        string
-}
-
-// ask requests path from server as a browser opening it does, and answers
-// the answer. Anything but 200 is refused: a recorded page that failed would
-// show the failure as the interface.
-func ask(ctx context.Context, server *httptest.Server, path string) (answer, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+path, http.NoBody)
-	if err != nil {
-		return answer{}, err
-	}
-	response, err := server.Client().Do(request)
-	if err != nil {
-		return answer{}, askFailure(err, path)
-	}
-	body, readErr := io.ReadAll(io.LimitReader(response.Body, answerBytesMax+1))
-	closeErr := response.Body.Close()
-	if readErr != nil {
-		return answer{}, askFailure(readErr, path)
-	}
-	if closeErr != nil {
-		return answer{}, askFailure(closeErr, path)
-	}
-	if len(body) > answerBytesMax {
-		return answer{}, askFailure(errors.New("the answer is longer than "+strconv.Itoa(answerBytesMax)+" bytes"), path)
-	}
-	if response.StatusCode != http.StatusOK {
-		return answer{}, askFailure(errors.New("status "+strconv.Itoa(response.StatusCode)+": "+string(body)), path)
-	}
-
-	return answer{status: response.StatusCode, contentType: response.Header.Get("Content-Type"), body: string(body)}, nil
-}
-
-// askFailure answers the operator error of a request the fleet routes did
-// not answer.
-func askFailure(cause error, path string) *opererr.Error {
-	return opererr.Wrap(cause, "The fleet interface did not answer "+path+" while it was recorded",
-		"The demonstration holds the answers of the real fleet handlers over the sample estate, so nothing was written. "+
-			"The fleet package's tests show the same failure",
-		"./le test unit pkg path ./internal/component/web/fleetui/sample/")
-}
-
-// linkedAssets answers the path of every style and script the page loads
-// from the fleet assets or the shared web assets, in document order, once
-// each. The page is the server's own markup, bounded by answerBytesMax.
-func linkedAssets(page string) ([]string, error) {
-	var paths []string
-	seen := map[string]bool{}
-	tokens := html.NewTokenizer(strings.NewReader(page))
-
-	for {
-		kind := tokens.Next()
-		if kind == html.ErrorToken {
-			if errors.Is(tokens.Err(), io.EOF) {
-				return paths, nil
-			}
-			return nil, askFailure(tokens.Err(), entryPath)
+// crawlTour asks the tour's steps and what their answers name, then the
+// requests the fleet scripts send from those answers outside hx-get, round
+// after round until a round names nothing new. Each request is asked once.
+func crawlTour(ctx context.Context, crawler sitelgreplay.Crawler, plan *tour) (sitelgreplay.Crawled, error) {
+	var whole sitelgreplay.Crawled
+	held := map[string]bool{}
+	fetched := map[string]bool{}
+	crawler.Follow = func(parent sitelgreplay.Exchange, asked sitelgreplay.Request) bool {
+		if held[requestKey(asked)] {
+			return false
 		}
-		if kind != html.StartTagToken && kind != html.SelfClosingTagToken {
-			continue
+		return plan.follow(parent, asked)
+	}
+
+	steps := plan.steps
+	for round := 1; len(steps) > 0; round++ {
+		if round > discoveryRoundsMax {
+			return sitelgreplay.Crawled{}, boundFailure("discoveryRoundsMax", discoveryRoundsMax, "round "+strconv.Itoa(round)+" still names new requests")
 		}
-		_, more := tokens.TagName()
-		for more {
-			var name, value []byte
-			name, value, more = tokens.TagAttr()
-			path := string(value)
-			if !assetAttribute(string(name), path) {
+		crawler.ExchangesMax = tourExchangesMax - len(whole.Exchanges)
+		if crawler.ExchangesMax < len(steps) {
+			return sitelgreplay.Crawled{}, boundFailure("tourExchangesMax", tourExchangesMax,
+				"the tour asks "+strconv.Itoa(len(whole.Exchanges)+len(steps))+" requests")
+		}
+		crawled, err := crawler.Crawl(ctx, steps)
+		if err != nil {
+			return sitelgreplay.Crawled{}, opererr.Wrap(err, "The fleet interface could not be recorded",
+				"The demonstration holds the real fleet handlers' answers over the sample estate, so nothing was written. "+
+					"A crawl past its requests names tourExchangesMax ("+strconv.Itoa(tourExchangesMax)+") of internal/le/site/fleetdemo/tour.go; "+
+					"any other failure is the fleet package's, and its tests show it",
+				"./le test unit pkg path ./internal/component/web/fleetui/sample/")
+		}
+		var fresh []sitelgreplay.Exchange
+		for index := range crawled.Exchanges {
+			exchange := crawled.Exchanges[index]
+			if held[exchange.Key] {
 				continue
 			}
-			if seen[path] {
+			held[exchange.Key] = true
+			fresh = append(fresh, exchange)
+		}
+		whole.Exchanges = append(whole.Exchanges, fresh...)
+		for _, asset := range crawled.Assets {
+			if !fetched[asset.Path] {
+				fetched[asset.Path] = true
+				whole.Assets = append(whole.Assets, asset)
+			}
+		}
+
+		found, err := discover(fresh)
+		if err != nil {
+			return sitelgreplay.Crawled{}, err
+		}
+		queued := map[string]bool{}
+		steps = nil
+		for _, request := range found {
+			key := requestKey(request)
+			if held[key] || queued[key] {
 				continue
 			}
-			seen[path] = true
-			paths = append(paths, path)
+			queued[key] = true
+			steps = append(steps, request)
 		}
 	}
+	return whole, nil
 }
 
-// assetAttribute reports whether an attribute names a file the player must
-// answer from the recording's assets.
-func assetAttribute(name, value string) bool {
-	if name != "href" && name != "src" {
-		return false
-	}
-	if strings.HasPrefix(value, fleetAssetsPrefix) {
-		return true
-	}
+// requestKey answers the key the recording holds request's answer under.
+func requestKey(request sitelgreplay.Request) string {
+	return sitelgreplay.ExchangeKey(request.Method, request.Path, request.Query, request.Form, request.HTMX)
+}
 
-	return strings.HasPrefix(value, webAssetsPrefix)
+// demoFallbacks answers what the player shows for a post the recording does
+// not hold: a command the console does not suggest answers as the terminal
+// answers one, and any action answers the fleet package's own informational
+// toast, so the view it was posted from stays as it was.
+func demoFallbacks(ctx context.Context) ([]sitelgreplay.Fallback, error) {
+	var refusal bytes.Buffer
+	if err := fleetui.TerminalEntry(fleetui.TerminalEntryView{Output: consoleNotSent}).Render(ctx, &refusal); err != nil {
+		return nil, err
+	}
+	var toast bytes.Buffer
+	if err := fleetui.ToastOOB(fleetui.ToastView{Level: fleetui.ToastInformational, Message: actionNotSent}).Render(ctx, &toast); err != nil {
+		return nil, err
+	}
+	fallback := func(prefix, body string, htmx bool) sitelgreplay.Fallback {
+		return sitelgreplay.Fallback{Method: http.MethodPost, PathPrefix: prefix, Exchange: sitelgreplay.Exchange{
+			Key:    sitelgreplay.ExchangeKey(http.MethodPost, prefix, nil, nil, htmx),
+			Method: http.MethodPost, Path: prefix, HTMX: htmx, Via: viaFallback,
+			Status: http.StatusOK, ContentType: htmlContentType, Body: body,
+		}}
+	}
+	// The terminal posts with fetch, and every action form through htmx.
+	return []sitelgreplay.Fallback{
+		fallback(consolePrefix, refusal.String(), false),
+		fallback(actionPrefix, toast.String(), true),
+	}, nil
 }

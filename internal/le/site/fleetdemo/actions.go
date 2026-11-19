@@ -31,17 +31,25 @@ const (
 	demoDirectory = "tmp/fleet-demo"
 
 	// renderWait bounds one render. The sample estate is in memory and the
-	// handlers answer in process, so a render takes about a second; the bound
-	// stops a handler that never answers.
-	renderWait = 2 * time.Minute
+	// handlers answer in process, but every answer reads the estate whole:
+	// the first full tour asked about 9,000 requests in about seven minutes
+	// (some 47 ms each), and the narrowed tour's estimated 3,000 take about
+	// two and a half. The bound stops a handler that never answers, with
+	// room for a busy machine.
+	renderWait = 10 * time.Minute
 )
 
 const renderWhy = "write the fleet interface's recorded demonstration, for the owner to review.\n" +
 	"\n" +
 	"It serves the fleet pages in process over the sample estate, at a clock pinned\n" +
-	"to the commit date of HEAD, asks for the estate dashboard, keeps the answer and\n" +
-	"every style and script the page loads, and writes the host page, the frame and\n" +
-	"the recording under " + demoDirectory + "/ of the website output.\n" +
+	"to the commit date of HEAD, and records a tour of them: every registered tab of\n" +
+	"the estate, of each group, of each device and of the administration, the views\n" +
+	"of the devices table, the trees, the charts, the side panels and the console's\n" +
+	"suggested commands, with every style and script the pages load. It writes the\n" +
+	"host page, the frame, the recording's index and one chunk file per object under\n" +
+	"" + demoDirectory + "/ of the website output, and reports each chunk's answers and size,\n" +
+	"in the whole and in each chunk by kind of request (page, side panel, fragment, chart, console).\n" +
+	"A tour past its bounds fails, naming the bound and what the chunk holds by kind, and writes nothing.\n" +
 	"Nothing is published: tmp/ is outside every walk of the site, no page links the\n" +
 	"demonstration, and its pages carry a no-index marker. Open\n" +
 	"" + demoDirectory + "/index.html from the review server of the output.\n" +
@@ -81,6 +89,21 @@ type demonstration struct {
 	provenance sitelgreplay.Provenance
 	// clock is the sample estate's clock, pinned to the commit date.
 	clock func() time.Time
+	// scope is how much of the estate the tour opens. The action leaves it
+	// the whole tour; only a test narrows it.
+	scope tourScope
+}
+
+// tourScope is how much of the estate a tour opens. The zero scope is the
+// whole tour, which every render of the action records.
+type tourScope struct {
+	// sampled keeps, beside the estate, the task list and the
+	// administration, the first group node of the default tree view with the
+	// nodes below it, the first featured device and the first ordinary one
+	// by name, and none of the devices table's views but its default one. A
+	// test renders it twice to compare the bytes over every kind of object
+	// and device the whole tour records, at a fraction of its requests.
+	sampled bool
 }
 
 // writtenFile is one file a render wrote, relative to the website output.
@@ -89,11 +112,42 @@ type writtenFile struct {
 	size int
 }
 
-// rendered is what one render wrote.
+// writtenChunk is one chunk file a render wrote: the answers of one object.
+type writtenChunk struct {
+	name      string
+	exchanges int
+	size      int
+	kinds     []kindSize
+}
+
+// kindSize is what the recorded answers of one kind of request hold: a page
+// as htmx or the browser asks it, a side panel, a fragment by its name, a
+// chart's data, a console command (exchangeKind).
+type kindSize struct {
+	kind      string
+	exchanges int
+	// bytes counts the answers' bodies, which are most of a chunk file.
+	bytes int
+}
+
+// rendered is what one render wrote. exchanges counts every recorded answer,
+// the frame's and every chunk's, and kinds holds them by kind of request,
+// the largest first.
 type rendered struct {
 	files     []writtenFile
+	chunks    []writtenChunk
+	kinds     []kindSize
 	exchanges int
 	assets    int
+}
+
+// kindReport answers sizes as the report prints them.
+func kindReport(sizes []kindSize) []map[string]any {
+	report := make([]map[string]any, 0, len(sizes))
+	for _, size := range sizes {
+		report = append(report, map[string]any{"kind": size.kind, "exchanges": size.exchanges, "bytes": size.bytes})
+	}
+	return report
 }
 
 func runRender(arguments leaction.Arguments) (any, int) {
@@ -132,9 +186,18 @@ func runRender(arguments leaction.Arguments) (any, int) {
 		total += file.size
 	}
 
+	chunks := make([]map[string]any, 0, len(written.chunks))
+	for _, chunk := range written.chunks {
+		chunks = append(chunks, map[string]any{
+			"chunk": chunk.name, "exchanges": chunk.exchanges, "bytes": chunk.size, "kinds": kindReport(chunk.kinds),
+		})
+	}
+
 	return map[string]any{
 		"output":    paths.Output,
 		"files":     files,
+		"chunks":    chunks,
+		"kinds":     kindReport(written.kinds),
 		"bytes":     total,
 		"exchanges": written.exchanges,
 		"assets":    written.assets,

@@ -89,6 +89,101 @@ func TestCrawlerFollowsTheAnswersWithinItsBounds(t *testing.T) {
 	}
 }
 
+// TestCrawlerFollowAsksOnlyWhatItAccepts proves a crawl with Follow asks a
+// request an answer names only when Follow accepts it, handing it the answer
+// that names it, and that a request it refuses is never asked.
+func TestCrawlerFollowAsksOnlyWhatItAccepts(t *testing.T) {
+	server := fakeFleet(t)
+	var parents []string
+	crawler := Crawler{
+		Base: server.URL, Client: server.Client(), ExchangesMax: 4, BodyBytesMax: 1 << 10,
+		Follow: func(parent Exchange, request Request) bool {
+			parents = append(parents, parent.Path+" names "+request.Path)
+			return request.Path != "/fleet/device/r2"
+		},
+	}
+	crawled, err := crawler.Crawl(t.Context(), []Request{{Method: "GET", Path: "/fleet/"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for _, exchange := range crawled.Exchanges {
+		keys = append(keys, exchange.Key)
+	}
+	if want := []string{"GET /fleet/", "GET /fleet/tree?view=site htmx", "GET /fleet/device/r1 htmx"}; !reflect.DeepEqual(keys, want) {
+		t.Fatalf("crawled exchanges:\n got %q\nwant %q", keys, want)
+	}
+	want := []string{"/fleet/ names /fleet/tree", "/fleet/tree names /fleet/device/r1", "/fleet/tree names /fleet/device/r2"}
+	if !reflect.DeepEqual(parents, want) {
+		t.Fatalf("Follow was asked:\n got %q\nwant %q", parents, want)
+	}
+}
+
+// TestCrawlerSendsTheRequestTypeHTMXSends proves an htmx step carries
+// HX-Request and HX-Request-Type partial, as htmx sends them for a swap into
+// an element, and a plain step carries neither: the server reads the second to
+// answer a region alone (the fleet shell's asksPart), so a crawl without it
+// records the whole page where the browser receives the region.
+func TestCrawlerSendsTheRequestTypeHTMXSends(t *testing.T) {
+	seen := map[string]string{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /page/{name}", func(w http.ResponseWriter, r *http.Request) {
+		seen[r.PathValue("name")] = r.Header.Get(headerHTMX) + "/" + r.Header.Get(headerHTMXType)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, "<p>a page</p>") //nolint:errcheck // a test server's fixed answer
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	crawler := Crawler{Base: server.URL, Client: server.Client(), ExchangesMax: 2, BodyBytesMax: 1 << 10}
+	_, err := crawler.Crawl(t.Context(), []Request{
+		{Method: "GET", Path: "/page/plain"}, {Method: "GET", Path: "/page/region", HTMX: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]string{"plain": "/", "region": "true/partial"}; !reflect.DeepEqual(seen, want) {
+		t.Fatalf("the htmx headers each step carried:\n got %q\nwant %q", seen, want)
+	}
+}
+
+// TestCrawlerSendsThePageAFollowUpLeaves proves a follow-up carries
+// HX-Current-URL naming the answer it was found in, its query included, as
+// htmx names the page a request leaves, a step carries the page its Current
+// names, and a step with none carries none: the fleet
+// shell reads it to leave out the sidebar of a navigation that stays on its
+// object (keepsSidebar), so a crawl without it records the heavier answer.
+func TestCrawlerSendsThePageAFollowUpLeaves(t *testing.T) {
+	seen := map[string]string{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /page/{name}", func(w http.ResponseWriter, r *http.Request) {
+		seen[r.PathValue("name")] = r.Header.Get(headerHTMXCurrent)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if r.PathValue("name") == "step" {
+			fmt.Fprint(w, `<a hx-get="/page/linked">next</a>`) //nolint:errcheck // a test server's fixed answer
+			return
+		}
+		fmt.Fprint(w, "<p>a page</p>") //nolint:errcheck // a test server's fixed answer
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	crawler := Crawler{Base: server.URL, Client: server.Client(), ExchangesMax: 3, BodyBytesMax: 1 << 10}
+	_, err := crawler.Crawl(t.Context(), []Request{
+		{Method: "GET", Path: "/page/step", Query: []Field{{Name: "sort", Value: "name"}}, HTMX: true},
+		{Method: "GET", Path: "/page/asked", HTMX: true, Current: "/page/step"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"step": "", "asked": server.URL + "/page/step", "linked": server.URL + "/page/step?sort=name",
+	}
+	if !reflect.DeepEqual(seen, want) {
+		t.Fatalf("the page each request left:\n got %q\nwant %q", seen, want)
+	}
+}
+
 // TestCrawlerRefusesSettingsThatCannotDriveACrawl proves a crawl with no
 // client, no bound, a prefix that is no path, no step or a repeated step is
 // refused before or at its first request.

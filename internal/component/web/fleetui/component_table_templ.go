@@ -1401,7 +1401,7 @@ func tableRow(table TableView, row RowView) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = NavLink(NavLinkView{Href: row.EyeHref, Class: "fleet-icon-button", Name: "Show the details of " + row.Name, Current: row.Opened}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var67), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = PanelLink(panelLink(ctx, row.EyeHref, row.ID, "Show the details of "+row.Name, row.Opened)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var67), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

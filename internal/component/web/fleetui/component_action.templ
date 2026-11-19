@@ -45,6 +45,56 @@ templ NavLink(v NavLinkView) {
 	</a>
 }
 
+// sidePanelTarget is the region an eye control and the panel's close control
+// replace with the side panel fragment.
+const sidePanelTarget = "#" + idSidePanel
+
+// PanelLinkView is a control that opens or closes a row in the side panel.
+// Href is the page's address with the row open, or without a row to close the
+// panel. Panel is the side panel fragment of that address while Href is the
+// page in hand; it is empty for an address of another page, which the control
+// opens as a navigation. Row names the row, so the script marks the row the
+// panel shows; it is empty for a control that names no table row.
+type PanelLinkView struct {
+	Href    string
+	Panel   string
+	Row     string
+	Name    string
+	Current bool
+}
+
+// PanelLink draws a control of the side panel. It is a real link to the page
+// with or without the row, so it works without the script and a reload
+// reproduces the view. With the script, a control of the page in hand asks
+// htmx for the side panel alone, replaces the panel region with it and pushes
+// Href; a control of another page navigates there as NavLink does.
+templ PanelLink(v PanelLinkView) {
+	if v.Panel == "" {
+		@NavLink(NavLinkView{Href: v.Href, Class: "fleet-icon-button", Name: v.Name, Current: v.Current}) {
+			{ children... }
+		}
+	} else {
+		<a
+			class="fleet-icon-button"
+			href={ templ.URL(v.Href) }
+			hx-get={ v.Panel }
+			hx-target={ sidePanelTarget }
+			hx-swap="outerHTML"
+			hx-push-url={ v.Href }
+			if v.Row != "" {
+				data-fleet-eye={ v.Row }
+			}
+			if v.Current {
+				aria-current="page"
+			}
+			aria-label={ v.Name }
+			title={ v.Name }
+		>
+			{ children... }
+		</a>
+	}
+}
+
 // The looks of an action.
 const (
 	actionLookLink    = "fleet-action-link"

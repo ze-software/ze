@@ -47,6 +47,7 @@ func goldenSpecComponents(t *testing.T) golden.Spec {
 			one("actionContent", actionContent(link, actionLookLink)),
 			one("actionControl", actionControl(controls.Buttons[0], actionLookButton)),
 			one("ActionLink", ActionLink(link)),
+			one("PanelLink", PanelLink(PanelLinkView{Href: "/fleet/estate/devices/?id=edge-lon-04", Panel: "/fleet/fragment/side-panel/estate/devices/?id=edge-lon-04", Row: "edge-lon-04", Name: "Details of edge-lon-04"})),
 			one("ActionButton", ActionButton(controls.Buttons[0])),
 			one("PrimaryButton", PrimaryButton(controls.Primary)),
 			one("IconButton", IconButton(controls.Icon)),

@@ -476,3 +476,73 @@ func TestFleetHeaderCountsTasks(t *testing.T) {
 	assert.True(t, failed.Failed)
 	assert.Contains(t, failed.Label, "a task failed")
 }
+
+// navigationLeaving answers the answer to a navigation to target, asked the
+// way htmx asks it from the page at current.
+func navigationLeaving(t *testing.T, current, target string) string {
+	t.Helper()
+
+	handler, _ := testHandler()
+	answer := getFleet(t, handler, target,
+		headerHTMXRequest, htmxTrue, headerHTMXType, htmxPartial, headerHTMXCurrent, "http://hub.example"+current)
+	require.Equal(t, http.StatusOK, answer.Code)
+
+	return answer.Body.String()
+}
+
+// TestNavigationWithinAnObjectOmitsTheTree asks for another tab and another
+// view of the object the page in hand shows.
+//
+// VALIDATES: a navigation that stays on its object under the same tree view
+// answers the content, the object region, the tree's view choice and the side
+// panel, and neither the tree rows nor the administration list, which cannot
+// have changed.
+// PREVENTS: every tab, sort, page, filter and range change resending the
+// sidebar.
+func TestNavigationWithinAnObjectOmitsTheTree(t *testing.T) {
+	cases := []struct{ name, current, target string }{
+		{"another tab", pathGroup, "/fleet/group/site=lon/role=edge/devices/"},
+		{"another view", pathEstateTab, pathEstateTab + "?sort=-name"},
+		{"another range", pathDevice, pathDevice + "?range=week"},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			body := navigationLeaving(t, test.current, test.target)
+
+			assert.Contains(t, body, `id="fleet-content-body"`)
+			assert.Contains(t, body, `id="fleet-object" hx-swap-oob="innerHTML"`, "the tab row's active mark follows")
+			assert.Contains(t, body, `id="fleet-tree-view" hx-swap-oob="innerHTML"`, "the view choice names the page in hand")
+			assert.Contains(t, body, `id="fleet-side-panel"`, "the side panel follows the tab")
+			assert.NotContains(t, body, `id="fleet-tree" hx-swap-oob`, "the tree rows cannot have changed")
+			assert.NotContains(t, body, `id="fleet-admin-list"`, "the administration list cannot have changed")
+		})
+	}
+}
+
+// TestNavigationToAnotherObjectRefreshesTheTree asks for pages whose sidebar
+// differs from the page in hand's.
+//
+// VALIDATES: a navigation to another object, under another tree view, between
+// administration pages, or from a page htmx does not name, answers the tree
+// rows and the administration list out of band.
+// PREVENTS: a tree that keeps the previous object selected after the
+// operator opened another one.
+func TestNavigationToAnotherObjectRefreshesTheTree(t *testing.T) {
+	cases := []struct{ name, current, target string }{
+		{"another device", pathGroup, pathDevice},
+		{"another group", "/fleet/group/site=lon/dashboard/", pathGroup},
+		{"another tree view", pathGroup, pathGroup + "?view=role"},
+		{"another administration page", "/fleet/admin/labels/", "/fleet/admin/filters/"},
+		{"a page that does not parse", "/fleet/nowhere/", pathGroup},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			body := navigationLeaving(t, test.current, test.target)
+
+			assert.Contains(t, body, `id="fleet-tree" hx-swap-oob="innerHTML"`)
+			assert.Contains(t, body, `id="fleet-admin-list" hx-swap-oob="innerHTML"`)
+		})
+	}
+}

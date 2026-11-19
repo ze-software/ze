@@ -26,7 +26,7 @@ const (
 	// search.templ (1).
 	shellComponentCount = 22
 	// sharedComponentCount is icons.templ and every component_*.templ.
-	sharedComponentCount = 82
+	sharedComponentCount = 83
 	// pageComponentCount is every page_*.templ: page_devices.templ (1),
 	// page_dashboard.templ (13), page_device.templ (5), page_activity.templ
 	// (5), page_config.templ (6), page_rollouts.templ (4) and

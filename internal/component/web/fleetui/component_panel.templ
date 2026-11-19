@@ -131,7 +131,7 @@ templ PanelContent(v PanelView) {
 					</span>
 				</button>
 				if !v.Empty {
-					@NavLink(NavLinkView{Href: v.CloseHref, Class: "fleet-icon-button", Name: "Close the details"}) {
+					@PanelLink(panelLink(ctx, v.CloseHref, "", "Close the details", false)) {
 						@Icon("close")
 					}
 				}

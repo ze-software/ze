@@ -73,21 +73,29 @@ templ Shell(view ShellView, content templ.Component, side templ.Component) {
 
 // pageUpdate renders what a navigation inside the shell changes: the content
 // region, which htmx swaps into its target, then the regions that follow the
-// page, each swapped out of band into the element of the same id.
-templ pageUpdate(view ShellView, content templ.Component, side templ.Component) {
+// page, each swapped out of band into the element of the same id. The tree's
+// view choice names the page in hand in every view, so it always follows.
+// sidebar is false for a navigation that stays on its object under the same
+// tree view (keepsSidebar): the tree rows and the administration list cannot
+// have changed, so they are not sent.
+templ pageUpdate(view ShellView, content templ.Component, side templ.Component, sidebar bool) {
 	@contentRegion(view.Main, content)
 	<div id={ idObject } hx-swap-oob="innerHTML">
 		@objectRegion(view.Main)
 	</div>
-	<div id={ idTree } hx-swap-oob="innerHTML">
-		@treeRows(view.Sidebar.Tree.Rows)
-	</div>
+	if sidebar {
+		<div id={ idTree } hx-swap-oob="innerHTML">
+			@treeRows(view.Sidebar.Tree.Rows)
+		</div>
+	}
 	<select id={ idTreeView } hx-swap-oob="innerHTML">
 		@treeViewOptions(view.Sidebar.Tree)
 	</select>
-	<ul id={ idAdminList } hx-swap-oob="innerHTML">
-		@adminLinks(view.Sidebar)
-	</ul>
+	if sidebar {
+		<ul id={ idAdminList } hx-swap-oob="innerHTML">
+			@adminLinks(view.Sidebar)
+		</ul>
+	}
 	@sidePanel(view.Panel, side, true)
 }
 
@@ -348,13 +356,17 @@ templ contentRegion(view MainView, content templ.Component) {
 // edge of the content; the class fleet-theme.js sets before the first paint
 // from the stored pin makes it stand beside the content, the sentence
 // included. oob marks the answer of a navigation inside the shell, which
-// replaces the region on the page.
+// replaces the region on the page. The region names the address it was drawn
+// for and the row it shows, which the script carries to the content region
+// and the table when the region is swapped in alone (PanelLink).
 templ sidePanel(view SidePanelView, side templ.Component, oob bool) {
 	<aside
 		class="fleet-side-panel"
 		id={ idSidePanel }
 		aria-label="Details"
 		data-fleet-panel={ panelState(view) }
+		data-fleet-address={ view.PageAddress }
+		data-fleet-row={ view.Row }
 		if oob {
 			hx-swap-oob="outerHTML"
 		}

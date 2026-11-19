@@ -117,8 +117,9 @@ func goldenSpecShell(t *testing.T) golden.Spec {
 				{Name: "not-found", Data: Shell(missing, missingOutcome.content, missingOutcome.side)},
 			}},
 			{Name: "pageUpdate", Variants: []golden.Variant{
-				{Name: "group", Data: pageUpdate(group, groupOutcome.content, groupOutcome.side)},
-				{Name: "row-open", Data: pageUpdate(opened, openedOutcome.content, openedOutcome.side)},
+				{Name: "group", Data: pageUpdate(group, groupOutcome.content, groupOutcome.side, true)},
+				{Name: "row-open", Data: pageUpdate(opened, openedOutcome.content, openedOutcome.side, true)},
+				{Name: "within-object", Data: pageUpdate(group, groupOutcome.content, groupOutcome.side, false)},
 			}},
 			{Name: "shellHeader", Variants: []golden.Variant{
 				{Data: shellHeader(estate.Header)},

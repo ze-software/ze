@@ -44,7 +44,21 @@ const (
 	// tells the reader to change.
 	lookingGlassBound = "the simulated network grew, so raise exchangesMax in internal/le/site/lgreplay/record.go"
 
-	headerHTMX        = "HX-Request"
+	headerHTMX = "HX-Request"
+	// headerHTMXType is what htmx says it will swap: "full" when the target
+	// is the body or the element selects part of the answer (hx-select),
+	// "partial" otherwise. No recorded page targets the body or selects, so
+	// every htmx request is a partial one, and a server that answers a partial
+	// request with its region alone (the fleet shell, asksPart) is recorded as
+	// the browser sees it.
+	headerHTMXType = "HX-Request-Type"
+	// headerHTMXCurrent is the address of the page a request leaves, which
+	// htmx sends with every request. A follow-up names the answer it was
+	// found in, so a server that answers by the page left (the fleet shell,
+	// keepsSidebar) is recorded as the browser leaving that page sees it. A
+	// step names none: it is asked as from nowhere.
+	headerHTMXCurrent = "HX-Current-URL"
+	htmxPartial       = "partial"
 	headerContentType = "Content-Type"
 	formContentType   = "application/x-www-form-urlencoded"
 	streamContentType = "text/event-stream"
@@ -79,6 +93,10 @@ type request struct {
 	form   []Field
 	htmx   bool
 	via    string
+	// current is the address of the page the request leaves, empty for a
+	// step. It is not part of the key: the player answers a request by what
+	// it asks, wherever it is asked from.
+	current string
 }
 
 func (r request) key() string {
@@ -104,6 +122,9 @@ type crawler struct {
 	// normalize rewrites an answer's body. count says the answer is one the
 	// recording keeps, so its replacements are counted.
 	normalize func(text string, count bool) string
+	// follow decides whether a request an answer names is asked. Nil asks
+	// every one.
+	follow func(parent Exchange, request request) bool
 }
 
 // recorder is one run of the looking glass recorder. It is not safe for
@@ -228,9 +249,16 @@ func (c *crawler) followUps(ctx context.Context, requests []request, exchanges *
 			if err != nil {
 				return nil, fmt.Errorf("answer to %s: %w", parent.Key, err)
 			}
-			request := request{method: methodGet, path: path, query: query, htmx: true, via: viaLink}
+			current := c.base + parent.Path
+			if len(parent.Query) > 0 {
+				current += "?" + encodeFields(parent.Query)
+			}
+			request := request{method: methodGet, path: path, query: query, htmx: true, via: viaLink, current: current}
 			key := request.key()
 			if asked[key] {
+				continue
+			}
+			if c.follow != nil && !c.follow(parent, request) {
 				continue
 			}
 			if len(*exchanges) >= c.exchangesMax {
@@ -421,6 +449,10 @@ func (c *crawler) ask(ctx context.Context, request request, count bool) (Exchang
 	}
 	if request.htmx {
 		httpRequest.Header.Set(headerHTMX, "true")
+		httpRequest.Header.Set(headerHTMXType, htmxPartial)
+		if request.current != "" {
+			httpRequest.Header.Set(headerHTMXCurrent, request.current)
+		}
 	}
 	answer, err := c.client.Do(httpRequest)
 	if err != nil {
@@ -456,8 +488,13 @@ type Request struct {
 	// Query and Form are the fields in the order they are sent.
 	Query []Field
 	Form  []Field
-	// HTMX says the request carries HX-Request, as htmx sends it.
+	// HTMX says the request carries HX-Request and HX-Request-Type partial,
+	// as htmx sends them for a swap into an element.
 	HTMX bool
+	// Current is the path and query of the page an htmx step leaves, sent
+	// as HX-Current-URL on the crawled server, as htmx names it. Empty asks
+	// the step as from nowhere. It is not part of the key.
+	Current string
 }
 
 // Crawler records a server other than the looking glass: the walk the
@@ -480,6 +517,11 @@ type Crawler struct {
 	ExchangesMax int
 	// BodyBytesMax bounds one answer.
 	BodyBytesMax int
+	// Follow, when set, decides whether a request an answer names through
+	// hx-get is asked: parent is the answer that names it. A product whose
+	// pages link every view of every table needs it, since following every
+	// link would record every combination of them. Nil asks every one.
+	Follow func(parent Exchange, request Request) bool
 }
 
 // Crawled is what one crawl recorded: the steps' answers first, in their
@@ -510,6 +552,9 @@ func (c Crawler) Crawl(ctx context.Context, steps []Request) (Crawled, error) {
 		request := request{
 			method: strings.ToUpper(step.Method), path: step.Path, query: step.Query, form: step.Form,
 			htmx: step.HTMX, via: viaTour,
+		}
+		if step.Current != "" {
+			request.current = c.Base + step.Current
 		}
 		key := request.key()
 		if asked[key] {
@@ -556,11 +601,19 @@ func (c Crawler) crawler() (crawler, error) {
 			return crawler{}, fmt.Errorf("asset prefix %q does not start with /", prefix)
 		}
 	}
-	return crawler{
+	walk := crawler{
 		base: c.Base, client: c.Client, server: "the server",
 		assetAttribute: assetPattern(c.AssetPrefixes),
 		exchangesMax:   c.ExchangesMax, bodyBytesMax: c.BodyBytesMax,
 		bound:     "raise the crawl's ExchangesMax, or narrow its steps",
 		normalize: func(text string, _ bool) string { return text },
-	}, nil
+	}
+	if c.Follow != nil {
+		walk.follow = func(parent Exchange, asked request) bool {
+			return c.Follow(parent, Request{
+				Method: asked.method, Path: asked.path, Query: asked.query, Form: asked.form, HTMX: asked.htmx,
+			})
+		}
+	}
+	return walk, nil
 }

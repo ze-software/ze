@@ -528,6 +528,35 @@
     }, panel);
   }
 
+  // followPanel makes the page follow the side panel region. An eye control
+  // and the panel's close control swap the region in alone (PanelLink in
+  // component_action.templ), so the content region still names the address
+  // it was drawn for: it takes the address the region was drawn for, so a
+  // fragment the page fetches next names the row the panel shows, and the
+  // table marks that row with the selected band. After a whole page or a
+  // navigation both name one address and one row already, and nothing
+  // changes.
+  function followPanel() {
+    var panel = byId('fleet-side-panel');
+    var content = byId('fleet-content-body');
+    if (!panel || !content) return;
+
+    var address = panel.getAttribute('data-fleet-address');
+    if (address) content.setAttribute('data-fleet-address', address);
+
+    var row = panel.getAttribute('data-fleet-row') || '';
+    each('[data-fleet-eye]', function (eye) {
+      var opened = row !== '' && eye.getAttribute('data-fleet-eye') === row;
+      if (opened) {
+        eye.setAttribute('aria-current', 'page');
+      } else {
+        eye.removeAttribute('aria-current');
+      }
+      var line = eye.closest('.fleet-table-row');
+      if (line) line.classList.toggle('fleet-table-row--opened', opened);
+    }, content);
+  }
+
   function togglePanelPin() {
     setLocal(KEY_PANEL_PINNED, panelPinned() ? '0' : '1');
     applyPanel();
@@ -780,6 +809,7 @@
     if (title) document.title = title;
 
     applyTreeState();
+    followPanel();
     applyPanel();
 
     if (searchOpensFirst) {

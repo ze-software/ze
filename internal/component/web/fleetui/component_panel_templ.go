@@ -490,7 +490,7 @@ func PanelContent(v PanelView) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = NavLink(NavLinkView{Href: v.CloseHref, Class: "fleet-icon-button", Name: "Close the details"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = PanelLink(panelLink(ctx, v.CloseHref, "", "Close the details", false)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

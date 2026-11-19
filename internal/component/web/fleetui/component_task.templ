@@ -102,7 +102,7 @@ templ taskSummary(v TaskRowView) {
 // taskEye draws the eye that opens a task in the side panel.
 templ taskEye(v TaskRowView) {
 	if v.EyeHref != "" {
-		@NavLink(NavLinkView{Href: v.EyeHref, Class: "fleet-icon-button", Name: "Show the details of " + v.Name}) {
+		@PanelLink(panelLink(ctx, v.EyeHref, "", "Show the details of "+v.Name, false)) {
 			@Icon("eye")
 		}
 	}

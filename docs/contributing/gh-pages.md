@@ -813,7 +813,10 @@ file, frame and tests do not change:
 
 `Crawler` in `internal/le/site/lgreplay` is the recorder's walk for a server
 other than the looking glass, with the asset prefixes and the bounds given;
-the looking glass recorder makes the same walk with its own values.
+the looking glass recorder makes the same walk with its own values. Its
+optional `Follow` is handed each `hx-get` an answer names, with that answer,
+and the walk asks only those it accepts; without it, every one is asked, as
+the looking glass recorder asks them.
 `site.ReplayFrameDocument` writes either frame document. A mount with no tour
 steps is a frame alone (`mountFrame`), filling the mount when it carries
 `data-lg-replay-fill`. The key names of each field are in `website/AI.md`,
@@ -831,16 +834,66 @@ steps is a frame alone (`mountFrame`), filling the mount when it carries
 
 The action serves the fleet pages in process, through `fleetui.NewRoutes`,
 over a sample estate built with `sample.New` at a clock pinned to the commit
-date of HEAD, with the account `demo`. The web package's shared scripts come
-from its own asset handler. It records the estate dashboard and every style
-and script the page loads, then writes three files under the output's
-`tmp/fleet-demo/`, and nowhere else:
+date of HEAD, with the account `demo`. The routes see the estate through
+`plainSource`, which answers `fleetui.Source` and the sample-data tag and hides
+the prototype's stepping, so the header draws no Step or Hold control and the
+step routes are not mounted. The estate's script is held, so no event changes
+it while it is recorded. The web package's shared scripts come from its own
+asset handler.
+
+What is recorded is the tour `planTour` derives from the fleet package's own
+registries and the sample estate, so a page registered later is recorded
+without a change to the tour:
+
+| Part | Requests |
+|------|----------|
+| Pages | Every tab `fleetui.Tabs` registers, for the estate, each group node of the default tree view, each device and the administration, and the task list, each as its tab link asks it (an htmx request) |
+| Estate dashboard | Every chart range; each built-in and declared tree view; every estate view its links name |
+| Estate devices table | Each view at the default of every other part: every column of `fleetui.DeviceColumns` sorted both ways, every page size of `fleetui.PageSizes` at its first page, every page at `fleetui.PageSizeDefault`, a single-term filter (`fleetui.SetFilterTerm`) for each state, each version and each label value, and each saved filter. No cross product of these. Each is asked from the table's default view (`lgreplay.Request.Current`), where its controls are, so it is recorded without the sidebar |
+| Featured devices | The first device by name of each display state: every chart range, every sort of its tables, and the side panels of their rows |
+| Ordinary devices | Every other device: the default view of each tab and sub-tab, at the day chart range, with no sort and no side panel (`tour.panels`) |
+| Follow-ups | Every fragment an answer names through `hx-get` but the side panel, and of its page links and side panels one step from a default view: a sub-tab, and a side panel (the `side-panel` fragment its eye asks) of the estate, the task list, the administration or a featured device, and from a recorded panel its close control (`tour.follow`). No filtered view is followed, so no combination of filter, sort, page and panel is recorded |
+| Scripts | Each tree branch (`data-fleet-lazy`, as htmx asks it), each chart's data (`data-chart-url`, fetched with no htmx header) and each command the console suggests (`data-terminal-fill`, posted to `data-terminal-url` with no htmx header), round after round until no answer names a new one (`crawlTour`) |
+
+Each request carries `HX-Request` exactly as its control sends it, because the
+recording's key holds the flag and the player matches on it. An htmx request
+also carries `HX-Request-Type: partial`, as htmx sends it for a swap into an
+element, so the shell answers a navigation with the content region and its
+out-of-band regions (`asksPart`), and only the entry is recorded as the whole
+shell. A follow-up also carries `HX-Current-URL`, the answer it was found in,
+as htmx names the page a request leaves, so a step that stays on its object (a
+sort, a sub-tab) is recorded without the tree rows and the administration
+list (`keepsSidebar`); a step the tour asks names no page, and carries them.
+The crawl is
+`lgreplay.Crawler`, whose `Follow` decides which `hx-get` it asks. The answers
+are split by `lgreplay.SplitChunks` into one chunk per object, named `estate`
+(the task list included), `group-<path>` (the node's levels in lower-case
+letters, digits and hyphens), `device-<name>` and `admin`. The entry page and
+the shell's styles and scripts travel in the frame. A request outside the
+recording shows, in the fleet stylesheet's `fleet-banner`, "This is not part of
+the recorded demonstration: " and the request. Any post under `/fleet/action/`
+answers the fleet package's own informational toast (`fleetui.ToastOOB`),
+"Recorded demonstration: this action was not sent", and a console command that
+is not suggested answers a terminal entry saying it was not sent.
+
+The render fails, naming the bound, the chunk and the figure, and what the
+chunk or the whole holds by kind of request, and writes nothing, when the tour
+passes one of the bounds `tour.go` states: `tourExchangesMax` (5,000 requests;
+the narrowed tour is estimated at about 3,000), `chunkExchangesMax` (2,000
+answers in one chunk), `chunkBytesMax` (16 MiB for one chunk file) and
+`totalBytesMax` (40 MiB for the frame and every chunk). Past one, the tour is
+narrowed where the kinds say it grew, rather than the bound raised in silence.
+The kinds are a page as htmx or the browser asks it, the side panel fragment
+an eye or a close control asks, any other fragment by its registered name (`fragment tree-branch` for the tree), a chart's data and
+a console command (`exchangeKind`, `sizeByKind`). The files, under the output's
+`tmp/fleet-demo/` and nowhere else:
 
 | File | Holds |
 |------|-------|
-| `index.html` | The host page: a bar naming it a recorded demonstration on sample data, the commit and date, that live updates are not recorded and that it is not published, above the frame. It is marked no-index, carries no site navigation, and loads the site's `assets/lg-replay.js` and `assets/site.css` by relative paths, so it plays from a review server whose root is not the output's |
+| `index.html` | The host page: a bar naming it a recorded demonstration on sample data, the commit and date, that live updates are not recorded and that it is not published, above the frame. It is marked no-index, carries no site navigation, names the chunk files in `data-lg-replay-chunks` (`lgreplay.ChunkFiles`), and loads the site's `assets/lg-replay.js` and `assets/site.css` by relative paths, so it plays from a review server whose root is not the output's |
 | `frame.html` | The frame document, written by `site.ReplayFrameDocument` |
-| `recording.json` | The recording the frame carries |
+| `recording.json` | The recording the frame carries: the player's settings, the entry, the assets, the chunk index and the fallbacks |
+| `<chunk>.json` | One per chunk: its answers, which the host fetches the first time the frame asks for one of them |
 
 `output` defaults to the gh-pages checkout beside this one, resolved and
 refused as every site action resolves it (`site.ResolvePaths`). An output with
@@ -852,11 +905,15 @@ refreshes it, and nothing of it is published: `tmp/` is outside every walk of
 the site. The page registry, the sitemap and the search index skip it as an
 unpublished directory; the publication receipt, the plain-figure check and git
 skip it through the artifact's own ignore list; and a build carries it across
-with its bytes unchanged. The answer names each file and its size, the exchange count and the
+with its bytes unchanged. The answer names each file and its size, each chunk
+with its answer count, its size and its answers by kind of request, the whole
+recording's answers by kind, the total bytes, the exchange count and the
 commit. A le built without the `ze_web` and `ze_fleet_ui` tags refuses the
 action, because it has no fleet pages to record.
 <!-- source: internal/le/site/fleetdemo/actions.go -- runRender, newDemonstration -->
-<!-- source: internal/le/site/fleetdemo/render.go -- render, demoDirectoryIn, recordEstate, linkedAssets -->
+<!-- source: internal/le/site/fleetdemo/render.go -- render, demoDirectoryIn, recordTour, crawlTour, demoFallbacks, plainSource -->
+<!-- source: internal/le/site/fleetdemo/tour.go -- planTour, follow, panels, discover, chunkOf, exchangeKind, sizeByKind, tourExchangesMax, chunkExchangesMax, chunkBytesMax, totalBytesMax -->
+<!-- source: internal/le/site/lgreplay/record.go -- Crawler -->
 <!-- source: internal/le/site/fleetdemo/host.go -- hostPage, hostBarText -->
 <!-- source: internal/le/site/fleetdemo/render_absent.go -- render -->
 <!-- source: internal/le/site/pages.go -- unpublishedDirectories, pageRegistry -->

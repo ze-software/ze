@@ -15,6 +15,8 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 
 	"github.com/a-h/templ"
 
@@ -33,11 +35,14 @@ const (
 
 // The request headers htmx sends, and the values the page handler reads. A
 // request htmx makes for a part of the page is answered with the regions that
-// change, and every other request with the whole shell.
+// change, and every other request with the whole shell. HX-Current-URL is the
+// address of the page the request leaves, which says whether the sidebar
+// changes.
 const (
 	headerHTMXRequest = "HX-Request"
 	headerHTMXType    = "HX-Request-Type"
 	headerHTMXRestore = "HX-History-Restore-Request"
+	headerHTMXCurrent = "HX-Current-URL"
 	htmxTrue          = "true"
 	htmxPartial       = "partial"
 )
@@ -131,6 +136,69 @@ func asksPart(r *http.Request) bool {
 	return r.Header.Get(headerHTMXType) == htmxPartial
 }
 
+// keepsSidebar reports whether the page the request leaves, which htmx names
+// in HX-Current-URL, shows the sidebar the target page would draw: the same
+// object under the same tree view, so the tree selects the same row and holds
+// the same branches. The administration is never kept, since its list marks
+// the page in hand. A request that names no page it leaves, or one that does
+// not parse, keeps nothing.
+func keepsSidebar(r *http.Request, target Address) bool {
+	current := r.Header.Get(headerHTMXCurrent)
+	if current == "" {
+		return false
+	}
+	left, err := url.Parse(current)
+	if err != nil {
+		return false
+	}
+	shown, err := ParseAddress(left)
+	if err != nil {
+		return false
+	}
+	if target.Kind == ObjectAdmin {
+		return false
+	}
+
+	return shown.Kind == target.Kind && shown.Device == target.Device &&
+		slices.Equal(shown.Group, target.Group) && shown.View.TreeView == target.View.TreeView
+}
+
+// pageInHandKey is the context key of the page an answer draws, which a
+// side panel control compares its address with (panelLink).
+type pageInHandKey struct{}
+
+// withPageInHand answers ctx carrying page as the page the answer draws. The
+// page and the fragment handlers set it before they build anything.
+func withPageInHand(ctx context.Context, page Address) context.Context {
+	return context.WithValue(ctx, pageInHandKey{}, page)
+}
+
+// panelLink answers the side panel control for href, an address
+// Address.String wrote. When href is an address of the page the answer draws,
+// the control asks for that address's side panel fragment; for another page,
+// and for an answer drawn outside a request, it is a navigation.
+func panelLink(ctx context.Context, href, row, name string, current bool) PanelLinkView {
+	link := PanelLinkView{Href: href, Row: row, Name: name, Current: current}
+
+	page, drawn := ctx.Value(pageInHandKey{}).(Address)
+	if !drawn {
+		return link
+	}
+	path, query, queried := strings.Cut(href, "?")
+	if path != page.Path() {
+		return link
+	}
+
+	// The fragment spells the page out, the estate dashboard's included, so
+	// it names the page by its object path and keeps the query of href.
+	link.Panel = fragmentBase + SidePanelFragment + "/" + page.objectPath()
+	if queried {
+		link.Panel += "?" + query
+	}
+
+	return link
+}
+
 // ServeHTTP answers one page address. An address that names no page, no
 // group or no device answers the not-found state inside the shell, with
 // status 404.
@@ -143,6 +211,7 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// keeps the tree and the header to leave the dead address by.
 		address = Address{Kind: ObjectEstate, Tab: TabDashboard, View: ParseViewParams(r.URL.Query())}
 	}
+	ctx = withPageInHand(ctx, address)
 
 	request, err := NewPageRequest(ctx, handler.source, address, web.GetUsernameFromRequest(r))
 	if err != nil {
@@ -165,7 +234,10 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if asksPart(r) {
-		renderAnswer(ctx, w, outcome.status, pageUpdate(view, outcome.content, outcome.side))
+		// A navigation that stays on its object, to another tab, sort, page,
+		// filter or range, cannot change the sidebar, so it is not sent.
+		sidebar := addressErr != nil || !outcome.selects || !keepsSidebar(r, address)
+		renderAnswer(ctx, w, outcome.status, pageUpdate(view, outcome.content, outcome.side, sidebar))
 		return
 	}
 
@@ -190,6 +262,8 @@ func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome, 
 	if outcome.selects {
 		main.EventsURL = EventsPath
 	}
+	panel := outcome.panel
+	panel.PageAddress = main.PageAddress
 
 	tasks, err := taskPanelView(ctx, request)
 	if err != nil {
@@ -200,7 +274,7 @@ func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome, 
 		Header:  headerView(request),
 		Sidebar: sidebar,
 		Main:    main,
-		Panel:   outcome.panel,
+		Panel:   panel,
 		Tasks:   tasks,
 	}, nil
 }
@@ -380,25 +454,35 @@ func resolvePage(ctx context.Context, request *PageRequest) *pageOutcome {
 
 	outcome.content, outcome.status = buildRegion(ctx, request, page.Content)
 	outcome.main.ContentLive = !page.Static
-
-	if page.SidePanel == nil {
-		return outcome
-	}
-
-	closed := address
-	closed.View.Row = ""
-	outcome.panel = SidePanelView{Present: true, CloseHref: closed.String()}
-
-	if address.View.Row == "" {
-		return outcome
-	}
-
-	// The side panel's own failure is shown in the panel, and leaves the
-	// status of the page as its content set it.
-	outcome.panel.Open = true
-	outcome.side, _ = buildRegion(ctx, request, page.SidePanel)
+	outcome.panel, outcome.side = sidePanelOf(ctx, request, page)
 
 	return outcome
+}
+
+// sidePanelOf answers the side panel region of page for the address the
+// request names, and its content while the address names a row. A page with
+// no side panel answers the region absent. The side panel's own failure is
+// shown in the panel, and leaves the status of the page as its content set
+// it.
+func sidePanelOf(ctx context.Context, request *PageRequest, page Page) (SidePanelView, templ.Component) {
+	if page.SidePanel == nil {
+		return SidePanelView{}, nil
+	}
+
+	address := request.Address
+	closed := address
+	closed.View.Row = ""
+	view := SidePanelView{Present: true, CloseHref: closed.String()}
+
+	if address.View.Row == "" {
+		return view, nil
+	}
+
+	view.Open = true
+	view.Row = address.View.Row
+	side, _ := buildRegion(ctx, request, page.SidePanel)
+
+	return view, side
 }
 
 // failureStatus answers the status of a page whose object or content failed

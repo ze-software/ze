@@ -31,7 +31,10 @@ const (
 // the demonstration is and where it comes from, above the frame, which fills
 // the rest of the window. It carries a no-index marker and none of the site's
 // navigation, because it is not part of the site.
-func hostPage(provenance sitelgreplay.Provenance) []byte {
+//
+// chunkFiles is the value of data-lg-replay-chunks: the chunk files the host
+// fetches for the frame, by chunk name (sitelgreplay.ChunkFiles).
+func hostPage(provenance sitelgreplay.Provenance, chunkFiles string) []byte {
 	var page strings.Builder
 	page.WriteString(`<!DOCTYPE html>
 <html lang="en">
@@ -55,7 +58,8 @@ body.fleet-demo { display: flex; flex-direction: column; }
 	page.WriteString(html.EscapeString(hostBarText(provenance)))
 	page.WriteString(`</p>
 <div class="lg-replay fleet-demo__stage">
-<div class="lg-replay__player" data-lg-replay data-lg-replay-fill data-lg-replay-frame="` + frameFile + `">
+<div class="lg-replay__player" data-lg-replay data-lg-replay-fill data-lg-replay-frame="` + frameFile +
+		`" data-lg-replay-title="` + playerTitle + `" data-lg-replay-chunks="` + html.EscapeString(chunkFiles) + `">
 <p class="lg-replay__fallback">The demonstration runs in your browser and needs JavaScript.</p>
 </div>
 </div>

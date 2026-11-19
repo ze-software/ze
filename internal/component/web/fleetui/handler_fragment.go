@@ -36,6 +36,10 @@ const (
 	fragmentContent = "content"
 	// fragmentPanel is the side panel's content.
 	fragmentPanel = "panel"
+	// SidePanelFragment is the whole side panel region, which an eye control
+	// and the panel's close control swap in alone (PanelLink). The
+	// demonstration's tour names it to record those controls as they send.
+	SidePanelFragment = "side-panel"
 	// fragmentTasks is the task panel.
 	fragmentTasks = "tasks"
 	// fragmentHeader is the Tasks button of the header, with its counts.
@@ -56,6 +60,7 @@ func registerShellFragments() {
 	MustRegisterFragment(fragmentObject, objectFragment)
 	MustRegisterFragment(fragmentContent, contentFragment)
 	MustRegisterFragment(fragmentPanel, panelFragment)
+	MustRegisterFragment(SidePanelFragment, sidePanelFragment)
 	MustRegisterFragment(fragmentTasks, tasksFragment)
 	MustRegisterFragment(fragmentHeader, headerFragment)
 	MustRegisterFragment(fragmentSearch, searchFragment)
@@ -98,6 +103,8 @@ func (handler *fleetHandler) serveFragment(w http.ResponseWriter, r *http.Reques
 		answerRefusal(w, itemTooLong(), http.StatusBadRequest)
 		return
 	}
+
+	ctx = withPageInHand(ctx, fragment.Page)
 
 	request, err := NewPageRequest(ctx, handler.source, fragment.Page, web.GetUsernameFromRequest(r))
 	if err != nil {
@@ -181,6 +188,25 @@ func panelFragment(ctx context.Context, request *PageRequest, _ string) (templ.C
 	side, _ := buildRegion(ctx, request, page.SidePanel)
 
 	return side, nil
+}
+
+// sidePanelFragment answers the side panel region of the page, as the whole
+// page draws it: open on the row the address names, the sentence of a panel
+// with no row otherwise, and hidden for a page with no side panel. The answer
+// replaces the region on the page, so opening or closing a row asks for
+// neither the content nor the regions around it.
+func sidePanelFragment(ctx context.Context, request *PageRequest, _ string) (templ.Component, error) {
+	address := request.Address
+
+	page, built := request.pages.lookup(address.Kind, address.Tab)
+	if !built {
+		return sidePanel(SidePanelView{PageAddress: address.String()}, nil, false), nil
+	}
+
+	view, side := sidePanelOf(ctx, request, page)
+	view.PageAddress = address.String()
+
+	return sidePanel(view, side, false), nil
 }
 
 // tasksFragment answers the task panel: as a page first draws it for an
