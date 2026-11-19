@@ -12,11 +12,18 @@ import (
 const (
 	fleetUIImport     = "github.com/ze-software/ze/internal/component/web/fleetui"
 	fleetSampleImport = fleetUIImport + "/sample"
-	fleetSampleTag    = "ze_fleet_ui_sample"
+	// fleetSampleRegister is the registration of the sample, the package the
+	// hub's tagged import names. It links the sample package itself.
+	fleetSampleRegister = fleetSampleImport + "/register"
+	fleetSampleTag      = "ze_fleet_ui_sample"
 )
 
+// fleetSamplePackages are the two packages no shipped build may link: the
+// sample estate and the registration that makes it the build's source.
+var fleetSamplePackages = []string{fleetSampleImport, fleetSampleRegister}
+
 // TestShippedZeLinksNoFleetSample lists the dependencies of every shipped
-// build flavor and refuses the sample package in each. The flavors are the
+// build flavor and refuses the sample package and its registration in each. The flavors are the
 // ones TestNormalZeLinksNoInternalLe reads, so a new flavor joins the check
 // without an edit here.
 //
@@ -33,8 +40,10 @@ func TestShippedZeLinksNoFleetSample(t *testing.T) {
 	fleetLinked := false
 	for name, tags := range shippedFlavors(t, root) {
 		deps := personalityDeps(t, root, slices.Concat(tags, featureTags))
-		if slices.Contains(deps, fleetSampleImport) {
-			t.Errorf("the %s flavor (%v) links the sample package %s", name, tags, fleetSampleImport)
+		for _, sample := range fleetSamplePackages {
+			if slices.Contains(deps, sample) {
+				t.Errorf("the %s flavor (%v) links the sample package %s", name, tags, sample)
+			}
 		}
 		if slices.Contains(deps, fleetUIImport) {
 			fleetLinked = true
@@ -49,14 +58,16 @@ func TestShippedZeLinksNoFleetSample(t *testing.T) {
 // flavor with the sample tag added, which is the review build.
 //
 // It is the other half of the test above: the tag that no shipped build sets
-// is the one that links the sample package, through
-// cmd/ze/hub/register_fleet_ui_sample.go.
+// is the one that links both sample packages, through
+// cmd/ze/hub/register_fleet_ui_sample.go, so the listing above could see them.
 func TestFleetSampleTagLinksTheSample(t *testing.T) {
 	root := personalityRepoRoot(t)
 	tags := slices.Concat([]string{"ze_core", "ze_distro", fleetSampleTag}, personalityFeatureTags(t, root))
 
 	deps := personalityDeps(t, root, tags)
-	if !slices.Contains(deps, fleetSampleImport) {
-		t.Fatalf("a build with %s does not link %s", fleetSampleTag, fleetSampleImport)
+	for _, sample := range fleetSamplePackages {
+		if !slices.Contains(deps, sample) {
+			t.Errorf("a build with %s does not link %s", fleetSampleTag, sample)
+		}
 	}
 }

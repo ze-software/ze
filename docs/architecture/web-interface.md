@@ -1364,6 +1364,60 @@ case-sensitive.
 /lg/assets/                            Static CSS/JS
 ```
 
+### LG Next-Hop Graph
+
+The next-hop graph draws a router of the AS by its address and a peer outside
+the AS by its AS only. `handleNextHopGraph` takes the rows of the one RIB
+query `handleGraph` made and asks the peer summary (`show bgp`), as the trace
+does, so the mode adds no RIB query and no command.
+
+`nextHopOutsideFrom` reads the peers outside the AS from the summary: the
+rows whose `peer-type` is `external`, each with its session address and its
+`remote-as`. `buildNextHopGraph` then draws each address of a row
+(`peer-address`, `next-hop`) as one of three things:
+
+| The address is | Node | Mark |
+|----------------|------|------|
+| The session address of an `external` peer | `AS<n>`, in the configured notation. Every external peer of one AS is this one node, and the edges to any of them merge on it. Always layer 0 | `outside` |
+| The session address of an `internal` peer | The address, with the name of its `next-hop-range` | `egress` when a row's peer address equals its next hop |
+| No peer of the summary (a next hop with no session, a row of a peer with no session) | The address, as for a router. Nothing is derived for it | `egress` on the same condition |
+
+`egress` is a statement about a router of the AS, so an `outside` node never
+carries it. `nameNextHopNodes` names an address from the named ranges and an
+`outside` node from the AS name decorator the AS path graph uses
+(`LGServer.resolveASN`).
+
+The text form, `renderNextHopGraphText`, writes the nodes by layer, highest
+first, then by node, then the edges sorted:
+
+```
+mode nexthop
+node 198.51.100.3 layer=1
+node 198.51.100.1 layer=0 egress name=core
+node AS65101 layer=0 outside
+edge 198.51.100.3 -> 198.51.100.1
+```
+
+A node line is `node <address> layer=N [egress] [name=<name>]` for an address
+and `node AS<n> layer=N outside` for an AS outside.
+
+In the drawing an `outside` node carries the class `node outside`
+(`outsideNodeClass`), a dashed box. The AS path graph gives an AS the plain
+class `node`, which is also a router's here, so the outside takes a class of
+its own. Its style block (`outsideNodeStyle`) is written after
+`routerGraphStyle` only when the drawing holds an `outside` node: a drawing
+of addresses alone keeps the bytes it had before the rule.
+
+| Request | Answer |
+|---------|--------|
+| The RIB query or the summary failed | `engineRefusal`, with the failure's status |
+| The summary does not say which peers are outside the AS (a row with no `peer-type` or another value, an `external` row with no readable address or `remote-as`) | 503 with `nextHopSummaryRefusal`, which names `ze show bgp`. The graph is never drawn with every node as an address instead: that would show a neighbour as if it were a router of the AS |
+
+<!-- source: internal/component/lg/graph_nexthop.go -- nextHopOutsideFrom, buildNextHopGraph, renderNextHopGraphText -->
+<!-- source: internal/component/lg/handler_graph.go -- handleNextHopGraph, nextHopSummaryRefusal -->
+<!-- source: internal/component/lg/layout_nexthop.go -- outsideNodeClass, outsideNodeStyle, renderNextHopGraphSVG -->
+<!-- source: internal/component/lg/nexthop_ranges.go -- nameNextHopNodes -->
+
 ### LG Trace Graph
 
 The trace answers one question the two other graphs leave to the
@@ -1390,8 +1444,8 @@ route's next hop, and every walk ends with one stated end:
 |-------------------------|-----|---------------|
 | Next hop is another router of the AS, not yet crossed | The walk moves to it | An edge between the two routers |
 | Next hop is its own address | `exit-own-address` | An edge from that router to the first AS of its path, then the AS chain |
-| Next hop is no router's address | `exit-external-address` | An edge to that address, from it to the first AS, then the AS chain. The neighbour needs no session with Ze |
-| Either exit, with an empty AS path | `origin-inside` | No AS: the prefix originates inside the AS at that router |
+| Next hop is no router's address | `exit-external-address` | An edge from that router to the first AS of its path, the AS the traffic is handed to, then the AS chain. The address is outside the AS, so it is no node: it stays in the walk's `next-hop=` field and in its statement. The neighbour needs no session with Ze |
+| Either exit, with an empty AS path | `origin-inside` | No AS: the prefix originates inside the AS at that router. A next hop that is no router's address is drawn as a `neighbor` node by its address, with the edge to it: the path is empty, so there is no AS to draw it as |
 | Next hop is a router the walk already crossed | `loop` | The edge that closes the loop |
 | The router was named as next hop and sent no row for the prefix | `no-route` | The router, and nothing after it |
 | The router sent rows for the prefix that differ (ADD-PATH) | `several-routes` | The router, and nothing after it: a received row carries no mark of the router's own best path, so the walk picks none. Its line says "ends at <router>: Ze holds several routes from it for the prefix and no row says which one it chose" |
@@ -1405,7 +1459,8 @@ between two consecutive next hops are not in any row, and `traceNote`
 is the one sentence the page and its help show about it.
 
 `traceGraph.undrawn` applies the node cap of the other graphs
-(`maxGraphNodes`) to routers, external next hops and ASes together.
+(`maxGraphNodes`) to routers, ASes and the next hops of prefixes that
+originate inside the AS, together.
 `renderTraceGraphText` writes the nodes, the edges, then one `trace` line per
 walk, each group sorted, so two requests on the same state give the same text:
 
@@ -1445,7 +1500,8 @@ query and no command. Its answers:
 `computeTraceLayout` places the nodes in columns in the direction of the
 walk. A router sits in the column of the furthest place any walk reaches it
 at, so the starting routers are on the left and the exit on the right of the
-routers. The external next hops follow in one column, then each AS in the
+routers. The next hops of prefixes that originate inside the AS follow in one
+column, when there are any, then each AS in the
 column of its furthest place in an exit route's path, the origin AS last. The
 drawing is written with the next-hop graph's writers and style
 (`writeRouterGraphOpen`, `writeRouterGraphEdge`, `writeRouterGraphNode`,

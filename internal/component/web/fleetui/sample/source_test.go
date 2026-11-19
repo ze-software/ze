@@ -1,14 +1,41 @@
 package sample
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/component/web/fleetui"
 )
+
+// TestSampleNewRegistersNothing builds a sample source in a test binary that
+// links this package and not its register sub-package.
+//
+// VALIDATES: importing the sample package and calling New leave the build's
+// source slot empty: every registered fleet route still answers that it is
+// not enabled, which it reads from the slot.
+// PREVENTS: a tool that links the sample to record the pages, le, making a
+// wall-clock sample estate the source of its process.
+func TestSampleNewRegistersNothing(t *testing.T) {
+	source := New(fixedClock)
+	t.Cleanup(source.Close)
+
+	fleetRoutes := 0
+	for _, route := range web.RegisteredWebRoutes() {
+		_, path, _ := strings.Cut(route.Pattern, " ")
+		if !strings.HasPrefix(path, "/fleet/") {
+			continue
+		}
+		fleetRoutes++
+		require.NotNil(t, route.Enabled, route.Pattern)
+		assert.False(t, route.Enabled(), "%s is enabled with no source registered", route.Pattern)
+	}
+	require.Positive(t, fleetRoutes, "the fleet package registers its routes, so the check read some")
+}
 
 // TestSampleAnswersEveryQuestion asks the sample source every question of
 // the data source interface, for a device that can answer it.

@@ -7,12 +7,15 @@
 // Detail: views.go -- what a sample device answers through the relay
 // Detail: console.go -- the commands the sample console answers
 // Detail: script.go -- the scripted events and the state they change
-// Related: register.go -- the registration that makes this the build's data source
+// Related: register/register.go -- the registration that makes this the build's data source
 //
 // Package sample answers the fleet pages from a fixed estate, so the interface
-// can be opened and judged before any real estate exists. Only a build made
-// with the ze_fleet_ui_sample tag links it, and no shipped build sets that
-// tag: sample data in a shipped build would be shown as real.
+// can be opened and judged before any real estate exists. Importing it
+// registers nothing: New builds a source for a caller to serve, and the
+// register sub-package makes one the build's source. Only a build made with
+// the ze_fleet_ui_sample tag links that sub-package, and no shipped build sets
+// that tag: sample data in a shipped build would be shown as real. le links
+// this package to record the pages, because le is development tooling.
 //
 // The estate is written as tables. Every time in them is an age, measured
 // back from the moment the source was made, so "last seen" and a chart range
@@ -80,6 +83,22 @@ type estate struct {
 	// started reports that the timer goroutine was started.
 	started bool
 	closed  bool
+}
+
+// Source is the sample data source as New answers it: every question of the
+// fleet pages, the stepped script, and Close. A caller that subscribed, or
+// stepped the script, MUST call Close when it no longer uses the source.
+type Source interface {
+	fleetui.Source
+	Stepper
+	Close()
+}
+
+// New builds the sample source over clock: time.Now for a build, a pinned
+// function for a recording or a test. It registers nothing, so two sources can
+// be served in one process; the register sub-package makes one the build's.
+func New(clock func() time.Time) Source {
+	return newEstate(clock)
 }
 
 // newEstate builds the sample source. clock is the wall clock: time.Now in a

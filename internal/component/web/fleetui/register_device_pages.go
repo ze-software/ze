@@ -82,18 +82,11 @@ func init() {
 	registerPeerTable()
 	registerLogTable()
 
-	web.RegisterWebRoute(web.WebRoute{
-		Pattern: consolePattern,
-		Wrap:    web.WrapMutation,
-		Enabled: sourceRegistered,
-		Build:   buildConsoleHandler,
+	mustRegisterRoute(fleetRoute{
+		pattern: consolePattern,
+		wrap:    web.WrapMutation,
+		build:   func(source Source) http.Handler { return newConsoleHandler(source) },
 	})
-}
-
-// buildConsoleHandler builds the console command handler over the registered
-// source.
-func buildConsoleHandler(web.RouteDeps) http.Handler {
-	return newConsoleHandler(mountedSource())
 }
 
 // deviceOf answers the device the request's address names, from the

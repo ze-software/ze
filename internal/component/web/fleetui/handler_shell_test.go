@@ -3,6 +3,7 @@ package fleetui
 import (
 	"html"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -286,6 +287,67 @@ func TestFleetNavigationAnswersTheRegions(t *testing.T) {
 		headerHTMXRequest, htmxTrue, headerHTMXType, htmxPartial, headerHTMXRestore, htmxTrue)
 	require.Equal(t, http.StatusOK, restored.Code)
 	assert.Contains(t, restored.Body.String(), "<html")
+}
+
+// TestFleetPagePathComesFromThePage asks for an estate tab, a group node and
+// a device tab, each as the whole shell and as a navigation's answer.
+//
+// VALIDATES: AC-9 -- every answer that changes the page carries, on the
+// content region, the path of the page, its address with the query, the fleet
+// prefix and the fragment prefix, which the script reads in place of the
+// browser's location.
+// PREVENTS: a script that builds its fragment and stream addresses from the
+// location, which a page replayed inside a recording's frame does not have.
+func TestFleetPagePathComesFromThePage(t *testing.T) {
+	addresses := []struct {
+		name  string
+		path  string
+		query string
+	}{
+		{name: "estate tab", path: pathEstateTab, query: "?id=" + coreLon01},
+		{name: "group node", path: pathGroup, query: "?view=site-role"},
+		{name: "device tab", path: pathDevice},
+	}
+	answers := []struct {
+		name   string
+		header []string
+	}{
+		{name: "whole shell"},
+		{name: "navigation", header: []string{headerHTMXRequest, htmxTrue, headerHTMXType, htmxPartial}},
+	}
+
+	for _, address := range addresses {
+		for _, answer := range answers {
+			t.Run(address.name+"/"+answer.name, func(t *testing.T) {
+				handler, _ := testHandler()
+
+				recorder := getFleet(t, handler, address.path+address.query, answer.header...)
+				require.Equal(t, http.StatusOK, recorder.Code)
+				region := contentRegionTag(t, recorder.Body.String())
+
+				assert.Contains(t, region, `data-fleet-path="`+html.EscapeString(address.path)+`"`)
+				assert.Contains(t, region, `data-fleet-address="`+html.EscapeString(address.path+address.query)+`"`)
+				assert.Contains(t, region, `data-fleet-base="/fleet/"`)
+				assert.Contains(t, region, `data-fleet-fragments="/fleet/fragment/"`)
+				assert.Contains(t, region, `data-fleet-events="/fleet/events"`)
+			})
+		}
+	}
+}
+
+// contentRegionTag answers the opening tag of the content region in page,
+// the one element every answer that changes the page carries exactly once.
+func contentRegionTag(t *testing.T, page string) string {
+	t.Helper()
+
+	const marker = `id="fleet-content-body"`
+	require.Equal(t, 1, strings.Count(page, marker), "the answer carries one content region")
+
+	start := strings.LastIndex(page[:strings.Index(page, marker)], "<")
+	end := strings.Index(page[start:], ">")
+	require.Positive(t, end, "the content region's tag is closed")
+
+	return page[start : start+end]
 }
 
 // TestFleetTreeFragmentNarrows asks for the tree fragment with and without a

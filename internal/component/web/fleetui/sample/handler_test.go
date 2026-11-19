@@ -9,47 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/web"
+	"github.com/ze-software/ze/internal/component/web/fleetui"
 )
 
-// fleetPrefix is the path every fleet route pattern starts with, after its
-// method.
-const fleetPrefix = "/fleet/"
-
-// fleetRouteCount is every fleet route: the shell, the assets, the
-// fragments, the event stream, the audit export, the actions and the
-// console, and the step and hold routes the sample's script mounts.
-const fleetRouteCount = 9
-
-// mountFleet mounts the registered fleet routes the way the hub does when the
-// web server starts without login: it skips a route whose Enabled answers
-// false, builds the others, and wraps each in the insecure middleware.
-func mountFleet(t *testing.T) *http.ServeMux {
+// mountFleet serves every fleet route over a sample source at the test clock,
+// the way a caller in process does: through fleetui.NewRoutes, which the
+// daemon's registration reads the same route list as. The source is closed
+// when the test ends.
+func mountFleet(t *testing.T) http.Handler {
 	t.Helper()
 
-	mux := http.NewServeMux()
-	mounted := 0
+	source := New(fixedClock)
+	t.Cleanup(source.Close)
 
-	for _, route := range web.RegisteredWebRoutes() {
-		_, path, _ := strings.Cut(route.Pattern, " ")
-		if !strings.HasPrefix(path, fleetPrefix) {
-			continue
-		}
-		if route.Enabled != nil && !route.Enabled() {
-			continue
-		}
-
-		mux.Handle(route.Pattern, web.InsecureMiddleware(route.Build(web.RouteDeps{})))
-		mounted++
-	}
-
-	require.Equal(t, fleetRouteCount, mounted, "linking the sample source mounts every fleet route, the script's included")
-
-	return mux
+	return fleetui.NewRoutes(source, "insecure")
 }
 
 // get answers one request against the mounted fleet routes.
-func get(t *testing.T, mux *http.ServeMux, target string) *httptest.ResponseRecorder {
+func get(t *testing.T, mux http.Handler, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	answer := httptest.NewRecorder()
@@ -59,12 +36,12 @@ func get(t *testing.T, mux *http.ServeMux, target string) *httptest.ResponseReco
 }
 
 // TestFleetShellRendersSampleEstate requests the fleet address through the
-// registered routes, in a test binary that links the sample source.
+// routes NewRoutes serves over a sample source.
 //
-// VALIDATES: AC-1 at the handler -- the route is mounted because a source is
-// registered, and the shell draws the estate dashboard of the sample estate.
+// VALIDATES: AC-1 at the handler -- the shell draws the estate dashboard of
+// the sample estate.
 // PREVENTS: a sample build whose fleet address answers a page with no estate
-// in it, and a registration that never reaches the web route registry.
+// in it.
 func TestFleetShellRendersSampleEstate(t *testing.T) {
 	answer := get(t, mountFleet(t), "/fleet/")
 
@@ -77,7 +54,7 @@ func TestFleetShellRendersSampleEstate(t *testing.T) {
 }
 
 // TestFleetDevicePageRendersSampleDevice requests a sample device's
-// dashboard through the registered routes.
+// dashboard through the routes NewRoutes serves.
 //
 // VALIDATES: a device of the sample answers its page, named in its header.
 // PREVENTS: a sample whose devices, below the second level of the tree, are
@@ -90,7 +67,7 @@ func TestFleetDevicePageRendersSampleDevice(t *testing.T) {
 }
 
 // TestFleetShellAssetsAreServed requests the stylesheet and the script the
-// shell links, through the registered assets route.
+// shell links, through the assets route NewRoutes serves.
 //
 // VALIDATES: both files answer 200 with a body.
 // PREVENTS: a shell that renders and then loads nothing in the browser.

@@ -173,9 +173,16 @@ type MainView struct {
 	// EventsURL is the address of the live event stream. It is empty for
 	// an address that names no page or no object, which no stream follows.
 	EventsURL string
-	Object    ObjectHeaderView
-	Crumbs    []CrumbView
-	Tabs      []TabView
+	// PagePath is the path of the page in hand, without its query, and
+	// PageAddress the same address with its view as a query. The script
+	// reads both from the content region rather than from the browser's
+	// location, so a page plays wherever it is shown, a recording's frame
+	// included.
+	PagePath    string
+	PageAddress string
+	Object      ObjectHeaderView
+	Crumbs      []CrumbView
+	Tabs        []TabView
 	// TabsLabel names the tab row for assistive technology.
 	TabsLabel string
 	// ContentLive reports that a live event refreshes the content region.

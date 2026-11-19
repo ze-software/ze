@@ -2,6 +2,7 @@ package fleetui
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -23,7 +24,10 @@ func goldenPage(t *testing.T, target string, pages ...Page) (ShellView, *pageOut
 
 	outcome := resolvePage(context.Background(), request)
 
-	view, err := shellView(context.Background(), request, outcome)
+	address, err := url.Parse(target)
+	require.NoError(t, err)
+
+	view, err := shellView(context.Background(), request, outcome, address)
 	require.NoError(t, err)
 
 	return view, outcome

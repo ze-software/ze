@@ -74,23 +74,59 @@
 
   // --- Addresses ------------------------------------------------------------
 
+  // pageAttribute answers one fact of the page in hand, as the server wrote
+  // it on the content region: data-fleet-path (its path), data-fleet-address
+  // (the path with its query), data-fleet-base (the fleet prefix),
+  // data-fleet-fragments (the fragment prefix) or data-fleet-events (the live
+  // event stream). Every answer that changes the page carries the region, so
+  // the script never reads the browser's location: shown anywhere else, as
+  // in a recording's frame, the location is not the page.
+  function pageAttribute(name) {
+    var content = byId('fleet-content-body');
+    return (content && content.getAttribute(name)) || '';
+  }
+
+  // queryOf answers the query of an address, without its question mark.
+  function queryOf(address) {
+    var mark = address.indexOf('?');
+    return mark < 0 ? '' : address.slice(mark + 1);
+  }
+
   // pagePath answers the path of the page in hand after the fleet prefix,
   // which is the tail of the address of each of its fragments. The estate
   // dashboard is the prefix itself, and its fragments spell it out.
   function pagePath() {
-    var path = window.location.pathname;
-    var rest = path.indexOf('/fleet/') === 0 ? path.slice('/fleet/'.length) : '';
+    var path = pageAttribute('data-fleet-path');
+    var base = pageAttribute('data-fleet-base');
+    var rest = base && path.indexOf(base) === 0 ? path.slice(base.length) : '';
     return rest === '' ? 'estate/dashboard/' : rest;
   }
 
   // fragmentURL answers the address of one fragment of the page in hand,
   // with the page's view parameters and the item, when there is one.
   function fragmentURL(name, item) {
-    var params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(queryOf(pageAttribute('data-fleet-address')));
     params.delete('item');
     if (item) params.set('item', item);
     var query = params.toString();
-    return '/fleet/fragment/' + encodeURIComponent(name) + '/' + pagePath() + (query ? '?' + query : '');
+    return pageAttribute('data-fleet-fragments') + encodeURIComponent(name) + '/' + pagePath() + (query ? '?' + query : '');
+  }
+
+  // navigate opens address in the content region, as a link inside the
+  // shell does: htmx asks for the page, swaps the answer into the region,
+  // applies the regions that follow the page out of band, and pushes the
+  // address, or replaces the one in hand when replace is set. It is the one
+  // way the script changes page, so no page is left by assigning the
+  // location, which a page shown in a recording's frame cannot do.
+  function navigate(address, replace) {
+    if (!window.htmx || !address) return;
+    var options = { target: '#fleet-content', swap: 'innerHTML' };
+    if (replace) {
+      options.replace = 'true';
+    } else {
+      options.push = 'true';
+    }
+    window.htmx.ajax('GET', address, options);
   }
 
   // load asks htmx to fetch url and swap the answer into target.
@@ -438,11 +474,7 @@
   }
 
   function viewOf(address) {
-    try {
-      return new URL(address, window.location.origin).searchParams.get('view') || TREE_VIEW_DEFAULT;
-    } catch (_) {
-      return TREE_VIEW_DEFAULT;
-    }
+    return new URLSearchParams(queryOf(address)).get('view') || TREE_VIEW_DEFAULT;
   }
 
   // The tree view is in the address and remembered per browser: an address
@@ -450,14 +482,14 @@
   function initTreeView() {
     var select = byId('fleet-tree-view');
     if (!select) return;
-    if (new URLSearchParams(window.location.search).has('view')) return;
+    if (new URLSearchParams(queryOf(pageAttribute('data-fleet-address'))).has('view')) return;
 
     var saved = local(KEY_TREE_VIEW);
     if (!saved || saved === TREE_VIEW_DEFAULT) return;
 
     for (var index = 0; index < select.options.length; index++) {
       if (viewOf(select.options[index].value) === saved) {
-        window.location.replace(select.options[index].value);
+        navigate(select.options[index].value, true);
         return;
       }
     }
@@ -465,7 +497,7 @@
 
   function onTreeViewChange(select) {
     setLocal(KEY_TREE_VIEW, viewOf(select.value));
-    window.location.assign(select.value);
+    navigate(select.value, false);
   }
 
   // --- Side panel -----------------------------------------------------------
@@ -558,8 +590,7 @@
   var streamLost = false;
 
   function eventsURL() {
-    var content = byId('fleet-content-body');
-    return content ? content.getAttribute('data-fleet-events') : null;
+    return pageAttribute('data-fleet-events');
   }
 
   function showStale() {
@@ -606,7 +637,7 @@
   // not-found state, follows none.
   function openStream() {
     closeStream();
-    streamPath = window.location.pathname;
+    streamPath = pageAttribute('data-fleet-path');
 
     var base = eventsURL();
     if (!base || !window.EventSource) return;
@@ -753,7 +784,7 @@
 
     // The page changed: the stream follows the new one, and the selected
     // row is brought into view.
-    if (streamPath !== window.location.pathname) {
+    if (streamPath !== pageAttribute('data-fleet-path')) {
       streamAttempts = 0;
       openStream();
       scrollToSelected();

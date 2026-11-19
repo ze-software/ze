@@ -69,11 +69,23 @@ func getProfilesFromRequest(r *http.Request) []string {
 	return nil
 }
 
+// insecureAccount is the account name every request carries under
+// --insecure-web.
+const insecureAccount = "insecure"
+
 // InsecureMiddleware wraps a handler to inject a default username without
 // authentication. Used only with --insecure-web for local testing.
 func InsecureMiddleware(next http.Handler) http.Handler {
+	return AccountMiddleware(insecureAccount, next)
+}
+
+// AccountMiddleware wraps a handler so every request carries account as its
+// username, without authentication. It is for a handler served in process
+// with no login at all, such as a recording of the pages or a test; the hub
+// never mounts it, and InsecureMiddleware is the same wrap under a fixed name.
+func AccountMiddleware(account string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), "insecure")))
+		next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), account)))
 	})
 }
 

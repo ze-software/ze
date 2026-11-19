@@ -20,6 +20,11 @@ const (
 	idHeaderTasks = "fleet-header-tasks"
 )
 
+// fragmentBase is the prefix of every fragment address. The content region
+// carries it with fleetPath and EventsPath, so the script builds every address
+// from what the page says and never from the browser's location.
+const fragmentBase = fleetPath + fragmentSegment + "/"
+
 // The values of the data attributes a region carries. A live event names a
 // region, and the script fetches again the fragment each element of that
 // region names.
@@ -281,13 +286,21 @@ templ tabRow(view MainView) {
 
 // contentRegion renders the body of the content region around content. It
 // carries what the script applies after a navigation inside the shell: the
-// document title of the page and the address of its live event stream. It is
-// marked live unless the page holds state the browser owns.
+// document title of the page and the address of its live event stream. It
+// also carries where the page is: its path, its address with the view, the
+// fleet prefix and the fragment prefix. Every answer that changes the page
+// carries this element, the whole shell and a navigation's answer alike, so
+// the script reads the page in hand here and never from the browser's
+// location. It is marked live unless the page holds state the browser owns.
 templ contentRegion(view MainView, content templ.Component) {
 	<div
 		class="fleet-content-body"
 		id={ idContentBody }
 		data-fleet-title={ view.Title }
+		data-fleet-path={ view.PagePath }
+		data-fleet-address={ view.PageAddress }
+		data-fleet-base={ fleetPath }
+		data-fleet-fragments={ fragmentBase }
 		if view.EventsURL != "" {
 			data-fleet-events={ view.EventsURL }
 		}

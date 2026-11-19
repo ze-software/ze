@@ -14,6 +14,7 @@ import (
 	"embed"
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/a-h/templ"
 
@@ -157,7 +158,7 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		outcome = refusedOutcome(request, addressErr, http.StatusNotFound)
 	}
 
-	view, err := shellView(ctx, request, outcome)
+	view, err := shellView(ctx, request, outcome, r.URL)
 	if err != nil {
 		answerRefusal(w, err, http.StatusInternalServerError)
 		return
@@ -171,8 +172,9 @@ func (handler *fleetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	renderAnswer(ctx, w, outcome.status, Shell(view, outcome.content, outcome.side))
 }
 
-// shellView fills the whole shell around one outcome.
-func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome) (ShellView, error) {
+// shellView fills the whole shell around one outcome. target is the address
+// the browser asked for, which the content region carries as the page in hand.
+func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome, target *url.URL) (ShellView, error) {
 	sidebar, err := sidebarView(request, outcome.selects)
 	if err != nil {
 		return ShellView{}, err
@@ -180,6 +182,11 @@ func shellView(ctx context.Context, request *PageRequest, outcome *pageOutcome) 
 
 	main := outcome.main
 	main.Title = outcome.title + titleSeparator + productName
+	// The page in hand is the address the browser asked for, exactly as it
+	// asked: the script used to read it from the location, and an explicit
+	// view that equals the default stays in it.
+	main.PagePath = target.EscapedPath()
+	main.PageAddress = target.RequestURI()
 	if outcome.selects {
 		main.EventsURL = EventsPath
 	}

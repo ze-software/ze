@@ -2,6 +2,8 @@ package fleetui
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -115,4 +117,50 @@ func TestSourceSlotHoldsOneSource(t *testing.T) {
 	kept, ok := slot.registered()
 	require.True(t, ok)
 	assert.Equal(t, fixedSource{name: "first"}, kept)
+}
+
+// namedSource is the test source under another estate name, so two of them
+// tell their answers apart.
+type namedSource struct {
+	*dashboardTestSource
+	name string
+}
+
+func (source namedSource) Estate(context.Context) (Estate, error) {
+	return Estate{Name: source.name}, nil
+}
+
+// TestNewRoutesServesTheGivenSource serves two different sources in one test
+// binary, each through its own NewRoutes, and asks each for the estate
+// dashboard and for a prototype-only route.
+//
+// VALIDATES: a handler answers from the source it was built over, not from
+// the build's slot, so two sources live in one process; every request carries
+// the account name given; a source that cannot be stepped gets no
+// prototype-only route.
+// PREVENTS: a recording or a test whose pages read a source other than the
+// one it was handed, and a step route mounted over a source with no script.
+func TestNewRoutesServesTheGivenSource(t *testing.T) {
+	_, linked := buildSource.registered()
+	require.False(t, linked, "this test binary must link no data source")
+
+	first := NewRoutes(namedSource{dashboardTestSource: newDashboardSource(), name: "estate-first"}, "demo-first")
+	second := NewRoutes(namedSource{dashboardTestSource: newDashboardSource(), name: "estate-second"}, "demo-second")
+
+	firstPage := getFleet(t, first, pathEstate)
+	secondPage := getFleet(t, second, pathEstate)
+	require.Equal(t, http.StatusOK, firstPage.Code)
+	require.Equal(t, http.StatusOK, secondPage.Code)
+
+	assert.Contains(t, firstPage.Body.String(), "estate-first")
+	assert.NotContains(t, firstPage.Body.String(), "estate-second")
+	assert.Contains(t, firstPage.Body.String(), "demo-first", "the header names the account given")
+	assert.Contains(t, secondPage.Body.String(), "estate-second")
+	assert.NotContains(t, secondPage.Body.String(), "estate-first")
+	assert.Contains(t, secondPage.Body.String(), "demo-second", "the header names the account given")
+
+	step := httptest.NewRecorder()
+	first.ServeHTTP(step, httptest.NewRequest(http.MethodPost, stepPath, http.NoBody))
+	assert.Equal(t, http.StatusMethodNotAllowed, step.Code,
+		"a source that cannot be stepped has no step route, so only the page route's GET matches the path")
 }
