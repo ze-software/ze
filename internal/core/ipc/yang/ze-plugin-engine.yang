@@ -1146,7 +1146,7 @@ is not forwarding authority. The peer selector defaults to every peer.";
     rpc forward-cached {
         ze:method "ze-plugin-engine:forward-cached";
         description "Forward retained engine UPDATE identifiers through the shared forwarding writer.";
-        ze:help "Forward cached UPDATEs to explicitly selected peers";
+        ze:help "Forward cached UPDATEs to explicitly selected peers.";
         input {
             leaf deadline-ms { type int64 { range "1..max"; } must "../targets"; ze:help "Absolute bound-write deadline"; }
             list targets {
@@ -1165,7 +1165,7 @@ is not forwarding authority. The peer selector defaults to every peer.";
     rpc relay-stored-route {
         ze:method "ze-plugin-engine:relay-stored-route";
         description "Reconstruct source-owned stored wire routes through the existing forwarding writer.";
-        ze:help "Relay stored wire routes to one explicit destination";
+        ze:help "Relay stored wire routes to one explicit destination.";
         input {
             uses cached-write-destination;
             leaf destination { type zt:ip-address; mandatory true; ze:help "Destination peer address"; }

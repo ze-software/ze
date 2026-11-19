@@ -688,12 +688,12 @@ for LLGR, `stale-level 2 family <afi/safi>`. Family purges append
 `family <afi/safi>`, and community operations append `family <afi/safi>
 community <eight hex digits>`. Release has no operation arguments.
 
-These declared arguments are the same on the CLI and RPC surfaces. The
-existing operator commands outside `source` retain their peer-selector forms.
-The captured owner and connection narrow cleanup only; they never grant
-permission to receive, select or send a route.
+The GR plugin sends these arguments through the internal command dispatcher.
+The operator commands outside `source` use peer selectors. The captured owner
+and connection limit which routes cleanup can affect and grant no permission
+to receive, select, or send a route.
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- dispatchSource, retainPeerFamilies, wireStateCallbacks -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_lifecycle_commands.go -- sourceLifecycleArgs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- parseRIBPhysicalSource, retainPhysicalSourceCommand, markPhysicalSourceCommand, parsePhysicalSourceCommunity -->
 
 
 The passive validation owners also consume original source removal.
