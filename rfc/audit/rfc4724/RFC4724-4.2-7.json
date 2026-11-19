@@ -1,23 +1,30 @@
 {
-  "note": "Independent supplemental source rejudgment, 2026-10-06. RFC4724 Section 4.2: \"If the session does not get re-established within the \"Restart Time\" that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining.\" Read all seven tagged units: gr_state_test.go TestGRStateManagerTimerExpiry, TestGRStateManagerReconnectWithFBit, TestGRStateManagerRestartExpiryRejectsOldCycle, TestGRStateManagerRestartExpiryAfterReconnect; rfc4724_dispatch_test.go TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes and TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes; rfc4724_retention_test.go TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking. Explicit callback units prove owner/cancellation decisions, not elapsed time; the actual one-second timer dispatch and two-second timely-reconnect control prove complementary timing behavior. Zero-time test exercises both JSON state handler and structured EventKindState/SessionStateDown dispatch; it requires exact purge/retain/mark/release order, an actually populated registered RIB becoming empty, no active GR and no resurrection after RIB DOWN. real_rib_test.go consumes commands through registered bgp-rib RunEngine and checks verdicts and received route inventory, not just recorded strings. Traced onSessionDownDeferred -> completion after both handlers dispatch stale marking -> startRestartTimer anchored to original deadline -> handleTimerExpired owner/deadline guards -> wireStateCallbacks/onTimerExpired/releaseRoutes -> registered request bgp rib release-routes -> RIBManager.releaseRoutes, removing retained inventory and retention metadata and reconciling best path. Ordinary no-LLGR expiry is isolated; no absent LLGR feature is inferred. The moved zero-time unit has no current diff against HEAD; this is preexisting stale judgment debt, with history showing the integrated checkpoint and earlier delayed-DOWN repair, not a current mechanical edit. Prior enforced verdict retained. No tests, timers, mutations or gates were executed by this judge; no new source defect found.",
+  "code": {
+    "internal/component/bgp/plugins/gr/gr.go::grPlugin.releaseRoutes": "95f161ee6ebf2999",
+    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.handleTimerExpired": "bfa3a92d9cb60d38",
+    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.onSessionReestablished": "9f8811b517bb8c78",
+    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.startRestartTimer": "0713a1a389e2fb02",
+    "internal/component/bgp/plugins/rib/rib_source_commands.go::RIBManager.releasePhysicalSourceCommand": "3c98f66ded222dd7"
+  },
+  "note": "Independently rejudged 2026-11-19 against RFC 4724 Section 4.2 and all seven current tagged roots. Retain enforced for the existing Receiving Speaker restart-expiry condition. TestGRStateManagerTimerExpiry supplies the exact cycle owner to the production expiry handler and checks state removal and the expiry callback. TestGRStateManagerReconnectWithFBit, TestGRStateManagerRestartExpiryAfterReconnect and TestGRStateManagerRestartExpiryRejectsOldCycle preserve timely reconnection and reject canceled or obsolete-cycle callbacks; explicit callback delivery proves identity/cancellation, not elapsed wall time. The dispatch pair separately proves an actual one-second deadline releases original owner 701 connection 41, while timely reestablishment on connection 42 preserves the retained original through two seconds. TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking executes JSON and structured DOWN, requires the exact original-source retain, mark-stale, release ordering, observes a genuinely received route disappear from the registered RIB, and rejects resurrection after RIB DOWN. Capture and cleanup helpers retain explicit original physical identities and join the real fixture lifecycle. Traced onSessionDownDeferred, startRestartTimer, handleTimerExpired, onSessionReestablished and releaseRoutes to the original physical-source release command. Native job-advertiser-gr-old-fixture-rfc-renewal-ed99178a.log contains named healthy runs and accepted producer-halt reverts for TimerExpiry, RestartExpiryAfterReconnect, RestartExpiryRejectsOldCycle and ZeroRestartTimeExpiresAfterStaleMarking. Those halts demonstrate dependency on handleTimerExpired; they are not normal-return semantic mutations and the broken old-cycle GR case and zero-time JSON case stop before later subcases. The separate existing native f2c0c785 semantic record omits release dispatch and fails the actual expiry assertion; 6f02c121 ignores successor reestablishment and fails because original routes are released after timely reconnect. These existing semantic records are preserved, not retaken or inferred from the new halts. The unchanged scope is conventional GR without LLGR retention in the positive deletion cases; no new LLGR, socket-publication or whole-advertiser claim is made.",
   "requirement_sha": "1a6b5822ed2f2ffa",
   "tests": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryAfterReconnect": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryRejectsOldCycle": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "7ff5f8c62f5f9ada",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "02daf774960d8500",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "02daf774960d8500",
-    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking": "b7a5f9e69090ca7b"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryAfterReconnect": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryRejectsOldCycle": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "7d2bdce5e050b88d",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "76bbd370b1fffc20",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "76bbd370b1fffc20",
+    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking": "398743d2d03dc53d"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryAfterReconnect": "f73f42fd0ddcd93b",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryRejectsOldCycle": "a64d841fd741cb16",
-    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "f88e2a976e5bc781",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "87bcc285776d2765",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "ad7a06ecca3422f3",
-    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking": "3eeec4b77adc66bb"
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "de286e2a37ad3a5b",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryAfterReconnect": "cd8283a556e4c35b",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryRejectsOldCycle": "2747e2b558457638",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "fb4bd32d941e37d6",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "b4884c554946ff88",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "0a46242935466061",
+    "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking": "f0b3c7e675449999"
   },
   "verdict": "enforced"
 }
