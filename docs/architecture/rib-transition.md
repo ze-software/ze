@@ -59,23 +59,24 @@ use the initial state that their configuration selects.
 <!-- source: internal/component/bgp/plugins/watchdog/config_tx.go -- carryEntryState -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block watchdog default -->
 
-### Owner ruling: best routes reach the other peers by default
+### Ordinary selected-route advertisement
 
-Thomas has ruled that Ze passes the best route it elected between its BGP
-peers by default, as an ordinary BGP speaker does (RFC 4271 Section 9.1.3 and
-Section 9.2). The operator does not have to load or attach a route-server
-plugin to get it.
+Attach one `bgp-rib` process to the source and destination peers with the
+[grants for ordinary transit](../guide/route-reflection.md#without-route-reflection).
+The RIB selects the route for advertisement under RFC 4271 Sections 9.1.3
+and 9.2.
+<!-- source: internal/component/plugin/server/dissemination.go -- ResolveDisseminationOwner -->
 
-Implementation is in progress. The engine caches wire bytes, and a plugin
-decides forwarding. The `bgp-rib` plugin retains its selected learned routes;
-authenticated ordinary destination UP now connects a worker that sends the
-current selection and subsequent changes through the final engine writer.
+The engine caches wire bytes. When an ordinary destination comes up, its
+worker sends the current selection and subsequent changes through the final
+engine writer.
 Initial readiness follows those final receipts, including for an empty table.
 Explicit route-server and reflector destinations retain their role writer.
-Ordinary refresh and the other release requirements remain owned by
-[spec-bgp-best-route-advertised-to-peers](../../plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md).
+Ordinary refresh reoffers the current selected snapshot and completes after
+final writer receipts, as described in the [plugin process protocol](api/process-protocol.md).
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
 <!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh, refreshMarker -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
 
 ### Owner ruling: a learned route needs the recipient's export policy
@@ -110,13 +111,16 @@ every route.
 The export final now takes an engine-derived route kind. On an internal
 session, absent policy rejects ordinary learned output and permits explicit
 local or role output; external sessions reject both. The policy dry run uses
-the same rule for its read-only learned or local simulation. General absence
-reporting and learned-only policy reload are still being implemented.
+the same rule for its read-only learned or local simulation. Validation, live
+session warnings and doctor share the absence report. Learned-only policy
+reload retires or restores ordinary learned output while preserving local output.
 <!-- source: internal/component/bgp/filterapi/policy.go -- AcceptsExportAtEnd -->
 <!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
-<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-5 export default -->
+<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences -->
+<!-- source: internal/component/bgp/reactor/policy_selected_retire.go -- retireOrdinaryLearned -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_policy.go -- reofferLearned -->
 
 ### Owner ruling: local and learned route competition
 
@@ -127,10 +131,8 @@ explicit-local priority:
 
 Eligible local announcements, configured redistribution and learned BGP routes
 compete using Ze's configured route preferences. An explicit local announcement
-has no unconditional priority until withdrawal. This settles origin arbitration.
-The whole advertiser design remains under review, and the behavior is not
-implemented.
-<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 origin arbitration and owner decision -->
+has no unconditional priority until withdrawal.
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- electOriginLocked, originPreferenceLocked -->
 
 BGP best-path selection chooses among learned BGP paths before cross-protocol
 competition. A route's distance override takes precedence over its protocol's
@@ -146,24 +148,21 @@ needs configured redistribution before it can compete for BGP advertisement.
 The selected route then passes through each recipient's export policy. If that
 policy excludes the winner, withdraw the previous output. Ordinary transit
 does not search for a losing candidate that the recipient would accept.
-<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Mixed-origin admission and selected-output design -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- originIntake, currentScopeLocked, electOriginLocked -->
+<!-- source: internal/component/bgp/redistribute/consumer.go -- InjectRoute -->
 
-The shared upstream principle is policy-sensitive selection followed by export.
-FRR's `bgp_path_info_cmp_distance` compares distance for redistributed versus
-installable paths. BIRD's `rte_better` compares table preference. Their numerical
-defaults differ, so this decision preserves Ze's declared distances rather than
-copying either set wholesale. The spec records the pinned upstream functions
-and the differing OSPF-versus-eBGP example.
-<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 pinned FRR and BIRD comparison -->
+Ze's configured protocol distances and per-route overrides feed the shared
+comparison used by admitted-origin election.
+<!-- source: internal/core/rib/locrib/preference.go -- PreferenceFor, Preference.Before -->
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- distance defaults -->
 
-The proposal maps explicit local BGP origins to the existing static distance
-class for this comparison. It preserves their distinct origin identity,
-attributes and recipient scope. This is a proposed mapping, not an existing API
-rule. Today `UpdateRouteInput` carries no origin protocol or distance, so the
-advertiser must retain that information before command formatting loses it.
-<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 proposed explicit-origin preference mapping -->
-<!-- source: pkg/plugin/rpc/types.go -- UpdateRouteInput -->
+For ordinary selected output, admitted explicit local BGP origins use the
+configured static distance class. Their origin identity, attributes and
+recipient scope stay distinct. Admitted redistribution origins retain their
+original protocol, metric and distance override; the RIB compares these captured
+facts with its learned winner.
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- newOriginContribution, originPreferenceLocked, electOriginLocked -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origin_preferences.go -- parseOriginPreferences, installOriginPreferences -->
 
 ### Target: API Program Owns RIB
 

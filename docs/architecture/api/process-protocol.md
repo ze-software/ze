@@ -2866,11 +2866,18 @@ cross-origin preference comparison remain required.
 <!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
 <!-- source: internal/component/bgp/reactor/origin_write.go -- revokeOwner, revokePeer, revokeProducerPeer, close -->
 
-No in-tree provider currently declares intake, so Ze does not advertise origin
-arbitration. Configured-route restoration, static/default/plugin origination and
+`bgp-rib` registers origin intake with its selected dispatcher. At a destination
+whose explicit grants resolve that running process as the ordinary selecting
+owner, eligible API and admitted redistribution origins enter its scoped
+election beside the learned winner. A peer without an ordinary selecting owner
+keeps direct origination; an absent or unready configured owner refuses intake.
+Configured-route restoration, static/default/plugin origination and
 redistribution still require exact original source provenance. SENT state supplies
 no candidate authority.
-<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+<!-- source: internal/component/bgp/plugins/rib/rib_origins.go -- originIntake, electOriginLocked -->
+<!-- source: internal/component/plugin/server/origin_intake.go -- OriginIntakeOwner -->
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginBatch -->
 <!-- source: internal/component/bgp/reactor/origin_producer.go -- newOriginSource -->
 
 #### Original local output across process and Peer lifetimes
