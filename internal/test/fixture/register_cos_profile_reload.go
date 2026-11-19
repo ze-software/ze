@@ -3,7 +3,7 @@
 // Related: misc_fixture_drivers.go -- commandOutput
 //
 // The driver behind test/reload/cos-profile-reload.ci. It reads the VLAN QoS
-// maps the kernel holds for zcos0.100 before and after a reload that edits
+// maps the kernel holds for tcos0.100 before and after a reload that edits
 // only the class-of-service profile the VLAN's parent names, so the evidence
 // is what the kernel was programmed with, not a log line.
 package fixture
@@ -22,7 +22,7 @@ func init() {
 	Register("reload/cos-profile-reload", cosProfileReloadDriver)
 }
 
-// cosProfileReloadSetup removes a zcos0 an earlier run left behind. The
+// cosProfileReloadSetup removes a tcos0 an earlier run left behind. The
 // daemon programs an existing VLAN to its config at boot, so a leftover
 // would not make the test pass wrongly, but it would make a red run start
 // from the previous run's maps instead of from nothing.
@@ -52,8 +52,8 @@ func cosProfileReloadSetup(ctx context.Context, args []string) error {
 // drops egress priority 5, so the after-state also proves the maps were
 // replaced rather than merged: a merge leaves `5:5` in both.
 const (
-	cosReloadParent        = "zcos0"
-	cosReloadVLAN          = "zcos0.100"
+	cosReloadParent        = "tcos0"
+	cosReloadVLAN          = "tcos0.100"
 	cosReloadBootIngress   = "ingress-qos-map { 5:5 }"
 	cosReloadBootEgress    = "egress-qos-map { 3:3 5:5 }"
 	cosReloadEditedIngress = "ingress-qos-map { 2:2 }"

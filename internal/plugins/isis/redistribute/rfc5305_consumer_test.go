@@ -222,7 +222,7 @@ func TestISISRedistConsumerWithdraw(t *testing.T) {
 
 	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.0.0.0/8", Source: "connected"})
 	before := inj.originated
-	c.WithdrawRoute(ctx, family.IPv4Unicast, "10.0.0.0/8")
+	c.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: "10.0.0.0/8"})
 
 	for _, lvl := range []lsdb.Level{lsdb.Level1, lsdb.Level2} {
 		if got := inj.snapshot(lvl); len(got) != 0 {
@@ -360,7 +360,7 @@ func TestISISRedistConsumerWithdrawMetricSource(t *testing.T) {
 	ctx := context.Background()
 
 	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.0.0.0/8", Source: "bgp"})
-	c.WithdrawRoute(ctx, family.IPv4Unicast, "10.0.0.0/8")
+	c.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: "10.0.0.0/8"})
 
 	withdrawn := reg.vec("ze_isis_redist_withdrawn_total")
 	if withdrawn == nil {
@@ -384,7 +384,7 @@ func TestISISRedistConsumerWithdrawMetricSourceV6(t *testing.T) {
 	ctx := context.Background()
 
 	c.InjectRoute(ctx, family.IPv6Unicast, configredist.RouteEntry{Prefix: "2001:db8::/32", Source: "static"})
-	c.WithdrawRoute(ctx, family.IPv6Unicast, "2001:db8::/32")
+	c.WithdrawRoute(ctx, family.IPv6Unicast, configredist.RouteRemoval{Prefix: "2001:db8::/32"})
 
 	withdrawn := reg.vec("ze_isis_redist_withdrawn_total")
 	if got := withdrawn.count("static", "ipv6"); got != 1 {
@@ -409,7 +409,7 @@ func TestISISRedistConsumerWithdrawMetricSourceUnknown(t *testing.T) {
 	reg := newLabelRegistry()
 	c.SetMetrics(reg)
 
-	c.WithdrawRoute(context.Background(), family.IPv4Unicast, "192.0.2.0/24")
+	c.WithdrawRoute(context.Background(), family.IPv4Unicast, configredist.RouteRemoval{Prefix: "192.0.2.0/24"})
 
 	withdrawn := reg.vec("ze_isis_redist_withdrawn_total")
 	if got := withdrawn.count("unknown", "ipv4"); got != 1 {

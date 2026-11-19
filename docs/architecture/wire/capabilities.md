@@ -423,8 +423,15 @@ link-local-only next hop is withheld from a route-reflector client that shares n
 link-layer segment with the original advertiser, unless the operator configured
 next-hop-self for that client.
 
-On receipt, Section 6 governs a 32-octet Next Hop field on a session that
-negotiated the capability. The session hands `Negotiated.LinkLocalNextHop` to
+On receipt, Section 6 governs a 32-octet IPv6 Next Hop pair on a session that
+negotiated the capability. Ze applies the same address checks to registered
+RD-framed pairs with IPv6 roles, such as the 48-octet LS-VPN form. The shared
+profile decoder locates both addresses after their RDs. VPN128 retains its
+separate RFC 4659 contract.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.DecodeNextHops -->
+<!-- source: internal/component/bgp/message/rfc7606_linklocal.go -- validateLinkLocalNextHopPair -->
+
+The session hands `Negotiated.LinkLocalNextHop` to
 the RFC 7606 attribute walk beside the ADD-PATH state, and the walk accepts
 three shapes: a Global followed by a Link-Local (`fe80::/10`), `::` followed by
 a Link-Local, and two Link-Locals, the last two being the forms Section 6 tells

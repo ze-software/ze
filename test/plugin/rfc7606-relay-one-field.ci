@@ -200,6 +200,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -239,6 +240,7 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

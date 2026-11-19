@@ -632,6 +632,12 @@ func policyErrors(ctx context.Context, _ []string) error {
 		if !strings.Contains(noDirectionErr.Error(), "required argument missing: direction") {
 			return fmt.Errorf("the call with no direction was not refused for the missing direction: %w", noDirectionErr)
 		}
+		if !strings.Contains(noDirectionErr.Error(), "This command needs direction: The word is required, and a call without it is refused. It picks which") {
+			return fmt.Errorf("the missing-direction refusal gives no required-argument explanation: %w", noDirectionErr)
+		}
+		if !strings.Contains(noDirectionErr.Error(), "\nfix: show policy test peer test-peer update "+policyUpdate+" direction <import|export>") {
+			return fmt.Errorf("the missing-direction refusal gives no whole-command correction: %w", noDirectionErr)
+		}
 		fmt.Printf("OK: a call with no direction is refused: %v\n", noDirectionErr)
 
 		fmt.Println("ALL PASS: policy test error paths")

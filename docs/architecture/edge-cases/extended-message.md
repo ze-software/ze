@@ -78,6 +78,12 @@ OPEN carried the LLGR Capability, which sizes no buffer.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_aigp.go -- writeUpdateWithoutAIGP -->
 
+When next-hop admission partitions a mixed originated UPDATE, it retains at
+most one extended-message body. It chooses this scratch pool from the input
+length, then sizes each permitted output chunk to the destination's negotiated
+send limit. An input too large for that retained body is refused with an error.
+<!-- source: internal/component/bgp/reactor/session_aigp.go -- writeOriginatedPeerOwnUpdate -->
+
 When an UPDATE exceeds the destination's send limit, `sendUpdateWithSplit`
 partitions its NLRI into independently encoded UPDATEs. The ordinary session
 writer checks again after export policy, next-hop normalization and AIGP

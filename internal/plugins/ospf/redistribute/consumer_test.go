@@ -92,7 +92,7 @@ func TestOSPFRedistConsumerWithdraw(t *testing.T) {
 	c := NewConsumer(f)
 	ctx := context.Background()
 	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.2.0.0/16", Source: "connected"})
-	c.WithdrawRoute(ctx, family.IPv4Unicast, "10.2.0.0/16")
+	c.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: "10.2.0.0/16"})
 	pfx := netip.MustParsePrefix("10.2.0.0/16")
 	assert.True(t, f.withdrawn[pfx], "withdraw purges the Type 5")
 	_, still := f.injected[pfx]
@@ -151,7 +151,7 @@ func TestOSPFRedistConsumerV6Injector(t *testing.T) {
 	}
 
 	// Withdraw the v6 route through the v6 injector.
-	c.WithdrawRoute(ctx, family.IPv6Unicast, "2001:db8:6::/48")
+	c.WithdrawRoute(ctx, family.IPv6Unicast, configredist.RouteRemoval{Prefix: "2001:db8:6::/48"})
 	assert.True(t, v6.withdrawn[netip.MustParsePrefix("2001:db8:6::/48")], "v6 withdraw purges via the v6 injector")
 }
 
@@ -296,7 +296,7 @@ func TestOSPFExportReloadRejudges(t *testing.T) {
 
 	// A route the orchestrator withdrew is no longer offered: a reload that
 	// would accept it does not bring it back.
-	c.WithdrawRoute(ctx, family.IPv4Unicast, untagged.String())
+	c.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: untagged.String()})
 	require.NotContains(t, f.injected, untagged)
 	SetExportChain(rejectAllChain{})
 	c.Rejudge(ctx)

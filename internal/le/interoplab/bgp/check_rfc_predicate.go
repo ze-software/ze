@@ -483,6 +483,22 @@ func frrDecodedPrefix(log, peer, prefix string) bool {
 	return false
 }
 
+// frrDecodedAnnouncement counts denied announcements as received,
+// while allowing a legitimate withdrawal of the same prefix. FRR's filtered
+// branch includes "DENIED" on its receive line; bgp_withdraw uses "withdrawn".
+func frrDecodedAnnouncement(log, peer, prefix string) bool {
+	for line := range strings.SplitSeq(log, "\n") {
+		fields := frrDecodeFields(line, peer, prefix)
+		if fields == nil {
+			continue
+		}
+		if !slices.Contains(fields, frrWithdrawnMarker) {
+			return true
+		}
+	}
+	return false
+}
+
 // frrDecodedWithdrawal reports whether FRR's log holds its own decode of an UPDATE
 // that WITHDREW prefix from peer. The marker is required on the same line as the
 // prefix and the receive verb, so a decode of the announcement of that prefix,

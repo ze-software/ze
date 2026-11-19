@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- Ze's readiness probe.
-// Related: ze_ready.go -- zePassiveListenPorts, zeReadyProbe.
+// Related: ze_ready_bgp.go -- zePassiveListenPorts.
+// Related: ze_ready.go -- zeReadyProbe.
 // Related: extended_relay.go -- prepareExtendedRelayPeers.
 package bgp
 

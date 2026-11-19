@@ -22,7 +22,8 @@ func (s *stubConsumer) InjectRoute(_ context.Context, _ family.Family, entry Rou
 	s.injected = append(s.injected, entry)
 }
 
-func (s *stubConsumer) WithdrawRoute(_ context.Context, _ family.Family, prefix string) {
+func (s *stubConsumer) WithdrawRoute(_ context.Context, _ family.Family, removal RouteRemoval) {
+	prefix := removal.Prefix
 	s.withdrawn = append(s.withdrawn, prefix)
 }
 

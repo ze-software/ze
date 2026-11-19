@@ -1038,7 +1038,7 @@ func checkRouteServerASPath(ctx context.Context, check *interoplab.CheckContext)
 	return nil
 }
 
-// RFC requirement: RFC4271-5.1.3-1 positive -- FRR, a conforming implementation, never decodes an UPDATE carrying 10.11.0.0/24, whose NEXT_HOP 172.30.0.3 is FRR's own address. The assertion is on FRR's own per-UPDATE log rather than on its table, because FRR applies Section 6.3(a) itself and would drop such a route either way.
+// RFC requirement: RFC4271-5.1.3-1 positive -- FRR, a conforming implementation, never decodes an announcement of 10.11.0.0/24 using NEXT_HOP 172.30.0.3, FRR's own address. A withdrawal of that prefix remains permitted. The assertion is on FRR's own per-UPDATE log rather than on its table, because FRR applies Section 6.3(a) itself and would drop such a route either way.
 // RFC requirement: RFC4271-5.1.3-1 negative -- the same session, one message later, receives 10.12.0.0/24 with the third-party NEXT_HOP 172.30.0.9 and installs it with that address. Section 5.1.3 case 2 permits a third-party next hop, so a relay that withheld everything would be a different violation, and this half is what stops the absence above from passing vacuously.
 func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
@@ -1091,7 +1091,7 @@ func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContex
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
 	}, func(text string) bool {
-		return frrDecodedPrefix(text, zeAddress, controlPrefix)
+		return frrDecodedAnnouncement(text, zeAddress, controlPrefix)
 	})
 	if err != nil {
 		return fail(3, err)
@@ -1117,10 +1117,11 @@ func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContex
 		return fail(4, err)
 	}
 
-	// Assertion 5. The withheld route has no decode in the SAME log text the
-	// control decode was found in, which is what makes this absence evidence.
-	if frrDecodedPrefix(frrLog, zeAddress, withheldPrefix) {
-		return fail(5, fmt.Errorf("FRR decoded an UPDATE carrying %s, whose NEXT_HOP %s is FRR's own address", withheldPrefix, frrLabAddress))
+	// Assertion 5. The withheld route has no announcement decode in the SAME
+	// log text the control announcement was found in. A denied announcement
+	// still reached FRR; a legitimate withdrawal is not advertising the route.
+	if frrDecodedAnnouncement(frrLog, zeAddress, withheldPrefix) {
+		return fail(5, fmt.Errorf("FRR decoded an announcement of %s using NEXT_HOP %s, FRR's own address", withheldPrefix, frrLabAddress))
 	}
 
 	// Assertion 6. Withholding one route must not disturb the session: Section
@@ -1128,6 +1129,9 @@ func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContex
 	// NOTIFICATION SHOULD NOT be sent over a semantically incorrect NEXT_HOP.
 	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
 		return fail(6, err)
+	}
+	if err := checkRawOriginatedNextHop(ctx, check); err != nil {
+		return fail(7, err)
 	}
 	return nil
 }

@@ -33,7 +33,7 @@ and shared overflow accounting:
 
 | Pool | Scope | Size | Buffer size | Lifecycle |
 |------|-------|------|-------------|-----------|
-| Read/build BufMux | All sessions | Auto-sized combined byte budget | 4K before Extended Message, 64K after negotiation | Reactor lifetime |
+| Read/build BufMux | All sessions | Auto-sized combined byte budget | 4K before Extended Message, 64K after negotiation | Process lifetime |
 | Outgoing Peer Pool | One destination peer | 64 buffers | Negotiated (4K or 64K) | Peer add to peer remove |
 | Forward overflow MixedBufMux | All destination peers | Auto-sized byte budget | Mixed: 64K blocks, subdivisible to 4K | Reactor lifetime |
 
@@ -454,6 +454,17 @@ The combined byte budget (`ze.fwd.pool.maxbytes`) is set to
 `total_buffers * bufSize`. When explicitly configured, the operator's
 value overrides auto-sizing.
 
+For the shared read/build pools, auto-sizing has a floor that covers one
+128-slot block of each size: `128 * (4096 + 65535) = 8912768` bytes. Each
+standard or extended multiplexer keeps its final block even when all its slots
+are free. Those idle allocated bytes remain charged to the combined budget;
+returning the last extended slot does not make that entire block available
+for standard-pool growth. In-use bytes, rather than allocated bytes alone,
+show whether receipts or forwards still own slots. The pools are process-wide,
+so reactor shutdown does not reset their allocation or borrowed ownership.
+<!-- source: internal/component/bgp/reactor/reactor.go -- minPoolBudget -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- collapseLocked -->
+
 ### Dynamic Recalculation
 
 <!-- source: internal/component/bgp/reactor/forward_pool_weight_tracker.go -- weightTracker, AddPeer, PeerEORReceived, RemovePeer -->
@@ -581,8 +592,8 @@ triggers a collapse check every N calls (default 100):
 | Only one block exists | No collapse (nothing to collapse into) |
 
 The collapse cascades: if blocks 2, 1, 0 are all fully returned, one
-check pass deletes them top-down until only the block with active
-allocations remains.
+check pass deletes blocks 2 and 1. The final block remains allocated even
+with no active slots.
 
 **Why traffic-driven, not Return()-driven or timer-driven:** After a
 burst subsides, the overflow path stops receiving `Get()` calls --
@@ -594,10 +605,11 @@ currently every 100th tick triggers a collapse check. No timer needed
 -- network traffic is the heartbeat. The wrapper is a pure trigger; the
 counter and interval belong to the target, not the wrapper.
 
-**No permanent block.** If all traffic stops and every buffer returns,
-all blocks are deleted. The next `Get()` allocates a fresh block. The
-"hot reserve" is whichever block is currently serving traffic, not a
-designated block 0.
+**The final block remains allocated.** Collapse removes only higher blocks;
+each multiplexer keeps one block even when every slot has returned. The next
+`Get()` reuses that block, and its allocated bytes remain charged to the shared
+budget. Returning all borrowed slots therefore restores in-use bytes to zero
+without restoring allocated bytes to zero.
 
 ### Example
 
@@ -676,6 +688,17 @@ slows down. The wait has no bound of its own and sends the peer nothing.
 
 With a hold time of zero no hold timer runs, so the session waits as long as it
 stays open.
+
+An independently admitted incoming connection uses the same buffer wait before
+OPEN and during its private handshake. Exhaustion keeps that TCP connection
+and its reader; returning a buffer resumes the unread frame without another
+OPEN exchange. Its cancellation bridge ends the wait on peer or session
+failure. Before the first OPEN, the original absolute `ReceiveHoldTime` read
+deadline (90 seconds when configured as zero) also ends the wait, even though
+no socket I/O is running. Acquiring a buffer never renews that deadline. Once
+OPEN is admitted, its scoped deadline is cleared and the original protocol
+timers continue to bound the handshake.
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, readOpen, readFrame, watchFailure -->
 
 The buffers come back as forward workers write what holds them (queued
 forwards, the keys a route-server recovery round staged) and as plugins

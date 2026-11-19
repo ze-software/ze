@@ -481,6 +481,12 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 		if !strings.Contains(bare.text, "required argument missing: name") {
 			return fmt.Errorf("metrics-name: the bare form was refused for something else: %s", bare.text)
 		}
+		if !strings.Contains(bare.text, "This command needs name: The value is the whole metric name, such as ze_bgp_connect_retry_counter,") {
+			return fmt.Errorf("metrics-name: missing-name refusal gives no required-argument explanation: %s", bare.text)
+		}
+		if !strings.Contains(bare.text, "\nfix: show metrics name name <name>") {
+			return fmt.Errorf("metrics-name: missing-name refusal gives no whole-command correction: %s", bare.text)
+		}
 		fmt.Fprintln(os.Stderr, "OK: show metrics name with no name is refused for the name it needs")
 		return nil
 	})
