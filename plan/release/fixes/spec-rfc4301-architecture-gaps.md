@@ -9,7 +9,7 @@
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
 | Phase | 2b -- dual-form product fix closed; remaining architecture requirements, RFC proof and this spec's final review remain |
 | Handoff | - |
-| Updated | 2026-11-17 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -57,6 +57,46 @@ preparation or use. This spec retains its existing lifetime-volume and
 extraction/sign-off dependencies, its broader RFC discrimination work and its
 mapped ICMP-return obligation. Its remaining ACs and final review need their
 own evidence reconciliation against the completed product work.
+
+AC-21 evidence, 2026-11-19. AC-21 carries owner decision 2 (a): Ze sets the SA
+direction at install. Its evidence is complete, and the AC stays open only until
+the main session closes it. The main session observed all of the following on
+2026-11-19.
+
+- Commits. `3977cef525` holds the code, the tests, the docs and the AC-21 row.
+  Its RFC-tagged test changes were approved by `ze-test-judge`:
+  `TestRFC4301SADItemAntiReplayWindowIsInstalled`,
+  `TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp` and
+  `TestChildSAReplayWindowDefault`. `c068931843` gives the loopback ICMP test
+  state the zero `Dir`, because the kernel had refused to send through a state
+  marked inbound; the judge approved
+  `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`. `20b70674db` and
+  `4f2e4d3da0` hold 68 discrimination records: 10 for the re-pointed or new
+  tagged units, the new `RFC4303-3.4.3-1` and `RFC4303-3.4.3-4` records among
+  them, and 58 renewals of records whose producer AC-21 changed, across
+  rfc4301, rfc4302, rfc4303, rfc4552, rfc7296 and rfc4106.
+- Mac (darwin arm64). The unit tests of `internal/plugins/ospf`, `ike/engine`
+  and `ike/cmd` pass. The `ike/dataplane` VPP tests (the `ze_vpp` tag) pass,
+  69 of them, `TestVPPSAFlagsAntiReplayPerDirection` included. Scoped lint of
+  `ike/dataplane` and `ike/engine`, in the host and the GOOS=linux integration
+  flavours, reports zero issues. The Linux discrimination records ran in Ze's
+  7.3.0-ze arm64 guest kernel.
+- claude server (Linux x86_64), in detached worktrees. On kernel 7.2.9-ze,
+  `ike/dataplane` passes in full at `c068931843`, with
+  `TestXFRMReadbackReportsTheDirectionZeInstalled`,
+  `TestXFRMStateCarriesTheSADirection`,
+  `TestXFRMStateReplayWindowOnlyOnTheReceivingSA` and
+  `TestXFRMStateRefusesADirectionNoStateCarries` passing by name, and
+  `internal/plugins/ospf` passes. On 7.2.9, `ike/engine` had 32 failures, all
+  refused by the kernel state-scope receipt both with and without AC-21. After
+  the server moved to Ze's 7.3.0-ze kernel, `ike/engine` passes in full. On 7.3,
+  in a Ze amd64 QEMU guest at `4f2e4d3da0`,
+  `test/ipsec/ipsec-sa-options-kernel.ci` and
+  `test/ipsec/ipsec-show-dataplane-kernel.ci` both pass, each 1 of 1 ran and 0
+  skipped.
+- VPP correction. An earlier draft claimed VPP needs `USE_ANTI_REPLAY` on the
+  outbound SA. That was wrong. VPP v26.06 `esp_seq_advance` refuses a cycled
+  counter on every outbound SA, so the flag follows the window.
 
 ## Historical continuation receipts, 2026-11-17
 
@@ -1223,12 +1263,12 @@ mapped-return work stay owed; this prose update adds no runtime test debt.
 | `TestRFC4301TransitFromIKEPortIsNotBypassed` | `engine/ike_bypass_forward_integration_linux_test.go` | AC-17: transit UDP from port 500 or 4500 leaves in the tunnel, and Ze's own rekey still completes | not written; netns packet test |
 | `TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded` | `engine/icmp_nonerror_integration_linux_test.go` | AC-18 and AC-19: a non-error ICMP message outside the selectors is dropped on the SA, a consistent error is delivered, and a protocol 0 discard drops ICMP | not written; netns packet test |
 | `TestRFC4301KernelAdvertisesExactStateScope`, `TestRFC4301ChildStateScopeReadback`, `TestRFC4301MultipairSAsRejectSiblingScope`, `TestRFC4301ParallelMultipairSAsKeepPermittedDelivery` | `engine/rfc4301_state_scope_readback_integration_linux_test.go`, `engine/rfc4301_state_scope_integration_linux_test.go` | AC-20: the receipt, the scope readback and sibling rejection | written; not observed on a kernel built with the series |
-| `TestXFRMStateCarriesTheSADirection`, `TestXFRMStateReplayWindowOnlyOnTheReceivingSA`, `TestXFRMStateRefusesADirectionNoStateCarries` | `dataplane/xfrm_sa_dir_linux_test.go` | AC-21: `SAParams.Dir` maps to `XFRMA_SA_DIR`, zero stays unset, an outbound window and a forward-direction SA are refused as a Ze defect | written 2026-11-19; not run |
-| `TestXFRMReadbackReportsTheDirectionZeInstalled` | `dataplane/xfrm_readback_integration_linux_test.go` | AC-21: the kernel reads back `in`, `out` and no direction, the outbound window is 0, and each side holds only its own options | written 2026-11-19; not run in the QEMU guest |
-| `TestChildSAReplayWindowDefault` (RFC-tagged, changed) | `engine/child_test.go` | AC-21: the inbound Child SA carries 64 and the outbound one 0 | changed 2026-11-19; owes `ze-test-judge` and a fresh discrimination record |
-| `TestRFC4301SADItemAntiReplayWindowIsInstalled`, `TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp` (RFC-tagged, changed) | `dataplane/rfc4301_sad_items_linux_test.go`, `dataplane/rfc4301_boundary_linux_test.go` | AC-21: the window is asserted on an inbound SA (`boundaryInboundSA`), since an outbound one is now refused | changed 2026-11-19; owes `ze-test-judge` and fresh discrimination records |
-| `TestIPsecSAReplayWindowOnlyOnTheReceivingSA` | `internal/plugins/ospf/ipsec_install_test.go` | AC-21: the OSPFv3 per-neighbor outbound state carries no window, the shared and inbound ones the configured one | written 2026-11-19; not run |
-| `TestVPPSAFlagsAntiReplayPerDirection` | `dataplane/vpp_sa_flags_test.go` | AC-21: `USE_ANTI_REPLAY` follows the window, so the VPP outbound SA carries none | written 2026-11-19; not run |
+| `TestXFRMStateCarriesTheSADirection`, `TestXFRMStateReplayWindowOnlyOnTheReceivingSA`, `TestXFRMStateRefusesADirectionNoStateCarries` | `dataplane/xfrm_sa_dir_linux_test.go` | AC-21: `SAParams.Dir` maps to `XFRMA_SA_DIR`, zero stays unset, an outbound window and a forward-direction SA are refused as a Ze defect | committed in `3977cef525`; pass by name on the claude server (Linux x86_64, kernel 7.2.9-ze), ike/dataplane in full at `c068931843`, 2026-11-19 |
+| `TestXFRMReadbackReportsTheDirectionZeInstalled` | `dataplane/xfrm_readback_integration_linux_test.go` | AC-21: the kernel reads back `in`, `out` and no direction, the outbound window is 0, and each side holds only its own options | committed in `3977cef525`; passes by name on the claude server, kernel 7.2.9-ze, ike/dataplane in full at `c068931843`, 2026-11-19 |
+| `TestChildSAReplayWindowDefault` (RFC-tagged, changed) | `engine/child_test.go` | AC-21: the inbound Child SA carries 64 and the outbound one 0 | changed in `3977cef525`, approved by `ze-test-judge`; discrimination record in `20b70674db`/`4f2e4d3da0`; ike/engine passes in full on the claude server, kernel 7.3.0-ze, 2026-11-19 |
+| `TestRFC4301SADItemAntiReplayWindowIsInstalled`, `TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp` (RFC-tagged, changed) | `dataplane/rfc4301_sad_items_linux_test.go`, `dataplane/rfc4301_boundary_linux_test.go` | AC-21: the window is asserted on an inbound SA (`boundaryInboundSA`), since an outbound one is now refused | changed in `3977cef525`, approved by `ze-test-judge`; discrimination records in `20b70674db`/`4f2e4d3da0`; ike/dataplane passes in full on kernel 7.2.9-ze at `c068931843`, 2026-11-19 |
+| `TestIPsecSAReplayWindowOnlyOnTheReceivingSA` | `internal/plugins/ospf/ipsec_install_test.go` | AC-21: the OSPFv3 per-neighbor outbound state carries no window, the shared and inbound ones the configured one | committed in `3977cef525`; internal/plugins/ospf passes on the Mac (darwin arm64) and on the claude server (kernel 7.2.9-ze), 2026-11-19 |
+| `TestVPPSAFlagsAntiReplayPerDirection` | `dataplane/vpp_sa_flags_test.go` | AC-21: `USE_ANTI_REPLAY` follows the window, so the VPP outbound SA carries none | committed in `3977cef525`; passes on the Mac (darwin arm64, `ze_vpp`), 69 of 69 ike/dataplane VPP tests, 2026-11-19 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -1534,7 +1574,7 @@ update does not independently close an old defect or promote an RFC row.
 | `RFC4301-6.2-3` and the inbound discard override: the two commit refusals | corrected 2026-11-14: the code is in the tree (`refuseICMPErrorBypass`, `refuseICMPCheckDiscard`, `verifyICMPOverlap`, with the `TestICMPOverlap...` units of `engine/rfc4301_icmp_overlap_test.go`). Refusal B is what makes a default discard uncommittable (D-6, AC-19) | this spec |
 | `RFC4301-6.2-4` forwarded case: move the node-wide fwd catch-all to the netns XFRM default policy and drop the fwd interface catch-all, so `xfrm_in_fwd_icmp` runs | corrected 2026-11-14: the code is in the tree (`xfrmBackend.ApplyForwardDefault`, `installUnmatched`, `TestRFC4301ForwardDefaultFollowsAndReleasesUnmatched`, `TestRFC4301ForwardedICMPUsesPayloadPolicy`). Still owed: the observed green on Ze's kernel and the tagged record; the handover of 2026-11-13 records the forwarded return under `unmatched discard` red (AC-4) | this spec |
 | `RFC4301-6.2-3` forwarded case under `unmatched discard`: ICMP-error allow entries above the out catch-all plus an nftables drop of untransformed errors no bypass covers; and a namespace test observing the local mapping | found by the 2026-11-12 linux-limit verdict; Ze-owed | this spec |
-| Direction of Ze's own SAs in `show` (no `XFRMA_SA_DIR` set) | DECIDED (a) by Thomas on 2026-11-19: set the SA direction at install. Written as AC-21 on 2026-11-19; its owed test runs are listed under AC-21 and stay open until observed | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (AC-21) |
+| Direction of Ze's own SAs in `show` (no `XFRMA_SA_DIR` set) | DECIDED (a) by Thomas on 2026-11-19: set the SA direction at install. Implemented as AC-21 in `3977cef525`; its evidence is complete and recorded in "AC-21 evidence, 2026-11-19" in the current checkpoint. AC-21 stays open until the main session closes it | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (AC-21) |
 | Phase 2b, Section 7.4 stateful fragment checking | unchanged, under investigation (A-3) | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
 | Forwarded fragments of a port-specific Child SA meet the catch-all (port 0), crossing in clear under `unmatched bypass` | found 2026-11-10 reading LL-XFRM-FRAGMENT-SELECTOR; the fix belongs with phase 2b | this spec; journal row `silent-fall-through.md` 2026-11-10, owned above |
 | Protocol 135 (MH): refuse exact Type while preserving ANY and RFC-valid encoding | 2026-11-12 runtime evidence: exact Type5 dropped matching IN/FWD packets; the repair's named race/verbose units and guest ANY4+typed exact-refusal controls now pass. The 13 mutation walks, four RFC port-field records and affected audit reseals remain owed | release repair here, journal row `field-carries-two-meanings.md` 2026-11-10; wanted classifier feature in `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md` |
