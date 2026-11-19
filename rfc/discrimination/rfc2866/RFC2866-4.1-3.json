@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityAlwaysPresent",
+    "unit-sha": "e9bc417581c6dff4",
+    "claim-sha": "1d1359aee3e8824c",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+    "producer-sha": "77d7d14f888ed5aa",
+    "break": "line 43: \"append(attrs, radius.Attr{Type: radius.AttrNASIdentifier, Value: radius.AttrString(hostNASIdentifier())})\" -\u003e \"attrs\""
+  },
+  {
+    "rid": "RFC2866-4.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityFallbackIsNarrow",
+    "unit-sha": "28dc4b8da39ce9c4",
+    "claim-sha": "f10aec952d912b2c",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+    "producer-sha": "77d7d14f888ed5aa",
+    "break": "line 40: \"v4 != nil\" -\u003e \"false\""
+  }
+]

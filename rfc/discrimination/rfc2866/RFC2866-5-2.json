@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength",
+    "unit-sha": "5f20c4415733d876",
+    "claim-sha": "82beab388f79a7ab",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "line 143: \"Value: val}\" -\u003e \"Value: func(b []byte) []byte { for i, c := range b { if c == 0 { return b[:i] } }; return b }(val)}\""
+  },
+  {
+    "rid": "RFC2866-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire",
+    "unit-sha": "177f776ba7fbefa9",
+    "claim-sha": "3f21045184c43c8b",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "line 143: \"Value: val}\" -\u003e \"Value: func(b []byte) []byte { for i, c := range b { if c == 0 { return b[:i] } }; return b }(val)}\""
+  }
+]

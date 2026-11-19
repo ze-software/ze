@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-3-5",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted",
+    "unit-sha": "4cfa0eaf84e0afa1",
+    "claim-sha": "6d0e720430447f24",
+    "route": "mutant",
+    "producer": "internal/component/radius/client.go::readAnswers",
+    "producer-sha": "6303fec850f865fc",
+    "break": "line 583: \"pktLen \u003e n\" -\u003e \"pktLen \u003e= n\""
+  },
+  {
+    "rid": "RFC2866-3-5",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded",
+    "unit-sha": "0358606269bbb674",
+    "claim-sha": "094e04b2dc9140df",
+    "route": "mutant",
+    "producer": "internal/component/radius/client.go::readAnswers",
+    "producer-sha": "6303fec850f865fc",
+    "break": "line 582: \"int(binary.BigEndian.Uint16(buf[2:4]))\" -\u003e \"n; binary.BigEndian.PutUint16(buf[2:4], uint16(n))\""
+  }
+]

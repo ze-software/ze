@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-5.5-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctSessionIDNeverEmpty",
+    "unit-sha": "2b7a8590d6d01a68",
+    "claim-sha": "ac22607e7daac095",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::genSessionID",
+    "producer-sha": "9fce7ebc5283d8f6",
+    "break": "line 269: \".String()\" -\u003e \".String()[:0]\""
+  },
+  {
+    "rid": "RFC2866-5.5-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctSessionIDPresentOnEveryRequest",
+    "unit-sha": "2e76c38f0992ffc3",
+    "claim-sha": "a4380f798faaff18",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 506: \"radius.AttrAcctSessionID\" -\u003e \"radius.AttrAcctMultiSessionID\""
+  }
+]

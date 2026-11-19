@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNonEmptyTextIsSent",
+    "unit-sha": "9e28b64805093763",
+    "claim-sha": "3595c6be393dd317",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 488: \"sess.username\" -\u003e \"\\\"\\\"\""
+  },
+  {
+    "rid": "RFC2866-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted",
+    "unit-sha": "e37aa058e8c727b2",
+    "claim-sha": "4f7c3a91d9367124",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 488: \"radius.AppendTextAttr(attrs, radius.AttrUserName, sess.username)\" -\u003e \"append(attrs, radius.Attr{Type: radius.AttrUserName, Value: radius.AttrString(sess.username)})\""
+  }
+]

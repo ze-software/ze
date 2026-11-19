@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-3-4",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866LengthPaddingBoundaryIsTheLengthField",
+    "unit-sha": "1e8a9a2aeb3ba6c0",
+    "claim-sha": "7cc49a43e0c8a0b4",
+    "route": "mutant",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "line 120: \"int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"len(data)\""
+  },
+  {
+    "rid": "RFC2866-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866LengthPaddingIgnoredOnReception",
+    "unit-sha": "866fd19da0c16e29",
+    "claim-sha": "15ac7003537076ae",
+    "route": "mutant",
+    "producer": "internal/component/radius/client.go::readAnswers",
+    "producer-sha": "6303fec850f865fc",
+    "break": "line 583: \"pktLen \u003e n\" -\u003e \"pktLen != n\""
+  }
+]

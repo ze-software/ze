@@ -3,11 +3,33 @@
     "rid": "RFC2866-5.5-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
-    "unit-sha": "f3258b7f77d9ba1c",
+    "unit-sha": "9404886fc8075b3c",
     "claim-sha": "fb1982ee343d021e",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
-    "producer-sha": "a5c2e374529f502a",
-    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "068f5a9b16dad31d",
+    "break": "line 341: \"sess != nil\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC2866-5.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctSessionIDDiffersBetweenSessions",
+    "unit-sha": "58109f0dbcabf38f",
+    "claim-sha": "c7c52e6722607b12",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 506: \"radius.AttrString(sess.acctSessID)\" -\u003e \"radius.AttrString(\\\"1-2-constant\\\")\""
+  },
+  {
+    "rid": "RFC2866-5.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctSessionIDSameAcrossRecords",
+    "unit-sha": "8969e9a48641006f",
+    "claim-sha": "f1c1ad122360f2df",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 506: \"radius.AttrString(sess.acctSessID)\" -\u003e \"append(radius.AttrString(sess.acctSessID), statusType)\""
   }
 ]

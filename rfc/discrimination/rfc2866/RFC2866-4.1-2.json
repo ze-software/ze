@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesAbsent",
+    "unit-sha": "b9481d069b230e99",
+    "claim-sha": "47f11c2ea0e95b89",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 507: \"radius.AttrServiceType\" -\u003e \"radius.AttrReplyMessage\""
+  },
+  {
+    "rid": "RFC2866-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest",
+    "unit-sha": "b6104b0b740ce70d",
+    "claim-sha": "29a134364684c311",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "line 575: \"exclusions.filter(attrs, kind)\" -\u003e \"exclusions.filter(attrs[:0], kind)\""
+  }
+]
