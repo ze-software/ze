@@ -95,6 +95,10 @@ in the spec or commit it applies to.
 - DNS zone transfer (AXFR, IXFR) is wanted after the first release and is
   not declined. Its requirements stay recorded as gaps owed after the
   release, never annotated `{feature-declined}` or called out of scope.
+  The resolver Ze runs for customers is not an authoritative server; the
+  plugins that answer authoritatively (GeoDNS, AS112) answer queries only.
+  Because those plugins fill the authoritative name server role, the
+  zone-transfer rows are never annotated `{not-applicable}` either.
 - A question the RFC text answers is not asked. Where the RFC is silent or
   unclear, the goal is interoperability: Ze must work with BIRD and FRR, so read
   their source and do what lets Ze interoperate with both. freeRtr's source
