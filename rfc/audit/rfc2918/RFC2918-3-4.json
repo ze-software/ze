@@ -1,15 +1,24 @@
 {
-  "note": "Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).",
+  "code": {
+    "internal/component/bgp/message/routerefresh.go::RouteRefresh.WriteTo": "b2b5570a8bc6fda1",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::newRefreshPeer": "cf3fd6491d83f2c3",
+    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::setupEstablishedSessionRFC2918RouteRefresh": "31540438cb6672f0",
+    "internal/component/bgp/reactor/session_handlers.go::Session.handleRouteRefresh": "ef9161c07c7ce817",
+    "internal/component/bgp/reactor/session_handlers.go::Session.screenRouteRefresh": "58b7418e2d9a101b",
+    "internal/component/bgp/reactor/session_handlers.go::Session.validateRouteRefreshLength": "9e5c0f9836f7ada7",
+    "internal/component/bgp/reactor/session_read.go::Session.deliverReceivedMessage": "72f284569ded1c0c"
+  },
+  "note": "Independent current-source rejudgment of this advertiser's callback-only migration after reading Main's actual four-root healthy receipt. Git attributes the precise changed lines to ba0f3a3a7d, adapting the MessageCallback signature introduced by a27a951239 (Spec-work: bgp-best-route-advertised-to-peers). The only changed text in the four selected whole test roots is an unused first *Session parameter in the existing observer callback. Every input, callback count, exact wire-byte/error/state assertion, bound and tag remains intact. Session.deliverReceivedMessage passes the actual producing Session before the original arguments; ignoring that added argument leaves the original observer meaningful and does not replace protocol processing. No receiver fixture becomes a claim of BGP plugin authorization, selected output or external peer acceptance. Read RFC2918's own Section3 and all three complete tagged roots plus their actual handshake/recording helpers. Preserve enforced for both halves of the reserved-octet rule. The unchanged sender root drives both sendRouteRefresh and SoftClearPeer and requires exactly four body bytes 00 01 00 01 on its recording connection. Receiver setup actually exchanges OPEN/KEEPALIVE over net.Pipe with capability2 and IPv4 unicast but explicitly no capability70, so RFC7313's subtype semantics cannot confound the Reserved field. Receiver positive varies only Reserved through 00/01/02/AA/FF, requires the exact original body at the observer, one message and refresh callback, Established and a bounded read deadline with no notification. Its negative uses a five-octet body with Reserved AA and requires ErrInvalidMessage plus zero callbacks: ignoring the value must not mean accepting an invalid message. Exact NOTIFICATION code is intentionally not part of this receiver-negative claim. The sole existing canonical producer-break record is sender-positive on RouteRefresh.WriteTo; it was not marked stale by the initial native freshness report. Preserve that historical evidence without claiming fresh receiver discrimination or an unrun mutation. Actual native job-unit-pkg-59a2fc52.log observes TestRFC2918ReservedOctetIgnoredOnReceive and all five value children PASS at7-12, TestRFC2918ReservedOctetDoesNotExemptTheMessage PASS at15, then package PASS at26-27 (3.696s). Main's retained batch custody identifies this as the unmodified race run. All fourteen reviewed source/requirement/proof file pins remain unchanged at receipt-time check. No new producer-break proof is credited by this healthy rerun.",
   "requirement_sha": "cd4c55554fb5f84e",
   "tests": {
     "internal/component/bgp/reactor/rfc2918_reactor_b_test.go::TestRFC2918SentRequestReservedOctetIsZero": "808d5a26b55d68e9",
-    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "cae94db0eba23b03",
-    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "cae94db0eba23b03"
+    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "1d2fc6e135015638",
+    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "1d2fc6e135015638"
   },
   "units": {
     "internal/component/bgp/reactor/rfc2918_reactor_b_test.go::TestRFC2918SentRequestReservedOctetIsZero": "9b0a8247bdcb2ad0",
-    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "7f67b93b46ae7e65",
-    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "c3bb43d68138be87"
+    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "b31aa7a29bdcd439",
+    "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "739cccd17a0aff60"
   },
   "verdict": "enforced"
 }

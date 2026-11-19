@@ -1,14 +1,26 @@
 {
-  "note": "(a) forbidden: not sending Error 7/subcode 1 for a BoRR or EoRR whose body is not 4 octets; (b) TestRouteRefreshBadLengthByMessageSubtype asserts the exact NOTIFICATION for subtypes 1 and 2, too short and too long, and TestRouteRefreshInvalidLengthNotDelivered asserts octets 7/1. Negatives: subtype 0 draws Bad Message Length, a peer without capability 70 draws Bad Message Length, a 4-octet body draws nothing, and an unknown subtype of any length draws no NOTIFICATION and is not delivered (TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength, whose well-formed cases now expect 0 deliveries after the RFC7313-5-3 fix).",
+  "code": {
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::assertNotification": "da7d6ea6fc0b78dd",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::countRouteRefreshDelivery": "d46d0a6a7e5e47f6",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::routeRefreshExchange": "6b6926b85efd5368",
+    "internal/component/bgp/reactor/session_handlers.go::Session.handleRouteRefresh": "ef9161c07c7ce817",
+    "internal/component/bgp/reactor/session_handlers.go::Session.refuseRouteRefreshBadLength": "1f5569585812b601",
+    "internal/component/bgp/reactor/session_handlers.go::Session.refuseRouteRefreshInvalidLength": "f8d52f9c4bd3e73c",
+    "internal/component/bgp/reactor/session_handlers.go::Session.screenRouteRefresh": "58b7418e2d9a101b",
+    "internal/component/bgp/reactor/session_handlers.go::Session.validateRouteRefreshLength": "9e5c0f9836f7ada7",
+    "internal/component/bgp/reactor/session_handlers.go::routeRefreshNotificationData": "a3a9e09ccdade66a",
+    "internal/component/bgp/reactor/session_read.go::Session.deliverReceivedMessage": "72f284569ded1c0c"
+  },
+  "note": "Independent current-source rejudgment of this advertiser's callback-only migration after reading Main's actual four-root healthy receipt. Git attributes the precise changed lines to ba0f3a3a7d, adapting the MessageCallback signature introduced by a27a951239 (Spec-work: bgp-best-route-advertised-to-peers). The only changed text in the four selected whole test roots is an unused first *Session parameter in the existing observer callback. Every input, callback count, exact wire-byte/error/state assertion, bound and tag remains intact. Session.deliverReceivedMessage passes the actual producing Session before the original arguments; ignoring that added argument leaves the original observer meaningful and does not replace protocol processing. No receiver fixture becomes a claim of BGP plugin authorization, selected output or external peer acceptance. Read RFC7313's own Section5 including both capability70 and Message Subtype1/2 scope, all seven current tag bindings across six whole root functions, and actual exchange/NOTIFICATION helpers. Preserve enforced. TestRouteRefreshBadLengthByMessageSubtype sends too-short/too-long BoRR and EoRR and requires exact error7/subcode1 with complete original frame as data, zero deliveries and ErrInvalidMessage; its normal-subtype and missing-subtype controls instead require header error1/subcode2 with erroneous length data. TestRouteRefreshBadLengthWithoutCapability70 actually negotiates only RFC2918 and varies malformed lengths/reserved values, requiring header error1/2 rather than7/1. Its well-formed control requires no error/notification, Established and exactly one delivery on both callbacks. Unknown subtype5/255 at well-formed and malformed lengths must be ignored with no notification/error/delivery and Established, not converted into a length failure. The migrated TestRouteRefreshInvalidLengthNotDelivered still drives malformed BoRR/EoRR through the full net.Pipe receive path, requires refusal before both callbacks and exact NOTIFICATION7/1 plus the complete original frame. The migrated TestRouteRefreshValidLengthDelivered still drives a valid advertised IPv4 request and requires exact body, one message and refresh callback, no error and Established; explicit peer-side silence is supplied by the separate exchange controls, not invented in this root. Length validation still precedes delivery; capability70 absence and unknown subtypes remain distinct boundary controls. Preserve the sole existing canonical negative discrimination record on validateRouteRefreshLength for TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength; initial native freshness did not mark it stale, and no new producer-break run is inferred. Actual native job-unit-pkg-59a2fc52.log observes TestRouteRefreshInvalidLengthNotDelivered and both malformed-marker children PASS at21-23, TestRouteRefreshValidLengthDelivered PASS at25, then package PASS at26-27 (3.696s). Main's retained batch custody identifies this as the unmodified race run. All fourteen reviewed source/requirement/proof file pins remain unchanged at receipt-time check. No new producer-break proof is credited by this healthy rerun.",
   "requirement_sha": "15d178478c5a4262",
   "tests": {
-    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "3e1a8969432bbe09",
-    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "3e1a8969432bbe09",
-    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "3e1a8969432bbe09",
-    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "3e1a8969432bbe09",
-    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "3e1a8969432bbe09",
-    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "aeb6993b67f2a376",
-    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "aeb6993b67f2a376"
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "1f16f33398277b8a",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "1f16f33398277b8a",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "1f16f33398277b8a",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "1f16f33398277b8a",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "1f16f33398277b8a",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "65b78caa8bc5491e",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "65b78caa8bc5491e"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "6fd88cf95310ee55",
@@ -16,8 +28,8 @@
     "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "f2e071f12d3ddd3b",
     "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "609ea9cea55823ac",
     "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "d5741f71a517dda1",
-    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "e5d31e6524dc7d92",
-    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "1670e3ec48fcf272",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "b8872206305dc7f8"
   },
   "verdict": "enforced"
 }
