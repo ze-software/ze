@@ -2634,6 +2634,23 @@ reads passes. The tier over-matches on purpose, so a heredoc that merely NAMES t
 primitive is refused too. A wrong refusal is answered with
 `ZE_ADMIT_GOVERNED_WRITE="<reason>"`, never by rewording the command.
 
+A governed tree is this checkout's own `plan/` and `ai/rules/`. A path that only
+holds one of those names below an ordinary directory is not one:
+`sed -i ... internal/le/ai/rules/x.go` edits Go code and passes. That holds
+only for a literal relative path, optionally behind `./`, whose every segment
+starts with a letter, digit or underscore, that does not itself start at
+`plan/` or `ai/rules/` (so `plan/learned/plan/x` stays governed), and that
+stops at the first `..` after the tree (`withoutNestedTreeNames`). Every other spelling
+is still judged by the tree name alone and refused: `./plan/x`, `../plan/x`, a
+path built from `$VAR`, `$(...)`, `~` or a string join in a script, a glob or
+brace, a hidden directory such as `.claude/worktrees/<name>/plan/`, and any
+absolute path, another checkout's included. An absolute path through this
+checkout's root is read with the root removed (`rootRelative`), so a redirect,
+`tee`, `cp` or `mv` target `<root>/plan/x` is refused like `plan/x`.
+<!-- source: internal/le/hookruntime/bash_governed_taint.go -- withoutNestedTreeNames, rootRelative -->
+A `cd` into an ordinary directory followed by a relative path is not followed:
+`cd internal/le && sed -i ... ai/rules/x.go` is still refused.
+
 A path that reaches the writer at run time is followed as a taint
 (`internal/le/hookruntime/bash_governed_taint.go`). A variable is tainted when
 it is assigned a governed path, when a `for` loop iterates over one, or when a

@@ -63,6 +63,70 @@ func TestGovernedLiteralRouteStepsOverQuotedSemicolon(t *testing.T) {
 	})
 }
 
+// TestGovernedPathStartsAtTheTree drives the pretool-bash hook with paths that
+// merely contain plan/ or ai/rules/ and with paths into the real trees.
+//
+// It exists because every route matched the tree name anywhere in an argument,
+// so an in-place edit of internal/le/ai/rules/digest_test.go, and a commit whose
+// quoted body described one, were refused as writes to the rule tree on
+// 2026-11-19. Only a literal relative path that starts with an ordinary
+// directory name is freed. The blocked rows are the spellings a first, wider
+// narrowing admitted (found by independent review): a root from an expansion
+// or a variable, a path built by a string join, a pattern-filtered file list,
+// a hidden-directory worktree, another checkout's absolute path, a brace and a
+// non-normalised path.
+func TestGovernedPathStartsAtTheTree(t *testing.T) {
+	assertGovernedRefusals(t, []governedCase{
+		{"sed-nested-ai-rules", `sed -i '' -e 's/a/b/' internal/le/ai/rules/digest_test.go`, false},
+		{"perl-nested-plan", `perl -pi -e 's/a/b/' internal/le/plan/x.go`, false},
+		{"quoted-nested-path", `sed -i 's/a/b/' "internal/le/ai/rules/x.go"`, false},
+		{"python-nested-path", `python3 -c "open('internal/le/ai/rules/x.go','w').write('x')"`, false},
+		{"commit-body-prose", `./le commit create subject x body "an in-place sed -i of internal/le/ai/rules/x.go" file y`, false},
+		{"assigned-nested", `f=internal/le/plan/x.go; sed -i 's/a/b/' "$f"`, false},
+		{"dot-dot-plan", `sed -i 's/a/b/' ../plan/x.md`, true},
+		{"dot-slash-ai-rules", `sed -i 's/a/b/' ./ai/rules/x.md`, true},
+		{"python-tree-path", `python3 -c "open('plan/x.md','w').write('x')"`, true},
+		{"project-dir-expansion", `sed -i 's/a/b/' "$CLAUDE_PROJECT_DIR/plan/x.md"`, true},
+		{"pwd-expansion", `sed -i 's/a/b/' $PWD/ai/rules/commands.md`, true},
+		{"toplevel-substitution", `perl -pi -e 's/a/b/' "$(git rev-parse --show-toplevel)/plan/x.md"`, true},
+		{"tilde-path", `sed -i 's/a/b/' ~/Code/ze/main/plan/x.md`, true},
+		{"assigned-root", `R=/srv/ze/main; sed -i 's/a/b/' "$R/plan/x.md"`, true},
+		{"python-fstring", `python3 -c "root='.'; open(f'{root}/plan/x.md','w').write('x')"`, true},
+		{"python-concat", `python3 -c "import os; open(os.getcwd()+'/plan/x.md','w').write('x')"`, true},
+		{"node-template", "node -e \"require('fs').writeFileSync(`${process.cwd()}/plan/x.md`,'x')\"", true},
+		{"grep-anchored-feed", `git ls-files | grep '^plan/' | xargs sed -i 's/a/b/'`, true},
+		{"find-path-glob", `find . -path '*/plan/*.md' -exec sed -i 's/a/b/' {} +`, true},
+		{"worktree-plan", `sed -i 's/a/b/' .claude/worktrees/x/plan/y.md`, true},
+		{"other-checkout-absolute", `sed -i 's/a/b/' /srv/other/plan/x.md`, true},
+		{"brace-expansion", `sed -i 's/a/b/' {plan/a.md,plan/b.md}`, true},
+		{"dot-dot-through-dir", `sed -i 's/a/b/' tmp/../ai/rules/x.md`, true},
+		{"dot-dot-after-nested-tree", `sed -i 's/a/b/' internal/le/ai/rules/../../../plan/x.md`, true},
+		{"second-path-in-word", `sed -i 's/a/b/' internal/le/plan/a.go,plan/b.md`, true},
+		{"dot-slash-nested", `sed -i 's/a/b/' ./internal/le/ai/rules/x.go`, false},
+		{"tree-with-nested-name-redirect", `echo x > plan/learned/plan/x.md`, true},
+		{"tree-with-nested-name-copy", `cp new.md plan/ai/rules/x.md`, true},
+		{"rules-with-nested-plan", `sed -i 's/a/b/' ai/rules/points/plan/x.md`, true},
+		{"climb-back-four", `perl -pi -e 's/a/b/' internal/le/ai/rules/../../../../ai/rules/commands.md`, true},
+		{"climb-back-into-plan", `sed -i 's/a/b/' internal/plan/../../plan/x.md`, true},
+		{"trailing-in-place-fan-out", `find plan -name '*.md' | xargs perl -pe 's/a/b/' -i`, true},
+	})
+	root := t.TempDir()
+	for _, command := range []string{
+		`sed -i 's/a/b/' ` + root + `/plan/x.md`,
+		`sed -i 's/a/b/' "` + root + `/ai/rules/x.md"`,
+		`echo x > ` + root + `/plan/x.md`,
+		`cp new.md ` + root + `/ai/rules/x.md`,
+	} {
+		code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+			"tool_name":  "Bash",
+			"tool_input": map[string]any{"command": command},
+		})
+		if code != 2 {
+			t.Errorf("a write through the checkout root %q was admitted (code %d): %s", command, code, message)
+		}
+	}
+}
+
 // TestGovernedSinksDeriveFromLiteralRoutes asserts that every literal route the
 // taint sinks derive from ends in the governed tree. governedSink returns a
 // route that does not unchanged, which keeps the hook narrow but silently

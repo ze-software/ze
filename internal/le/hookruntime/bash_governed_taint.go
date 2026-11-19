@@ -65,6 +65,51 @@ var (
 	}
 )
 
+// rootRelative drops the checkout root from every absolute path through it, so
+// the literal routes, which read a redirect, tee, copy or move target only where
+// the tree name starts it, see `> <root>/plan/x` as `> plan/x`. Every other
+// absolute path keeps its form, and the routes judge it as before. An empty
+// root rewrites nothing.
+func rootRelative(root, command string) string {
+	if root == "" {
+		return command
+	}
+	return strings.ReplaceAll(command, strings.TrimSuffix(root, "/")+"/", "")
+}
+
+// nestedTreePath is a literal relative path, starting where a word or quoted
+// string starts, whose first segment is an ordinary directory name, that holds
+// plan/ or ai/rules/ below it: internal/le/ai/rules/x.go. A segment starts with
+// a letter, digit or underscore, so `.`, `..` and hidden directories
+// (.claude/worktrees/x/plan/) never begin one, and a word that starts with an
+// expansion, a tilde, a slash, a glob or a brace never matches. The match ends
+// at the first `..` after the tree, so internal/ai/rules/../../plan/x keeps
+// the plan/ it climbs back into.
+var nestedTreePath = regexp.MustCompile(`(^|[\s"'=(` + "`" + `<>,:;|&])` +
+	`((?:\./)*(?:[A-Za-z0-9_][A-Za-z0-9_.-]*/)+(?:plan/|ai/rules/)(?:[A-Za-z0-9_][A-Za-z0-9_.-]*/?)*)`)
+
+// governedLead is a path that starts at a governed tree, after any ./ steps. A
+// nestedTreePath match that starts this way is a path INTO the tree with a
+// later directory that happens to share a tree's name (plan/learned/plan/x),
+// so its names are kept.
+var governedLead = regexp.MustCompile(`^(?:\./)*(?:plan/|ai/rules/)`)
+
+// withoutNestedTreeNames hides the governed tree names inside a nested literal
+// path (nestedTreePath), so no route reads internal/le/ai/rules/x.go as the
+// rule tree. Every other spelling keeps its names and its verdict: an absolute
+// path, one built from an expansion or a string join, a ./ or ../ path, a glob
+// or brace, and a path under a hidden directory.
+func withoutNestedTreeNames(command string) string {
+	return nestedTreePath.ReplaceAllStringFunc(command, func(match string) string {
+		path := strings.TrimLeft(match[:1], `"'=(`+"`"+`<>,:;|& `+"\t\n") + match[1:]
+		if governedLead.MatchString(path) {
+			return match
+		}
+		match = strings.ReplaceAll(match, "ai/rules/", "ai/rules_nested/")
+		return strings.ReplaceAll(match, "plan/", "plan_nested/")
+	})
+}
+
 // governedSink returns a literal route's pattern with its trailing governed
 // tree removed. A route that does not end in the tree is returned unchanged,
 // so its sink still demands a governed path and fails narrow, never open.

@@ -954,7 +954,7 @@ func governedShellWrite(command string) bool {
 // are guarded by the Write/Edit hook, and a shell write runs none of its checks.
 func bashGovernedWrite(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if !governedShellWrite(command) {
+	if !governedShellWrite(withoutNestedTreeNames(rootRelative(ctx.root, command))) {
 		return nil
 	}
 	if governedReason(command) {
