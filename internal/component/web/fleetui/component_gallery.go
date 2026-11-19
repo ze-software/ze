@@ -7,14 +7,16 @@ package fleetui
 // the fixed data below. It reads no source and no clock, so it renders the
 // same bytes every time: it is the states page of the prototype, and the
 // coverage of the component tests.
+//
+// Every address it draws is written by the address writers (Address.String,
+// FragmentLink, ActionAddress, consoleURL) and names a page, a fragment or an
+// action of the sample estate the prototype serves: its devices, its groups
+// and its tasks. A hand-written address drifts from the routes and becomes a
+// link the server refuses; TestGalleryAddressesAreAnswered serves each one.
 
 // The values the gallery repeats.
 const (
 	galleryDevice      = "edge-lon-04"
-	galleryDeviceHref  = "/fleet/device/edge-lon-04/"
-	galleryDevicesHref = "/fleet/estate/devices/"
-	galleryTasksHref   = "/fleet/tasks/"
-	galleryAlarmsHref  = "/fleet/estate/alarms/"
 	galleryNoun        = "devices"
 	galleryForm        = "fleet-gallery-bulk"
 	galleryVersion     = "1.4.2"
@@ -32,18 +34,57 @@ const (
 	galleryFieldAction = "action"
 	galleryCPU         = "CPU"
 	galleryStorage     = "Storage"
-	galleryAdminHref   = "/fleet/admin/labels/"
 	galleryState       = "State"
 	galleryLabels      = "Labels"
 	galleryCPE         = "cpe-0113"
-	galleryConfigTab   = "config/"
-	galleryConsoleTab  = "console/"
+	galleryCore        = "core-lon-01"
+	galleryOffline     = "edge-ams-02"
 	galleryUsed        = "Used"
 	galleryAddressName = "Management address"
 	galleryGiB         = "GiB"
 	galleryDevices     = "Devices"
 	galleryValueDelete = "delete"
+	galleryTaskRunning = "T-2050"
+	galleryTaskPartly  = "T-2044"
 )
+
+// The addresses the gallery repeats, written by the address writers.
+var (
+	galleryDeviceHref       = galleryDeviceTab(galleryDevice, TabDashboard)
+	galleryDevicesHref      = galleryEstateTab(devicesTab, ViewParams{})
+	galleryTasksHref        = Address{Kind: ObjectTasks}.String()
+	galleryAlarmsHref       = galleryEstateTab(activityTabAlarms, ViewParams{})
+	galleryAdminHref        = Address{Kind: ObjectAdmin, Tab: tabAdminLabels}.String()
+	galleryAdminDevicesHref = Address{Kind: ObjectAdmin, Tab: tabAdminDevices}.String()
+)
+
+// galleryDeviceTab answers the address of the tab of the sample device name.
+func galleryDeviceTab(name, tab string) string {
+	return Address{Kind: ObjectDevice, Device: name, Tab: tab}.String()
+}
+
+// galleryEstateTab answers the address of the estate tab in the view given.
+func galleryEstateTab(tab string, view ViewParams) string {
+	return Address{Kind: ObjectEstate, Tab: tab, View: view}.String()
+}
+
+// galleryDevicesView answers the address of the estate's devices table in
+// the view given.
+func galleryDevicesView(view ViewParams) string {
+	return galleryEstateTab(devicesTab, view)
+}
+
+// galleryFiltered answers the address of the estate's devices table filtered
+// by the one term field:value.
+func galleryFiltered(field, value string) string {
+	return galleryDevicesView(ViewParams{Filter: SetFilterTerm("", field, value)})
+}
+
+// galleryLondonEdge is the filter of the gallery's saved filter: the devices
+// of site lon with role edge.
+func galleryLondonEdge() string {
+	return SetFilterTerm(SetFilterTerm("", galleryLabelSite, "lon"), galleryLabelRole, "edge")
+}
 
 // GalleryMarksView holds the icons, the state marks and the small parts.
 type GalleryMarksView struct {
@@ -224,7 +265,7 @@ func galleryControls() *GalleryControlsView {
 
 	return &GalleryControlsView{
 		Links: []ActionView{
-			{Label: "Add device", Icon: glyphPlus, Href: galleryAdminHref},
+			{Label: "Add device", Icon: glyphPlus, Href: galleryAdminDevicesHref},
 			{Label: galleryEdit, Icon: glyphEdit, Href: galleryDeviceHref},
 			disabled,
 		},
@@ -235,12 +276,12 @@ func galleryControls() *GalleryControlsView {
 			destructive,
 		},
 		Primary: ActionView{Label: "Search", Icon: "search", Href: galleryDevicesHref},
-		Icon:    ActionView{Label: "Open the console", Icon: glyphTerminal, Href: galleryDeviceHref + galleryConsoleTab},
+		Icon:    ActionView{Label: "Open the console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 		Menu: MenuView{
 			Label: "Actions",
 			Items: []ActionView{
 				{Label: "Open device", Icon: iconDevice, Href: galleryDeviceHref},
-				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceHref + galleryConsoleTab},
+				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 				disabled,
 			},
 			Destructive: []ActionView{destructive},
@@ -259,7 +300,7 @@ func galleryStateSegments() []DonutSegmentView {
 		status := DisplayStatus(state)
 		segment := DonutSegmentView{
 			Word: status.Word, Count: counts[index], Tone: status.Tone,
-			Href: galleryDevicesHref + "?q=state:" + state.Key(),
+			Href: galleryFiltered(fieldState, state.Key()),
 		}
 		if state == DisplayStateDiverged {
 			segment.Info = "Connected, and holding a configuration edited on the device itself"
@@ -273,9 +314,9 @@ func galleryStateSegments() []DonutSegmentView {
 
 func galleryVersionSegments() []DonutSegmentView {
 	return []DonutSegmentView{
-		{Word: galleryVersion, Count: 31, Color: 1, Href: galleryDevicesHref + "?q=version:1.4.2"},
-		{Word: "1.4.1", Count: 12, Color: 2, Href: galleryDevicesHref + "?q=version:1.4.1"},
-		{Word: "1.3.9", Count: 1, Color: 3, Href: galleryDevicesHref + "?q=version:1.3.9"},
+		{Word: galleryVersion, Count: 31, Color: 1, Href: galleryFiltered(fieldVersion, galleryVersion)},
+		{Word: "1.4.1", Count: 12, Color: 2, Href: galleryFiltered(fieldVersion, "1.4.1")},
+		{Word: "1.3.9", Count: 1, Color: 3, Href: galleryFiltered(fieldVersion, "1.3.9")},
 		{Word: "Older", Count: 0, Color: 6},
 	}
 }
@@ -293,15 +334,17 @@ func galleryUsageBars() []UsageBarView {
 }
 
 func galleryCharts() []ChartCardView {
+	dashboard := Address{Kind: ObjectDevice, Device: galleryDevice, Tab: TabDashboard, View: ViewParams{Range: ChartRangeWeek}}
+
 	return []ChartCardView{
 		{
 			Card: CardView{Title: galleryCPU, Span: 3}, Period: galleryWeek, Unit: "%",
-			URL:    "/fleet/fragment/chart/device/edge-lon-04/dashboard/?item=cpu&range=week",
+			URL:    FragmentLink(fragmentDashboardChart, dashboard, chartCPU),
 			Series: []ChartSeriesView{{Name: galleryCPU, Color: 1, Maximum: true}},
 		},
 		{
 			Card: CardView{Title: "Traffic", Span: 3}, Period: galleryWeek, Unit: "Mbit/s",
-			URL:    "/fleet/fragment/chart/device/edge-lon-04/dashboard/?item=traffic&range=week",
+			URL:    FragmentLink(fragmentDashboardChart, dashboard, chartTraffic),
 			Series: []ChartSeriesView{{Name: "In", Color: 1}, {Name: "Out", Color: 3}},
 		},
 	}
@@ -310,15 +353,15 @@ func galleryCharts() []ChartCardView {
 func galleryAlarmRows() []AlarmRowView {
 	return []AlarmRowView{
 		{
-			Severity: AlarmStatus(AlarmSeverityCritical), Device: "edge-ams-02", DeviceHref: "/fleet/device/edge-ams-02/",
+			Severity: AlarmStatus(AlarmSeverityCritical), Device: galleryOffline, DeviceHref: galleryDeviceTab(galleryOffline, TabDashboard),
 			Summary: "Component bgp is down", Since: "12 minutes ago", SinceExact: "14:02",
 		},
 		{
-			Severity: AlarmStatus(AlarmSeverityWarning), Device: "core-lon-01", DeviceHref: "/fleet/device/core-lon-01/",
+			Severity: AlarmStatus(AlarmSeverityWarning), Device: galleryCore, DeviceHref: galleryDeviceTab(galleryCore, TabDashboard),
 			Summary: "Memory at 91% for 20 minutes", Since: "34 minutes ago", SinceExact: "13:40",
 		},
 		{
-			Severity: AlarmStatus(AlarmSeverityInformational), Device: galleryCPE, DeviceHref: "/fleet/device/cpe-0113/",
+			Severity: AlarmStatus(AlarmSeverityInformational), Device: galleryCPE, DeviceHref: galleryDeviceTab(galleryCPE, TabDashboard),
 			Summary: "Runs 1.3.9, two versions behind", Since: "3 days ago", SinceExact: "Monday 09:15",
 		},
 	}
@@ -326,7 +369,7 @@ func galleryAlarmRows() []AlarmRowView {
 
 func galleryQuickInfo() QuickInfoView {
 	return QuickInfoView{
-		Card: CardView{Title: "Quick info", Span: 12, TitleHref: galleryDeviceHref + "system/"},
+		Card: CardView{Title: "Quick info", Span: 12, TitleHref: galleryDeviceTab(galleryDevice, tabDeviceSystem)},
 		Items: []ValueView{
 			{Label: "Name", Text: galleryDevice, Mono: true, Copy: true},
 			{Label: galleryState, Status: DisplayStatus(DisplayStateHealthy)},
@@ -335,7 +378,10 @@ func galleryQuickInfo() QuickInfoView {
 			{Label: "Serial number", Text: "ZX4-0092-7731", Mono: true, Copy: true},
 			{Label: "Version", Text: galleryVersion, Mono: true},
 			{Label: "Configuration", Status: ConfigStatus(ConfigStateInSync)},
-			{Label: "Group", Text: "lon / edge", Icon: iconGroup, Href: "/fleet/group/site=lon/role=edge/"},
+			{Label: "Group", Text: "lon / edge", Icon: iconGroup, Href: Address{
+				Kind: ObjectGroup, Tab: TabDashboard,
+				Group: []GroupLevel{{Key: galleryLabelSite, Value: "lon"}, {Key: galleryLabelRole, Value: "edge"}},
+			}.String()},
 			{Label: galleryAddressName, Text: galleryAddress, Mono: true, Copy: true},
 			{Label: "Uptime", Text: "41 days"},
 			{Label: "Last seen", Text: "now"},
@@ -395,7 +441,7 @@ func galleryCards() *GalleryCardsView {
 		Callout: CalloutView{
 			Title: "edge-lon-04 was edited locally while out of the fleet and is holding its own configuration.",
 			Text:  "Nothing has been overwritten. Edited: 3 changes, last at 02:14.",
-			Link:  &LinkView{Label: "Review the difference", Href: galleryDeviceHref + galleryConfigTab},
+			Link:  &LinkView{Label: "Review the difference", Href: galleryDeviceTab(galleryDevice, tabDeviceConfig)},
 		},
 		Alarms:   AlarmListView{Rows: galleryAlarmRows()},
 		NoAlarms: AlarmListView{Empty: GoodNewsView{First: "All good", Second: "No alarms open"}},
@@ -403,23 +449,25 @@ func galleryCards() *GalleryCardsView {
 }
 
 func galleryHeaders() []ColumnHeaderView {
-	sorted := galleryDevicesHref + "?sort="
+	sorted := func(column string, descending bool) string {
+		return galleryDevicesView(ViewParams{Sort: SortSpec{Column: column, Descending: descending}})
+	}
 
 	return []ColumnHeaderView{
-		{Label: "Device", Kind: "kind-text", SortHref: sorted + "-name", Sort: SortMarkAscending},
-		{Label: galleryState, Kind: "kind-state", SortHref: sorted + "state"},
+		{Label: "Device", Kind: "kind-text", SortHref: sorted(fieldName, true), Sort: SortMarkAscending},
+		{Label: galleryState, Kind: "kind-state", SortHref: sorted(fieldState, false)},
 		{Label: galleryLabels, Kind: "kind-tag"},
-		{Label: "Version", Kind: "kind-text", SortHref: sorted + "-version", Sort: SortMarkDescending},
+		{Label: "Version", Kind: "kind-text", SortHref: sorted(fieldVersion, true), Sort: SortMarkDescending},
 		{Label: "Address", Kind: "kind-address"},
-		{Label: galleryCPU, Kind: "kind-number", SortHref: sorted + "cpu", Numeric: true},
-		{Label: "Alarms", Kind: "kind-number", SortHref: sorted + "alarms", Numeric: true},
-		{Label: "Last seen", Kind: "kind-time", SortHref: sorted + "seen"},
+		{Label: galleryCPU, Kind: "kind-number", SortHref: sorted(fieldCPU, false), Numeric: true},
+		{Label: "Alarms", Kind: "kind-number", SortHref: sorted(fieldAlarms, false), Numeric: true},
+		{Label: "Last seen", Kind: "kind-time", SortHref: sorted(fieldLastSeen, false)},
 		{Label: "Config", Kind: "kind-state"},
 	}
 }
 
 func galleryRow(name string, state DisplayState, cpu int, known, opened bool) RowView {
-	href := "/fleet/device/" + name + "/"
+	href := galleryDeviceTab(name, TabDashboard)
 	seen := TimeCell("now", "connected")
 	address := MonoCell(galleryAddress)
 	if state == DisplayStateOffline {
@@ -429,7 +477,7 @@ func galleryRow(name string, state DisplayState, cpu int, known, opened bool) Ro
 
 	return RowView{
 		ID: name, Name: name, Opened: opened,
-		EyeHref: galleryDevicesHref + "?id=" + name,
+		EyeHref: galleryDevicesView(ViewParams{Row: name}),
 		Cells: []CellView{
 			ObjectCell(ObjectIconView{Icon: iconDevice, Status: DisplayStatus(state), Marked: true}, name, href),
 			StatusCell(DisplayStatus(state)),
@@ -439,7 +487,7 @@ func galleryRow(name string, state DisplayState, cpu int, known, opened bool) Ro
 			UsageCell(galleryCPU, cpu, known),
 			NumberCell("2"),
 			seen,
-			LinkCell("In sync", href+galleryConfigTab),
+			LinkCell("In sync", galleryDeviceTab(name, tabDeviceConfig)),
 		},
 		Menu: &MenuView{
 			Label: "More actions for " + name,
@@ -457,30 +505,35 @@ func galleryQuery(id, text, matches, refusal string) *QueryRowView {
 		Menus: []MenuView{{
 			Label: galleryState, Icon: "filter",
 			Items: []ActionView{
-				{Label: "Down", Href: galleryDevicesHref + "?q=state:down"},
-				{Label: "Degraded", Href: galleryDevicesHref + "?q=state:degraded"},
+				{Label: "Down", Href: galleryFiltered(fieldState, DisplayStateDown.Key())},
+				{Label: "Degraded", Href: galleryFiltered(fieldState, DisplayStateDegraded.Key())},
 			},
 		}},
 		Saved: &MenuView{
 			Label: "Saved filters",
-			Items: []ActionView{{Label: "London edge", Href: galleryDevicesHref + "?q=site:lon+role:edge"}},
+			Items: []ActionView{{Label: "London edge", Href: galleryDevicesView(ViewParams{Filter: galleryLondonEdge()})}},
 		},
 		Save: &ActionView{Label: "Save", Icon: "save", Form: galleryForm, Name: galleryFieldAction, Value: "save-filter"},
 	}
 }
 
 func galleryPager(total, number int) *PagerView {
+	london := SetFilterTerm("", galleryLabelSite, "lon")
+	first := galleryDevicesView(ViewParams{Filter: london})
+	last := galleryDevicesView(ViewParams{Filter: london, Page: 3})
+
 	return &PagerView{
 		Page: Paginate(total, number, PageSizeDefault), Noun: galleryNoun, Action: galleryDevicesHref,
-		FirstHref: galleryDevicesHref, PrevHref: galleryDevicesHref,
-		NextHref: galleryDevicesHref + "?page=3", LastHref: galleryDevicesHref + "?page=3",
-		Hidden: []HiddenFieldView{{Name: "q", Value: "site:lon"}},
+		FirstHref: first, PrevHref: first,
+		NextHref: last, LastHref: last,
+		Hidden: []HiddenFieldView{{Name: paramFilter, Value: london}},
 	}
 }
 
 func galleryTables() *GalleryTablesView {
 	bulk := &BulkView{
-		Form: galleryForm, Action: "/fleet/fragment/bulk/estate/devices/", Filter: "site:lon", Noun: galleryNoun, Total: 124,
+		Form: galleryForm, Action: devicesActionAddress(Address{Kind: ObjectEstate, Tab: devicesTab}),
+		Filter: "site:lon", Noun: galleryNoun, Total: 124,
 		Actions: []ActionView{
 			{Label: "Add label", Icon: glyphPlus, Form: galleryForm, Name: galleryFieldAction, Value: "add-label", Bulk: true},
 			{Label: galleryEdit, Icon: glyphEdit, Form: galleryForm, Name: galleryFieldAction, Value: glyphEdit, Bulk: true},
@@ -498,7 +551,7 @@ func galleryTables() *GalleryTablesView {
 	return &GalleryTablesView{
 		Full: TableSectionView{
 			Title:  galleryDevices,
-			Create: &ActionView{Label: "Add device", Icon: glyphPlus, Href: galleryAdminHref},
+			Create: &ActionView{Label: "Add device", Icon: glyphPlus, Href: galleryAdminDevicesHref},
 			Query:  galleryQuery("fleet-gallery-filter-full", "site:lon", "124 of 144 devices", ""),
 			Bulk:   bulk,
 			Pager:  galleryPager(124, 2),
@@ -507,15 +560,15 @@ func galleryTables() *GalleryTablesView {
 				Rows: []RowView{
 					galleryRow("edge-lon-01", DisplayStateDegraded, 71, true, false),
 					galleryRow(galleryDevice, DisplayStateHealthy, 12, true, true),
-					galleryRow("edge-lon-07", DisplayStateDown, 93, true, false),
-					galleryRow("edge-lon-09", DisplayStateOffline, 0, false, false),
+					galleryRow("edge-lon-02", DisplayStateDown, 93, true, false),
+					galleryRow("edge-lon-03", DisplayStateOffline, 0, false, false),
 				},
 			},
 		},
 		Empty: TableSectionView{
 			Title: "Devices matching a filter that keeps none",
 			CreateMenu: &MenuView{Label: "Add", Icon: glyphPlus, Items: []ActionView{
-				{Label: "Device", Href: galleryAdminHref}, {Label: "Label", Href: galleryAdminHref},
+				{Label: "Device", Href: galleryAdminDevicesHref}, {Label: "Label", Href: galleryAdminHref},
 			}},
 			Query: galleryQuery("fleet-gallery-filter-empty", "state:down site:ams", "0 of 144 devices", ""),
 			Pager: galleryPager(0, 1),
@@ -534,7 +587,7 @@ func galleryTables() *GalleryTablesView {
 			Table: TableView{
 				Name: "Devices, not filtered", Headers: headers[:4],
 				Rows: []RowView{{ID: galleryCPE, Name: galleryCPE, Cells: []CellView{
-					ObjectCell(ObjectIconView{Icon: iconDevice}, galleryCPE, "/fleet/device/cpe-0113/"),
+					ObjectCell(ObjectIconView{Icon: iconDevice}, galleryCPE, galleryDeviceTab(galleryCPE, TabDashboard)),
 					StatusCell(DisplayStatus(DisplayStateUnknown)),
 					TagsCell(nil),
 					{},
@@ -550,11 +603,11 @@ func galleryPanels() *GalleryPanelsView {
 			Title: galleryDevice, CloseHref: galleryDevicesHref, Pinned: true,
 			Icon: ObjectIconView{Icon: iconDevice, Status: DisplayStatus(DisplayStateHealthy), Marked: true},
 			Actions: []ActionView{
-				{Label: galleryEdit, Icon: glyphEdit, Href: galleryDeviceHref + galleryConfigTab},
+				{Label: galleryEdit, Icon: glyphEdit, Href: galleryDeviceTab(galleryDevice, tabDeviceConfig)},
 				{Label: galleryDelete, Icon: glyphTrash, Form: galleryForm, Name: galleryFieldAction, Value: galleryValueDelete, Confirm: galleryDestructiveConfirm()},
 			},
 			Menu: &MenuView{Label: "More actions for edge-lon-04", Items: []ActionView{
-				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceHref + galleryConsoleTab},
+				{Label: "Open console", Icon: glyphTerminal, Href: galleryDeviceTab(galleryDevice, tabDeviceConsole)},
 			}},
 			Cards: []PanelCardView{
 				{Title: "Identity", Rows: []ValueView{
@@ -581,7 +634,7 @@ func galleryPanels() *GalleryPanelsView {
 }
 
 func galleryStates() *GalleryStatesView {
-	retry := &ActionView{Label: galleryRetry, Icon: glyphRetry, Href: galleryDeviceHref + "routing/"}
+	retry := &ActionView{Label: galleryRetry, Icon: glyphRetry, Href: galleryDeviceTab(galleryDevice, tabDeviceRouting)}
 
 	return &GalleryStatesView{
 		Heroes: []StateHeroView{
@@ -591,16 +644,16 @@ func galleryStates() *GalleryStatesView {
 			},
 			{
 				Kind: HeroNothingConfigured, Sentence: "No devices are declared on this hub",
-				Action: &ActionView{Label: "Declare a device", Icon: glyphPlus, Href: galleryAdminHref},
+				Action: &ActionView{Label: "Declare a device", Icon: glyphPlus, Href: galleryAdminDevicesHref},
 			},
 			{
 				Kind: HeroOffline, Sentence: "edge-lon-04 has been offline since 14:02. The values below were reported then",
-				Action: &ActionView{Label: "Open the device's tasks", Icon: iconTasks, Href: galleryDeviceHref + "tasks/"},
+				Action: &ActionView{Label: "Open the device's tasks", Icon: iconTasks, Href: galleryDeviceTab(galleryDevice, tabDeviceTasks)},
 			},
 			{
 				Kind: HeroNotSupported, Sentence: "This device runs a version that does not answer this view",
 				Detail: "edge-lon-04 runs 1.3.9.",
-				Action: &ActionView{Label: "Show the device's version", Icon: "info", Href: galleryDeviceHref + "system/"},
+				Action: &ActionView{Label: "Show the device's version", Icon: "info", Href: galleryDeviceTab(galleryDevice, tabDeviceSystem)},
 			},
 			{
 				Kind:     HeroRelayRefused,
@@ -627,21 +680,25 @@ func galleryStates() *GalleryStatesView {
 }
 
 func galleryTaskRows() []TaskRowView {
+	eye := func(id string) string {
+		return Address{Kind: ObjectTasks, View: ViewParams{Row: id}}.String()
+	}
+
 	return []TaskRowView{
 		{
 			Name: "Configuration push to 5 devices", Actor: galleryActor, When: "Started 2 minutes ago",
-			Status: TaskStatus(TaskStateRunning), Done: 3, Total: 5, EyeHref: galleryTasksHref + "?id=t-0412",
+			Status: TaskStatus(TaskStateRunning), Done: 3, Total: 5, EyeHref: eye(galleryTaskRunning),
 			Results: []TaskResultView{
-				{Device: "edge-lon-01", Href: "/fleet/device/edge-lon-01/", Status: TaskStatus(TaskStateSucceeded), Answer: "committed a3f9", Duration: "4 s"},
+				{Device: "edge-lon-01", Href: galleryDeviceTab("edge-lon-01", TabDashboard), Status: TaskStatus(TaskStateSucceeded), Answer: "committed a3f9", Duration: "4 s"},
 				{Device: galleryDevice, Href: galleryDeviceHref, Status: TaskStatus(TaskStateRunning), Answer: "validating"},
-				{Device: "edge-lon-07", Href: "/fleet/device/edge-lon-07/", Status: TaskStatus(TaskStatePending)},
+				{Device: "edge-lon-02", Href: galleryDeviceTab("edge-lon-02", TabDashboard), Status: TaskStatus(TaskStatePending)},
 			},
 		},
 		{
 			Name: "Diagnostic run on site lon", Actor: galleryActor, When: galleryEnded,
-			Status: TaskStatus(TaskStatePartlyFailed), Done: 12, Total: 12, EyeHref: galleryTasksHref + "?id=t-0409",
+			Status: TaskStatus(TaskStatePartlyFailed), Done: 12, Total: 12, EyeHref: eye(galleryTaskPartly),
 			Results: []TaskResultView{
-				{Device: "edge-lon-09", Href: "/fleet/device/edge-lon-09/", Status: TaskStatus(TaskStateFailed), Answer: "device offline", Duration: "30 s"},
+				{Device: "edge-lon-03", Href: galleryDeviceTab("edge-lon-03", TabDashboard), Status: TaskStatus(TaskStateFailed), Answer: "device offline", Duration: "30 s"},
 			},
 		},
 		{Name: "Software update of cpe-0113", Actor: "hub", When: galleryEnded, Status: TaskStatus(TaskStateSucceeded), Done: 1, Total: 1},
@@ -652,13 +709,18 @@ func galleryTaskRows() []TaskRowView {
 }
 
 func galleryOverlays() *GalleryOverlaysView {
-	fragment := "/fleet/fragment/tasks/?item="
+	// The task panel's tabs are fragments of the page that draws the panel,
+	// which is the estate dashboard, as taskPanelTab writes them.
+	estate := Address{Kind: ObjectEstate, Tab: TabDashboard}
+	tab := func(key taskTab) string {
+		return FragmentLink(fragmentTasks, estate, taskTabKeys[key])
+	}
 
 	return &GalleryOverlaysView{
 		Toasts: []ToastView{
 			{Level: ToastInformational, Message: "Diagnostic run started on 12 devices", Link: &LinkView{Label: "Open the task", Href: galleryTasksHref}},
 			{Level: ToastSuccess, Message: "Configuration push succeeded", Detail: "5 of 5 devices committed a3f9", Link: &LinkView{Label: "Open the task", Href: galleryTasksHref}},
-			{Level: ToastWarning, Message: "Rollout edge-refresh paused", Detail: "Batch 2 crossed its failure threshold", Link: &LinkView{Label: "Open the rollout", Href: "/fleet/estate/rollouts/"}},
+			{Level: ToastWarning, Message: "Rollout edge-refresh paused", Detail: "Batch 2 crossed its failure threshold", Link: &LinkView{Label: "Open the rollout", Href: galleryEstateTab(tabEstateRollouts, ViewParams{})}},
 			{Level: ToastError, Message: "Component bgp is down on edge-ams-02", Link: &LinkView{Label: "Open the alarm", Href: galleryAlarmsHref}},
 		},
 		Routine:     *galleryRoutineConfirm(),
@@ -670,10 +732,10 @@ func galleryOverlays() *GalleryOverlaysView {
 		Tasks: TaskPanelView{
 			Open: true, Preview: true, AllHref: galleryTasksHref,
 			Tabs: []TaskTabView{
-				{Label: "Running", Count: 2, Href: fragment + "running", Active: true},
-				{Label: "Succeeded", Count: 18, Href: fragment + "succeeded"},
-				{Label: "Failed", Count: 3, Href: fragment + "failed"},
-				{Label: "All", Count: 23, Href: fragment + "all"},
+				{Label: "Running", Count: 2, Href: tab(taskTabRunning), Active: true},
+				{Label: "Succeeded", Count: 18, Href: tab(taskTabSucceeded)},
+				{Label: "Failed", Count: 3, Href: tab(taskTabFailed)},
+				{Label: "All", Count: 23, Href: tab(taskTabAll)},
 			},
 			List: TaskListView{Rows: galleryTaskRows()},
 		},
@@ -688,11 +750,11 @@ func galleryConsole() *GalleryConsoleView {
 	return &GalleryConsoleView{
 		Terminal: TerminalView{
 			Device: galleryDevice, User: galleryActor, Profile: "read-only",
-			URL: "/fleet/fragment/console/device/edge-lon-04/console/", ConfigHref: galleryDeviceHref + galleryConfigTab,
+			URL: consoleURL(galleryDevice), ConfigHref: galleryDeviceTab(galleryDevice, tabDeviceConfig),
 		},
 		Refused: TerminalView{
-			Device: "edge-ams-02", User: galleryActor, Profile: "none granted",
-			URL: "/fleet/fragment/console/device/edge-ams-02/console/", Refusal: refusal,
+			Device: galleryOffline, User: galleryActor, Profile: "none granted",
+			URL: consoleURL(galleryOffline), Refusal: refusal,
 		},
 		Entries: []TerminalEntryView{
 			{Command: "show version", Output: "ze 1.4.2\nuptime 41 days"},
