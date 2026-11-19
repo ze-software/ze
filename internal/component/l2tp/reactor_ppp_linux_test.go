@@ -59,7 +59,7 @@ func TestReactorReauthIntervalFromParams(t *testing.T) {
 			r.setPPPDriver(fake)
 			mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-			deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+			deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 				localTID: 100, localSID: 1001, lnsMode: true,
 				fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 			}, protocolFixtureIdentity("ppp7", 0x80000007))
@@ -105,15 +105,34 @@ func newFakePPPDriver() *fakePPPDriver {
 func (f *fakePPPDriver) SessionsIn() chan<- ppp.StartSession { return f.sessionsIn }
 func (f *fakePPPDriver) EventsOut() <-chan ppp.Event         { return f.eventsOut }
 
-// deliverOwnedKernelSuccess models the worker's registered descriptor lease.
-func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded, identity ppp.SessionIdentity) {
+// awaitStartSession receives the next ppp.StartSession the reactor dispatched,
+// and fails the test after 2 s naming what was awaited, so a dispatch that never
+// happens reads as a failure rather than a blocked test binary.
+func awaitStartSession(t *testing.T, sessionsIn <-chan ppp.StartSession, what string) ppp.StartSession {
+	t.Helper()
+	select {
+	case start := <-sessionsIn:
+		return start
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for the ppp.StartSession dispatch of %s", what)
+	}
+	return ppp.StartSession{}
+}
+
+// deliverOwnedKernelSuccess models the worker's registered descriptor lease
+// for an admitted session: the row carries a fresh Birth and the canonical
+// subscriber ID derived from it, as session_fsm.go mints them at admission.
+// handleKernelSuccess refuses a row without that identity before it reaches
+// ppp.StartSession, so a bare row would never dispatch.
+func deliverOwnedKernelSuccess(t *testing.T, r *l2tpReactor, event kernelSetupSucceeded, identity ppp.SessionIdentity) {
+	t.Helper()
 	if _, recorded := r.pppDriver.(*fakePPPDriver); recorded {
 		r.newPPPSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
 			return dispatchProtocolSessionFixture(cfg, identity)
 		}
 	}
 	tunnel := r.tunnelsByLocalID[event.localTID]
-	session := &L2TPSession{localSID: event.localSID}
+	session := newFixtureL2TPSession(t, &L2TPSession{localSID: event.localSID})
 	tunnel.addSession(session)
 	event.session = session
 	event.fds.session = session
@@ -147,11 +166,11 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	r.setPPPDriver(fake)
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
 	r.setPPPPolicy(1492, []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ppp.AuthMethodCHAPMD5, true)
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	}, protocolFixtureIdentity("ppp7", 0x80000007))
-	first := <-fake.sessionsIn
+	first := awaitStartSession(t, fake.sessionsIn, "session 1001 before the reload")
 	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1492, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5},
@@ -163,11 +182,11 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	if err := s.Reload(context.Background(), cfg); err != nil {
 		t.Fatal(err)
 	}
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1002,
 		fds: pppSessionFDs{pppoxFD: 40, chanFD: 41, unitFD: 42, unitNum: 8},
 	}, protocolFixtureIdentity("ppp8", 0x80000008))
-	second := <-fake.sessionsIn
+	second := awaitStartSession(t, fake.sessionsIn, "session 1002 after the PPP policy reload")
 	if first.MaxMRU != 1492 || len(first.AuthFallbackOrder) != 1 {
 		t.Fatalf("earlier session policy changed: %+v", first)
 	}
@@ -194,7 +213,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	mkTunnel(r, 100, 200, peer)
 
 	identity := protocolFixtureIdentity("ppp7", 0x80000007)
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID:                   100,
 		localSID:                   1001,
 		lnsMode:                    true,
@@ -247,7 +266,7 @@ func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	}, protocolFixtureIdentity("ppp7", 0x80000007))
@@ -279,7 +298,7 @@ func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	}, protocolFixtureIdentity("ppp7", 0x80000007))
@@ -312,7 +331,7 @@ func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	}, protocolFixtureIdentity("ppp7", 0x80000007))
@@ -643,7 +662,7 @@ func firstProxyLCPSessionFrame(t *testing.T, r *l2tpReactor, sid uint16, unitNum
 	require.NoError(t, unix.SetsockoptTimeval(fds[1], unix.SOL_SOCKET, unix.SO_RCVTIMEO,
 		&unix.Timeval{Sec: 5}))
 
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{
 		localTID: 100, localSID: sid, lnsMode: true,
 		fds:                        pppSessionFDs{pppoxFD: -1, chanFD: fds[0], unitFD: unit, unitNum: unitNum},
 		proxyInitialRecvLCPConfReq: proxyLCPStreamForTest,
@@ -676,9 +695,9 @@ func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
 	})
 	attachReactor(s, r)
 
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001,
+	deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{localTID: 100, localSID: 1001,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}}, protocolFixtureIdentity("ppp7", 0x80000007))
-	first := <-fake.sessionsIn
+	first := awaitStartSession(t, fake.sessionsIn, "session 1001 before the proxy-lcp reload")
 
 	for i, step := range []struct {
 		leaf     string
@@ -691,9 +710,9 @@ func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
 		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": step.leaf}}}
 		require.NoError(t, s.Reload(context.Background(), cfg))
 		base := 40 + 10*i
-		deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: uint16(1002 + i),
+		deliverOwnedKernelSuccess(t, r, kernelSetupSucceeded{localTID: 100, localSID: uint16(1002 + i),
 			fds: pppSessionFDs{pppoxFD: base, chanFD: base + 1, unitFD: base + 2, unitNum: 8 + i}}, step.identity)
-		next := <-fake.sessionsIn
+		next := awaitStartSession(t, fake.sessionsIn, "the session after proxy-lcp "+step.leaf)
 		require.Equal(t, step.want, next.RenegotiateProxyLCP, "proxy-lcp %s", step.leaf)
 	}
 	require.False(t, first.RenegotiateProxyLCP, "an earlier session's policy changed")
