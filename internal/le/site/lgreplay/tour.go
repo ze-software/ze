@@ -71,11 +71,11 @@ var tour = []Step{
 		Method:  methodGet, Target: "/lg/graph?prefix={prefix}&mode=aspath", HTMX: true,
 	},
 	{
-		Caption: "The next-hop graph of {prefix}: which router hands the traffic to which.",
+		Caption: "The next-hop graph of {prefix}: which router hands the traffic to which. Routers of the AS show by address, the neighbors outside by AS number only.",
 		Method:  methodGet, Target: "/lg/graph?prefix={prefix}&mode=nexthop", HTMX: true,
 	},
 	{
-		Caption: "The trace of {prefix}: each router's BGP next hop followed router to router to the exit, then the AS path to the origin. From {router} it crosses three routers of the AS.",
+		Caption: "The trace of {prefix}: each router's BGP next hop followed router to router to the exit, then the AS it is handed to and the AS path to the origin. From {router} it crosses three routers of the AS.",
 		Method:  methodGet, Target: "/lg/graph?prefix={prefix}&mode=trace", HTMX: true,
 	},
 	{
