@@ -409,6 +409,13 @@ func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testi
 	// an inner packet not matching the SA's inbound selectors by source address, destination
 	// port or protocol is dropped by its own SA selector (XfrmInStateMismatch +1,
 	// XfrmInNoPols and XfrmInPolBlock unchanged) and never delivered.
+	// RFC requirement: RFC4301-5.2-11 positive -- an inner packet received on the tunnel-mode
+	// SA whose source address, destination port or protocol is not consistent with the SA's
+	// selectors is discarded at the SA selector (XfrmInStateMismatch +1, XfrmInNoPols and
+	// XfrmInPolBlock unchanged), and the source and port cases reach no listener.
+	// RFC requirement: RFC4301-5.2-11 negative -- an inner packet received on the same SA
+	// whose source, protocol and destination port are consistent with its selectors is not
+	// discarded: it is delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}
@@ -462,6 +469,12 @@ func TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors(t *t
 	// RFC requirement: RFC4301-5.2-2 negative -- after ESP processing on the transport-mode
 	// SA, a packet not matching the SA's inbound selectors by destination port or protocol is
 	// dropped (XfrmInStateMismatch) and never delivered.
+	// RFC requirement: RFC4301-5.2-11 positive -- a packet received on the transport-mode SA
+	// whose destination port is not consistent with the SA's selector is discarded
+	// (XfrmInStateMismatch +1, no delivery to the port's listener), and an ICMP echo outside
+	// its protocol selector moves XfrmInStateMismatch by one.
+	// RFC requirement: RFC4301-5.2-11 negative -- a packet received on the same SA on the
+	// negotiated protocol and destination port is not discarded: it is delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}

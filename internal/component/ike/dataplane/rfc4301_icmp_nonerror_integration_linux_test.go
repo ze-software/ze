@@ -132,6 +132,10 @@ func icmpNonErrEchoPacket(target, embeddedDst string) []byte {
 // moves by two for it, the outer and the reverse policy check.
 // RFC requirement: RFC4301-6.1.2-1 negative -- before that operator entry is installed,
 // the same ICMP error is delivered, with XfrmInPolBlock moving by one, the outer check.
+// RFC requirement: RFC4301-5.2-11 positive -- an ICMP Echo Request received on a
+// tunnel-mode SA whose own IP headers are not consistent with the SA's state selector
+// is discarded: XfrmInStateMismatch moves by one for it and Icmp InMsgs does
+// not count it.
 func TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded(t *testing.T) {
 	// One namespace probe per process: encapNetns gives the measurement.
 	if !userns.Enter(t) {

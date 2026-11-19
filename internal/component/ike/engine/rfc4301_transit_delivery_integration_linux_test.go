@@ -4,6 +4,7 @@
 // Related: rfc4301_forward_icmp_integration_linux_test.go -- icmpForwardHostCapture, icmpForwardChild, the protected host and Child SA
 // Related: rfc4301_espform_policy_integration_linux_test.go -- newEspPolSender, the peer's ESP-in-UDP sender
 // Related: child.go -- appendChildDeliveryPolicies, the producer
+// RFC naming: untagged -- it proves the delivery of inbound-processed transit to a protected host (RFC 4301 Section 5.2) under the default catch-all, which no row of rfc/short/rfc4301.md states as a requirement of its own.
 
 package engine
 

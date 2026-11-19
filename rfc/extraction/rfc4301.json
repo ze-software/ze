@@ -4,9 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4301.txt",
   "source-sha": "263fd9a78175c888",
-  "signed-off": "2026-10-30",
+  "signed-off": "2026-11-19",
   "reviewer": "claude",
-  "resign-reason": "Re-walked 2026-10-30 for site 4.4.1:10 only: the 2026-09-30 walk excluded it as feature-out-of-scope on the ground that ze does not decorrelate, but no owner decision declines decorrelation, and an unowned decline is a gap. The site now maps to a new declared row, RFC4301-4.4.1-13, annotated {gap}; every other site and section is unchanged.",
+  "resign-reason": "Re-walked 2026-11-19 for site 5.2:3 only: section 5.2 step 5, \"If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.\", was mapped to RFC4301-5.2-2, whose row quotes the second sentence of step 4 and not this one, so the step 5 MUST had no row quoting it. The site now maps to a new declared row, RFC4301-5.2-11, and RFC4301-5.2-2, which no other site maps because step 4 carries no RFC 2119 keyword of its own (its MUST is the lead-in, site 5.2:1), is declared unsourced for section 5.2 beside the other step rows; every other site and section is unchanged. Previous re-walk, 2026-10-30, for site 4.4.1:10 only: the 2026-09-30 walk excluded it as feature-out-of-scope on the ground that ze does not decorrelate, but no owner decision declines decorrelation, and an unowned decline is a gap. The site maps to RFC4301-4.4.1-13, annotated {gap}.",
   "sections": [
     {
       "id": "front",
@@ -259,7 +259,8 @@
         "RFC4301-5.2-7",
         "RFC4301-5.2-8",
         "RFC4301-5.2-9",
-        "RFC4301-5.2-10"
+        "RFC4301-5.2-10",
+        "RFC4301-5.2-2"
       ]
     },
     {
@@ -805,7 +806,7 @@
       "quote": "IPsec MUST perform the following steps:",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "A lead-in: it points to the list of section 5.2 inbound steps and states no behavior of its own. Its MUST binds each step, and each step with an obligation no other row carries is a row of its own: RFC4301-5.2-4 (step 2, the IKE bypass entry), RFC4301-5.2-6 and RFC4301-5.2-7 (step 3a, the SAD lookup and its no-match discard), RFC4301-5.2-8 (step 3b, the SPD-I lookup), RFC4301-5.2-9 (step 3b, the no-match discard, a gap), RFC4301-5.2-10 (step 4, processing with the selected SA) and RFC4301-5.2-2 (step 4, the selector check). Row RFC4301-5.2-3 retired 2026-09-30 and its tags moved to RFC4301-5.2-2 (rfc/corrections/rfc4301.md)."
+      "reason": "A lead-in: it points to the list of section 5.2 inbound steps and states no behavior of its own. Its MUST binds each step, and each step with an obligation no other row carries is a row of its own: RFC4301-5.2-4 (step 2, the IKE bypass entry), RFC4301-5.2-6 and RFC4301-5.2-7 (step 3a, the SAD lookup and its no-match discard), RFC4301-5.2-8 (step 3b, the SPD-I lookup), RFC4301-5.2-9 (step 3b, the no-match discard, a gap), RFC4301-5.2-10 (step 4, processing with the selected SA), RFC4301-5.2-2 (step 4, the selector check) and RFC4301-5.2-11 (step 5, the discard of a packet inconsistent with its SA's selectors). Row RFC4301-5.2-3 retired 2026-09-30 and its tags moved to RFC4301-5.2-2 (rfc/corrections/rfc4301.md)."
     },
     {
       "id": "5.2:2",
@@ -817,7 +818,7 @@
       "id": "5.2:3",
       "quote": "If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.",
       "disposition": "mapped",
-      "mapped-to": "RFC4301-5.2-2"
+      "mapped-to": "RFC4301-5.2-11"
     },
     {
       "id": "5.2:4",

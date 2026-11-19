@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "rid": "RFC4301-5.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_ike_bypass_forward_integration_linux_test.go::TestRFC4301IKESocketsCarryTheirOwnBypass",
+    "unit-sha": "39ec09c5251385cd",
+    "claim-sha": "db3d788ad55c5d6d",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/bypass_linux.go::bypassIKESocket",
+    "producer-sha": "fc9559d3e3c6ac59",
+    "break": "body of bypassIKESocket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_ike_bypass_forward_integration_linux_test.go::TestRFC4301TransitFromIKEPortIsNotBypassed",
+    "unit-sha": "d808a0b4d807cda6",
+    "claim-sha": "48aec2d668e882cf",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/bypass_linux.go::bypassIKESocket",
+    "producer-sha": "fc9559d3e3c6ac59",
+    "break": "body of bypassIKESocket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

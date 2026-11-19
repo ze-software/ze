@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC4301-5.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded",
+    "unit-sha": "a970c6f1c3d5750e",
+    "claim-sha": "46af2d664bf0054d",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
+    "unit-sha": "62e327bd649a7cca",
+    "claim-sha": "cfdc1e0e34bbc876",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "17aa3b0ab62f6479",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
+    "unit-sha": "62e327bd649a7cca",
+    "claim-sha": "e34ce40b5af3e2ce",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
+    "unit-sha": "4b12728f3d98f11a",
+    "claim-sha": "a495e6596f9d18e8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
+    "unit-sha": "4b12728f3d98f11a",
+    "claim-sha": "6f5bd7a27bef9c8d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
