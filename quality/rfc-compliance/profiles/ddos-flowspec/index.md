@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 195, Tests awaiting verification 73, OS testing gap 1, Not built 71
-- **Overview bar**: Ze MUST verified 195, SHOULD verified 16, Not owed 5, Tests awaiting verification 74, OS testing gap 1, Not assessed 107, Not built 71
+- **MUST bar**: Ze verified 197, Tests awaiting verification 71, OS testing gap 1, Not built 71
+- **Overview bar**: Ze MUST verified 197, SHOULD verified 15, Not owed 5, Tests awaiting verification 73, OS testing gap 1, Not assessed 107, Not built 71
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 345 |
 | MUST rows kept (the MUST bar) | 340 |
-| Ze verified | 195 |
+| Ze verified | 197 |
 | OS verified | 0 |
-| Tests awaiting verification | 73 |
+| Tests awaiting verification | 71 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -32,14 +32,14 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 5 |
 | SHOULD / MAY rows | 124 |
-| SHOULD verified | 16 |
+| SHOULD verified | 15 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 2 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 107 |
 | SHOULD not built | 0 |
@@ -66,7 +66,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 3, Tests awaiting verification 25, Not assessed 30, Not built 13 | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 2, Tests awaiting verification 26, Not assessed 30, Not built 13 | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Ze verified 21, OS testing gap 1, Not built 9 | Ze MUST verified 21, SHOULD verified 3, OS testing gap 1, Not assessed 8, Not built 9 | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 4
@@ -80,7 +80,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze verified 2, Not built 3 | Ze MUST verified 2, Not assessed 4, Not built 3 | ddos-flowspec: required by rfc/short/rfc4360.md |
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 5, Tests awaiting verification 1 | Ze MUST verified 5, SHOULD verified 1, Tests awaiting verification 1, Not assessed 10 | ddos-flowspec: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 6 | Ze MUST verified 6, SHOULD verified 1, Not assessed 10 | ddos-flowspec: required by rfc/short/rfc4760.md |
 | [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | Ze verified 12, Tests awaiting verification 6, Not built 32 | Ze MUST verified 12, Tests awaiting verification 6, Not assessed 7, Not built 32 | ddos-flowspec: required by rfc/short/rfc7011.md |
 | [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | Ze verified 1, Not built 5 | Ze MUST verified 1, Not built 5 | ddos-flowspec: required by rfc/short/rfc7012.md |
 
@@ -88,7 +88,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 32, Tests awaiting verification 20, Not built 1 | Ze MUST verified 32, Tests awaiting verification 20, Not assessed 4, Not built 1 | ddos-flowspec: required by rfc/short/rfc7606.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 | ddos-flowspec: required by rfc/short/rfc7606.md |
 
 ### Level 8
 

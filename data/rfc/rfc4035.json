@@ -8,10 +8,10 @@
   "must": {
     "total": 108,
     "kept": 108,
-    "ze-proven": 4,
+    "ze-proven": 2,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 10,
+    "proof-pending": 12,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 94,
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 4
+    "unit": 2
   },
   "unmet": [
     "RFC4035-2.1-2",

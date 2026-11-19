@@ -1786,24 +1786,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-retain-routes/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-attach-community/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-delete-with-community/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-mark-stale/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-purge-stale/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-release-routes/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-retain-routes/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-withdraw-protocol/</loc>
   </url>
   <url>
@@ -1976,6 +1958,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-data-restore/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-fleet-disable/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-fleet-divergence-revert/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-fleet-enable/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-halt/</loc>
@@ -2591,6 +2582,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-firewall-ruleset/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fleet-divergence-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fleet-divergence/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fleet-status/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-flow-export/</loc>
@@ -3281,6 +3281,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-domain-group/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-fleet-divergence-adopt/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-irr-all/</loc>

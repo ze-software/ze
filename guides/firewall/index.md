@@ -491,6 +491,29 @@ firewall {
 <!-- source: internal/component/firewall/validate.go -- validateClampTCPMSSToPMTU -->
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerClampTCPMSSToPMTU -->
 
+### NAT rule placement in nftables
+
+`ze config validate` checks NAT placement before the nft backend installs the
+rules. NAT base chains use family `ip`, `ip6` or `inet`, a priority greater
+than `-200` so connection tracking runs first, and one of the hooks below.
+
+| Action | Allowed hooks |
+| ------ | ------------- |
+| `snat` | `input`, `postrouting` |
+| `masquerade` | `postrouting` |
+| `dnat`, `redirect` | `prerouting`, `output` |
+
+When a NAT term is in a regular chain, every base chain that reaches it by
+`jump` or `goto` must have `type nat` and an allowed hook. A regular chain with
+no entry path passes the hook and chain type checks. An `ip` or `ip6` table
+requires a target address from that family. An `inet` table can use a target
+from either family, and that rule translates only that family.
+
+If a term fails validation, the error identifies its table, chain and term.
+For a regular chain it names the offending base chain when an entry path
+caused the refusal.
+<!-- source: internal/component/firewall/validate_nft_nat.go -- validateNftNATBaseChain, validateNftNATPlacement, nftNATIncompatibleBase -->
+
 ### NAT Exclude
 
 In a NAT chain, `exclude` emits a Return verdict so matched traffic skips

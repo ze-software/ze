@@ -66,6 +66,24 @@ ze start chaos.conf
 ./le chaos run --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
 
+### Session Start
+
+A simulated peer starts its session as a BGP speaker does. When the daemon
+refuses the connection, or closes it before sending any byte of its OPEN, the
+peer counts a failed connection attempt and connects again: five connections
+at most, after waits of 50, 100, 200 and 400 ms. Each retry is a `reconnecting`
+event that carries the cause, so the event log, the dashboard and the
+reconnection count show it. After the fifth attempt the peer fails with one
+error naming the address, the number of attempts and the last cause. Every
+other failure ends the peer's run at once and is never retried: a handshake
+read that waits 10 seconds, a close after the daemon's OPEN began to arrive, a
+NOTIFICATION. A caller that hands the simulator a connection it opened itself
+gets the retry only when it also gives the address to dial. In a run with
+chaos enabled the orchestrator then starts the peer again after 2 seconds, as
+it does after any disconnect.
+<!-- source: internal/chaos/peer/simulator_connect.go -- establishSession -->
+<!-- source: internal/chaos/orchestrator/scheduler.go -- runPeerLoop -->
+
 ### Multi-Daemon Testing (FRR, BIRD)
 
 ./le chaos run can generate configs for and fork FRR (bgpd) or BIRD, so the same
@@ -180,6 +198,38 @@ Properties validated:
 - **State consistency:** RIB matches peer state after recovery
 - **No data loss:** Updates eventually delivered
 - **Graceful degradation:** Sessions restart on critical faults
+
+### Simulated Network Topology
+
+A chaos run announces routes generated from the seed: every peer sends its own
+prefixes, each with the peer's router id as next hop. That exercises
+propagation. It does not look like a network, where a border router rewrites
+the next hop to itself and every router of the AS reports the exit it chose.
+
+The scenario package can also build one network and let each simulated peer
+announce exactly what that network's routers and neighbours would send to a
+route collector.
+
+| Step | What it does |
+|------|--------------|
+| `scenario.GenerateTopology` | Builds the routers of one AS, a route reflector with its clients, the border routers and their external neighbours from a seed, and computes each speaker's announcements |
+| `scenario.GenerateFromTopology` | Gives one peer profile per speaker, each carrying its announcements as a route set |
+| `scenario.GenerateConfig` with `Collector` | Writes the Ze config for those peers: `bgp-rib` inside the daemon, no route server |
+| The peer simulator | Holds one real BGP session per speaker and announces the route set, each route with its own next hop and AS path, then End-of-RIB |
+
+The test fixture `plugin/lg-simulated-network` runs five routers and six
+external neighbours this way and compares the looking glass with the model. It
+needs no loopback alias: each speaker reaches Ze on a listen port of its own,
+and Ze knows the session by the address its config gives the peer. A second
+fixture, `plugin/lg-simulated-unchanged-next-hop`, runs a small network written
+by hand in which one border router keeps the next hop its neighbour sent.
+
+`./le chaos run` does not take a topology: it starts from `--seed` and
+`--peers`. The design is in
+[the chaos architecture page](https://github.com/ze-software/ze/blob/main/docs/architecture/chaos-web-dashboard.md#simulated-network-topology).
+<!-- source: internal/chaos/scenario/generator.go -- GenerateFromTopology -->
+<!-- source: internal/chaos/peer/sender.go -- BuildAnnouncement -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetworkFixture -->
 
 ## Fault Types
 

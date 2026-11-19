@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 10 | of 27 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 27 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 27 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 9 | 9 of 23 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6 | 6 of 23 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Authentication/Confidentiality for OSPFv3 (RFC 455
 
 **Area:** OSPFv3 IPsec authentication
 
-**Test verification:** 6 of 27 MUST proven
+**Test verification:** 4 of 27 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 4
 
 **Unmet:** RFC4552-11-4, RFC4552-6-7, RFC4552-9-1, RFC4552-9-2, RFC4552-9-3, RFC4552-9-4
 
@@ -119,8 +119,8 @@ Included in automatic checks: Authentication/Confidentiality for OSPFv3 (RFC 455
 
 ## Figures
 
-- **MUST bar**: Ze verified 6, Tests awaiting verification 9, OS testing gap 6, Not built 6
-- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 9, OS testing gap 6, Not assessed 11, Not built 6
+- **MUST bar**: Ze verified 4, Tests awaiting verification 11, OS testing gap 6, Not built 6
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 11, OS testing gap 6, Not assessed 11, Not built 6
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Authentication/Confidentiality for OSPFv3 (RFC 455
 | Mandatory requirements complete | not complete |
 | MUST rows | 27 |
 | MUST rows kept (the MUST bar) | 27 |
-| Ze verified | 6 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 9 |
+| Tests awaiting verification | 11 |
 | OS testing gap | 6 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -229,7 +229,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L249) | unit/verify | revert, verified |
+| positive | [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L249) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4552-3-1`](#rfc4552-3-1)
 
@@ -309,7 +309,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: one SPD applied regardless of interface. Ze realises the per-interface SPD as IfIndex-scoped XFRM policies; TestIPsecPoliciesInterfaceScopedWildcard asserts every installed policy has IfIndex == testIfIndex, red if a policy were global (IfIndex 0), and TestIPsecDisabledInterfaceBypass asserts a disabled interface on the same installer gets no policy. Single-polarity marker: no reject path.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard moved. Forbidden: one SPD applied regardless of interface. Ze realises the per-interface SPD as IfIndex-scoped XFRM policies; TestIPsecPoliciesInterfaceScopedWildcard asserts every installed policy has IfIndex == testIfIndex, red if a policy were global (IfIndex 0), and TestIPsecDisabledInterfaceBypass asserts a disabled interface on the same installer gets no policy. Single-polarity marker: no reject path.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -329,7 +329,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: inbound OSPF handled without regard to its arrival interface. The kernel tags; Ze owns the interface selector it installs. TestIPsecPoliciesInterfaceScopedWildcard asserts the policy set contains the SADirIn direction and that every policy, the inbound one included, carries IfIndex == testIfIndex, red if the inbound policy were unscoped. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard moved. Forbidden: inbound OSPF handled without regard to its arrival interface. The kernel tags; Ze owns the interface selector it installs. TestIPsecPoliciesInterfaceScopedWildcard asserts the policy set contains the SADirIn direction and that every policy, the inbound one included, carries IfIndex == testIfIndex, red if the inbound policy were unscoped. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -343,7 +343,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L338) | unit/verify | revert, verified |
+| positive | [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L338) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4552-6-6`](#rfc4552-6-6)
 
@@ -384,11 +384,11 @@ No test carries RFC4552-6-11, so there is no linked test.
 
 Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3). (§7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface's whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector moved. Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface's whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4552EveryStateSharesSPIAndKeys`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L41) | unit/verify | revert, verified |
+| negative | [`TestRFC4552EveryStateSharesSPIAndKeys`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L41) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC4552EveryStateSharesSPIAndKeys`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L38) | unit/verify | revert, verified |
 
@@ -428,7 +428,7 @@ No test carries RFC4552-9-4, so there is no linked test.
 
 The IPsec protection barrier MUST be around the OSPF protocol. (§11)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): single-polarity positive holds. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection asserts out/in/fwd proto-89 protect policies with the ESP or AH transform on both esp and ah interfaces; the revert record on buildIPsecPolicies was re-observed red after the test gained selector assertions.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard moved. Re-judged 2026-09-30 (continuation 6, judge): single-polarity positive holds. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection asserts out/in/fwd proto-89 protect policies with the ESP or AH transform on both esp and ah interfaces; the revert record on buildIPsecPolicies was re-observed red after the test gained selector assertions.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -439,7 +439,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. No. source destination protocol action 1 any any OSPF bypass (§11)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface's policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass moved. Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface's policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -449,7 +449,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect (§11)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): the weak finding (source selector unasserted) is closed. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection now asserts, for every out/in/fwd policy on esp and ah interfaces, that the source selector covers fe80::/10 (selectorCovers: prefix length <= 10 containing fe80::; Ze installs ::/0, wider, as the row annotation states) and the destination is any (::/0), plus upper protocol 89 and the protect transform. Records: installLocked mutant and buildIPsecPolicies revert, observed red. Single-polarity positive per annotation (the rules are installed, never refused). Virtual-link rules 4 and 5 stay gap row RFC4552-11-4.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp moved. Re-judged 2026-09-30 (continuation 6, judge): the weak finding (source selector unasserted) is closed. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection now asserts, for every out/in/fwd policy on esp and ah interfaces, that the source selector covers fe80::/10 (selectorCovers: prefix length <= 10 containing fe80::; Ze installs ::/0, wider, as the row annotation states) and the destination is any (::/0), plus upper protocol 89 and the protect transform. Records: installLocked mutant and buildIPsecPolicies revert, observed red. Single-polarity positive per annotation (the rules are installed, never refused). Virtual-link rules 4 and 5 stay gap row RFC4552-11-4.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

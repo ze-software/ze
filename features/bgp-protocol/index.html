@@ -55,6 +55,7 @@
 <li><a href="#as-number-notation">AS number notation</a></li>
 <li><a href="#peer-as-check-and-as-migration-rfc-7705">Peer AS check and AS migration (RFC 7705)</a></li>
 <li><a href="#multipath-installation">Multipath installation</a></li>
+<li><a href="#ordinary-bgp-transit">Ordinary BGP transit</a></li>
 <li><a href="#startup-convergence-hold-update-delay">Startup convergence hold (update-delay)</a></li>
 <li><a href="#long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</a></li>
 <li><a href="#egress-attribute-rules">Egress attribute rules</a></li>
@@ -539,6 +540,23 @@ Together they are the complete installed next-hop set.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
 <!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
+<h3 id="ordinary-bgp-transit">Ordinary BGP transit</h3>
+<p>The source and destination peers explicitly attach the same <code>bgp-rib</code> process.
+The source grants received UPDATEs and session state. The destination grants
+permission to send UPDATEs and to receive session state, refresh requests, and
+sent UPDATE events. The <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection" target="_blank" rel="noopener">ordinary transit guide</a>
+shows the attachments.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
+<!-- source: internal/component/plugin/server/dissemination_validate.go -- validateDisseminationProcess -->
+<p>Ze advertises the selected learned route when the destination's configured
+export policy accepts it. This applies to internal and external peers. A new
+session receives the current exportable selection, and a negotiated route
+refresh resends the selection for the requested address family. Ze replaces
+or withdraws earlier advertisements as selection or export eligibility changes.</p>
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
 <h3 id="startup-convergence-hold-update-delay">Startup convergence hold (<code>update-delay</code>)</h3>
 <p><code>bgp update-delay max-delay &lt;seconds&gt;</code> holds the first advertisement of a
 speaker that has just started, so a neighbor receives one settled route set
@@ -983,7 +1001,7 @@ whether an enabled peer's capture directory is usable
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

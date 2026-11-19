@@ -210,8 +210,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L100) | unit/verify | revert, verified |
-| positive | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L69) | unit/verify | revert, verified |
+| negative | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L100) | unit/verify | mutant, verified |
+| positive | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L69) | unit/verify | mutant, verified |
 
 ### [`RFC8221-5-2`](#rfc8221-5-2)
 

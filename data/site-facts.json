@@ -59,7 +59,7 @@
   },
   "blog_articles": 6,
   "changes": 46,
-  "cli_commands": 616,
+  "cli_commands": 617,
   "cli_group_commands": {
     "clear-bgp": 5,
     "clear-dns": 4,
@@ -73,11 +73,11 @@
     "help": 3,
     "monitor": 8,
     "plugin": 10,
-    "request-bgp": 29,
+    "request-bgp": 23,
     "request-config": 38,
     "request-data": 5,
     "request-interface": 5,
-    "request-other": 24,
+    "request-other": 27,
     "request-peer": 12,
     "resolve": 11,
     "send": 9,
@@ -99,7 +99,7 @@
     "show-l2tp": 21,
     "show-metrics": 4,
     "show-ospf": 50,
-    "show-other": 72,
+    "show-other": 75,
     "show-pki": 6,
     "show-plugin": 4,
     "show-policy": 4,
@@ -114,13 +114,13 @@
     "show-vrrp": 4,
     "system": 8,
     "update-container": 4,
-    "update-other": 9,
+    "update-other": 10,
     "update-serve": 4,
     "update-system": 5
   },
   "cli_groups": 56,
   "config_sections": 39,
-  "dependencies": 64,
+  "dependencies": 66,
   "equivalents": {
     "groups": {
       "clear": {
@@ -166,7 +166,7 @@
       "request": {
         "equivalent": 7,
         "reviewed": 9,
-        "total": 113
+        "total": 110
       },
       "resolve": {
         "equivalent": 5,
@@ -186,7 +186,7 @@
       "show": {
         "equivalent": 32,
         "reviewed": 76,
-        "total": 359
+        "total": 362
       },
       "system": {
         "equivalent": 0,
@@ -196,7 +196,7 @@
       "update": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 22
+        "total": 23
       }
     },
     "mapping_entries": 48,
@@ -235,7 +235,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-18",
+  "generated_at": "2026-11-19",
   "github_stars": 60,
   "health": {
     "adoption": {
@@ -247,9 +247,9 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "786",
+          "packages": "793",
           "with_ci": "38",
-          "with_fuzz": "53",
+          "with_fuzz": "54",
           "with_rfc_tag": "143"
         }
       },
@@ -259,13 +259,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "50415",
+        "denominator": "52008",
         "numerator": "108",
         "percent": "0.2"
       },
       "value": {
         "1": "108",
-        "2": "50415",
+        "2": "52008",
         "3": "108"
       }
     },
@@ -280,14 +280,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "10501",
-        "2": "118",
+        "1": "10985",
+        "2": "120",
         "3": "161",
-        "4": "3114",
+        "4": "3150",
         "5": "210"
       },
       "value": {
-        "1": "50458"
+        "1": "52054"
       }
     },
     "known-failures": {
@@ -300,13 +300,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "10501",
-        "numerator": "4258",
-        "percent": "40.5"
+        "denominator": "10985",
+        "numerator": "4545",
+        "percent": "41.4"
       },
       "value": {
-        "1": "4258",
-        "2": "10501"
+        "1": "4545",
+        "2": "10985"
       },
       "worst": {
         "1": {
@@ -315,9 +315,9 @@
           "percent": "0.0"
         },
         "10": {
-          "files": "22",
-          "negative": "2",
-          "percent": "9.1"
+          "files": "10",
+          "negative": "1",
+          "percent": "10.0"
         },
         "2": {
           "files": "6",
@@ -345,9 +345,9 @@
           "percent": "3.8"
         },
         "7": {
-          "files": "16",
+          "files": "17",
           "negative": "1",
-          "percent": "6.2"
+          "percent": "5.9"
         },
         "8": {
           "files": "48",
@@ -355,15 +355,15 @@
           "percent": "8.3"
         },
         "9": {
-          "files": "11",
-          "negative": "1",
+          "files": "22",
+          "negative": "2",
           "percent": "9.1"
         }
       }
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "45.5",
+        "1": "45.0",
         "10": "1510",
         "11": "18",
         "12": "2026",
@@ -385,23 +385,23 @@
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2160",
+        "3": "2140",
         "30": "0",
         "31": "14",
         "4": "0",
         "5": "235",
-        "6": "2357",
-        "7": "826",
+        "6": "2377",
+        "7": "846",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2160",
-        "percent": "45.5"
+        "numerator": "2140",
+        "percent": "45.0"
       },
       "value": {
-        "1": "2160",
+        "1": "2140",
         "2": "4752"
       },
       "worst": {
@@ -483,22 +483,22 @@
       "ospfv2": 36,
       "ospfv3": 20,
       "other": 1,
-      "pppoe": 16,
+      "pppoe": 17,
       "radius": 12,
       "rpki": 3,
       "rsvpte": 10,
       "topology": 18,
       "vrrp": 2
     },
-    "scenario_dirs_raw": 414,
-    "scenarios": 414,
+    "scenario_dirs_raw": 415,
+    "scenarios": 415,
     "scenarios_display": "410+",
     "suite_count": 8,
     "suites": {
       "interop": 258,
       "interop-ipsec": 85,
       "interop-l2tp": 15,
-      "interop-pppoe": 16,
+      "interop-pppoe": 17,
       "interop-radius": 7,
       "interop-radius-subscriber": 5,
       "interop-rsvpte": 10,
@@ -508,20 +508,20 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-18T22:32:00Z",
+  "published_at": "2026-11-19T12:00:18Z",
   "release": null,
   "repo": {
-    "design_comments": 12385,
-    "design_comments_display": "12,300+",
-    "detail_comments": 12425,
-    "detail_comments_display": "12,400+",
-    "go_packages": 1048,
+    "design_comments": 13079,
+    "design_comments_display": "13,000+",
+    "detail_comments": 13127,
+    "detail_comments_display": "13,100+",
+    "go_packages": 1056,
     "go_packages_display": "1,000+",
-    "go_source_lines": 1841902,
-    "go_source_lines_display": "1.84 million",
-    "go_test_lines": 2232134,
-    "go_test_lines_display": "2.23 million",
-    "go_vendor_lines": 2063172,
+    "go_source_lines": 1918385,
+    "go_source_lines_display": "1.92 million",
+    "go_test_lines": 2320662,
+    "go_test_lines_display": "2.32 million",
+    "go_vendor_lines": 2063615,
     "go_vendor_lines_display": "2.06 million"
   },
   "rfc": {
@@ -539,22 +539,22 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2160,
-    "proven_display": "2,160",
-    "proven_percent": "45.5",
+    "proven": 2141,
+    "proven_display": "2,141",
+    "proven_percent": "45.1",
     "requirements": 7834,
     "requirements_display": "7,834",
     "summaries": 231,
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 3114,
+    "e2e": 3150,
     "e2e_display": "3,100+",
     "editor": 210,
     "editor_display": "210",
-    "fuzz": 118,
-    "fuzz_display": "110+",
-    "unit": 50458,
-    "unit_display": "50,400+"
+    "fuzz": 120,
+    "fuzz_display": "120",
+    "unit": 52054,
+    "unit_display": "52,000+"
   }
 }

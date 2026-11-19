@@ -74,6 +74,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <li><a href="#action-types-then-block">Action Types (then block)</a>
 <ol>
 <li><a href="#tcp-mss-clamping">TCP MSS Clamping</a></li>
+<li><a href="#nat-rule-placement-in-nftables">NAT rule placement in nftables</a></li>
 <li><a href="#nat-exclude">NAT Exclude</a></li>
 <li><a href="#snat-address-ranges">SNAT Address Ranges</a></li>
 </ol></li>
@@ -795,6 +796,41 @@ IPv6:</p>
 </code></pre>
 <!-- source: internal/component/firewall/validate.go -- validateClampTCPMSSToPMTU -->
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerClampTCPMSSToPMTU -->
+<h3 id="nat-rule-placement-in-nftables">NAT rule placement in nftables</h3>
+<p><code>ze config validate</code> checks NAT placement before the nft backend installs the
+rules. NAT base chains use family <code>ip</code>, <code>ip6</code> or <code>inet</code>, a priority greater
+than <code>-200</code> so connection tracking runs first, and one of the hooks below.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Allowed hooks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>snat</code></td>
+<td><code>input</code>, <code>postrouting</code></td>
+</tr>
+<tr>
+<td><code>masquerade</code></td>
+<td><code>postrouting</code></td>
+</tr>
+<tr>
+<td><code>dnat</code>, <code>redirect</code></td>
+<td><code>prerouting</code>, <code>output</code></td>
+</tr>
+</tbody>
+</table>
+<p>When a NAT term is in a regular chain, every base chain that reaches it by
+<code>jump</code> or <code>goto</code> must have <code>type nat</code> and an allowed hook. A regular chain with
+no entry path passes the hook and chain type checks. An <code>ip</code> or <code>ip6</code> table
+requires a target address from that family. An <code>inet</code> table can use a target
+from either family, and that rule translates only that family.</p>
+<p>If a term fails validation, the error identifies its table, chain and term.
+For a regular chain it names the offending base chain when an entry path
+caused the refusal.</p>
+<!-- source: internal/component/firewall/validate_nft_nat.go -- validateNftNATBaseChain, validateNftNATPlacement, nftNATIncompatibleBase -->
 <h3 id="nat-exclude">NAT Exclude</h3>
 <p>In a NAT chain, <code>exclude</code> emits a Return verdict so matched traffic skips
 the NAT translation. This replaces the VyOS <code>nat destination rule N exclude</code>
@@ -1485,7 +1521,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

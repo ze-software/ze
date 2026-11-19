@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 8 | 8 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 7 | 7 of 8 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: AES-GCM for ESP: eight MUST-level requirements, ev
 
 **Area:** ESP
 
-**Test verification:** 5 of 8 MUST proven
+**Test verification:** 4 of 8 MUST proven
 
-**Evidence:** unit 5
+**Evidence:** unit 4
 
 **Unmet:** -
 
@@ -112,8 +112,8 @@ Included in automatic checks: AES-GCM for ESP: eight MUST-level requirements, ev
 
 ## Figures
 
-- **MUST bar**: Ze verified 5, OS testing gap 3
-- **Overview bar**: Ze MUST verified 5, OS testing gap 3, Not assessed 5
+- **MUST bar**: Ze verified 4, Tests awaiting verification 1, OS testing gap 3
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 1, OS testing gap 3, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: AES-GCM for ESP: eight MUST-level requirements, ev
 | Mandatory requirements complete | not complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
-| Ze verified | 5 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 3 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -255,7 +255,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85) | unit/verify | revert, verified |
+| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ## Requirement list review
 

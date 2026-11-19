@@ -2393,11 +2393,15 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **relay** `string`: Plugin stderr relay level: disabled, debug, info, warn, or err (case-insensitive)
     A plugin runs as its own process and writes to its own stderr. Ze relays a line at this level or above into its own log, and drops the rest. warn is the level Ze uses while the leaf is absent, and disabled silences a plugin's stderr completely.
 - **looking-glass** `container`: Looking glass HTTP server settings.
-  The container holds the enable switch, the listen endpoints, the TLS switch and the bearer token.
+  The container holds the enable switch, the listen endpoints, the TLS switch, the bearer token and the named next-hop ranges.
   - **certificate** `string`: PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).
     The listener sends the leaf certificate and every intermediate certificate the store entry holds, so a client can build the full chain. When this leaf is not set, ze generates a self-signed certificate and serves that. If the store holds no entry with that name, or the entry holds no private key, ze exits with an error and rejects a reload. ze never falls back to a self-signed certificate for a configured name. A named certificate comes from the pki container. Environment variable: ze.looking-glass.certificate.
   - **enabled** `boolean`: Enable the looking glass.
     The looking glass does not start while this leaf is false, and false is the default.
+  - **next-hop-range <prefix>** `list`: Names shown beside the next hops of an address range.
+    Each entry gives a name to one range of next-hop addresses, such as an exchange LAN or a transit link. The looking glass shows the name beside a next hop inside the range, in the route table and in the next-hop graph. When several ranges hold a next hop, the longest prefix names it. A next hop in no range shows its address alone: Ze derives no name from DNS or from a peer. The prefix is the key, so one range has one name, and one name may label several ranges, for example the IPv4 and IPv6 LANs of one exchange. The list holds 256 entries at most and has no environment variable.
+    - **name** `string`: Name shown beside a next hop in this range (e.g. ams-ix-lan).
+      The name is shown on a public page, so it takes 1 to 64 characters from A-Z a-z 0-9 . _ - and starts with a letter or a digit. An entry with no name is refused, because it would label nothing.
   - **server <name>** `list`: Looking glass listen endpoints.
     Each entry names one listen endpoint. The default endpoint is 0.0.0.0 on port 8443.
     - **ip** `ip-address`: Listen IP address

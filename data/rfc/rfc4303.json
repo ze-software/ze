@@ -8,10 +8,10 @@
   "must": {
     "total": 23,
     "kept": 23,
-    "ze-proven": 7,
+    "ze-proven": 8,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 2,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 14,
@@ -20,18 +20,18 @@
   },
   "should": {
     "total": 4,
-    "proven": 0,
+    "proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 1,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 2,
     "not-built": 1,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 7
+    "unit": 8
   },
   "unmet": [
     "RFC4303-2.2-1",

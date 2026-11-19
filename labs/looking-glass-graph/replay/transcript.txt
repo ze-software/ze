@@ -1,0 +1,183 @@
+Ze looking glass replay: transcript of the tour
+
+Recorded by ./le site lg-replay record from commit bad92271a4 (2026-11-19): a real ze, 11 simulated BGP speakers generated from seed 7, 84 recorded answers. 234 values that change from run to run (session uptimes, state-change times, the listener address) are fixed values the recording declares. None of the networks shown is a real one: the prefixes come from 198.18.0.0/15, the range RFC 2544 reserves for benchmarking, the speakers use documentation addresses (RFC 5737), and the AS numbers are private or documentation numbers (RFC 6996, RFC 5398).
+
+1. The peers page: every simulated router and external neighbor, each holding a real BGP session to ze, with its uptime, its last state change and how often the session dropped.
+   GET /lg/peers
+   200 text/html; charset=utf-8
+
+[Peers](https://ze-software.net/lg/peers) [Search](https://ze-software.net/lg/search) [Help](https://ze-software.net/lg/help)[![Ze](https://ze-software.net/lg/assets/ze.svg) Ze Looking Glass](https://ze-software.net/lg/peers)
+
+# BGP Peers
+
+| Peer | Remote AS | State | Uptime | Last Change | Drops | Received | Accepted | Sent | Updates In | Updates Out | Description |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 198.51.100.1 | 65000 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 9 | 9 | 0 | 10 | 1 | chaos-peer-0 |
+| 198.51.100.2 | 65000 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 9 | 9 | 0 | 10 | 1 | chaos-peer-1 |
+| 198.51.100.3 | 65000 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 9 | 9 | 0 | 10 | 1 | chaos-peer-2 |
+| 198.51.100.4 | 65000 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 9 | 9 | 0 | 10 | 1 | chaos-peer-3 |
+| 198.51.100.5 | 65000 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 9 | 9 | 0 | 10 | 1 | chaos-peer-4 |
+| 203.0.113.1 | 64971 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 1 | 1 | 0 | 2 | 1 | chaos-peer-5 |
+| 203.0.113.2 | 65274 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 3 | 3 | 0 | 3 | 1 | chaos-peer-6 |
+| 203.0.113.3 | 65100 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 1 | 1 | 0 | 2 | 1 | chaos-peer-7 |
+| 203.0.113.4 | 65096 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 4 | 4 | 0 | 5 | 1 | chaos-peer-8 |
+| 203.0.113.5 | 65294 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 0 | 0 | 0 | 1 | 1 | chaos-peer-9 |
+| 203.0.113.6 | 65462 | established | 1m 0s | 2026-01-01T00:00:00Z | 0 | 3 | 3 | 0 | 4 | 1 | chaos-peer-10 |
+
+2. One peer's routes: what the external neighbor 203.0.113.1 announced, and how long ago each route last changed.
+   GET /lg/peer/203.0.113.1 (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+## Routes from 203.0.113.1
+
+established AS 64971 chaos-peer-5 Last change 2026-01-01T00:00:00Z Drops 0 [Download CSV](https://ze-software.net/lg/peer/203.0.113.1/download)
+
+| Routes received | Routes sent |
+| --- | --- |
+| 1 | 0 |
+
+| Family | Prefix Length | Count |
+| --- | --- | --- |
+| ipv4/unicast | /24 | 1 |
+
+### Routes
+
+| | Prefix | Next Hop | AS Path | Origin | Local Pref | MED | Age |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| | 198.18.0.0/24 | 203.0.113.1 | 64971 64503 64499 | igp | | | 3m 12s |
+
+3. The search page.
+   GET /lg/search (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+# Route Search
+
+4. Search by prefix: every speaker that announced 198.18.0.0/24, with each route's next hop, AS path and age.
+   POST /lg/search prefix=198.18.0.0/24 (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+7 routes for 198.18.0.0/24
+
+ Loading topology...
+
+| | Prefix | Next Hop | AS Path | Origin | Local Pref | MED | Peer | Age |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.1 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.2 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.3 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.4 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.5 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.1 | 64971 64503 64499 | igp | | | 203.0.113.1 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.2 | 65274 64499 | igp | | | 203.0.113.2 | 3m 12s |
+
+5. The AS path graph of 198.18.0.0/24: the ASes its routes cross.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=aspath (asked by the page, answered with a fragment)
+   200 image/svg+xml
+
+(image/svg+xml, 1320 bytes)
+
+6. The next-hop graph of 198.18.0.0/24: which router hands the traffic to which. Routers of the AS show by address, the neighbors outside by AS number only.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=nexthop (asked by the page, answered with a fragment)
+   200 image/svg+xml
+
+(image/svg+xml, 2426 bytes)
+
+7. The trace of 198.18.0.0/24: each router's BGP next hop followed router to router to the exit, then the AS it is handed to and the AS path to the origin. From 198.51.100.1 it crosses three routers of the AS.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=trace (asked by the page, answered with a fragment)
+   200 image/svg+xml
+
+(image/svg+xml, 3641 bytes)
+
+8. The trace as text, the form a test reads.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=trace&format=text
+   200 text/plain; charset=utf-8
+
+mode trace
+node router 198.51.100.1
+node router 198.51.100.2
+node router 198.51.100.3
+node router 198.51.100.4 exit
+node router 198.51.100.5
+node AS64499
+node AS65274
+edge 198.51.100.1 -> 198.51.100.3
+edge 198.51.100.2 -> 198.51.100.4
+edge 198.51.100.3 -> 198.51.100.4
+edge 198.51.100.5 -> 198.51.100.3
+edge 198.51.100.4 -> AS65274
+edge AS65274 -> AS64499
+trace ipv4/unicast 198.18.0.0/24 198.51.100.1 routers=198.51.100.1,198.51.100.3,198.51.100.4 end=exit-own-address next-hop=198.51.100.4 as-path=65274,64499 says: leaves the AS at 198.51.100.4, which announces its own address as next hop
+trace ipv4/unicast 198.18.0.0/24 198.51.100.2 routers=198.51.100.2,198.51.100.4 end=exit-own-address next-hop=198.51.100.4 as-path=65274,64499 says: leaves the AS at 198.51.100.4, which announces its own address as next hop
+trace ipv4/unicast 198.18.0.0/24 198.51.100.3 routers=198.51.100.3,198.51.100.4 end=exit-own-address next-hop=198.51.100.4 as-path=65274,64499 says: leaves the AS at 198.51.100.4, which announces its own address as next hop
+trace ipv4/unicast 198.18.0.0/24 198.51.100.4 routers=198.51.100.4 end=exit-own-address next-hop=198.51.100.4 as-path=65274,64499 says: leaves the AS at 198.51.100.4, which announces its own address as next hop
+trace ipv4/unicast 198.18.0.0/24 198.51.100.5 routers=198.51.100.5,198.51.100.3,198.51.100.4 end=exit-own-address next-hop=198.51.100.4 as-path=65274,64499 says: leaves the AS at 198.51.100.4, which announces its own address as next hop
+
+9. The AS path graph as text.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=aspath&format=text
+   200 text/plain; charset=utf-8
+
+mode aspath
+node AS64971 layer=2
+node AS64503 layer=1
+node AS65274 layer=1
+node AS64499 layer=0
+edge AS64503 -> AS64499
+edge AS64971 -> AS64503
+edge AS65274 -> AS64499
+
+10. The next-hop graph as text.
+   GET /lg/graph?prefix=198.18.0.0/24&mode=nexthop&format=text
+   200 text/plain; charset=utf-8
+
+mode nexthop
+node 198.51.100.1 layer=2
+node 198.51.100.5 layer=2
+node 198.51.100.2 layer=1
+node 198.51.100.3 layer=1
+node 198.51.100.4 layer=0 egress
+node AS64971 layer=0 outside
+node AS65274 layer=0 outside
+edge 198.51.100.1 -> 198.51.100.3
+edge 198.51.100.2 -> 198.51.100.4
+edge 198.51.100.3 -> 198.51.100.4
+edge 198.51.100.5 -> 198.51.100.3
+
+11. Route detail: the route 203.0.113.1 sent for 198.18.0.0/24, with every attribute and its age.
+   GET /lg/route/detail?prefix=198.18.0.0/24&peer=203.0.113.1 (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+
+
+12. Search by address: the routes that cover 198.18.0.1.
+   POST /lg/search prefix=198.18.0.1 (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+7 routes for 198.18.0.1
+
+ Loading topology...
+
+| | Prefix | Next Hop | AS Path | Origin | Local Pref | MED | Peer | Age |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.1 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.2 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.3 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.4 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.5 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.1 | 64971 64503 64499 | igp | | | 203.0.113.1 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.2 | 65274 64499 | igp | | | 203.0.113.2 | 3m 12s |
+
+13. Search by AS path with the end anchor: 64499$ lists the routes AS 64499 originates.
+   POST /lg/search aspath=64499$ (asked by the page, answered with a fragment)
+   200 text/html; charset=utf-8
+
+7 routes matching AS path 64499$
+
+| | Prefix | Next Hop | AS Path | Origin | Local Pref | MED | Peer | Age |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.1 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.2 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.3 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.4 | 65274 64499 | igp | 100 | | 198.51.100.4 | 3m 12s |
+| | 198.18.0.0/24 | 198.51.100.3 | 65274 64499 | igp | 100 | | 198.51.100.5 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.1 | 64971 64503 64499 | igp | | | 203.0.113.1 | 3m 12s |
+| | 198.18.0.0/24 | 203.0.113.2 | 65274 64499 | igp | | | 203.0.113.2 | 3m 12s |

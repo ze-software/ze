@@ -1,6 +1,6 @@
 # `clear bgp rib out-excluding-owner`
 
-Replay while excluding one original destination owner
+Replay while excluding one original destination owner\.
 
 ## Ze command
 

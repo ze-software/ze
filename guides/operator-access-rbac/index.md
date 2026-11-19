@@ -37,9 +37,19 @@ This page uses three local profiles.
 | --- | --- | --- | --- |
 | `admin` | allow all | allow all | recovery and senior operators |
 | `read-only` | allow normal `show`, `monitor`, `resolve`, and help commands | deny all | NOC screens and audit users |
-| `operator` | allow run commands | allow config workflow only | operators allowed to change config through the editor |
+| `operator` | allow run commands | allow configuration changes only | operators allowed to change config through the editor |
 
 The entries use prefix matching. `match "debug"` matches `debug ospf ...`, but not `show debug ...`.
+
+The `operator` profile allows the edit entry `config`. Every configuration
+change is authorized by a string that starts with `config` (`config set`,
+`config commit`, ...), on every surface: the SSH editor, the web editor and
+terminal, and the REST and gRPC config sessions. So that one entry allows every
+change in configuration mode, while the edit section's `default-action deny`
+still refuses `clear`, `request` and the other commands that act on the box.
+An entry that matches `configure` or `commit` covers no configuration change.
+[Authorization](../authorization/index.md), "Configuration mode", lists the strings.
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
 
 ## 3. Build and load a set-format update
 
@@ -88,9 +98,7 @@ set system authorization profile read-only edit default-action deny
 set system authorization profile operator run default-action allow
 set system authorization profile operator edit default-action deny
 set system authorization profile operator edit entry 10 action allow
-set system authorization profile operator edit entry 10 match configure
-set system authorization profile operator edit entry 20 action allow
-set system authorization profile operator edit entry 20 match commit
+set system authorization profile operator edit entry 10 match config
 EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
@@ -139,7 +147,29 @@ Check the daemon logs if it succeeds instead:
 journalctl -u ze.service -n 100 --no-pager
 ```
 
-Pick a real command the profile denies when you write your own check. A command Ze does not have reports `unknown command` and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. `configure` is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so `ze cli -c "configure"` is never an authorization test. To check the edit path, run a command that writes, such as `set system ...`, or log in and try `configure` interactively.
+Pick a real command the profile denies when you write your own check. A command Ze does not have reports `unknown command` and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. `configure` is one of these. It is a mode switch inside the interactive CLI, not a daemon command, and it is never authorized, so `ze cli -c "configure"` is never an authorization test.
+
+Test configuration mode interactively, because `ze cli -c` runs one operational command and never reaches the editor. Log in as `noc`, enter configuration mode and try a change:
+
+```bash
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc
+```
+
+```
+configure
+set system host check-only
+```
+
+The `read-only` profile denies the edit section, so the change is refused and the candidate is unchanged. The refusal names the permission and how to get it:
+
+```
+command restricted by access control: config set
+ask an administrator for a profile whose edit section allows `config set`
+```
+
+`show`, `edit`, `up` and `top` still work, so NOC can browse the configuration. Repeat the same lines as `operator`: the `set` is accepted. Then type `discard all` to drop it, or `commit` to apply it. The same profile also refuses `operator` the `clear interface counters all` command, because `clear` is in the edit section and only `config` is allowed there.
+<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 
 ### How authorization decides
 

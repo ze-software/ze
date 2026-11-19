@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 32 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 32 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 32 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 24 | 24 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 17 | 17 of 24 tests linked to requirements, 0 without a fault test and 7 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: IP Authentication Header (RFC 4302): control plane
 
 **Area:** Authentication Header
 
-**Test verification:** 9 of 32 MUST proven
+**Test verification:** 8 of 32 MUST proven
 
-**Evidence:** unit 9
+**Evidence:** unit 8
 
 **Unmet:** RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-4-1, RFC4302-A2-1
 
@@ -121,8 +121,8 @@ Included in automatic checks: IP Authentication Header (RFC 4302): control plane
 
 ## Figures
 
-- **MUST bar**: Ze verified 9, OS testing gap 19, Not built 4
-- **Overview bar**: Ze MUST verified 9, OS testing gap 19, Not assessed 10, Not built 4
+- **MUST bar**: Ze verified 8, Tests awaiting verification 1, OS testing gap 19, Not built 4
+- **Overview bar**: Ze MUST verified 8, Tests awaiting verification 1, OS testing gap 19, Not assessed 10, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: IP Authentication Header (RFC 4302): control plane
 | Mandatory requirements complete | not complete |
 | MUST rows | 32 |
 | MUST rows kept (the MUST bar) | 32 |
-| Ze verified | 9 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 19 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -246,7 +246,7 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 The protocol header (IPv4, IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98]. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge): stale only from a comment change in commit 29ecbbd4ef. TestIPsecSAProtocolNumber: ah SA Proto must be 51 (positive) and esp SA Proto 50, so a blanket-51 installer goes red (negative). Mutant records on ipsecProtoNumber (AH arm forced false / true) observed red. Ze's boundary is the SA protocol number; Linux XFRM writes the Next Header from it.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber, internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2 moved. Re-judged 2026-09-30 (OSPF judge): stale only from a comment change in commit 29ecbbd4ef. TestIPsecSAProtocolNumber: ah SA Proto must be 51 (positive) and esp SA Proto 50, so a blanket-51 installer goes red (negative). Mutant records on ipsecProtoNumber (AH arm forced false / true) observed red. Ze's boundary is the SA protocol number; Linux XFRM writes the Next Header from it.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -280,8 +280,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAHSAIdentifiedBySPIAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_test.go#L46) | unit/verify | revert, verified |
-| negative | [`TestRFC4302UnicastAHStateIdentifiedBySPI`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L44) | unit/verify | revert, verified |
+| negative | [`TestAHSAIdentifiedBySPIAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4302UnicastAHStateIdentifiedBySPI`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L44) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestAHSAIdentifiedBySPIAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_test.go#L37) | unit/verify | mutant, verified |
 | positive | [`TestRFC4302UnicastAHStateIdentifiedBySPI`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L40) | unit/verify | revert, verified |
 
@@ -463,14 +463,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis. (§3.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.4.3: "All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis." TestIPsecInstallerXFRMReplayWindow changed by the guard only (requireXFRM's CAP refusal now fails). It parses and validates the real config, runs the installer against kernel XFRM, and for replay-window 64, explicit 0 and the absent leaf requires each AH destination (ff02::5, ff02::6, fe80::1) exactly once with the exact window; extra, duplicate or non-AH states fail. Running in the child's own network namespace also means no foreign XFRM state can collide with the SPI. Proves Ze installs the per-SA anti-replay choice; Linux's per-packet sequence check is not claimed. Records (xfrmStateFromParams, buildIPsecSA reverts) current.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow, internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2 moved. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.4.3: "All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis." TestIPsecInstallerXFRMReplayWindow changed by the guard only (requireXFRM's CAP refusal now fails). It parses and validates the real config, runs the installer against kernel XFRM, and for replay-window 64, explicit 0 and the absent leaf requires each AH destination (ff02::5, ff02::6, fe80::1) exactly once with the exact window; extra, duplicate or non-AH states fail. Running in the child's own network namespace also means no foreign XFRM state can collide with the SPI. Proves Ze installs the per-SA anti-replay choice; Linux's per-packet sequence check is not claimed. Records (xfrmStateFromParams, buildIPsecSA reverts) current.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L453) | unit/verify | revert, verified |
-| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, verified |
-| positive | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L448) | unit/verify | revert, verified |
-| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, verified |
+| negative | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L453) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L448) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4302-3.4.3-2`](#rfc4302-3.4.3-2)
 
@@ -505,7 +505,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPsecReplayWindowRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L253) | unit/verify | mutant, verified |
-| positive | [`TestRFC4302MinimumReplayWindowReachesEverySA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L134) | unit/verify | revert, verified |
+| positive | [`TestRFC4302MinimumReplayWindowReachesEverySA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L134) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4302-4-1`](#rfc4302-4-1)
 

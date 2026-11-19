@@ -228,19 +228,18 @@ peer that establishes later to request the current connected prefixes.</p>
 <!-- source: internal/component/iface/config_apply.go -- applyConfigPass -->
 <!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
 <!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
-<p>Each BGP peer attaches four processes. <code>bgp-rib</code> stores the peer's routes and
-elects the best one, and re-advertises nothing. <code>bgp-rs</code> sends what one peer
-announced to the node's other peers: without it a node passes on only its own
-connected, OSPF and IS-IS prefixes, and a lab with a node between two BGP
-sessions cannot reach across it. <code>bgp-adj-rib-in</code> is what <code>bgp-rs</code> reads to
-replay those routes to a peer whose session comes up later, which in a lab is
-always one of them. <code>redistribute-orchestrator</code> carries the local prefixes
-into BGP.</p>
-<p>Toward an external peer the render sets <code>next-hop self</code>. That is the default
-RFC 4271 Section 5.1.3 describes, written out because Ze's own default leaves
-a forwarded route's next hop as it arrived, and an external peer refuses a
-next hop that is another node's loopback.</p>
-<!-- source: contrib/netlab/ze/ze.j2 -- attach process bgp-rib, bgp-rs, bgp-adj-rib-in, redistribute-orchestrator; next-hop self -->
+<p>Each BGP peer attaches <code>bgp-rib</code> with the grants to learn routes and advertise
+eligible selected routes. This lets r1 advertise routes between r2 and r3
+when their sessions come up in either order. The template sets an accepting
+export policy on every peer because Ze requires explicit export policy for
+learned routes. It also sets an accepting import policy on external peers to
+satisfy RFC 8212.</p>
+<!-- source: contrib/netlab/ze/ze.j2 -- filter, attach process bgp-rib -->
+<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
+<p>The template sets <code>next-hop self</code> toward external peers so they can use the
+advertising node as their next hop. It also sets <code>next-hop self</code> on internal
+sessions where the topology requests it.</p>
+<!-- source: contrib/netlab/ze/ze.j2 -- next-hop self -->
 <p>The explicit <code>clab.node_config.initial</code> shell method runs Linux interface setup
 through <code>docker exec</code>. The Ze initial template marks successful completion for
 the startup wrapper. The explicit method overrides the Linux parent's
@@ -322,7 +321,7 @@ loads the file, and it warns that the file still holds the secret. See
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

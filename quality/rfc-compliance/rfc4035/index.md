@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 9 | of 108 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 108 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 108 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 10 | 10 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 4 | 4 of 24 tests linked to requirements, 0 without a fault test and 6 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -94,9 +94,9 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 
 **Area:** DNSSEC protocol modifications
 
-**Test verification:** 4 of 108 MUST proven
+**Test verification:** 2 of 108 MUST proven
 
-**Evidence:** unit 4
+**Evidence:** unit 2
 
 **Unmet:** RFC4035-2.1-2, RFC4035-2.1-4, RFC4035-2.1-5, RFC4035-2.2-1, RFC4035-2.2-3, RFC4035-2.2-4, RFC4035-2.2-5, RFC4035-2.2-6, RFC4035-2.2-7, RFC4035-2.2-8, RFC4035-2.3-1, RFC4035-2.3-3, RFC4035-2.3-4, RFC4035-2.3-5, RFC4035-2.3-6, RFC4035-2.3-7, RFC4035-2.4-3, RFC4035-2.4-4, RFC4035-2.5-1, RFC4035-2.5-2, RFC4035-2.6-1, RFC4035-3-1, RFC4035-3-2, RFC4035-3-5, RFC4035-3.1-1, RFC4035-3.1-2, RFC4035-3.1-3, RFC4035-3.1.1-3, RFC4035-3.1.1-4, RFC4035-3.1.1-5, RFC4035-3.1.1-6, RFC4035-3.1.1-8, RFC4035-3.1.2-3, RFC4035-3.1.2-4, RFC4035-3.1.3-1, RFC4035-3.1.3.1-1, RFC4035-3.1.3.2-1, RFC4035-3.1.3.3-1, RFC4035-3.1.3.3-2, RFC4035-3.1.3.4-1, RFC4035-3.1.4-1, RFC4035-3.1.4-2, RFC4035-3.1.4-3, RFC4035-3.1.5-2, RFC4035-3.1.5-3, RFC4035-3.1.5-4, RFC4035-3.1.5-5, RFC4035-3.1.5-6, RFC4035-3.1.5-7, RFC4035-3.1.6-6, RFC4035-3.2.1-1, RFC4035-3.2.1-2, RFC4035-3.2.1-3, RFC4035-3.2.2-1, RFC4035-3.2.2-4, RFC4035-3.2.3-2, RFC4035-4.1-5, RFC4035-4.2-1, RFC4035-4.2-3, RFC4035-4.2-5, RFC4035-4.2-6, RFC4035-4.3-1, RFC4035-4.4-1, RFC4035-4.7-2, RFC4035-4.7-3, RFC4035-4.7-7, RFC4035-4.8-1, RFC4035-4.9.3-2, RFC4035-5-1, RFC4035-5-2, RFC4035-5-3, RFC4035-5.2-1, RFC4035-5.2-3, RFC4035-5.3.1-1, RFC4035-5.3.1-10, RFC4035-5.3.1-2, RFC4035-5.3.1-3, RFC4035-5.3.1-4, RFC4035-5.3.1-5, RFC4035-5.3.1-6, RFC4035-5.3.1-7, RFC4035-5.3.1-8, RFC4035-5.3.1-9, RFC4035-5.3.2-1, RFC4035-5.3.2-2, RFC4035-5.3.2-3, RFC4035-5.3.3-1, RFC4035-5.3.3-2, RFC4035-5.4-1, RFC4035-5.4-2, RFC4035-5.4-3, RFC4035-5.4-4, RFC4035-5.5-2, RFC4035-5.5-3
 
@@ -120,8 +120,8 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 10, Not built 94
-- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94
+- **MUST bar**: Ze verified 2, Tests awaiting verification 12, Not built 94
+- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 12, Not assessed 50, Not built 94
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 | Mandatory requirements complete | not complete |
 | MUST rows | 108 |
 | MUST rows kept (the MUST bar) | 108 |
-| Ze verified | 4 |
+| Ze verified | 2 |
 | OS verified | 0 |
-| Tests awaiting verification | 10 |
+| Tests awaiting verification | 12 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -954,8 +954,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L45) | unit/verify | revert, verified |
-| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L60) | unit/verify | revert, verified |
+| positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L45) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L60) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4035-4.1-2`](#rfc4035-4.1-2)
 
@@ -975,8 +975,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L52) | unit/verify | revert, verified |
-| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L52) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L70) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4035-4.1-5`](#rfc4035-4.1-5)
 
@@ -1054,8 +1054,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC4035ResponseCDAndADBitsChangeNothing`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC4035_ResponseADBitDisregarded`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC4035ResponseCDAndADBitsChangeNothing`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L90) | unit/verify | revert, verified |
-| positive | [`TestRFC4035_ResponseADBitDisregarded`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L148) | unit/verify | revert, verified |
+| positive | [`TestRFC4035ResponseCDAndADBitsChangeNothing`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L90) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4035_ResponseADBitDisregarded`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L148) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4035-4.7-2`](#rfc4035-4.7-2)
 

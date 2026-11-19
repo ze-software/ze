@@ -9777,6 +9777,23 @@
           {
             "children": [
               {
+                "description": "The name is shown on a public page, so it takes 1 to 64\ncharacters from A-Z a-z 0-9 . _ - and starts with a letter or a\ndigit. An entry with no name is refused, because it would\nlabel nothing.",
+                "kind": "leaf",
+                "name": "name",
+                "short-help": "Name shown beside a next hop in this range (e.g. ams-ix-lan).",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "Each entry gives a name to one range of next-hop addresses, such\nas an exchange LAN or a transit link. The looking glass shows the\nname beside a next hop inside the range, in the route table and\nin the next-hop graph. When several ranges hold a next hop, the\nlongest prefix names it. A next hop in no range shows its address\nalone: Ze derives no name from DNS or from a peer. The prefix is\nthe key, so one range has one name, and one name may label\nseveral ranges, for example the IPv4 and IPv6 LANs of one\nexchange. The list holds 256 entries at most and has no\nenvironment variable.",
+            "kind": "list[prefix]",
+            "name": "next-hop-range",
+            "short-help": "Names shown beside the next hops of an address range.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
@@ -9816,7 +9833,7 @@
             "type": "string"
           }
         ],
-        "description": "The container holds the enable switch, the listen endpoints, the\nTLS switch and the bearer token.",
+        "description": "The container holds the enable switch, the listen endpoints, the\nTLS switch, the bearer token and the named next-hop ranges.",
         "kind": "container",
         "name": "looking-glass",
         "short-help": "Looking glass HTTP server settings.",

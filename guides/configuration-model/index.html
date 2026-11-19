@@ -145,6 +145,7 @@
 <li><a href="#environment-block">Environment Block</a>
 <ol>
 <li><a href="#tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</a></li>
+<li><a href="#named-next-hop-ranges-of-the-looking-glass">Named next-hop ranges of the looking glass</a></li>
 <li><a href="#named-listeners">Named Listeners</a>
 <ol>
 <li><a href="#port-conflict-detection">Port Conflict Detection</a></li>
@@ -4673,6 +4674,58 @@ no intermediate serves the leaf alone.</p>
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate (one rotation seam per listener) -->
 <!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
+<h3 id="named-next-hop-ranges-of-the-looking-glass">Named next-hop ranges of the looking glass</h3>
+<p><code>environment looking-glass next-hop-range &lt;prefix&gt; { name &lt;name&gt; }</code> gives a
+name to one range of next-hop addresses. The looking glass shows the name
+beside a next hop inside the range, in its route tables and in its next-hop
+graph.</p>
+<pre><code>environment {
+    looking-glass {
+        next-hop-range 198.51.100.0/24 {
+            name ams-ix-lan
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Key</td>
+<td>The prefix, IPv4 or IPv6. Two entries for one range are refused at commit with the line that removes the second, also when they are written differently, as. <span class="ev-src"><span class="ev-ref"><code>198.51.100.1/24</code></span><span class="ev-ref"><code>198.51.100.0/24</code></span></span></td>
+</tr>
+<tr>
+<td>Name</td>
+<td>Mandatory, 1 to 64 characters from <code>A-Z a-z 0-9 . _ -</code>, starting with a letter or a digit</td>
+</tr>
+<tr>
+<td>Count</td>
+<td>256 entries at most</td>
+</tr>
+<tr>
+<td>Lookup</td>
+<td>The longest prefix that holds a next hop names it. A next hop in no range has no name</td>
+</tr>
+<tr>
+<td>Reload</td>
+<td>The list is replaced whole on the running looking glass, with no rebind</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>Read whether or not the block says <code>enabled true</code>. No environment variable</td>
+</tr>
+</tbody>
+</table>
+<p>The guide to the pages is <a href="../looking-glass/">Looking Glass</a>, "Names for next
+hops and peers".</p>
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- list next-hop-range -->
+<!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGNextHopRanges (the reload seam) -->
 <h3 id="named-listeners">Named Listeners</h3>
 <p>Every service that accepts inbound connections models its listen endpoints
 as a named YANG list:</p>
@@ -6476,7 +6529,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1189,7 +1189,7 @@ every reconnect, so <code>pppoe-client pppoe0</code> is the kernel device <code>
 <code>pppN</code>. A static route <code>next { interface pppoe0 }</code>, a firewall <code>output-interface "pppoe0"</code> match and a masquerade rule therefore reach the session. The device exists
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (<code>docs/guide/static-routes.md</code>, "Interface-only next-hops").</p>
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, devPPPSetup -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -2907,6 +2907,12 @@ and permit final backend cleanup. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later <code>os.ErrClosed</code> nor the socket number authorizes another close
 or proves release.</p>
+<p>This custody rule also covers construction. A socket Bind, name query or
+original-unit probe failure attempts Close once. Successful physical Close
+returns no writer. Failed Close returns a refused partial writer with zero
+features, retaining the original socket and both failure causes in the backend
+registry. It grants no mutation authority; callers retain the partial result
+even when binding returns an error.</p>
 <!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.closeOriginal -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- ClosePending -->
@@ -3082,7 +3088,7 @@ available through ordinary interface discovery without gaining this lease.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

@@ -57,7 +57,15 @@
 <li><a href="#serve-your-own-certificate">Serve your own certificate</a></li>
 <li><a href="#optional-bearer-token">Optional bearer token</a></li>
 </ol></li>
-<li><a href="#web-ui">Web UI</a></li>
+<li><a href="#web-ui">Web UI</a>
+<ol>
+<li><a href="#session-history-on-the-peers-page">Session history on the peers page</a></li>
+<li><a href="#names-for-next-hops-and-peers">Names for next hops and peers</a></li>
+<li><a href="#route-age">Route age</a></li>
+<li><a href="#inside-by-address-outside-by-as-number">Inside by address, outside by AS number</a></li>
+<li><a href="#tracing-a-prefix-through-the-network">Tracing a prefix through the network</a></li>
+<li><a href="#live-updates-and-what-is-public">Live updates and what is public</a></li>
+</ol></li>
 <li><a href="#birdwatcher-rest-api">Birdwatcher REST API</a></li>
 <li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
 <li><a href="#security">Security</a></li>
@@ -71,6 +79,12 @@
         server main {
             ip 0.0.0.0
             port 8443
+        }
+        next-hop-range 198.51.100.0/24 {
+            name ams-ix-lan
+        }
+        next-hop-range 2001:db8:100::/64 {
+            name ams-ix-lan
         }
     }
 }
@@ -114,6 +128,11 @@
 <td><code>token</code></td>
 <td>(empty)</td>
 <td>Bearer token. When set, every <code>Authorization: Bearer &lt;token&gt;</code>. Empty leaves the looking glass open. <span class="ev-src"><span class="ev-ref"><code>/api/</code></span><span class="ev-ref"><code>/lg/</code></span></span></td>
+</tr>
+<tr>
+<td><code>next-hop-range &lt;prefix&gt; { name }</code></td>
+<td>(none)</td>
+<td>A name for one range of next-hop addresses, shown beside a next hop inside it. See <a href="#names-for-next-hops-and-peers">Names for next hops and peers</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -214,7 +233,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 <tr>
 <td>Peers tab</td>
 <td><code>/lg/peers</code></td>
-<td>All peers with state, ASN names (Team Cymru), route counts. Live SSE updates.</td>
+<td>All peers with state, session history, remote AS, route counts. The remote AS cell shows the number; its AS name (from Team Cymru, through <code>resolve cymru asn-name</code>) shows when the pointer rests on the cell. An AS it names nothing for, such as a private AS number, or a lookup that failed, has no name to show. Live SSE updates.</td>
 </tr>
 <tr>
 <td>Lookup tab</td>
@@ -234,15 +253,327 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 <tr>
 <td>Route detail</td>
 <td><code>/lg/route/detail</code></td>
-<td>Expanded route attributes (HTMX fragment, click-to-expand).</td>
+<td>Expanded route attributes and the route's age (HTMX fragment, click-to-expand).</td>
 </tr>
 <tr>
 <td>AS path graph</td>
 <td><code>/lg/graph?prefix=X</code></td>
-<td>Server-side SVG topology from all peers (auto-loaded on lookup).</td>
+<td>Server-side SVG topology from all peers (auto-loaded on lookup). Each AS is labelled <code>AS&lt;n&gt;</code>, and its name, when Team Cymru gives one, shows on mouse-over only, so a name never widens a node. The text form (<code>format=text</code>), read by scripts, still writes the name, as it always did.</td>
 </tr>
 </tbody>
 </table>
+<h3 id="session-history-on-the-peers-page">Session history on the peers page</h3>
+<p>Uptime says nothing about a session that is down, and a session that drops
+every hour shows an uptime of an hour. The peers table therefore carries two
+history columns, and the header of a peer's own page carries a third value:</p>
+<table>
+<thead>
+<tr>
+<th>Shown</th>
+<th>Where</th>
+<th>What it is</th>
+<th>Read from <code>show bgp</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Last Change</td>
+<td>A column of the peers table, and the header of <code>/lg/peer/{address}</code></td>
+<td>The time the session last changed state, as the engine writes it (RFC 3339, such as). It is the most recent transition of the session's state machine, so a session that keeps retrying shows the time of its last attempt. <span class="ev-src"><span class="ev-ref"><code>2026-07-15T10:30:00Z</code></span></span></td>
+<td><code>state-changed</code></td>
+</tr>
+<tr>
+<td>Drops</td>
+<td>A column of the peers table, and the header of <code>/lg/peer/{address}</code></td>
+<td>How often the session has dropped. A peer that never dropped shows <code>0</code></td>
+<td><code>connections-dropped</code></td>
+</tr>
+<tr>
+<td>Last error</td>
+<td>The header of <code>/lg/peer/{address}</code>, which a click on the peer's row opens below the table</td>
+<td>Why the session last closed: the NOTIFICATION code and subcode by name, such as <code>Cease/Administrative Shutdown</code>, with <code> (not sent)</code> when Ze could not send it</td>
+<td><code>last-error</code></td>
+</tr>
+</tbody>
+</table>
+<p>The last error has no column, because its text is long and the table has to
+stay readable on a small screen.</p>
+<p>The looking glass shows these three values as the engine answers them and
+computes nothing from them. A value the engine did not send is an empty cell,
+or no entry in the header. It is never a <code>0</code>: a zero means the session never
+dropped, which the page says only when the engine said it.</p>
+<h3 id="names-for-next-hops-and-peers">Names for next hops and peers</h3>
+<p>A next hop is an address, and an address does not say whether it belongs to an
+exchange LAN or to a transit link. Name the ranges once in the config, and the
+looking glass shows the name beside each next hop inside them:</p>
+<pre><code>environment {
+    looking-glass {
+        next-hop-range 198.51.100.0/24 {
+            name ams-ix-lan
+        }
+        next-hop-range 198.51.100.200/32 {
+            name ams-ix-rs1
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Where the name shows</td>
+<td>Beside the next hop in the search results, in a peer's route table and in the route detail, and as the label of the node in the next-hop graph. The graph's text form (<code>format=text</code>) adds <code>name=&lt;name&gt;</code> to the node's line</td>
+</tr>
+<tr>
+<td>Several ranges hold the next hop</td>
+<td>The longest prefix names it. In the example, <code>198.51.100.200</code> is <code>ams-ix-rs1</code> and <code>198.51.100.7</code> is <code>ams-ix-lan</code></td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>The page shows the address alone. Ze derives no name from DNS, from a peer or from the address: a router has a name only where you named its range</td>
+</tr>
+<tr>
+<td>One range, one name</td>
+<td>Two entries for one range are refused at commit, and the refusal names both entries and ends with the line that removes the second. is such a pair, because both are the range. Nested ranges are distinct and commit. One name may label several ranges, such as the IPv4 and IPv6 LANs of one exchange. <span class="ev-src"><span class="ev-ref"><code>198.51.100.1/24</code></span><span class="ev-ref"><code>198.51.100.0/24</code></span><span class="ev-ref"><code>198.51.100.0/24</code></span></span></td>
+</tr>
+<tr>
+<td>An IPv4 range is written as IPv4</td>
+<td>A range written as IPv4-mapped IPv6, such as, is refused at commit, and the refusal names the IPv4 range to write. The looking glass reads an IPv4-mapped next hop as its IPv4 address, so only the IPv4 range names it. <span class="ev-src"><span class="ev-ref"><code>::ffff:198.51.100.0/120</code></span><span class="ev-ref"><code>198.51.100.0/24</code></span></span></td>
+</tr>
+<tr>
+<td>Limits</td>
+<td>256 entries at most. A name takes 1 to 64 characters from <code>A-Z a-z 0-9 . _ -</code> and starts with a letter or a digit</td>
+</tr>
+<tr>
+<td>Reload</td>
+<td>A reload replaces the whole list on the running server. The listener keeps its socket, so an open connection reads the new names on its next request. A reload that fails after that step and is rolled back puts the previous list back</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>The list is read whether or not the block says <code>enabled true</code>, so a looking glass started by <code>ze.looking-glass.enabled</code> or <code>ze.looking-glass.listen</code> shows the names too. The list has no environment variable</td>
+</tr>
+</tbody>
+</table>
+<p>The peers table has a Description column. It shows the text of the peer's own
+<code>description</code> leaf, written on the peer or inherited from its group, and it is
+empty for a peer that has none. The peer's group is apart: it is the tooltip
+of the description cell and a <code>Group</code> entry in the header of
+<code>/lg/peer/{address}</code>. The birdwatcher API answers the same text in its
+<code>description</code> field.</p>
+<p>A peer's description and the names of your next-hop ranges are public where
+the looking glass is public. Write nothing in them that a visitor must not
+read, or set <code>token</code>.</p>
+<!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges: the reader, the one-range-one-name refusal, the 256 bound -->
+<!-- source: internal/component/lg/nexthop_ranges.go -- nextHopRanges.nameOf (longest prefix), UpdateNextHopRanges, validateNextHopRanges -->
+<!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom read description and group -->
+<h3 id="route-age">Route age</h3>
+<p>Every route table has an Age column, the last one: how long ago the route last
+changed. The search results and a peer's route table show it, and so does the
+route detail a click on a row opens.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What the age counts</td>
+<td>The time since <code>bgp-rib</code> last stored a change to the route: when it was first learned, or when one of its attributes changed. The same route announced again with equal attributes keeps its age, so a route refresh does not make a stable route look new</td>
+</tr>
+<tr>
+<td>How it is written</td>
+<td>With its largest units, as the Uptime column of the peers table: <code>42s</code>, <code>3m 12s</code>, <code>2h 5m 3s</code>, <code>4d 3h 0m</code></td>
+</tr>
+<tr>
+<td>The exact value</td>
+<td>The cell carries the whole seconds in its <code>data-seconds</code> attribute, such as <code>&lt;td class="route-age" data-seconds="192"&gt;3m 12s&lt;/td&gt;</code>, for a script that reads the page</td>
+</tr>
+<tr>
+<td>A route with no age</td>
+<td>The cell is empty and carries no <code>data-seconds</code>, and the route detail has no Age entry. It is never <code>0</code>: a zero means the route changed this second</td>
+</tr>
+<tr>
+<td>Resolution</td>
+<td>One second. The page and the API read the same value, so they differ only by the time between the two requests</td>
+</tr>
+<tr>
+<td>Restart</td>
+<td>Ages start again from zero when the daemon restarts, because it learns every route again. The age says how long this daemon has held the route unchanged, which is at most the time since its start</td>
+</tr>
+</tbody>
+</table>
+<p>The looking glass computes nothing here: <code>bgp-rib</code> writes the seconds in the
+<code>age</code> member of each received route when it answers, and the page shows them.
+The birdwatcher API answers the same seconds in its <code>age</code> field, with
+<code>age_available</code> beside it (see below).</p>
+<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom, routeRows -->
+<!-- source: internal/component/lg/view.go -- routeAge -->
+<!-- source: internal/component/lg/render.go -- formatElapsed -->
+<!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge -->
+<h3 id="inside-by-address-outside-by-as-number">Inside by address, outside by AS number</h3>
+<p>The next-hop graph and the trace draw the two sides of your network's edge
+differently, so a reader tells them apart at a glance:</p>
+<table>
+<thead>
+<tr>
+<th>What the address is</th>
+<th>How the graphs draw it</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A router of your AS: a peer whose session with Ze is internal (<code>peer-type</code> <code>internal</code> in <code>show bgp</code>)</td>
+<td>By its address, with the name of its <code>next-hop-range</code> when it is in one. Green when it is an egress</td>
+<td>Inside your AS the address is what tells one router from another</td>
+</tr>
+<tr>
+<td>A neighbour outside your AS: a peer whose session with Ze is external (<code>peer-type</code> <code>external</code>)</td>
+<td>By its AS number only, <code>AS&lt;n&gt;</code>, in a dashed box, with the AS name on mouse-over as the AS path graph shows it. Its address is nowhere in the graph. Two neighbours of one AS are one node, and the edges to either meet on it</td>
+<td>Outside your AS the looking glass states who the traffic is handed to, never which address of theirs</td>
+</tr>
+<tr>
+<td>An address that is no peer of Ze: a next hop with no session, or a route held for a peer with no session</td>
+<td>By its address, as a route wrote it</td>
+<td>Ze knows no AS for it, and nothing is derived</td>
+</tr>
+</tbody>
+</table>
+<p>In the next-hop graph's text form (<code>mode=nexthop&amp;format=text</code>) a router or an
+address reads <code>node &lt;address&gt; layer=N [egress] [name=&lt;name&gt;]</code>, and an AS
+outside reads <code>node AS&lt;n&gt; layer=N outside</code>. <code>egress</code> stays a statement about a
+router of your AS: it announces its own address as next hop. An AS outside is
+never <code>egress</code>.</p>
+<p>The next-hop graph therefore reads the peer summary beside the routes. When
+the summary cannot be read, or does not say for a peer whether its session is
+internal or external, the graph is refused with the reason and
+<code>ze show bgp</code>, as the trace is. It is never drawn with every node as an
+address, because that would show a neighbour as if it were one of your
+routers.</p>
+<!-- source: internal/component/lg/graph_nexthop.go -- nextHopOutsideFrom, buildNextHopGraph, renderNextHopGraphText -->
+<!-- source: internal/component/lg/handler_graph.go -- handleNextHopGraph, nextHopSummaryRefusal -->
+<!-- source: internal/component/lg/layout_nexthop.go -- outsideNodeClass, renderNextHopGraphSVG -->
+<h3 id="tracing-a-prefix-through-the-network">Tracing a prefix through the network</h3>
+<p>When every router of your network holds a session to Ze, the looking glass
+holds each router's chosen route for a prefix, and the BGP next hop that
+router uses. Search for a prefix and click <strong>Trace</strong> above the route table:
+the graph follows the prefix from each router of the AS to the origin AS.
+The same graph is at <code>/lg/graph?prefix=&lt;prefix&gt;&amp;mode=trace</code>, and
+<code>&amp;format=text</code> answers it as text.</p>
+<p>A walk starts at each router of the AS that sent a route for the prefix. A
+router of the AS is a peer whose session with Ze is internal (iBGP): <code>show bgp</code>
+lists it with <code>peer-type</code> <code>internal</code>. The walk reads the router's
+next hop, moves to the router whose session address that is, and repeats.
+Routers are drawn left to right in the order a walk crosses them, the exit
+router in green, then the AS path of the exit route with the origin AS on the
+right. Under the graph, one line per router states how its walk ended:</p>
+<table>
+<thead>
+<tr>
+<th>The router's next hop, or what Ze holds</th>
+<th>The line says</th>
+<th>What follows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Its own address</td>
+<td>It leaves the AS at that router, which announces its own address as next hop</td>
+<td>The AS path of that route</td>
+</tr>
+<tr>
+<td>The address of no router of the AS</td>
+<td>It leaves the AS at that router toward that address</td>
+<td>The AS path, starting at the AS the traffic is handed to: the exit router links straight to it. The address is outside your AS, so it is in the line and in the text form's <code>next-hop=</code> field, and is never a node. The neighbour at that address needs no session with Ze</td>
+</tr>
+<tr>
+<td>Either of the two, with an empty AS path</td>
+<td>The prefix originates inside the AS at that router</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>A router the walk already crossed</td>
+<td>The walk would loop, and at which router</td>
+<td>Nothing</td>
+</tr>
+<tr>
+<td>A router that sent Ze no route for the prefix</td>
+<td>Ze holds no route from that router for the prefix</td>
+<td>Nothing</td>
+</tr>
+<tr>
+<td>Ze holds several different routes from the router (ADD-PATH)</td>
+<td class="cell-no">✕</td>
+<td>Nothing</td>
+</tr>
+<tr>
+<td>A route whose next hop or AS path the trace cannot read</td>
+<td>Its next hop or its AS path cannot be read</td>
+<td>Nothing</td>
+</tr>
+</tbody>
+</table>
+<p>A walk never ends without its line. The looking glass computes nothing about
+a route: it follows what each router sent.</p>
+<p>When no walk starts, the graph is replaced by one line that begins with
+<code>No trace:</code>. It says which fact left nothing to draw, and ends with three
+counts: the peers of the looking glass, the routers of the AS among them, and
+the routes the query answered. Zero routers means no peer has an internal
+session. Zero routes means Ze holds no received route for the prefix. The line
+names no command, because a visitor of a public looking glass cannot run one:
+as the operator, read the peers and their <code>peer-type</code> with <code>ze show bgp</code>.</p>
+<p><strong>A router is matched by its session address.</strong> The trace finds the next
+router by comparing a next hop with the address each router's session with Ze
+uses. A router that writes another of its addresses as next hop, a loopback
+it does not peer from for example, is read as a neighbour outside the AS, and
+the walk leaves the AS there. Peer with Ze from the address your routers
+write as next hop.</p>
+<p>The same holds across address families. A router that holds an IPv4 session
+with Ze and writes an IPv6 next hop on the routes it sends over it (RFC 8950,
+or IPv6 routes carried over the IPv4 session) is known to the trace by its
+IPv4 address only. Its IPv6 next hop is the address of no router the trace
+knows, so the walk states an exit toward an external address at that router,
+even when the next hop is the router itself or another router of the AS. Give
+each router a session with Ze from the address family of the next hops it
+writes.</p>
+<p><strong>The trace is BGP's view.</strong> It follows each router's BGP next hop, from one
+router of the AS to the next. The hops your IGP takes between two consecutive
+next hops are in no route Ze holds, so they lie outside what the graph draws.
+The graph and the help page say so.</p>
+<p>The graph draws at most 100 nodes (routers, ASes, and the next hops of
+prefixes that originate inside the AS, together) and says so when a prefix
+has more. Names from <code>next-hop-range</code> label the routers and those next hops.
+An AS is labelled <code>AS&lt;n&gt;</code> and its name shows on mouse-over.</p>
+<p>The lines under the graph, and the <code>trace</code> lines of the text form, stop at
+100. A bare address asks for every prefix that contains it, and each prefix
+is walked from every router that sent it, so such a lookup can hold more
+walks than that. Every walk still gives the graph its routers and
+ASes; the last line then says how many traces are not listed, and the text
+form ends with an <code>unlisted traces=&lt;count&gt;</code> line. Ask for one prefix with its
+length to read all of its traces.</p>
+<!-- source: internal/component/lg/handler_graph.go -- handleGraph, handleTraceGraph -->
+<!-- source: internal/component/lg/graph_trace.go -- traceRoutersFrom, traceWalkFrom, traceWalk.statement, traceNote, traceGraph.listedWalks, traceCounts.noTrace -->
+<!-- source: internal/component/lg/layout_trace.go -- computeTraceLayout, renderTraceGraphSVG -->
+<h3 id="live-updates-and-what-is-public">Live updates and what is public</h3>
+<p>The live stream (<code>/lg/events</code>) sends the whole rows, so the two columns of an
+open peers page follow the sessions: a drop appears on the next message, at
+most five seconds later.</p>
+<p><strong>The last error is public where the looking glass is public.</strong> Anyone who can
+open <code>/lg/peer/{address}</code> reads why each session last closed. The text holds
+only names Ze knows for the NOTIFICATION code and subcode, or fixed words for
+a session Ze closed itself. It never holds bytes the peer sent: an unknown
+code is shown as <code>Unknown(N)</code>. Set <code>token</code> when the reason your sessions close
+is not for everyone to read.</p>
+<!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom, connectionsDroppedFrom, peerStreamBody -->
+<!-- source: internal/component/lg/view.go -- peerRow, connectionsDropped, peersColumns -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, stateChangedString -->
 <p>The prefix field of the search, the graph and the API's <code>prefix</code> parameter
 read the value the same way:</p>
 <table>
@@ -301,14 +632,26 @@ router prints a path:</p>
 <td><code>path ^65001,65002</code></td>
 </tr>
 <tr>
-<td><code>65001$</code>, <code>(65001|65002)</code>, or any other pattern character</td>
-<td>Nothing: the page names the value and says the field takes AS numbers separated by spaces, with an optional leading <code>^</code></td>
+<td><code>65001$</code></td>
+<td>The routes whose path ends with 65001: the routes AS 65001 originates. A path that crosses 65001 and ends at another AS is not listed. A path ending <code>65001 65001 65001</code> is listed, because prepending does not change the origin</td>
+<td><code>path 65001$</code></td>
+</tr>
+<tr>
+<td><code>^65010 65001$</code></td>
+<td>The routes whose path is exactly 65010 then 65001. A longer path that holds the pair is not listed, and neither is <code>65010 65001 65001</code></td>
+<td><code>path ^65010,65001$</code></td>
+</tr>
+<tr>
+<td><code>65001$$</code>, <code>$65001</code>, <code>65001 $</code>, <code>(65001|65002)</code>, or any other pattern character</td>
+<td>Nothing: the page names the value and says the field takes AS numbers separated by spaces, with an optional leading <code>^</code> and an optional <code>$</code> directly after the last AS number</td>
 <td>Nothing</td>
 </tr>
 </tbody>
 </table>
-<p>Commas work as separators too. An AS number may be written as <code>65546</code> or as
-<code>1.10</code>, and is sent as <code>65546</code>.</p>
+<p>The form of the field is <code>[^] &lt;asn&gt; [&lt;asn&gt; ...] [$]</code>. The <code>$</code> is read in one
+place only, directly after the last AS number, with no space before it.
+Commas work as separators too. An AS number may be written as <code>65546</code> or as
+<code>1.10</code>, and is sent as <code>65546</code>. Hover the field to read the form.</p>
 <!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <p>When the engine cannot answer, a page says so. The peers and search pages show
@@ -382,6 +725,18 @@ client that must tell "no routes" from "unknown" reads
 <code>routes_counts_available</code>, never a count of <code>0</code> on its own. The normative
 statement is <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md" target="_blank" rel="noopener">Birdwatcher compatibility</a>,
 Section 7.2.</p>
+<p>Every route carries <code>age</code>, the whole seconds since the route last changed, and
+<code>age_available</code>. A route Ze holds a change time for answers its age and
+<code>age_available: true</code>: the routes a peer sent, on <code>routes/protocol/{name}</code>,
+<code>routes/peer/{peer}</code>, <code>routes/prefix</code> and <code>routes/search</code>. A route with no
+reading answers <code>age: 0</code> and <code>age_available: false</code>: every route of
+<code>routes/export/{name}</code> (routes Ze sent) and of <code>routes/table/{family}</code> (best
+paths). A client that shows an age reads <code>age_available</code> first, and never
+takes an <code>age</code> of <code>0</code> on its own for a route learned this second. Ages start
+again from zero when the daemon restarts. The normative statement is Section
+6.2 of the same page.</p>
+<!-- source: internal/component/lg/handler_api.go -- transformRoutes -->
+<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
@@ -459,7 +814,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

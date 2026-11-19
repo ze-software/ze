@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 260, Tests awaiting verification 64, OS testing gap 94, Not built 41
-- **Overview bar**: Ze MUST verified 260, SHOULD verified 9, Tests awaiting verification 65, OS testing gap 94, Not assessed 151, Not built 41
+- **MUST bar**: Ze verified 259, Tests awaiting verification 65, OS testing gap 94, Not built 41
+- **Overview bar**: Ze MUST verified 259, SHOULD verified 9, Tests awaiting verification 66, OS testing gap 94, Not assessed 151, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 459 |
 | MUST rows kept (the MUST bar) | 459 |
-| Ze verified | 260 |
+| Ze verified | 259 |
 | OS verified | 0 |
-| Tests awaiting verification | 64 |
+| Tests awaiting verification | 65 |
 | OS testing gap | 94 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -81,7 +81,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 | lns: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 9, Tests awaiting verification 3, Not built 4 | Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4 | lns: required by rfc/short/rfc5072.md |
 
 ### Level 5
 

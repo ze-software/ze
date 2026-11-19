@@ -530,15 +530,19 @@ bound endpoint, including closing reactors whose cleanup is still pending.
 <code>show l2tp listeners</code> includes <code>name</code> when the original has a configured key.
 Unknown and ambiguous names are refused. Tab completes actual names only after
 the <code>listener</code> keyword. Omitting <code>expected-id</code> remains valid at an interactive
-prompt; a bare SID matching several originals is refused. Quote a reason that
-contains another keyword. Missing values, duplicate keywords and invalid
-disconnect causes are refused before any audit or teardown.</p>
+prompt. A bare SID matching several originals is refused as ambiguous. The
+refusal lists the qualified clear commands for the current matches. If no
+original matches the full selector, the command reports that no L2TP session
+matches. Check the intended original with <code>show l2tp sessions</code> before retrying.
+Quote a reason that contains another keyword. Missing values, duplicate
+keywords and invalid disconnect causes are refused before any audit or teardown.</p>
 <p>A clear waits for the captured original's PPP cleanup when that worker is
 already closing its resources. Success requires confirmed physical release
 without a cleanup error. Cancellation ends that wait; an unfinished native
 operation or a failed Close remains a refusal, and a retry uses the retained
 original rather than a replacement with the same SID.</p>
 <!-- source: internal/component/l2tp/listener_inventory.go -- listenerSnapshotsLocked -->
+<!-- source: internal/component/l2tp/cmd/session_teardown.go -- sessionTeardownAmbiguity, sessionTeardownNotFound -->
 <!-- source: internal/component/l2tp/cmd/session_teardown_completion.go -- completeSessionTeardown -->
 <p>RFC 2661 S4.4.2 / S5.4.2 define the Result Codes and teardown
 semantics. Teardown of unknown IDs returns an error naming the ID.</p>
@@ -2295,7 +2299,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

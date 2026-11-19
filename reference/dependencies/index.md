@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
+Ze uses 66 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
 
 ## Terminal, Web & SSH Interfaces (11)
 
@@ -8,15 +8,15 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 | --- | --- | --- |
 | `charm.land/bubbletea/v2` | `v2.1.1` | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
 | `charm.land/bubbles/v2` | `v2.2.1` | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
-| `charm.land/lipgloss/v2` | `v2.0.6` | Styling and layout for the CLI's colors, borders, and widths. |
+| `charm.land/lipgloss/v2` | `v2.1.1` | Styling and layout for the CLI's colors, borders, and widths. |
 | `charm.land/wish/v2` | `v2.0.5` | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
 | `charm.land/ssh` | `v0.4.3` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
-| `github.com/a-h/templ` | `v0.3.1100` | Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go. |
+| `github.com/a-h/templ` | `v0.3.1118` | Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go. |
 | `github.com/charmbracelet/colorprofile` | `v0.4.3` | Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. |
 | `github.com/charmbracelet/x/ansi` | `v0.11.9` | Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
-| `github.com/chromedp/chromedp` | `v0.23.0` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
+| `github.com/chromedp/chromedp` | `v0.23.1` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
 
 ## Networking & Protocols (7)
 
@@ -30,7 +30,7 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/packetcap/go-pcap` | `v0.0.0-20260731105150-c86974bbfbcd` | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
 | `github.com/cloudflare/circl` | `v1.6.5` | Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420). |
 
-## Linux Kernel Interfaces (10)
+## Linux Kernel Interfaces (12)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -44,6 +44,8 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/opencontainers/runc` | `v1.5.3` | Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence. |
 | `github.com/opencontainers/cgroups` | `v0.1.0` | Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup. |
 | `github.com/opencontainers/runtime-spec` | `v1.3.0` | Provides OCI seccomp action definitions used by the container plugin's system-call filter tests. |
+| `github.com/cyphar/filepath-securejoin` | `v0.7.0` | Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux. |
+| `github.com/klauspost/compress` | `v1.20.4` | Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window. |
 
 ## Routing & Dataplane (2)
 
@@ -68,7 +70,7 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 | --- | --- | --- |
 | `github.com/prometheus/client_golang` | `v1.25.0` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
 | `github.com/prometheus/client_model` | `v0.6.3` | The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through. |
-| `github.com/prometheus/common` | `v0.73.1` | Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel. |
+| `github.com/prometheus/common` | `v0.74.0` | Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel. |
 | `github.com/prometheus/procfs` | `v0.23.0` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
 | `github.com/sirupsen/logrus` | `v1.10.2` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
@@ -76,13 +78,13 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `golang.org/x/crypto` | `v0.58.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
-| `golang.org/x/mod` | `v0.42.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
+| `golang.org/x/crypto` | `v0.59.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
+| `golang.org/x/mod` | `v0.43.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
 | `golang.org/x/net` | `v0.62.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
 | `golang.org/x/sync` | `v0.25.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
 | `golang.org/x/sys` | `v0.50.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
-| `golang.org/x/term` | `v0.47.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
-| `golang.org/x/text` | `v0.43.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
+| `golang.org/x/term` | `v0.48.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
+| `golang.org/x/text` | `v0.44.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
 | `golang.org/x/tools` | `v0.52.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.9.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
@@ -91,7 +93,7 @@ Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/gofrs/flock` | `v0.13.2` | Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals. |
-| `github.com/moby/sys/user` | `v0.4.1` | Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines. |
+| `github.com/moby/sys/user` | `v0.5.0` | Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines. |
 | `github.com/moby/patternmatcher` | `v0.6.1` | Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds. |
 | `mvdan.cc/sh/v3` | `v3.14.1` | Parses Bash commands so the agent safety checks can inspect the commands a session is about to run. |
 | `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |

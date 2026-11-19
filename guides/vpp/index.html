@@ -278,14 +278,32 @@ from the observed native state, so a confirmed detach or driver bind is not
 repeated. These receipts belong to the running manager; they are not an on-disk
 recovery journal.</p>
 <!-- source: internal/component/vpp/dpdk.go -- bindPCIWithOps, restoreDPDKDevice, setDPDKOverride -->
+<p>Ze reads <code>driver_override_raw</code> when the kernel provides it. Only its absence
+permits the legacy getter; a legacy <code>(null)</code> is ambiguous and is refused before
+changing the NIC. Upgrade to a kernel that provides <code>driver_override_raw</code> before
+binding that NIC. Captured spaces, tabs and carriage returns are preserved;
+only the final framing newline is removed, and nonempty restoration writes
+gain no extra newline.</p>
+<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
+<p>The <code>vpp-dpdk</code> doctor check reads the same original-state prerequisite for each
+configured, present PCI device without binding it. Its diagnostic retains the
+failed native path and cause. A device already using VFIO remains borrowed and
+does not require an unused original override snapshot.</p>
+<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
+<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
 <p>An ordinary requested child kill is clean only after the original command has
 been reaped with its expected exit status. A separate cleanup failure remains
 an error even when shutdown was requested. The manager returns that cause and
 stops before starting another child if native child cleanup is unresolved;
 failed NIC restoration is also returned, with its original receipt retained.
-Physical process-exit proof and successful NIC restoration are separate facts.</p>
+Physical process-exit proof and successful NIC restoration are separate facts.
+Configuration replacement keeps that joined manager until its original cleanup
+receipt confirms restoration. A failed bind rollback also retains the same
+binder. A later configuration retry first retries that exact cleanup; it cannot
+start a fresh manager while the original native cleanup is unresolved.</p>
 <!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
 <!-- source: internal/component/vpp/cleanup_outcome.go -- expectedVPPKill, managedChildCleanup -->
+<!-- source: internal/component/vpp/startup_lifecycle.go -- Install, stop -->
 <p>The generator targets upstream VPP v26.06 grammar. In particular, it writes
 <code>buffers { default data-size 2048 ... }</code>, <code>linux-nl { nl-rx-buffer-size 67108864 }</code>,
 and <code>memory { main-heap-size ... }</code>. The
@@ -897,7 +915,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

@@ -804,12 +804,12 @@ after reconnect. Retention appends <code>on-down families &lt;afi/safi&gt; ...</
 family list comes last. Stale marking appends <code>restart-time &lt;seconds&gt;</code> and,
 for LLGR, <code>stale-level 2 family &lt;afi/safi&gt;</code>. Family purges append
 <code>family &lt;afi/safi&gt;</code>, and community operations append <code>family &lt;afi/safi&gt; community &lt;eight hex digits&gt;</code>. Release has no operation arguments.</p>
-<p>These declared arguments are the same on the CLI and RPC surfaces. The
-existing operator commands outside <code>source</code> retain their peer-selector forms.
-The captured owner and connection narrow cleanup only; they never grant
-permission to receive, select or send a route.</p>
+<p>The GR plugin sends these arguments through the internal command dispatcher.
+The operator commands outside <code>source</code> use peer selectors. The captured owner
+and connection limit which routes cleanup can affect and grant no permission
+to receive, select, or send a route.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- dispatchSource, retainPeerFamilies, wireStateCallbacks -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_lifecycle_commands.go -- sourceLifecycleArgs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- parseRIBPhysicalSource, retainPhysicalSourceCommand, markPhysicalSourceCommand, parsePhysicalSourceCommunity -->
 <p>The passive validation owners also consume original source removal.
 <code>removed</code> (<code>rpc.ReasonPeerRemoved</code>) ends the logical owner's entire retained population, whereas a
 physical DOWN still names one exact connection. RPKI checks queued validation
@@ -869,7 +869,7 @@ current lifetime and creates no record.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

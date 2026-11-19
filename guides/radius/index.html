@@ -253,6 +253,10 @@ unreachable server falls through to local rather than hanging the login.</p>
 configured servers in order until one gives a usable response.
 The request context controls hostname resolution and response waits.
 If the context ends, the client stops retries and server failover.</p>
+<p>An Accounting-Request completes only with an authenticated
+Accounting-Response (Code 5) for its pending request. A reply with another
+code is discarded even when its authenticator is valid. The original
+response wait and retry timer remain active.</p>
 <!-- source: internal/component/radius/client.go -- Client.exchange, Client.sendToServers -->
 <!-- source: internal/component/radius/client_write.go -- resolveRequestAddress -->
 <!-- source: internal/component/radius/aaa.go -- radiusBackend.Build -->
@@ -722,7 +726,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

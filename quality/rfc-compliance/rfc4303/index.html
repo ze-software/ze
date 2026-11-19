@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 23 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 23 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 23 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>31</strong><b>31 of 41 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>29</strong><b>29 of 41 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>14</strong><b>of 23 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 23 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 23 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 6 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -260,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>31</td>
+<td>33</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4303.md</code></td>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> ESP</p>
-<p><strong>Test verification:</strong> 7 of 23 MUST proven</p>
-<p><strong>Evidence:</strong> unit 7</p>
+<p><strong>Test verification:</strong> 8 of 23 MUST proven</p>
+<p><strong>Evidence:</strong> unit 8</p>
 <p><strong>Unmet:</strong> RFC4303-2.2-1, RFC4303-2.2-2, RFC4303-2.2-3, RFC4303-2.4-1, RFC4303-2.6-1, RFC4303-2.6-2, RFC4303-3.3.3-1, RFC4303-3.3.4-1, RFC4303-3.3.4-2, RFC4303-3.4.2-1, RFC4303-3.4.2-2, RFC4303-3.4.3-3, RFC4303-3.4.4.1-1, RFC4303-3.4.4.1-2, RFC4303-3.4.4.2-1</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4303:must">Ze verified 7, Tests awaiting verification 2, Not built 14</div>
+<div data-ze-rfc-bar="rfc4303:must">Ze verified 8, Tests awaiting verification 1, Not built 14</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4303:overview">Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15</div>
+<div data-ze-rfc-bar="rfc4303:overview">Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 1, Not assessed 2, Not built 15</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4303:must.kept">23</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4303:must.ze-proven">7</span></td>
+<td><span data-ze-rfc="rfc4303:must.ze-proven">8</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4303:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4303:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc4303:must.proof-pending">1</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4303:must.os-gap">0</span></td>
@@ -386,7 +386,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4303:should.total">4</span></td>
 </tr>
 <tr><td>SHOULD verified</td>
-<td><span data-ze-rfc="rfc4303:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc4303:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc4303:should.os-verified">0</span></td>
@@ -407,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4303:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4303:should.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc4303:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
 <td><span data-ze-rfc="rfc4303:should.exclusion-unchecked">0</span></td>
@@ -593,14 +593,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L333" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects a 64-packet anti-replay window on the inbound state of each IKE child SA (ReplayWin=64; the outbound state, which receives nothing, carries none) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go installChildDataplane, internal/component/ike/dataplane/xfrm_linux.go xfrmStateFromParams)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.3-2">RFC4303-3.4.3-2</code></td><td colspan="3"><span class="rfc-subject">This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L365" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowCarriesIntegrity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused</code></a></span></div>
 </div></td>
@@ -682,9 +682,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L337" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on the inbound SA, the receiver&#39;s side; the outbound SA carries none (internal/component/ike/engine/child.go, installChildSA)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.3.4-3">RFC4303-3.3.4-3</code></td><td colspan="3"><span class="rfc-subject">In tunnel mode, ESP is applied to an IP packet, which may be a fragment of an IP datagram. (§3.3.4)</span></td></tr>
 <tr><td></td>
@@ -822,7 +822,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a></h3>
 <p>The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row&#39;s negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber moved. Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row&#39;s negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -852,7 +852,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a></h3>
 <p>The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestInitiatorRefusesPeerSPIZero and TestInitiatorUsesPeerSPI changed only the initiatorFirstChildSA call (peer config argument dropped); the zero SPI is still refused with no SA installed and the peer&#39;s SPI is still the outbound SPI. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 4303 S2.1 &#34;The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero: it now asserts no first Child SA, an IKE_AUTH response with no SA payload and a NO_PROPOSAL_CHOSEN refusal, and no longer the IKE SA state, which RFC 7296 S2.21.2 governs and this row does not. The SPI is still isolated (same re-encrypted request as TestResponderUsesPeerSPI, which pins outbound 0x0a0b0c0d), and removing both refusals (selectAuthChildSA, createFirstChildSA) builds a Child SA on SPI 0 and reddens it. Every other producer unchanged and proven both ways: own SPI TestGenerateESPSPISkipsTheReservedZero (three zero draws, spi != 0 mutant recorded); peer SPI initiator SAr2, rekey request and rekey response refuse 0 with no Child SA and no ESP state and install exactly 0x0a0b0c0d; OSPF TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295 (mutant recorded). Caveats, not gaps: TestGenerateESPSPI cannot fail on its own, and TestIPsecSPIBoundary&#39;s 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/ike/engine/child_test.go::TestGenerateESPSPI, internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2 moved. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestInitiatorRefusesPeerSPIZero and TestInitiatorUsesPeerSPI changed only the initiatorFirstChildSA call (peer config argument dropped); the zero SPI is still refused with no SA installed and the peer&#39;s SPI is still the outbound SPI. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 4303 S2.1 &#34;The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero: it now asserts no first Child SA, an IKE_AUTH response with no SA payload and a NO_PROPOSAL_CHOSEN refusal, and no longer the IKE SA state, which RFC 7296 S2.21.2 governs and this row does not. The SPI is still isolated (same re-encrypted request as TestResponderUsesPeerSPI, which pins outbound 0x0a0b0c0d), and removing both refusals (selectAuthChildSA, createFirstChildSA) builds a Child SA on SPI 0 and reddens it. Every other producer unchanged and proven both ways: own SPI TestGenerateESPSPISkipsTheReservedZero (three zero draws, spi != 0 mutant recorded); peer SPI initiator SAr2, rekey request and rekey response refuse 0 with no Child SA and no ESP state and install exactly 0x0a0b0c0d; OSPF TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295 (mutant recorded). Caveats, not gaps: TestGenerateESPSPI cannot fail on its own, and TestIPsecSPIBoundary&#39;s 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -955,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24" title="internal/component/ike/engine/rfc4303_inbound_key_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress</code></a></td>
@@ -965,12 +965,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPMapsByConfiguredDestination</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPSAKeyedOnConfiguredDestination</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1038,7 +1038,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC4303-3.3.4-2, so there is no linked test.</p>
 <h3><a href="#rfc4303-3.4.3-1"><code>RFC4303-3.4.3-1</code></a></h3>
 <p>A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault moved. Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1046,14 +1046,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L333" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a></h3>
 <p>This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin &gt; 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity moved. Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin &gt; 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1064,14 +1064,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L365" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowCarriesIntegrity</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1094,7 +1094,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC4303-3.4.4.1-1, so there is no linked test.</p>
 <h3><a href="#rfc4303-3.4.4.1-2"><code>RFC4303-3.4.4.1-2</code></a></h3>
 <p>If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Rejudged the current builders against RFC 4303 Section 3.4.4.1 step 3: If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. xfrmStateFromParams now projects the explicit state scope through xfrmStateScopeFromParams, but its mode, selector, replay, transform, encapsulation and PMTU/DSCP projection still requests no padding inspection. vppBackend.InstallSA builds the SAD message and vppSAFlags declares direction, tunnel, replay and UDP flags, without a padding-inspection option. Neither boundary decrypts ESP. There is still no lower-layer observation proving padding inspection on the installed state, so the explicit gap and unimplemented verdict remain; no conformance claim is upgraded.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/ike/dataplane/vpp.go::vppSAFlags, internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams moved. Rejudged the current builders against RFC 4303 Section 3.4.4.1 step 3: If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. xfrmStateFromParams now projects the explicit state scope through xfrmStateScopeFromParams, but its mode, selector, replay, transform, encapsulation and PMTU/DSCP projection still requests no padding inspection. vppBackend.InstallSA builds the SAD message and vppSAFlags declares direction, tunnel, replay and UDP flags, without a padding-inspection option. Neither boundary decrypts ESP. There is still no lower-layer observation proving padding inspection on the installed state, so the explicit gap and unimplemented verdict remain; no conformance claim is upgraded.</p>
 <p>No test carries RFC4303-3.4.4.1-2, so there is no linked test.</p>
 <h3><a href="#rfc4303-3.4.4.2-1"><code>RFC4303-3.4.4.2-1</code></a></h3>
 <p>Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2)</p>
@@ -1122,15 +1122,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4303-3.4.3-4"><code>RFC4303-3.4.3-4</code></a></h3>
 <p>a window size of 64 is preferred and SHOULD be employed as the default (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault moved. Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L337" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1722,7 +1722,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

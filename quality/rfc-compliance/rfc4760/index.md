@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 17 | 17 of 33 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 19 | 19 of 33 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Multiprotocol Extensions for BGP-4: six MUST-level
 
 **Area:** Multiprotocol BGP
 
-**Test verification:** 5 of 6 MUST proven
+**Test verification:** 6 of 6 MUST proven
 
-**Evidence:** unit 5
+**Evidence:** unit 6
 
 **Unmet:** -
 
@@ -112,19 +112,19 @@ Included in automatic checks: Multiprotocol Extensions for BGP-4: six MUST-level
 
 ## Figures
 
-- **MUST bar**: Ze verified 5, Tests awaiting verification 1
-- **Overview bar**: Ze MUST verified 5, SHOULD verified 1, Tests awaiting verification 1, Not assessed 10
+- **MUST bar**: Ze verified 6
+- **Overview bar**: Ze MUST verified 6, SHOULD verified 1, Not assessed 10
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 5 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -189,8 +189,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L12) | unit/verify | not verified |
-| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | mutant, verified |
+| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | mutant, verified |
 
 ### [`RFC4760-3-2`](#rfc4760-3-2)
 

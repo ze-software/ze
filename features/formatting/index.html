@@ -347,7 +347,7 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 declares, and every column it does not name after those, alphabetically. A
 command that declares nothing renders every column alphabetically, as before.</p>
 <p><code>show bgp</code> declares the order an operator reads a peer in:</p>
-<pre><code>address  name  description  remote-as  peer-type
+<pre><code>address  name  description  group  remote-as  peer-type
 state  uptime  state-changed  last-error
 routes-received  routes-accepted  routes-sent
 updates-received  updates-sent  keepalives-received  keepalives-sent
@@ -533,7 +533,9 @@ into command arguments before the command runs, rather than filtering
 output afterward. <code>show bgp rib | peer 10.0.0.1 | count</code> counts only that peer's
 routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
-already produced. A command filter stops it being produced.</p>
+already produced. A command filter stops it being produced. The <code>path</code>
+pattern, with its <code>^</code> and <code>$</code> anchors, is described in the
+<a href="../../guides/cli/#route-commands">CLI guide</a>.</p>
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
@@ -574,7 +576,7 @@ already produced. A command filter stops it being produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

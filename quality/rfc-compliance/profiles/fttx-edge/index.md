@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 380, Tests awaiting verification 70, OS testing gap 120, Not assessed 2, Not built 188
-- **Overview bar**: Ze MUST verified 380, SHOULD verified 12, Tests awaiting verification 71, OS testing gap 120, Not assessed 338, Not built 189
+- **MUST bar**: Ze verified 378, Tests awaiting verification 72, OS testing gap 120, Not assessed 2, Not built 188
+- **Overview bar**: Ze MUST verified 378, SHOULD verified 12, Tests awaiting verification 73, OS testing gap 120, Not assessed 338, Not built 189
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 760 |
 | MUST rows kept (the MUST bar) | 760 |
-| Ze verified | 380 |
+| Ze verified | 378 |
 | OS verified | 0 |
-| Tests awaiting verification | 70 |
+| Tests awaiting verification | 72 |
 | OS testing gap | 120 |
 | Exclusion unchecked | 0 |
 | Not assessed | 2 |
@@ -59,7 +59,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze verified 11, Tests awaiting verification 3, Not built 2 | Ze MUST verified 11, SHOULD verified 2, Tests awaiting verification 3, Not assessed 9, Not built 2 | fttx-edge: required by rfc/short/rfc1994.md |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze verified 25, Tests awaiting verification 7, OS testing gap 1, Not built 4 | Ze MUST verified 25, Tests awaiting verification 7, OS testing gap 1, Not assessed 3, Not built 4 | fttx-edge: required by rfc/short/rfc2516.md |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze verified 24, Tests awaiting verification 8, OS testing gap 1, Not built 4 | Ze MUST verified 24, Tests awaiting verification 8, OS testing gap 1, Not assessed 3, Not built 4 | fttx-edge: required by rfc/short/rfc2516.md |
 | [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Not built 13 | SHOULD verified 2, Not assessed 14, Not built 13 | fttx-edge: required by rfc/short/rfc4787.md |
 
 ### Level 2
@@ -86,7 +86,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 | fttx-edge: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 9, Tests awaiting verification 3, Not built 4 | Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4 | fttx-edge: required by rfc/short/rfc5072.md |
 | [RFC 9915](../../rfc9915/) | Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Ze verified 85, OS testing gap 3, Not built 38 | Ze MUST verified 85, OS testing gap 3, Not built 38 | fttx-edge: required by rfc/short/rfc9915.md |
 
 ### Level 5
@@ -106,8 +106,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze verified 9, Tests awaiting verification 10, Not assessed 59, Not built 114
-- **Overview bar**: Ze MUST verified 9, SHOULD verified 2, Tests awaiting verification 10, Not assessed 123, Not built 114
+- **MUST bar**: Ze verified 7, Tests awaiting verification 12, Not assessed 59, Not built 114
+- **Overview bar**: Ze MUST verified 7, SHOULD verified 2, Tests awaiting verification 12, Not assessed 123, Not built 114
 
 | Figure | Rows |
 |---|---|
@@ -116,9 +116,9 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | Mandatory requirements complete | not complete |
 | MUST rows | 192 |
 | MUST rows kept (the MUST bar) | 192 |
-| Ze verified | 9 |
+| Ze verified | 7 |
 | OS verified | 0 |
-| Tests awaiting verification | 10 |
+| Tests awaiting verification | 12 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 59 |
@@ -149,4 +149,4 @@ The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and S
 | [RFC 8106](../../rfc8106/) | IPv6 Router Advertisement Options for DNS Configuration | Ze verified 5, Not built 6 | Ze MUST verified 5, SHOULD verified 2, Not assessed 11, Not built 6 | fttx-edge: optional in rfc/short/rfc8106.md |
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows | fttx-edge: optional in rfc/short/rfc4033.md |
 | [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Not assessed 59 | Not assessed 59 | fttx-edge: optional in rfc/short/rfc4034.md |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 94 | Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94 | fttx-edge: optional in rfc/short/rfc4035.md |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 2, Tests awaiting verification 12, Not built 94 | Ze MUST verified 2, Tests awaiting verification 12, Not assessed 50, Not built 94 | fttx-edge: optional in rfc/short/rfc4035.md |

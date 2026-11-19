@@ -96,6 +96,43 @@
                         </div>
                     </div>
                 </div>
+                <div class="lg-replay" data-lg-replay-commit="bad92271a413bfe6f660b89d8b4737464c14439f">
+    <h2 id="lg-replay-title">The looking glass, replayed</h2>
+    <p>
+        Below is the looking glass itself, not a picture of it: its own pages,
+        stylesheet and scripts, answering from the answers a real ze gave while
+        it served the simulated network. Click a peer, a route or a graph
+        button, or play the tour. Only the recorded questions have an answer,
+        so a search for anything else shows a notice that names the request.
+    </p>
+    <div class="lg-replay__player" data-lg-replay data-lg-replay-frame="replay/frame.html">
+        <p class="lg-replay__fallback">
+            The replay runs in your browser and needs JavaScript.
+            <a href="replay/transcript.txt">Read the transcript of the tour</a>.
+        </p>
+    </div>
+    <h3>The tour</h3>
+    <ol class="lg-replay__tour">
+        <li data-lg-replay-step="0"><span data-lg-replay-caption>The peers page: every simulated router and external neighbor, each holding a real BGP session to ze, with its uptime, its last state change and how often the session dropped.</span> <code>GET /lg/peers</code></li>
+        <li data-lg-replay-step="1"><span data-lg-replay-caption>One peer&#39;s routes: what the external neighbor 203.0.113.1 announced, and how long ago each route last changed.</span> <code>GET /lg/peer/203.0.113.1 (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="2"><span data-lg-replay-caption>The search page.</span> <code>GET /lg/search (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="3"><span data-lg-replay-caption>Search by prefix: every speaker that announced 198.18.0.0/24, with each route&#39;s next hop, AS path and age.</span> <code>POST /lg/search prefix=198.18.0.0/24 (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="4"><span data-lg-replay-caption>The AS path graph of 198.18.0.0/24: the ASes its routes cross.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=aspath (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="5"><span data-lg-replay-caption>The next-hop graph of 198.18.0.0/24: which router hands the traffic to which. Routers of the AS show by address, the neighbors outside by AS number only.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=nexthop (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="6"><span data-lg-replay-caption>The trace of 198.18.0.0/24: each router&#39;s BGP next hop followed router to router to the exit, then the AS it is handed to and the AS path to the origin. From 198.51.100.1 it crosses three routers of the AS.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=trace (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="7"><span data-lg-replay-caption>The trace as text, the form a test reads.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=trace&amp;format=text</code></li>
+        <li data-lg-replay-step="8"><span data-lg-replay-caption>The AS path graph as text.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=aspath&amp;format=text</code></li>
+        <li data-lg-replay-step="9"><span data-lg-replay-caption>The next-hop graph as text.</span> <code>GET /lg/graph?prefix=198.18.0.0/24&amp;mode=nexthop&amp;format=text</code></li>
+        <li data-lg-replay-step="10"><span data-lg-replay-caption>Route detail: the route 203.0.113.1 sent for 198.18.0.0/24, with every attribute and its age.</span> <code>GET /lg/route/detail?prefix=198.18.0.0/24&amp;peer=203.0.113.1 (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="11"><span data-lg-replay-caption>Search by address: the routes that cover 198.18.0.1.</span> <code>POST /lg/search prefix=198.18.0.1 (asked by the page, answered with a fragment)</code></li>
+        <li data-lg-replay-step="12"><span data-lg-replay-caption>Search by AS path with the end anchor: 64499$ lists the routes AS 64499 originates.</span> <code>POST /lg/search aspath=64499$ (asked by the page, answered with a fragment)</code></li>
+    </ol>
+    <p class="lg-replay__provenance">
+        Recorded by ./le site lg-replay record from commit bad92271a4 (2026-11-19): a real ze, 11 simulated BGP speakers generated from seed 7, 84 recorded answers. 234 values that change from run to run (session uptimes, state-change times, the listener address) are fixed values the recording declares. None of the networks shown is a real one: the prefixes come from 198.18.0.0/15, the range RFC 2544 reserves for benchmarking, the speakers use documentation addresses (RFC 5737), and the AS numbers are private or documentation numbers (RFC 6996, RFC 5398).
+        <a href="replay/transcript.txt">Transcript of the tour</a>.
+    </p>
+    <script src="../../assets/lg-replay.js" defer></script>
+</div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Run commands">
                         <div class="terminal-dots">
@@ -154,7 +191,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:02 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

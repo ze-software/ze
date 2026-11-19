@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 53 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 94 | 94 of 232 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 96 | 96 of 232 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -81,7 +81,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 234 |
 | Tests linked to requirements | 232 |
 | Recorded audit verdicts | 53 |
-| Fault test records | 102 |
+| Fault test records | 104 |
 | Summary | `rfc/short/rfc7606.md` |
 | Requirement table | `rfc/requirements/rfc7606.md` |
 | RFC text | `rfc/full/rfc7606.txt` |
@@ -94,9 +94,9 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 **Area:** Revised UPDATE error handling
 
-**Test verification:** 32 of 53 MUST proven
+**Test verification:** 33 of 53 MUST proven
 
-**Evidence:** interop 2, functional 5, unit 25
+**Evidence:** interop 2, functional 5, unit 26
 
 **Unmet:** RFC7606-8-1
 
@@ -120,8 +120,8 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 ## Figures
 
-- **MUST bar**: Ze verified 32, Tests awaiting verification 20, Not built 1
-- **Overview bar**: Ze MUST verified 32, Tests awaiting verification 20, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 33, Tests awaiting verification 19, Not built 1
+- **Overview bar**: Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 | Mandatory requirements complete | not complete |
 | MUST rows | 53 |
 | MUST rows kept (the MUST bar) | 53 |
-| Ze verified | 32 |
+| Ze verified | 33 |
 | OS verified | 0 |
-| Tests awaiting verification | 20 |
+| Tests awaiting verification | 19 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -851,8 +851,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262) | unit/verify | not verified |
-| positive | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261) | unit/verify | not verified |
+| negative | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262) | unit/verify | mutant, verified |
+| positive | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261) | unit/verify | mutant, verified |
 
 ### [`RFC7606-5.3-1`](#rfc7606-5.3-1)
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 26 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 26 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 26 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 25 | 25 of 76 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 31 | 31 of 76 tests linked to requirements, 0 without a fault test and 11 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 
 
 **Area:** Graceful Restart
 
-**Test verification:** 9 of 26 MUST proven
+**Test verification:** 12 of 26 MUST proven
 
-**Evidence:** interop 1, unit 8
+**Evidence:** interop 1, unit 11
 
 **Unmet:** RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2
 
@@ -119,8 +119,8 @@ Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 
 
 ## Figures
 
-- **MUST bar**: Ze verified 9, Tests awaiting verification 8, Not built 9
-- **Overview bar**: Ze MUST verified 9, SHOULD verified 1, Tests awaiting verification 8, Not assessed 4, Not built 9
+- **MUST bar**: Ze verified 12, Tests awaiting verification 5, Not built 9
+- **Overview bar**: Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 5, Not assessed 4, Not built 9
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 
 | Mandatory requirements complete | not complete |
 | MUST rows | 26 |
 | MUST rows kept (the MUST bar) | 26 |
-| Ze verified | 9 |
+| Ze verified | 12 |
 | OS verified | 0 |
-| Tests awaiting verification | 8 |
+| Tests awaiting verification | 5 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -452,9 +452,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestGRStateManagerReconnectWithFBit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L105) | unit/verify | not verified |
 | negative | [`TestGRStateManagerRestartExpiryAfterReconnect`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L428) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestGRStateManagerRestartExpiryRejectsOldCycle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L379) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L158) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L158) | unit/verify | mutant, verified |
 | positive | [`TestGRStateManagerTimerExpiry`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L67) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L139) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L139) | unit/verify | mutant, verified |
 | positive | [`TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L115) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC4724-4.2-8`](#rfc4724-4.2-8)
@@ -466,10 +466,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestGRStateManagerReconnectWithFBit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L102) | unit/verify | not verified |
-| negative | [`TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L233) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L233) | unit/verify | mutant, verified |
 | positive | [`TestGRStateManagerReconnectFBitZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L143) | unit/verify | not verified |
 | positive | [`TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go#L32) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L186) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L186) | unit/verify | mutant, verified |
 
 ### [`RFC4724-4.2-9`](#rfc4724-4.2-9)
 
@@ -504,9 +504,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestGRStateManagerEORForNonGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L314) | unit/verify | not verified |
-| negative | [`TestRFC4724EndOfRIBLeavesOtherFamiliesStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L112) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC4724EndOfRIBLeavesOtherFamiliesStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L112) | unit/verify | mutant, verified |
 | positive | [`TestGRStateManagerEORPurge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L185) | unit/verify | not verified |
-| positive | [`TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L90) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L90) | unit/verify | mutant, verified |
 
 ### [`RFC4724-4-4`](#rfc4724-4-4)
 

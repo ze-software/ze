@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 223, Tests awaiting verification 49, Not built 36
-- **Overview bar**: Ze MUST verified 223, SHOULD verified 5, Tests awaiting verification 50, Not assessed 87, Not built 36
+- **MUST bar**: Ze verified 225, Tests awaiting verification 47, Not built 36
+- **Overview bar**: Ze MUST verified 225, SHOULD verified 4, Tests awaiting verification 49, Not assessed 87, Not built 36
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze verified | 223 |
+| Ze verified | 225 |
 | OS verified | 0 |
-| Tests awaiting verification | 49 |
+| Tests awaiting verification | 47 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -32,14 +32,14 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 93 |
-| SHOULD verified | 5 |
+| SHOULD verified | 4 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 2 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 87 |
 | SHOULD not built | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 3, Tests awaiting verification 25, Not assessed 30, Not built 13 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 2, Tests awaiting verification 26, Not assessed 30, Not built 13 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -70,7 +70,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 5, Tests awaiting verification 1 | Ze MUST verified 5, SHOULD verified 1, Tests awaiting verification 1, Not assessed 10 | looking-glass: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 6 | Ze MUST verified 6, SHOULD verified 1, Not assessed 10 | looking-glass: required by rfc/short/rfc4760.md |
 
 ### Level 6
 
@@ -86,7 +86,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 | looking-glass: required by rfc/short/rfc6286.md |
 | [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze verified 3, Tests awaiting verification 2 | Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4 | looking-glass: required by rfc/short/rfc6811.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 32, Tests awaiting verification 20, Not built 1 | Ze MUST verified 32, Tests awaiting verification 20, Not assessed 4, Not built 1 | looking-glass: required by rfc/short/rfc7606.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 | looking-glass: required by rfc/short/rfc7606.md |
 
 ### Level 8
 

@@ -121,6 +121,11 @@ Admin and subscriber RADIUS use the same IPv4 UDP client.
 configured servers in order until one gives a usable response.
 The request context controls hostname resolution and response waits.
 If the context ends, the client stops retries and server failover.
+
+An Accounting-Request completes only with an authenticated
+Accounting-Response (Code 5) for its pending request. A reply with another
+code is discarded even when its authenticator is valid. The original
+response wait and retry timer remain active.
 <!-- source: internal/component/radius/client.go -- Client.exchange, Client.sendToServers -->
 <!-- source: internal/component/radius/client_write.go -- resolveRequestAddress -->
 <!-- source: internal/component/radius/aaa.go -- radiusBackend.Build -->

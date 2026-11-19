@@ -1547,7 +1547,7 @@ of three per connection attempt, so two peers can never oscillate between them.<
 </tr>
 <tr>
 <td>Replay protection</td>
-<td>Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default</td>
+<td>Anti-replay window on the inbound SA, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default; the outbound SA carries none</td>
 </tr>
 <tr>
 <td>Lifetime</td>
@@ -3328,8 +3328,11 @@ cannot read them back sets <code>options-known: false</code> and the three keys 
 <p>An SA row's <code>direction</code> is <code>in</code> or <code>out</code> only when the kernel recorded one for the state
 (its <code>XFRMA_SA_DIR</code> attribute), and <code>unknown</code> otherwise. A known direction nulls the
 options that side cannot carry: an <code>in</code> row shows <code>df-bit</code> and <code>dscp-map</code> as null, an <code>out</code>
-row shows <code>icmp-error-check</code> as null. Ze installs its states without a direction, so its own
-rows read <code>unknown</code> and show all three options as the kernel holds them.</p>
+row shows <code>icmp-error-check</code> as null. Ze installs each IKE Child SA state with its direction,
+so those rows read <code>in</code> or <code>out</code>. The OSPFv3 multicast states serve both directions and read
+<code>unknown</code>, as does a state another program installed without a direction, and every state on a
+kernel older than 6.10; such a row shows all three options as the kernel holds them. The
+replay window shows on the <code>in</code> row only: the outbound state carries none.</p>
 <p>Each policy row carries <code>icmp-error-return</code> (<code>true</code> or <code>false</code>): whether the kernel may send
 an outbound ICMP error that no SA and no entry carries through the SA this entry resolves to,
 the RFC 4301 Section 6.2 mapping. On Linux it is the policy's <code>XFRM_POLICY_ICMP</code> flag, which Ze
@@ -3714,7 +3717,7 @@ request reached (RFC 7296 Section 2.11; tracked by
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

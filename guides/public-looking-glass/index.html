@@ -146,7 +146,20 @@ sudo systemctl reload ze.service
 <pre><code class="language-text">http://198.51.100.10:8443/lg/peers
 http://198.51.100.10:8443/lg/search
 http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&amp;mode=aspath
+http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&amp;mode=nexthop
+http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&amp;mode=trace
 </code></pre>
+<p>The three graph modes are the three buttons above a search result. <code>aspath</code>
+draws the AS paths, <code>nexthop</code> the routers and their egress, and <code>trace</code>
+traces the prefix from each router of the AS, through the routers its BGP
+next hops name, to the exit and then along the AS path. The trace
+needs every router of the network to hold a session to Ze from the address it
+writes as next hop, and it does not show the IGP's hops between two BGP next
+hops: <a href="../looking-glass/#tracing-a-prefix-through-the-network">Tracing a prefix through the network</a>.</p>
+<p>Both <code>nexthop</code> and <code>trace</code> draw a router of your AS by its address and a
+neighbour outside it by its AS number only, so an external peer never shows
+as an address:
+<a href="../looking-glass/#inside-by-address-outside-by-as-number">Inside by address, outside by AS number</a>.</p>
 <p>For a local test on the box:</p>
 <pre><code class="language-bash">curl -fsS http://127.0.0.1:8443/api/looking-glass/status
 curl -fsS http://127.0.0.1:8443/api/looking-glass/protocols/bgp
@@ -163,8 +176,11 @@ prefix field the same way.</p>
 <p>The search page's AS path field takes AS numbers separated by spaces, as a
 router prints them. <code>65001 65002</code> lists the routes whose path holds 65001
 directly followed by 65002, anywhere in the path. <code>^65001</code> lists the routes
-whose path starts with 65001. The page refuses any other pattern character,
-such as <code>$</code> or <code>|</code>, and says which form the field takes.</p>
+whose path starts with 65001. <code>65001$</code> lists the routes whose path ends with
+65001, the routes that AS originates, and <code>^65010 65001$</code> the routes whose
+path is exactly those two AS numbers. The <code>$</code> goes directly after the last AS
+number. The page refuses any other pattern character, such as <code>|</code>, and says
+which form the field takes.</p>
 <!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <h2 id="4-birdwatcher-compatible-api-paths">4. Birdwatcher-compatible API paths</h2>
 <p>The looking glass exposes birdwatcher-style read-only endpoints under <code>/api/looking-glass/</code>.</p>
@@ -344,7 +360,7 @@ journalctl -u ze.service -n 100 --no-pager
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

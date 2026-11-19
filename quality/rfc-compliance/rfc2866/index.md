@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 26 | 26 of 48 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 24 | 24 of 48 tests linked to requirements, 0 without a fault test and 6 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -256,7 +256,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-3-4`](#rfc2866-3-4)
 
@@ -312,7 +312,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestRFC2866IdentifierCounterCoversTheWholeSpace`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234) | unit/verify | revert, verified |
 | positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, verified |
 
 ### [`RFC2866-5-2`](#rfc2866-5-2)

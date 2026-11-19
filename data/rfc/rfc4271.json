@@ -20,20 +20,20 @@
   },
   "should": {
     "total": 34,
-    "proven": 3,
+    "proven": 2,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 1,
+    "proof-pending": 2,
     "exclusion-unchecked": 0,
     "not-assessed": 30,
     "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 11,
+    "functional": 12,
     "interop": 4,
-    "unit": 81
+    "unit": 80
   },
   "unmet": [
     "RFC4271-5.1.6-1",

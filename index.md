@@ -58,7 +58,7 @@ A frame from the published terminal recording. Explore the recordings in the dem
 **Planned release** Initial version
 Q4 2026
 
- [**1.84 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.23 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.92 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.32 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
@@ -216,9 +216,9 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 ### Mandatory RFC requirements proven
 
-45.5%
+45.1%
 
-2,160 of 4,752 requirements for Ze or the OS.
+2,141 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -234,7 +234,7 @@ Later RFCs can update or replace earlier requirements, so our tests must follow 
 
 ### Interoperability scenarios
 
-414
+415
 
 BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.
 
@@ -246,7 +246,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
  [Docker scenarios and peer checks →](https://ze-software.net/quality/qemu-interop-release/#docker-interop) The scenarios behind the figure
 
-### Where the 414 scenarios are defined.
+### Where the 415 scenarios are defined.
 
  [Explore the BGP lab →](https://ze-software.net/labs/bgp-interop/)
 
@@ -268,18 +268,18 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 | GTSM | 1 | TTL protection for ICMP errors related to a protected BGP session. |
 | IPsec | 85 | Tunnel negotiation, authentication and recovery scenarios. |
 | L2TP | 15 | Access tunnels, sessions and PPP cases. |
-| PPPoE | 16 | Client and access-session scenarios. |
+| PPPoE | 17 | Client and access-session scenarios. |
 | RADIUS | 12 | Operator login, authorization, subscriber accounting, CoA and disconnect cases. |
 | RSVP-TE | 10 | Transit, label and signaling scenarios. |
 | Multi-node topologies | 18 | Links, routes and service interactions between nodes. |
 | Other protocols | 1 | Scenarios whose primary protocol is outside the named rows. |
-| All scenarios | 414 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
+| All scenarios | 415 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
 
  Package behavior
 
 ### Go tests
 
-50,400+
+52,000+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -295,7 +295,7 @@ Start sessions and exchange route updates. Run editor commands, commits and relo
 
 ### Fuzz targets
 
-110+
+120
 
 Generate inputs for parsers and decoders. Probe packets and configuration text for crashes. Replay saved failures as regression cases.
 
@@ -316,7 +316,7 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**616 CLI commands** Syntax, arguments and pipe operators →
+**617 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**

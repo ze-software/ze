@@ -184,14 +184,34 @@ repeated. These receipts belong to the running manager; they are not an on-disk
 recovery journal.
 <!-- source: internal/component/vpp/dpdk.go -- bindPCIWithOps, restoreDPDKDevice, setDPDKOverride -->
 
+Ze reads `driver_override_raw` when the kernel provides it. Only its absence
+permits the legacy getter; a legacy `(null)` is ambiguous and is refused before
+changing the NIC. Upgrade to a kernel that provides `driver_override_raw` before
+binding that NIC. Captured spaces, tabs and carriage returns are preserved;
+only the final framing newline is removed, and nonempty restoration writes
+gain no extra newline.
+<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
+
+The `vpp-dpdk` doctor check reads the same original-state prerequisite for each
+configured, present PCI device without binding it. Its diagnostic retains the
+failed native path and cause. A device already using VFIO remains borrowed and
+does not require an unused original override snapshot.
+<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
+<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
+
 An ordinary requested child kill is clean only after the original command has
 been reaped with its expected exit status. A separate cleanup failure remains
 an error even when shutdown was requested. The manager returns that cause and
 stops before starting another child if native child cleanup is unresolved;
 failed NIC restoration is also returned, with its original receipt retained.
 Physical process-exit proof and successful NIC restoration are separate facts.
+Configuration replacement keeps that joined manager until its original cleanup
+receipt confirms restoration. A failed bind rollback also retains the same
+binder. A later configuration retry first retries that exact cleanup; it cannot
+start a fresh manager while the original native cleanup is unresolved.
 <!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
 <!-- source: internal/component/vpp/cleanup_outcome.go -- expectedVPPKill, managedChildCleanup -->
+<!-- source: internal/component/vpp/startup_lifecycle.go -- Install, stop -->
 
 The generator targets upstream VPP v26.06 grammar. In particular, it writes
 `buffers { default data-size 2048 ... }`, `linux-nl { nl-rx-buffer-size 67108864 }`,

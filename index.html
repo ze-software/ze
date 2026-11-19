@@ -167,11 +167,11 @@
                             <div class="hero-project-metrics" aria-label="Project size and scope">
                                 <div class="hero-metrics-grid">
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.84 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.92 million</span></strong>
                                         <span>lines of Go source code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.23 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.32 million</span></strong>
                                         <span>lines of Go test code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
@@ -443,8 +443,8 @@ Keep the logs if a check fails.</pre>
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">45.5</span><span class="index4-percent">%</span></p>
-                        <p><span data-ze-stat="rfc.proven_display">2,160</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">45.1</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,141</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">196</span></b><span>RFCs implemented</span></div>
                             <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
@@ -454,7 +454,7 @@ Keep the logs if a check fails.</pre>
                     <article class="index4-metric-panel" aria-labelledby="index4-interop-title">
                         <span class="index4-badge concept-evidence">Tests with other implementations</span>
                         <h3 id="index4-interop-title">Interoperability scenarios</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="interop.scenarios">414</span></p>
+                        <p class="index4-big-figure"><span data-ze-stat="interop.scenarios">415</span></p>
                         <p>BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="interop.suite_count">8</span></b><span>lab suites</span></div>
                             <div><b><span data-ze-stat="interop.target_display">13</span></b><span>test images listed</span></div></div>
@@ -471,7 +471,7 @@ Keep the logs if a check fails.</pre>
                     </article>
                 </div>
                 <section class="index4-scenario-panel" aria-labelledby="index4-scenario-title">
-                    <div class="index4-scenario-heading"><div><span class="index4-kicker">The scenarios behind the figure</span><h3 id="index4-scenario-title">Where the <span data-ze-stat="interop.scenarios">414</span> scenarios are defined.</h3></div>
+                    <div class="index4-scenario-heading"><div><span class="index4-kicker">The scenarios behind the figure</span><h3 id="index4-scenario-title">Where the <span data-ze-stat="interop.scenarios">415</span> scenarios are defined.</h3></div>
                         <a href="labs/bgp-interop/">Explore the BGP lab →</a></div>
                     <table class="index4-scenario-table" role="table">
                         <caption>Scenario inventory across <span data-ze-stat="interop.suite_count">8</span> lab suites. The shared suite is split by primary protocol; the two RADIUS suites are combined.</caption>
@@ -493,23 +493,23 @@ Keep the logs if a check fails.</pre>
                             <tr role="row"><th scope="row" role="rowheader">GTSM</th><td role="cell"><span data-ze-stat="interop.protocols.gtsm">1</span></td><td role="cell">TTL protection for ICMP errors related to a protected BGP session.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">IPsec</th><td role="cell"><span data-ze-stat="interop.protocols.ipsec">85</span></td><td role="cell">Tunnel negotiation, authentication and recovery scenarios.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">L2TP</th><td role="cell"><span data-ze-stat="interop.protocols.l2tp">15</span></td><td role="cell">Access tunnels, sessions and PPP cases.</td></tr>
-                            <tr role="row"><th scope="row" role="rowheader">PPPoE</th><td role="cell"><span data-ze-stat="interop.protocols.pppoe">16</span></td><td role="cell">Client and access-session scenarios.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">PPPoE</th><td role="cell"><span data-ze-stat="interop.protocols.pppoe">17</span></td><td role="cell">Client and access-session scenarios.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">RADIUS</th><td role="cell"><span data-ze-stat="interop.protocols.radius">12</span></td><td role="cell">Operator login, authorization, subscriber accounting, CoA and disconnect cases.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">RSVP-TE</th><td role="cell"><span data-ze-stat="interop.protocols.rsvpte">10</span></td><td role="cell">Transit, label and signaling scenarios.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">Multi-node topologies</th><td role="cell"><span data-ze-stat="interop.protocols.topology">18</span></td><td role="cell">Links, routes and service interactions between nodes.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">Other protocols</th><td role="cell"><span data-ze-stat="interop.protocols.other">1</span></td><td role="cell">Scenarios whose primary protocol is outside the named rows.</td></tr>
                         </tbody>
-                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">414</span></td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
+                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">415</span></td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">
-                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">50,400+</span></p>
+                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">52,000+</span></p>
                         <p>Check encoded bytes and parsed values. Verify configuration, state transitions and plugins.
                             Mutation checks with gomu examine whether tests catch code changes.</p><a href="quality/unit-fuzz-mutation/">Go tests and mutation checks →</a></article>
                     <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">3,100+</span></p>
                         <p>Start sessions and exchange route updates. Run editor commands, commits and reloads.
                             Check output, errors and saved state.</p><a href="quality/functional-ci/">Scenarios and expected results →</a></article>
-                    <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">110+</span></p>
+                    <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">120</span></p>
                         <p>Generate inputs for parsers and decoders. Probe packets and configuration text for crashes.
                             Replay saved failures as regression cases.</p><a href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">Fuzz inputs and regression cases →</a></article>
                 </div>
@@ -542,7 +542,7 @@ Keep the logs if a check fails.</pre>
                     </a>
                     <a class="card reference-card cat-operate" href="reference/cli/">
                         <span class="cat">Commands</span>
-                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">616</span> CLI commands</strong>
+                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">617</span> CLI commands</strong>
                         <span class="reference-card-description">Syntax, arguments and pipe operators →</span>
                     </a>
                     <a class="card reference-card cat-automate" href="reference/plugins/">
@@ -717,7 +717,7 @@ Keep the logs if a check fails.</pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

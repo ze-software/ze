@@ -412,13 +412,20 @@ disconnected event.</p>
 <!-- source: internal/component/vpp/startup_readiness.go -- VPPManager.notifyStartup, VPPManager.retireReadiness -->
 <p>Configuration applies use the SDK's existing transaction. The lifecycle
 cancels and joins the previous manager before starting a replacement, then
-waits for the replacement's readiness. If the candidate fails, it reinstalls
-the previous settings before answering the failed apply. If restoration also
-fails, the transaction retains the original settings for a later retry.
+waits for the replacement's readiness. If the candidate fails after confirmed
+cleanup, it reinstalls the previous settings before answering the failed apply.
+Unresolved native cleanup retains the joined original manager and its exact
+binder receipt instead. The failed apply leaves the transaction broken and
+starts neither a candidate nor restoration. Each later configuration operation
+or stop makes at most one retry against that same receipt before admitting a
+replacement. Confirmed driver restoration clears that custody; an unresolved
+child-cleanup result remains a separate barrier. If restoration also fails,
+the transaction retains the original settings for a later retry.
 Selected startup settings contain immutable requirements; registry predicates
 are used during selection and do not make equal settings compare unequal.</p>
 <!-- source: internal/component/vpp/register.go -- runVPPEngine, runConfiguredVPP -->
 <!-- source: internal/component/vpp/startup_lifecycle.go -- newVPPConfigTx, vppLifecycle.Install, vppLifecycle.replace -->
+<!-- source: internal/component/vpp/cleanup_outcome.go -- nativeCleanupReceipt.retry -->
 <p>VPP's startup.conf uses a custom format (not INI, not YAML):</p>
 <pre><code>section-name {
   key value
@@ -592,8 +599,10 @@ configured PCI addresses:</p>
 <ol>
 <li>Read the current <code>driver</code> symlink. An already-vfio device remains borrowed;
 Ze does not acquire custody of its existing attachment or override.</li>
-<li>Read <code>driver_override</code> and retain both original values in the binder's
-process-local receipt. An empty original driver is meaningful state.</li>
+<li>Read the exact original override from <code>driver_override_raw</code> when available,
+otherwise an unambiguous legacy <code>driver_override</code>, and retain both original
+values in the binder's process-local receipt. An empty original driver is
+meaningful state.</li>
 <li>Unbind the original driver when present, select <code>vfio-pci</code> in that device's
 <code>driver_override</code>, then write that exact PCI address to
 <code>/sys/bus/pci/drivers/vfio-pci/bind</code>. Verify the resulting driver.</li>
@@ -609,6 +618,21 @@ A failed later input preserves both its primary error and any failed rollback.
 No on-disk recovery journal or native hardware restoration proof is implied by
 the portable operation-table tests.</p>
 <!-- source: internal/component/vpp/dpdk.go -- DPDKBinder, bindPCIWithOps, restoreDPDKDevice -->
+<p>Only absence of <code>driver_override_raw</code> allows legacy fallback. A failed raw read
+keeps its original cause, while a legacy <code>(null)</code> is refused before device
+mutation because it does not identify the original override. The reader removes
+only one final newline; spaces, tabs and carriage returns remain policy bytes.
+Restoration writes a nonempty value without an added newline and clears an
+unset override with exactly one newline. An ambiguous legacy host needs a
+kernel that provides the raw getter before Ze can bind the NIC.</p>
+<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
+<p>The configured-device doctor check uses the binder's same read-only original
+state capture. It skips missing devices and borrowed VFIO attachments, reports
+capture failure with its original path and cause, and changes no device state.
+Portable file and operation-table controls do not establish raw-getter kernel
+support or physical NIC restoration.</p>
+<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
+<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
 <p>The earlier vendor/device-wide <code>new_id</code> path could attach an unconfigured
 matching driverless NIC: Linux v7.3 <code>do_pci_add_dynid</code> calls <code>driver_attach</code>,
 which walks every bus device and attempts matching probes. Removing that ID
@@ -1037,7 +1061,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

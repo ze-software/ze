@@ -136,12 +136,21 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 <tr>
 <td><code>operator</code></td>
 <td>allow run commands</td>
-<td>allow config workflow only</td>
+<td>allow configuration changes only</td>
 <td>operators allowed to change config through the editor</td>
 </tr>
 </tbody>
 </table>
 <p>The entries use prefix matching. <code>match "debug"</code> matches <code>debug ospf ...</code>, but not <code>show debug ...</code>.</p>
+<p>The <code>operator</code> profile allows the edit entry <code>config</code>. Every configuration
+change is authorized by a string that starts with <code>config</code> (<code>config set</code>,
+<code>config commit</code>, ...), on every surface: the SSH editor, the web editor and
+terminal, and the REST and gRPC config sessions. So that one entry allows every
+change in configuration mode, while the edit section's <code>default-action deny</code>
+still refuses <code>clear</code>, <code>request</code> and the other commands that act on the box.
+An entry that matches <code>configure</code> or <code>commit</code> covers no configuration change.
+<a href="../authorization/">Authorization</a>, "Configuration mode", lists the strings.</p>
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
 <h2 id="3-build-and-load-a-set-format-update">3. Build and load a set-format update</h2>
 <p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the stored command history.</p>
 <p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
@@ -185,9 +194,7 @@ set system authorization profile read-only edit default-action deny
 set system authorization profile operator run default-action allow
 set system authorization profile operator edit default-action deny
 set system authorization profile operator edit entry 10 action allow
-set system authorization profile operator edit entry 10 match configure
-set system authorization profile operator edit entry 20 action allow
-set system authorization profile operator edit entry 20 match commit
+set system authorization profile operator edit entry 10 match config
 EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
@@ -220,7 +227,20 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 <p>Check the daemon logs if it succeeds instead:</p>
 <pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager
 </code></pre>
-<p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so <code>ze cli -c "configure"</code> is never an authorization test. To check the edit path, run a command that writes, such as <code>set system ...</code>, or log in and try <code>configure</code> interactively.</p>
+<p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, and it is never authorized, so <code>ze cli -c "configure"</code> is never an authorization test.</p>
+<p>Test configuration mode interactively, because <code>ze cli -c</code> runs one operational command and never reaches the editor. Log in as <code>noc</code>, enter configuration mode and try a change:</p>
+<pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc
+</code></pre>
+<pre><code>configure
+set system host check-only
+</code></pre>
+<p>The <code>read-only</code> profile denies the edit section, so the change is refused and the candidate is unchanged. The refusal names the permission and how to get it:</p>
+<pre><code>command restricted by access control: config set
+ask an administrator for a profile whose edit section allows `config set`
+</code></pre>
+<p><code>show</code>, <code>edit</code>, <code>up</code> and <code>top</code> still work, so NOC can browse the configuration. Repeat the same lines as <code>operator</code>: the <code>set</code> is accepted. Then type <code>discard all</code> to drop it, or <code>commit</code> to apply it. The same profile also refuses <code>operator</code> the <code>clear interface counters all</code> command, because <code>clear</code> is in the edit section and only <code>config</code> is allowed there.</p>
+<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h3 id="how-authorization-decides">How authorization decides</h3>
 <p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed for a user the profiles do not cover:</p>
 <ul>
@@ -398,7 +418,7 @@ list, which never authenticated it.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

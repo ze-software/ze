@@ -680,12 +680,15 @@ to 195,840 bytes; a comparison shares that limit across both sources and their
 framing. Read-only accounts can use these controls when their command policy
 allows the inspection. Results and refusals appear below the form; the selected
 file and pasted text remain available for correction.</p>
-<p>Comparison reports resolved BGP settings and schema-declared ordered-list
-ordering, matching the local file comparison. Other non-BGP value changes,
-including <code>system host</code>, are not reported.</p>
+<p>Comparison reports every change in the two configurations, matching the
+local file comparison: BGP settings as resolved values, every other setting as
+written, including <code>system host</code>, and schema-declared ordered-list ordering.
+Secrets are masked.</p>
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
 <!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
 <!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs, diffListOrders -->
 <p>In <strong>Edit</strong>, open <strong>Import into candidate</strong> to select a local file or paste
 configuration. Choose <strong>Configuration root</strong> for a complete configuration or
 <strong>Selected item</strong> for a body relative to the item you are viewing. <strong>Merge</strong>
@@ -1112,7 +1115,7 @@ other changes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

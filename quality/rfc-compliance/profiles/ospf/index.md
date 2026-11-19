@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ospf.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 152, Tests awaiting verification 119, OS testing gap 7, Not built 81
-- **Overview bar**: Ze MUST verified 152, SHOULD verified 9, Not owed 1, Tests awaiting verification 120, OS testing gap 7, Not assessed 210, Not built 83
+- **MUST bar**: Ze verified 150, Tests awaiting verification 121, OS testing gap 7, Not built 81
+- **Overview bar**: Ze MUST verified 150, SHOULD verified 9, Not owed 1, Tests awaiting verification 122, OS testing gap 7, Not assessed 210, Not built 83
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/ospf.json](../../../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 360 |
 | MUST rows kept (the MUST bar) | 359 |
-| Ze verified | 152 |
+| Ze verified | 150 |
 | OS verified | 0 |
-| Tests awaiting verification | 119 |
+| Tests awaiting verification | 121 |
 | OS testing gap | 7 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -75,7 +75,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4552](../../rfc4552/) (cycle with rfc5340) | Authentication/Confidentiality for OSPFv3 | Ze verified 6, Tests awaiting verification 9, OS testing gap 6, Not built 6 | Ze MUST verified 6, Tests awaiting verification 9, OS testing gap 6, Not assessed 11, Not built 6 |
+| [RFC 4552](../../rfc4552/) (cycle with rfc5340) | Authentication/Confidentiality for OSPFv3 | Ze verified 4, Tests awaiting verification 11, OS testing gap 6, Not built 6 | Ze MUST verified 4, Tests awaiting verification 11, OS testing gap 6, Not assessed 11, Not built 6 |
 | [RFC 5340](../../rfc5340/) (cycle with rfc4552) | OSPF for IPv6 | Ze verified 6, Tests awaiting verification 11, OS testing gap 1, Not built 5 | Ze MUST verified 6, Tests awaiting verification 11, OS testing gap 1, Not assessed 23, Not built 5 |
 
 ### Level 10

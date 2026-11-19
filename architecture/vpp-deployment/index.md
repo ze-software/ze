@@ -141,13 +141,20 @@ disconnected event.
 
 Configuration applies use the SDK's existing transaction. The lifecycle
 cancels and joins the previous manager before starting a replacement, then
-waits for the replacement's readiness. If the candidate fails, it reinstalls
-the previous settings before answering the failed apply. If restoration also
-fails, the transaction retains the original settings for a later retry.
+waits for the replacement's readiness. If the candidate fails after confirmed
+cleanup, it reinstalls the previous settings before answering the failed apply.
+Unresolved native cleanup retains the joined original manager and its exact
+binder receipt instead. The failed apply leaves the transaction broken and
+starts neither a candidate nor restoration. Each later configuration operation
+or stop makes at most one retry against that same receipt before admitting a
+replacement. Confirmed driver restoration clears that custody; an unresolved
+child-cleanup result remains a separate barrier. If restoration also fails,
+the transaction retains the original settings for a later retry.
 Selected startup settings contain immutable requirements; registry predicates
 are used during selection and do not make equal settings compare unequal.
 <!-- source: internal/component/vpp/register.go -- runVPPEngine, runConfiguredVPP -->
 <!-- source: internal/component/vpp/startup_lifecycle.go -- newVPPConfigTx, vppLifecycle.Install, vppLifecycle.replace -->
+<!-- source: internal/component/vpp/cleanup_outcome.go -- nativeCleanupReceipt.retry -->
 
 VPP's startup.conf uses a custom format (not INI, not YAML):
 
@@ -235,8 +242,10 @@ configured PCI addresses:
 
 1. Read the current `driver` symlink. An already-vfio device remains borrowed;
    Ze does not acquire custody of its existing attachment or override.
-2. Read `driver_override` and retain both original values in the binder's
-   process-local receipt. An empty original driver is meaningful state.
+2. Read the exact original override from `driver_override_raw` when available,
+   otherwise an unambiguous legacy `driver_override`, and retain both original
+   values in the binder's process-local receipt. An empty original driver is
+   meaningful state.
 3. Unbind the original driver when present, select `vfio-pci` in that device's
    `driver_override`, then write that exact PCI address to
    `/sys/bus/pci/drivers/vfio-pci/bind`. Verify the resulting driver.
@@ -252,6 +261,23 @@ A failed later input preserves both its primary error and any failed rollback.
 No on-disk recovery journal or native hardware restoration proof is implied by
 the portable operation-table tests.
 <!-- source: internal/component/vpp/dpdk.go -- DPDKBinder, bindPCIWithOps, restoreDPDKDevice -->
+
+Only absence of `driver_override_raw` allows legacy fallback. A failed raw read
+keeps its original cause, while a legacy `(null)` is refused before device
+mutation because it does not identify the original override. The reader removes
+only one final newline; spaces, tabs and carriage returns remain policy bytes.
+Restoration writes a nonempty value without an added newline and clears an
+unset override with exactly one newline. An ambiguous legacy host needs a
+kernel that provides the raw getter before Ze can bind the NIC.
+<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
+
+The configured-device doctor check uses the binder's same read-only original
+state capture. It skips missing devices and borrowed VFIO attachments, reports
+capture failure with its original path and cause, and changes no device state.
+Portable file and operation-table controls do not establish raw-getter kernel
+support or physical NIC restoration.
+<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
+<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
 
 The earlier vendor/device-wide `new_id` path could attach an unconfigured
 matching driverless NIC: Linux v7.3 `do_pci_add_dynid` calls `driver_attach`,

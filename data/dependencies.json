@@ -124,6 +124,14 @@
                 {
                     "module": "github.com/opencontainers/runtime-spec",
                     "why": "Provides OCI seccomp action definitions used by the container plugin's system-call filter tests."
+                },
+                {
+                    "module": "github.com/cyphar/filepath-securejoin",
+                    "why": "Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux."
+                },
+                {
+                    "module": "github.com/klauspost/compress",
+                    "why": "Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window."
                 }
             ]
         },

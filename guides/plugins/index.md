@@ -7,8 +7,8 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 
 | Use case | Plugins | Why |
 |----------|---------|-----|
-| Announce your own routes to upstream | `bgp-rib` | Stores routes, elects the best one and replays what this router announced. It does not pass a route learned from one peer on to another |
-| Pass routes between peers (transit) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in`, each attached to every peer | `bgp-rs` forwards what one peer announced to the others, and `bgp-adj-rib-in` lets it replay to a peer that comes up later. Set `session { next-hop self; }` toward an external peer: a forwarded route otherwise keeps the next hop it arrived with. [Why](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection) |
+| Announce your own routes to upstream | `bgp-rib` | Stores routes and elects the route to advertise, including admitted local origins |
+| Pass routes between peers (transit) | `bgp-rib`, explicitly attached to source and destination peers | Advertises the elected route through the destination's export policy. Source peers grant `receive [ update-received state ]`; destinations grant `receive [ state refresh update-sent ]` and `send [ update ]` to that same process. Each learned-route recipient needs an export policy. [Configuration](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection) |
 | Route server (IXP) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in` | Forward routes between clients, replay on reconnect |
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
@@ -19,6 +19,9 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | Static routes | (auto-loaded) | Config-driven static routes with ECMP, weighted load balancing, BFD failover. A main-table route competes with other protocols on `rib { distance { static } }` and the FIB plugin programs the winner; a named-table route is programmed directly. [Guide](../static-routes/index.md) |
 | Route policy library | `policy` (auto-loaded) | Owns the top-level `policy {}` root, discovers its filter types from the `ze:filter` YANG marker, and holds the route field vocabulary filter chains are checked against. A `policy {}` section loads it, and so does every protocol with a filter attachment, because each lists it in `Dependencies` |
 | OSPFv2 edge plugin | (auto-loaded) | `ospf {}` starts the native OSPFv2 edge plugin, validates router-id/area/interface config, opens raw IPv4 sockets for active links, runs the Interface and Neighbor State Machines, and handles LSDB flooding |
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- commitAdvertise -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/plugin/server/dissemination.go -- ResolveDisseminationOwner -->
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->

@@ -218,6 +218,10 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 <td>Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families)</td>
 </tr>
 <tr>
+<td><code>show bgp rib path &lt;pattern&gt;</code></td>
+<td>Show the routes whose AS path matches the pattern: AS numbers joined by commas, with <code>^</code> first to tie them to the start of the path and <code>$</code> last to tie them to its end</td>
+</tr>
+<tr>
 <td><code>clear bgp rib in &lt;selector&gt;</code></td>
 <td>Clear Adj-RIB-In (<code>*</code> for all peers)</td>
 </tr>
@@ -241,6 +245,51 @@ takes <code>covering</code> or <code>exact</code>, never both.</p>
 prefixes that share its leading text: <code>prefix 10.0</code> matches <code>10.0.0.0/24</code> and
 not <code>10.10.0.0/16</code>, and <code>prefix 192.0.0.0/2</code> matches <code>192.0.0.0/24</code> too. Use
 <code>exact</code> to ask for one prefix.</p>
+<p><code>path</code> takes AS numbers joined by commas, each in any spelling of an AS number
+(<code>65546</code> or <code>1.10</code>). It lists the routes whose AS path holds those numbers in
+that order with nothing between them, anywhere in the path: <code>path 65010,65001</code>.
+Two anchors tie the run to an end of the path.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Routes listed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path 65001</code></td>
+<td>AS 65001 is anywhere in the path</td>
+</tr>
+<tr>
+<td><code>path 65010,65001</code></td>
+<td>65010 is directly followed by 65001, anywhere in the path</td>
+</tr>
+<tr>
+<td><code>path ^65010</code></td>
+<td>The path starts with 65010: the routes that neighbour AS sent</td>
+</tr>
+<tr>
+<td><code>path 65001$</code></td>
+<td>The path ends with 65001: the routes AS 65001 originates. A route that only crosses AS 65001 is not listed</td>
+</tr>
+<tr>
+<td><code>path ^65010,65001$</code></td>
+<td>The path is exactly 65010 then 65001. A longer path that holds the pair is not listed</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>$</code> is read only once, directly after the last AS number. A pattern that
+holds it anywhere else (<code>65001$,65002</code>, <code>65001 $</code>, <code>$</code> alone) is refused, and
+the refusal names the pattern.</p>
+<p>The comparison is literal, and prepending stays as received. <code>path 65001$</code>
+lists a route whose path ends <code>65001 65001 65001</code>, because its last AS is
+65001. <code>path ^65010,65001$</code> does not list the path <code>65010 65001 65001</code>: write
+each repeat, <code>path ^65010,65001,65001$</code>.</p>
+<p>The filter reads the AS path as one list of AS numbers in the order received,
+the members of an AS_SET and of a confederation segment included. A path that
+ends with an AS_SET therefore ends, for <code>$</code>, with the last member of the set.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches -->
 <p>See <a href="../route-injection/">Route Injection guide</a> for UPDATE syntax details.</p>
 <h2 id="cache-commands">Cache Commands</h2>
 <table>
@@ -645,7 +694,7 @@ none says so.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

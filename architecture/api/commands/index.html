@@ -868,6 +868,25 @@ that owns the registry it reads, so removing the plugin host removes the
 command with it.</p>
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
+<p><code>show fleet status</code> (<code>internal/component/managed</code>) is one handler behind both
+routes that still asks the daemon first, as <code>ze doctor</code> does. Its answer is
+where a managed device stands with its hub. Most of that is in the store, which
+any <code>ze</code> process reads: the managed flag, the hub the configuration declares,
+the baseline (<code>meta/managed/base-version</code>) and the hash of the active
+configuration. The state of the hub client lives only in a running daemon. So
+on the local route (<code>ValidatedArgs.Route().CallerLocal()</code>) the handler sends
+<code>show fleet status</code> to the daemon over SSH and answers the document the daemon
+gave. When no daemon answers, it reads the store and marks the answer
+<code>daemon-answered</code> false, with <code>no-daemon</code> in the client fields. On the daemon
+route the same handler reads the store, fills the client fields from the owner
+of the daemon's hub client (<code>managed.FleetTarget</code>, which the hub installs on a
+managed start; with none the client is <code>not-started</code>), marks the answer
+<code>daemon-answered</code> true, and asks nobody. That mark is also how the local route recognizes a
+daemon's document: a reply of another shape, or one a store alone produced, is
+no answer. It registers no RPC, so it holds no <code>wire-methods.snapshot</code> row.</p>
+<!-- source: internal/component/managed/cmd_fleet.go -- answerFleetStatusWith, storeFleetStatus, askDaemonOverSSH, decodeDaemonFleetStatus, daemonClientReport, FleetTarget -->
+<!-- source: internal/component/managed/register.go -- show fleet status registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
 <h4 id="local-commands-already-served-by-the-daemon-under-the-same-path">Local commands already served by the daemon under the same path</h4>
 <p>A few local registrations share their path with a daemon RPC the owner
 registered itself. The two routes call one producer, so they cannot drift:</p>
@@ -918,6 +937,12 @@ registered itself. The two routes call one producer, so they cannot drift:</p>
 <td><code>handleCreateAgentSkill</code>, <code>handleShowAgentSkill</code>, <code>handleDeleteAgentSkill</code> (<code>remoteAnswer</code>), the RPCs for <code>ze-skills:create-agent-skill</code> and its siblings: they call no file or environment function and answer the remote form, every row <code>not-inspected</code>, with the stub a remote agent places</td>
 </tr>
 <tr>
+<td><code>request fleet disable</code>, <code>request fleet enable</code></td>
+<td><code>storeManagedFlag</code>, the one writer of the managed flag for both commands, and for a rejoin <code>requireDeclaredHub</code>, which refuses a configuration that names no hub</td>
+<td><code>requestFleetDisableLocal</code>, <code>requestFleetEnableLocal</code> (<code>changeFleetLocal</code>): with the store free they open it as its writer and store the flag (<code>disableStopped</code>, <code>enableStopped</code>); while a daemon owns the store they send the same line to that daemon (<code>daemonroute.Send</code>) and print its answer</td>
+<td><code>handleFleetDisable</code>, <code>handleFleetEnable</code>, the RPCs for <code>ze-managed:fleet-disable</code> and <code>ze-managed:fleet-enable</code>, each recording the <code>data-key-change</code> audit action: they store the flag through the daemon's own store handle, then stop or start the daemon's hub client through <code>managed.FleetTarget</code> (<code>disableOnDaemon</code>, <code>enableOnDaemon</code>). A daemon that started unmanaged installs no target and changes the flag alone</td>
+</tr>
+<tr>
 <td><code>show agent context</code></td>
 <td><code>sharedContextFacts</code>, the skills plugin's context producer</td>
 <td><code>showAgentContextLocal</code> adds the bounded dial and the config directory</td>
@@ -942,7 +967,9 @@ client's process: it is a shell on the daemon (<code>sshclient.RunInteractive</c
 where every typed line is dispatched. The agent setup commands are plain local
 because a person sets their agent up at a shell, where the handler reaches
 their home; <code>ze cli</code> is the router's CLI, so every form of it gets the
-daemon's answer. <code>doctor config &lt;file&gt;</code> is confined on the
+daemon's answer. The two fleet commands are plain local for the same reason:
+<code>ze cli</code> asks the daemon, which owns the hub client, and only <code>ze request fleet ...</code> at a shell writes the store itself, when no daemon holds it.
+<code>doctor config &lt;file&gt;</code> is confined on the
 daemon route like every other caller path (<code>command.CallerPath</code>).</p>
 <!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
 <!-- source: internal/core/version/version.go -- Answer -->
@@ -955,6 +982,8 @@ daemon route like every other caller path (<code>command.CallerPath</code>).</p>
 <!-- source: internal/plugins/skills/agent_skill.go -- agentPlan, createAgentSkillLocal, handleCreateAgentSkill -->
 <!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
 <!-- source: internal/plugins/skills/register.go -- agent setup registrations -->
+<!-- source: internal/component/managed/cmd_fleet.go -- changeFleetLocal, changeFleetThroughDaemon, handleFleetDisable, handleFleetEnable, storeManagedFlag -->
+<!-- source: internal/component/managed/register.go -- request fleet disable and enable registration -->
 <!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <!-- source: internal/component/cli/client/main.go -- runInteractiveSession, execute -->
 <!-- source: internal/component/ping/cmd/monitor.go -- handleMonitorPing, streamMonitorPing -->
@@ -2269,11 +2298,12 @@ accounting, and refusals do not echo the private operand.</p>
 <!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
 <!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion, suppliedSecret -->
 <!-- source: internal/plugins/config-cli/yang/ze-config-utilities-cmd.yang -- show config supplied completion, show secret -->
-<p>Comparison has the same scope as the existing local file command: resolved BGP
-values and schema-declared ordered-list ordering. Other non-BGP value changes,
-such as a changed <code>system host</code>, are not included. Supplying complete files
-does not expand that comparison scope.</p>
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+<p>Comparison has the same scope as the local file command: every root of the
+two configurations, the <code>bgp</code> block as resolved values and every other root as
+written, such as a changed <code>system host</code>, plus schema-declared ordered-list
+ordering, with every secret masked.</p>
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs, diffListOrders -->
 <p>File and supplied inputs share their parsing, resolution, validation,
 formatting, inactive pruning, comparison and secret-display producers. Dump
 retains <code>strip-private</code>; fmt retains <code>check</code> and <code>diff</code> and has no write option.
@@ -2354,7 +2384,8 @@ remains incomplete.</p>
 <!-- source: internal/component/config/cli/config_data.go -- validationBytesAnswer, diffAnswer -->
 <!-- source: internal/component/config/cli/cmd_fmt.go -- fmtBytesAnswer -->
 <!-- source: internal/component/config/cli/cmd_graph.go -- graphBytesAnswer -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
 <p>An input control discovers these capabilities through
 <code>registry.Meta.SuppliedInput</code>, joined to the command's YANG arguments. The
 descriptor names the content argument, optional label argument and ordered
@@ -2480,6 +2511,37 @@ update bgp config                  # Write the running peer set to the config fi
 request peer &lt;sel&gt; flush           # Wait for forward pool to drain (barrier)
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
+<p><code>show bgp</code> answers one row per peer. Two of its keys carry what the operator
+configured to identify the peer, and each has one source:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Source</th>
+<th>Empty when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>description</code></td>
+<td>The peer's <code>description</code> leaf, after the bgp, group and peer levels are merged (<code>PeerSettings.Description</code>, then <code>plugin.PeerInfo.Description</code>)</td>
+<td>The configuration states no description. Nothing is derived from the name or the group</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>The group the peer is declared in (<code>PeerSettings.GroupName</code>, then <code>plugin.PeerInfo.GroupName</code>)</td>
+<td>The peer stands outside any group</td>
+</tr>
+</tbody>
+</table>
+<p>Both keys are present on every row. The description is delivered to a running
+peer by a configuration reload without a session restart, and the handler reads
+it from the peer snapshot on each call. Only that snapshot carries it: the peer
+object of a BGP event has <code>group</code> and no <code>description</code>.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- Peers -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
 <p><code>show bgp peer &lt;selector&gt; history</code> reads the peer's retained FSM transitions
 through the registered BGP adapter. Each row carries the source and destination
 states, plus the timestamp and reason when recorded.</p>
@@ -2735,8 +2797,17 @@ an API route (<code>docs/architecture/api/update-syntax.md</code>, "Watchdog Com
     source filters: received | advertised
     filters: peer &lt;selector&gt;, path &lt;pattern&gt;, prefix &lt;pattern&gt;, community &lt;value&gt;,
              family &lt;afi/safi&gt;
+    path pattern: &lt;asn&gt;[,&lt;asn&gt;...] is a run anywhere in the AS path;
+             ^ first ties the run to the start of the path, $ last ties it to the end
+             (65001$: originated by AS 65001; ^65010,65001$: exactly that path)
     terminals: count, histogram, graph (AS topology as nodes and edges, drawn as boxes in text)
+    received row: age is the whole seconds since the route's stored attributes last
+             changed; an equal re-announcement keeps it growing. Absent when the RIB
+             holds no time for the route, and on advertised rows
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
+    best row: no age, with or without the json terminal. The RIB records when the
+             winning route last changed, not when it became best; the age is on
+             that route's received row
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in &lt;selector&gt;                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out &lt;selector&gt; [family &lt;family&gt;] # Resend Adj-RIB-Out (* for all, optional family)
@@ -5705,7 +5776,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

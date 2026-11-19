@@ -80,6 +80,7 @@ what `show | blame` reports for the changes the console commits.
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
 | `show bgp rib received covering <address>` | Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families) |
 | `show bgp rib received exact <prefix>` | Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families) |
+| `show bgp rib path <pattern>` | Show the routes whose AS path matches the pattern: AS numbers joined by commas, with `^` first to tie them to the start of the path and `$` last to tie them to its end |
 | `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
 | `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
@@ -101,6 +102,33 @@ takes `covering` or `exact`, never both.
 prefixes that share its leading text: `prefix 10.0` matches `10.0.0.0/24` and
 not `10.10.0.0/16`, and `prefix 192.0.0.0/2` matches `192.0.0.0/24` too. Use
 `exact` to ask for one prefix.
+
+`path` takes AS numbers joined by commas, each in any spelling of an AS number
+(`65546` or `1.10`). It lists the routes whose AS path holds those numbers in
+that order with nothing between them, anywhere in the path: `path 65010,65001`.
+Two anchors tie the run to an end of the path.
+
+| Pattern | Routes listed |
+|---------|---------------|
+| `path 65001` | AS 65001 is anywhere in the path |
+| `path 65010,65001` | 65010 is directly followed by 65001, anywhere in the path |
+| `path ^65010` | The path starts with 65010: the routes that neighbour AS sent |
+| `path 65001$` | The path ends with 65001: the routes AS 65001 originates. A route that only crosses AS 65001 is not listed |
+| `path ^65010,65001$` | The path is exactly 65010 then 65001. A longer path that holds the pair is not listed |
+
+The `$` is read only once, directly after the last AS number. A pattern that
+holds it anywhere else (`65001$,65002`, `65001 $`, `$` alone) is refused, and
+the refusal names the pattern.
+
+The comparison is literal, and prepending stays as received. `path 65001$`
+lists a route whose path ends `65001 65001 65001`, because its last AS is
+65001. `path ^65010,65001$` does not list the path `65010 65001 65001`: write
+each repeat, `path ^65010,65001,65001$`.
+
+The filter reads the AS path as one list of AS numbers in the order received,
+the members of an AS_SET and of a confederation segment included. A path that
+ends with an AS_SET therefore ends, for `$`, with the last member of the set.
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches -->
 
 See [Route Injection guide](../route-injection/index.md) for UPDATE syntax details.
 

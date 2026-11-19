@@ -350,6 +350,14 @@ ze config show --backup <artifact> <name> [path...]  # Read a config inside a ba
 ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
 
+`ze config diff` and `show config diff` compare every part of the two
+configurations: the `bgp` block as resolved values (a value a peer inherits
+from its group shows on the peer, at `peer/<name>/...`), every other root as
+written (`~ plugin/hub/client/edge-01/host: 10.0.0.1 -> 10.0.0.2`), and the
+order of every `ordered-by user` list. A changed secret is listed with
+`/* SECRET-DATA */` on both sides.
+<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
+
 For a config that declares an external plugin, `validate`, `dump`, `diff`,
 `fmt` and `graph` ask the running Ze first, since only it holds that plugin's
 schema, and print its answer as a local one; `--user <name>` names the account
@@ -1096,6 +1104,114 @@ daemon at each Tab, so the marks follow the plugin's state. Shell completion
 <!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
 <!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
+
+### request fleet disable
+
+Takes this device out of the fleet its hub manages. It takes no argument.
+
+```
+ze request fleet disable
+ze cli -c "request fleet disable"
+```
+
+The command stores the managed flag (`meta/instance/managed`) as false, then
+ends the hub connection, and answers once the connection has ended. A
+configuration the device was applying is applied first. The device keeps the
+configuration it runs. The command needs no hub and no connection, so it also
+works on a managed device whose configuration names no hub.
+
+With no daemon running, `ze request fleet disable` writes the flag into the
+store and the next `ze start` follows it. While a daemon owns the store, the
+same line is sent to that daemon.
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The flag the command stored: `false` |
+| `client` | The daemon's hub client after the command: `stopped`, `not-started` in a daemon that started unmanaged, `no-daemon` when the flag was written with no daemon running |
+| `connection` | `not-connected`, or `no-daemon` |
+| `note` | What the command did, in one sentence: the hub connection was closed, there was none to close, or no daemon runs |
+
+<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, disableStopped, changeFleetLocal, fleetChange -->
+<!-- source: internal/component/managed/register.go -- request fleet disable registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable -->
+
+### request fleet enable
+
+Puts this device back in the fleet. It takes no argument.
+
+```
+ze request fleet enable
+ze cli -c "request fleet enable"
+```
+
+The command stores the managed flag as true. A daemon that started managed
+then starts its hub client from the configuration it runs, with no restart,
+and the device fetches from its hub. A daemon that started unmanaged stores
+the flag and answers that the hub connection starts at the next `ze start`.
+With no daemon running, `ze request fleet enable` writes the flag into the
+store and the next `ze start` follows it.
+
+The command is refused, and the flag left as it was, while the configuration
+the device runs names no hub-level `client` block. Add the block to this
+device's configuration on the hub, then provision the device again:
+
+```
+ze init --managed --force
+```
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The flag the command stored: `true` |
+| `client` | The daemon's hub client after the command: `running`, `not-started` in a daemon that started unmanaged, `no-daemon` when the flag was written with no daemon running |
+| `connection` | `connected`, `not-connected` while the client is still connecting, or `no-daemon` |
+| `note` | What the command did, in one sentence: the hub client started, one already ran, or the connection starts at the next `ze start` |
+
+<!-- source: internal/component/managed/cmd_fleet.go -- enableOnDaemon, enableStopped, requireDeclaredHub, noDeclaredHub -->
+<!-- source: internal/component/managed/register.go -- request fleet enable registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable -->
+
+### show fleet status
+
+Where this device stands with the hub that manages its configuration.
+Read-only. It takes no argument.
+
+```
+ze show fleet status
+ze cli -c "show fleet status | json"
+```
+
+The answer is one document. Most of it is read from the store, so the command
+answers with no daemon running. With a daemon running, `ze show fleet status`
+asks it first and prints its answer, and `daemon-answered` says which of the
+two you are reading.
+
+| Field | Meaning |
+|-------|---------|
+| `managed` | The device follows a hub: the store key `meta/instance/managed` is `true` |
+| `frozen` | The store refuses a local change to the device's own configuration, naming `request fleet disable`. True when the device is managed and its daemon runs a stored configuration, or when no daemon runs and the device is managed. A daemon started from a file or from standard input is never frozen, so `frozen` is false there even when `managed` is true |
+| `hub-declared` | The device's configuration holds a hub-level `client` block |
+| `hub-name`, `hub-address` | The name and `host:port` of that block, empty when `hub-declared` is false |
+| `baseline-recorded` | The store holds a baseline in `meta/managed/base-version` |
+| `baseline-hash` | The version hash of the last configuration the hub gave, empty when none is recorded |
+| `active-recorded` | The store holds the device's own configuration |
+| `active-hash` | The version hash of that configuration, empty when the store holds none |
+| `diverged` | Both hashes are recorded and they differ. A device with no baseline is not diverged |
+| `daemon-answered` | A running daemon produced this answer |
+| `client` | The daemon's hub client: `running`, `stopping` while a stop such as `request fleet disable` is in progress (the status never waits for it), `stopped`, or `not-started` in a daemon that started unmanaged and so owns no hub client. `no-daemon` when no daemon answered |
+| `connection` | `connected` once the hub accepted the client, until that connection ends; `not-connected` otherwise. `no-daemon` when no daemon answered |
+| `holding` | `holding` when the client's last fetch applied nothing, because the configuration the device runs differs from its baseline or could not be compared with it; `not-holding` otherwise. `no-daemon` when no daemon answered |
+
+The command refuses, and prints no status, when the store cannot be opened or
+one of the keys above cannot be read: `ze show data check` says why. It also
+refuses when the `plugin` block of the configuration cannot be read, and names
+`ze config validate`.
+
+<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport -->
+<!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion -->
+<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
+<!-- source: cmd/ze/hub/managed_owner.go -- state -->
+<!-- source: internal/component/managed/register.go -- show fleet status registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
 
 ### show host
 
@@ -2413,6 +2529,25 @@ wrapper around them:
 {"router-id": "…", "local-as": 64500, "uptime": "4h",
  "peers-configured": 2, "peers-established": 1, "peers": [ … ]}
 ```
+
+Each peer row names the peer with four keys before its session state and
+counters:
+
+| Key | Holds |
+|-----|-------|
+| `address` | The peer's address |
+| `name` | The peer's name, the key of its `peer` entry in the configuration |
+| `description` | The text of the peer's `description` leaf, written on the peer or inherited from its group. Empty when the configuration states none: Ze derives no description |
+| `group` | The name of the group the peer belongs to. Empty for a peer outside any group |
+
+A changed `description` reaches the row on the next configuration reload, and
+the session stays up.
+
+Until 2026-11 `description` held the group name and the row had no `group`
+key. A script that read the group from `description` reads `group` now.
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
 
 A family argument adds `family` and `peers-in-family` beside them. Two aliases
 name the halves, so an operator asks for one half and names no field:
@@ -4042,11 +4177,12 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 |---------|--------|---------|
 | `show bgp rib status` | read-only | RIB summary (peer count, routes, families) |
 | `show bgp rib` | read-only | Stream Adj-RIB-In and Adj-RIB-Out routes |
-| `show bgp rib \| received` | read-only | Stream received routes only |
+| `show bgp rib \| received` | read-only | Stream received routes only. Each row carries `age`, the whole seconds since the route's stored attributes last changed: an equal re-announcement keeps it growing, and a daemon restart starts every route again <!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge --> |
 | `show bgp rib \| advertised` | read-only | Stream advertised routes only |
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib \| received \| covering <address>` | read-only | Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on `show bgp rib best` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --> |
 | `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib received exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
+| `show bgp rib \| path <pattern>` | read-only | Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. `^` first ties the run to the start of the path and `$` last ties it to the end, so `path 65001$` lists the routes AS 65001 originates and `path ^65010,65001$` lists the routes whose path is exactly those two AS numbers. A `$` anywhere but directly after the last AS number is refused. `show bgp rib best` takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
 | `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |
@@ -4393,6 +4529,9 @@ active after enabling debug or applying a profile.
 | `show command catalog [filter <text>]` | read-only | Every command this binary carries, with its grammar and summary: the daemon form of `ze help command` |
 | `show command reference [cli] [api] [mcp] [dispatch] [all]` | read-only | The agent reference built from this binary's registries: the daemon form of `ze help ai` <!-- source: internal/plugins/help/yang/ze-help-cmd.yang -- module ze-help-cmd --> |
 | `show doctor [config <file>] [kernel-capabilities]` | read-only | The readiness checks, with the daemon's plugin checks: the daemon form of `ze doctor` <!-- source: internal/component/doctor/yang/ze-doctor-cmd.yang -- container doctor --> |
+| `request fleet disable` | write | Leave the fleet: store the managed flag as false, end the hub connection and answer once it has ended. Needs no hub and no connection <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable --> |
+| `request fleet enable` | write | Rejoin the fleet: store the managed flag as true and start the hub client with no restart, or, in a daemon that started unmanaged, at the next `ze start`. Refused while the configuration names no hub <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable --> |
+| `show fleet status` | read-only | Whether this device follows a hub, the hub its configuration declares, and its baseline and active hashes: the same answer `ze show fleet status` gives <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet --> |
 | `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
 | `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
 

@@ -8,10 +8,10 @@
   "must": {
     "total": 37,
     "kept": 37,
-    "ze-proven": 25,
+    "ze-proven": 24,
     "os-verified": 0,
     "os-gap": 1,
-    "proof-pending": 7,
+    "proof-pending": 8,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 4,
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 25
+    "unit": 24
   },
   "unmet": [
     "RFC2516-3-1",

@@ -77,7 +77,22 @@ From a browser:
 http://198.51.100.10:8443/lg/peers
 http://198.51.100.10:8443/lg/search
 http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&mode=aspath
+http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&mode=nexthop
+http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&mode=trace
 ```
+
+The three graph modes are the three buttons above a search result. `aspath`
+draws the AS paths, `nexthop` the routers and their egress, and `trace`
+traces the prefix from each router of the AS, through the routers its BGP
+next hops name, to the exit and then along the AS path. The trace
+needs every router of the network to hold a session to Ze from the address it
+writes as next hop, and it does not show the IGP's hops between two BGP next
+hops: [Tracing a prefix through the network](../looking-glass/index.md#tracing-a-prefix-through-the-network).
+
+Both `nexthop` and `trace` draw a router of your AS by its address and a
+neighbour outside it by its AS number only, so an external peer never shows
+as an address:
+[Inside by address, outside by AS number](../looking-glass/index.md#inside-by-address-outside-by-as-number).
 
 For a local test on the box:
 
@@ -99,8 +114,11 @@ prefix field the same way.
 The search page's AS path field takes AS numbers separated by spaces, as a
 router prints them. `65001 65002` lists the routes whose path holds 65001
 directly followed by 65002, anywhere in the path. `^65001` lists the routes
-whose path starts with 65001. The page refuses any other pattern character,
-such as `$` or `|`, and says which form the field takes.
+whose path starts with 65001. `65001$` lists the routes whose path ends with
+65001, the routes that AS originates, and `^65010 65001$` the routes whose
+path is exactly those two AS numbers. The `$` goes directly after the last AS
+number. The page refuses any other pattern character, such as `|`, and says
+which form the field takes.
 <!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 
 ## 4. Birdwatcher-compatible API paths

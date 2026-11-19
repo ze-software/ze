@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 204, Tests awaiting verification 28, OS testing gap 4, Not assessed 30, Not built 31
-- **Overview bar**: Ze MUST verified 204, SHOULD verified 6, Tests awaiting verification 29, OS testing gap 4, Not assessed 120, Not built 31
+- **MUST bar**: Ze verified 202, Tests awaiting verification 30, OS testing gap 4, Not assessed 30, Not built 31
+- **Overview bar**: Ze MUST verified 202, SHOULD verified 6, Tests awaiting verification 31, OS testing gap 4, Not assessed 120, Not built 31
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 297 |
 | MUST rows kept (the MUST bar) | 297 |
-| Ze verified | 204 |
+| Ze verified | 202 |
 | OS verified | 0 |
-| Tests awaiting verification | 28 |
+| Tests awaiting verification | 30 |
 | OS testing gap | 4 |
 | Exclusion unchecked | 0 |
 | Not assessed | 30 |
@@ -60,7 +60,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 1570](../../rfc1570/) (cycle with rfc1662) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 |
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze verified 11, Tests awaiting verification 3, Not built 2 | Ze MUST verified 11, SHOULD verified 2, Tests awaiting verification 3, Not assessed 9, Not built 2 |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze verified 25, Tests awaiting verification 7, OS testing gap 1, Not built 4 | Ze MUST verified 25, Tests awaiting verification 7, OS testing gap 1, Not assessed 3, Not built 4 |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze verified 24, Tests awaiting verification 8, OS testing gap 1, Not built 4 | Ze MUST verified 24, Tests awaiting verification 8, OS testing gap 1, Not assessed 3, Not built 4 |
 
 ### Level 2
 
@@ -80,7 +80,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 9, Tests awaiting verification 3, Not built 4 | Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4 |
 
 ### Level 5
 

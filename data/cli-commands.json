@@ -519,7 +519,7 @@
   },
   {
     "path": "clear bgp rib out-excluding-owner",
-    "short-help": "Replay while excluding one original destination owner",
+    "short-help": "Replay while excluding one original destination owner.",
     "description": "Re-advertise to current destinations except one captured original\npeer owner. This narrows replay and grants no send permission. The ordinary out command\nand its literal peer selectors keep their existing grammar.",
     "mode": "daemon",
     "wire-method": "ze-bgp:rib-clear-out-excluding-owner",
@@ -12427,720 +12427,6 @@
     ]
   },
   {
-    "path": "request bgp rib source attach-community",
-    "short-help": "Decorate stale routes of one original connection",
-    "description": "Decorate stale routes of one original connection.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-attach-community",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source attach-community",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "attach-community",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
-    "path": "request bgp rib source delete-with-community",
-    "short-help": "Delete matching stale routes of one original connection",
-    "description": "Delete matching stale routes of one original connection.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-delete-with-community",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source delete-with-community",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "delete-with-community",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
-    "path": "request bgp rib source mark-stale",
-    "short-help": "Mark one original retained connection stale",
-    "description": "Mark one original retained connection stale.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-mark-stale",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source mark-stale",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "mark-stale",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
-    "path": "request bgp rib source purge-stale",
-    "short-help": "Purge stale routes of one original connection",
-    "description": "Purge stale routes of one original connection.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-purge-stale",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source purge-stale",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "purge-stale",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
-    "path": "request bgp rib source release-routes",
-    "short-help": "Release one original retained connection",
-    "description": "Release one original retained connection.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-release-routes",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source release-routes",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "release-routes",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
-    "path": "request bgp rib source retain-routes",
-    "short-help": "Prepare retention of one original received connection",
-    "description": "Prepare retention of one original received connection.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:rib-source-retain-routes",
-    "task-support": "forbidden",
-    "usage": "request bgp rib source retain-routes",
-    "grammar": [
-      {
-        "text": "request",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "rib",
-        "kind": "keyword"
-      },
-      {
-        "text": "source",
-        "kind": "keyword"
-      },
-      {
-        "text": "retain-routes",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "always",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "always",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "always",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "always",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "always",
-        "description": "Answer with these fields, in this order"
-      }
-    ],
-    "answer-shape": "map"
-  },
-  {
     "path": "request bgp rib withdraw",
     "short-help": "Withdraw a route from the Adj-RIB-In.",
     "description": "Removes a previously injected or received route from a peer's\nAdj-RIB-In, triggering best-path recomputation.",
@@ -19990,6 +19276,379 @@
       {
         "text": "client",
         "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request fleet disable",
+    "short-help": "Leave the fleet: end the hub connection and stop following the hub.",
+    "description": "Stores the managed flag as false, then ends the hub connection of a\ndaemon that started managed, and answers once that connection has\nended. A configuration the device was applying is applied first.\nThe device keeps the configuration it runs, and its hub can no\nlonger change it. The command needs no hub and no connection, and\ntakes no argument. With no daemon running, ze request fleet disable\nstores the flag, and the next ze start follows it.",
+    "mode": "daemon, offline",
+    "wire-method": "ze-managed:fleet-disable",
+    "usage": "request fleet disable",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "disable",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request fleet divergence revert",
+    "short-help": "Make a client that holds take the hub's configuration.",
+    "description": "Decides that the client drops the configuration it holds and takes\nthe configuration this hub serves it, then tells the client. The\ndecision is bound to the client's hash given here and to the hub's\nconfiguration as it stands now: a later edit on the client, or a\nlater write of the client's configuration on the hub, voids it. A\nclient that is not connected takes it at its next connection.",
+    "mode": "daemon",
+    "wire-method": "ze-managed:fleet-divergence-revert",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Managed client name",
+        "description": "The name of a managed client, as the client entry of a hub server\nblock names it. The hub keeps one held copy for each client."
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Device configuration hash",
+        "description": "The version hash of the client's configuration, as show fleet\ndivergence name answers it. A held copy with another hash is\nrefused, so a decision is made only on the copy the operator saw."
+      }
+    ],
+    "usage": "request fleet divergence revert <name> <version>",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "divergence",
+        "kind": "keyword"
+      },
+      {
+        "text": "revert",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      },
+      {
+        "text": "version",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request fleet enable",
+    "short-help": "Rejoin the fleet: follow the hub again.",
+    "description": "Stores the managed flag as true. A daemon that started managed then\nstarts its hub client from the configuration it runs, with no\nrestart; a daemon that started unmanaged connects to its hub at the\nnext ze start, and the answer says so. The command is refused, and\nthe flag left as it was, while the configuration names no hub. It\ntakes no argument. With no daemon running, ze request fleet enable\nstores the flag, and the next ze start follows it.",
+    "mode": "daemon, offline",
+    "wire-method": "ze-managed:fleet-enable",
+    "usage": "request fleet enable",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "enable",
+        "kind": "keyword"
       }
     ],
     "operators": [
@@ -30127,6 +29786,7 @@
         "address",
         "name",
         "description",
+        "group",
         "remote-as",
         "peer-type",
         "state",
@@ -45919,6 +45579,354 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ]
+  },
+  {
+    "path": "show fleet divergence",
+    "short-help": "What differs for a managed client that holds.",
+    "description": "On a hub: what differs between the configuration this hub serves a\nmanaged client and the one the client holds, as a list of changes\nwith every secret masked, their count, both hashes, when the\nclient's configuration became active and when the hub received it,\nand any revert decision. It answers no configuration text.",
+    "mode": "read-only",
+    "wire-method": "ze-managed:fleet-divergence-show",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Managed client name",
+        "description": "The name of a managed client, as the client entry of a hub server\nblock names it. The hub keeps one held copy for each client."
+      }
+    ],
+    "usage": "show fleet divergence <name>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "divergence",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "subcommands": [
+      "list"
+    ]
+  },
+  {
+    "path": "show fleet divergence list",
+    "short-help": "The managed clients that hold, and what the hub keeps for each.",
+    "description": "On a hub: every managed client whose held configuration this hub\nkeeps, with both hashes, the two times, the revert decision and\nwhether a server block still declares the client.",
+    "mode": "read-only",
+    "wire-method": "ze-managed:fleet-divergence-list",
+    "usage": "show fleet divergence list",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "divergence",
+        "kind": "keyword"
+      },
+      {
+        "text": "list",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show fleet status",
+    "short-help": "Whether this device follows a hub and matches its last configuration.",
+    "description": "Reports whether this device is managed and frozen, the hub its\nconfiguration declares, the hash of the last configuration the hub\ngave it (the baseline), the hash of the configuration it runs, and\nwhether the two differ. It reads the store and changes nothing, so\nze show fleet status answers with no daemon too, and the answer\nsays whether a running daemon gave it.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-managed:show-fleet-status",
+    "usage": "show fleet status",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "status",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "column-orders": [
+      [
+        "managed",
+        "frozen",
+        "hub-declared",
+        "hub-name",
+        "hub-address",
+        "baseline-recorded",
+        "baseline-hash",
+        "active-recorded",
+        "active-hash",
+        "diverged",
+        "daemon-answered",
+        "client",
+        "connection",
+        "holding"
+      ]
     ]
   },
   {
@@ -74197,6 +74205,149 @@
       },
       {
         "text": "name",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "update fleet divergence adopt",
+    "short-help": "Make the configuration a client holds the hub's configuration for it.",
+    "description": "Makes the configuration the client holds this hub's configuration\nfor that client, as a new version of client-<name>.conf, and\nremoves the held copy. The client already runs it, so its next\nfetch is answered current and its hold ends. The hash given here\nmust be the held copy's.",
+    "mode": "daemon",
+    "wire-method": "ze-managed:fleet-divergence-adopt",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Managed client name",
+        "description": "The name of a managed client, as the client entry of a hub server\nblock names it. The hub keeps one held copy for each client."
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Device configuration hash",
+        "description": "The version hash of the client's configuration, as show fleet\ndivergence name answers it. A held copy with another hash is\nrefused, so a decision is made only on the copy the operator saw."
+      }
+    ],
+    "usage": "update fleet divergence adopt <name> <version>",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "fleet",
+        "kind": "keyword"
+      },
+      {
+        "text": "divergence",
+        "kind": "keyword"
+      },
+      {
+        "text": "adopt",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      },
+      {
+        "text": "version",
         "kind": "value"
       }
     ],

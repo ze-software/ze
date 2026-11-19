@@ -127,12 +127,12 @@
 <tr>
 <td>Announce your own routes to upstream</td>
 <td><code>bgp-rib</code></td>
-<td>Stores routes, elects the best one and replays what this router announced. It does not pass a route learned from one peer on to another</td>
+<td>Stores routes and elects the route to advertise, including admitted local origins</td>
 </tr>
 <tr>
 <td>Pass routes between peers (transit)</td>
-<td><code>bgp-rib</code> + <code>bgp-rs</code> + <code>bgp-adj-rib-in</code>, each attached to every peer</td>
-<td><code>bgp-rs</code> forwards what one peer announced to the others, and <code>bgp-adj-rib-in</code> lets it replay to a peer that comes up later. Set <code>session { next-hop self; }</code> toward an external peer: a forwarded route otherwise keeps the next hop it arrived with. <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection" target="_blank" rel="noopener">Why</a></td>
+<td><code>bgp-rib</code>, explicitly attached to source and destination peers</td>
+<td>Advertises the elected route through the destination's export policy. Source peers grant <code>receive [ update-received state ]</code>; destinations grant <code>receive [ state refresh update-sent ]</code> and <code>send [ update ]</code> to that same process. Each learned-route recipient needs an export policy. <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection" target="_blank" rel="noopener">Configuration</a></td>
 </tr>
 <tr>
 <td>Route server (IXP)</td>
@@ -186,6 +186,9 @@
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- commitAdvertise -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+<!-- source: internal/component/plugin/server/dissemination.go -- ResolveDisseminationOwner -->
 <p>NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.</p>
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
 <h2 id="config-driven-loading">Config-Driven Loading</h2>
@@ -2303,7 +2306,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

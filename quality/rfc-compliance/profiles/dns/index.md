@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 46, Tests awaiting verification 44, Not assessed 61, Not built 157
-- **Overview bar**: Ze MUST verified 46, SHOULD verified 1, Not owed 3, Tests awaiting verification 44, Not assessed 286, Not built 157
+- **MUST bar**: Ze verified 44, Tests awaiting verification 46, Not assessed 61, Not built 157
+- **Overview bar**: Ze MUST verified 44, SHOULD verified 1, Not owed 3, Tests awaiting verification 46, Not assessed 286, Not built 157
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 311 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze verified | 46 |
+| Ze verified | 44 |
 | OS verified | 0 |
-| Tests awaiting verification | 44 |
+| Tests awaiting verification | 46 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 61 |
@@ -74,7 +74,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows |
 | [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Not assessed 59 | Not assessed 59 |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 94 | Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94 |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 2, Tests awaiting verification 12, Not built 94 | Ze MUST verified 2, Tests awaiting verification 12, Not assessed 50, Not built 94 |
 | [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | Ze verified 1, Tests awaiting verification 8, Not built 6 | Ze MUST verified 1, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 6 |
 
 ### Level 6

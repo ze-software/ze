@@ -588,13 +588,18 @@ option=<type>:key=value[:key=value...]
 <!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
-`needs-build-tag` is supported by the generic `.ci` and parse runners. It reads
+`needs-build-tag` is supported by the generic `.ci` and parse runners, and by
+the web runner for `.wb` cases (`ParseDUTOption`, admitted through
+`DUTAdmission` against the ze the web suite built). Besides the manifest's
+tags it accepts the development tags no shipped build sets
+(`developmentBuildTags`, today `ze_fleet_ui_sample`), which a run adds with
+`env ze.tags=<tag>`; a missing tag's skip reason names that command. It reads
 the final selected DUT's embedded Go `-tags` setting once per run, only when a
 selected case with valid declarations has passed its existing host admission.
 Declare each feature once; an unknown feature name, state, key or repeated
 declaration is a parse error. Ordinary cases do not read DUT metadata. The
-shared resource-only reader used by editor and web tests refuses this option
-because those consumers do not supply a selected DUT to this admission path.
+shared resource-only reader used by editor tests refuses this option because
+that consumer does not supply a selected DUT to this admission path.
 <!-- source: internal/test/runner/build_tags.go -- parseOptionNeedsBuildTag, dutBuildTags.admit, explicitDUTBuildTags -->
 <!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
 

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 
 ## Figures
 
-- **MUST bar**: Ze verified 256, Tests awaiting verification 75, Not built 31
-- **Overview bar**: Ze MUST verified 256, SHOULD verified 8, Tests awaiting verification 77, Not assessed 89, Not built 31
+- **MUST bar**: Ze verified 258, Tests awaiting verification 73, Not built 31
+- **Overview bar**: Ze MUST verified 258, SHOULD verified 7, Tests awaiting verification 76, Not assessed 89, Not built 31
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 | Mandatory requirements complete | not complete |
 | MUST rows | 362 |
 | MUST rows kept (the MUST bar) | 362 |
-| Ze verified | 256 |
+| Ze verified | 258 |
 | OS verified | 0 |
-| Tests awaiting verification | 75 |
+| Tests awaiting verification | 73 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -30,14 +30,14 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 99 |
-| SHOULD verified | 8 |
+| SHOULD verified | 7 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 2 |
+| SHOULD tests awaiting verification | 3 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 89 |
 | SHOULD not built | 0 |
@@ -52,7 +52,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 3, Tests awaiting verification 25, Not assessed 30, Not built 13 | route-collector: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 2, Tests awaiting verification 26, Not assessed 30, Not built 13 | route-collector: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -67,7 +67,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 5, Tests awaiting verification 1 | Ze MUST verified 5, SHOULD verified 1, Tests awaiting verification 1, Not assessed 10 | route-collector: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze verified 6 | Ze MUST verified 6, SHOULD verified 1, Not assessed 10 | route-collector: required by rfc/short/rfc4760.md |
 
 ### Level 6
 
@@ -81,7 +81,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 | route-collector: required by rfc/short/rfc6286.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 32, Tests awaiting verification 20, Not built 1 | Ze MUST verified 32, Tests awaiting verification 20, Not assessed 4, Not built 1 | route-collector: required by rfc/short/rfc7606.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 | route-collector: required by rfc/short/rfc7606.md |
 
 ### Level 8
 

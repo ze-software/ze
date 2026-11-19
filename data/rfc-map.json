@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "340e37376d6d7d8168aadeb72703e14c52ddeea2462bd9a3294340893d9e709d"
+      "sha256": "e0a009314691017734cf1dfb7a91516986d09838a551810f8fa867a4aad70739"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "4e8fe231b1b3e93ea7cab92fd7292e7ee298d4a488d850826fddbe5f66e3a00c",
-      "revision": "d6459f74123eed522c288b5f7e6ba51b4cbfedc4"
+      "sha256": "89a2872d2ab259ce9383c2826803192a5d1e15709ca2d2bd8c6bf7254d4c96fb",
+      "revision": "a66ab55e4fd24554fbb56e8cceb09edddc8d97be"
     },
     {
       "label": "Proposed release layers",
@@ -30152,7 +30152,7 @@
         "annotation": {
           "kind": "single-polarity",
           "polarity": "positive",
-          "reason": "ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133)"
+          "reason": "ze projects a 64-packet anti-replay window on the inbound state of each IKE child SA (ReplayWin=64; the outbound state, which receives nothing, carries none) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go installChildDataplane, internal/component/ike/dataplane/xfrm_linux.go xfrmStateFromParams)"
         }
       },
       {
@@ -30251,7 +30251,7 @@
         "annotation": {
           "kind": "single-polarity",
           "polarity": "positive",
-          "reason": "a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444)"
+          "reason": "a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on the inbound SA, the receiver's side; the outbound SA carries none (internal/component/ike/engine/child.go, installChildSA)"
         }
       },
       {
@@ -80587,5 +80587,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "d6459f74123eed522c288b5f7e6ba51b4cbfedc4"
+  "roadmap-revision": "a66ab55e4fd24554fbb56e8cceb09edddc8d97be"
 }

@@ -1,6 +1,6 @@
 # Command Equivalents
 
-616 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+617 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -208,12 +208,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request bgp rib purge-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-purge-stale/) |
 | `request bgp rib release-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-release-routes/) |
 | `request bgp rib retain-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-retain-routes/) |
-| `request bgp rib source attach-community` | Daemon | - | - | - | - | [details](request-bgp-rib-source-attach-community/) |
-| `request bgp rib source delete-with-community` | Daemon | - | - | - | - | [details](request-bgp-rib-source-delete-with-community/) |
-| `request bgp rib source mark-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-source-mark-stale/) |
-| `request bgp rib source purge-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-source-purge-stale/) |
-| `request bgp rib source release-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-source-release-routes/) |
-| `request bgp rib source retain-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-source-retain-routes/) |
 | `request bgp rib withdraw` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw/) |
 | `request bgp rib withdraw-protocol` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-protocol/) |
 | `request bgp rib withdraw-router` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-router/) |
@@ -272,6 +266,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request data config rollback` | Daemon | - | - | - | - | [details](request-data-config-rollback/) |
 | `request data repair` | Daemon | - | - | - | - | [details](request-data-repair/) |
 | `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
+| `request fleet disable` | daemon, offline | - | - | - | - | [details](request-fleet-disable/) |
+| `request fleet divergence revert` | Daemon | - | - | - | - | [details](request-fleet-divergence-revert/) |
+| `request fleet enable` | daemon, offline | - | - | - | - | [details](request-fleet-enable/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
 | `request interface down` | Daemon | - | - | - | - | [details](request-interface-down/) |
 | `request interface mac` | Daemon | - | - | - | - | [details](request-interface-mac/) |
@@ -497,6 +494,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show firewall irr` | Read-only | - | - | - | - | [details](show-firewall-irr/) |
 | `show firewall irr prefix` | Read-only | - | - | - | - | [details](show-firewall-irr-prefix/) |
 | `show firewall ruleset` | Read-only | - | - | - | - | [details](show-firewall-ruleset/) |
+| `show fleet divergence` | Read-only | - | - | - | - | [details](show-fleet-divergence/) |
+| `show fleet divergence list` | Read-only | - | - | - | - | [details](show-fleet-divergence-list/) |
+| `show fleet status` | read-only, offline | - | - | - | - | [details](show-fleet-status/) |
 | `show flow export` | Read-only | - | - | - | - | [details](show-flow-export/) |
 | `show flow recent` | Read-only | - | - | - | - | [details](show-flow-recent/) |
 | `show geodns` | Read-only | - | - | - | - | [details](show-geodns/) |
@@ -737,6 +737,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update data config` | Daemon | - | - | - | - | [details](update-data-config/) |
 | `update data key` | Daemon | - | - | - | - | [details](update-data-key/) |
 | `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |
+| `update fleet divergence adopt` | Daemon | - | - | - | - | [details](update-fleet-divergence-adopt/) |
 | `update irr all` | Daemon | - | - | - | - | [details](update-irr-all/) |
 | `update irr as-set` | Daemon | - | - | - | - | [details](update-irr-as-set/) |
 | `update irr asn` | Daemon | - | - | - | - | [details](update-irr-asn/) |

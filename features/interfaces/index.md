@@ -402,7 +402,7 @@ every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and neve
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
 
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, devPPPSetup -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -1661,6 +1661,13 @@ and permit final backend cleanup. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later `os.ErrClosed` nor the socket number authorizes another close
 or proves release.
+
+This custody rule also covers construction. A socket Bind, name query or
+original-unit probe failure attempts Close once. Successful physical Close
+returns no writer. Failed Close returns a refused partial writer with zero
+features, retaining the original socket and both failure causes in the backend
+registry. It grants no mutation authority; callers retain the partial result
+even when binding returns an error.
 <!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.closeOriginal -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- ClosePending -->

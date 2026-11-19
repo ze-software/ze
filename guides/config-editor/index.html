@@ -53,7 +53,10 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
-<li><a href="#usage">Usage</a></li>
+<li><a href="#usage">Usage</a>
+<ol>
+<li><a href="#who-may-change-the-configuration">Who may change the configuration</a></li>
+</ol></li>
 <li><a href="#editor-commands">Editor Commands</a>
 <ol>
 <li><a href="#structural-operations-appear-in-the-diff">Structural operations appear in the diff</a></li>
@@ -157,6 +160,28 @@ configured entry count, and deduplicate consecutive displayed commands.</p>
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
+<h3 id="who-may-change-the-configuration">Who may change the configuration</h3>
+<p>On a daemon with <code>system.authorization</code> configured, an SSH session, and
+<code>ze config edit</code> in session mode, checks every change against the user's
+profile before it runs. Each verb that changes the candidate, the store or the
+running configuration (<code>set</code>, <code>delete</code>, <code>commit</code>, <code>rollback</code>, <code>load</code> and the
+others) is judged in the profile's <code>edit</code> section by its permission string,
+such as <code>config set</code> or <code>config commit</code>. Browsing is never checked: <code>edit</code>,
+<code>up</code>, <code>top</code>, <code>show</code>, <code>who</code>, <code>option</code> and <code>help</code> work for every user. A refused
+line changes nothing and answers:</p>
+<pre><code>command restricted by access control: config commit
+ask an administrator for a profile whose edit section allows `config commit`
+</code></pre>
+<p>To allow the change, an
+administrator adds an <code>allow</code> entry for that string, or for <code>config</code>, to the
+<code>edit</code> section of one of your profiles. <a href="../authorization/">Authorization</a>,
+"Configuration mode", lists every verb's string, and the configuration name a
+session on another stored configuration adds to it.</p>
+<p>The console of <code>ze start --cli</code>, and the file and backup modes of
+<code>ze config edit</code>, authenticate nobody and are not checked.</p>
+<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
+<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h2 id="editor-commands">Editor Commands</h2>
 <p>In an SSH session, <code>load file</code> reads only a regular configuration file inside
 the daemon's configured configuration directories. Paths through symlinks are
@@ -595,7 +620,7 @@ the config file and run <code>ze secret decode '$9$...'</code>, or <code>ze secr
 to keep the value out of the shell history. A <code>ze:bcrypt</code> leaf holds a one-way
 hash, which no command can decode.</p>
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+<!-- source: internal/component/config/infra/diff.go -- maskDiffSecrets -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 <h3 id="commands-run-one-at-a-time-in-order">Commands run one at a time, in order</h3>
 <p>The config commands of one session run serially, in the order the operator
@@ -1423,7 +1448,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

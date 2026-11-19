@@ -384,9 +384,12 @@ bound endpoint, including closing reactors whose cleanup is still pending.
 `show l2tp listeners` includes `name` when the original has a configured key.
 Unknown and ambiguous names are refused. Tab completes actual names only after
 the `listener` keyword. Omitting `expected-id` remains valid at an interactive
-prompt; a bare SID matching several originals is refused. Quote a reason that
-contains another keyword. Missing values, duplicate keywords and invalid
-disconnect causes are refused before any audit or teardown.
+prompt. A bare SID matching several originals is refused as ambiguous. The
+refusal lists the qualified clear commands for the current matches. If no
+original matches the full selector, the command reports that no L2TP session
+matches. Check the intended original with `show l2tp sessions` before retrying.
+Quote a reason that contains another keyword. Missing values, duplicate
+keywords and invalid disconnect causes are refused before any audit or teardown.
 
 A clear waits for the captured original's PPP cleanup when that worker is
 already closing its resources. Success requires confirmed physical release
@@ -395,6 +398,7 @@ operation or a failed Close remains a refusal, and a retry uses the retained
 original rather than a replacement with the same SID.
 
 <!-- source: internal/component/l2tp/listener_inventory.go -- listenerSnapshotsLocked -->
+<!-- source: internal/component/l2tp/cmd/session_teardown.go -- sessionTeardownAmbiguity, sessionTeardownNotFound -->
 <!-- source: internal/component/l2tp/cmd/session_teardown_completion.go -- completeSessionTeardown -->
 
 RFC 2661 S4.4.2 / S5.4.2 define the Result Codes and teardown

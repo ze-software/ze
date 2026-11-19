@@ -1014,13 +1014,18 @@ protocol message and the remote close.</p>
 <!-- source: internal/test/runner/display.go -- Display.TestFinished, the SKIP line carries the SkipReason -->
 <!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
-<p><code>needs-build-tag</code> is supported by the generic <code>.ci</code> and parse runners. It reads
+<p><code>needs-build-tag</code> is supported by the generic <code>.ci</code> and parse runners, and by
+the web runner for <code>.wb</code> cases (<code>ParseDUTOption</code>, admitted through
+<code>DUTAdmission</code> against the ze the web suite built). Besides the manifest's
+tags it accepts the development tags no shipped build sets
+(<code>developmentBuildTags</code>, today <code>ze_fleet_ui_sample</code>), which a run adds with
+<code>env ze.tags=&lt;tag&gt;</code>; a missing tag's skip reason names that command. It reads
 the final selected DUT's embedded Go <code>-tags</code> setting once per run, only when a
 selected case with valid declarations has passed its existing host admission.
 Declare each feature once; an unknown feature name, state, key or repeated
 declaration is a parse error. Ordinary cases do not read DUT metadata. The
-shared resource-only reader used by editor and web tests refuses this option
-because those consumers do not supply a selected DUT to this admission path.</p>
+shared resource-only reader used by editor tests refuses this option because
+that consumer does not supply a selected DUT to this admission path.</p>
 <!-- source: internal/test/runner/build_tags.go -- parseOptionNeedsBuildTag, dutBuildTags.admit, explicitDUTBuildTags -->
 <!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
 <h4 id="configuration-inputs-for-peer-as-derivation">Configuration inputs for peer AS derivation</h4>
@@ -3839,7 +3844,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>
