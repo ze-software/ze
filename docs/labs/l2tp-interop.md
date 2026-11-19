@@ -75,9 +75,8 @@ zero and collision guards, and retry bound. The complete parsed allocator
 method must match the expected source shape before the overlay is written;
 allocator drift stops staging for review. The original source is unchanged,
 and the replacement is removed after compilation. This instrumentation forces
-legal repeated Ze-local IDs across tunnels; it provides no evidence about
-production randomness or performance. AC-2 remains expected to fail until
-`spec-l2tp-session-identity-and-publish-stall` lands.
+legal repeated Ze-local IDs across tunnels. The scenario measures session
+isolation under that collision.
 
 The relay is compiled from its Go package by the same host staging action and
 copied into its Alpine image. An RFC recorder overlay therefore reaches the
@@ -118,6 +117,12 @@ Accounting-Starts and no Accounting-Stop. The existing selected RADIUS
 disconnect, 47-survivor proof, peer CDN and 46-survivor/accounting tail then run
 unchanged.
 <!-- source: internal/le/interoplab/l2tp/scale_selector.go -- checkScaleReadableSelection, scaleSelectedViews, scaleSelectorAccountingUnchanged -->
+
+On 2026-11-19 the full scenario passed in Ze's Linux 7.3 arm64 guest. After
+both selector refusals preserved all 48 subscribers, the exact-ID RADIUS
+Disconnect left 47 and the independently selected peer CDN left 46. At each
+stage the checker verified the exact subscriber routes, accounting records and
+interface-bound traffic.
 
 The pinned kl2tpd release uses cgo for its Linux PPPoX socket bindings.
 Its builder installs GCC, musl development headers and Linux headers, then
