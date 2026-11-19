@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint",
+    "unit-sha": "939eaf139485f20d",
+    "claim-sha": "341e3f81fd9de816",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "line 785: \"sa.mobike.enabled\" -\u003e \"sa.mobike.enabled \u0026\u0026 sa.BehindNAT\""
+  },
+  {
+    "rid": "RFC4555-3.8-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint",
+    "unit-sha": "939eaf139485f20d",
+    "claim-sha": "d6d4c11072717092",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/established.go::sendRaw",
+    "producer-sha": "648ef87c55227820",
+    "break": "line 993: \"remote = sa.replyRemote\" -\u003e \"remote = sa.remoteUDPAddr()\""
+  }
+]

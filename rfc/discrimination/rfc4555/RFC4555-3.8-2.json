@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint",
+    "unit-sha": "939eaf139485f20d",
+    "claim-sha": "9e5b55b27c4d0705",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "line 312: \"mobikeNATPayloads(sa, sa.replyLocal, sa.replyRemote)\" -\u003e \"mobikeNATPayloads(sa, sa.replyRemote, sa.replyLocal)\""
+  },
+  {
+    "rid": "RFC4555-3.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint",
+    "unit-sha": "939eaf139485f20d",
+    "claim-sha": "ce8c0a829d16633c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "line 309: \"notifyOf(inner, wire.NotifyNATDetectionSourceIP) != nil ||\" -\u003e \"true ||\""
+  }
+]

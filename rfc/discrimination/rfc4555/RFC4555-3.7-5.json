@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.7-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration",
+    "unit-sha": "c399154ab1c1b0dc",
+    "claim-sha": "d7cc9a5bc7613ebc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::handleMobikeResponse",
+    "producer-sha": "bd7ad46b21a65805",
+    "break": "line 460: \"return mobikeFatal(sa, fmt.Errorf(\\\"ike: COOKIE2 return routability failed\\\"), log)\" -\u003e \"return ownedOutcome{}\""
+  },
+  {
+    "rid": "RFC4555-3.7-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration",
+    "unit-sha": "c399154ab1c1b0dc",
+    "claim-sha": "6aed704d5238d60e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::handleMobikeResponse",
+    "producer-sha": "bd7ad46b21a65805",
+    "break": "line 495: \"return ownedOutcome{peerAlive: true}\" -\u003e \"return mobikeFatal(sa, fmt.Errorf(\\\"ike: SA closed after a matching COOKIE2\\\"), log)\""
+  }
+]

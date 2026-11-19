@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy",
+    "unit-sha": "6eb4d7d3462f17fe",
+    "claim-sha": "d2f10d724bb45429",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
+    "producer-sha": "9666527bf71c7036",
+    "break": "line 420: \"sa.PeerCfg.ProhibitNAT\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4555-3.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy",
+    "unit-sha": "6eb4d7d3462f17fe",
+    "claim-sha": "f8d8d9b8b92d23e6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
+    "producer-sha": "9666527bf71c7036",
+    "break": "line 420: \"sa.PeerCfg.ProhibitNAT\" -\u003e \"true\""
+  }
+]

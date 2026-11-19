@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange",
+    "unit-sha": "c84057a1bfc223e6",
+    "claim-sha": "e7b4b74de73afd67",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::handleMobikeResponse",
+    "producer-sha": "bd7ad46b21a65805",
+    "break": "line 467: \"ps.startMobikeRequest(sa, tr, sa.mobike.originalInitiator, log)\" -\u003e \"error(nil)\""
+  },
+  {
+    "rid": "RFC4555-3.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange",
+    "unit-sha": "c84057a1bfc223e6",
+    "claim-sha": "060f10bb706fe750",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::handleMobikeResponse",
+    "producer-sha": "bd7ad46b21a65805",
+    "break": "line 494: \"log.Info(\" -\u003e \"_ = ps.startMobikeRequest(sa, tr, true, log); log.Info(\""
+  }
+]

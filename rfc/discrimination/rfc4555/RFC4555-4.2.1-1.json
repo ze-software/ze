@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-4.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation",
+    "unit-sha": "4c2e85512778a9aa",
+    "claim-sha": "17e5fb58757ae630",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeAuthOffer",
+    "producer-sha": "4fdfc248d9677a8f",
+    "break": "line 85: \"NotifyMsgType: wire.NotifyMobikeSupported}\" -\u003e \"NotifyMsgType: wire.NotifyMobikeSupported, NotificationData: []byte{0x01}}\""
+  },
+  {
+    "rid": "RFC4555-4.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation",
+    "unit-sha": "4c2e85512778a9aa",
+    "claim-sha": "f981165df2c12d49",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::acceptMobikeOffer",
+    "producer-sha": "1018623ce0ed1c35",
+    "break": "line 95: \"notifyOf(inner, wire.NotifyMobikeSupported) == nil\" -\u003e \"notifyOf(inner, wire.NotifyMobikeSupported) == nil || len(notifyOf(inner, wire.NotifyMobikeSupported).NotificationData) != 0\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.9-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsIPv4Tuple",
+    "unit-sha": "ac88a90afc9972bd",
+    "claim-sha": "af3b27b29e3923e0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::noNATsAllowedMatches",
+    "producer-sha": "883a01ba6a142872",
+    "break": "line 236: \"== remote.Port\" -\u003e \"== local.Port\""
+  },
+  {
+    "rid": "RFC4555-3.9-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsIPv4Tuple",
+    "unit-sha": "ac88a90afc9972bd",
+    "claim-sha": "101a2b3679b178ae",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::noNATsAllowedMatches",
+    "producer-sha": "883a01ba6a142872",
+    "break": "line 233: \"!net.IP(data[:width]).Equal(remote.IP) ||\" -\u003e \"false ||\""
+  }
+]

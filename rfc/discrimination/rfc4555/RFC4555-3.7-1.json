@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds",
+    "unit-sha": "03aaa11d5aa8c4de",
+    "claim-sha": "13871ab7b68893ab",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "line 307: \"wire.PayloadEntry{Payload: cookie}\" -\u003e \"wire.PayloadEntry{Payload: \u0026wire.PayloadNotify{NotifyMsgType: cookie.NotifyMsgType, NotificationData: cookie.NotificationData[1:]}}\""
+  },
+  {
+    "rid": "RFC4555-3.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds",
+    "unit-sha": "03aaa11d5aa8c4de",
+    "claim-sha": "cfc4028fa2cb791c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "line 304: \"cookie := notifyOf(inner, wire.NotifyCookie2); cookie != nil\" -\u003e \"cookie := func() *wire.PayloadNotify { if c := notifyOf(inner, wire.NotifyCookie2); c != nil { return c }; return \u0026wire.PayloadNotify{NotifyMsgType: wire.NotifyCookie2, NotificationData: make([]byte, 8)} }(); cookie != nil\""
+  }
+]

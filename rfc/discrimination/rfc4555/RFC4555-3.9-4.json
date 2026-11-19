@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-3.9-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsIPv4Tuple",
+    "unit-sha": "ac88a90afc9972bd",
+    "claim-sha": "5399f5da0db98ace",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::validateMobikeRequest",
+    "producer-sha": "c5c37e7759769d3e",
+    "break": "line 203: \"return wire.NotifyUnexpectedNATDetected\" -\u003e \"if d := n.NotificationData; len(d) == 12 { sa.peerEndpoint = \u0026net.UDPAddr{IP: net.IP(d[:4]), Port: int(binary.BigEndian.Uint16(d[8:]))} }; return wire.NotifyUnexpectedNATDetected\""
+  },
+  {
+    "rid": "RFC4555-3.9-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsIPv4Tuple",
+    "unit-sha": "ac88a90afc9972bd",
+    "claim-sha": "dfe7ef908847e15a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/mobike.go::noNATsAllowedMatches",
+    "producer-sha": "883a01ba6a142872",
+    "break": "line 222: \"remote == nil ||\" -\u003e \"true ||\""
+  }
+]
