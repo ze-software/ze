@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.24-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc7296_ecn_kernel_state_linux_test.go::TestEcnKernelStoresTunnelSAWithoutNoECN",
+    "unit-sha": "4b897df865f29b75",
+    "claim-sha": "02af3171a8b96390",
+    "route": "mutant",
+    "producer": "vendor/github.com/vishvananda/netlink/xfrm_state_linux.go::xfrmUsersaInfoFromXfrmState",
+    "producer-sha": "f5f8024b78e01867",
+    "break": "line 769: \"nl.XFRM_STATE_AF_UNSPEC\" -\u003e \"nl.XFRM_STATE_NOECN\""
+  },
+  {
+    "rid": "RFC7296-2.24-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls",
+    "unit-sha": "3126c014c9661657",
+    "claim-sha": "b08b5dfba5e2e044",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 195: \"Spi:   int(p.SPI),\" -\u003e \"Spi:   int(p.SPI) + 1,\""
+  }
+]

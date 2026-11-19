@@ -83,10 +83,9 @@ func ecnSetFieldsMentioning(t *testing.T, v any, want ...string) []string {
 // InstallSA performs before its single netlink.XfrmStateAdd call. Breaking that mapping
 // reds this test.
 //
-// RFC requirement: RFC7296-2.24-1 positive -- RFC 7296 Section 2.24: "tunnel encapsulators
-// and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN
-// full-functionality option for tunnels". The state ze builds carries no flag disabling it,
-// and it is a TUNNEL mode state, which is the kind the section binds.
+// The RFC7296-2.24-1 positive tag lives on TestEcnKernelStoresTunnelSAWithoutNoECN, which
+// reads the NOECN bit where it exists: in the flags octet the kernel stores.
+//
 // RFC requirement: RFC7296-2.24-2 positive -- the same section: implementations "MUST
 // implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH]
 // to prevent discarding of ECN congestion indications". Ze delegates that processing to the
