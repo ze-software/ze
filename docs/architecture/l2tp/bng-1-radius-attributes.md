@@ -85,6 +85,38 @@ keeps waiting after a reply of another kind. The parser writes the
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort, accountingPortDefault -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig, retireAuthClient -->
 
+**One task per session sends its Start, its Interims and its Stop.** The Stop
+was once sent from the session-down callback, which waited up to 10 seconds
+for the server. That callback runs on the publisher of the Down, which is the
+L2TP reactor when a peer sends a CDN, so one silent accounting server stopped
+the control traffic of every tunnel. The callback now records the end of
+service (cause, session time, Event-Timestamp instant, final counters) and
+hands the Stop to the session's accounting task. One sender per session also
+keeps the Stop behind an unacknowledged Start or Interim. Each record is
+bounded at 10 seconds.
+
+**A session keeps the endpoint it started under.** The client, the NAS identity
+and the server address are pinned to the session at its Start, so every record
+of one session reaches the server that holds its Start. A reload installs a new
+endpoint for new sessions, and the replaced client closes when its last
+session has sent its Stop. Shutdown and the removal of the RADIUS
+configuration send an Admin Reboot Stop for every live session and wait for
+every owed Stop, those already handed over included, within one shared
+10-second bound. At the bound the waiting clients close, and each abandoned
+Stop is logged with its Acct-Session-Id.
+
+**A record no server acknowledged is a doctor finding, not only a log line.**
+The runtime check `l2tp-radius-accounting` reports
+`doctor-radius-accounting-unacknowledged` per session, named by its
+Acct-Session-Id, and a later acknowledged record of the session clears it.
+
+**Records are keyed by the session's Birth plus its wire labels.** A tunnel
+reuses session IDs, so two live sessions can share a tunnel and session ID; the
+Birth keeps their records apart, and a Down for one cannot end the other's.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown, acctSession.end, acctEndpoint, setClient, stopDetached, sessionKey -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct_health.go -- recordAccountingOutcome, acctHealthDeclaration -->
+
 **The subscriber's resolvers are read from the Access-Accept, and the pool
 decides whether to offer them.** `extractMSDNSServers` reads
 MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548 Sections 2.7.6
@@ -108,10 +140,12 @@ next section describes; nothing turns one on, because each is already sent.
 
 | Attribute | Type | Records | Value |
 |-----------|------|---------|-------|
-| Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3) |
+| Event-Timestamp | 55 | Start, Interim, Stop | Four octets, seconds since 1970-01-01 00:00 UTC (RFC 2869 Section 5.3). On the Stop, the instant service ended, even when the Stop is sent later |
 | Calling-Station-Id | 31 | Start, Interim, Stop | The L2TP Calling Number AVP, or the subscriber MAC on the PPPoE relay path (RFC 2865 Section 5.31). Omitted when neither side named one |
 | Acct-Terminate-Cause | 49 | Stop ONLY | Why the session ended, as an RFC 2866 Section 5.10 integer |
 | Acct-Delay-Time | 41 | Start, Interim, Stop | How many seconds the client has been trying to send this record (RFC 2866 Section 5.2). Zero on the first attempt, updated on every retransmission |
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket, acctSession.eventTime -->
 
 **Acct-Delay-Time makes the accounting retransmit re-encode.** RFC 2866
 Section 4.1: "if Acct-Delay-Time is included in the attributes of an
@@ -198,7 +232,7 @@ site names the cause that is TRUE of its own path.
 | Session-Timeout expired (RFC 2865 Section 5.27) | Session Timeout | 5 |
 | Operator `clear l2tp session`, `clear l2tp tunnel id <tid>`, `clear l2tp tunnel all`, and RADIUS Disconnect-Request (RFC 5176) | Admin Reset | 6 |
 | A CDN whose Result Code is 3, "Call disconnected for administrative reasons" | Admin Reset | 6 |
-| The accounting plugin stopping, which ends service on the NAS | Admin Reboot | 7 |
+| The accounting plugin stopping, or its RADIUS configuration removed, which ends service on the NAS | Admin Reboot | 7 |
 | Any failure the NAS detected: negotiation timeout, auth rejection, NCP refusal, an ioctl error, a channel fd that closed or failed to read, a refused StartSession, a message ze refused during tunnel or session setup, a kernel setup failure | NAS Error | 9 |
 | A CDN carrying any other Result Code, and a CDN ze could not parse | NAS Error | 9 |
 | The PPP driver stopping a running session on purpose, including an authentication-policy refusal before LCP Opened | NAS Request | 10 |
@@ -287,9 +321,10 @@ route observer working, which is why each round looked correct
 (`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-04).
 
 <!-- source: internal/component/l2tp/events/terminate_cause.go -- TerminateCause -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- acctRetirement.stopDetached -->
 <!-- source: internal/component/l2tp/session.go -- removeSession, clearSessions, drainPendingTeardowns -->
 <!-- source: internal/component/l2tp/session_fsm.go -- terminateCauseForCDN, handleCDN -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownTunnelByID, teardownSessionByID, teardownSessionOnTunnel, deliverSessionDowns -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownTunnelByID, teardownSessionOnTunnel, teardownCapturedSession, deliverSessionDowns -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- fail, the LCP and echo emitters -->
 
 **Calling-Station-Id crosses three boundaries, and it used to cross none.**

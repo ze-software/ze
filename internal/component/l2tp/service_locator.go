@@ -25,7 +25,6 @@ type Service interface {
 	Listeners() []ListenerSnapshot
 	EffectiveConfig() ConfigSnapshot
 	TeardownTunnel(localTID uint16) error
-	TeardownSession(localSID uint16) error
 	TeardownAllTunnels() int
 	TeardownAllSessions() int
 	LoginSamples(login string) []CQMBucket

@@ -71,8 +71,11 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
    session-scoped types (ICRQ/ICRP/ICCN/OCRQ/OCRP/OCCN/CDN/WEN/SLI) -> `dispatchToSession`
    (`tunnel_fsm.go`, defined `session_fsm.go`).
 10. **ICRQ -> ICRP -> ICCN (LNS side).** `handleICRQ` (`session_fsm.go`) allocates a local
-    session ID, creates an `L2TPSession{state: L2TPSessionWaitConnect}`
-    (`session_fsm.go`), and replies ICRP. `handleICCN` (`session_fsm.go`) transitions
+    session ID, mints the session's Birth (`newSessionBirth`, `session_birth.go`, which
+    refuses the call when no Birth can be drawn), creates an
+    `L2TPSession{state: L2TPSessionWaitConnect}` carrying that Birth and its canonical
+    subscriber ID `birth.String()` (`l2tp-` plus 32 hex digits), and replies ICRP.
+    `handleOCRQ` and `newInitiatorSession` (`session_initiator.go`) mint one the same way. `handleICCN` (`session_fsm.go`) transitions
     to `L2TPSessionEstablished` and sets `sess.kernelSetupNeeded = true` +
     `sess.lnsMode = true` (`session_fsm.go`), capturing any proxy-LCP AVPs from the
     LAC (RFC 2661 §18) for the PPP handoff.
@@ -99,6 +102,11 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
     (`teardown.go`) delivers the batch in that ticket's turn. The subscriber
     bridge republishes each `(l2tp, session-down)` on the shared topic, and
     `route_observer.go` withdraws the original subscriber's live contribution.
+    The redistribute orchestrator sends that Remove to the consumer instance that
+    accepted the route, retired instances first (`heldRoutes.claimRemove`,
+    `internal/plugins/redistribute/held.go`). A withdrawal that answers an error keeps
+    its record for the next Remove or reload sweep (`settleWithdrawal`) and is
+    reported as `doctor-redistribute-withdrawal-unconfirmed`.
 
 ### C. Shared PPP negotiation (both transports converge here)
 14. **Dispatch + per-session goroutine.** `Driver.dispatch` (`manager.go`) reads
@@ -194,11 +202,41 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
     `SessionAuthResult` (`subscriber/events/events.go`) as the cross-access-type
     EventBus namespace (`"subscriber"`) both transports emit on
     (e.g. `pppoe/subsystem.go,351,368`; `subscriber_bridge.go,99,131`).
-23. **RADIUS accounting.** `radiusAcct.SubscribeEventBus` (`plugins/authradius/acct.go`)
-    subscribes **only** to `l2tpevents.SessionIPAssigned`/`SessionDown`
-    (`acct.go,96`), NOT the shared `subscriber` namespace: Accounting-Start/Interim/Stop
-    (`acct.go,173,183`) only fire for L2TP sessions today, even though the same RADIUS
-    auth handler authenticates PPPoE sessions too (see Gotchas).
+23. **RADIUS accounting.** `radiusAcct.subscribeEventBus` (`plugins/authradius/acct.go`)
+    subscribes **only** to `l2tpevents.SessionIPAssigned`/`SessionDown`, NOT the shared
+    `subscriber` namespace, so accounting fires for L2TP sessions only, even though the
+    same RADIUS auth handler authenticates PPPoE sessions too (see Gotchas).
+    - **Start.** `onSessionIPAssigned` keys the record by `sessionKey` (Birth plus
+      tunnel and session ID), so two live sessions that share a tunnel's reused
+      session ID keep separate records. It pins the current `acctEndpoint` (client,
+      NAS identity, source address, server) with `acquire`, mints the
+      Acct-Session-Id (`genSessionID`) and starts one task, `runAccounting`.
+    - **One task sends every record.** `runAccounting` sends the Start, runs
+      `interimLoop` until the session's context ends, waits for `ended`, then sends
+      the Stop, all through the session's own endpoint. A Stop never overtakes an
+      unacknowledged Start or Interim. Each record waits at most `acctRecordBound`
+      (10 s) in `sendAcctPacket`.
+    - **Down never waits for RADIUS.** `onSessionDown` runs on the Down's publisher,
+      which can be the L2TP reactor. It moves the record from `sessions` to
+      `ending` and calls `acctSession.end`, which records the cause, elapsed time,
+      Event-Timestamp instant and final counters (`captureEnd`) and closes `ended`.
+      The Stop reports those end-of-service values (`eventTime`, `recordCounters`)
+      even when it leaves later.
+    - **Reload.** `setClient` installs a new endpoint for new sessions and `retire`s
+      the old one, whose client closes when the last session holding it calls
+      `release` after its Stop.
+    - **Shutdown and RADIUS removal.** `detach` hands the endpoint, live and ending
+      sessions to an `acctRetirement`; `stopDetached` ends every live session with
+      Admin Reboot and waits, within one shared `acctRecordBound`, for every owed Stop
+      (`awaitTasks`). At the bound it closes the waiting clients, so each abandoned
+      Stop is logged by `sendAcctPacket` with its Acct-Session-Id. `runPlugin`
+      (`register.go`) runs retirement off the apply path and joins it at shutdown.
+    - **Doctor.** `recordAccountingOutcome` (`acct_health.go`) raises
+      `doctor-radius-accounting-unacknowledged` per session (subject: wire labels
+      plus Acct-Session-Id) for a record no server acknowledged, and a later
+      acknowledged record of the session clears it. The runtime check
+      `l2tp-radius-accounting` answers the retained findings through
+      `checkRuntimeHealth`, which routes by check name beside the CoA check.
 24. **CoA / Disconnect-Message.** `coaListener.handleCoA` (`plugins/authradius/coa.go`)
     looks up the session in the shared registry first via `findSubscriberSession`
     (`coa.go`, matches on `Acct-Session-Id` across both access types through
@@ -207,7 +245,7 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
     `handleDisconnect` (`coa.go`) also finds PPPoE sessions this way but is **not wired to
     PPPoE teardown**: it NAKs and logs `"disconnect-request for PPPoE session not yet wired to
     PPPoE teardown"` (`coa.go`); only the L2TP fallback path actually tears a session
-    down (`svc.TeardownSession`, `coa.go`).
+    down (`CapturedSession.Teardown`, `coa.go`).
 
 ## Key files
 | File | Role |
@@ -247,6 +285,14 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
 | `plugins/pool/register.go` | Static IPv4 pool `PoolHandler`, registered via `l2tp.RegisterPoolHandler` |
 
 ## Invariants & gotchas
+- **An L2TP session is named by its Birth, never by its wire labels.** A tunnel reuses
+  session IDs, and two tunnels can carry the same IDs, so a `(tunnelID, sessionID)`
+  pair can name two live sessions. `subscriberid.L2TPBirth`
+  (`internal/core/subscriberid/l2tp_birth.go`) is minted once at admission and rides
+  on every lifecycle event (`Birth`, `SubscriberID` in `l2tp/events/events.go`).
+  Readers key their state by it (accounting's `sessionKey`, the route observer, the
+  pool's allocation key) and MUST NOT rebuild an identity from the tuple: a zero
+  Birth is refused (`IsValid`, `subscriber.RequireID`), never guessed.
 - **One tunnel's session notifications are delivered in state-change order.** A path
   that changes a session takes the tunnel's order ticket under `tunnelsMu`
   (`issueNoticeTicket`, or `drainPendingTeardowns` for downs, `session.go`), waits its
@@ -284,14 +330,14 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
   subscriber registration at all. PPPoE guards the same way per-emit (`if s.bus != nil`,
   `pppoe/subsystem.go` etc.) rather than skipping the whole event consumer.
 - **RADIUS accounting is L2TP-only despite the shared auth handler.** `radiusAcct` subscribes
-  to `l2tpevents.SessionIPAssigned`/`SessionDown` (`plugins/authradius/acct.go,96`), which
+  to `l2tpevents.SessionIPAssigned`/`SessionDown` (`acct.go` `subscribeEventBus`), which
   only L2TP's reactor emits; PPPoE sessions authenticated by the same RADIUS handler never
   get an Accounting-Start/Stop. Adding PPPoE accounting means subscribing
   `subevents.SessionUp`/`SessionIPAssigned`/`SessionDown` instead (or in addition).
 - **PPPoE Disconnect-Message (RADIUS CoA) is not wired to teardown.** `handleDisconnect`
   (`plugins/authradius/coa.go`) finds the PPPoE session via the subscriber registry
   but only logs and NAKs; there is no `pppoe.Subsystem.TeardownSession` equivalent to
-  `l2tp.Service.TeardownSession` (`coa.go`) yet. The gap is known and still open.
+  `l2tp.CapturedSession.Teardown` (`coa.go`) yet. The gap is known and still open.
 - **Registry values are always copies.** `Registry.Add` copies `*Session` into the map
   (`subscriber/registry.go`) and `Get`/`All` return value copies
   (`subscriber/registry.go,44-51`); mutating a `Session` obtained from the registry

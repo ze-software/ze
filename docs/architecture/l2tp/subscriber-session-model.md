@@ -114,10 +114,18 @@ Those constructors also cache the canonical subscriber ID before publication.
 The kernel handoff supplies both to the original PPP attempt. Its lifecycle
 consumers check both facts beside the exact admitted Control or refused
 Attempt; reusable wire labels cannot supply a missing identity.
+A PPP event those checks refuse, such as a late event of an ended session
+whose IDs a replacement drew again, changes nothing and publishes nothing. It
+logs one debug line naming the event, its tunnel and session IDs and the check
+it failed: this is expected churn, not an operator problem.
+The session and idle timers end their session through the same captured
+teardown, which requires the original row and the timer's own uncanceled
+context, so a timer of an ended session cannot end its replacement.
 <!-- source: internal/component/l2tp/session.go -- Birth, SubscriberID, matchesPPPIdentity -->
 <!-- source: internal/component/l2tp/session_fsm.go -- handleICRQ, handleOCRQ -->
 <!-- source: internal/component/l2tp/session_initiator.go -- newInitiatorSession -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess, pppSessionLocked, handlePPPEvent -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess, pppSessionLocked, handlePPPEvent, refusePPPEvent -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownCapturedSession -->
 
 The actor captures framed-route metadata under its row lock using that cached
 ID. Its ordered assignment notification carries an independent route slice;
@@ -364,7 +372,15 @@ deferred call runs after the deferred unlock and before
 never waits behind one the panic left open. A reader that panics still
 finishes its ticket, because `sessionNoticeTicket.deliver` defers the finish.
 
-<!-- source: internal/component/l2tp/reactor.go -- handle -->
+A path that also changes the tunnel's own state, a packet in `handle` or a
+timeout in `handleTick`, delivers its session downs before it emits
+`tunnel-up` or `tunnel-down`. A tunnel-event reader runs on the reactor
+goroutine, and it may end a session through the reactor: that teardown takes
+a ticket of its own, which would wait for ever behind one the path still held
+undelivered. So when the reader runs, no ticket of the path is open, and the
+reader's own session down is published after the downs the path owed.
+
+<!-- source: internal/component/l2tp/reactor.go -- handle, handleTick -->
 <!-- source: internal/component/l2tp/panic_guard.go -- clearTunnelAfterPanic -->
 
 **The reader contract.** An in-process reader runs on the publishing

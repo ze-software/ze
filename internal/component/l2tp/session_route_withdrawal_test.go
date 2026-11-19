@@ -90,7 +90,7 @@ func TestSessionRemovedBeforeEstablishedWithdrawsNoRoute(t *testing.T) {
 	tun.sessions[waitingSID] = waiting
 	r.tunnelsMu.Unlock()
 
-	require.NoError(t, r.teardownSessionByID(waitingSID, l2tpevents.TerminateCauseAdminReset))
+	require.NoError(t, teardownCapturedByID(t, r, orderTestTID, waitingSID))
 
 	require.Empty(t, actorRouteEntries(t, observer.routes.events(), redistevents.ActionRemove, 0),
 		"a session that never ran PPP must not withdraw a route")

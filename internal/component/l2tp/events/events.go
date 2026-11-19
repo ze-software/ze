@@ -16,6 +16,10 @@
 // wait behind the one its own caller is still delivering, and the tunnel's
 // notifications would stop. A reader that is slow delays the later
 // notifications of its own tunnel and the goroutine that carries them.
+//
+// TunnelUp and TunnelDown are published after the session downs the same
+// packet or tick owed were delivered, so their readers hold no turn of the
+// tunnel and may end one of its sessions through the reactor.
 package events
 
 import (

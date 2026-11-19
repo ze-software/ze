@@ -498,6 +498,24 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	tunnelsHeld = false
 	r.tunnelsMu.Unlock()
 
+	// Withdraw the subscriber routes of the sessions a peer-initiated event
+	// just tore down (incoming StopCCN clears the tunnel's sessions; CDN
+	// clears one; tie-breaker losses discard a tunnel), then tell the readers
+	// of (l2tp, session-down). Without the withdrawal the redistribute source
+	// keeps the /32 injected after the session is gone. A peer hanging up is
+	// the ORDINARY end of a session, so this is where most of an LNS's
+	// Accounting-Stop records come from. The downs leave undelivered before
+	// the call, so a reader that panics inside it is not delivered to twice
+	// by the deferred delivery.
+	//
+	// This is the first step after the unlock, before the tunnel events
+	// below: a tunnel-up or tunnel-down reader runs on this goroutine and may
+	// end a session through the reactor, and that teardown's own ticket would
+	// wait for ever behind a ticket this path still held undelivered.
+	downs := undelivered
+	undelivered = nil
+	r.deliverSessionDowns(downs)
+
 	// spec-l2tp-9 AC-1: emit tunnel lifecycle events after releasing lock.
 	if r.eventBus != nil {
 		if stateBefore != L2TPTunnelEstablished && stateAfter == L2TPTunnelEstablished {
@@ -518,19 +536,6 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 			}
 		}
 	}
-
-	// Withdraw the subscriber routes of the sessions a peer-initiated event
-	// just tore down (incoming StopCCN clears the tunnel's sessions; CDN
-	// clears one; tie-breaker losses discard a tunnel), then tell the readers
-	// of (l2tp, session-down). Without the withdrawal the redistribute source
-	// keeps the /32 injected after the session is gone. A peer hanging up is
-	// the ORDINARY end of a session, so this is where most of an LNS's
-	// Accounting-Stop records come from. The downs leave undelivered before
-	// the call, so a reader that panics inside it is not delivered to twice
-	// by the deferred delivery.
-	downs := undelivered
-	undelivered = nil
-	r.deliverSessionDowns(downs)
 
 	// Phase 5: enqueue kernel events after releasing the lock.
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
@@ -819,10 +824,28 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 	// for anybody to wait on. The tickets reapExpiredLocked issued above
 	// belong to tunnels already gone from both maps, which no later path can
 	// reach to wait behind them.
-	_, tickTeardowns, tickDowns := r.collectKernelEventsLocked(tunnel)
+	//
+	// The setups are the ones an earlier dispatch could not hand out: a
+	// session whose packet-path collection failed to read the listener's
+	// socket keeps kernelSetupNeeded, and this collection clears it, so the
+	// tick MUST enqueue what it collected or the session never reaches the
+	// kernel or PPP.
+	tickSetups, tickTeardowns, tickDowns := r.collectKernelEventsLocked(tunnel)
 	stateAfter := tunnel.state
 	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
+
+	// A dead peer or an exhausted retransmit budget ends every session the
+	// tunnel carried, and the subscriber never sent anything to say so. The
+	// withdrawal of their subscriber routes, their Accounting-Stop, pool
+	// release and shaper cleanup start here. A reaped tunnel was closed in an
+	// earlier tick or packet, which delivered its sessions then, so its batch
+	// is normally empty.
+	//
+	// The downs are delivered before the tunnel-down below: its reader runs on
+	// this goroutine and may end a session through the reactor, and that
+	// teardown's own ticket would wait for ever behind one still undelivered.
+	r.deliverSessionDowns(append(reapDowns, tickDowns...))
 
 	// spec-l2tp-9: emit tunnel-down when tick-driven teardown closes the tunnel.
 	if r.eventBus != nil && stateBefore != L2TPTunnelClosed && stateAfter == L2TPTunnelClosed {
@@ -834,16 +857,8 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 		}
 	}
 
-	// A dead peer or an exhausted retransmit budget ends every session the
-	// tunnel carried, and the subscriber never sent anything to say so. The
-	// withdrawal of their subscriber routes, their Accounting-Stop, pool
-	// release and shaper cleanup start here. A reaped tunnel was closed in an
-	// earlier tick or packet, which delivered its sessions then, so its batch
-	// is normally empty.
-	r.deliverSessionDowns(append(reapDowns, tickDowns...))
-
-	// Phase 5: enqueue kernel teardown events after releasing the lock.
-	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))
+	// Phase 5: enqueue kernel events after releasing the lock.
+	r.enqueueKernelEvents(tickSetups, append(reapTeardowns, tickTeardowns...))
 
 	r.notifyReaped(reaped)
 	for _, req := range outbound {

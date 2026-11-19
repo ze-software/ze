@@ -5,6 +5,7 @@ package l2tp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 	"sync/atomic"
@@ -188,7 +189,7 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 		}
 	}
 	if selected == nil {
-		return nil, ErrSessionNotFound
+		return nil, fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, selector.SID)
 	}
 	return selected, nil
 }

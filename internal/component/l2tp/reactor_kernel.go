@@ -364,8 +364,10 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	var attempt ppp.SessionAttempt
 	var birth subscriberid.L2TPBirth
 	var subscriberID string
+	var event string
 	switch e := ev.(type) {
 	case ppp.EventSessionDown:
+		event = "session-down"
 		birth, subscriberID = e.Birth, e.SubscriberID
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, e.Cause
 		control = e.Control
@@ -381,6 +383,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		// supplied invalid ownership or setup: RFC 2866 Section 5.10 value 9.
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, l2tpevents.TerminateCauseNASError
 		attempt = e.Attempt
+		event = "session-rejected"
 	case ppp.EventLCPDown:
 		r.handleLCPDown(e)
 		return
@@ -401,37 +404,45 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	tunnel, ok := r.tunnelsByLocalID[tid]
 	if !ok {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "no tunnel holds this tunnel ID")
 		return
 	}
 	sess := tunnel.lookupSession(sid)
 	if sess == nil {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "no session holds this session ID")
 		return
 	}
 	if !sess.matchesPPPIdentity(birth, subscriberID) {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "the session holding these IDs has another birth or subscriber ID")
 		return
 	}
 	if attempt == (ppp.SessionAttempt{}) {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "the event carries no PPP attempt")
 		return
 	}
 	if sess.pppAttempt != attempt {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "the session holding these IDs has another PPP attempt")
 		return
 	}
 	if attempt.SubscriberID() != subscriberID {
 		r.tunnelsMu.Unlock()
+		r.refusePPPEvent(event, tid, sid, "the event's PPP attempt belongs to another subscriber ID")
 		return
 	}
 	if control != (ppp.SessionControl{}) {
 		bound, admitted := sess.pppAttempt.Control()
 		if !admitted {
 			r.tunnelsMu.Unlock()
+			r.refusePPPEvent(event, tid, sid, "the session's PPP attempt was never admitted")
 			return
 		}
 		if bound != control {
 			r.tunnelsMu.Unlock()
+			r.refusePPPEvent(event, tid, sid, "the session's admitted PPP control is another worker")
 			return
 		}
 	}
@@ -461,35 +472,54 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 // transport. A retired worker remains identifiable for terminal Down, but an
 // invalid control or a reused wire ID never selects a session.
 // Caller MUST hold tunnelsMu.
-func (r *l2tpReactor) pppSessionLocked(tid, sid uint16, control ppp.SessionControl, birth subscriberid.L2TPBirth, subscriberID string) (*L2TPTunnel, *L2TPSession) {
+func (r *l2tpReactor) pppSessionLocked(event string, tid, sid uint16, control ppp.SessionControl, birth subscriberid.L2TPBirth, subscriberID string) (*L2TPTunnel, *L2TPSession) {
 	if control == (ppp.SessionControl{}) {
+		r.refusePPPEvent(event, tid, sid, "the event carries no PPP control")
 		return nil, nil
 	}
 	tunnel := r.tunnelsByLocalID[tid]
 	if tunnel == nil {
+		r.refusePPPEvent(event, tid, sid, "no tunnel holds this tunnel ID")
 		return nil, nil
 	}
 	sess := tunnel.lookupSession(sid)
 	if sess == nil {
+		r.refusePPPEvent(event, tid, sid, "no session holds this session ID")
 		return nil, nil
 	}
 	if !sess.matchesPPPIdentity(birth, subscriberID) {
+		r.refusePPPEvent(event, tid, sid, "the session holding these IDs has another birth or subscriber ID")
 		return nil, nil
 	}
 	if control.SubscriberID() != subscriberID {
+		r.refusePPPEvent(event, tid, sid, "the event's PPP control belongs to another subscriber ID")
 		return nil, nil
 	}
 	if sess.pppAttempt != control.Attempt() {
+		r.refusePPPEvent(event, tid, sid, "the session holding these IDs has another PPP attempt")
 		return nil, nil
 	}
 	bound, admitted := sess.pppAttempt.Control()
 	if !admitted {
+		r.refusePPPEvent(event, tid, sid, "the session's PPP attempt was never admitted")
 		return nil, nil
 	}
 	if bound != control {
+		r.refusePPPEvent(event, tid, sid, "the session's admitted PPP control is another worker")
 		return nil, nil
 	}
 	return tunnel, sess
+}
+
+// refusePPPEvent records one PPP event dropped because no session holds its
+// wire IDs, or because the session holding them is not the one the event was
+// made for: a late event of an ended session whose IDs a replacement drew
+// again. That is expected protocol churn, never an operator problem, so the
+// line is debug. It is the only log line a refused PPP event produces.
+// It touches only the logger, so the caller MAY hold tunnelsMu.
+func (r *l2tpReactor) refusePPPEvent(event string, tid, sid uint16, why string) {
+	r.logger.Debug("l2tp: PPP event refused; it was not made for the session holding these IDs",
+		"event", event, "tunnel-id", tid, "session-id", sid, "why", why)
 }
 
 // handleLCPUp retains the actual peer receive MRU and selected method from the
@@ -497,7 +527,7 @@ func (r *l2tpReactor) pppSessionLocked(tid, sid uint16, control ppp.SessionContr
 func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
-	_, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	_, sess := r.pppSessionLocked("lcp-up", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if sess == nil {
 		return
 	}
@@ -531,7 +561,7 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	defer ev.Acknowledge()
 	r.tunnelsMu.Lock()
-	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	tunnel, sess := r.pppSessionLocked("lcp-down", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
@@ -564,7 +594,7 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 		r.notifyNetworkLifetimeDown(birth, subscriberID, ev.TunnelID, ev.SessionID, username, ev.NetworkLifetime, ev.TerminalCounters)
 	})
 	r.tunnelsMu.Lock()
-	_, current := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	_, current := r.pppSessionLocked("lcp-down", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if current == sess {
 		ClearSessionMetadata(subscriberID)
 	}
@@ -602,7 +632,7 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		return
 	}
 	r.tunnelsMu.Lock()
-	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	tunnel, sess := r.pppSessionLocked("ip-assigned", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
@@ -713,7 +743,7 @@ func (r *l2tpReactor) logIPAssigned(ev ppp.EventSessionIPAssigned, username stri
 // after it. The RADIUS timeouts start after the publication returned.
 func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	r.tunnelsMu.Lock()
-	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	tunnel, sess := r.pppSessionLocked("session-up", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
@@ -776,7 +806,7 @@ func (r *l2tpReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
 		return
 	}
 	r.tunnelsMu.Lock()
-	_, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	_, sess := r.pppSessionLocked("echo-rtt", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
 	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return

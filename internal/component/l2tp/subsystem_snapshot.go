@@ -7,8 +7,6 @@ package l2tp
 import (
 	"errors"
 	"fmt"
-
-	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 // ErrSubsystemNotStarted is returned by façade methods when they are
@@ -136,33 +134,6 @@ func (s *Subsystem) TeardownTunnel(localTID uint16) error {
 		return err
 	}
 	return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
-}
-
-// TeardownSession fans an operator-initiated CDN across every reactor.
-func (s *Subsystem) TeardownSession(localSID uint16) error {
-	s.mu.Lock()
-	if !s.started {
-		s.mu.Unlock()
-		return ErrSubsystemNotStarted
-	}
-	reactors := make([]*l2tpReactor, len(s.reactors))
-	copy(reactors, s.reactors)
-	s.mu.Unlock()
-
-	for _, r := range reactors {
-		// An operator clear and a RADIUS Disconnect-Request (RFC 5176) are both
-		// RFC 2866 Section 5.10 value 6: "Administrator reset the port or
-		// session." Those two are the only callers of this method.
-		err := r.teardownSessionByID(localSID, l2tpevents.TerminateCauseAdminReset)
-		if err == nil {
-			return nil
-		}
-		if errors.Is(err, ErrSessionNotFound) {
-			continue
-		}
-		return err
-	}
-	return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 }
 
 // TeardownAllTunnels tears down every tunnel across every reactor and

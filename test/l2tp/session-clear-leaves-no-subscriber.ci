@@ -31,18 +31,15 @@
 # sessions` lists the session with its address, and `show subscriber` lists it
 # active: those are the positive controls, so an empty list after the clear is
 # not a broken command. After the clear it reads each view ONCE, with no wait:
-# teardownSessionByID delivers the session-down to every reader before it
-# sends the CDN and before the command answers, so the state the answer leaves
-# is the end state.
+# the captured session's Teardown delivers the session-down to every reader
+# before it sends the CDN and before the command answers, so the state the
+# answer leaves is the end state.
 #
 # The accounting assertion is the COUNT of records and their shared
-# Acct-Session-Id, never their order on the wire. The Start is sent from the
-# accounting task's goroutine and the Stop at once on teardown, so a teardown
-# right after the address can put the Stop on the wire first
-# (plan/journal/late-write-lands-on-the-successor.md, 2026-11-12, owned by
-# plan/release/fixes/spec-radius-acct-start-after-stop.md). This test takes
-# that race out of what it asserts by seeing the Start at the server before it
-# issues the clear.
+# Acct-Session-Id. The session's one accounting task sends its Start and then
+# its Stop, so the Stop never leaves before the Start was answered or given
+# up. Seeing the Start at the server before the clear is a positive control:
+# it proves accounting ran, so a missing Stop is a real failure.
 #
 # A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
 # CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root. It SKIPS

@@ -1558,7 +1558,11 @@ session's notifications").
 <!-- source: internal/component/l2tp/session.go -- sessionNoticeOrder, issueNoticeTicket -->
 
 The tunnel lifecycle events (`tunnel-up`, `tunnel-down`) are emitted from the
-reactor goroutine.
+reactor goroutine, after the session downs the same packet or tick owed were
+delivered. A tunnel-event reader may therefore end a session through the
+reactor without waiting behind an undelivered order ticket.
+
+<!-- source: internal/component/l2tp/reactor.go -- handle, handleTick -->
 
 ### 11.5 Receiver goroutines and a failing socket
 

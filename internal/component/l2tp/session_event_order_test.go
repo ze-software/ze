@@ -840,8 +840,8 @@ func ticketPaths() []ticketPath {
 		{name: "an operator tunnel teardown", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
 			return r.teardownTunnel(orderTestTID, ResultCodeValue{Result: resultAdministrative}, l2tpevents.TerminateCauseAdminReset)
 		}},
-		{name: "a session teardown by session ID", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			return r.teardownSessionByID(orderTestSID, l2tpevents.TerminateCauseAdminReset)
+		{name: "a captured session teardown", drive: func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
+			return teardownCapturedByID(t, r, orderTestTID, orderTestSID)
 		}},
 		{name: "a session teardown on a named tunnel", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
 			return r.teardownSessionOnTunnel(orderTestTID, orderTestSID)

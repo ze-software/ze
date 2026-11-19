@@ -855,15 +855,45 @@ replacement network lifetime on the same PPP unit. Accounting-Start runs
 asynchronously; forwarding does not wait for a RADIUS server response. PPPoE
 accounting remains unconnected to subscriber events.
 
-Each session's Start and Interim-Update records come from a task of its own. A
-Ze defect (a Go panic) met in that task ends that session's Start and
-Interim-Update records only: the session stays up, every other session accounts
-as before, and the session's Stop record is still sent when it ends, because
-RFC 2866 Section 2 ties the Stop to the end of service delivery. The panic is
-logged at ERROR with the tunnel and session and the stack, counted in
+Each session's Start, Interim-Update and Stop records come from one task of its
+own, in that order: the Stop leaves only after the session's Start and every
+Interim-Update was acknowledged or given up. Each record waits at most 10
+seconds for an answer, retransmissions included. When a session ends, Ze
+records the end of service (the cause, the session time, the Event-Timestamp
+instant and the traffic counters) and hands the Stop to that task without
+waiting for the server. A silent accounting server therefore does not hold up
+the control traffic of other tunnels, and the Stop still reports when service
+ended, even when it leaves later.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown, acctSession.end, captureEnd, sendAcctPacket -->
+
+A session sends all its records to the accounting servers and with the NAS
+identity that were configured when it started. A reload that changes the
+RADIUS servers or the NAS identity applies to the sessions that start after it;
+the sessions already up keep the old client until each has sent its Stop. On
+shutdown, and when the RADIUS configuration is removed, every live session gets
+a Stop with Admin Reboot. Ze waits at most 10 seconds in total for every Stop
+still owed, then gives up on the rest and logs each one with its
+Acct-Session-Id.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- setClient, acctEndpoint, stopDetached, awaitTasks -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
+
+A record that no accounting server acknowledged is logged and is a
+`doctor-radius-accounting-unacknowledged` finding of the runtime doctor check
+`l2tp-radius-accounting`, one per session, named by its tunnel, session and
+Acct-Session-Id. The session stays up (RFC 2866). A later acknowledged record
+of the same session clears the finding; an unacknowledged Stop stays until the
+plugin stops. Restore the accounting server's reachability and shared key, then
+check with `show diagnostic doctor-radius-accounting-unacknowledged`.
+<!-- source: internal/component/l2tp/plugins/authradius/acct_health.go -- recordAccountingOutcome, checkAccountingHealth, acctHealthDeclaration -->
+
+A Ze defect (a Go panic) met in a session's Start or Interim-Update ends those
+records only: the session stays up, every other session accounts as before, and
+the session's Stop record is still sent when it ends, because RFC 2866 Section 2
+ties the Stop to the end of service delivery. The panic is logged at ERROR with
+the tunnel and session and the stack, counted in
 `ze_task_panics_total{component="radius-auth",task="accounting"}`, and written
 as a crash record that `ze show crashes` lists.
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, containAccounting -->
 <!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
 
 Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
@@ -891,7 +921,8 @@ unanswered LCP echo probes and for a peer that stops answering at the tunnel
 level, Lost Service (3) for every session on a tunnel the peer ended, Idle
 Timeout (4) and Session Timeout (5) for the
 two RADIUS timers, Admin Reset (6) for an operator clear and for a RADIUS Disconnect-Request, Admin
-Reboot (7) for the sessions ze stops on shutdown, NAS Request (10) when the PPP
+Reboot (7) for the sessions still up when ze shuts down or the RADIUS
+configuration is removed, NAS Request (10) when the PPP
 driver stops a running session, and NAS Error (9) for a failure ze detected or a
 teardown it cannot attribute. Ze reports NAS Error rather than guessing a more
 specific cause.

@@ -41,7 +41,7 @@ const sessionClearWaitShare = 15
 
 // tunnelTerminateCauseAdminReset is RFC 2866 Section 5.10 value 6, "Admin
 // Reset", described there as "Administrator reset the port or session." Ze
-// reports it for an operator clear (Subsystem.TeardownSession), which is how
+// reports it for an operator clear (the captured session's Teardown), which is how
 // this peer's session ends.
 const tunnelTerminateCauseAdminReset = "6"
 
@@ -56,7 +56,7 @@ const tunnelL2TPAVPAssignedSessionID = 14
 // up to its IPCP address, waits until the daemon reports that session in every
 // view the clear must empty, has the operator clear it over the CLI, and then
 // reads each view again with no wait: the clear runs every reader of the
-// session-down before it answers (teardownSessionByID delivers before it sends
+// session-down before it answers (the captured Teardown delivers before it sends
 // the CDN and returns), so the state the answer leaves is the end state.
 //
 // Arguments: <l2tp-port>. The CLI takes the daemon's SSH address and

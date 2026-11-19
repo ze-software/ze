@@ -9,6 +9,7 @@
 package l2tp
 
 import (
+	"context"
 	"log/slog"
 	"net/netip"
 	"sync"
@@ -17,6 +18,20 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// teardownCapturedByID ends one session the way `clear l2tp session id` and a
+// RADIUS Disconnect-Request do: it captures the row by its tunnel and session
+// IDs, then runs that capture's Teardown with Admin Reset.
+func teardownCapturedByID(t *testing.T, r *l2tpReactor, tid, sid uint16) error {
+	t.Helper()
+	subsystem := NewSubsystem(&Parameters{})
+	subsystem.reactors = []*l2tpReactor{r}
+	captured, err := subsystem.CaptureSession(SessionSelector{SID: sid, TID: tid})
+	if err != nil {
+		return err
+	}
+	return captured.Teardown(t.Context(), l2tpevents.TerminateCauseAdminReset, "")
+}
 
 // causeBus is the smallest EventBus that records session-down payloads.
 type causeBus struct {
@@ -62,32 +77,72 @@ func (b *causeBus) downEvents() []*l2tpevents.SessionDownPayload {
 	return append([]*l2tpevents.SessionDownPayload{}, b.seen...)
 }
 
+// TestTeardownSessionByIDEmitsCause keeps its name from the session-ID-only
+// teardown it used to drive. Each case now ends session 7 through the path
+// its cause belongs to: the two timers through teardownCapturedSession with
+// their installed timer context, as runSessionTimeout and runIdleTimeout call
+// it, and the operator clear through a captured session's Teardown, as
+// `clear l2tp session id` and a RADIUS Disconnect-Request do.
 func TestTeardownSessionByIDEmitsCause(t *testing.T) {
+	timer := func(cause l2tpevents.TerminateCause, idle bool) func(*testing.T, *l2tpReactor, *L2TPTunnel, *L2TPSession) {
+		return func(t *testing.T, r *l2tpReactor, tunnel *L2TPTunnel, sess *L2TPSession) {
+			t.Helper()
+			ctx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+			r.tunnelsMu.Lock()
+			if idle {
+				sess.idleTimeoutContext, sess.idleTimeoutCancel = ctx, cancel
+			} else {
+				sess.sessionTimeoutContext, sess.sessionTimeoutCancel = ctx, cancel
+			}
+			r.tunnelsMu.Unlock()
+			if !r.teardownCapturedSession(tunnel, sess, ctx, cdnResultAdministrative, cause) {
+				t.Fatal("teardownCapturedSession refused the session its live timer names")
+			}
+		}
+	}
 	cases := []struct {
 		name  string
 		cause l2tpevents.TerminateCause
+		end   func(*testing.T, *l2tpReactor, *L2TPTunnel, *L2TPSession)
 	}{
-		{"session-timeout", l2tpevents.TerminateCauseSessionTimeout},
-		{"idle-timeout", l2tpevents.TerminateCauseIdleTimeout},
-		{"administrative", l2tpevents.TerminateCauseAdminReset},
+		{"session-timeout", l2tpevents.TerminateCauseSessionTimeout, timer(l2tpevents.TerminateCauseSessionTimeout, false)},
+		{"idle-timeout", l2tpevents.TerminateCauseIdleTimeout, timer(l2tpevents.TerminateCauseIdleTimeout, true)},
+		{"administrative", l2tpevents.TerminateCauseAdminReset, func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel, _ *L2TPSession) {
+			t.Helper()
+			subsystem := NewSubsystem(&Parameters{})
+			subsystem.reactors = []*l2tpReactor{r}
+			captured, err := subsystem.CaptureSession(SessionSelector{SID: 7, TID: 11})
+			if err != nil {
+				t.Fatalf("CaptureSession: %v", err)
+			}
+			if err := captured.Teardown(t.Context(), l2tpevents.TerminateCauseAdminReset, ""); err != nil {
+				t.Fatalf("captured Teardown: %v", err)
+			}
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newReactorForSnapshot(t)
 			// An unstarted listener refuses the CDN with
-			// errListenerNotStarted, which teardownSessionByID logs. The
-			// event this test reads is emitted either way, and no UDP socket
-			// is needed to prove it.
+			// errListenerNotStarted, which the teardown logs. The event this
+			// test reads is emitted either way, and no UDP socket is needed
+			// to prove it.
 			r.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), slog.Default())
 			bus := newCauseBus()
 			r.eventBus = bus
 			sess := &L2TPSession{localSID: 7, state: L2TPSessionEstablished, username: "grace"}
 			insertEstablishedTunnel(t, r, 11, 22, netip.MustParseAddrPort("10.0.0.9:1701"), sess)
+			tunnel := r.tunnelsByLocalID[11]
 
-			if err := r.teardownSessionByID(7, tc.cause); err != nil {
-				t.Fatalf("teardownSessionByID: %v", err)
+			tc.end(t, r, tunnel, sess)
+
+			r.tunnelsMu.Lock()
+			remaining := tunnel.lookupSession(7)
+			r.tunnelsMu.Unlock()
+			if remaining != nil {
+				t.Error("the teardown left session 7 on its tunnel")
 			}
-
 			events := bus.downEvents()
 			if len(events) != 1 {
 				t.Fatalf("session-down events = %d, want 1", len(events))
