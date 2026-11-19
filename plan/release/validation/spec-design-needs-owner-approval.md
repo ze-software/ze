@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -603,8 +603,11 @@ spec started while he was away. Corrected in this work.
 
 ### Choices for Thomas
 
-| # | Choice | Options | Recommendation |
-|---|--------|---------|----------------|
+Thomas chose the recommendation for each of C-1 to C-5 on 2026-11-19, so each
+Decision cell below is settled.
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
 | C-1 | Which links owe a whole read before a code edit | (a) the file's `// Design:` pages only; (b) also every architecture page the doc index anchors to the file | (a): the header is the declared link and keeps the cost to one or two pages; the anchored architecture pages still reach every spec through its Design documents list, where each gets a verdict |
 | C-2 | The 90 specs already `ready` (26 in `release/fixes/`) | (a) each needs your approval before its claim; (b) a baseline you record from your terminal that approves them as they stand; (c) back to `design` | (a) with a printed list by priority; (b) only if the queue cannot wait |
 | C-3 | An independent design judge before presentation | (a) required, its read records covering every listed page; (b) optional; (c) none | (a) |
