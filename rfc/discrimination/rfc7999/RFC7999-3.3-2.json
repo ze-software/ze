@@ -3,33 +3,55 @@
     "rid": "RFC7999-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix",
-    "unit-sha": "58ceeccffb345cde",
+    "unit-sha": "c16876810e863bcc",
     "claim-sha": "7d9ceca858e1d6a1",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::coveredByAuthorized",
-    "producer-sha": "9d73d91d8c403a26",
-    "break": "body of coveredByAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType",
+    "producer-sha": "61db56e81400accd",
+    "break": "line 96: \"len(cfg.communities) == 0\" -\u003e \"len(cfg.communities) != 0\""
   },
   {
     "rid": "RFC7999-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix",
-    "unit-sha": "1642b5a8449c2a13",
+    "unit-sha": "ea4331649babccc0",
     "claim-sha": "275c9e8e20d9acb8",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::coveredByAuthorized",
     "producer-sha": "9d73d91d8c403a26",
-    "break": "body of coveredByAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 56: \"if a.Bits() \u003e route.Bits() {\" -\u003e \"if false \u0026\u0026 a.Bits() \u003e route.Bits() {\""
   },
   {
     "rid": "RFC7999-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent",
-    "unit-sha": "613694168319b58d",
+    "unit-sha": "8a211a207d05b6a9",
     "claim-sha": "68dabfeb0a7aacc5",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest",
-    "producer-sha": "605f56660a509168",
-    "break": "line 141: \"r.peerGroupName(best.PeerIP)\" -\u003e \"\\\"\\\"\""
+    "producer-sha": "8c315baaac4bc64f",
+    "break": "line 141: \"r.peerGroupName(best.storeOwner)\" -\u003e \"\\\"\\\"\""
+  },
+  {
+    "rid": "RFC7999-3.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists",
+    "unit-sha": "b2423263f96afa82",
+    "claim-sha": "690a96f45f00e044",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest",
+    "producer-sha": "8c315baaac4bc64f",
+    "break": "line 141: \"configjson.LookupPeerConfig(*p, best.PeerAddr, \\\"\\\", r.peerGroupName(best.storeOwner))\" -\u003e \"func() (blackholeConfig, bool) { c, found := configjson.LookupPeerConfig(*p, best.PeerAddr, \\\"\\\", r.peerGroupName(best.storeOwner)); if len(c.communities) == 0 { c.communities = []attribute.Community{attribute.CommunityBlackhole} }; return c, found }()\""
+  },
+  {
+    "rid": "RFC7999-3.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath",
+    "unit-sha": "21ad1dc8c5d568e2",
+    "claim-sha": "92127d0ed1df6977",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType",
+    "producer-sha": "61db56e81400accd",
+    "break": "line 96: \"len(cfg.communities) == 0\" -\u003e \"len(cfg.communities) != 0\""
   }
 ]
