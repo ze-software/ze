@@ -3,23 +3,23 @@
     "rid": "RFC5176-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone",
-    "unit-sha": "4c3793dd18e10e37",
+    "unit-sha": "bff8dcb157a399ca",
     "claim-sha": "acf5bd7fe51797bf",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
     "producer-sha": "09a96dfe030559de",
-    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK",
-    "unit-sha": "e889bff8517c177e",
+    "unit-sha": "5e04526f7ec491c8",
     "claim-sha": "ec8897441f22c088",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
     "producer-sha": "09a96dfe030559de",
-    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3.3-2",

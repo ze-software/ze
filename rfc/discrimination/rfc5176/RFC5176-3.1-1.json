@@ -14,12 +14,12 @@
     "rid": "RFC5176-3.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque",
-    "unit-sha": "89cd00d8dda712c1",
+    "unit-sha": "1f66642c2cc43ece",
     "claim-sha": "9f1552c988aea90c",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
     "producer-sha": "09a96dfe030559de",
-    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3.1-1",

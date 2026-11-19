@@ -3,11 +3,11 @@
     "rid": "RFC3162-2.5-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go::TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept",
-    "unit-sha": "b80139ea172bf8cd",
+    "unit-sha": "1aefddb8cda770fc",
     "claim-sha": "8780a4a1a95a3404",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractFramedRoutes",
-    "producer-sha": "34783c1cf520d2ac",
+    "producer-sha": "6a814d564c7bff6b",
     "break": "body of extractFramedRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

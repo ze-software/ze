@@ -25,33 +25,33 @@
     "rid": "RFC5176-2.3-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache",
-    "unit-sha": "78b4298a4bc91807",
+    "unit-sha": "c0e54b1e63eacee1",
     "claim-sha": "2713590c468f18c1",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
     "producer-sha": "f5d7923607ecf9e8",
-    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache",
-    "unit-sha": "78b4298a4bc91807",
+    "unit-sha": "c0e54b1e63eacee1",
     "claim-sha": "7ad32a97e5d7a34a",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
     "producer-sha": "f5d7923607ecf9e8",
-    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-2",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh",
-    "unit-sha": "63afa9385aa4f8f8",
+    "unit-sha": "8bf23cd1f6e30277",
     "claim-sha": "f2bbd3438ebf8a9b",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
     "producer-sha": "f5d7923607ecf9e8",
-    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

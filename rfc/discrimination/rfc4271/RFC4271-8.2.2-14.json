@@ -3,11 +3,11 @@
     "rid": "RFC4271-8.2.2-14",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",
-    "unit-sha": "06dc98271f9e7939",
+    "unit-sha": "6752b7f7985f2085",
     "claim-sha": "b28af858e84b6ebf",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
-    "producer-sha": "88d32f292df66418",
+    "producer-sha": "59fac541331988a0",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

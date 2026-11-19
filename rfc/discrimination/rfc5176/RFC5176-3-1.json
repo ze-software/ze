@@ -3,12 +3,12 @@
     "rid": "RFC5176-3-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes",
-    "unit-sha": "22794a1a5d09a1bb",
+    "unit-sha": "7dac7cbe1be11d68",
     "claim-sha": "4819b80c42ba4cc4",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-    "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "18dfb4d1f9b6a143",
+    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-3-1",

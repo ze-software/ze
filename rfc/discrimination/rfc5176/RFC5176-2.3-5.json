@@ -14,34 +14,34 @@
     "rid": "RFC5176-2.3-5",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed",
-    "unit-sha": "9104a7e782b8c998",
+    "unit-sha": "9c23421939acda5a",
     "claim-sha": "114c7ae6de5be16c",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
     "producer-sha": "f754405f54ce41e1",
-    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-5",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed",
-    "unit-sha": "691845b5d5411233",
+    "unit-sha": "37d639dbf8978e8e",
     "claim-sha": "142c345e68643b9c",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttrValue",
     "producer-sha": "5823e1e7b5af2a2d",
-    "break": "body of unsupportedAttrValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of unsupportedAttrValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-5",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed",
-    "unit-sha": "67d9004a7c0e30e0",
+    "unit-sha": "d30b0b686cff4c11",
     "claim-sha": "31350f02f4a0df80",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
     "producer-sha": "f754405f54ce41e1",
-    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-5",

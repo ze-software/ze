@@ -36,33 +36,33 @@
     "rid": "RFC5176-2.3-6",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed",
-    "unit-sha": "1b79172016a7663b",
+    "unit-sha": "cd1d06412859a9f3",
     "claim-sha": "c5c8fa890e3e1c3a",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-    "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "18dfb4d1f9b6a143",
+    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-6",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed",
-    "unit-sha": "0f090199215eac03",
+    "unit-sha": "740e3e99b2145484",
     "claim-sha": "bd80a8b60cb55fb1",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-    "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "18dfb4d1f9b6a143",
+    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5176-2.3-6",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed",
-    "unit-sha": "67d9004a7c0e30e0",
+    "unit-sha": "d30b0b686cff4c11",
     "claim-sha": "083a393b1258d022",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::applySubscriberCoA",
-    "producer-sha": "60a918d72529a0a9",
+    "producer-sha": "c71fff29b1e6a62d",
     "break": "body of applySubscriberCoA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

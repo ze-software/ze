@@ -3,12 +3,12 @@
     "rid": "RFC3579-1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage",
-    "unit-sha": "5e77a4e4318aa559",
+    "unit-sha": "17b91c7c1fde4d10",
     "claim-sha": "bf31eeeee6a7710b",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
     "producer-sha": "d3c60711cf64c92d",
-    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-1-1",

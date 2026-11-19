@@ -3,22 +3,22 @@
     "rid": "RFC4271-9-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess",
-    "unit-sha": "8d1d9522275dddae",
+    "unit-sha": "983033df9e689ddd",
     "claim-sha": "8d45c615d5cc7703",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "184a3ec3f6b97352",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects",
-    "unit-sha": "126ec5392a261da5",
+    "unit-sha": "e46d1673dbd73db6",
     "claim-sha": "680b5dc542888dcd",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "184a3ec3f6b97352",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

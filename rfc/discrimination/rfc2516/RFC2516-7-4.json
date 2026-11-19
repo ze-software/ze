@@ -3,22 +3,22 @@
     "rid": "RFC2516-7-4",
     "polarity": "positive",
     "unit": "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
-    "unit-sha": "68a5f082cf7b1631",
+    "unit-sha": "e23b764635e94195",
     "claim-sha": "9a85720981ba588e",
     "route": "revert",
     "producer": "internal/component/iface/pppoe_client.go::runSession",
-    "producer-sha": "947151529d3afac5",
+    "producer-sha": "c32f502cae5fea75",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-7-4",
     "polarity": "negative",
     "unit": "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
-    "unit-sha": "68a5f082cf7b1631",
+    "unit-sha": "e23b764635e94195",
     "claim-sha": "1967110a59f82fe1",
     "route": "revert",
     "producer": "internal/component/iface/pppoe_client.go::runSession",
-    "producer-sha": "947151529d3afac5",
+    "producer-sha": "c32f502cae5fea75",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
