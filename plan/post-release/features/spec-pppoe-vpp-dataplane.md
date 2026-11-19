@@ -14,6 +14,35 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Checkpoint for dependent work — 2026-11-19
+
+This is an implementation checkpoint, not feature closure. The shared kernel
+foundation is committed in `668311841c`, and compiled capability recognition
+in `d589eead60`. The next checkpoint carries the prepared-access seam, composed
+VPP provider, guarded server/CPE consumers, VPP process ownership and their
+current tests. Other work can use these source contracts while preserving the
+validation limits below. The VPP provider is composed; it is not fully accepted.
+
+| Contract or remaining work | Resume instruction |
+|----------------------------|--------------------|
+| Prepared access | Session construction uses the retained `Access.Open` contract. Include the provider registrations and generated composition root when changing this seam. |
+| Native PPP writes | Bind the same created unit and backend before mutation or native birth/seal assignment. Do not reconstruct authority from a name, index or descriptor number. |
+| Cleanup | Take final counters from the original unit and disconnect before closing. Release the genuine remote seal/duplicate before local writer settlement. `NativeReleasePending` includes uncertain original-file, borrow and duplicate retirement independently of writer-socket closure. |
+| Current scoped evidence | All eight consumer package/race runs passed before the final diagnostic/projection additions. Their final focused tests, CPE SDK diagnostics and eight override-fidelity roots passed together in `job-unit-pkg-66932b38.log`. These are host results, not genuine Linux fault acceptance. |
+| Native validation still owed | Run the current Linux consumer/fault-matrix binaries, five logical and three genuine retirement-projection controls, the corrected original-duplicate fixture, and causal cuts. Earlier native library/provider passes do not validate these newer consumers. |
+| Provider history defect | Root's native-writer final Settle/NACK/wait-history repair remains open. Its TDD sources are separate; do not assume terminal Close preserves every final Settle cause until that repair is validated. |
+| IPv6 | Matching kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier packet, fragment and complete subscriber acceptance remain open. The original-unit carrier consumer is prepared but not adopted. Observe the old carrier's useful renamed-original failure before replacing it. |
+| PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
+| Final gates | Current Linux/native runs, discrimination, scoped lint, documentation checks, real VPP forwarding, restart, accounting integration, interop and scale remain owed. Keep this spec in phase 2/7 until those requirements are actually met. |
+
+The final diagnostics and retirement fixes are implemented; their broader
+package/native reruns remain owed. The earlier full VPP run's eight override
+failures are preserved as baseline evidence; their focused source repairs now
+pass. No worktree, source copy, local server or VM from this checkpoint is left
+running. Current proof inputs remain under the existing session's
+`scratch/vpp-current-open-successor/counter-creation/`; use its manifests and
+small handoffs rather than reapplying the consumed assembly publisher.
+
 Doors: `ai/doors/system.md`, `ai/doors/forwarding.md` (vpp, iface, traffic), `ai/doors/access-security.md` (l2tp, PPPoE, PPP).
 
 ## Implementation progress — 2026-11-19
@@ -72,16 +101,18 @@ and this record before editing; their changes can supersede this snapshot.
    attempted compile failed on an intervening factory signature, later repaired;
    the corrected fixture has no current runtime pass. Promote the retained
    five-root fragment draft only after that useful traffic baseline passes.
-4. **Fragment draft:** `internal/component/l2tp/pppoe/dataplane/kernel/testdata/ppp-ipv6-fragment-native-draft.go.txt`
-   retains the reviewed R2 source. It is deliberately outside compilation and
-   has not run. It checks useful global-address reassembly, distinct owners,
-   retired owner, rename and ordinary Ethernet, with actual FIFO/readiness
-   prerequisites. Promote to the planned integration test and remove this draft
-   in the same commit; never count a setup failure as ownership discrimination.
+4. **Fragment draft:** `internal/component/l2tp/pppoe/dataplane/kernel/testdata/ppp-ipv6-fragments-draft/`
+   retains the complete reviewed packet: original five-root source, R2 helper,
+   exact graft and producer evidence. Read its README and R2 companion first;
+   both source files and the graft are required. It is outside compilation and
+   has not run. It covers useful global reassembly, distinct owners, retirement,
+   rename and ordinary Ethernet with actual FIFO/readiness prerequisites.
+   Promote and remove the draft packet in the same commit; a setup failure is
+   never ownership discrimination.
 5. **Accounting and finishing checks:** the L2TP session owns current counter,
    authentication and accounting continuation. Its latest report has counter R6
-   applied with fourteen isolated race roots and the full PPP package passing;
-   its commit was still being prepared. Accounting and route receipt work
+   committed in `1a6b966648`, with fourteen isolated race roots and all 658
+   reached PPP package groups passing. Accounting and route receipt work
    remain open. Root still owes scoped race/lint, docs and final independent
    review of the socket/carrier/provider changes. No whole-tree verification
    or push is authorized by this checkpoint.

@@ -1,0 +1,114 @@
+*** Begin Patch
+*** Update File: internal/component/l2tp/pppoe/dataplane/kernel/native_ipv6_fragment_integration_linux_test.go
+@@
+ func TestNativeIPv6FragmentUseful(t *testing.T) {
+ 	if !userns.Enter(t) {
+ 		return
+ 	}
++	nativeV6FragmentOrdering(t)
+ 	f := newNativeV6Fixture(t)
++	nativeV6FragmentIngress(t, f.route, f.access.Device())
+@@
+ 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x10203040, body, 0, 16, true, true))
++	nativeV6FragmentBarrier(t, carrier, endpoint, 120)
+ 	nativeV6FragmentQueued(t, before)
+@@
+ func TestNativeIPv6FragmentDistinctOwners(t *testing.T) {
+ 	if !userns.Enter(t) {
+ 		return
+ 	}
++	nativeV6FragmentOrdering(t)
+ 	f := newNativeV6Fixture(t)
++	nativeV6FragmentIngress(t, f.route, f.access.Device())
+@@
+ 	firstEndpoint.inject(t, nativeV6FragmentPacket(t, 0x20304050, body, 0, 16, true, false))
++	nativeV6FragmentBarrier(t, firstCarrier, firstEndpoint, 121)
+ 	nativeV6FragmentQueued(t, before)
+@@
+ func TestNativeIPv6FragmentRetiredOwner(t *testing.T) {
+ 	if !userns.Enter(t) {
+ 		return
+ 	}
++	nativeV6FragmentOrdering(t)
+ 	f := newNativeV6Fixture(t)
++	nativeV6FragmentIngress(t, f.route, f.access.Device())
+@@
+ 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x30405060, body, 0, 16, true, false))
++	nativeV6FragmentBarrier(t, carrier, endpoint, 122)
+ 	nativeV6FragmentQueued(t, before)
+@@
+ func TestNativeIPv6FragmentRename(t *testing.T) {
+ 	if !userns.Enter(t) {
+ 		return
+ 	}
++	nativeV6FragmentOrdering(t)
+ 	f := newNativeV6Fixture(t)
++	nativeV6FragmentIngress(t, f.route, f.access.Device())
+@@
+ 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x40506070, body, 0, 16, true, false))
++	nativeV6FragmentBarrier(t, carrier, endpoint, 123)
+ 	nativeV6FragmentQueued(t, before)
+@@
+ 	replacement := f.rename(t, opened)
++	nativeV6FragmentIngress(t, f.route, replacement.link.Attrs().Name)
+ 	replacement.useful(t, 108)
+@@
+ func TestNativeIPv6FragmentOrdinaryEthernet(t *testing.T) {
+ 	if !userns.Enter(t) {
+ 		return
+ 	}
++	nativeV6FragmentOrdering(t)
+ 	nativeV6Defaults(t)
+@@
+ 	replacement.endpoint.inject(t, nativeV6FragmentPacket(t, 0x50607080, body, 0, 16, true, true))
++	nativeV6FragmentReplacementBarrier(t, replacement, 124)
+ 	nativeV6FragmentQueued(t, before)
+@@
+-	nativeV6FragmentAddress(t, f.route, link)
++	nativeV6FragmentTupleReady(t, f.route, link)
+@@
+ func nativeV6FragmentEthernetGlobal(t *testing.T, route *netlink.Handle, link netlink.Link) {
+ 	t.Helper()
++	nativeV6FragmentIngress(t, route, link.Attrs().Name)
+ 	address, err := netlink.ParseAddr("2001:db8:6::1/128")
+@@
+ 	address.Flags = unix.IFA_F_NODAD
++	peer, err := netlink.ParseAddr("2001:db8:6::2/128")
++	if err != nil {
++		t.Fatal(err)
++	}
++	address.Peer = peer.IPNet
+ 	if err := route.AddrAdd(link, address); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	nativeV6FragmentAddress(t, route, link)
++	nativeV6FragmentTupleReady(t, route, link)
+ }
+@@
+-func nativeV6FragmentAddress(t *testing.T, route *netlink.Handle, link netlink.Link) {
+-	t.Helper()
+-	addresses, err := route.AddrList(link, netlink.FAMILY_V6)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	for _, address := range addresses {
+-		if !address.IP.Equal(net.ParseIP("2001:db8:6::1")) {
+-			continue
+-		}
+-		if address.Flags&unix.IFA_F_TENTATIVE != 0 {
+-			t.Fatal("global IPv6 fragment destination is tentative")
+-		}
+-		return
+-	}
+-	t.Fatal("global IPv6 fragment destination is absent from the actual device")
+-}
+-
+ func nativeV6FragmentUDP(marker byte) []byte {
+@@
+ func nativeV6FragmentQueued(t *testing.T, before nativeV6FragmentState) {
+ 	t.Helper()
++	// Caller first received its later useful UDP barrier on the pinned FIFO
++	// receive path. These counters then require the earlier retained queue
++	// to remain present; allocation alone is not an insertion acknowledgment.
+ 	nativeV6FragmentPoll(t, func(actual nativeV6FragmentState) bool {
+*** End Patch
