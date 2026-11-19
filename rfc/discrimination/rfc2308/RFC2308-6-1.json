@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2308-6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308CachedSOATTLDecremented",
+    "unit-sha": "be91680eb716de1f",
+    "claim-sha": "a899e84ebcdf71bc",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::storeNegative",
+    "producer-sha": "7f55a6575d250afe",
+    "break": "line 444: \"stored := withTTL([]dns.RR{soa}, ttl)\" -\u003e \"stored := withTTL([]dns.RR{soa}, ttl-1)\""
+  },
+  {
+    "rid": "RFC2308-6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308CachedSOATTLDecremented",
+    "unit-sha": "be91680eb716de1f",
+    "claim-sha": "ec3b98e56c9aec8a",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::remaining",
+    "producer-sha": "782f0dd53d054c85",
+    "break": "line 113: \"return e.ttl - uint32(elapsed), true\" -\u003e \"return e.ttl, true\""
+  }
+]

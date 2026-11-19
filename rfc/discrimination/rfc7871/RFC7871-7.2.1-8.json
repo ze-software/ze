@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC7871-7.2.1-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_negative_test.go::TestRFC7871_EchoMatchesOnlyTheThreeFields",
+    "unit-sha": "c529431136c20598",
+    "claim-sha": "12db5a0349190d9e",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/client.go::EchoSubnet",
+    "producer-sha": "630a0a9e8ea59492",
+    "break": "line 262: \"SourceScope:   scope,\" -\u003e \"SourceScope:   c.Subnet.SourceScope,\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-8",
     "polarity": "positive",
     "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_ECSQueryEchoesOption",
     "unit-sha": "10deb34bbde196fe",

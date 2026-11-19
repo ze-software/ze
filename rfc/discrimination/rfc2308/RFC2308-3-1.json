@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2308-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/as112/rfc2308_negative_soa_test.go::TestRFC2308_NegativeAnswerCarriesZoneSOA",
+    "unit-sha": "e3a16151068ad1d2",
+    "claim-sha": "4ec37c4d247ab877",
+    "route": "mutant",
+    "producer": "internal/plugins/as112/zones.go::buildSOA",
+    "producer-sha": "6de9a42c278546c6",
+    "break": "line 171: \"Hdr:     dns.RR_Header{Name: zone, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: zoneTTL},\" -\u003e \"Hdr:     dns.RR_Header{Name: \\\"invalid.\\\", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: zoneTTL},\""
+  },
+  {
+    "rid": "RFC2308-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/as112/rfc2308_negative_soa_test.go::TestRFC2308_NegativeAnswerCarriesZoneSOA",
+    "unit-sha": "e3a16151068ad1d2",
+    "claim-sha": "36ac04865dd19207",
+    "route": "mutant",
+    "producer": "internal/plugins/as112/zones.go::answerQuestions",
+    "producer-sha": "169b27ca0f486289",
+    "break": "line 294: \"appendNS(msg, zone, kind, false)\" -\u003e \"appendNS(msg, zone, kind, false); msg.Ns = append(msg.Ns, buildSOA(zone, kind, serial))\""
+  },
+  {
+    "rid": "RFC2308-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2308_negative_soa_test.go::TestRFC2308_NegativeAnswerCarriesZoneSOA",
+    "unit-sha": "01da86c370cb9c1c",
+    "claim-sha": "6ad24ff203e0ffc9",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::buildSOA",
+    "producer-sha": "af6a9a1e583387f7",
+    "break": "line 183: \"Hdr:     hdr(zone, dns.TypeSOA, st.cfg.SOA.Minimum),\" -\u003e \"Hdr:     hdr(\\\"invalid.\\\", dns.TypeSOA, st.cfg.SOA.Minimum),\""
+  },
+  {
+    "rid": "RFC2308-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc2308_negative_soa_test.go::TestRFC2308_NegativeAnswerCarriesZoneSOA",
+    "unit-sha": "01da86c370cb9c1c",
+    "claim-sha": "48371378dfacfcbb",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "6c34351695221d10",
+    "break": "line 268: \"if !added {\" -\u003e \"if true || !added {\""
+  }
+]

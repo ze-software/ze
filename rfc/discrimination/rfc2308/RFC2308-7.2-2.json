@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2308-7.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308SilentUpstreamNotDeemedDeadBeyondTheTuple",
+    "unit-sha": "01ea4aa0094e5006",
+    "claim-sha": "ddde84edf5b300d3",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/limit.go::finish",
+    "producer-sha": "91a8227b7abc8c64",
+    "break": "line 150: \"delete(t.flights, key)\" -\u003e \"delete(t.flights, cacheKey{})\""
+  }
+]

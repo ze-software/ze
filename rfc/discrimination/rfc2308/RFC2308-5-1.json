@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2308-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308NegativeEntryExpires",
+    "unit-sha": "0242c7ee4b05ceeb",
+    "claim-sha": "331cdc1d2d05c1b7",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::remaining",
+    "producer-sha": "782f0dd53d054c85",
+    "break": "line 110: \"if uint64(elapsed) \u003e= uint64(e.ttl) {\" -\u003e \"if uint64(elapsed) \u003e uint64(e.ttl) {\""
+  },
+  {
+    "rid": "RFC2308-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308NegativeEntryExpires",
+    "unit-sha": "0242c7ee4b05ceeb",
+    "claim-sha": "e2b7767fcd06be59",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::remaining",
+    "producer-sha": "782f0dd53d054c85",
+    "break": "line 110: \"if uint64(elapsed) \u003e= uint64(e.ttl) {\" -\u003e \"if uint64(elapsed)+1 \u003e= uint64(e.ttl) {\""
+  }
+]

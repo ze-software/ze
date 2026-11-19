@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC7871-7.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/geodns/rfc7871_echo_negative_test.go::TestRFC7871_EchoTiedToEnabledSupport",
+    "unit-sha": "95ebadfa0cb071e5",
+    "claim-sha": "b21ffe4c524950c4",
+    "route": "mutant",
+    "producer": "internal/plugins/geodns/server.go::answerQuery",
+    "producer-sha": "65befc4d53a882de",
+    "break": "line 380: \"dnsserver.EchoSubnet(msg, client, subnetScope(st, client, tailored))\" -\u003e \"_ = subnetScope(st, client, tailored)\""
+  },
+  {
+    "rid": "RFC7871-7.2.1-2",
     "polarity": "positive",
     "unit": "internal/plugins/geodns/rfc7871_echo_test.go::TestRFC7871_NoEchoWithoutECSOrInPacketMode",
     "unit-sha": "74e61c841709e157",

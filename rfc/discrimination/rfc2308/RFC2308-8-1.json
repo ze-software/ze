@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2308-8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308AuthoritySOACached",
+    "unit-sha": "a0a93d3ae6df9416",
+    "claim-sha": "0c5ce2fe5086d09e",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::storeNegative",
+    "producer-sha": "7f55a6575d250afe",
+    "break": "line 445: \"r.negatives.put(\u0026cacheEntry{key: key, rrs: stored, rcode: rcode, rank: rankAnswer, stored: now, ttl: ttl}, now)\" -\u003e \"r.negatives.put(\u0026cacheEntry{key: key, rrs: stored, rcode: rcode, rank: rankAnswer, stored: now, ttl: 0}, now)\""
+  },
+  {
+    "rid": "RFC2308-8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2308_resolver_test.go::TestRFC2308AuthoritySOACached",
+    "unit-sha": "a0a93d3ae6df9416",
+    "claim-sha": "9f6e46ba7d099696",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::findSOA",
+    "producer-sha": "8b2d4c61571233c8",
+    "break": "line 378: \"if dns.IsSubDomain(soa.Hdr.Name, name) {\" -\u003e \"if true {\""
+  }
+]
