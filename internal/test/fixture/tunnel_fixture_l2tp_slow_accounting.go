@@ -116,6 +116,52 @@ func slowAccountingRequestWire(packet []byte) (slowAccountingRequest, error) {
 	return request, nil
 }
 
+// slowAccountingStop reads one Accounting-Request's RADIUS-RX line. stop is
+// false for a Start or an Interim-Update, which the server answers at once.
+// A Stop answers the Acct-Session-Id it ends, and an error unless it reports
+// Acct-Terminate-Cause 6 (Admin Reset), the cause of the LAC's CDN.
+func slowAccountingStop(line string) (owner string, stop bool, err error) {
+	status, ok := tunnelRadiusValue(line, "Acct-Status-Type")
+	if !ok {
+		return "", false, errors.New("an Accounting-Request has no decoded status")
+	}
+	if status != accountingStatusStop {
+		return "", false, nil
+	}
+	owner, ok = tunnelRadiusValue(line, "Acct-Session-Id")
+	if !ok {
+		return "", true, errors.New("a Stop has no original accounting identity")
+	}
+	cause, ok := tunnelRadiusValue(line, "Acct-Terminate-Cause")
+	if !ok {
+		return "", true, errors.New("the Stop carries no Acct-Terminate-Cause")
+	}
+	if cause != tunnelTerminateCauseAdminReset {
+		return "", true, fmt.Errorf("the Stop reports Acct-Terminate-Cause %s, not %s (Admin Reset) for the LAC's administrative CDN", cause, tunnelTerminateCauseAdminReset)
+	}
+	return owner, true, nil
+}
+
+// slowAccountingRetry answers nil only when retry is the client's delayed
+// retransmission of first: every attribute octet but Acct-Delay-Time equal, a
+// larger delay, and a new Identifier and Request Authenticator. Both requests
+// MUST come from slowAccountingRequestWire, which verified each signature.
+func slowAccountingRetry(first, retry slowAccountingRequest) error {
+	if !bytes.Equal(retry.immutable, first.immutable) {
+		return errors.New("the Stop retry changed the original immutable accounting attributes")
+	}
+	if retry.delay <= first.delay {
+		return errors.New("the Stop candidate is not a delayed retry of the original exchange")
+	}
+	if retry.identifier == first.identifier {
+		return errors.New("the delayed Stop retry reused the first Identifier")
+	}
+	if retry.authenticator == first.authenticator {
+		return errors.New("the delayed Stop retry reused the first Request Authenticator")
+	}
+	return nil
+}
+
 func slowAccountingMarkerAbsent(path string) error {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -206,23 +252,12 @@ func tunnelSlowAccountingRadius(ctx context.Context, args []string) error {
 		answeredStop := false
 		if packet[0] == 4 {
 			responseCode = 5
-			status, ok := tunnelRadiusValue(line, "Acct-Status-Type")
-			if !ok {
-				return errors.New("an Accounting-Request has no decoded status")
+			owner, stop, err := slowAccountingStop(line)
+			if err != nil {
+				return err
 			}
-			if status == accountingStatusStop {
+			if stop {
 				answeredStop = true
-				owner, ok := tunnelRadiusValue(line, "Acct-Session-Id")
-				if !ok {
-					return errors.New("a Stop has no original accounting identity")
-				}
-				cause, ok := tunnelRadiusValue(line, "Acct-Terminate-Cause")
-				if !ok {
-					return errors.New("the Stop carries no Acct-Terminate-Cause")
-				}
-				if cause != tunnelTerminateCauseAdminReset {
-					return fmt.Errorf("the Stop reports Acct-Terminate-Cause %s, not %s (Admin Reset) for the LAC's administrative CDN", cause, tunnelTerminateCauseAdminReset)
-				}
 				if stopOwner == "" {
 					stopOwner = owner
 				}
@@ -242,17 +277,8 @@ func tunnelSlowAccountingRadius(ctx context.Context, args []string) error {
 					// publishes its HELLO receipt while this process is descheduled.
 					continue
 				}
-				if !bytes.Equal(request.immutable, firstStop.immutable) {
-					return errors.New("the Stop retry changed the original immutable accounting attributes")
-				}
-				if request.delay <= firstStop.delay {
-					return errors.New("the Stop candidate is not a delayed retry of the original exchange")
-				}
-				if request.identifier == firstStop.identifier {
-					return errors.New("the delayed Stop retry reused the first Identifier")
-				}
-				if request.authenticator == firstStop.authenticator {
-					return errors.New("the delayed Stop retry reused the first Request Authenticator")
+				if err := slowAccountingRetry(*firstStop, request); err != nil {
+					return err
 				}
 				receipt, err := os.ReadFile(slowAccountingHelloReceipt)
 				if os.IsNotExist(err) {
@@ -353,23 +379,35 @@ func slowAccountingHello(ctx context.Context, peer *tunnelAccountingPeer) error 
 		if address.Port != peer.target.Port {
 			return errors.New("the healthy ACK came from another port")
 		}
-		if n != 12 {
-			return fmt.Errorf("the healthy tunnel received a %d-octet response, not a ZLB", n)
+		acked, err := slowAccountingHelloAck(buffer[:n], wantNR)
+		if err != nil {
+			return err
 		}
-		if binary.BigEndian.Uint16(buffer[:2]) != 0xc802 {
-			return errors.New("the healthy tunnel received a response that is not a control ZLB")
-		}
-		if binary.BigEndian.Uint16(buffer[4:6]) != slowAccountingPeerTunnel {
-			return errors.New("the healthy ACK named another tunnel")
-		}
-		if binary.BigEndian.Uint16(buffer[6:8]) != 0 {
-			return errors.New("the healthy ACK named a session")
-		}
-		if binary.BigEndian.Uint16(buffer[10:12]) == wantNR {
+		if acked {
 			return nil
 		}
 	}
 	return ctx.Err()
+}
+
+// slowAccountingHelloAck judges one datagram ze sent the healthy tunnel. It
+// MUST be a control ZLB for tunnel slowAccountingPeerTunnel and session 0.
+// acked is true when its Nr is wantNR; a ZLB with another Nr acknowledges an
+// earlier message, such as the SCCCN, so the caller keeps reading.
+func slowAccountingHelloAck(datagram []byte, wantNR uint16) (acked bool, err error) {
+	if len(datagram) != 12 {
+		return false, fmt.Errorf("the healthy tunnel received a %d-octet response, not a ZLB", len(datagram))
+	}
+	if binary.BigEndian.Uint16(datagram[:2]) != 0xc802 {
+		return false, errors.New("the healthy tunnel received a response that is not a control ZLB")
+	}
+	if binary.BigEndian.Uint16(datagram[4:6]) != slowAccountingPeerTunnel {
+		return false, errors.New("the healthy ACK named another tunnel")
+	}
+	if binary.BigEndian.Uint16(datagram[6:8]) != 0 {
+		return false, errors.New("the healthy ACK named a session")
+	}
+	return binary.BigEndian.Uint16(datagram[10:12]) == wantNR, nil
 }
 
 // slowAccountingHangUp sends the LAC's Call-Disconnect-Notify for the
