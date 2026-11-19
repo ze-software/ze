@@ -1,0 +1,170 @@
+# Test: ze config validate resolves a policy route's @set reference against the
+# sets the firewall tables declare.
+#
+# VALIDATES: a policy route naming a set no firewall table declares is refused
+#            at validate, naming the set; one naming a set a firewall table
+#            declares is accepted; one naming a set two tables declare is
+#            refused, naming both tables; one naming a port set from an address
+#            leaf is refused, naming the type; one naming an inet-service set
+#            from destination-port is accepted.
+# PREVENTS: a @set reference passing validate and failing when the rules are
+#           applied, because the policy-routing table did not carry the set.
+
+stdin=undeclared:terminator=EOF_UNDECLARED
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set other {
+			type ipv4;
+			element 192.0.2.10 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				destination-address @bypass;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_UNDECLARED
+
+stdin=declared:terminator=EOF_DECLARED
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set bypass {
+			type ipv4;
+			element 192.0.2.10 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				destination-address @bypass;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_DECLARED
+
+stdin=ambiguous:terminator=EOF_AMBIGUOUS
+firewall {
+	backend nft;
+	table core {
+		family inet;
+		set bypass {
+			type ipv4;
+			element 198.51.100.30 {}
+		}
+	}
+	table edge {
+		family inet;
+		set bypass {
+			type ipv4;
+			element 192.0.2.10 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				destination-address @bypass;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_AMBIGUOUS
+
+stdin=porttype:terminator=EOF_PORTTYPE
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set bypass {
+			type inet-service;
+			element 443 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				source-address @bypass;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_PORTTYPE
+
+stdin=portset:terminator=EOF_PORTSET
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set web {
+			type inet-service;
+			element 80 {}
+			element 443 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule web {
+			from {
+				protocol tcp;
+				destination-port @web;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_PORTSET
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=undeclared
+expect=exit:code=1
+expect=stdout:contains=no firewall table declares a set named "bypass"
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=declared
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ambiguous
+expect=exit:code=1
+expect=stdout:contains=firewall tables core, edge each declare a set named "bypass"
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=porttype
+expect=exit:code=1
+expect=stdout:contains=an address match reads only an ipv4 or ipv6 set
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=portset
+expect=exit:code=0
+expect=stdout:contains=configuration valid

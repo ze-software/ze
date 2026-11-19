@@ -32,9 +32,11 @@ var (
 	errFirewallConfigApplyNoBackendAvailable = errors.New("firewall config apply: no backend available")
 )
 
-// configRootFirewall is the YANG config root the firewall plugin owns.
+// ConfigRoot is the YANG config root the firewall plugin owns. It is exported
+// for a plugin that reads the firewall section without owning it (policy
+// routing resolves its @set references there).
 // The YANG container name and this constant MUST match.
-const configRootFirewall = "firewall"
+const ConfigRoot = "firewall"
 
 // backendLeafPath is surfaced in backend-gate error text so operators
 // know where to change the backend leaf.
@@ -75,12 +77,12 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 		return fmt.Errorf("firewall backend gate: schema load: %w", backendGateSchemaErr)
 	}
 	for _, s := range sections {
-		if s.Root != configRootFirewall {
+		if s.Root != ConfigRoot {
 			continue
 		}
 		errs := config.ValidateBackendFeaturesJSON(
 			s.Data, backendGateSchema,
-			configRootFirewall, activeBackend, backendLeafPath,
+			ConfigRoot, activeBackend, backendLeafPath,
 		)
 		if len(errs) == 0 {
 			return nil
@@ -175,7 +177,7 @@ func registerConfigTables(cfg *firewallConfig) error {
 func parseFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error) {
 	cfg := &firewallConfig{Backend: defaultBackendName, FlushOnShutdown: true}
 	for _, s := range sections {
-		if s.Root != configRootFirewall {
+		if s.Root != ConfigRoot {
 			continue
 		}
 		backend, err := extractBackend(s.Data)
@@ -217,7 +219,7 @@ func extractBackend(data string) (string, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return "", fmt.Errorf("firewall config: unmarshal: %w", err)
 	}
-	fw, ok := root[configRootFirewall].(map[string]any)
+	fw, ok := root[ConfigRoot].(map[string]any)
 	if !ok {
 		return "", nil
 	}
@@ -238,7 +240,7 @@ func extractFlushOnShutdown(data string) (bool, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return false, fmt.Errorf("firewall config: unmarshal: %w", err)
 	}
-	fw, ok := root[configRootFirewall].(map[string]any)
+	fw, ok := root[ConfigRoot].(map[string]any)
 	if !ok {
 		return true, nil
 	}
@@ -270,7 +272,7 @@ func firewallRootPresent(data string) (bool, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return false, fmt.Errorf("firewall config: unmarshal: %w", err)
 	}
-	_, ok := root[configRootFirewall]
+	_, ok := root[ConfigRoot]
 	return ok, nil
 }
 
@@ -280,7 +282,7 @@ func firewallRootPresent(data string) (bool, error) {
 // empty" (apply empty desired state so orphan ze_* tables are removed).
 func hasFirewallSection(sections []sdk.ConfigSection) bool {
 	for _, s := range sections {
-		if s.Root == configRootFirewall {
+		if s.Root == ConfigRoot {
 			return true
 		}
 	}
@@ -561,7 +563,7 @@ func runEngine(conn net.Conn) int {
 
 	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRootFirewall, configRootConntrack},
+		WantsConfig:  []string{ConfigRoot, configRootConntrack},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 	}); err != nil {

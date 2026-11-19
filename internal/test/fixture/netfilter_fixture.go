@@ -66,6 +66,7 @@ func init() {
 	Register("policy/policy-interface-list", policyRuleDump)
 	Register("policy/policy-next-hop", policyNextHop)
 	Register("policy/policy-reload", policyReload)
+	Register("policy/policy-set-reference", policySetReference)
 	Register("policy/policy-set-table", policySetTable)
 	Register("policy/policy-tcp-flags", policySingleTable)
 	Register("policy/policy-tcp-mss", policySingleTable)

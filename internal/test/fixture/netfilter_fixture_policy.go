@@ -281,3 +281,70 @@ func containsRule(rules []string, fragment string) bool {
 	}
 	return false
 }
+
+// policySetReference proves a policy route's @set reference reaches the
+// kernel as a set the ze_pr table itself carries, and that a commit changing
+// only the firewall set re-copies it.
+//
+// Phase 1 waits for ze_pr to hold set bypass with the boot element and a rule
+// naming it. Phase 2 stages config2.conf, whose firewall set holds a different
+// element and whose policy section is unchanged, reloads, and waits for ze_pr
+// to hold the new element and not the old one. The reload changes the firewall
+// root alone, so phase 2 is red unless that change reaches policy routing.
+func policySetReference(ctx context.Context, _ []string) error {
+	const (
+		bootElement   = "192.0.2.10"
+		reloadElement = "198.51.100.30"
+	)
+	deadline := time.Now().Add(12 * time.Second)
+	pid, err := waitDaemon(ctx, 200)
+	if err != nil {
+		return err
+	}
+	// waitTable polls ze_pr until predicate holds or the deadline passes, and
+	// answers the last listing either way: the caller's checks below say which.
+	waitTable := func(predicate func(string) bool) string {
+		attempts := max(1, int(time.Until(deadline)/(50*time.Millisecond)))
+		var out string
+		_ = Poll(ctx, attempts, 50*time.Millisecond, func() bool {
+			var listErr error
+			out, listErr = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_pr")
+			return listErr == nil && predicate(out)
+		})
+		return out
+	}
+	holdsSetAndRule := func(dump string) bool {
+		return strings.Contains(dump, "set bypass") && strings.Contains(dump, "ip daddr @bypass")
+	}
+
+	before := waitTable(func(dump string) bool { return holdsSetAndRule(dump) && strings.Contains(dump, bootElement) })
+	if !holdsSetAndRule(before) {
+		return fmt.Errorf("phase 1 FAIL: ze_pr does not carry set bypass and a rule naming it; got:\n%s", before)
+	}
+	if !strings.Contains(before, bootElement) {
+		return fmt.Errorf("phase 1 FAIL: ze_pr set bypass lacks the firewall set's element %s; got:\n%s", bootElement, before)
+	}
+	fmt.Print(before)
+	fmt.Println("PHASE1_OK")
+
+	if err := stageReloadConfig(); err != nil {
+		return err
+	}
+	if err := signalProcess(pid, syscall.SIGHUP); err != nil {
+		return err
+	}
+	after := waitTable(func(dump string) bool {
+		return holdsSetAndRule(dump) && strings.Contains(dump, reloadElement) && !strings.Contains(dump, bootElement)
+	})
+	if !holdsSetAndRule(after) {
+		return fmt.Errorf("phase 2 FAIL: ze_pr lost set bypass or its rule after the reload; got:\n%s", after)
+	}
+	if !strings.Contains(after, reloadElement) {
+		return fmt.Errorf("phase 2 FAIL: ze_pr set bypass did not take the firewall set's new element %s; got:\n%s", reloadElement, after)
+	}
+	if strings.Contains(after, bootElement) {
+		return fmt.Errorf("phase 2 FAIL: ze_pr set bypass still holds the removed element %s; got:\n%s", bootElement, after)
+	}
+	fmt.Println("PHASE2_OK")
+	return signalProcess(pid, syscall.SIGTERM)
+}

@@ -104,7 +104,7 @@ func TestConntrackSectionUndeliveredKeepsRunningValue(t *testing.T) {
 	}
 
 	firewallOnly, err := parseConfigSections([]sdk.ConfigSection{
-		{Root: configRootFirewall, Data: `{"firewall":{"backend":"nft"}}`},
+		{Root: ConfigRoot, Data: `{"firewall":{"backend":"nft"}}`},
 	}, withHelpers)
 	if err != nil {
 		t.Fatal(err)

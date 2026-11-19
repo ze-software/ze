@@ -1,0 +1,80 @@
+# Test: a policy route's @set reference programs the set in ze_pr, and a
+# firewall-only reload re-copies it.
+# VALIDATES: a `destination-address @bypass` rule naming a set a firewall table
+#            declares applies: ze_pr carries its own copy of set bypass, with
+#            the firewall set's element, and a rule `ip daddr @bypass`. A reload
+#            that changes only the firewall set's element replaces the copy's
+#            element, and the old element is gone.
+# PREVENTS: the policy-routing table carrying the chain and no set, which
+#           nftables refuses at apply ("unknown set"), because a set resolves
+#           only inside its own table; and a copy left stale after the firewall
+#           set changes.
+#
+# Requires CAP_NET_ADMIN. Shares ze_pr and the ip-rule table with the rest of
+# test/policy/: see policy-boot-apply.ci, ISOLATION.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set bypass {
+			type ipv4;
+			element 192.0.2.10 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				destination-address @bypass;
+				protocol tcp;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+firewall {
+	backend nft;
+	table edge {
+		family inet;
+		set bypass {
+			type ipv4;
+			element 198.51.100.30 {}
+		}
+	}
+}
+policy {
+	route steer {
+		interface eth0;
+		rule bypass {
+			from {
+				destination-address @bypass;
+				protocol tcp;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.policy.routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=policy routes applied
+cmd=foreground:seq=2:exec=le test fixture policy/policy-set-reference:timeout=15s
+expect=exit:code=0
+expect=stdout:contains=PHASE1_OK
+expect=stdout:contains=PHASE2_OK

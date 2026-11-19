@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/iprule"
@@ -62,10 +61,46 @@ func (a *allocator) translate(policies []PolicyRoute) (*translationResult, error
 			Name:   policyRoutingTable,
 			Family: firewall.FamilyInet,
 			Chains: []firewall.Chain{chain},
+			Sets:   referencedSets(policies),
 		}}
 	}
 
 	return result, nil
+}
+
+// referencedSets returns one copy of every firewall set the policies' rules
+// match, in the order the rules first name them.
+//
+// The copy is the whole set: its type, its flags and its elements. nftables
+// resolves a set only inside the table that holds the rule, so the ze_pr chain
+// cannot read the set in the firewall table that declares it, and a term that
+// names it there fails the apply. Each translate takes the copy afresh from the
+// staged policies, whose sets resolveSetReferences read from the same commit's
+// firewall section, so the two kernel sets hold the same elements after every
+// commit.
+func referencedSets(policies []PolicyRoute) []firewall.Set {
+	var sets []firewall.Set
+	seen := make(map[string]bool)
+	add := func(set *firewall.Set) {
+		if set == nil {
+			return
+		}
+		if seen[set.Name] {
+			return
+		}
+		seen[set.Name] = true
+		sets = append(sets, *set)
+	}
+	for i := range policies {
+		for j := range policies[i].Rules {
+			match := &policies[i].Rules[j].Match
+			add(match.SourceSet)
+			add(match.DestinationSet)
+			add(match.SourcePortSet)
+			add(match.DestinationPortSet)
+		}
+	}
+	return sets
 }
 
 func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]firewall.Term, []iprule.Mark, []autoRouteSpec, error) {
@@ -172,7 +207,7 @@ func buildPolicyMatch(pm PolicyMatch) ([]firewall.Match, error) {
 	var matches []firewall.Match
 
 	if pm.SourceAddress != "" {
-		m, err := parseAddressMatch(pm.SourceAddress, true)
+		m, err := parseAddressMatch(pm.SourceAddress, pm.SourceSet, true)
 		if err != nil {
 			return nil, fmt.Errorf("source address: %w", err)
 		}
@@ -180,7 +215,7 @@ func buildPolicyMatch(pm PolicyMatch) ([]firewall.Match, error) {
 	}
 
 	if pm.DestinationAddress != "" {
-		m, err := parseAddressMatch(pm.DestinationAddress, false)
+		m, err := parseAddressMatch(pm.DestinationAddress, pm.DestinationSet, false)
 		if err != nil {
 			return nil, fmt.Errorf("destination address: %w", err)
 		}
@@ -192,19 +227,19 @@ func buildPolicyMatch(pm PolicyMatch) ([]firewall.Match, error) {
 	}
 
 	if pm.DestinationPort != "" {
-		ranges, err := firewall.ParsePortSpec(pm.DestinationPort)
+		m, err := parsePortMatch(pm.DestinationPort, pm.DestinationPortSet, false)
 		if err != nil {
 			return nil, fmt.Errorf("destination port: %w", err)
 		}
-		matches = append(matches, firewall.MatchDestinationPort{Ranges: ranges})
+		matches = append(matches, m)
 	}
 
 	if pm.SourcePort != "" {
-		ranges, err := firewall.ParsePortSpec(pm.SourcePort)
+		m, err := parsePortMatch(pm.SourcePort, pm.SourcePortSet, true)
 		if err != nil {
 			return nil, fmt.Errorf("source port: %w", err)
 		}
-		matches = append(matches, firewall.MatchSourcePort{Ranges: ranges})
+		matches = append(matches, m)
 	}
 
 	if pm.TCPFlags != "" {
@@ -218,9 +253,16 @@ func buildPolicyMatch(pm PolicyMatch) ([]firewall.Match, error) {
 	return matches, nil
 }
 
-func parseAddressMatch(v string, isSource bool) (firewall.Match, error) {
-	if strings.HasPrefix(v, "@") {
+// parseAddressMatch builds the match for one address leaf. A @name value needs
+// the set resolveSetReferences attached (set): without it the match would name
+// a set the ze_pr table does not carry, which the verify never checked and the
+// apply refuses, so it is refused here instead.
+func parseAddressMatch(v string, set *firewall.Set, isSource bool) (firewall.Match, error) {
+	if isSetReference(v) {
 		setName := v[1:]
+		if set == nil {
+			return nil, fmt.Errorf("set %q was never resolved against the firewall configuration", setName)
+		}
 		field := firewall.SetFieldSourceAddr
 		if !isSource {
 			field = firewall.SetFieldDestAddr
@@ -235,6 +277,31 @@ func parseAddressMatch(v string, isSource bool) (firewall.Match, error) {
 		return firewall.MatchSourceAddress{Prefix: prefix}, nil
 	}
 	return firewall.MatchDestinationAddress{Prefix: prefix}, nil
+}
+
+// parsePortMatch builds the match for one port leaf, with the same @name rule
+// as parseAddressMatch: a set reference needs the set resolveSetReferences
+// attached.
+func parsePortMatch(v string, set *firewall.Set, isSource bool) (firewall.Match, error) {
+	if isSetReference(v) {
+		setName := v[1:]
+		if set == nil {
+			return nil, fmt.Errorf("set %q was never resolved against the firewall configuration", setName)
+		}
+		field := firewall.SetFieldSourcePort
+		if !isSource {
+			field = firewall.SetFieldDestPort
+		}
+		return firewall.MatchInSet{SetName: setName, MatchField: field}, nil
+	}
+	ranges, err := firewall.ParsePortSpec(v)
+	if err != nil {
+		return nil, err
+	}
+	if isSource {
+		return firewall.MatchSourcePort{Ranges: ranges}, nil
+	}
+	return firewall.MatchDestinationPort{Ranges: ranges}, nil
 }
 
 func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriority *int) ([]firewall.Action, []iprule.Mark, []autoRouteSpec, error) {

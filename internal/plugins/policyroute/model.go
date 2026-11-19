@@ -2,7 +2,11 @@
 
 package policyroute
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"github.com/ze-software/ze/internal/component/firewall"
+)
 
 // PolicyRoute is a named policy applied to ingress interfaces.
 type PolicyRoute struct {
@@ -27,11 +31,21 @@ type PolicyRule struct {
 }
 
 // PolicyMatch describes a packet match criterion.
+//
+// SourceSet, DestinationSet, SourcePortSet and DestinationPortSet hold the
+// firewall set an @name address or port leaf names, copied from the firewall
+// table that declares it (resolveSetReferences, sets.go). They stay nil for a
+// prefix or a port list, and translate refuses an @name whose set was never
+// resolved rather than emit a match on a set ze_pr lacks.
 type PolicyMatch struct {
 	SourceAddress      string
 	DestinationAddress string
+	SourceSet          *firewall.Set
+	DestinationSet     *firewall.Set
 	SourcePort         string
 	DestinationPort    string
+	SourcePortSet      *firewall.Set
+	DestinationPortSet *firewall.Set
 	Protocol           string
 	TCPFlags           string
 }

@@ -51,6 +51,71 @@ The terms of one rule stay together, in leaf-list order, where the single term
 sat. At most one of them can match a packet. Their relative order therefore
 decides nothing, and the `order` leaf keeps deciding which rule runs first.
 
+### A `@set` reference is a copy of a firewall table's set
+
+<!-- source: internal/plugins/policyroute/sets.go -- parsePolicySections, verifyPolicySections, resolveSetReferences, firewallSetCatalog, checkSetType, undeclaredSetError -->
+<!-- source: internal/plugins/policyroute/translate.go -- referencedSets, parseAddressMatch, parsePortMatch -->
+<!-- source: internal/plugins/policyroute/register.go -- ConfigReads -->
+<!-- source: internal/component/firewall/provided_sets.go -- ProvidedSetOwner -->
+
+An nftables set resolves only inside the table that holds the rule, so the
+`ze_pr` chain cannot read a set another table declares. Policy routing copies
+each set its rules name into `ze_pr`, with the set's type, flags and elements.
+An address leaf names an `ipv4` or `ipv6` set, and a port leaf an
+`inet-service` set.
+
+The firewall section is a read root of the plugin (`ConfigReads`). The engine
+delivers it whole beside `policy route` whenever either root changes, and
+`ze config validate` delivers it to the verifier too. The verify resolves each
+`@name` on `source-address`, `destination-address`, `source-port` and
+`destination-port` against the sets the firewall tables declare, and refuses at
+commit a name no table declares, a name two tables declare, and a set the leaf
+cannot read. The type is checked by leaf: an address leaf takes only an `ipv4`
+or `ipv6` set, a port leaf only an `inet-service` set. A name built from the
+prefix of a set another plugin fills at run time (the IRR sets of
+`firewall-irr`, the domain-group sets of `firewall-domain`) is not declared in
+any table, so its refusal names that plugin and the firewall leaf that matches
+such a set (`firewall.ProvidedSetOwner`) instead of asking the operator to
+declare it.
+
+The resolved set rides on the rule in one of four fields
+(`PolicyMatch.SourceSet`, `DestinationSet`, `SourcePortSet`,
+`DestinationPortSet`), and translate refuses an `@name` that carries none, so
+no apply can name a set `ze_pr` lacks. The verify (`verifyPolicySections`)
+also runs the translation the apply will run, on a fresh allocator that touches
+neither the plugin's state nor the kernel, so a refusal only translate gives (a
+port or `tcp-flags` value it cannot read, the mark or table ranges running out)
+surfaces at commit rather than at apply.
+
+The cost is two kernel copies of one set, kept equal because both are written
+from the same commit's firewall section. That forecloses a set whose elements
+come from anywhere but the configuration: a set another owner registers (IRR,
+domain groups) is not in the firewall section and is refused, and an element
+written into the kernel set by hand reaches one copy only.
+
+### A reinstall changes only what changed
+
+<!-- source: internal/plugins/policyroute/rules_diff.go -- policiesUnchanged, replaceRules -->
+<!-- source: internal/plugins/policyroute/register.go -- applyPolicies -->
+
+Because the firewall root is a read root, every firewall commit reaches the
+apply, and most of them change no set a policy names. The policies carry their
+resolved sets, so the apply compares them with the installed ones
+(`policiesUnchanged`) and touches nothing when they are equal: a commit that
+changes a set no policy names reinstalls nothing, while one that changes a
+referenced set's elements is a change. Before a first install succeeded there
+is nothing to keep, so the comparison never skips it.
+
+When something changed, the `ze_pr` table is registered and applied first, then
+the ip rules and auto routes move by difference (`replaceRules`). What the new
+result holds and the old one does not goes in first, auto routes before the
+rules that steer into their tables. What only the old result held comes out
+after, rules before routes. A rule both hold is never touched, so a packet a
+rule steered before and after the change is steered throughout. When an install
+fails, what that call added is removed again, the previous tables are
+registered and applied again, and the previous rules stay in place, so the
+failure is reported over the state the transaction recorded.
+
 ### Reserved ranges by construction
 
 <!-- source: internal/plugins/policyroute/model.go -- mark and table ranges -->

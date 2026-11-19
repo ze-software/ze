@@ -6,6 +6,8 @@ package policyroute
 
 import (
 	"errors"
+
+	"github.com/ze-software/ze/internal/core/iprule"
 )
 
 var (
@@ -21,8 +23,16 @@ func newRuleManager() (*linuxRuleManager, error) {
 
 func (rm *linuxRuleManager) close() {}
 
-func (rm *linuxRuleManager) applyAll(_ *translationResult) error {
+func (rm *linuxRuleManager) removeAll(_ *translationResult) {}
+
+func (rm *linuxRuleManager) applyAutoRoutes(_ []autoRouteSpec) error {
 	return errPolicyrouteNotSupportedOnThisPlatform
 }
 
-func (rm *linuxRuleManager) removeAll(_ *translationResult) {}
+func (rm *linuxRuleManager) applyIPRules(_ []iprule.Mark) error {
+	return errPolicyrouteNotSupportedOnThisPlatform
+}
+
+func (rm *linuxRuleManager) removeIPRules(_ []iprule.Mark) {}
+
+func (rm *linuxRuleManager) removeAutoRoutes(_ []autoRouteSpec) {}

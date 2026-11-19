@@ -85,13 +85,6 @@ func (rm *linuxRuleManager) removeAutoRoutes(routes []autoRouteSpec) {
 	}
 }
 
-func (rm *linuxRuleManager) applyAll(result *translationResult) error {
-	if err := rm.applyAutoRoutes(result.AutoRoutes); err != nil {
-		return err
-	}
-	return rm.applyIPRules(result.IPRules)
-}
-
 func (rm *linuxRuleManager) removeAll(result *translationResult) {
 	rm.removeIPRules(result.IPRules)
 	rm.removeAutoRoutes(result.AutoRoutes)

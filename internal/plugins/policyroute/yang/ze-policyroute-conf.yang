@@ -113,9 +113,11 @@ module ze-policyroute-conf {
                     leaf source-address {
                         type string;
                         ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
-                        description "A value that starts with @ names a firewall set, and
-                                     Ze matches the source address of the packet against
-                                     the elements of that set. Any other value MUST carry
+                        description "A value that starts with @ names an ipv4 or ipv6 set
+                                     that exactly one firewall table declares. Ze copies
+                                     that set into the policy-routing table and matches
+                                     the source address of the packet against its
+                                     elements. Any other value MUST carry
                                      a prefix length, because Ze parses it as a prefix.
                                      10.0.0.1 is refused at commit, and 10.0.0.1/32
                                      matches one host.";
@@ -126,9 +128,11 @@ module ze-policyroute-conf {
                     leaf destination-address {
                         type string;
                         ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
-                        description "A value that starts with @ names a firewall set, and
-                                     Ze matches the destination address of the packet
-                                     against the elements of that set. Any other value
+                        description "A value that starts with @ names an ipv4 or ipv6 set
+                                     that exactly one firewall table declares. Ze copies
+                                     that set into the policy-routing table and matches
+                                     the destination address of the packet against its
+                                     elements. Any other value
                                      MUST carry a prefix length, because Ze parses it as
                                      a prefix. 10.0.0.1 is refused at commit, and
                                      10.0.0.1/32 matches one host.";
@@ -139,26 +143,32 @@ module ze-policyroute-conf {
                     leaf source-port {
                         type string;
                         ze:validate "port-spec";
-                        description "Ze accepts one port, a range written with a hyphen,
-                                     or a comma-separated list of both, and it holds at
-                                     most 128 entries. Two entries that overlap or touch
-                                     are refused at commit, and so is port 0. Ze compiles
-                                     more than one entry into an anonymous nftables
-                                     interval set.";
+                        description "A value that starts with @ names an inet-service set
+                                     that exactly one firewall table declares. Ze copies
+                                     that set into the policy-routing table and matches
+                                     the source port of the packet against its elements.
+                                     Otherwise Ze accepts one port, a range written with
+                                     a hyphen, or a comma-separated list of both, and it
+                                     holds at most 128 entries. Two entries that overlap
+                                     or touch are refused at commit, and so is port 0. Ze
+                                     compiles more than one entry into an anonymous
+                                     nftables interval set.";
                         ze:help
-                            "Source port or port range (e.g. '80,443').";
+                            "Source port, port range or @set reference.";
                     }
 
                     leaf destination-port {
                         type string;
                         ze:validate "port-spec";
-                        description "The syntax is the syntax of source-port: one port, a
-                                     range written with a hyphen, or a comma-separated
-                                     list of both, at most 128 entries. Ze reads the
-                                     destination port at offset 2 of the transport
-                                     header, so write the protocol leaf beside it.";
+                        description "The syntax is the syntax of source-port: @ and the
+                                     name of an inet-service set that exactly one
+                                     firewall table declares, or one port, a range
+                                     written with a hyphen, or a comma-separated list of
+                                     both, at most 128 entries. Ze reads the destination
+                                     port at offset 2 of the transport header, so write
+                                     the protocol leaf beside it.";
                         ze:help
-                            "Destination port or port range.";
+                            "Destination port, port range or @set reference.";
                     }
 
                     leaf protocol {

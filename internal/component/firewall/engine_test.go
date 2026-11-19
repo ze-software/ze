@@ -45,7 +45,7 @@ func swapBackendGateSchema(t *testing.T, s *config.Schema) {
 // commit.
 func TestFirewallBackendGateRejects_EmptyBackend(t *testing.T) {
 	data := `{"firewall":{"table":{"t1":{"name":"t1","family":"ip"}}}}`
-	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	err := validateBackendGate(sections, "")
 	require.Error(t, err, "empty backend must be rejected")
@@ -70,7 +70,7 @@ func TestFirewallBackendGateRejects_Synthetic(t *testing.T) {
 	list.Backend = []string{"nft"}
 
 	synthetic := config.NewSchema()
-	synthetic.Define(configRootFirewall, config.Container(
+	synthetic.Define(ConfigRoot, config.Container(
 		config.Field("backend", config.Leaf(config.TypeString)),
 		config.Field("table", list),
 	))
@@ -78,7 +78,7 @@ func TestFirewallBackendGateRejects_Synthetic(t *testing.T) {
 	swapBackendGateSchema(t, synthetic)
 
 	data := `{"firewall":{"backend":"vpp","table":{"t1":{"name":"t1"}}}}`
-	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	err := validateBackendGate(sections, "vpp")
 	require.Error(t, err, "synthetic schema must reject vpp backend on nft-annotated list")
@@ -99,7 +99,7 @@ func TestFirewallBackendGateRejects_Synthetic(t *testing.T) {
 // "absent annotation = unrestricted" rules must keep holding).
 func TestFirewallBackendGateAccepts_NftBackend(t *testing.T) {
 	data := `{"firewall":{"table":{"t1":{"name":"t1","family":"ip"}}}}`
-	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	err := validateBackendGate(sections, "nft")
 	require.NoError(t, err, "nft backend must satisfy every ze:backend \"nft\" annotation")
@@ -161,7 +161,7 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 	})
 
 	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
-	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	cfg, err := parseAndVerifyFirewallSections(sections, nil)
 	require.NoError(t, err, "an IRR table term must pass the verify path")
@@ -229,7 +229,7 @@ func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
 	})
 
 	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
-	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	cfg, err := parseAndVerifyFirewallSections(sections, nil)
 	require.NoError(t, err, "an IRR table term must pass the verify path")

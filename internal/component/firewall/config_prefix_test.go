@@ -199,7 +199,7 @@ func TestVerifyConfigRejectsPrefixHostBits(t *testing.T) {
 	for _, leaf := range []string{"source-address", "destination-address"} {
 		for _, value := range []string{"10.10.10.1/30", "2001:db8:10:10::1/126"} {
 			t.Run(leaf+"/"+value, func(t *testing.T) {
-				sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: prefixConfigInput(leaf, value)}}
+				sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: prefixConfigInput(leaf, value)}}
 				err := VerifyConfig(sections)
 				if err == nil {
 					t.Fatal("VerifyConfig accepted a prefix with host bits")

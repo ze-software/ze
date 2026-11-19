@@ -65,7 +65,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		// tables, so a config that lists one starts this engine with no
 		// `firewall {}` block, and the transaction verifies, applies and rolls
 		// back the helper tables with the firewall tables (engine.go).
-		ConfigRoots:          []string{configRootFirewall, configRootConntrack},
+		ConfigRoots:          []string{ConfigRoot, configRootConntrack},
 		OptionalDependencies: []string{vppPlugin},
 		ConfigNeeds: []registry.ConfigNeed{{
 			Path:      []string{"firewall", "backend"},

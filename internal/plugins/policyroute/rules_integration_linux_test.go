@@ -10,7 +10,7 @@
 // like a route that carries traffic.
 //
 // So these proofs assert the kernel's own answer. The specs come from the
-// plugin's own translation of an operator policy, applyAll installs them, and
+// plugin's own translation of an operator policy, replaceRules installs them over nothing, and
 // the observable is a route lookup: with the fwmark ze marks the packet with,
 // the lookup MUST resolve in the table ze selected; without the mark, the same
 // destination MUST resolve somewhere else. The second half is the control,
@@ -124,7 +124,7 @@ func TestApplyAutoRoutesResolvesTheNextHopInsideItsAutoTable(t *testing.T) {
 }
 
 // installPolicy translates one operator policy through the plugin's own
-// allocator, installs the result with applyAll, and answers with the fwmark the
+// allocator, installs the result with replaceRules over nothing, and answers with the fwmark the
 // nftables term sets. Building the specs by hand would prove the netlink calls
 // and leave the mark the chain really writes untested.
 func installPolicy(t *testing.T, action PolicyAction) uint32 {
@@ -149,8 +149,8 @@ func installPolicy(t *testing.T, action PolicyAction) uint32 {
 	}
 	t.Cleanup(manager.close)
 
-	if err := manager.applyAll(result); err != nil {
-		t.Fatalf("applyAll: %v", err)
+	if err := replaceRules(manager, nil, result); err != nil {
+		t.Fatalf("replaceRules: %v", err)
 	}
 	t.Cleanup(func() { manager.removeAll(result) })
 

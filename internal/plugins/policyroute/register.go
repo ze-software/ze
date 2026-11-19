@@ -24,11 +24,16 @@ const configRoot = "policy/route"
 
 func init() {
 	reg := registry.Registration{
-		Name:                    "policy-routes",
-		Description:             "Policy-based routing: nftables packet marking and ip rule table selection",
-		Features:                "yang",
-		YANG:                    policyrouteyang.ZePolicyrouteConfYANG,
-		ConfigRoots:             []string{configRoot},
+		Name:        "policy-routes",
+		Description: "Policy-based routing: nftables packet marking and ip rule table selection",
+		Features:    "yang",
+		YANG:        policyrouteyang.ZePolicyrouteConfYANG,
+		ConfigRoots: []string{configRoot},
+		// A @set reference names a set a firewall table declares, so the
+		// verifier and the transaction need the firewall section beside the
+		// policies, and a firewall edit that changes the set reaches this
+		// plugin to re-copy it (sets.go, parsePolicySections).
+		ConfigReads:             []string{firewall.ConfigRoot},
 		Dependencies:            []string{"firewall"},
 		InProcessConfigVerifier: verifyPolicyConfig,
 		RunEngine:               runPolicyRoutePlugin,
@@ -51,15 +56,18 @@ func init() {
 }
 
 func verifyPolicyConfig(sections []sdk.ConfigSection) error {
+	_, err := verifyPolicySections(sections)
+	return err
+}
+
+// hasPolicySection reports whether a delivery carries the policy/route root.
+func hasPolicySection(sections []sdk.ConfigSection) bool {
 	for _, section := range sections {
-		if section.Root != configRoot {
-			continue
-		}
-		if _, err := parsePolicyConfig(section.Data); err != nil {
-			return err
+		if section.Root == configRoot {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 // errApplyWithoutVerify rejects a config-apply that arrives without the
@@ -172,36 +180,32 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 	var currentResult *translationResult
 	var pending pendingPolicies
 
+	// A verify stages on every delivery, a firewall-only one included. The
+	// firewall root is a read root, so a delivery that lacks policy/route
+	// means the configuration holds no policy route (parsePolicySections),
+	// and the apply that follows still owes the transaction its answer.
+	// verifyPolicySections also runs the translation, so a refusal only
+	// translate can give is a commit refusal rather than an apply failure.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRoot {
-				continue
-			}
-			policies, err := parsePolicyConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			mu.Lock()
-			pending.stage(policies)
-			mu.Unlock()
+		policies, err := verifyPolicySections(sections)
+		if err != nil {
+			return err
 		}
+		mu.Lock()
+		pending.stage(policies)
+		mu.Unlock()
 		return nil
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRoot {
-				continue
-			}
-			policies, err := parsePolicyConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			if err := applyPolicies(alloc, policies, nil, &mu, &currentPolicies, &currentResult); err != nil {
-				return err
-			}
+		if !hasPolicySection(sections) {
+			return nil
 		}
-		return nil
+		policies, err := parsePolicySections(sections)
+		if err != nil {
+			return err
+		}
+		return applyPolicies(alloc, policies, nil, &mu, &currentPolicies, &currentResult)
 	})
 
 	var activeJournal *sdk.Journal
@@ -279,7 +283,29 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 	return 0
 }
 
+// applyPolicies installs policies over what oldResult installed.
+//
+// It touches nothing when the policies equal the installed ones
+// (policiesUnchanged). The firewall root is a read root of this plugin, so
+// every firewall commit reaches here, and most of them change no set a policy
+// names: reinstalling would rewrite ze_pr and the ip rules for nothing.
+//
+// Otherwise the nftables table goes first, then the ip rules and auto routes
+// move by difference (replaceRules): what the new result adds is installed
+// before what only the old one held is removed, and a rule both hold is never
+// touched, so a packet a rule steered before and after the change is steered
+// throughout. A failure at either step puts the previous tables back and leaves
+// the previous rules in place, so the transaction's undo starts from the state
+// it recorded rather than from nothing.
 func applyPolicies(alloc *allocator, policies []PolicyRoute, oldResult *translationResult, mu *sync.Mutex, currentPolicies *[]PolicyRoute, currentResult **translationResult) error {
+	mu.Lock()
+	unchanged := policiesUnchanged(oldResult, *currentPolicies, policies)
+	mu.Unlock()
+	if unchanged {
+		logger().Debug("policy routes unchanged, nothing reinstalled", "count", len(policies))
+		return nil
+	}
+
 	alloc.reset()
 
 	result, err := alloc.translate(policies)
@@ -293,21 +319,27 @@ func applyPolicies(alloc *allocator, policies []PolicyRoute, oldResult *translat
 	}
 	defer rm.close()
 
+	var previousTables []firewall.Table
 	if oldResult != nil {
-		rm.removeAll(oldResult)
+		previousTables = oldResult.Tables
+	}
+	restoreTables := func() {
+		// The previous tables were registered under this owner before, so
+		// re-registering them cannot be refused; nil is a withdraw.
+		_ = firewall.RegisterTables("policy-routes", previousTables)
+		_ = firewall.ApplyAll()
 	}
 
 	if err := firewall.RegisterTables("policy-routes", result.Tables); err != nil {
 		return err
 	}
 	if err := firewall.ApplyAll(); err != nil {
+		restoreTables()
 		return fmt.Errorf("nftables apply: %w", err)
 	}
 
-	if err := rm.applyAll(result); err != nil {
-		rm.removeAll(result)
-		_ = firewall.RegisterTables("policy-routes", nil) // a withdraw registers no name, so it cannot be refused
-		_ = firewall.ApplyAll()
+	if err := replaceRules(rm, oldResult, result); err != nil {
+		restoreTables()
 		return err
 	}
 
