@@ -16,11 +16,11 @@ import (
 
 // ikeSocketBypassCheckName names the check in the engine's Stage 1 registration and in
 // the doctor callback's dispatch.
-const ikeSocketBypassCheckName = "ipsec-ike-socket-bypass"
+const ikeSocketBypassCheckName = "ipsec-ike-socket-bypass" //nolint:gosec // G101: a doctor check name, not a credential
 
 // ikeSocketBypassFix is the command that clears the finding once its cause is gone: the
 // bypass is set when a socket opens, so only a socket opened again carries it.
-const ikeSocketBypassFix = "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: ze signal restart"
+const ikeSocketBypassFix = "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: ze signal restart" //nolint:gosec // G101: an operator fix command, not a credential
 
 // ikeSocketBypassCheckDecl declares the check at the runtime phase, so show doctor asks
 // the engine's own process: the IKE sockets whose outcome it reads are opened and held

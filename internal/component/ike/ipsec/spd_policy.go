@@ -474,13 +474,15 @@ func (p SPDPolicy) validateICMP() error {
 // Either way the installed entry is wider than the one written, so it is refused.
 //
 // The inbound half is not affected: a packet for this node is reassembled before its
-// policy check (ip_local_deliver, net/ipv4/ip_input.c), and an operator entry installs
-// no forward policy (engine/spd_policy.go, spdPolicyParams).
+// policy check (ip_local_deliver, net/ipv4/ip_input.c). An in entry for that type and
+// code is therefore accepted, and its forward projection is not built
+// (engine/spd_policy.go, spdEntryHasTransit), because the forward check runs before any
+// reassembly as the outbound lookup does.
 func (p SPDPolicy) validateICMPFragments() error {
 	if p.Direction == SPDDirIn {
 		return nil
 	}
-	if p.ICMP.matchesFragmentTypeCode() {
+	if p.ICMP.MatchesFragmentTypeCode() {
 		return p.icmpFragmentsError()
 	}
 	return nil
@@ -497,9 +499,10 @@ func (p SPDPolicy) icmpFragmentsError() error {
 		ErrSPDPolicy, p.Name, p.ICMP.codeText(), p.LocalPrefix, p.RemotePrefix)
 }
 
-// matchesFragmentTypeCode reports whether the selector matches ICMP type 0 code 0, the
-// type and code the kernel reads from a fragment (validateICMPFragments).
-func (s ICMPSelector) matchesFragmentTypeCode() bool {
+// MatchesFragmentTypeCode reports whether the selector matches ICMP type 0 code 0, the
+// type and code the kernel reads from a fragment (validateICMPFragments). The engine
+// asks it before it projects an entry onto the forward lookup (spdEntryHasTransit).
+func (s ICMPSelector) MatchesFragmentTypeCode() bool {
 	typeZero := s.HasType && s.Type == 0
 	if s.HasCode {
 		return typeZero && s.CodeStart == 0

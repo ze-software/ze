@@ -8,7 +8,7 @@
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
     "producer-sha": "02594c6a007f8840",
-    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -> \"netlink.Dir(p.Dir)\""
+    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
   },
   {
     "rid": "RFC4301-7.4-2",
@@ -20,5 +20,16 @@
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
     "producer-sha": "09525a3dcbb72c53",
     "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_spd_transit_test.go::TestAnyPortBypassReachesTheForwardPath",
+    "unit-sha": "d73774be1fb58bad",
+    "claim-sha": "36a4f13fb68ba485",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdEntryHasTransit",
+    "producer-sha": "ac36d16a5809f613",
+    "break": "body of spdEntryHasTransit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

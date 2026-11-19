@@ -3,7 +3,7 @@
 // Related: child.go -- childPolicies, the producer of every NEGOTIATED SPD entry
 // Related: spd_order.go -- verifySPDOrder, the commit refusal of an order a tie decides
 // Related: doctor_spd_install.go -- the ipsec-spd-install check of an entry the start could not install
-// RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 7.4)
+// RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 7.4), transit traffic (Section 6)
 
 package engine
 
@@ -23,7 +23,10 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// spdPolicyParams turns one operator-authored SPD entry into the policies it installs.
+// spdPolicyParams turns one operator-authored SPD entry into its out and in policies,
+// the halves that decide traffic this node sends and receives. The forward projection
+// that decides transit traffic is spdTransitPolicies, and spdEntryPolicies is the whole
+// set a dataplane is handed.
 //
 // A both-direction entry becomes a MIRRORED PAIR rather than one policy, because a
 // Security Policy is one-way (RFC 4301 Section 4.4.1 splits the database into SPD-O
@@ -70,6 +73,134 @@ func spdPolicyHasDirection(d ipsec.SPDDirection, dir dataplane.SADir) bool {
 		return d == ipsec.SPDDirOut || d == ipsec.SPDDirBoth
 	}
 	return d == ipsec.SPDDirIn || d == ipsec.SPDDirBoth
+}
+
+// spdEntryPolicies answers every policy one operator entry installs on dp: its out and
+// in halves (spdPolicyParams), then, on a dataplane whose forwarding path consults a
+// forward lookup, its transit projection (spdTransitPolicies), decisions before gates.
+// Install, undo, replacement and shutdown all read this one set, so they cannot
+// disagree on it. A dataplane that applies its inbound SPD before routing (VPP) needs
+// no forward entry, and is not handed one: it would refuse the direction.
+func spdEntryPolicies(dp dataplane.Dataplane, p ipsec.SPDPolicy) []dataplane.SPParams {
+	halves := spdPolicyParams(p)
+	if !dp.RequiresForwardPolicy() {
+		return halves
+	}
+	// RFC 4301 Section 6.
+	transit := spdTransitPolicies(p)
+	out := make([]dataplane.SPParams, 0, len(halves)+len(transit.decisions)+len(transit.gates))
+	out = append(out, halves...)
+	out = append(out, transit.decisions...)
+	return append(out, transit.gates...)
+}
+
+// spdTransit is the forwarding projection of one operator entry: the decisions, which
+// carry the entry's action at its order, and the gates, template-free allows at
+// dataplane.PriorityTransitGate that only keep the catch-all of the other forwarding
+// lookup from refusing what a decision admitted.
+type spdTransit struct {
+	decisions []dataplane.SPParams
+	gates     []dataplane.SPParams
+}
+
+// spdTransitPolicies projects one operator entry onto the two lookups Linux runs for a
+// packet it forwards, so the entry decides traffic between a protected host and the
+// outside as it decides traffic this node sends and receives.
+//
+// RFC 4301 Section 6: "Disposition of non-error, ICMP messages (that are not addressed
+// to the IPsec implementation itself) MUST be explicitly accounted for using SPD
+// entries." Section 5.2 makes the inbound SPD check the whole verdict of a packet from
+// the unprotected side, and Section 5.1 the outbound one of a packet from the protected
+// side. Linux checks a forwarded packet in FWD (ip_forward calls xfrm4_policy_check for
+// XFRM_POLICY_FWD) and then in OUT (xfrm4_route_forward), never in IN, so an entry with
+// in and out policies alone decides no forwarded packet in the remote-to-local
+// orientation, and its out-orientation bypass is refused by the FWD default before its
+// OUT policy is reached.
+//
+//   - Remote to local (direction in or both): the in half's selectors in FWD, with the
+//     entry's action at its order, are the decision. A bypass also gets the same
+//     selectors in OUT as a gate, which is what appendChildDeliveryPolicies gives a
+//     Child SA: without it the OUT catch-all under `unmatched discard` drops the packet.
+//   - Local to remote (direction out or both): the out half is already the OUT decision.
+//     A bypass gets its selectors in FWD as a gate, as appendChildOutboundForwardPolicies
+//     does for a Child SA; a discard needs nothing more, since its OUT policy drops it.
+//
+// The gates rank beneath every Child SA policy and operator entry, so a gate never takes
+// a packet from a PROTECT policy or from another entry's decision, whatever prefixes the
+// entry names. A projected policy that would carry the kernel identity of one already in
+// the set (selector, direction and if_id, never the priority) is left out: the kernel
+// would replace the first with it. Decisions are taken before gates for that reason, so
+// an entry whose local and remote sides are equal keeps its decision at its order.
+func spdTransitPolicies(p ipsec.SPDPolicy) spdTransit {
+	var transit spdTransit
+	if !spdEntryHasTransit(p) {
+		return transit
+	}
+	halves := spdPolicyParams(p)
+	held := make(map[spdSelector]bool, 2*len(halves))
+	for i := range halves {
+		held[selectorOf(&halves[i])] = true
+	}
+	for i := range halves {
+		if halves[i].Dir != dataplane.SADirIn {
+			continue
+		}
+		decision := halves[i]
+		decision.Dir = dataplane.SADirFwd
+		transit.decisions = appendSPDTransit(transit.decisions, held, decision)
+	}
+	if p.Action != dataplane.SPActionBypass {
+		return transit
+	}
+	for i := range halves {
+		gate := halves[i]
+		gate.Priority = dataplane.PriorityTransitGate
+		gate.Dir = dataplane.SADirFwd
+		if halves[i].Dir == dataplane.SADirIn {
+			gate.Dir = dataplane.SADirOut
+		}
+		transit.gates = appendSPDTransit(transit.gates, held, gate)
+	}
+	return transit
+}
+
+// appendSPDTransit appends sp to list unless held already carries its kernel identity,
+// and records it in held.
+func appendSPDTransit(list []dataplane.SPParams, held map[spdSelector]bool, sp dataplane.SPParams) []dataplane.SPParams {
+	key := selectorOf(&sp)
+	if held[key] {
+		return list
+	}
+	held[key] = true
+	return append(list, sp)
+}
+
+// spdEntryHasTransit reports whether an operator entry gets a forwarding projection. Two
+// shapes do not, and both are entries the forward check would read wider than written,
+// because that check runs before any reassembly:
+//
+//   - A bypass with a port. RFC 4301 Section 7.4: "All implementations MUST support
+//     stateful fragment checking to accommodate BYPASS traffic for which a non-trivial
+//     port range is specified." The forward check classifies a non-initial fragment with
+//     port 0 (LL-XFRM-FRAGMENT-SELECTOR), and the stateful check that would give such a
+//     fragment the disposition of its datagram is the kernel route of owner decision 1,
+//     whose capability Ze does not hold yet. Until it does, no port-scoped bypass is
+//     stored in FWD (TestPortScopedBypassNeverReachesTheForwardPath), so transit traffic
+//     its ports name keeps the disposition of the next entry that matches it. A
+//     port-scoped discard is projected: it can only drop what another entry would admit.
+//   - An ICMP selector holding type 0 code 0, which is what Linux reads from every
+//     fragment (ipsec.ICMPSelector.MatchesFragmentTypeCode). Its forward entry would also
+//     take every forwarded ICMP fragment between its prefixes. The commit refuses such
+//     an out or both entry for the same reason (validateICMPFragments); an in entry is
+//     accepted for traffic to this node and projects nothing.
+func spdEntryHasTransit(p ipsec.SPDPolicy) bool {
+	if p.ICMP.MatchesFragmentTypeCode() {
+		return false
+	}
+	if p.Action != dataplane.SPActionBypass {
+		return true
+	}
+	return p.LocalPort.IsAny() && p.RemotePort.IsAny()
 }
 
 // spdICMPMatch is one ICMP selector as the kernel holds it: the message type in the
@@ -287,7 +418,7 @@ func reconcileSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipse
 		if held, ok := previous[name]; ok && spdPolicySame(held, next[name]) {
 			continue
 		}
-		entries := spdPolicyParams(next[name])
+		entries := spdEntryPolicies(dp, next[name])
 		for i := range entries {
 			err := dp.InstallPolicy(entries[i])
 			if err == nil {
@@ -327,7 +458,7 @@ func installSPDPoliciesAtStart(dp dataplane.Dataplane, next map[string]ipsec.SPD
 	}
 	installed = make(map[string]ipsec.SPDPolicy, len(next))
 	for _, name := range spdInstallOrder(next) {
-		entries := spdPolicyParams(next[name])
+		entries := spdEntryPolicies(dp, next[name])
 		var written []dataplane.SPParams
 		var refusal *opererr.Error
 		for i := range entries {
@@ -385,7 +516,7 @@ func undoSPDInstall(dp dataplane.Dataplane, previous map[string]ipsec.SPDPolicy,
 	var outcome spdReconcile
 	held := make(map[spdSelector]dataplane.SPParams)
 	for name := range previous {
-		policies := spdPolicyParams(previous[name])
+		policies := spdEntryPolicies(dp, previous[name])
 		for i := range policies {
 			held[selectorOf(&policies[i])] = policies[i]
 		}
@@ -425,7 +556,7 @@ func removeReplacedSPDPolicies(dp dataplane.Dataplane, previous, next map[string
 	var outcome spdReconcile
 	kept := make(map[spdSelector]bool)
 	for name := range next {
-		policies := spdPolicyParams(next[name])
+		policies := spdEntryPolicies(dp, next[name])
 		for i := range policies {
 			kept[selectorOf(&policies[i])] = true
 		}
@@ -434,7 +565,7 @@ func removeReplacedSPDPolicies(dp dataplane.Dataplane, previous, next map[string
 		if current, ok := next[name]; ok && spdPolicySame(previous[name], current) {
 			continue
 		}
-		entries := spdPolicyParams(previous[name])
+		entries := spdEntryPolicies(dp, previous[name])
 		for i := range entries {
 			sp := &entries[i]
 			if kept[selectorOf(sp)] {
@@ -477,7 +608,7 @@ func removeSPDPolicies(dp dataplane.Dataplane, policies map[string]ipsec.SPDPoli
 		return
 	}
 	for name := range policies {
-		entries := spdPolicyParams(policies[name])
+		entries := spdEntryPolicies(dp, policies[name])
 		for i := range entries {
 			sp := &entries[i]
 			if err := removeZePolicy(dp, *sp); err != nil {
@@ -490,7 +621,7 @@ func removeSPDPolicies(dp dataplane.Dataplane, policies map[string]ipsec.SPDPoli
 // spdPolicySame reports whether two versions of one named entry describe the same
 // installed policies, so a reload re-installs only what actually changed.
 //
-// It compares every field spdPolicyParams reads and nothing else. A field this misses
+// It compares every field spdEntryPolicies reads and nothing else. A field this misses
 // would leave the kernel holding the previous form after a commit that changed it,
 // which is the quietest failure a reconciler has.
 func spdPolicySame(a, b ipsec.SPDPolicy) bool {

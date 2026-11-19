@@ -150,6 +150,22 @@ const (
 	// so every Child SA policy and every operator entry (order at most 2147483647)
 	// is still searched before it: an operator's own discard keeps winning.
 	PriorityUnmatchedXFRMInterface = PriorityUnmatched - 1
+	// PriorityTransitGate ranks the template-free allows that hand a forwarded packet
+	// an operator entry admitted on to the lookup that decides it, so the catch-all of
+	// the other lookup Linux runs on a forwarded packet does not refuse it
+	// (engine/spd_policy.go, spdTransitPolicies). They sit two places above the
+	// catch-all, beneath every Child SA policy and every operator entry (order at most
+	// 2147483647), so a gate never outranks a PROTECT policy or another entry's
+	// decision. Its order against PriorityUnmatchedXFRMInterface decides nothing a
+	// packet can observe: both are allows.
+	PriorityTransitGate = PriorityUnmatched - 2
+	// PriorityICMPErrorReturn ranks the out ALLOW entries that let a forwarded ICMP
+	// error reach the kernel's return-SA mapping under `unmatched discard`
+	// (engine/icmp_error_return.go). They sit three places above the catch-all, so
+	// every Child SA policy and every operator entry is still searched before them:
+	// an SA or an entry that carries the error keeps carrying it. Their order against
+	// the other allows above the catch-all decides nothing a packet can observe.
+	PriorityICMPErrorReturn = PriorityUnmatched - 3
 )
 
 // kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.

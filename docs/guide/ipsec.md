@@ -1472,6 +1472,37 @@ for it.
 keeps local and remote as written, and the inbound entry swaps them, because the
 local side of a flow is the destination of an inbound packet.
 
+An entry also decides the traffic Ze forwards between a host behind it and the
+outside, on a gateway where `local prefix` is a protected subnet. RFC 4301
+Section 6 requires that the disposition of ICMP messages "that are not addressed
+to the IPsec implementation itself" be "explicitly accounted for using SPD
+entries", and the same entries account for any other forwarded traffic. Linux
+checks a forwarded packet in its `fwd` policies and then in `out`, never in
+`in`, so Ze installs more than the two halves above:
+
+| Direction | Forwarded remote to local | Forwarded local to remote |
+|---|---|---|
+| `in` | a `fwd` entry with the entry's action, at its order, and for a bypass an `out` allow beneath every other entry | not decided by this entry |
+| `out` | not decided by this entry | the `out` entry decides; a bypass also gets a `fwd` allow beneath every other entry |
+| `both` | as `in` | as `out` |
+
+The allows beneath every other entry only keep the final disposition of
+`unmatched discard` from dropping what the entry passed: they never outrank a
+tunnel or another entry. `show vpn ipsec dataplane policy` lists every one of
+these with role `operator`. Linux tells which way a forwarded packet travels only
+by its addresses, so an entry whose local and remote prefixes overlap also
+decides the overlapping part of the other direction.
+
+A bypass with a port decides only traffic to and from Ze, not forwarded traffic.
+Linux classifies a forwarded fragment before reassembling it, reading port 0 from
+every fragment but the first, and RFC 4301 Section 7.4 requires "stateful
+fragment checking to accommodate BYPASS traffic for which a non-trivial port
+range is specified", which Ze cannot perform for forwarded traffic yet. Forwarded
+traffic on that port keeps the disposition of the next entry that matches it,
+and under `unmatched discard` it is dropped. Write the bypass with both ports
+`any` to pass forwarded traffic. A discard with a port does decide forwarded
+traffic, except a fragment after the first, which no port can match.
+
 The default order of 1000 sits between the lowest order Ze accepts, 1, and a
 peer's default rank of 2000, so an entry written with no order outranks the
 tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
@@ -1537,7 +1568,9 @@ operator meant to carry.
   forwarded ICMP fragment between its prefixes, whatever message it belongs to:
   the hazard RFC 4301 Section 7.4 names for a bypass. Write it with `direction
   in`, because traffic for Ze itself is reassembled before it is classified, or
-  with an `icmp-code` range that starts at 1.
+  with an `icmp-code` range that starts at 1. Such an `in` entry decides only
+  traffic for Ze: it installs no `fwd` entry, which would take every forwarded
+  ICMP fragment the same way.
 
 ### ICMP type and code selectors
 

@@ -1048,9 +1048,44 @@ report attempt retains a coded warning with its own log command.
 
 A forwarded error leaving towards a Child SA is mapped to the return SA (`xfrm_out_fwd_icmp`,
 called by `__xfrm_route_forward`) only after the out lookup passed it
-untransformed: under `unmatched bypass` the catch-all does; under
-`unmatched discard` it blocks the error first. The VPP backend reads no ICMP payload on either path and refuses
-both requests (`vppUnsupportedSA`, `vppICMPErrorReturnError`).
+untransformed (`if (dst && !dst->xfrm)`); the out catch-all under `unmatched
+discard` answers `-EPERM` first. So under `unmatched discard`, on the XFRM
+backend, Ze adds the ICMP error return mapping (`icmpErrorReturns.apply`,
+`icmp_error_return.go`, run by `applyConfig` after `installUnmatched`):
+
+- one out ALLOW entry (role `icmp-error-return`) per ICMP error type
+  `icmp_err_packet` maps (IPv4 3 and 11, IPv6 1, 2 and 3), from any source,
+  towards each remote selector of a peer with `icmp-error-check true` and no
+  `vti bind`, at `dataplane.PriorityICMPErrorReturn`, three places above the
+  catch-all and beneath every Child SA policy and operator entry, so an SA or
+  an entry that carries the error still does;
+- the nft table `ze_ipsec_icmp_error_return` (ip and ip6), whose forward and
+  output chains accept such an error when its dst is an XFRM bundle (`rt ipsec
+  exists`) and drop it otherwise. `ip_forward` reaches its forward hook after
+  `xfrm4_route_forward`; the output chain is owed because the entry turns the
+  local route lookup's `-EPERM` into a pass, and `icmp_route_lookup` and
+  `icmpv6_route_lookup` send an error whose reverse lookup fails on that plain
+  route.
+
+The table is published before the entries are installed and withdrawn after
+they are removed. A table the kernel refuses leaves no entry, so the catch-all
+discards the error and nothing leaks; the runtime doctor check
+`ipsec-icmp-error-return` (`doctor-ipsec-icmp-error-return`) reports that and
+any refused entry or removal. Refusal A keeps every bypass that would carry
+these errors towards such a peer out of a committed configuration, so the table
+never drops an error an operator entry carries. An operator entry that installs
+the very selector of one entry keeps it, and that entry is not built.
+
+Limits of this mapping: a forwarded error of another type (IPv4 parameter
+problem 12, IPv6 parameter problem 4) is not mapped by Linux's forward path and
+stays discarded; an operator `out` or `both` discard covering the error ranks
+above the entry, so a forwarded error it covers is discarded, not mapped (a
+locally generated one is mapped, `icmp_route_lookup` continuing on `-EPERM`).
+The entries and the table show in `show vpn ipsec policy` (role
+`icmp-error-return`) and `show firewall ruleset ipsec_icmp_error_return`; no
+configuration display marks them as implied yet. The VPP backend reads no ICMP
+payload on either path and refuses both requests (`vppUnsupportedSA`,
+`vppICMPErrorReturnError`), and gets no mapping entry.
 
 The outbound flag overrides an operator SPD entry, so config verify refuses the
 pair rather than install an entry the kernel does not honour
@@ -1103,6 +1138,7 @@ problem at Error, and `ze doctor` reports the conflict and the command that
 fixes it. The door's trap records why: an earlier start-time refusal left a box
 with no tunnels at all.
 
+<!-- source: internal/component/ike/engine/icmp_error_return.go -- icmpErrorReturnDestinations, icmpErrorReturnPolicies, icmpErrorReturnTables, apply, release, answerICMPErrorReturn -->
 <!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, verifyICMPOverlap, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
@@ -1427,10 +1463,73 @@ it under `doctor-ipsec-spd-undo-incomplete` with its direction, selector,
 priority, the backend's answer and `ze signal restart`. A
 platform with no XFRM (`isXFRMUnsupported`) refuses nothing, since no dataplane
 exists to hold an entry. `verifySPDOrder` (`spd_order.go`) refuses at commit two
-operator entries, or an entry and a policy-based peer at its `policy-priority`,
-that overlap (`dataplane.PolicySelectorsOverlap` over the installed projections)
-at one order, and two entries that install one selector; the start logs the same
-pairs at Error (`warnSPDOrderAtStart`).
+operator entries, or an entry and a policy-based peer at its `policy-priority`
+(or, for a tunnel-mode peer, at the rank one below it, where its outbound forward
+and delivery entries sit), that overlap (`dataplane.PolicySelectorsOverlap` over
+the installed projections, the transit decisions below included) at one rank, and
+two entries that install one selector, transit gates included; the start logs the
+same pairs at Error (`warnSPDOrderAtStart`). The verifier runs with no dataplane,
+so it judges the XFRM set: on VPP a pair that meets only in FWD is refused although
+neither forward entry would be installed.
+
+### Transit traffic
+
+An operator entry decides the traffic Ze forwards between a protected host and the
+outside, as well as the traffic Ze sends and receives. RFC 4301 Section 6:
+"Disposition of non-error, ICMP messages (that are not addressed to the IPsec
+implementation itself) MUST be explicitly accounted for using SPD entries."
+Linux checks a forwarded packet in FWD and then in OUT (`ip_forward` calls
+`xfrm4_policy_check` for `XFRM_POLICY_FWD`, then `xfrm4_route_forward`), never in
+IN, so out and in policies alone decide no forwarded packet in the remote-to-local
+orientation. On a backend whose `RequiresForwardPolicy` answers true,
+`spdEntryPolicies` therefore hands the dataplane the entry's out and in halves
+(`spdPolicyParams`) and then its transit projection (`spdTransitPolicies`):
+
+| Entry direction | Decision, at the entry's order | Gate, at `PriorityTransitGate` |
+|---|---|---|
+| `in`: remote to local | the in half's selectors in FWD, with the entry's action | a bypass only: the same selectors in OUT |
+| `out`: local to remote | none: the out half already decides in OUT | a bypass only: the out half's selectors in FWD |
+| `both` | the `in` row | both rows |
+
+A gate is a template-free allow two ranks above the catch-all, beneath every
+Child SA policy and every operator order, so it never takes a packet from a
+PROTECT policy or from another entry's decision. It only keeps the catch-all of
+the other lookup (the OUT catch-all under `unmatched discard`, or the namespace
+FWD default) from refusing what the decision admitted. The gates are the
+operator counterparts of a Child SA's delivery and outbound forward entries
+(`appendChildDeliveryPolicies`, `appendChildOutboundForwardPolicies`), ranked
+lower than those because an operator order may sit above every Child SA. A
+projected policy that would carry the kernel identity of one already in the set
+(selector, direction and if_id, never the priority) is left out, decisions before
+gates, so an entry whose local and remote sides are equal keeps its decision at
+its order. The projection is unowned like the halves (`ownedEntry` exempts every
+template-free entry but a Child SA's), and `show vpn ipsec dataplane policy` lists
+each policy with its direction, the `operator` role and its priority. VPP gets no
+forward entry, because its inbound SPD applies before routing.
+
+Two shapes get no projection, because the forward check runs before any
+reassembly and would read them wider than written:
+
+- A bypass with a port. RFC 4301 Section 7.4: "All implementations MUST support
+  stateful fragment checking to accommodate BYPASS traffic for which a
+  non-trivial port range is specified." The forward check classifies a
+  non-initial fragment with port 0 (`LL-XFRM-FRAGMENT-SELECTOR`), and the
+  stateful check is the kernel route of owner decision 1, whose capability Ze
+  does not hold yet. Until it does, no port-scoped bypass is stored in FWD
+  (`TestPortScopedBypassNeverReachesTheForwardPath`), so forwarded traffic on its
+  ports keeps the disposition of the next entry that matches it: under
+  `unmatched discard`, it is dropped. A port-scoped discard is projected, since
+  it can only drop what another entry would admit; a forwarded non-initial
+  fragment of its traffic, read with port 0, still escapes it to the next entry
+  (AC-2 of the RFC 4301 architecture spec).
+- An ICMP selector that holds type 0 code 0, which is what Linux reads from every
+  fragment (`ICMPSelector.MatchesFragmentTypeCode`). The commit refuses such an
+  `out` or `both` entry (`validateICMPFragments`); an `in` entry is accepted for
+  traffic to Ze and decides no forwarded traffic.
+
+Linux tells the orientation of a forwarded packet only by its addresses, so an
+entry whose local and remote prefixes overlap also decides the overlapping part
+of the other orientation.
 
 The readback reads DISCARD from the kernel action rather than from an empty
 template list. The kernel accepts a template beside a `block` policy and ignores
@@ -1441,8 +1540,9 @@ it is being dropped.
 <!-- source: internal/component/ike/dataplane/dataplane.go -- SPAction, isTemplateFree -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction, xfrmPolicyFromParams, policyInfoFromKernel -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
-<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, reconcileSPDPolicies, installSPDPoliciesAtStart, undoSPDInstall, spdInstallOrder -->
-<!-- source: internal/component/ike/engine/spd_order.go -- spdOrderRefusals, verifySPDOrder, warnSPDOrderAtStart -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, spdEntryPolicies, spdTransitPolicies, spdEntryHasTransit, reconcileSPDPolicies, installSPDPoliciesAtStart, undoSPDInstall, spdInstallOrder -->
+<!-- source: internal/component/ike/engine/spd_order.go -- spdOrderRefusals, spdJudgedPolicies, peerConfiguredPolicies, verifySPDOrder, warnSPDOrderAtStart -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityTransitGate -->
 <!-- source: internal/component/ike/engine/doctor_spd_install.go -- answerSPDInstall, recordSPDReconcile -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->

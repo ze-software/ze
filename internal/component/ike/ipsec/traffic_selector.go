@@ -137,7 +137,11 @@ func (p PortSelector) ProgrammableForProtocol(proto uint8) bool {
 			return false
 		}
 		return true
+	case PortOpaque:
+		// OPAQUE has no dataplane mapping (see above).
+		return false
 	default:
+		// Open set: a form this function does not name is refused, never programmed.
 		return false
 	}
 }

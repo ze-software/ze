@@ -48,6 +48,15 @@ import (
 // path). Two peers are not compared here: their negotiated selectors are refused at
 // install when they would share one (dataplane.TransportSelectorConflictError and the
 // cross-peer tunnel check).
+//
+// The forward projection of each side joins the comparison (spdJudgedPolicies): an
+// operator entry's transit decisions sit at its order, and a tunnel-mode peer's forward
+// entries at its policy-priority and one rank below it (peerConfiguredPolicies). The
+// verifier runs with no dataplane in hand, so it judges the set Linux XFRM installs,
+// the only backend with a forward lookup; on VPP a pair that meets only in FWD is
+// refused although VPP would install neither forward entry. The gates of
+// spdTransitPolicies are judged for a shared selector only: they are allows at one rank
+// beneath every configured one, so an order between two of them is never observable.
 func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 	names := slices.Sorted(maps.Keys(cfg.Policies))
 	var refusals []*opererr.Error
@@ -55,14 +64,14 @@ func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 		a := cfg.Policies[first]
 		for _, second := range names[i+1:] {
 			b := cfg.Policies[second]
-			if spdPoliciesShareASelector(spdPolicyParams(a), spdPolicyParams(b)) {
+			if spdPoliciesShareASelector(spdJudgedPolicies(a, true), spdJudgedPolicies(b, true)) {
 				refusals = append(refusals, spdSameSelectorRefusal(first, second))
 				continue
 			}
 			if a.Order != b.Order {
 				continue
 			}
-			if !spdPoliciesOverlap(spdPolicyParams(a), spdPolicyParams(b)) {
+			if !spdPoliciesOverlap(spdJudgedPolicies(a, false), spdJudgedPolicies(b, false)) {
 				continue
 			}
 			refusals = append(refusals, spdOrderTieRefusal(
@@ -77,17 +86,49 @@ func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 		peerPolicies := peerConfiguredPolicies(&peer)
 		for _, name := range names {
 			entry := cfg.Policies[name]
-			if entry.Order != peer.PolicyPriority {
+			rank, tied := spdRankTie(spdJudgedPolicies(entry, false), peerPolicies)
+			if !tied {
 				continue
 			}
-			if !spdPoliciesOverlap(spdPolicyParams(entry), peerPolicies) {
-				continue
+			which := "its policy-priority"
+			if rank != int(peer.PolicyPriority) {
+				which = "its forwarding entries at policy-priority + 1"
 			}
 			refusals = append(refusals, spdOrderTieRefusal(
-				"vpn ipsec policy "+name+" and site-to-site peer "+peerName+" (its policy-priority)", name, entry.Order))
+				"vpn ipsec policy "+name+" and site-to-site peer "+peerName+" ("+which+")", name, entry.Order))
 		}
 	}
 	return refusals
+}
+
+// spdJudgedPolicies is what the order check compares for one operator entry: its out
+// and in halves and its transit decisions, all at its order, and with gates its transit
+// gates as well (spdTransitPolicies). It is spdEntryPolicies on a dataplane with a
+// forward lookup.
+func spdJudgedPolicies(p ipsec.SPDPolicy, gates bool) []dataplane.SPParams {
+	transit := spdTransitPolicies(p)
+	out := spdPolicyParams(p)
+	out = append(out, transit.decisions...)
+	if !gates {
+		return out
+	}
+	return append(out, transit.gates...)
+}
+
+// spdRankTie answers the rank of the first pair, one policy of each set, that sits at
+// one priority and that one packet can match, and whether there is such a pair.
+func spdRankTie(entry, peer []dataplane.SPParams) (int, bool) {
+	for i := range entry {
+		for j := range peer {
+			if entry[i].Priority != peer[j].Priority {
+				continue
+			}
+			if dataplane.PolicySelectorsOverlap(entry[i], peer[j]) {
+				return peer[j].Priority, true
+			}
+		}
+	}
+	return 0, false
 }
 
 // spdOrderTieRefusal is the refusal of two overlapping entries that share an order,
@@ -140,8 +181,9 @@ func spdPoliciesShareASelector(a, b []dataplane.SPParams) bool {
 }
 
 // peerConfiguredPolicies projects a peer's configured traffic selectors onto the out
-// and in policies its Child SAs would install, at its policy-priority, in the
-// orientation childPolicies uses: local is the source of an outbound packet and the
+// and in policies its Child SAs would install, at its policy-priority, and for a peer
+// that is not transport-mode onto their forward entries (appendPeerForwardPolicies), in
+// the orientation childPolicies uses: local is the source of an outbound packet and the
 // destination of an inbound one. An EMPTY list is a peer that accepts any selector
 // (SiteToSitePeer.TrafficSelectors), and a side that names no prefix covers every
 // address of the family its other side names, or of both (spdSelectorFamilies).
@@ -164,7 +206,33 @@ func peerConfiguredPolicies(peer *ipsec.SiteToSitePeer) []dataplane.SPParams {
 			inbound.Dir, inbound.Src, inbound.Dst = dataplane.SADirIn, remote, local
 			inbound.SrcPort, inbound.DstPort = remotePort, localPort
 			out = append(out, outbound, inbound)
+			if peer.Mode != dataplane.ModeTransport {
+				out = appendPeerForwardPolicies(out, outbound, inbound)
+			}
 		}
+	}
+	return out
+}
+
+// appendPeerForwardPolicies appends the forward entries a tunnel-mode Child SA of the
+// peer installs for one selector pair, in the shape child.go builds them: the inbound
+// selectors in FWD at the policy-priority (childReceivePolicies), the outbound
+// selectors in FWD and the inbound ones in OUT one rank below it
+// (appendChildOutboundForwardPolicy, appendChildDeliveryPolicy), each left out where
+// the Child SA leaves it out because it would carry the kernel identity of another.
+func appendPeerForwardPolicies(out []dataplane.SPParams, outbound, inbound dataplane.SPParams) []dataplane.SPParams {
+	forwardIn := inbound
+	forwardIn.Dir = dataplane.SADirFwd
+	out = append(out, forwardIn)
+	forwardOut := outbound
+	forwardOut.Dir, forwardOut.Priority = dataplane.SADirFwd, outbound.Priority+1
+	if selectorOf(&forwardOut) != selectorOf(&forwardIn) {
+		out = append(out, forwardOut)
+	}
+	delivery := inbound
+	delivery.Dir, delivery.Priority = dataplane.SADirOut, inbound.Priority+1
+	if selectorOf(&delivery) != selectorOf(&outbound) {
+		out = append(out, delivery)
 	}
 	return out
 }

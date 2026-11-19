@@ -32,9 +32,10 @@ var errSPDRemoveRefusedByTest = errors.New("netlink: operation not permitted")
 // outboundOf answers the outbound policy of entry.
 func outboundOf(t *testing.T, entry ipsec.SPDPolicy) dataplane.SPParams {
 	t.Helper()
-	for _, sp := range spdPolicyParams(entry) {
-		if sp.Dir == dataplane.SADirOut {
-			return sp
+	policies := spdPolicyParams(entry)
+	for i := range policies {
+		if policies[i].Dir == dataplane.SADirOut {
+			return policies[i]
 		}
 	}
 	t.Fatalf("entry %s installs no outbound policy", entry.Name)
