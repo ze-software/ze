@@ -487,8 +487,9 @@ func (h *Hugepages) buildHostZe(ctx context.Context, work string) (host string, 
 
 // applianceEnv answers the environment both appliance commands run under: where
 // the appliance lives, the password its SSH server will accept, and the Docker
-// daemon. `ze appliance build` runs Docker to build the kernel and the initrd,
-// and it inherits this environment, so on macOS the `ze` Colima profile's
+// daemon. `ze appliance build` runs Docker for its build steps (the runtime
+// kernel it embeds comes from the cache: requireCachedRuntimeKernel), and it
+// inherits this environment, so on macOS the `ze` Colima profile's
 // socket is named here, or the build is refused before it starts
 // (`internal/le/dockerhost`).
 func (h *Hugepages) applianceEnv(dir string) ([]string, error) {
@@ -506,6 +507,10 @@ func (h *Hugepages) applianceEnv(dir string) ([]string, error) {
 // buildImage initializes an appliance, writes the hugepage reservation into its
 // configuration, and builds the image.
 func (h *Hugepages) buildImage(ctx context.Context, host, work string) (string, error) {
+	// The `ze appliance build` below would build a missing runtime kernel.
+	if err := requireCachedRuntimeKernel(h.Tree, h.Arch); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(work, "appliances")
 	environment, err := h.applianceEnv(dir)
 	if err != nil {

@@ -105,13 +105,77 @@ digest is compiled in with it, so `RuntimeKernelTree` refuses a selected root
 whose `internal/appliance/kernel.version` pins another release rather than build
 one release from another's config.
 
-A warm library lookup does not materialize a shared output. A cold lookup builds
-in a run-owned directory under the selected root's `tmp/kernel`, validates the
-emitted artifact and requirements, then publishes to the existing cache namespace.
-After successful builder completion its output is removed, including on later
-validation or publication failure. A builder error does not prove every Docker
-writer stopped: the resolver retains that run's output and names its exact path.
-It does not remove it or repair permissions while teardown is unknown.
+A warm library lookup does not materialize a shared output. A cold build of a
+key runs under that key's lock, the file `.<entry>.lock` beside the entry
+(`flock`), held from the cache check to the publication: a second run that asks
+for the same key waits, names the pid it waits for, then finds the entry the
+first published and reuses it, so one set of inputs is built once. The builder
+writes into a staging directory `.<entry>.staging-<random>` in the cache
+namespace itself, on the entry's filesystem. After the builder returns, the
+resolver validates the emitted kernel, modules and requirements, then publishes
+the staging directory by one `os.Rename` onto the entry. Until that rename no
+entry exists, and after it the entry is whole, so no timeout, kill or later
+failure leaves a partial entry, and a reader that sees `vmlinuz` sees a
+complete tree. A staging directory that fails validation is removed. A builder
+error does not prove every Docker writer stopped, so that run keeps its staging
+directory and names its path. The next build of the key, holding the lock,
+reclaims every staging directory an earlier run left. One whose build finished
+(the provenance record the builder writes last is there, and the tree
+validates) is published instead of being built again, so a run killed between
+the end of the build and the rename loses nothing. Every other one is removed;
+one that cannot be removed is reported with the command that removes it, and
+skipped. An entry path that exists without `vmlinuz` is a partial tree left by
+the copy-based publication this replaced, and is removed under the lock before
+the rename.
+<!-- source: internal/appliance/runtimekernel_publish.go -- publishRuntimeKernel, reclaimRuntimeKernelStaging, installRuntimeKernel, lockRuntimeKernelEntry -->
+<!-- test: internal/appliance/runtimekernel_publish_test.go TestRuntimeKernelPublishIsAtomic, TestRuntimeKernelPublishAdoptsAFinishedBuild, TestRuntimeKernelConcurrentResolvesBuildOnce -->
+
+The builder returns only after its container teardown, its ownership repair and,
+on a VM-backed Docker daemon, the `fstrim` that returns space to the host
+(`runDocker`, `kernelbuilder/driver.go`), then writes the provenance record. A
+kill during those steps leaves a staging directory with no provenance, which the
+next build removes and builds again. A build runs only from an explicit command,
+never inside a test deadline, so only an operator's interrupt can land there.
+
+### A test boots the cached kernel
+
+A test, a record run or a lab never builds a kernel or an image. It reads the
+entry through `CachedRuntimeKernelTree`, under the same key `RuntimeKernelTree`
+builds, and on a cold cache refuses before anything starts: the refusal names
+the entry's path and ends with the one command that builds it, which runs on
+its own, outside any test deadline. The le callers name
+`./le setup docker host build arch <arch>`, which builds the kernel when it is
+missing and then the docker-host image that boots it: `setupdockerhost.CachedRuntimeKernel`
+and `setupdockerhost.CachedImage`, which the docker-lab lab and command
+branches, the one-CI route, the VPN kernel proof, `./le feature run` and
+`./le rfc record` use. `./le rfc record` asks before its first observation
+(`observationRunner.requireCachedGuest`), and refuses a `kernel <path>` whose
+bytes are not the cached kernel's. Explicit build commands keep building:
+`ze appliance kernel`, `ze appliance build`, `./le build gokrazy` and
+`./le setup docker host build`.
+
+The QEMU appliance proofs (the installer, ISO, OTA, Ventoy and config-push
+proofs, hugepages, crash capture, MPLS boot and hostname) spawn
+`ze appliance build`, whose kernel lookup is `RuntimeKernelTree` and would
+build a missing kernel. Each asks the cache first through
+`requireCachedRuntimeKernel` (`internal/le/test/qemu/appliance_kernel.go`)
+before its first `ze appliance` spawn (the installer proofs before their host
+ze build too), and on a cold cache refuses with
+the entry's path and `buildhostdriver.RuntimeKernelBuild`'s command:
+`./le build host-driver`, then `./ze-host appliance kernel --target runtime
+--arch <arch>`. The appliance image those proofs boot is still built in the
+run: it carries the run's own seed, credentials and boot settings (a hugepage
+reservation, a crash reservation, an MPLS or hostname seed), so it is the run's
+artifact, and no cache key could serve it to another run.
+<!-- source: internal/appliance/runtimekernel_cached.go -- CachedRuntimeKernelTree, coldRuntimeKernel -->
+<!-- source: internal/le/setup/docker/host/build.go -- CachedRuntimeKernel, builder.cachedImage -->
+<!-- source: internal/le/test/qemu/appliance_kernel.go -- requireCachedRuntimeKernel, runtimeKernelBuildCommand -->
+<!-- test: internal/le/test/qemu/appliance_kernel_test.go TestColdRuntimeKernelRefusesBeforeTheApplianceBuild, TestEveryApplianceImageProofRefusesAColdKernelFirst -->
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabInputs, CheckDockerLabInputs, GuestRuntimeKernel -->
+<!-- source: internal/le/rfc/discriminate_guest.go -- observationRunner.requireCachedGuest -->
+<!-- test: internal/appliance/runtimekernel_publish_test.go TestCachedRuntimeKernelTreeRefusesColdCache -->
+<!-- test: internal/le/setup/docker/host/build_cached_test.go TestDockerHostCachedImageRefusesAColdImage -->
+<!-- test: internal/le/rfc/discriminate_guest_cached_test.go TestRecordRefusesAColdGuestBeforeObserving, TestRecordPreflightAsksOnlyAGuestRun -->
 
 A successful installer or runtime kernel build preserves older cache entries
 and staging directories owned by other runs. Active VMs and retained comparisons
@@ -123,9 +187,8 @@ before requesting it.
 
 Only explicit `ze appliance kernel --target runtime` materializes the documented
 `tmp/kernel/build` stage after resolution. Cache-print and cache-eviction actions
-do not materialize it. There is no public output-path option. Existing cache
-publication still stages a sibling tree, removes the destination and renames the
-staging tree; this repair adds no lock or guarantee of uninterrupted availability.
+do not materialize it. There is no public output-path option. The stage is a
+copy of the published cache entry, which the copy never changes.
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree, ImageRuntimeKernelTree -->
 <!-- source: internal/appliance/cache.go -- kernelCacheVariantFor, cacheFileHashPaths, copyTree -->
 <!-- test: internal/appliance/runtimekernel_ownership_test.go TestRuntimeKernelLibraryWarmPreservesRequestedKernel, TestRuntimeKernelLibraryColdOwnsOutput -->

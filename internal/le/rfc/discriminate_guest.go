@@ -115,7 +115,7 @@ func requireRootInGuest(unit string, guest, root bool) error {
 	var tb textbuf.Buffer
 	return parseErr(tb.Str(unit).Str(" declares `").Str(guestRootDirective).
 		Str("`, so it runs only as root in the Linux guest, and this host run is unprivileged: pass `").
-		Str(keyKernel).Str(" <vmlinuz>`, which `ze appliance kernel` builds, to run it there"))
+		Str(keyKernel).Str(" <vmlinuz>`, the vmlinuz of the cached runtime kernel, which `./le setup docker host build arch <arch>` builds once on its own, to run it there"))
 }
 
 // placementContexts answers the two build contexts a tagged unit's file is
@@ -191,7 +191,7 @@ func requireGuestKernel(unit string, guest bool, kernel string) error {
 		}
 		return parseErr(tb.Str(unit).Str(" runs only in the Linux guest, and a guest ").
 			Str("proof MUST boot Ze's runtime kernel: pass `").Str(keyKernel).
-			Str(" <vmlinuz>`, which `ze appliance kernel` builds ").
+			Str(" <vmlinuz>`, the vmlinuz of the cached runtime kernel, which `./le setup docker host build arch <arch>` builds once on its own ").
 			Str("(docs/architecture/testing/qemu-integration.md)"))
 	}
 	if kernel == "" {
@@ -220,6 +220,31 @@ func (o *observationRunner) selectGuestImage(image string) error {
 	}
 	o.image = image
 	return nil
+}
+
+// guestInputsCached is testqemu.CheckDockerLabInputs, the docker-lab command
+// branch's own first answer, as a variable so a test can read the order of the
+// preflight without a kernel cache.
+var guestInputsCached = testqemu.CheckDockerLabInputs
+
+// requireCachedGuest refuses a guest run, before any observation, when the
+// kernel or the image it boots is not cached, or when the `kernel` path does not
+// hold the cached kernel's bytes. A record run never builds a kernel or an
+// image: the observation runs under carrierRunDeadline, and a build inside it
+// can be killed before it is published, so the next run builds the same key
+// again. The refusal ends with the command that builds both, on its own.
+// A host run boots nothing and is not asked.
+func (o *observationRunner) requireCachedGuest() error {
+	if !o.guest {
+		return nil
+	}
+	err := guestInputsCached(o.tree, testqemu.GuestArch(), o.kernel, o.image)
+	if err == nil {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return parseErr(tb.Str(o.record.Unit).Str(" runs in the Linux guest, and the guest it boots is not ready, ").
+		Str("so nothing was observed: ").Err(err))
 }
 
 // runInGuest compiles the tagged unit's package for the guest on this host and

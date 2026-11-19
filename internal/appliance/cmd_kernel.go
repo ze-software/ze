@@ -467,7 +467,14 @@ func resolveInstallerKernel(root, version, arch, profile, builder string, td ker
 	return cached, nil
 }
 
-func resolveRuntimeKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (path string, resultErr error) {
+// resolveRuntimeKernel answers the runtime kernel cache entry, building it on a
+// miss. Only an explicit build reaches it (ze appliance kernel, ze appliance
+// build, ./le build gokrazy, ./le setup docker host build); a test, a record
+// run or a lab reads the cache through CachedRuntimeKernelTree, which never
+// builds. The build runs under the key's lock and is published by one rename
+// (publishRuntimeKernel), so concurrent runs build the key once and no failure
+// leaves a partial entry.
+func resolveRuntimeKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
 	if err := enforceReserveMemKernelFloor(version); err != nil {
 		return "", err
 	}
@@ -483,44 +490,36 @@ func resolveRuntimeKernel(root, version, arch, profile, builder string, td kerne
 	if arch != kernelbuilder.HostArch() {
 		return "", &foreignArchKernelError{version: version, arch: arch, cachedDir: cachedDir}
 	}
-	parent := filepath.Join(root, "tmp", "kernel")
-	if err := os.MkdirAll(parent, 0o750); err != nil {
-		return "", fmt.Errorf("create runtime build-output parent %s: %w", parent, err)
-	}
-	output, err := os.MkdirTemp(parent, "runtime-build-")
+	path, err := publishRuntimeKernel(cachedDir, runtimeKernelBuild{
+		artifact: td.artifact,
+		build: func(staging string) error {
+			td.outputDir = staging
+			return buildKernelArtifact(root, version, arch, profile, builder, td, jobs)
+		},
+		validate: func(staging string) error {
+			return validateRuntimeKernelTree(staging, td, resolved)
+		},
+	})
 	if err != nil {
-		return "", fmt.Errorf("create owned runtime build output under %s: %w", parent, err)
-	}
-	td.outputDir = output
-	if err := buildKernelArtifact(root, version, arch, profile, builder, td, jobs); err != nil {
-		// An error does not prove Docker removed every writer. Retain this run's
-		// output rather than racing a worker or an ownership-repair container.
-		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w; retained run-owned output at %s because builder teardown was not established; confirm the builder's reported workers stopped before removing that directory\n"+
+		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
 			"build it once, with network access, on this host:\nze appliance kernel --target runtime --arch %s",
-			version, arch, cachedDir, err, output, arch)
+			version, arch, cachedDir, err, arch)
 	}
-	// Successful build completion joins the writers. Only then is cleanup safe,
-	// including when later artifact validation or cache publication fails.
-	defer func() {
-		if err := os.RemoveAll(output); err != nil {
-			resultErr = errors.Join(resultErr, fmt.Errorf("remove joined runtime build output %s: %w", output, err))
-		}
-	}()
-	builtKernel := filepath.Join(output, td.artifact)
+	return path, nil
+}
+
+// validateRuntimeKernelTree checks a staged runtime kernel tree before it is
+// published: the kernel, its modules, and the requirements of its profile.
+func validateRuntimeKernelTree(staging string, td kernelTargetDesc, resolved kernelProfileResolution) error {
+	builtKernel := filepath.Join(staging, td.artifact)
 	if _, err := os.Stat(builtKernel); err != nil {
-		return "", fmt.Errorf("runtime kernel not produced at %s: %w", builtKernel, err)
+		return fmt.Errorf("runtime kernel not produced at %s: %w", builtKernel, err)
 	}
-	modulesDir := filepath.Join(output, "lib", "modules")
+	modulesDir := filepath.Join(staging, "lib", "modules")
 	if _, err := os.Stat(modulesDir); err != nil {
-		return "", fmt.Errorf("runtime kernel modules not produced at %s: %w", modulesDir, err)
+		return fmt.Errorf("runtime kernel modules not produced at %s: %w", modulesDir, err)
 	}
-	if err := enforceKernelRequirements(resolved, filepath.Join(output, "config"), td.floor); err != nil {
-		return "", err
-	}
-	if err := copyTree(output, cachedDir); err != nil {
-		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
-	}
-	return cachedDir, nil
+	return enforceKernelRequirements(resolved, filepath.Join(staging, "config"), td.floor)
 }
 
 // foreignArchKernelError refuses a runtime kernel this host cannot build: the

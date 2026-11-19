@@ -219,6 +219,10 @@ func (c *CrashCapture) workDir() (string, error) {
 // buildImage initializes an appliance, writes its crash reservation and seed,
 // and builds the image.
 func (c *CrashCapture) buildImage(host, work string) (string, error) {
+	// The `ze appliance build` below would build a missing runtime kernel.
+	if err := requireCachedRuntimeKernel(c.run.Tree, c.run.Arch); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(work, "appliances")
 	environment, err := c.run.applianceEnv(dir)
 	if err != nil {

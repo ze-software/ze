@@ -83,8 +83,11 @@ func TestRuntimeKernelLibraryColdOwnsOutput(t *testing.T) {
 				if output == shared {
 					t.Errorf("library submitted the operator's shared stage as native output: %s", output)
 				}
-				if !strings.HasPrefix(output, filepath.Join(root, "tmp")+string(filepath.Separator)) {
-					t.Errorf("native output %q is not run-owned beneath selected root tmp", output)
+				// The build stages beside its entry, on the cache's own
+				// filesystem, so one rename publishes it (publishRuntimeKernel).
+				if filepath.Dir(output) != filepath.Dir(cached) ||
+					!strings.HasPrefix(filepath.Base(output), "."+filepath.Base(cached)+runtimeKernelStagingInfix) {
+					t.Errorf("native output %q is not this run's staging directory beside the entry %q", output, cached)
 				}
 				if request.SourceDir != runtimeKernelConfigDir || request.PatchesDir != runtimeKernelPatchesDir {
 					t.Errorf("native source/patch labels changed: source=%q patches=%q", request.SourceDir, request.PatchesDir)

@@ -185,6 +185,10 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 // architecture and memory and the seed configuration, and builds the image.
 // The MPLS boot and hostname proofs share it: each differs only in its seed.
 func buildSeededImage(run *Hugepages, host, dir, seed string) (string, error) {
+	// The `ze appliance build` below would build a missing runtime kernel.
+	if err := requireCachedRuntimeKernel(run.Tree, run.Arch); err != nil {
+		return "", err
+	}
 	environment, err := run.applianceEnv(dir)
 	if err != nil {
 		return "", err

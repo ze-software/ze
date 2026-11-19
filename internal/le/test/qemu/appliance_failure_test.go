@@ -80,6 +80,8 @@ func TestApplianceStepFailureNamesExitStatus(t *testing.T) {
 			// dockerhost.Environment refuse, before the fake runs, whenever
 			// the `ze` Colima profile is stopped.
 			t.Setenv("DOCKER_HOST", "unix:///nonexistent/ze-test-docker-stub.sock")
+			// The fake host builds no image, so no real kernel is looked up.
+			stubCachedRuntimeKernel(t)
 			host := writeFakeHost(t, tc.init, tc.image)
 			err := tc.build(host, t.TempDir())
 			if err == nil {

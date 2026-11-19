@@ -140,7 +140,8 @@ type RunOptions struct {
 	// builds one at GuestLeRel.
 	GuestLe string
 	// Image is the docker-lab command branch's KeywordImage. Empty means
-	// EnsureImage resolves the image, building it when its key is not cached.
+	// the cached image is used (setupdockerhost.CachedImage), which a test
+	// never builds: a cold cache refuses with the command that builds it.
 	Image string
 }
 

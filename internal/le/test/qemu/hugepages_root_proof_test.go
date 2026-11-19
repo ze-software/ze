@@ -353,6 +353,9 @@ func TestHugepagesRootProcess(t *testing.T) {
 			}
 		}
 		env.ResetCache()
+		// The fake host ze builds a fixture image and no kernel, so this
+		// verb process answers the runtime kernel lookup as warm.
+		stubCachedRuntimeKernel(t)
 		report, code := Answer([]string{"vpp-hugepages"})
 		if code == 0 {
 			if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {

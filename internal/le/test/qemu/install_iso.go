@@ -39,6 +39,14 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 // prepareISOImageInputs accepts only run-owned init JSON and a complete seed.
 // The empty inputs preserve the ordinary installer and OTA preparation.
 func (installer *Installer) prepareISOImageInputs(ctx context.Context, work, initJSON, seed string) (installISOImage, error) {
+	// Only a run with no ZE_INSTALL_IMAGE spawns `ze appliance build`, which
+	// would build a missing runtime kernel. The OTA proof's second build
+	// follows this one in the same run, under the same cache key.
+	if installer.Options.Image == "" {
+		if err := requireCachedRuntimeKernel(installer.Tree, installer.Options.Arch); err != nil {
+			return installISOImage{}, err
+		}
+	}
 	ze, err := installer.buildHostZe(ctx, work)
 	if err != nil {
 		return installISOImage{}, err

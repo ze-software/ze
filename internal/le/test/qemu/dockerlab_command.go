@@ -70,12 +70,13 @@ func dockerLabMode(args leaction.Arguments) error {
 	return nil
 }
 
-// dockerLabCommandHost holds the host steps of the command branch: a kernel, an
-// image and a guest le are each minutes of work, and the boot needs QEMU. A test
-// replaces them to read what the branch hands each one.
+// dockerLabCommandHost holds the host steps of the command branch: the cached
+// kernel and image it boots, which it reads and never builds, the guest le, and
+// the boot, which needs QEMU. A test replaces them to read what the branch hands
+// each one.
 type dockerLabCommandHost struct {
 	runtimeTree func(root, arch string) (string, error)
-	ensureImage func(ctx context.Context, root, arch string) (string, error)
+	cachedImage func(root, arch string) (string, error)
 	buildGuest  func(ctx context.Context, root, arch string) error
 	boot        func(ctx context.Context, run *Run, image string, kernel *dockerLabKernel) (DockerLabReport, error)
 }
@@ -83,36 +84,18 @@ type dockerLabCommandHost struct {
 // dockerLabHost is the command branch's steps, a variable for the reason runSelf
 // is. Nothing writes it outside a test.
 var dockerLabHost = dockerLabCommandHost{
-	runtimeTree: func(root, arch string) (string, error) {
-		return appliance.ImageRuntimeKernelTree(root, arch, dockerLabImageBuild)
-	},
-	ensureImage: setupdockerhost.EnsureImage,
+	runtimeTree: setupdockerhost.CachedRuntimeKernel,
+	cachedImage: setupdockerhost.CachedImage,
 	buildGuest:  buildGuestLe,
 	boot: func(ctx context.Context, run *Run, image string, kernel *dockerLabKernel) (DockerLabReport, error) {
 		return run.dockerLabCommand(ctx, image, kernel)
 	},
 }
 
-// runDockerLabCommand validates an explicit image's existing runtime entry, or
-// resolves the current runtime when the caller asks it to acquire an image.
+// runDockerLabCommand boots the cached kernel and image the inputs resolve
+// (dockerLabInputs), after the guest le when the harness asks for one.
 func runDockerLabCommand(ctx context.Context, root, arch string, options RunOptions) (any, int) {
-	var tree string
-	var err error
-	if options.Image == "" {
-		tree, err = dockerLabHost.runtimeTree(root, arch)
-	} else {
-		tree, err = appliance.ExistingRuntimeKernelTree(options.Kernel, arch)
-	}
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	kernel, err := dockerLabCommandKernel(options.Kernel, tree)
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	image, err := dockerLabImage(ctx, root, arch, options.Image)
+	kernel, image, err := dockerLabInputs(root, arch, options.Kernel, options.Image)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -137,13 +120,52 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 	return &report, report.CommandExit
 }
 
-// dockerLabImage answers the image the command branch boots: the one the caller
-// named with KeywordImage, or the one EnsureImage resolves, which builds it from
-// the working tree when its key is not cached. A named image is refused when it
-// is not a readable regular file; the boot then checks the kernel it embeds.
-func dockerLabImage(ctx context.Context, root, arch, prebuilt string) (string, error) {
+// dockerLabInputs answers the kernel and the image the command branch boots,
+// and builds neither: a test, a record run or a lab never builds a kernel or an
+// image, so a cold cache refuses with the one command that builds them, which
+// runs on its own, outside any test deadline. With no image named, the kernel is
+// the current key's cache entry and the image the cached one that embeds it;
+// with an image named, the kernel is the existing cache entry the requested
+// vmlinuz lies in. Either way the requested kernel MUST hold that entry's bytes.
+func dockerLabInputs(root, arch, requested, prebuilt string) (*dockerLabKernel, string, error) {
+	var tree string
+	var err error
 	if prebuilt == "" {
-		return dockerLabHost.ensureImage(ctx, root, arch)
+		tree, err = dockerLabHost.runtimeTree(root, arch)
+	} else {
+		tree, err = appliance.ExistingRuntimeKernelTree(requested, arch)
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	kernel, err := dockerLabCommandKernel(requested, tree)
+	if err != nil {
+		return nil, "", err
+	}
+	image, err := dockerLabImage(root, arch, prebuilt)
+	if err != nil {
+		return nil, "", err
+	}
+	return kernel, image, nil
+}
+
+// CheckDockerLabInputs refuses, before any work starts, a docker-lab command run
+// whose kernel or image the cache does not hold, or whose requested kernel is
+// not the cached one: the same answer the run itself would give first. A caller
+// that drives that run under a deadline (`./le rfc record`) calls it before it
+// observes anything.
+func CheckDockerLabInputs(root, arch, requested, prebuilt string) error {
+	_, _, err := dockerLabInputs(root, arch, requested, prebuilt)
+	return err
+}
+
+// dockerLabImage answers the image the command branch boots: the one the caller
+// named with KeywordImage, or the cached one for the current inputs, which it
+// never builds. A named image is refused when it is not a readable regular
+// file; the boot then checks the kernel it embeds.
+func dockerLabImage(root, arch, prebuilt string) (string, error) {
+	if prebuilt == "" {
+		return dockerLabHost.cachedImage(root, arch)
 	}
 	info, err := os.Stat(prebuilt)
 	if err != nil {
@@ -192,9 +214,9 @@ func dockerLabImageBuild(arch string) string {
 
 // GuestRuntimeKernel answers the vmlinuz of the runtime kernel the image for arch
 // boots, for a caller with no kernel of its own to name: the bytes the docker-lab
-// command branch accepts, resolved or built the way EnsureImage resolves them.
+// command branch accepts, read from the cache and never built.
 func GuestRuntimeKernel(root, arch string) (string, error) {
-	tree, err := appliance.ImageRuntimeKernelTree(root, arch, dockerLabImageBuild)
+	tree, err := dockerLabHost.runtimeTree(root, arch)
 	if err != nil {
 		return "", err
 	}
@@ -312,7 +334,7 @@ func dockerLabImageBoot(image string, kernel *dockerLabKernel) (string, error) {
 	if len(entries) < 4 {
 		return "", fmt.Errorf("docker-host image %s lacks its boot/root-A/root-B/perm partitions", image)
 	}
-	file, err := os.Open(image) //nolint:gosec // EnsureImage's immutable cached image
+	file, err := os.Open(image) //nolint:gosec // CachedImage's immutable cached image
 	if err != nil {
 		return "", err
 	}
@@ -321,7 +343,7 @@ func dockerLabImageBoot(image string, kernel *dockerLabKernel) (string, error) {
 	if boot.Last < boot.First {
 		return "", errors.New("docker-host boot partition ends before it starts")
 	}
-	partition := io.NewSectionReader(file, int64(boot.First)*512, int64(boot.Last-boot.First+1)*512) //nolint:gosec // the existing GPT reader bounds the table; image comes from EnsureImage
+	partition := io.NewSectionReader(file, int64(boot.First)*512, int64(boot.Last-boot.First+1)*512) //nolint:gosec // the existing GPT reader bounds the table; image comes from CachedImage
 	reader, err := fat.NewReader(partition)
 	if err != nil {
 		return "", fmt.Errorf("read docker-host boot FAT: %w", err)

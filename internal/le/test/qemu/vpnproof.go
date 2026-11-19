@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/appliance"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	setupdockerhost "github.com/ze-software/ze/internal/le/setup/docker/host"
 )
 
 // vpnGuestPreparation runs only in the disposable snapshot this action boots.
@@ -52,12 +52,11 @@ func runVPNKernelHere(args leaction.Arguments) (any, int) {
 	return runDockerLab(ctx, root, runArgs, vpnGuestPreparation)
 }
 
-// vpnKernelConfig checks the emitted config of the same native cache resolver
-// EnsureImage uses, not the requested fragment or another staged kernel.
+// vpnKernelConfig checks the emitted config of the cached runtime kernel the
+// image embeds (setupdockerhost.CachedRuntimeKernel, which never builds), not
+// the requested fragment or another staged kernel.
 func vpnKernelConfig(root string) error {
-	tree, err := appliance.ImageRuntimeKernelTree(root, GuestArch(), func(arch string) string {
-		return "./le setup docker host build arch " + arch
-	})
+	tree, err := setupdockerhost.CachedRuntimeKernel(root, GuestArch())
 	if err != nil {
 		return err
 	}

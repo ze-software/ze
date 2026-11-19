@@ -113,6 +113,10 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 		}
 		return installImage{Path: image, ZeFS: zefs}, nil
 	}
+	// The `ze appliance build` below would build a missing runtime kernel.
+	if err := requireCachedRuntimeKernel(installer.Tree, installer.Options.Arch); err != nil {
+		return installImage{}, err
+	}
 	ze, err := installer.buildHostZe(ctx, work)
 	if err != nil {
 		return installImage{}, err
@@ -183,8 +187,9 @@ func (installer *Installer) applianceEnv(applianceDir string) ([]string, error) 
 	applianceSetting := tb.Str("ZE_APPLIANCE_DIR=").Str(applianceDir).String()
 	tb.Reset()
 	passwordSetting := tb.Str("ze.appliance.ssh.password=").Str(installer.Options.SSHPassword).String()
-	// `ze appliance build` runs Docker to build the kernel and the initrd, and it
-	// inherits this environment, so on macOS the `ze` Colima profile's socket is
+	// `ze appliance build` runs Docker for its build steps (the runtime kernel it
+	// embeds comes from the cache: requireCachedRuntimeKernel), and it inherits
+	// this environment, so on macOS the `ze` Colima profile's socket is
 	// named here, or the build is refused before it starts
 	// (`internal/le/dockerhost`).
 	inherited, err := dockerhost.Environment(installer.ops.GOOS, installer.ops.Home, installer.ops.Environ(), installer.ops.Socket)

@@ -130,7 +130,7 @@ func TestDockerLabCommandExplicitRuntimePairSkipsCurrentResolver(t *testing.T) {
 					resolved++
 					return "", errors.New("current runtime source key is deliberately unavailable")
 				},
-				ensureImage: func(context.Context, string, string) (string, error) {
+				cachedImage: func(string, string) (string, error) {
 					images++
 					return "", errors.New("an explicit pair must not build an image")
 				},
@@ -196,7 +196,7 @@ func TestDockerLabCommandWithoutImageUsesCurrentResolver(t *testing.T) {
 			resolved++
 			return "", errors.New("current runtime resolution deliberately stops here")
 		},
-		ensureImage: func(context.Context, string, string) (string, error) {
+		cachedImage: func(string, string) (string, error) {
 			t.Error("resolver failure reached image build")
 			return "", errors.New("unexpected image build")
 		},

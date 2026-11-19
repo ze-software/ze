@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/qemu-integration.md -- Docker labs on the docker-host image
 // Detail: cidata.go -- the cidata volume the guest reads at boot
 // Related: run.go -- the QEMU acceleration, firmware and VM records this boot reuses
-// Related: ../../setup/docker/host/actions.go -- EnsureImage, the image this boot runs
+// Related: ../../setup/docker/host/actions.go -- CachedImage, the image this boot runs
 // Related: ../../setup/docker/kernel/dockerkernel.go -- `setup docker kernel check`, run by the host le
 //
 // dockerlab.go is the shared own-system boot path for a Docker lab or one
@@ -55,7 +55,7 @@ const (
 	// (`le feature run`, runInGuest).
 	KeywordGuestLe = "guest-le"
 	// KeywordImage names, with command, a docker-host image the caller
-	// resolved itself (setupdockerhost.EnsureImage), so the branch resolves
+	// resolved itself (setupdockerhost.CachedImage), so the branch resolves
 	// none. The boot still checks that the image embeds the selected kernel.
 	KeywordImage = "image"
 	// keywordEnv carries NAME=value assignments the lab runs under, such as
@@ -313,7 +313,7 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 	}
 	// Docker labs require hardware acceleration. TCG would measure the emulator.
 	options.HardwareOnly = true
-	image, err := setupdockerhost.EnsureImage(ctx, root, goarch)
+	image, err := setupdockerhost.CachedImage(root, goarch)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/appliance"
+	"github.com/ze-software/ze/internal/core/opererr"
 	buildgokrazy "github.com/ze-software/ze/internal/le/build/gokrazy"
 )
 
@@ -89,26 +90,10 @@ type builder struct {
 // binaries, writes the extra files tar, runs gok into a partial file, formats
 // /perm and moves the image into place.
 func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, error) {
-	tree, err := b.kernelTree(req.repo, req.arch)
-	if err != nil {
-		return builtImage{}, fmt.Errorf("resolve the %s runtime kernel: %w", req.arch, err)
-	}
-	digest, err := sourceDigest(req.repo, req.arch, req.sizeGiB)
+	dir, key, err := b.imageEntry(req)
 	if err != nil {
 		return builtImage{}, err
 	}
-	// The kernel's bytes, not the cache entry's name: a kernel build is not
-	// reproducible, so an entry rebuilt under one name holds a different kernel,
-	// and `docker-lab command` refuses an image that embeds any other.
-	kernel, err := fileSHA256(filepath.Join(tree, runtimeKernelFile))
-	if err != nil {
-		return builtImage{}, runtimeKernelRefusal(tree, req.arch, err)
-	}
-	key, err := ImageKey(req.pins, KeyInputs{Arch: req.arch, KernelKey: kernel, SourceDigest: digest})
-	if err != nil {
-		return builtImage{}, err
-	}
-	dir := filepath.Join(b.cacheDir, req.arch, key)
 	image := filepath.Join(dir, imageFileName)
 	if _, err := os.Stat(image); err == nil {
 		return builtImage{Path: image, Key: key}, nil
@@ -150,6 +135,62 @@ func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, erro
 		return builtImage{}, fmt.Errorf("move the image into %s: %w", image, err)
 	}
 	return builtImage{Path: image, Key: key, Built: true}, nil
+}
+
+// imageEntry answers the cache directory of req's image and its key. The key
+// covers the runtime kernel b.kernelTree resolves, so for a build that resolver
+// may build the kernel, and for a lookup it never does (cachedImage).
+func (b *builder) imageEntry(req buildRequest) (dir, key string, err error) {
+	tree, err := b.kernelTree(req.repo, req.arch)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve the %s runtime kernel: %w", req.arch, err)
+	}
+	digest, err := sourceDigest(req.repo, req.arch, req.sizeGiB)
+	if err != nil {
+		return "", "", err
+	}
+	// The kernel's bytes, not the cache entry's name: a kernel build is not
+	// reproducible, so an entry rebuilt under one name holds a different kernel,
+	// and `docker-lab command` refuses an image that embeds any other.
+	kernel, err := fileSHA256(filepath.Join(tree, runtimeKernelFile))
+	if err != nil {
+		return "", "", runtimeKernelRefusal(tree, req.arch, err)
+	}
+	key, err = ImageKey(req.pins, KeyInputs{Arch: req.arch, KernelKey: kernel, SourceDigest: digest})
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Join(b.cacheDir, req.arch, key), key, nil
+}
+
+// cachedImage answers req's image from the cache and never builds it, nor its
+// kernel when b.kernelTree is the no-build lookup (CachedImage). The image is
+// moved into place by one rename once it is whole, so an image that exists is
+// complete. A miss refuses with the image's path and the command that builds it.
+func (b *builder) cachedImage(req buildRequest) (string, error) {
+	dir, _, err := b.imageEntry(req)
+	if err != nil {
+		return "", err
+	}
+	image := filepath.Join(dir, imageFileName)
+	_, err = os.Stat(image)
+	if err == nil {
+		return image, nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("inspect %s: %w", image, err)
+	}
+	return "", opererr.New("the "+req.arch+" docker-host image is not in the cache at "+image,
+		"a test or a lab boots the cached image and never builds one: a build takes minutes, and the kernel it embeds "+
+			"about thirty more, so it runs on its own, outside any test deadline. Build it once with the command below, "+
+			"then run this command again",
+		imageBuildCommand(req.arch))
+}
+
+// imageBuildCommand answers the one command that builds the runtime kernel for
+// arch when the cache lacks it, then the docker-host image that boots it.
+func imageBuildCommand(arch string) string {
+	return "./le setup docker host build arch " + arch
 }
 
 // runtimeKernelRefusal says why the kernel of the runtime cache entry at tree
@@ -345,9 +386,15 @@ func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 // on an arch host or for this host's arch, never a bare kernel build, which
 // would fill another host's cache.
 func dockerHostRuntimeKernel(repo, arch string) (string, error) {
-	return appliance.ImageRuntimeKernelTree(repo, arch, func(arch string) string {
-		return "./le setup docker host build arch " + arch
-	})
+	return appliance.ImageRuntimeKernelTree(repo, arch, imageBuildCommand)
+}
+
+// CachedRuntimeKernel answers the runtime kernel cache entry the docker-host
+// image for arch embeds, and never builds it. A test, a record run or a lab
+// calls it; its refusal on a cold cache ends with imageBuildCommand, which
+// builds the kernel and the image the run boots, outside any test deadline.
+func CachedRuntimeKernel(repo, arch string) (string, error) {
+	return appliance.CachedRuntimeKernelTree(repo, arch, imageBuildCommand)
 }
 
 // systemBuilder is the builder that runs the real steps.

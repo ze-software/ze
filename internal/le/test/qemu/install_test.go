@@ -788,6 +788,8 @@ func TestInstallSelfSkip(t *testing.T) {
 
 func installTestInstaller(t *testing.T, kind InstallKind) *Installer {
 	t.Helper()
+	// The fake runners never spawn a real `ze appliance build`.
+	stubCachedRuntimeKernel(t)
 	options := InstallOptions{Kind: kind, Arch: ArchAMD64, Accelerator: "tcg", Kernel: "kernel", SSHUser: installDefaultSSHUser, SSHPassword: installDefaultSSHPass, NIC: installDefaultNIC, BootTimeout: time.Second, FaultTimeout: time.Second, RescueStepTimeout: time.Second, RescueTimeout: time.Second}
 	installer := NewInstaller(t.TempDir(), options)
 	installer.ops.GOOS, installer.ops.GOARCH = "linux", ArchAMD64

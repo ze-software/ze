@@ -50,7 +50,7 @@ func (r *repoRunner) hostGuestSteps() guestSteps {
 			return testqemu.BuildGuestLeAt(context.Background(), r.tree, goarch, rel)
 		},
 		image: func(goarch string) (string, error) {
-			return setupdockerhost.EnsureImage(context.Background(), r.tree, goarch)
+			return setupdockerhost.CachedImage(r.tree, goarch)
 		},
 		kernel: func(goarch string) (string, error) { return testqemu.GuestRuntimeKernel(r.tree, goarch) },
 	}

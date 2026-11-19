@@ -403,6 +403,11 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	if err := runner.selectGuestImage(request.image); err != nil {
 		return ObservedRed{}, err
 	}
+	// Before the first observation: the guest's kernel and image are read
+	// from the cache and never built inside the observation's deadline.
+	if err := runner.requireCachedGuest(); err != nil {
+		return ObservedRed{}, err
+	}
 	red, solo, err := runner.observeBreaks(broken, solos)
 	if err != nil {
 		return ObservedRed{}, err

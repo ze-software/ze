@@ -21,8 +21,9 @@ import (
 // PREVENTS: a guest route that boots but whose Docker never answers, or whose
 // kernel lacks a feature Ze enrolls.
 //
-// Skips when the host has no QEMU for its architecture. The image is built or
-// taken from the docker-host cache by the action itself (EnsureImage).
+// Skips when the host has no QEMU for its architecture. The image is taken from
+// the docker-host cache by the action itself (CachedImage), which refuses a
+// cold cache rather than build inside the test.
 func TestDockerLabGuestBootsZeKernel(t *testing.T) {
 	system := qemuSystemAMD64
 	if GuestArch() == ArchARM64 {

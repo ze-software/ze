@@ -17,10 +17,13 @@ import (
 
 // RuntimeKernelTree resolves ze's runtime kernel for arch and answers its
 // arch-keyed cache directory: the cache entry when one is present, else a native
-// build (Docker or QEMU, on a host of that arch) whose output is checked against
-// the kernel requirements and then cached. root names the selected source tree;
-// the caller's working directory does not select its inputs. Library resolution
-// never materializes the shared tmp/kernel/build stage.
+// build (Docker or QEMU, on a host of that arch) into a staging directory beside
+// the entry, checked against the kernel requirements and published by one
+// rename, under the key's lock so two runs build it once. Only an explicit build
+// calls it; a test, a record run or a lab calls CachedRuntimeKernelTree, which
+// never builds. root names the selected source tree; the caller's working
+// directory does not select its inputs. Library resolution never materializes
+// the shared tmp/kernel/build stage.
 func RuntimeKernelTree(root, arch string) (string, error) {
 	absolute, err := kernelSourceRoot(root)
 	if err != nil {

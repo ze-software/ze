@@ -132,7 +132,7 @@ func stubDockerLabHost(t *testing.T, tree string) *recordedDockerLabHost {
 	recorded := &recordedDockerLabHost{}
 	dockerLabHost = dockerLabCommandHost{
 		runtimeTree: func(string, string) (string, error) { return tree, nil },
-		ensureImage: func(context.Context, string, string) (string, error) {
+		cachedImage: func(string, string) (string, error) {
 			recorded.steps = append(recorded.steps, "image")
 			return "/img", nil
 		},

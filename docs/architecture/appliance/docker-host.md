@@ -227,7 +227,10 @@ runtime kernel (`dockerHostRuntimeKernel`, through
 host of that arch. On a host of the other arch with no cache entry, it refuses
 and names this command on a host of that arch, or the same command for this
 host's arch, never a bare kernel build, which would fill the other host's
-cache and leave this one refused. Otherwise, in this order:
+cache and leave this one refused. A test or a lab never takes this path: it
+reads the image through `CachedImage`, which builds neither the image nor its
+kernel and refuses a cold cache with this command (`build-artifacts.md`, "A
+test boots the cached kernel"). Otherwise, in this order:
 <!-- source: internal/le/setup/docker/host/build.go -- dockerHostRuntimeKernel -->
 <!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 

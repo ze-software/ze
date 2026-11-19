@@ -43,9 +43,11 @@ func TestRuntimeKernelExplicitRootOwnsManifestEnforcement(t *testing.T) {
 				if request.Root != root {
 					t.Errorf("selected root %q changed to %q before native build", root, request.Root)
 				}
-				ownedParent := filepath.Join(root, "tmp", "kernel") + string(filepath.Separator)
-				if !filepath.IsAbs(request.OutputDir) || !strings.HasPrefix(request.OutputDir, ownedParent) || request.OutputDir == filepath.Dir(requested) {
-					t.Fatalf("selected-root build did not supply a private absolute output under %q: %q", ownedParent, request.OutputDir)
+				// The private output is this run's staging directory beside the
+				// entry, which one rename publishes (publishRuntimeKernel).
+				ownedPrefix := filepath.Join(filepath.Dir(cached), "."+filepath.Base(cached)+runtimeKernelStagingInfix)
+				if !filepath.IsAbs(request.OutputDir) || !strings.HasPrefix(request.OutputDir, ownedPrefix) || request.OutputDir == filepath.Dir(requested) {
+					t.Fatalf("selected-root build did not supply a private absolute output under %q: %q", ownedPrefix, request.OutputDir)
 				}
 				writeRuntimeKernelTree(t, request.OutputDir, runtime.GOARCH)
 				config := fakeRuntimeConfig()

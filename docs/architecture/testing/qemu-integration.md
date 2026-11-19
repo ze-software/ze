@@ -188,8 +188,10 @@ From the host, one command runs it:
 That is the command a `needs-linux` skip reason ends with, with the skipped
 test's own path filled in (`runner.GuestRoute`). It refuses a path no guest
 suite walks, or a file the checkout does not hold, before it builds anything.
-Then it cross-builds the daemons as `guest-binaries` does, resolves the runtime
-kernel Ze's image boots (`GuestRuntimeKernel`), and boots the own-system
+Then it cross-builds the daemons as `guest-binaries` does, reads the cached
+runtime kernel Ze's image boots (`GuestRuntimeKernel`, which never builds one:
+a cold cache refuses, ending with `./le setup docker host build arch <arch>`),
+and boots the own-system
 carrier with `harness` and the guest command below (`runOneCIHere`,
 `oneCIArguments`). The runner cannot import le, so it spells the command as a
 literal, and `TestRunnerGuestRouteIsTheOneCIAction` parses the line it prints
@@ -749,8 +751,29 @@ mounted: /workspace`.
 The runtime kernel itself is built by `ze appliance kernel`, which writes
 `tmp/kernel/build/vmlinuz` (`runtimeKernelOutputDir`,
 `internal/appliance/cmd_kernel.go`). The build is cache-backed under
-`~/.cache/ze` and only runs when the kernel key changes.
+`~/.cache/ze` and only runs when the kernel key changes. A test, a record run or
+a lab never builds it: it boots the cache entry, and on a cold cache it refuses
+before anything starts and names the command that builds it, which runs on its
+own, outside any test deadline (`docs/architecture/appliance/build-artifacts.md`,
+"A test boots the cached kernel").
 
+The appliance image proofs of this package spawn `ze appliance build`, which
+would build a missing runtime kernel: `Installer.buildImage` and
+`Installer.prepareISOImageInputs` (the installer, ISO, OTA, Ventoy and
+config-push proofs), `Hugepages.buildImage`, `CrashCapture.buildImage` and
+`buildSeededImage` (MPLS boot and hostname). Each first asks the cache through
+`requireCachedRuntimeKernel`, under the key `ze appliance build` run from the
+checkout resolves for the image's arch, and on a cold cache refuses before
+its first `ze appliance` spawn. The installer proofs ask before they build the
+host ze; the hugepages family has built it by then. The refusal names the entry's path and ends with
+`./le build host-driver` and `./ze-host appliance kernel --target runtime --arch
+<arch>`, run once on their own. A run given `ZE_INSTALL_IMAGE` builds no image
+and asks nothing. The image itself is built in the run, from the cached kernel,
+because it carries the run's seed, credentials and boot settings and no other
+run could use it.
+
+<!-- source: internal/le/test/qemu/appliance_kernel.go -- requireCachedRuntimeKernel, cachedRuntimeKernel -->
+<!-- test: internal/le/test/qemu/appliance_kernel_test.go TestColdRuntimeKernelRefusesBeforeTheApplianceBuild, TestEveryApplianceImageProofRefusesAColdKernelFirst -->
 <!-- source: internal/le/test/qemu/run.go -- Run, Plan -->
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <!-- source: internal/le/test/qemu/alltests.go -- AllTestsRun.Run -->
@@ -776,9 +799,15 @@ is the Mac's second route (owner D-6). Both architectures use one action:
 ```
 
 The guest is Ze's docker-host image for the host's architecture, the same image
-the `ze` Colima profile boots (`setupdockerhost.EnsureImage`: built, or taken
-from `~/.cache/ze/docker-host/<arch>/<key>/` when the inputs' key holds it,
-under the setup lock). No Alpine ISO or initramfs is read, no package is
+the `ze` Colima profile boots (`setupdockerhost.CachedImage`: taken from
+`~/.cache/ze/docker-host/<arch>/<key>/` when the inputs' key holds it, and
+never built). Every docker-lab branch, the one-CI route, `./le feature run`
+and `./le rfc record` read the image and the runtime kernel it embeds from the
+cache and build neither: a cold cache refuses before the boot, naming the
+missing entry and ending with `./le setup docker host build arch <arch>`, the
+one command that builds the kernel when it is missing and then the image. That
+command runs on its own, outside any test deadline, so no test timeout can kill
+a build before it is published. No Alpine ISO or initramfs is read, no package is
 installed. In the Docker lab branch nothing of le's runs in the guest.
 The action demands HVF or KVM, because a lab under TCG measures the emulator.
 The Docker lab branch then:
@@ -856,7 +885,7 @@ group. Only then does le list the leftovers, and only after that does the VM
 stop (spec AC-10).
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe, refuseUnmountableShare, Run.dockerLabShares -->
 <!-- source: internal/le/test/qemu/cidata.go -- cidataISO -->
-<!-- source: internal/le/setup/docker/host/actions.go -- EnsureImage -->
+<!-- source: internal/le/setup/docker/host/actions.go -- CachedImage -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
 <!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot, TestRunContextStopsARunningChildWithSIGTERM, TestRunContextEndsTheFollowOfASharedRun, TestRunContextNotesAStopRatherThanItsError -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot, TestDockerLabBuildsSayTheyWereStopped -->
@@ -964,13 +993,13 @@ the guest sees only the checkout, and an executable regular file; otherwise
 the call refuses before the boot and names the fix: omit `guest-le` so `harness`
 builds `tmp/qemu/linux-<arch>/le`. `image <image-path>`, valid only with
 `command`, names the docker-host image the caller resolved
-(`setupdockerhost.EnsureImage`), which the boot still checks against the
+(`setupdockerhost.CachedImage`), which the boot still checks against the
 selected kernel (`dockerLabImageBoot`); a path that is not a readable regular
 file refuses before the boot. With `image`, `kernel` must name the matching
 `vmlinuz` directly inside Ze's runtime-kernel cache. The command validates the
 pair without a lookup or build of the current source recipe. A `harness` call
 naming neither builds the guest le and
-ensures the image as above, so a standalone `docker-lab ... harness` run is
+reads the cached kernel and image as above, refusing a cold cache, so a standalone `docker-lab ... harness` run is
 unchanged.
 <!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabMode, dockerLabImage, dockerLabGuestLe -->
 <!-- source: internal/appliance/runtimekernel_existing.go -- ExistingRuntimeKernelTree -->
