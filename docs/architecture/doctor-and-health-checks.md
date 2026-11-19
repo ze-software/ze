@@ -1555,6 +1555,26 @@ and no client was served.
 | `managed-listener-unbound` | runtime | `doctor-managed-listener-unbound` (error) | each managed listen address that did not bind, with the kernel's error; a collision with the plugin acceptor is `hub-managed-listener`'s | free the address or give the server block another ip and port, then restart ze |
 | `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, a config it refused to apply, a token that is not its secret, or a name the hub has no client entry for | the cause's own fix |
 
+The managed client has three checks of its own, registered by
+`internal/component/managed`. All three are post-config checks, so they report
+with the daemon running or stopped. The first two read the configuration tree.
+The third reads the store only: the managed flag, the hash of the configuration
+the device runs, and the baseline. A client that holds is also seen from its
+hub, as a config it refused to apply, in the `managed-client-rejected` row
+above.
+<!-- source: internal/component/managed/register.go -- init -->
+<!-- source: internal/component/managed/doctor.go -- hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck -->
+
+| Check | Phase | Code | Reports | Fix |
+|-------|-------|------|---------|-----|
+| `hub-unreachable` | post-config | `doctor-hub-unreachable` (warning) | a configuration whose first hub `client` block names a hub that does not answer a TCP probe | start the hub at that address, or correct the `host` and `port` of the block on the hub |
+| `hub-client-missing` | post-config | `doctor-hub-client-missing` (warning) | a managed client (`meta/instance/managed` is `true`) whose configuration has no hub `client` block, so it follows no hub | add the block on the hub, then `ze init --managed --force` |
+| `managed-diverged` | post-config | `doctor-managed-diverged` (warning) | a managed client whose active configuration differs from its baseline (`meta/managed/base-version`), so it holds and applies nothing its hub sends; also a managed client whose store cannot answer one of the two values. Silent on a device that is not managed, on one with no baseline, and on one whose two hashes are equal | one line that names both ways to end the hold: give the hub the device's configuration, or discard it on the device (`docs/guide/fleet-config.md`, "When a Client Holds"). `ze show data check` when the store cannot answer |
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, diagnoseManagedUncompared -->
+<!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion, Diverged -->
+<!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorCheck -->
+<!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorSilentWhenUnmanaged -->
+
 The managed server authenticates with per-client secrets and no shared
 secret. `AuthenticateWithLookup` refuses an empty expected token, so a name
 with no client entry is refused whatever token it sends; before that guard, an

@@ -23,9 +23,9 @@ egress filter reads it through `resolveSrcRole`, which falls back to the
 source peer's configured role when the key is missing. Takes that same
 fallback when the key is present but not a usable string (a malformed input
 must never be more permissive than a missing one). Only a source peer with
-**no role config at all** yields the empty role, and that is what disables
-filtering: if we don't configure a role for a peer, we choose not to filter
-its routes.
+**no role config at all** yields the empty role, and that disables source-role
+suppression. The public eBGP boundary check for Private Use OTC still applies
+while the required egress member is active.
 
 The fallback exists because not every egress caller has been through the
 ingress filter. `RelayStoredRoute` replays out of the Adj-RIB-In with no
@@ -149,13 +149,14 @@ The meta key is the seam this pipeline already has for exactly this.
 
 Ingress: one `findOTC()` wire scan per UPDATE.
 
-Egress is **not** a single map lookup. `OTCEgressFilter` scans the payload up
-to three times per destination peer: `isPayloadUnicast`, then `findOTC` inside
-`checkOTCEgress`, then `findOTC` again in the stamping block when the first
-two did not return. The `src-role` lookup replaces a role *derivation*, not
-the wire scans.
+Egress first scans `isPayloadUnicast` per destination peer. On a
+public-to-public eBGP session, `privateOTCLeavesPublicAS` then checks for
+advertised NLRI and reads any OTC value. If that check allows the UPDATE,
+the existing role and stamping paths may scan again: `findOTC` inside
+`checkOTCEgress`, and another `findOTC` when stamping is needed. The
+`src-role` lookup replaces a role *derivation*, not these wire scans.
 
-<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter, checkOTCEgress, isPayloadUnicast -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter, privateOTCLeavesPublicAS, payloadAdvertisesNLRI, checkOTCEgress, isPayloadUnicast -->
 
 ## Role resolution
 
@@ -166,10 +167,13 @@ our configured role toward it (`peerRoleComplement`, the value form of RFC
 input for Section 5 procedures. So a peer that sends no capability is still
 subject to those procedures rather than skipping them.
 
-A peer with **no local role config** is not subject to RFC procedures as a
-source or destination, regardless of an advertised Role. Its destination
-egress member still enforces a configured source's export set against that
-advertised Role, without deriving an RFC gate role from it.
+A peer with **no local role config** does not acquire role-dependent ingress
+checks, egress stamping or relationship-based suppression from an advertised
+Role; that advertised Role remains an input to a configured source's export
+set. While any peer or dynamic group activates the required egress member,
+the member also refuses advertised unicast routes carrying Private Use OTC
+on public-to-public eBGP sessions, regardless of the destination's local role
+configuration.
 
 For a locally configured session, ingress rejection follows from local config
 even when the remote sends no Role. A one-sided role typo can therefore
@@ -307,7 +311,17 @@ Every route the plugin refuses is counted, by reason:
 | Metric | Reasons |
 |--------|---------|
 | `ze_role_route_rejects_total{reason}` | `leak`, `malformed-otc` |
-| `ze_role_route_suppressions_total{reason}` | `otc-present`, `source-role`, `export-set`, `role-unrecorded` |
+| `ze_role_route_suppressions_total{reason}` | `otc-present`, `private-otc`, `source-role`, `export-set`, `role-unrecorded` |
+
+`private-otc` is the Internet-facing boundary refusal: an advertised unicast
+route carries a Private Use OTC, and its destination is an external session
+between two public ASNs. Both OTC transports read the registered `ibgp` fact
+and the local and remote AS facts. Internal sessions, sessions involving a
+private ASN and withdrawal-only bodies are outside that check. Existing public
+OTC values are preserved unchanged; a private OTC is refused rather than
+rewritten at public egress.
+<!-- source: internal/component/bgp/plugins/role/otc.go -- privateOTCLeavesPublicAS -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, viewOTCSession, fieldsOTCSession -->
 
 The first drop of each reason also emits one WARN naming the peer, latched per
 reason per process so the forward path never pays a per-route log. Per-route

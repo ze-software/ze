@@ -114,9 +114,16 @@ name accepts 1..16 characters
 fix: show acme-monitor target <1..16 characters>
 ```
 
-A line with no name is refused the same way, as
-`error: required argument missing: name`. A name within the bound reaches the
-plugin as the operator typed it: the handler gets it as `args[0]`.
+A line with no name is refused before the plugin is asked:
+
+```
+error: required argument missing: name
+This command needs name: The target name, from 1 to 16 characters.
+fix: show acme-monitor target name <name>
+```
+
+A name within the bound reaches the plugin as the operator typed it: the
+handler gets it as `args[0]`.
 
 ## What is not built
 

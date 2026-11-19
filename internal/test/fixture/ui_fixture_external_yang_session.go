@@ -189,11 +189,24 @@ func externalYANGDaemonSchema(ctx context.Context, args []string) error {
 
 	// The match word is shorter than the module name, so the name on the
 	// screen is the daemon's answer and never the echo of the typed line.
-	typed, err := sessionScreenAfterKeys(ctx, account, sshclient.CLIModeCommand, sessionCommandPrompt,
-		"show schema list | match acme-mon", "acme-mon", "\r")
+	terminal, err := sessionLogin(ctx, account, sshclient.CLIModeCommand, sessionCommandPrompt)
 	if err != nil {
 		return err
 	}
+	defer terminal.close()
+	// Restrict the wait to this command's turn. The typed abbreviation cannot
+	// satisfy the full module name, and no earlier command ran in this session.
+	started := len(terminal.transcript)
+	_, err = terminal.typeAndPress(ctx, "show schema list | match acme-mon", "acme-mon", "\r")
+	if err != nil {
+		return err
+	}
+	if err := terminal.readUntil(ctx, func(seen string) bool {
+		return strings.Contains(displayFillANSI.ReplaceAllString(seen[started:], ""), "acme-monitor-conf")
+	}, "the current schema command never answered acme-monitor-conf"); err != nil {
+		return err
+	}
+	typed := displayFillANSI.ReplaceAllString(terminal.transcript[started:], "")
 	if !strings.Contains(typed, "acme-monitor-conf") {
 		return fmt.Errorf("show schema list typed in the daemon's session does not list acme-monitor-conf:\n%s", typed)
 	}
