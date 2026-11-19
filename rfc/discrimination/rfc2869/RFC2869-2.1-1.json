@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2869-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopKeepsOneGenerationOutstanding",
+    "unit-sha": "7fb91ec547848313",
+    "claim-sha": "56a21fe181030ada",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::interimLoop",
+    "producer-sha": "7ed87440651761b0",
+    "break": "line 638: \"a.sendAcctInterimUpdate(c, sess, nid, src)\" -\u003e \"go a.sendAcctInterimUpdate(c, sess, nid, src)\""
+  },
+  {
+    "rid": "RFC2869-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopSendsOnItsInterval",
+    "unit-sha": "ae32400e81ae999d",
+    "claim-sha": "e0d2dff6fff6e7fd",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::interimLoop",
+    "producer-sha": "7ed87440651761b0",
+    "break": "line 637: \"if c != nil {\" -\u003e \"if c == nil {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2869-1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go::TestRFC2869SubscriberNASActsOnAnOfferedServiceRequest",
+    "unit-sha": "93708683c29d21ca",
+    "claim-sha": "eb05e6de9cc68e0d",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
+    "producer-sha": "d3c60711cf64c92d",
+    "break": "line 352: \"if !supported[pkt.Attrs[i].Type] {\" -\u003e \"if true || !supported[pkt.Attrs[i].Type] {\""
+  },
+  {
+    "rid": "RFC2869-1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go::TestRFC2869SubscriberNASRefusesARAPAttributes",
+    "unit-sha": "6bce174803e9eb85",
+    "claim-sha": "8e76fb44e083d903",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
+    "producer-sha": "d3c60711cf64c92d",
+    "break": "line 352: \"if !supported[pkt.Attrs[i].Type] {\" -\u003e \"if false \u0026\u0026 !supported[pkt.Attrs[i].Type] {\""
+  }
+]
