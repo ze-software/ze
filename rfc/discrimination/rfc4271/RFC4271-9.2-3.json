@@ -7,8 +7,8 @@
     "claim-sha": "d5a1e425965d7885",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "6b3dc11ea44379b1",
-    "break": "line 283: \"res.outcome.Action != policychain.OutcomeAccept\" -\u003e \"res.outcome.Action == policychain.OutcomeAccept\""
+    "producer-sha": "38f0f9281b07000c",
+    "break": "line 286: \"res.outcome.Action != policychain.OutcomeAccept\" -\u003e \"res.outcome.Action == policychain.OutcomeAccept\""
   },
   {
     "rid": "RFC4271-9.2-3",
@@ -18,7 +18,18 @@
     "claim-sha": "039bba67398151ea",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "6b3dc11ea44379b1",
-    "break": "line 284: \"return egressStepResult{failed: res.outcome.Failed}\" -\u003e \"return egressStepResult{accept: true}\""
+    "producer-sha": "38f0f9281b07000c",
+    "break": "line 287: \"return egressStepResult{failed: res.outcome.Failed}\" -\u003e \"return egressStepResult{accept: true}\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws",
+    "unit-sha": "1cc3863bcb277b5b",
+    "claim-sha": "6a310803cf39db43",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateBody",
+    "producer-sha": "60cd943ed1b0b0cd",
+    "break": "line 771: \"if code, found := s.transmittedASZeroAttribute(body); found {\" -\u003e \"if s.sentForward != nil \u0026\u0026 s.sentForward.selected != nil \u0026\u0026 len(body) \u003e= 2 \u0026\u0026 (body[0] != 0 || body[1] != 0) { return false, nil }; if code, found := s.transmittedASZeroAttribute(body); found { // MUTATION-APPLIED: omit selected IPv4 withdrawal bytes\""
   }
 ]

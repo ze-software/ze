@@ -1,7 +1,7 @@
 // Design: docs/architecture/route-selection.md -- ordinary selected-route dissemination.
 // Related: docs/architecture/rib/forward-handle.md -- state handles are not advertisements.
 // Related: rfc7947_rs_announcement_election_test.go -- live SDK and peer fixture.
-// RFC naming: untagged -- ordinary dissemination defect probes remain red without a selected-route advertiser, so no RFC proof is claimed.
+// RFC: rfc/short/rfc4271.md -- Section 9.1.3 forwarding eligibility and withdrawal after export exclusion.
 package reactor
 
 import (
@@ -221,6 +221,7 @@ func TestRFC4271OrdinaryUnchangedWinnerIsNotReadvertised(t *testing.T) {
 // RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a particular
 // Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST be
 // withdrawn from service by means of an UPDATE message (see 9.2)."
+// RFC requirement: RFC4271-9.2-3 positive -- ordinary IPv4 export denial of the elected path withdraws the previous advertisement once while a later useful route reaches the same recipient.
 func TestRFC4271OrdinarySelectedExportDenialWithdraws(t *testing.T) {
 	peers := ordinarySelectedPeers(t, true)
 	a, b, c := peers[0], peers[1], peers[2]
