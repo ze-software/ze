@@ -16,7 +16,7 @@ func TestSourceLeaseFixtureRequiresIssuedSession(t *testing.T) {
 	input := rpc.SourceLeaseInput{Action: rpc.SourceLeaseAcquire, SourceReceipt: 97, PeerOwner: 701, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
 	encoded, err := json.Marshal(input)
 	require.NoError(t, err)
-	_, err = e.answer(rpc.MethodSourceLease, encoded)
+	_, err = e.answer(t.Context(), rpc.MethodSourceLease, encoded)
 	require.ErrorContains(t, err, "not issued")
 	first := e.IssueSource("192.0.2.1", 701)
 	second := e.IssueSource("192.0.2.1", 701)
@@ -26,14 +26,14 @@ func TestSourceLeaseFixtureRequiresIssuedSession(t *testing.T) {
 		input.Action = action
 		encoded, err = json.Marshal(input)
 		require.NoError(t, err)
-		_, err = e.answer(rpc.MethodSourceLease, encoded)
+		_, err = e.answer(t.Context(), rpc.MethodSourceLease, encoded)
 		require.ErrorContains(t, err, "not acquired")
 	}
 	for _, action := range []rpc.SourceLeaseAction{rpc.SourceLeaseAcquire, rpc.SourceLeaseRetain, rpc.SourceLeaseRelease} {
 		input.Action = action
 		encoded, err = json.Marshal(input)
 		require.NoError(t, err)
-		answer, err := e.answer(rpc.MethodSourceLease, encoded)
+		answer, err := e.answer(t.Context(), rpc.MethodSourceLease, encoded)
 		require.NoError(t, err)
 		output, ok := answer.(*rpc.SourceLeaseOutput)
 		require.True(t, ok)
@@ -53,7 +53,7 @@ func TestSourceLeaseFixtureReleaseIsTerminal(t *testing.T) {
 		input := rpc.SourceLeaseInput{Action: action, SourceReceipt: receipt, PeerOwner: peerOwner, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
 		encoded, err := json.Marshal(input)
 		require.NoError(t, err)
-		answer, err := e.answer(rpc.MethodSourceLease, encoded)
+		answer, err := e.answer(t.Context(), rpc.MethodSourceLease, encoded)
 		if err != nil {
 			return err
 		}

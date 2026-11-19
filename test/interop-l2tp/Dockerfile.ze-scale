@@ -1,4 +1,4 @@
-# The scale scenario substitutes only the session-ID candidate through a
-# host-built Go overlay. Its separate output never replaces the normal daemon.
+# Reuse the maintained Ze runtime, replacing only its staged daemon.
+# scaleImageBuilds declares this base before the scale image.
 FROM ze-l2tp-interop
 COPY test/interop-l2tp/ze-scale-linux /usr/local/bin/ze
