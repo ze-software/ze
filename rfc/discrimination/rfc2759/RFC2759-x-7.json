@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2759-x-7",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerAcceptsCorrectAuthenticatorResponse",
+    "unit-sha": "6983c390f8a5cbd7",
+    "claim-sha": "16384196c4fe0066",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Success",
+    "producer-sha": "0b3dea95e269663e",
+    "break": "line 907: \"ps.peerChallenge, ps.authChallenge\" -\u003e \"ps.authChallenge, ps.peerChallenge\""
+  },
+  {
+    "rid": "RFC2759-x-7",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse",
+    "unit-sha": "132140980248ae08",
+    "claim-sha": "4d4f888adc9bd278",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Success",
+    "producer-sha": "0b3dea95e269663e",
+    "break": "line 908: \"!constantTimeEqual(expected[:], received[:])\" -\u003e \"false \u0026\u0026 !constantTimeEqual(expected[:], received[:])\""
+  }
+]

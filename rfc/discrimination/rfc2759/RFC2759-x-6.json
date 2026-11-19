@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2759-x-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge",
+    "unit-sha": "bfbd745794cb63cc",
+    "claim-sha": "747dc748d1965e4c",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap_mschapv2.go::sendFailure",
+    "producer-sha": "0ac6511e843be908",
+    "break": "line 263: \"challenge[:]\" -\u003e \"challenge[:15]\""
+  },
+  {
+    "rid": "RFC2759-x-6",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759PeerRefusesFailureWithoutConformantChallenge",
+    "unit-sha": "458ea7660be88d3c",
+    "claim-sha": "ffab8cf501929ca4",
+    "route": "mutant",
+    "producer": "internal/core/eap/peer.go::parseMSCHAPv2Failure",
+    "producer-sha": "05e5a245e9459b97",
+    "break": "line 1064: \"len(challenge) != mschapv2ChallengeDigits\" -\u003e \"false \u0026\u0026 len(challenge) != mschapv2ChallengeDigits\""
+  }
+]

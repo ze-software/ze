@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2759-x-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2SuccessUppercaseHex",
+    "unit-sha": "47cdf6d874ed0755",
+    "claim-sha": "32f5f68533131b0a",
+    "route": "mutant",
+    "producer": "internal/core/eap/eap_mschapv2.go::sendSuccess",
+    "producer-sha": "99d4842d97900c3a",
+    "break": "line 185: \"strings.ToUpper(hex.EncodeToString(authResp[:]))\" -\u003e \"strings.ToUpper(hex.EncodeToString(authResp[:10])) + hex.EncodeToString(authResp[10:])\""
+  }
+]
