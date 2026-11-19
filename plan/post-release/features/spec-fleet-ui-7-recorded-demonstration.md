@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | web, fleet, tooling |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-ui-1-interactive-prototype.md |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-11-19 |
 
@@ -252,9 +252,9 @@ readers are listed. No network wire changes.
 | `TestFleetDemoRenderIsDeterministic` | `internal/le/site/fleetdemo/render_test.go` | Two renders are identical | |
 | `TestFleetDemoTourCoversEveryRegisteredPage` | `internal/le/site/fleetdemo/tour_test.go` | Every registered fleet page and tab has an exchange; a page added later fails the test until the tour reaches it | |
 | `TestFleetDemoBoundsAreEnforced` | `internal/le/site/fleetdemo/tour_test.go` | Passing the exchange or size bound fails with the bound named | |
-| `TestFleetDemoStaysOutOfThePublishedSite` | `internal/le/site/fleetdemo/publish_test.go` | Route list, sitemap, search index, receipt and git ignore over a scratch output | |
+| `TestFleetDemoStaysOutOfThePublishedSite` | `internal/le/site/unpublished_test.go` (package `site`: it runs a real `Build`, whose stubs and walks are unexported, and package `sitefleetdemo` imports `site`, so the render's files are laid down by name) | Route list, sitemap, search index, receipt and git ignore over a scratch output, after a full build that carries the files across unchanged | written, pending run |
 | `TestRecordingOptionalFieldsRoundTrip` | `internal/le/site/lgreplay/recording_test.go` | A recording with and without the new fields reads back; the looking glass file is unchanged | |
-| `TestPlainFiguresSkipUnpublishedDirectories` | `internal/le/site/plaintext_test.go` | A page under `tmp/` is not scanned; one outside still is | |
+| `TestPlainFiguresSkipUnpublishedDirectories` | `internal/le/site/plaintext_test.go` | A page under `tmp/` is not scanned; one outside still is, and so is the shared header under `assets/` | written, pending run |
 | `TestFleetPagePathComesFromThePage` | `internal/component/web/fleetui/handler_shell_test.go` | Every answer that changes the page carries the page path attribute | |
 | `TestSampleNewRegistersNothing` | `internal/component/web/fleetui/sample/source_test.go` | Constructing the estate leaves the source slot empty | |
 
@@ -341,6 +341,7 @@ readers are listed. No network wire changes.
    - Tests: `TestFleetDemoTourCoversEveryRegisteredPage`, `TestFleetDemoBoundsAreEnforced`, `TestFleetDemoRenderIsDeterministic`, the remaining browser tests
 4. **Phase: Not published** -- the plain-figure skip and the proof that the published site does not see the directory
    - Tests: `TestPlainFiguresSkipUnpublishedDirectories`, `TestFleetDemoStaysOutOfThePublishedSite`
+   - Note (phase agent, 2026-11-19): the plain-figure walk reads `publicationIgnored`, the declaration the publication receipt reads (the artifact's ignore list and the git metadata), not `unpublishedDirectories`. The latter names `assets/`, and `assets/header.html` is the published shared header whose navigation descriptions carry figures, so skipping it would stop judging text every reader sees. `TestFleetDemoStaysOutOfThePublishedSite` moved to package `site` as the file column above states; render's own placement under `tmp/fleet-demo/` stays `TestFleetDemoRenderWritesTheDemonstration`'s. The search index assertion cannot go red by itself: its walk reads only Markdown mirrors and a render writes none
 5. **Phase: Render for the owner** -- commit, run the action into the website output, give him the path
 
 ### Critical Review Checklist

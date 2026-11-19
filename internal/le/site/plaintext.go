@@ -251,8 +251,15 @@ func loadPlainFigureRatchet(source string) (map[string]bool, error) {
 	return listed, nil
 }
 
-// plainFiguresOfArtifact walks every HTML page of one artifact and answers each
-// snapshot value it shows outside a marker.
+// plainFiguresOfArtifact walks every published HTML file of one artifact and
+// answers each snapshot value it shows outside a marker.
+//
+// What is published is what the publication receipt counts: the walk skips
+// every path publicationIgnored names (the artifact's own ignore list, tmp/
+// among it, and the git metadata), so a page kept under tmp/ for review is not
+// judged as a published one. It does not skip unpublishedDirectories: assets/
+// holds no route, yet assets/header.html is the shared header every page shows,
+// and its navigation descriptions carry figures a reader sees.
 func plainFiguresOfArtifact(output string) ([]plainFigure, error) {
 	snapshot, err := loadSiteFactSnapshot(output)
 	if err != nil {
@@ -268,15 +275,21 @@ func plainFiguresOfArtifact(output string) ([]plainFigure, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		relative, err := filepath.Rel(output, path)
+		if err != nil {
+			return err
+		}
+		if publicationIgnored(filepath.ToSlash(relative)) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if entry.IsDir() {
 			return nil
 		}
 		if !strings.HasSuffix(entry.Name(), ".html") {
 			return nil
-		}
-		relative, err := filepath.Rel(output, path)
-		if err != nil {
-			return err
 		}
 		content, err := os.ReadFile(path) //nolint:gosec // the check reads the artifact it was pointed at
 		if err != nil {

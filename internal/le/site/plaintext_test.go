@@ -396,3 +396,37 @@ func TestAnIndexedFigureIsNotMatchedBesideItsIndex(t *testing.T) {
 		t.Errorf("the check found\n%v\nwant\n%v", check.Figures, want)
 	}
 }
+
+// VALIDATES: the plain-figure walk judges what the site publishes. A page kept
+// under tmp/, the artifact's unpublished directory (the fleet interface
+// demonstration lives at tmp/fleet-demo/), is not scanned, while a page outside
+// it and the shared header under assets/, which every page shows, still are.
+// PREVENTS: ./le site check refusing a review page nobody can reach from the
+// published site, and a skip so wide it stops judging the shared header.
+//
+// The method lays one artifact down with the same plain figure in each of the
+// three places, and compares what checkPlainFigures, the check runCheck
+// reports as plain-figures, finds against the two published files alone.
+func TestPlainFiguresSkipUnpublishedDirectories(t *testing.T) {
+	output := t.TempDir()
+	writeArtifactFile(t, output, factsFile, plainFigureSnapshot)
+	const plainPage = `<!doctype html><html><head><title>Ze</title></head><body><main>
+<p>Ze answers 490 commands.</p>
+</main></body></html>`
+	writeArtifactFile(t, output, "quality/index.html", plainPage)
+	writeArtifactFile(t, output, sharedHeaderFile, `<nav><a href="__ZE_SITE_ROOT__">Ze answers 490 commands</a></nav>`)
+	writeArtifactFile(t, output, "tmp/fleet-demo/index.html", plainPage)
+	writeArtifactFile(t, output, "tmp/fleet-demo/frame.html", plainPage)
+
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{
+		{Page: sharedHeaderFile, Figure: "490", Key: "cli_commands"},
+		{Page: "quality/index.html", Figure: "490", Key: "cli_commands"},
+	}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}
