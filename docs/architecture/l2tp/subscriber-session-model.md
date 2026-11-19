@@ -165,6 +165,16 @@ audit event and can still finish its retained cleanup. It never records against
 a replacement by looking its SID up again.
 <!-- source: internal/component/l2tp/session_capture_audit.go -- RecordDisconnect -->
 
+A selection by subscriber attribute has one walk and one capture, shared by
+the RADIUS CoA and Disconnect listener and the operator's `clear l2tp session
+user` and `clear l2tp session address`. `MatchSessions` answers every snapshot
+row a predicate accepts, and `CaptureMatchedSession` captures a matched row by
+its session ID, tunnel, listener and Birth together, refusing a row with no
+valid Birth rather than looking its SID up. Neither caller acts on several
+matches: the listener answers Error-Cause 508, and the clear refuses and lists
+one qualified clear by ID for each.
+<!-- source: internal/component/l2tp/session_match.go -- MatchSessions, CaptureMatchedSession -->
+
 Observer history uses the complete Birth. A captured history read checks its
 original row and reads only that original observer; it does not look the SID
 up again. Aggregate CQM queries remain on the subsystem, while single-session
@@ -481,6 +491,39 @@ down notices in ticket order.
 <!-- source: internal/component/l2tp/route_observer.go -- StartSubscriberRouteObserver, assign, withdraw, reemitAll -->
 <!-- source: internal/component/l2tp/pppoe/admission_control.go -- publishPPPTerminal -->
 <!-- source: internal/component/l2tp/subscriber_bridge.go -- L2TP subscriber event bridge -->
+<!-- source: internal/component/l2tp/ppp/request.go -- StageFramedRoutes -->
+
+Announcing a framed route does not forward its traffic, so the PPP session
+also installs each IPv4 framed route through its own `SessionHandle`, the
+per-session data plane that already carries the peer address and the
+DHCPv6-PD route. Both transports stage the accepted profile on the original
+authentication request (`StageFramedRoutes`), and the session installs it in
+`onNCPOpened`, after the IPv4 address and before the assignment publication
+that enables forwarding. A gateway of `0.0.0.0` names the subscriber's
+assigned address (RFC 2865 Section 5.22). The session records each receipt
+before the call, refuses the session when the data plane refuses a route,
+and withdraws the receipts newest first, before the address, in the same
+gated IPv4 withdrawal that LCP-down, IPCP renegotiation and final cleanup
+run. Routes go through the data plane's own cleanup ownership. On the kernel
+backend they die with the PPP unit, and on VPP with the session's retained
+paths. The kernel backend installs each route on-link (`RTNH_F_ONLINK`): the
+session interface is point-to-point, so a gateway that is not the peer's
+address still resolves through it.
+
+Framed-IPv6-Route values go to the IPv6 service instead, which installs them
+at its start, after the link-local pair and before the carrier opens, with a
+`::` gateway replaced by the peer's link-local address (RFC 3162 Section 2.5).
+The service keeps the receipts and withdraws them newest first before the
+link-local pair. A refused Framed-IPv6-Route is the one IPv6 service failure
+that fails the session; every other one leaves the session IPv4-only. Both
+families count together against one limit, `l2tpevents.FramedRoutesMax`
+(64), which the RADIUS extraction, the route observer and both installers
+read.
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPRouteRequest -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, withdrawNCPFamilyLocked -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, acceptAuthDecision -->
 <!-- source: internal/component/l2tp/ppp/request.go -- StageFramedRoutes -->
 
 Per-session cancellation still publishes the final session-down event. A stop

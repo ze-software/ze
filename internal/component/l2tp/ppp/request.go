@@ -107,7 +107,8 @@ func (request EventAuthRequest) Active() bool {
 }
 
 // StageFramedRoutes copies the bounded, validated profile for the original
-// credentialed PPPoE authentication round. The provider MUST call this before
+// credentialed authentication round of an L2TP or PPPoE session, which the
+// session installs through its interface. The provider MUST call this before
 // replying Accept. Other kinds of authentication do not stage a route profile.
 // Safe for concurrent use. A zero or expired eligible request cannot stage.
 func (request EventAuthRequest) StageFramedRoutes(framedRoutes []l2tpevents.FramedRoute) error {

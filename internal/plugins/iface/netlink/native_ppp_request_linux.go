@@ -222,6 +222,13 @@ func nativePPPRouteRequest(kind, index int, destination netip.Prefix, gateway ne
 	}
 	header.Protocol = uint8(protocol)
 	header.Dst_len = uint8(destination.Bits())
+	// A PPP session interface is point-to-point: every next hop is reached
+	// through it, so the gateway is on-link whether or not it is the peer's
+	// address. Without RTNH_F_ONLINK Linux refuses a gateway no connected
+	// route covers (a RADIUS Framed-Route naming another subscriber router).
+	// The delete carries it too: IPv4 fib_nh_match compares the flag, so a
+	// delete without it would not match the route the add installed.
+	header.Flags |= unix.RTNH_F_ONLINK
 	request := nl.NewNetlinkRequest(kind, flags)
 	request.AddData(header)
 	request.AddData(nl.NewRtAttr(unix.RTA_DST, destination.Masked().Addr().AsSlice()))

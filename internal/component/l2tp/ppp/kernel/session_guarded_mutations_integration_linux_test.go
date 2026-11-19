@@ -73,9 +73,12 @@ func TestSessionGuardedMutationsUseRenamedOriginal(t *testing.T) {
 	if actual.Attrs().MTU != 1431 || actual.Attrs().Flags&net.FlagUp == 0 || actual.Attrs().Alias != "guarded-session-native" {
 		t.Fatalf("original native state %+v", actual.Attrs())
 	}
-	for _, entry := range []struct{ local, peer, destination string }{
-		{"198.51.100.1/24", "198.51.100.2/24", "192.0.2.0/24"},
-		{"fe80::1/64", "fe80::2/64", "2001:db8:1234::/48"},
+	// The other gateway is no address of the session's pair and no connected
+	// route covers it, as a RADIUS Framed-Route naming a router behind the
+	// subscriber does: the kernel accepts it only on-link through pppN.
+	for _, entry := range []struct{ local, peer, destination, other, otherDestination string }{
+		{"198.51.100.1/24", "198.51.100.2/24", "192.0.2.0/24", "203.0.113.77", "203.0.113.128/25"},
+		{"fe80::1/64", "fe80::2/64", "2001:db8:1234::/48", "2001:db8:99::7", "2001:db8:5678::/48"},
 	} {
 		local, peer := netip.MustParsePrefix(entry.local), netip.MustParsePrefix(entry.peer)
 		destination := netip.MustParsePrefix(entry.destination)
@@ -91,6 +94,15 @@ func TestSessionGuardedMutationsUseRenamedOriginal(t *testing.T) {
 			t.Fatal(err)
 		}
 		requireGuardedSessionRoute(t, actual, destination, peer.Addr(), false)
+		other, otherDestination := netip.MustParseAddr(entry.other), netip.MustParsePrefix(entry.otherDestination)
+		if err := owner.AddRoute(otherDestination, other, 19, rtproto.Iface); err != nil {
+			t.Fatalf("route via the non-peer gateway %s was refused: %v", other, err)
+		}
+		requireGuardedSessionRoute(t, actual, otherDestination, other, true)
+		if err := owner.RemoveRoute(otherDestination, other, 19, rtproto.Iface); err != nil {
+			t.Fatal(err)
+		}
+		requireGuardedSessionRoute(t, actual, otherDestination, other, false)
 		if err := owner.RemoveAddress(local); err != nil {
 			t.Fatal(err)
 		}

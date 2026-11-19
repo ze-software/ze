@@ -215,10 +215,22 @@ type SessionIPAssignedPayload struct {
 var SessionIPAssigned = events.Register[*SessionIPAssignedPayload](Namespace, SessionIPAssignedEvent)
 
 // FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
-// or Framed-IPv6-Route (attr 99). The prefix is the destination network
-// and metric is the route priority.
+// or Framed-IPv6-Route (attr 99). The prefix is the destination network,
+// the gateway is the attribute's gateway field and metric is the route
+// priority. An unspecified gateway (0.0.0.0 or ::) names the subscriber
+// itself; the PPP session that installs the route substitutes the address
+// it assigned. A zero Gateway carries no gateway at all, and the installer
+// refuses it rather than guess one.
 // RFC 2865 Section 5.22, RFC 3162 Section 2.5.
 type FramedRoute struct {
-	Prefix netip.Prefix
-	Metric uint32
+	Prefix  netip.Prefix
+	Gateway netip.Addr
+	Metric  uint32
 }
+
+// FramedRoutesMax is the most framed routes, IPv4 and IPv6 counted together,
+// one subscriber authorization may carry. RADIUS extraction keeps one entry
+// beyond it as an overflow witness, and every owner of the routes (the route
+// observer that announces them, the PPP session that installs them) refuses
+// the whole set past it rather than serve a truncated authorization.
+const FramedRoutesMax = 64

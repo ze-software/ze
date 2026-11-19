@@ -278,7 +278,7 @@ func TestAccessAcceptProfileAttributesAccepted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meta := extractAuthMetadata(&radius.Packet{Attrs: []radius.Attr{tt.attr}})
+			meta := extractAuthMetadata(&radius.Packet{Attrs: []radius.Attr{tt.attr}}, "")
 			if meta == nil {
 				t.Fatal("expected metadata to be extracted")
 			}

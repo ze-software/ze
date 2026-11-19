@@ -131,6 +131,11 @@ func TestNativePPPModelRouteReplaceRequests(t *testing.T) {
 			if header[5] != byte(rtproto.Iface) {
 				t.Fatal("route request lost ownership protocol")
 			}
+			// rtm_flags, bytes 8 to 11 of struct rtmsg: a point-to-point
+			// session reaches every gateway on-link, on add and delete alike.
+			if nl.NativeEndian().Uint32(header[8:12])&unix.RTNH_F_ONLINK == 0 {
+				t.Fatalf("route request kind %d lacks RTNH_F_ONLINK for gateway %s", kind, gateway)
+			}
 			attributes := nativePPPModelAttributes(t, header[unix.SizeofRtMsg:])
 			if !bytes.Equal(attributes[unix.RTA_DST], destination.Masked().Addr().AsSlice()) {
 				t.Fatal("route request changed masked destination")

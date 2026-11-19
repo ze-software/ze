@@ -7,8 +7,8 @@
     "claim-sha": "102885fcae66997e",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::activateNetwork",
-    "producer-sha": "d08bf56ad94784c9",
-    "break": "line 931: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
+    "producer-sha": "57262856c8c12315",
+    "break": "line 949: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
   },
   {
     "rid": "RFC1332-2.1-4",
@@ -18,7 +18,7 @@
     "claim-sha": "c3d7ae58bf224aec",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::activateNetwork",
-    "producer-sha": "d08bf56ad94784c9",
-    "break": "line 931: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
+    "producer-sha": "57262856c8c12315",
+    "break": "line 949: \"s.dataplane.SetMTU(int(mru))\" -\u003e \"s.dataplane.SetMTU(int(MaxFrameLen))\""
   }
 ]

@@ -59,7 +59,7 @@ func TestExtractMSDNSServers(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			meta := extractAuthMetadata(&radius.Packet{Attrs: tc.attrs})
+			meta := extractAuthMetadata(&radius.Packet{Attrs: tc.attrs}, "")
 			if meta == nil {
 				t.Fatal("expected metadata from an Access-Accept carrying MS DNS")
 			}
@@ -85,7 +85,7 @@ func TestExtractMSDNSServersIgnoresMalformed(t *testing.T) {
 	}
 	for name, attr := range cases {
 		t.Run(name, func(t *testing.T) {
-			if meta := extractAuthMetadata(&radius.Packet{Attrs: []radius.Attr{attr}}); meta != nil {
+			if meta := extractAuthMetadata(&radius.Packet{Attrs: []radius.Attr{attr}}, ""); meta != nil {
 				t.Errorf("metadata = %+v, want none from a malformed MS DNS attribute", meta)
 			}
 		})

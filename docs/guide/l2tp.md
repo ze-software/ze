@@ -59,6 +59,19 @@ enabled. Set `enabled false` to disable explicitly. Listener endpoints
 use the standard `zt:listener` grouping (`ip`, `port`) with port
 conflict detection via `ze:listener`.
 
+`shared-secret` is also the secret a LAC hides AVPs under (RFC 2661 Section
+4.3). Ze reveals a hidden AVP, a hidden Calling Number or proxy
+authentication field for instance, with the tunnel's secret and the Random
+Vector before it, and uses its value as if it had come in clear. Without a
+secret, or when the hidden value cannot be read, Ze logs
+`hidden AVP left hidden` with the reason and the fix; a mandatory hidden AVP
+then refuses its message (a CDN for a session, a StopCCN for the tunnel), and
+an optional one is ignored. The line names the peer, and `ze doctor` reports
+it under `doctor-l2tp-hidden-avp-unrevealed` with the same fix, at most once a
+minute per peer.
+<!-- source: internal/component/l2tp/hidden.go -- revealHiddenAVPs, hiddenLeft.log -->
+<!-- source: internal/component/l2tp/register_hidden_diagnostic.go -- reportHiddenLeft -->
+
 The `lcp` settings control RFC 1661 retransmission on local PPP
 sessions. Each limit accepts 1 through 255. The Restart timer is restarted by
 each Configure-Request or Terminate-Request transmission, and by the
@@ -359,7 +372,34 @@ of 1500; it does not remove the local transmit cap.
 | `clear l2tp tunnel id <id>` | Sends StopCCN Result Code 6 (administrative) to the named tunnel |
 | `clear l2tp tunnel all` | Same, for every live tunnel |
 | `clear l2tp session id <id> [expected-id <birth>] [tunnel-id <tid>] [listener <name-or-endpoint>] [reason <text...>] [cause <code>]` | Clears one captured original session and confirms its local physical cleanup |
+| `clear l2tp session user <name> [actor <label>] [reason <text...>] [cause <code>]` | Clears the one live session whose user name equals `<name>` exactly |
+| `clear l2tp session address <ipv4> [actor <label>] [reason <text...>] [cause <code>]` | Clears the one live session that IPCP assigned `<ipv4>` |
 | `clear l2tp session all` | Same, for every live session (tunnels remain) |
+
+The `user` and `address` forms find the session the way a RADIUS
+Disconnect-Request does: they read the `username` and `assigned-addr` that
+`show l2tp sessions` prints, and the user name must match exactly, case
+included. When nothing matches, the command clears nothing and says so. When
+several sessions match, it also clears nothing, as a Disconnect-Request
+matching several sessions is refused with Error-Cause 508. The refusal lists
+one `clear l2tp session id` command for each match, so you choose which one
+ends:
+
+```
+2 L2TP sessions match user "alice@example.net"
+Nothing was cleared: this form ends one session, as a RADIUS Disconnect-Request does. Clear each one with: clear l2tp session id 3 tunnel-id 1 listener 192.0.2.1:1701 expected-id l2tp-...; clear l2tp session id 3 tunnel-id 2 listener 192.0.2.1:1701 expected-id l2tp-...
+fix: show l2tp sessions
+```
+
+Both forms take the `actor`, `reason` and `cause` keywords below, and refuse
+`expected-id`, `tunnel-id` and `listener`, which qualify a session ID. A user
+name that starts with a dash is refused, because the command line reads it as
+an option: clear that subscriber by the session ID `show l2tp sessions` prints.
+A successful answer carries `session-id`, `tunnel-id` and the `username` or
+`address` that selected the session. Tab after `user` offers the user names of
+live sessions, and tab after `address` their IPv4 addresses.
+<!-- source: internal/component/l2tp/cmd/session_teardown_match.go -- teardownMatchedSession, completeSessionMatch -->
+<!-- source: internal/component/l2tp/session_match.go -- MatchSessions, CaptureMatchedSession -->
 
 The `clear l2tp session id` command accepts optional keyword arguments:
 
@@ -885,6 +925,7 @@ of the same session clears the finding; an unacknowledged Stop stays until the
 plugin stops. Restore the accounting server's reachability and shared key, then
 check with `show diagnostic doctor-radius-accounting-unacknowledged`.
 <!-- source: internal/component/l2tp/plugins/authradius/acct_health.go -- recordAccountingOutcome, checkAccountingHealth, acctHealthDeclaration -->
+<!-- source: internal/component/l2tp/plugins/authradius/register_acct_doctor.go -- codeRADIUSAccountingUnacknowledged -->
 
 A Ze defect (a Go panic) met in a session's Start or Interim-Update ends those
 records only: the session stays up, every other session accounts as before, and
@@ -1716,6 +1757,65 @@ kernel-owned route. The next IPCP negotiation can reuse the address on the retai
 
 <!-- source: internal/component/l2tp/kernel_linux.go -->
 
+### RADIUS framed routes
+
+Each IPv4 Framed-Route in the subscriber's Access-Accept is installed as a
+route through the session's PPP interface, right after IPCP installs the
+peer address and before forwarding is enabled. A gateway of `0.0.0.0` is
+replaced by the address IPCP assigned to the subscriber (RFC 2865 Section
+5.22); any other gateway is used as written. The route takes the attribute's
+first metric as its priority, carries the interface routing protocol (`253`)
+and goes into the main table, beside the peer route. For example, the
+Access-Accept attribute `Framed-Route = "198.51.100.0/24 0.0.0.0 1"` for a
+subscriber assigned `192.0.2.41` on `ppp0` installs:
+
+```
+198.51.100.0/24 via 192.0.2.41 dev ppp0 proto 253 metric 1 onlink
+```
+
+The kernel route is on-link: a PPP interface is point-to-point, so any
+gateway, the subscriber's address or a router behind it, is reached through
+`ppp0`.
+
+Each Framed-IPv6-Route is installed the same way through the session
+interface when the IPv6 service starts, after the link-local addresses and
+before IPv6 forwarding. A gateway of `::` is replaced by the subscriber's
+link-local address (RFC 3162 Section 2.5). The Access-Accept attribute
+`Framed-IPv6-Route = "2001:db8:12::/48 :: 5"` for a subscriber whose
+interface identifier is `0200:0000:0000:0002` installs:
+
+```
+2001:db8:12::/48 via fe80::200:0:0:2 dev ppp0 proto 253 metric 5 onlink
+```
+
+Ze accepts at most 64 framed routes, IPv4 and IPv6 counted together, from
+one Access-Accept. A profile with more takes the session down before any
+route is installed. A route the data plane refuses takes the session down
+too, with the reason `RADIUS Framed-Route installation:` or `RADIUS
+Framed-IPv6-Route installation:`. A subscriber is never served only some of
+the routes Ze accepted. A Framed-Route text Ze cannot parse is skipped and
+logged at WARN with its attribute and the reason, and the rest of the
+Access-Accept applies (RFC 2865 Section 5.22: the text "MUST NOT affect
+operation of the protocol"). `ze doctor` reports the skip under
+`doctor-radius-framed-route-skipped`, naming the subscriber's user name, the
+attribute and the reason, at most once a minute per subscriber. Correct the
+subscriber's RADIUS profile, then let the subscriber reconnect.
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- appendFramedRoutes, reportFramedRouteSkipped -->
+
+The routes are withdrawn before the peer address when the network lifetime
+ends, whether by an LCP reset, an IPCP renegotiation or session-down. A
+route whose withdrawal fails is retried with the session's other cleanup.
+No framed route outlives its interface. Linux deletes every route through
+an interface when the interface goes, and a PPP interface goes when its
+last descriptor closes, which includes a daemon that stops or crashes. The
+IPv6 routes are withdrawn the same way, before the link-local addresses,
+when the IPv6 service stops.
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, withdrawNCPFamilyLocked -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPRouteRequest -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractFramedRoutes, parseFramedRoute -->
+
 ## Redistribute
 
 Ze registers `l2tp` as a redistribution source at subsystem Start.
@@ -1739,7 +1839,7 @@ is refused before any route, contribution token or counter changes, including
 when that Birth already has accepted routes. The earlier record and other
 Births remain available for replay. Ze refuses the whole update.
 <!-- source: internal/component/l2tp/route_observer.go -- assign -->
-<!-- source: internal/component/l2tp/route_source.go -- framedRoutesMax -->
+<!-- source: internal/component/l2tp/events/events.go -- FramedRoutesMax -->
 
 The refusal logs `doctor-l2tp-framed-route-limit` and retains an error event
 with the original Birth, numeric tunnel and session IDs, observed minimum

@@ -150,7 +150,7 @@ func (o *subscriberRouteObserver) assign(session subscriber.Session, network l2t
 	if !addr.IsValid() || !o.ownsSession(session, "route assignment") {
 		return
 	}
-	if len(framedRoutes) > framedRoutesMax {
+	if len(framedRoutes) > l2tpevents.FramedRoutesMax {
 		o.reportFramedRouteRefusal(session, len(framedRoutes))
 		return
 	}

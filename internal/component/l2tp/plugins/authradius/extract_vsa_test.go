@@ -145,7 +145,7 @@ func TestZePrefixPriority(t *testing.T) {
 		{Type: radius.AttrFilterID, Value: []byte("cos:gold")},
 		buildVSAAttr(t, radius.VendorCisco, radius.CiscoAVPair, []byte("subscriber:sub-qos-policy-in=silver")),
 	}}
-	meta := extractAuthMetadata(pkt)
+	meta := extractAuthMetadata(pkt, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -159,7 +159,7 @@ func TestNoVendorVSA(t *testing.T) {
 	pkt := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFilterID, Value: []byte("10mbit")},
 	}}
-	meta := extractAuthMetadata(pkt)
+	meta := extractAuthMetadata(pkt, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -212,7 +212,7 @@ func TestExtractAuthMetadataVendorCoS(t *testing.T) {
 			pkt := &radius.Packet{Attrs: []radius.Attr{
 				buildVSAAttr(t, tt.vendorID, tt.vtype, []byte(tt.value)),
 			}}
-			meta := extractAuthMetadata(pkt)
+			meta := extractAuthMetadata(pkt, "")
 			if meta == nil {
 				t.Fatal("expected metadata")
 			}
@@ -234,7 +234,7 @@ func TestExtractAuthMetadataMikrotikRate(t *testing.T) {
 	pkt := &radius.Packet{Attrs: []radius.Attr{
 		buildVSAAttr(t, radius.VendorMikrotik, radius.MikrotikRateLimit, []byte("10M/5M")),
 	}}
-	meta := extractAuthMetadata(pkt)
+	meta := extractAuthMetadata(pkt, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -336,7 +336,7 @@ func TestAccessAcceptKeepsMikrotikUploadHalf(t *testing.T) {
 	pkt := &radius.Packet{
 		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
 	}
-	meta := extractAuthMetadata(pkt)
+	meta := extractAuthMetadata(pkt, "")
 	if meta == nil {
 		t.Fatal("no metadata extracted from a packet carrying a MikroTik rate")
 	}

@@ -3,12 +3,12 @@
     "rid": "RFC2865-5-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go::TestRFC2865AccessAcceptExtractionIsOrderIndependent",
-    "unit-sha": "0e02a7de196da28d",
+    "unit-sha": "3284700e16ac78a4",
     "claim-sha": "0f86550cac876c9f",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::FindAttr",
     "producer-sha": "946ecabc18ddd68d",
-    "break": "body of FindAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of FindAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2865-5-4",

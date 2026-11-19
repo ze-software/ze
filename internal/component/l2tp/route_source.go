@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -14,7 +15,6 @@ import (
 )
 
 const (
-	framedRoutesMax           = 64
 	codeL2TPFramedRouteLimit  = "doctor-l2tp-framed-route-limit"
 	framedRouteLimitFix       = "ze show l2tp sessions"
 	codePPPoEFramedRouteLimit = "doctor-pppoe-framed-route-limit"
@@ -24,7 +24,7 @@ const (
 func init() {
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code: codeL2TPFramedRouteLimit, Title: "L2TP framed-route update exceeds its limit",
-		Description: fmt.Sprintf("Ze observed more than %d valid framed routes in a RADIUS authorization. The whole route update was refused. Correct the subscriber's RADIUS profile, inspect the current session coordinates, then reconnect that subscriber.", framedRoutesMax),
+		Description: fmt.Sprintf("Ze observed more than %d valid framed routes in a RADIUS authorization. The whole route update was refused. Correct the subscriber's RADIUS profile, inspect the current session coordinates, then reconnect that subscriber.", l2tpevents.FramedRoutesMax),
 		Examples:    []string{framedRouteLimitFix, "ze show diagnostic " + codeL2TPFramedRouteLimit},
 	}); err != nil {
 		panic("BUG: L2TP framed-route diagnostic registration failed: " + err.Error())
@@ -34,7 +34,7 @@ func init() {
 	}
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code: codePPPoEFramedRouteLimit, Title: "PPPoE framed-route update exceeds its limit",
-		Description: fmt.Sprintf("Ze observed more than %d valid framed routes in a RADIUS authorization. The whole route update was refused. Correct the subscriber's RADIUS profile, inspect the current session, then reconnect that subscriber.", framedRoutesMax),
+		Description: fmt.Sprintf("Ze observed more than %d valid framed routes in a RADIUS authorization. The whole route update was refused. Correct the subscriber's RADIUS profile, inspect the current session, then reconnect that subscriber.", l2tpevents.FramedRoutesMax),
 		Examples:    []string{pppoeFramedRouteLimitFix, "ze show diagnostic " + codePPPoEFramedRouteLimit},
 	}); err != nil {
 		panic("BUG: PPPoE framed-route diagnostic registration failed: " + err.Error())
@@ -94,15 +94,15 @@ func (o *subscriberRouteObserver) reportFramedRouteRefusal(session subscriber.Se
 		location = fmt.Sprintf("PPPoE routes refused for subscriber %s (interface index %d, session %d)", session.ID, session.AccessIfIndex, session.PPPoESID)
 		fix = pppoeFramedRouteLimitFix
 	}
-	cause := fmt.Errorf("Ze observed at least %d valid RADIUS framed routes. Maximum is %d", count, framedRoutesMax)
+	cause := fmt.Errorf("Ze observed at least %d valid RADIUS framed routes. Maximum is %d", count, l2tpevents.FramedRoutesMax)
 	failure := opererr.Wrap(cause,
 		location,
-		fmt.Sprintf("The oversized update was not applied. Reduce this subscriber's RADIUS framed-route list to at most %d entries. Inspect the current session and listener before reconnecting the affected subscriber", framedRoutesMax),
+		fmt.Sprintf("The oversized update was not applied. Reduce this subscriber's RADIUS framed-route list to at most %d entries. Inspect the current session and listener before reconnecting the affected subscriber", l2tpevents.FramedRoutesMax),
 		fix)
 	sid := routeSessionLabel(session)
 	detail := map[string]any{
 		"subscriber-id": session.ID, label: value, "session-id": sid,
-		"cause": cause.Error(), "framed-routes-at-least": count, "limit": framedRoutesMax,
+		"cause": cause.Error(), "framed-routes-at-least": count, "limit": l2tpevents.FramedRoutesMax,
 	}
 	message := report.FitMessage(failure.Problem() + ". " + failure.Why() + ": " + cause.Error())
 	if session.AccessType == subscriber.AccessPPPoE {

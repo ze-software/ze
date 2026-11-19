@@ -46,7 +46,7 @@ func TestRFC2866AccountingReportsTheAddressTheNASAssigned(t *testing.T) {
 			{Type: radius.AttrFramedIPAddress, Value: special},
 			{Type: radius.AttrFramedPool, Value: []byte("subscribers")},
 		}}
-		meta := extractAuthMetadata(resp)
+		meta := extractAuthMetadata(resp, "")
 		if meta == nil {
 			t.Fatalf("%v: the Accept's Framed-Pool was dropped", net.IP(special))
 		}
@@ -86,14 +86,14 @@ func TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress(t *testing.T) {
 	for _, special := range specialFramedIPValues {
 		alone := extractAuthMetadata(&radius.Packet{Code: radius.CodeAccessAccept, Attrs: []radius.Attr{
 			{Type: radius.AttrFramedIPAddress, Value: special},
-		}})
+		}}, "")
 		if alone != nil && alone.FramedIP.IsValid() {
 			t.Errorf("%v alone: pinned %s as the subscriber address", net.IP(special), alone.FramedIP)
 		}
 		withTimeout := extractAuthMetadata(&radius.Packet{Code: radius.CodeAccessAccept, Attrs: []radius.Attr{
 			{Type: radius.AttrFramedIPAddress, Value: special},
 			{Type: radius.AttrSessionTimeout, Value: radius.AttrUint32(3600)},
-		}})
+		}}, "")
 		if withTimeout == nil {
 			t.Fatalf("%v: the Accept's Session-Timeout was dropped", net.IP(special))
 		}

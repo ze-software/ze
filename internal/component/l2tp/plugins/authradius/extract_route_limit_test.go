@@ -52,10 +52,10 @@ func TestAuthMetadataPreservesFramedRouteOverflowWitness(t *testing.T) {
 						packet.Attrs = append(packet.Attrs, radius.Attr{Type: attribute, Value: []byte("invalid")})
 					}
 					packet.Attrs = append(packet.Attrs, radius.Attr{Type: attribute, Value: []byte(prefix + " " + gateway + " 7")})
-					expected = append(expected, l2tp.FramedRoute{Prefix: netip.MustParsePrefix(prefix), Metric: 7})
+					expected = append(expected, l2tp.FramedRoute{Prefix: netip.MustParsePrefix(prefix), Gateway: netip.MustParseAddr(gateway), Metric: 7})
 				}
 			}
-			metadata := extractAuthMetadata(packet)
+			metadata := extractAuthMetadata(packet, "")
 			require.NotNil(t, metadata)
 			require.Equal(t, expected[:min(len(expected), 65)], metadata.FramedRoutes)
 		})

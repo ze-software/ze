@@ -66,7 +66,7 @@ func TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept(t *testing.T) {
 		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8:5::/48 :: 1")},
 	}}
 
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("an unparseable route text discarded the whole Access-Accept profile")
 	}
@@ -92,8 +92,8 @@ func TestRFC3162FramedIPv6PoolIsIgnored(t *testing.T) {
 	withPool := append(append([]radius.Attr(nil), base...),
 		radius.Attr{Type: rfc3162FramedIPv6Pool, Value: radius.AttrString("v6-pool-a")})
 
-	want := extractAuthMetadata(&radius.Packet{Attrs: base})
-	got := extractAuthMetadata(&radius.Packet{Attrs: withPool})
+	want := extractAuthMetadata(&radius.Packet{Attrs: base}, "")
+	got := extractAuthMetadata(&radius.Packet{Attrs: withPool}, "")
 	if want == nil {
 		t.Fatal("the profile without the pool attribute produced no metadata")
 	}

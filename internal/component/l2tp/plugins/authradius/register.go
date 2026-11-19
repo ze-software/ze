@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -83,6 +84,11 @@ func init() {
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: registration failed: %v\n", Name, err)
 		os.Exit(1)
+	}
+	// A skipped framed route is raised on the report bus (extract.go
+	// reportFramedRouteSkipped), so recent-events declares and reports it.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorRADIUSFramedRouteSkipped}); err != nil {
+		panic("BUG: RADIUS framed-route event registration failed: " + err.Error())
 	}
 }
 

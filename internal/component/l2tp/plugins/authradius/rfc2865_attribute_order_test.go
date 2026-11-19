@@ -87,7 +87,7 @@ func TestRFC2865AccessAcceptExtractionIsOrderIndependent(t *testing.T) {
 
 	for _, order := range orders {
 		t.Run(order.name, func(t *testing.T) {
-			meta := extractAuthMetadata(wireRoundTrip(t, order.attrs))
+			meta := extractAuthMetadata(wireRoundTrip(t, order.attrs), "")
 			if meta == nil {
 				t.Fatal("an Access-Accept carrying six profile attributes extracted no profile")
 			}

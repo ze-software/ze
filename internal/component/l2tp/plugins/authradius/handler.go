@@ -209,7 +209,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		}
 
 		// RFC 2865: extract subscriber profile attributes from Access-Accept.
-		meta := extractAuthMetadata(resp)
+		meta := extractAuthMetadata(resp, req.Username)
 		if meta != nil {
 			l2tp.StoreSessionMetadata(req.SubscriberID, meta)
 			logger().Info("l2tp-auth-radius: stored session metadata",

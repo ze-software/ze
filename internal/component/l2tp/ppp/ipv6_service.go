@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"sync"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
@@ -52,6 +53,10 @@ type iPv6ServiceConfig struct {
 	Dataplane        SessionHandle
 	Lifetimes        DHCPv6Lifetimes
 	ReleasePrefix    func(netip.Prefix)
+	// FramedRoutes are the accepted profile's Framed-IPv6-Route entries,
+	// installed at service start through the peer's link-local address
+	// (framed_route.go, installFramedRoutes).
+	FramedRoutes []l2tpevents.FramedRoute
 }
 
 // IPv6Service manages the RA sender and DHCPv6-PD server for a single
@@ -70,6 +75,10 @@ type IPv6Service struct {
 	delegatedPrefix    netip.Prefix
 	routeInstalled     bool
 	linkLocalInstalled bool
+	// framedRoutes holds a receipt for each Framed-IPv6-Route the service
+	// asked its data plane to install, recorded before the call so an
+	// uncertain add is still withdrawn. Only confirmed withdrawal removes one.
+	framedRoutes []framedRouteReceipt
 }
 
 func newIPv6Service(cfg iPv6ServiceConfig) *IPv6Service {
@@ -89,7 +98,7 @@ func (s *IPv6Service) Stop() error {
 	if s == nil {
 		return nil
 	}
-	return errors.Join(s.stopWriters(), s.cleanupPrefix(), s.removeLinkLocal())
+	return errors.Join(s.stopWriters(), s.cleanupPrefix(), s.withdrawLinkAddressing())
 }
 
 // stopWriters joins the actual RA/DHCPv6 workers, including the final
@@ -143,6 +152,16 @@ func (s *IPv6Service) installLinkLocal() error {
 		return err
 	}
 	return nil
+}
+
+// withdrawLinkAddressing withdraws the framed routes, then the link-local
+// pair they resolve through. A failed route removal keeps the pair for the
+// retry, as the IPv4 family keeps its address (ncp.go, withdrawNCPFamilyLocked).
+func (s *IPv6Service) withdrawLinkAddressing() error {
+	if err := s.removeFramedRoutes(); err != nil {
+		return err
+	}
+	return s.removeLinkLocal()
 }
 
 // removeLinkLocal withdraws the pair installLinkLocal put on pppN, so an
@@ -417,6 +436,7 @@ func (s *IPv6Service) retryStoppedCleanup(ctx context.Context, unitReleased bool
 	if unitReleased {
 		s.routeInstalled = false
 		s.linkLocalInstalled = false
+		s.framedRoutes = nil
 		if s.delegatedPrefix.IsValid() {
 			if s.cfg.ReleasePrefix != nil {
 				s.cfg.ReleasePrefix(s.delegatedPrefix)
@@ -436,5 +456,5 @@ func (s *IPv6Service) retryStoppedCleanup(ctx context.Context, unitReleased bool
 	if unitReleased {
 		return carrierErr
 	}
-	return errors.Join(carrierErr, s.cleanupPrefix(), s.removeLinkLocal())
+	return errors.Join(carrierErr, s.cleanupPrefix(), s.withdrawLinkAddressing())
 }

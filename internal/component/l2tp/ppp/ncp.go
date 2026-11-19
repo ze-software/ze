@@ -1278,8 +1278,10 @@ func (s *pppSession) nextNCPCodeRejectID(family AddressFamily) uint8 {
 }
 
 // onNCPOpened runs per-family post-Opened side effects. IPv4 programs
-// pppN with its assigned address and peer route. The platform's IPv6
-// service programs IPv6 addresses. Both publish and await
+// pppN with its assigned address and peer route, then the accepted
+// profile's Framed-Routes through the same interface. The platform's IPv6
+// service programs the IPv6 addresses, then the profile's Framed-IPv6-Routes
+// through the peer's link-local address. Both publish and await
 // EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.
@@ -1292,6 +1294,13 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the address-installation error; no IP assignment is published.
 		if err := s.installNCPIPv4(local, peer); err != nil {
 			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
+			return false
+		}
+		// RFC 2865 Section 5.22: the routes resolve through the address just
+		// installed, and are in place before the assignment enables forwarding.
+		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the route-installation error; no IP assignment is published.
+		if err := s.installNCPFramedRoutesIPv4(); err != nil {
+			s.fail(tb.Reset().Str("RADIUS Framed-Route installation: ").Err(err).String())
 			return false
 		}
 		if !s.sendIPAssigned(EventSessionIPAssigned{
@@ -1380,7 +1389,11 @@ func (s *pppSession) reconcileNCPFamily(family AddressFamily) (bool, error) {
 		return true, nil
 	}
 	if family == AddressFamilyIPv6 {
-		s.afterLCPOpenIPv6Service()
+		// RFC 3162 Section 2.5: a refused Framed-IPv6-Route fails the
+		// session through reconcileOpenedNCP, after this gate is released.
+		if err := s.afterLCPOpenIPv6Service(); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	err := s.dataplane.Connect()
@@ -1583,6 +1596,11 @@ func (s *pppSession) withdrawNCPFamily(family AddressFamily) error {
 func (s *pppSession) withdrawNCPFamilyLocked(family AddressFamily) error {
 	switch family {
 	case AddressFamilyIPv4:
+		// The framed routes go first: they resolve through this address,
+		// and a failed route removal keeps the address for the retry.
+		if err := s.withdrawNCPFramedRoutesIPv4(); err != nil {
+			return err
+		}
 		if !s.installedIPv4.IsValid() {
 			return nil
 		}

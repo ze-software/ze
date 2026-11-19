@@ -266,6 +266,15 @@ profile. IPv6CP interface identifiers do not create host routes. An LCP
 network reset or disconnect withdraws the original session's routes. A
 new network lifetime publishes its own address and authorization profile.
 
+The session also installs each framed route through its own interface
+before forwarding starts, and withdraws it when the network lifetime ends.
+An IPv4 route's `0.0.0.0` gateway is replaced by the subscriber's address,
+and an IPv6 route's `::` gateway by the subscriber's link-local address,
+once the IPv6 service starts. A route the data plane refuses, or a profile
+over the limit below, takes the session down. The L2TP guide describes the
+installed routes ([RADIUS framed routes](l2tp.md#radius-framed-routes)).
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- installNCPFramedRoutesIPv4, withdrawNCPFramedRoutesIPv4, installFramedRoutes, removeFramedRoutes -->
+
 Ze refuses the whole route update if the RADIUS profile has more than 64
 valid framed routes. `doctor-pppoe-framed-route-limit` identifies the
 subscriber. Correct its RADIUS profile and use `ze show pppoe sessions` to

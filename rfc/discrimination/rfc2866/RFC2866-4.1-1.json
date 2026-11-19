@@ -58,22 +58,22 @@
     "rid": "RFC2866-4.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned",
-    "unit-sha": "ddedd160f9cffb05",
+    "unit-sha": "d853911d01a92547",
     "claim-sha": "3b581246cd568248",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
-    "producer-sha": "7ee516783373560c",
+    "producer-sha": "e80a98fff7353c5e",
     "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2866-4.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress",
-    "unit-sha": "6d572fec903121e4",
+    "unit-sha": "3ebd01b99ee58a7a",
     "claim-sha": "d651995fa37afbdb",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
-    "producer-sha": "7ee516783373560c",
+    "producer-sha": "e80a98fff7353c5e",
     "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

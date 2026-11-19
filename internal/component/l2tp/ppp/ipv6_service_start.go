@@ -11,8 +11,8 @@ import (
 	"net/netip"
 )
 
-// startIPv6Service installs and reconciles the negotiated link-local pair
-// before acquiring the carrier. The service owns its carrier until DHCPv6 and RS readers join
+// startIPv6Service installs the negotiated link-local pair and the accepted
+// Framed-IPv6-Routes, and reconciles them before acquiring the carrier. The service owns its carrier until DHCPv6 and RS readers join
 // and the final Router Advertisement has been sent. A failed startup returns
 // its service only when resource cleanup failed; the caller MUST retain that
 // owner so Stop can retry before the session enters another network lifetime.
@@ -22,6 +22,11 @@ func startIPv6Service(cfg iPv6ServiceConfig, serverID DHCPv6DUID, allocPrefix fu
 	}
 	svc := newIPv6Service(cfg)
 	if err := svc.installLinkLocal(); err != nil {
+		return rollbackIPv6ServiceStart(svc, err)
+	}
+	// RFC 3162 Section 2.5: the routes resolve through the pair just
+	// installed, and are in place before the carrier can forward IPv6.
+	if err := svc.installFramedRoutes(); err != nil {
 		return rollbackIPv6ServiceStart(svc, err)
 	}
 	// The initial channel connection precedes IPv6 service startup. The new

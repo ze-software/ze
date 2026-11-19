@@ -158,7 +158,9 @@ type EventSessionIPAssigned struct {
 	// Username is the accepted authentication request's principal.
 	// Explicit no-auth admission leaves it empty.
 	Username string
-	// FramedRoutes contains the exact authenticated PPPoE profile for this network.
+	// FramedRoutes contains the exact authenticated profile for this network.
+	// PPPoE announces it from here; L2TP announces the actor's metadata copy
+	// of the same Access-Accept. Both sessions have installed its IPv4 routes.
 	FramedRoutes []l2tpevents.FramedRoute `json:",omitempty"`
 	Family       AddressFamily
 	Local        netip.Addr

@@ -31,7 +31,7 @@ func TestPPPoEFramedRoutesFollowExactAuthenticationRound(t *testing.T) {
 	driver.SessionsIn() <- start
 	openLifecycleLCP(t, peer)
 	first := readFramedRouteAuthRequest(t, driver, peer)
-	firstRoute := l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("198.51.100.0/24"), Metric: 11}
+	firstRoute := l2tpevents.FramedRoute{Prefix: netip.MustParsePrefix("198.51.100.0/24"), Gateway: netip.IPv4Unspecified(), Metric: 11}
 	callerRoutes := []l2tpevents.FramedRoute{firstRoute}
 	if err := first.StageFramedRoutes(callerRoutes); err != nil {
 		t.Fatal(err)

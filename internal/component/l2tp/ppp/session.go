@@ -181,7 +181,7 @@ type pppSession struct {
 
 	// Accepted request principal for this LCP lifetime. Goroutine-owned.
 	authenticatedUsername string
-	// Immutable copied profile from this PPPoE lifetime's accepted request.
+	// Immutable copied profile from this LCP lifetime's accepted request.
 	// Goroutine-owned. Each assignment borrows its own copy.
 	authenticatedFramedRoutes []l2tpevents.FramedRoute
 
@@ -360,6 +360,11 @@ type pppSession struct {
 	// of the proposal, which a Configure-Nak can change before TLD runs.
 	// Only confirmed withdrawal clears it; FSM state is not a resource receipt.
 	installedIPv4 netip.Prefix
+	// installedFramedIPv4 holds a receipt for each Framed-Route the session
+	// asked its data plane to install, recorded before the call so an
+	// uncertain add is still withdrawn. Only confirmed withdrawal removes a
+	// receipt. Owned under nativeReleaseMu (framed_route.go).
+	installedFramedIPv4 []framedRouteReceipt
 	// localInterfaceID is Ze's own IPv6CP Interface-Identifier, seeded
 	// once by requestIPv6CPInterfaceID (ncp.go) from
 	// generateIPv6CPInterfaceID (ipv6cp.go), which retries until the

@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strconv"
@@ -755,7 +756,12 @@ func (s *pppSession) beginOwnerService() bool {
 // (ai/rules/principles.md). An independent NCP's refusal must not fail
 // the session, so both refusals here are logged and counted, never
 // fatal.
-func (s *pppSession) afterLCPOpenIPv6Service() {
+//
+// The one error it returns is a Framed-IPv6-Route the service could not
+// install, or a profile over the framed-route limit: Ze never serves a
+// subscriber a subset of the routes the server authorized, so the caller
+// MUST fail the session with it after releasing nativeReleaseMu.
+func (s *pppSession) afterLCPOpenIPv6Service() error {
 	// Caller owns nativeReleaseMu, never the worker metadata mutex.
 	s.mu.Lock()
 	retained := s.ipv6Svc != nil
@@ -769,7 +775,7 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 		// with another service, or its address-removal receipt would be lost.
 		reportIPv6Failure(s.logger, s.dataplane.Identity().InterfaceName, "service replacement",
 			errors.New("the previous IPv6 service still owns this network lifetime; replacement requires its successful stop"))
-		return
+		return nil
 	}
 	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 	// information field to be at least as large as the minimum link MTU
@@ -777,17 +783,22 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 	if !supported {
 		s.logger.Warn("ppp: refusing IPv6 service below the IPv6 minimum MRU",
 			"peer_mru", peerMRU, "local_mru", localMRU, "session_mru", cap)
-		return
+		return nil
 	}
 	if !negotiated {
 		s.logger.Warn("ppp: IPv6CP opened without a negotiated peer interface identifier, refusing to start the IPv6 service",
 			"tunnel_id", s.tunnelID, "session_id", s.sessionID, "reason", reasonServiceUnnegotiated)
 		countIdentifierRefusal(reasonServiceUnnegotiated)
-		return
+		return nil
 	}
 
+	// RFC 3162 Section 2.5: the same limit as the IPv4 routes, both families
+	// counted together, refused before any route reaches the data plane.
+	if err := checkFramedRoutesLimit(s.authenticatedFramedRoutes); err != nil {
+		return fmt.Errorf("%w: %w", errFramedRouteRefused, err)
+	}
 	if !s.beginOwnerService() {
-		return
+		return nil
 	}
 	svc, err := startIPv6Service(iPv6ServiceConfig{
 		TunnelID:         s.tunnelID,
@@ -795,6 +806,8 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 		LocalInterfaceID: localID,
 		PeerInterfaceID:  peerID,
 		Dataplane:        s.dataplane,
+		// RFC 3162 Section 2.5
+		FramedRoutes: framedRoutesOfFamily(s.authenticatedFramedRoutes, AddressFamilyIPv6),
 	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), localID[:]...)}, nil, s.logger)
 	if svc != nil {
 		s.setOwnerServiceState(true, err)
@@ -808,16 +821,21 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 		s.ipv6Svc = svc
 		s.mu.Unlock()
 	}
-	if err != nil {
-		if svc != nil {
-			s.reportIPv6ChildCleanupFailure(err)
-			s.logger.Warn("ppp: IPv6 service startup cleanup remains unconfirmed",
-				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
-			return
-		}
-		s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
-		return
+	if err == nil {
+		return nil
 	}
+	if svc != nil {
+		s.reportIPv6ChildCleanupFailure(err)
+		s.logger.Warn("ppp: IPv6 service startup cleanup remains unconfirmed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+	}
+	if errors.Is(err, errFramedRouteRefused) {
+		return err
+	}
+	if svc == nil {
+		s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
+	}
+	return nil
 }
 
 // transmitMRU applies the admitted session cap without replacing the peer's
@@ -961,7 +979,10 @@ func (s *pppSession) activateNetwork(mru uint16) error {
 	ipv6Opened := s.ipv6cpState == LCPStateOpened
 	s.mu.Unlock()
 	if ipv6Opened {
-		s.afterLCPOpenIPv6Service()
+		// RFC 3162 Section 2.5: a refused Framed-IPv6-Route fails the session.
+		if err := s.afterLCPOpenIPv6Service(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

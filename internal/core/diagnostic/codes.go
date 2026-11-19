@@ -68,6 +68,7 @@ const (
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorRADIUSCoAApply                       = "doctor-radius-coa-apply"
 	CodeDoctorRADIUSAccountingUnacknowledged       = "doctor-radius-accounting-unacknowledged"
+	CodeDoctorRADIUSFramedRouteSkipped             = "doctor-radius-framed-route-skipped"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorLocalAdminCredentials                = "doctor-local-admin-credentials"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
@@ -1709,6 +1710,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "RADIUS accounting record not acknowledged",
 		Description: "No configured RADIUS accounting server acknowledged a subscriber session's Accounting-Start, Interim-Update or Accounting-Stop within the 10 second record bound, retransmissions included, so the operator's billing system may lack that record. The finding names the session and its Acct-Session-Id. A later acknowledged record of the same session clears it; an unacknowledged Stop stays until provider shutdown. Restore the accounting server's reachability and shared key.",
 		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-radius-accounting-unacknowledged"},
+	},
+	{
+		Code:        CodeDoctorRADIUSFramedRouteSkipped,
+		Title:       "RADIUS framed route skipped",
+		Description: "A subscriber's Access-Accept carried a Framed-Route or Framed-IPv6-Route value Ze cannot parse, so that route was not installed while the rest of the authorization still applied. The event names the subscriber, the attribute and why the text did not parse. Correct the subscriber's RADIUS profile.",
+		Examples:    []string{"ze show errors", "ze show diagnostic doctor-radius-framed-route-skipped"},
 	},
 	{
 		Code:        "doctor-radius-invalid",

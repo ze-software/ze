@@ -1,8 +1,11 @@
 package l2tpauthradius
 
 import (
+	"bytes"
+	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/radius"
@@ -12,7 +15,7 @@ func TestExtractFramedIP(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(10, 0, 0, 5).To4()},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -26,7 +29,7 @@ func TestExtractFramedIPRejectsMulticast(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(224, 0, 0, 1).To4()},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("multicast address should be rejected")
 	}
@@ -36,7 +39,7 @@ func TestExtractFramedIPRejectsLoopback(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(127, 0, 0, 1).To4()},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("loopback address should be rejected")
 	}
@@ -46,7 +49,7 @@ func TestExtractFramedIPRejectsBroadcast(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(255, 255, 255, 255).To4()},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("broadcast address should be rejected")
 	}
@@ -56,7 +59,7 @@ func TestExtractFramedIPRejectsLinkLocal(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(169, 254, 1, 1).To4()},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("link-local address should be rejected")
 	}
@@ -66,7 +69,7 @@ func TestExtractFramedIPShortValue(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: []byte{10, 0}},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("short Framed-IP-Address value should be ignored")
 	}
@@ -76,7 +79,7 @@ func TestExtractFramedPool(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedPool, Value: radius.AttrString("gold")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -89,7 +92,7 @@ func TestExtractSessionTimeout(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrSessionTimeout, Value: radius.AttrUint32(3600)},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -102,7 +105,7 @@ func TestExtractIdleTimeout(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrIdleTimeout, Value: radius.AttrUint32(300)},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -115,7 +118,7 @@ func TestExtractFilterId(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFilterID, Value: radius.AttrString("rate:20M/5M")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -128,7 +131,7 @@ func TestExtractAcctInterimInterval(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrAcctInterimInterval, Value: radius.AttrUint32(60)},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -141,7 +144,7 @@ func TestExtractFramedNetmask(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPNetmask, Value: net.IPv4Mask(255, 255, 255, 0)},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -155,7 +158,7 @@ func TestExtractNoProfileAttributes(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrReplyMessage, Value: radius.AttrString("welcome")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("expected nil metadata when no profile attributes present")
 	}
@@ -168,7 +171,7 @@ func TestExtractMultipleAttributes(t *testing.T) {
 		{Type: radius.AttrFilterID, Value: radius.AttrString("10M")},
 		{Type: radius.AttrAcctInterimInterval, Value: radius.AttrUint32(120)},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -191,7 +194,7 @@ func TestExtractFramedRoute(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedRoute, Value: radius.AttrString("10.0.0.0/8 0.0.0.0 1")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -211,7 +214,7 @@ func TestExtractFramedIPv6Route(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8::/32 :: 1")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -233,7 +236,7 @@ func TestExtractMultipleFramedRoutes(t *testing.T) {
 		{Type: radius.AttrFramedRoute, Value: radius.AttrString("172.16.0.0/12 0.0.0.0 2")},
 		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8::/32 :: 5")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -246,7 +249,7 @@ func TestExtractFramedRouteNoMetric(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedRoute, Value: radius.AttrString("10.0.0.0/8 0.0.0.0")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta == nil {
 		t.Fatal("expected metadata")
 	}
@@ -262,42 +265,89 @@ func TestExtractFramedRouteMalformed(t *testing.T) {
 	resp := &radius.Packet{Attrs: []radius.Attr{
 		{Type: radius.AttrFramedRoute, Value: radius.AttrString("not-a-prefix")},
 	}}
-	meta := extractAuthMetadata(resp)
+	meta := extractAuthMetadata(resp, "")
 	if meta != nil {
 		t.Error("malformed Framed-Route should not produce metadata")
 	}
 }
 
+// TestExtractFramedRouteMalformedIsLoggedAndSkipped proves a Framed-Route
+// text Ze cannot parse is logged at WARN with its attribute and reason, and
+// that the valid routes beside it are still returned. Method: capture the
+// package logger, extract one bad and one good value of each attribute.
+func TestExtractFramedRouteMalformedIsLoggedAndSkipped(t *testing.T) {
+	var buf bytes.Buffer
+	previous := logger()
+	loggerPtr.Store(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { loggerPtr.Store(previous) })
+
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("not-a-prefix 0.0.0.0 1")},
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("198.51.100.0/24 0.0.0.0 1")},
+		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8::/32 0.0.0.0 1")},
+		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8:1::/48 :: 1")},
+	}}
+	routes := extractFramedRoutes(resp, "")
+	if len(routes) != 2 {
+		t.Fatalf("routes = %v, want the two valid entries", routes)
+	}
+	if routes[0].Prefix != netip.MustParsePrefix("198.51.100.0/24") || routes[1].Prefix != netip.MustParsePrefix("2001:db8:1::/48") {
+		t.Fatalf("routes = %v, want 198.51.100.0/24 then 2001:db8:1::/48", routes)
+	}
+	logged := buf.String()
+	if n := strings.Count(logged, "level=WARN"); n != 2 {
+		t.Fatalf("WARN lines = %d, want 2:\n%s", n, logged)
+	}
+	for _, want := range []string{"attribute=Framed-Route", "attribute=Framed-IPv6-Route", `prefix \"not-a-prefix\"`, "prefix's address family"} {
+		if !strings.Contains(logged, want) {
+			t.Errorf("log lacks %q:\n%s", want, logged)
+		}
+	}
+}
+
+// TestParseFramedRoute proves the RFC 2865 Section 5.22 text form keeps the
+// prefix, the gateway the session installs through, and the metric, and that
+// a gateway which is not an address of the prefix's family refuses the route.
 func TestParseFramedRoute(t *testing.T) {
 	tests := []struct {
-		name   string
-		text   string
-		wantOK bool
-		prefix string
-		metric uint32
+		name    string
+		text    string
+		wantOK  bool
+		prefix  string
+		gateway string
+		metric  uint32
 	}{
-		{"basic", "10.0.0.0/8 0.0.0.0 1", true, "10.0.0.0/8", 1},
-		{"no metric", "192.168.0.0/16 0.0.0.0", true, "192.168.0.0/16", 0},
-		{"ipv6", "2001:db8::/32 :: 5", true, "2001:db8::/32", 5},
-		{"max metric", "10.0.0.0/8 0.0.0.0 4294967295", true, "10.0.0.0/8", 4294967295},
-		{"host masked", "10.0.0.1/8 0.0.0.0 0", true, "10.0.0.0/8", 0},
-		{"empty", "", false, "", 0},
-		{"one field", "10.0.0.0/8", false, "", 0},
-		{"bad prefix", "not-a-prefix 0.0.0.0 1", false, "", 0},
-		{"bad metric", "10.0.0.0/8 0.0.0.0 abc", false, "", 0},
-		{"metric overflow", "10.0.0.0/8 0.0.0.0 99999999999", false, "", 0},
+		{"basic", "10.0.0.0/8 0.0.0.0 1", true, "10.0.0.0/8", "0.0.0.0", 1},
+		{"no metric", "192.168.0.0/16 0.0.0.0", true, "192.168.0.0/16", "0.0.0.0", 0},
+		{"explicit gateway", "198.51.100.0/24 192.0.2.7 3", true, "198.51.100.0/24", "192.0.2.7", 3},
+		{"ipv6", "2001:db8::/32 :: 5", true, "2001:db8::/32", "::", 5},
+		{"max metric", "10.0.0.0/8 0.0.0.0 4294967295", true, "10.0.0.0/8", "0.0.0.0", 4294967295},
+		{"host masked", "10.0.0.1/8 0.0.0.0 0", true, "10.0.0.0/8", "0.0.0.0", 0},
+		{"empty", "", false, "", "", 0},
+		{"one field", "10.0.0.0/8", false, "", "", 0},
+		{"bad prefix", "not-a-prefix 0.0.0.0 1", false, "", "", 0},
+		{"bad gateway", "10.0.0.0/8 gateway 1", false, "", "", 0},
+		{"ipv6 gateway for ipv4 prefix", "10.0.0.0/8 :: 1", false, "", "", 0},
+		{"ipv4 gateway for ipv6 prefix", "2001:db8::/32 0.0.0.0 1", false, "", "", 0},
+		{"zoned gateway", "2001:db8::/32 fe80::1%eth0 1", false, "", "", 0},
+		{"bad metric", "10.0.0.0/8 0.0.0.0 abc", false, "", "", 0},
+		{"metric overflow", "10.0.0.0/8 0.0.0.0 99999999999", false, "", "", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, ok := parseFramedRoute(tt.text)
+			r, err := parseFramedRoute(tt.text)
+			ok := err == nil
 			if ok != tt.wantOK {
-				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+				t.Fatalf("ok = %v (err %v), want %v", ok, err, tt.wantOK)
 			}
 			if !ok {
 				return
 			}
 			if r.Prefix != netip.MustParsePrefix(tt.prefix) {
 				t.Errorf("prefix = %v, want %v", r.Prefix, tt.prefix)
+			}
+			if r.Gateway != netip.MustParseAddr(tt.gateway) {
+				t.Errorf("gateway = %v, want %v", r.Gateway, tt.gateway)
 			}
 			if r.Metric != tt.metric {
 				t.Errorf("metric = %d, want %d", r.Metric, tt.metric)
