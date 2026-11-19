@@ -93,12 +93,18 @@ func icmpErrSNMP(t *testing.T, name string) int {
 // icmpErrInstallSA installs one tunnel-mode Child SA on loopback: its state and inbound
 // protect policy through Ze's projections, and a test-only outbound policy that sends
 // every packet for localHost through that state.
+//
+// The one loopback state both encapsulates (through the injector policy) and decrypts,
+// so it carries the zero Dir, the value SAParams.Dir names for a state used in both
+// directions: a Dir of in reaches the kernel as XFRMA_SA_DIR, and the kernel then
+// refuses to send through the state (EINVAL on the injecting send). The ICMP error
+// check is still projected, since xfrmStateFromParams refuses it only on an outbound SA.
 func icmpErrInstallSA(t *testing.T, spi, reqID uint32, localHost string, check bool) {
 	t.Helper()
 	loop := net.ParseIP(icmpErrLoop)
 	state, err := xfrmStateFromParams(SAParams{
 		SPI: spi, Src: loop, Dst: loop, Proto: ProtoESP, Mode: ModeTunnel, ReqID: reqID,
-		Dir: SADirIn, EncAlgo: "aes128gcm", EncKey: make([]byte, 20), IsAEAD: true,
+		EncAlgo: "aes128gcm", EncKey: make([]byte, 20), IsAEAD: true,
 		ICMPErrorCheck: check,
 	})
 	if err != nil {
