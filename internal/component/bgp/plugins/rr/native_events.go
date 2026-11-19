@@ -3,9 +3,11 @@ package rr
 
 import (
 	"errors"
+	"strconv"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"strconv"
 )
 
 // eventNumbers validates the complete reserved header before exposing values.
@@ -109,7 +111,7 @@ func (rr *routeReflector) textOpen(fields []string) error {
 	}
 	families := make(map[family.Family]bool)
 	capabilities := make(map[string]bool)
-	var peerASN uint64
+	var peerASN uint32
 	hasMP := false
 	for index < len(fields) {
 		key := fields[index]
@@ -120,7 +122,8 @@ func (rr *routeReflector) textOpen(fields []string) error {
 				return errors.New("bgp-rr: OPEN field has no value")
 			}
 			if key == "asn" {
-				peerASN, err = strconv.ParseUint(fields[index], 10, 32)
+				// asn.Parse reads every RFC 5396 spelling, as every AS number in Ze is read.
+				peerASN, err = asn.Parse(fields[index])
 				if err != nil {
 					return err
 				}
@@ -151,7 +154,7 @@ func (rr *routeReflector) textOpen(fields []string) error {
 				if index == len(fields) {
 					return errors.New("bgp-rr: four-octet ASN capability has no ASN")
 				}
-				peerASN, err = strconv.ParseUint(fields[index], 10, 32)
+				peerASN, err = asn.Parse(fields[index])
 				if err != nil {
 					return err
 				}
@@ -188,5 +191,5 @@ func (rr *routeReflector) textOpen(fields []string) error {
 	if !hasMP {
 		families[family.IPv4Unicast] = true
 	}
-	return rr.recordOpen(identity, uint32(peerASN), families, capabilities)
+	return rr.recordOpen(identity, peerASN, families, capabilities)
 }

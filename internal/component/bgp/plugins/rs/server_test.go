@@ -1871,6 +1871,36 @@ func TestTextOpenASNReadsEveryRFC5396Spelling(t *testing.T) {
 	}
 }
 
+// TestTextHeaderRemoteASReadsEveryRFC5396Spelling proves the `remote as`
+// header of an OPEN and of a state event is read with asn.Parse. Method: parse
+// each event with an asdot remote AS and check PeerASN, then with a malformed
+// one and check it stays unset. PREVENTS: a decimal-only parse that leaves an
+// asdot peer at AS 0, which downstream reads as "no AS".
+func TestTextHeaderRemoteASReadsEveryRFC5396Spelling(t *testing.T) {
+	for _, tc := range []struct {
+		remote string
+		want   uint32
+	}{
+		{"1.10", 65546},
+		{"1.x", 0},
+	} {
+		open := parseTextOpen("peer 10.0.0.1 remote as " + tc.remote + " received open 5 peer-owner 1 connection-id 101 router-id 1.1.1.1 hold-time 90\n")
+		if open == nil {
+			t.Fatalf("remote as %s: parseTextOpen returned nothing", tc.remote)
+		}
+		if open.PeerASN != tc.want {
+			t.Errorf("remote as %s: OPEN PeerASN = %d, want %d", tc.remote, open.PeerASN, tc.want)
+		}
+		state := parseTextState("peer 10.0.0.1 remote as " + tc.remote + " state up peer-owner 7201 destination-session 7203")
+		if state == nil {
+			t.Fatalf("remote as %s: parseTextState returned nothing", tc.remote)
+		}
+		if state.PeerASN != tc.want {
+			t.Errorf("remote as %s: state PeerASN = %d, want %d", tc.remote, state.PeerASN, tc.want)
+		}
+	}
+}
+
 // TestTextUpdateWithdrawalTracking verifies text format withdrawal map updates.
 //
 // VALIDATES: AC-4 (text parsing extracts NLRIs for withdrawal tracking).

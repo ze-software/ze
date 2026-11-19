@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -92,6 +93,27 @@ func TestRRNativeOpenKeepsOriginalFamiliesAndRefusesDuplicateMetadata(t *testing
 	require.Len(t, rr.peers, 1)
 	require.True(t, rr.peers[source].Families[family.IPv6Unicast])
 	require.False(t, rr.peers[source].Up)
+}
+
+// TestRRNativeOpenReadsEveryRFC5396ASNSpelling proves the OPEN's `asn` field
+// and its four-octet AS capability are read with asn.Parse. Method: dispatch
+// one OPEN per field in asdot and check the recorded peer AS, then one whose
+// AS is not a number in either spelling. PREVENTS: a decimal-only parse that
+// refuses an asdot OPEN, or one that accepts a malformed AS.
+func TestRRNativeOpenReadsEveryRFC5396ASNSpelling(t *testing.T) {
+	source, err := newPeerIdentity("192.0.2.1", 701, 41)
+	require.NoError(t, err)
+	for _, line := range []string{
+		"peer 192.0.2.1 remote as 65546 received open 9 peer-owner 701 connection-id 41 asn 1.10 router-id 192.0.2.9 hold-time 90",
+		"peer 192.0.2.1 remote as 65546 received open 9 peer-owner 701 connection-id 41 asn 23456 router-id 192.0.2.9 hold-time 90 cap 65 asn4 1.10",
+	} {
+		rr := &routeReflector{peers: make(map[peerIdentity]*peerState)}
+		require.NoError(t, rr.dispatchText(line), line)
+		require.Equal(t, uint32(65546), rr.peers[source].ASN, line)
+	}
+	rr := &routeReflector{peers: make(map[peerIdentity]*peerState)}
+	require.Error(t, rr.dispatchText("peer 192.0.2.1 remote as 65546 received open 9 peer-owner 701 connection-id 41 asn 1.x router-id 192.0.2.9 hold-time 90"))
+	require.Empty(t, rr.peers)
 }
 
 // TestRRReplacementInventoryUsesSemanticNativeKey changes only the label

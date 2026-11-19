@@ -57,7 +57,10 @@
 2 internal/component/bgp/plugins/nlri/vpls/encode.go
 2 internal/component/bgp/plugins/nlri/vpn/vpn.go
 2 internal/component/bgp/plugins/rib/rib_commands.go
-2 internal/component/bgp/plugins/rs/server_text.go
+# The RFC 7911 ADD-PATH path identifier of a withdrawn route, not an AS number.
+1 internal/component/bgp/plugins/rr/withdrawal.go
+# The RFC 7911 ADD-PATH path identifier of an UPDATE route; the peer AS is read with asn.Parse.
+1 internal/component/bgp/plugins/rs/server_text.go
 4 internal/component/bgp/plugins/watchdog/config.go
 1 internal/component/bgp/plugins/watchdog/server.go
 1 internal/component/bgp/policychain/external_attributes.go
@@ -113,6 +116,8 @@
 3 internal/le/test/deployment/vppifaceqos.go
 # requireVPPIP4MTU reads the VPP interface's L3/IP4/IP6/MPLS MTU tuple, not AS numbers.
 1 internal/le/test/deployment/vpppppoe/mtu.go
+# The VPP pppoe_session interface-name suffix and its sw-if-index, not AS numbers.
+2 internal/le/test/deployment/vpppppoe/product_state.go
 1 internal/plugins/as112/config.go
 1 internal/plugins/copp/config.go
 1 internal/plugins/cos/config.go
@@ -132,6 +137,8 @@
 1 internal/test/fixture/tunnel_fixture_l2tp_ppp.go
 2 internal/test/mock/dns/dns.go
 1 internal/test/mock/peeringdb/peeringdb.go
+# The RFC 8210 serial number of a mock VRP snapshot, not an AS number.
+1 internal/test/mock/rtr/current_vrps.go
 3 internal/test/mock/rtr/rtr.go
 2 internal/test/peer/expect.go
 1 internal/test/plugins/fakeas112/fakeas112.go

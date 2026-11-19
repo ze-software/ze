@@ -384,8 +384,9 @@ func parseTextOpen(text string) *Event {
 	s.Next() // "remote"
 	s.Next() // "as"
 	if asnStr, ok := s.Next(); ok {
-		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		// asn.Parse reads every RFC 5396 spelling, as every AS number in Ze is read.
+		if n, err := asn.Parse(asnStr); err == nil {
+			event.PeerASN = n
 		}
 	}
 
@@ -477,8 +478,9 @@ func parseTextState(text string) *Event {
 			// remote as <n>
 			if as, ok := s.Next(); ok && as == "as" {
 				if v, ok := s.Next(); ok {
-					if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-						event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+					// asn.Parse reads every RFC 5396 spelling, as every AS number in Ze is read.
+					if n, err := asn.Parse(v); err == nil {
+						event.PeerASN = n
 					}
 				}
 			}
