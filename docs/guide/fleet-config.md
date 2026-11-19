@@ -393,8 +393,9 @@ fix: request fleet disable
 ```
 <!-- source: internal/component/config/storage/freeze.go -- ErrConfigFrozen, refuseFrozenConfigLocked -->
 
-A commit in the editor, an import, a restore and a rollback all give this
-problem, reason and fix, and the fix is always the last line. Some of them
+A commit in the editor, an SSH configuration upload, an import, a restore and
+a rollback all give this problem, reason and fix, and the fix is always the
+last line. Some of them
 put the command or the step that failed in front of the first line, for
 example `write candidate:`.
 
@@ -403,6 +404,7 @@ rolls back the file it names on disk and does not touch the stored
 configuration, so it is not refused. A configuration read from a file is
 never frozen.
 <!-- source: internal/component/config/storage/cli/data_rpc_config.go -- daemonConfigImportRefusal -->
+<!-- source: cmd/ze/hub/config_upload.go -- Upload -->
 <!-- source: internal/component/config/cli/cmd_rollback.go -- rollbackStoredConfig, storedRollbackRefusal, cmdRollbackThrough -->
 
 Nothing was written. The client runs the configuration it ran before.

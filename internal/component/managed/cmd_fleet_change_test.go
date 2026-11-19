@@ -120,7 +120,7 @@ func TestFleetEnableAnswersWhatFailed(t *testing.T) {
 					require.NoError(t, storeFlag())
 					return false, want.failure
 				},
-				StopClient:  stopsWith(ClientState{}),
+				StopClient:  stopsWith(),
 				ClientState: func() ClientState { return ClientState{} },
 			}
 

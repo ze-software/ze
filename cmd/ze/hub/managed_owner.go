@@ -55,7 +55,7 @@ func noFlagWrite() error { return nil }
 // shutdown before it returns the store the client borrows, and no client
 // starts after it. Safe for concurrent use.
 //
-// Locks, taken in the order op, then mu: op serialises the operations and is
+// Locks, taken in the order op, then mu: op serializes the operations and is
 // held across a join; mu guards the slots and is never held while anything
 // waits, so state answers while a stop waits for its client.
 type managedClientOwner struct {

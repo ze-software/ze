@@ -22,11 +22,11 @@ func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 	dir := t.TempDir()
 	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
-	activeStamp := "20260524-090000.000"
+	activeStamp := managedActiveStamp
 	reloadCalled := false
 
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
-	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
+	require.NoError(t, store.WriteVersion(configPath, []byte("old"), managedActiveTime(t)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 
 	client := &managed.ClientConfig{}
@@ -59,10 +59,10 @@ func TestWireManagedCommitClearsCandidateOnReloadFailure(t *testing.T) {
 	dir := t.TempDir()
 	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
-	activeStamp := "20260524-090000.000"
+	activeStamp := managedActiveStamp
 
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
-	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
+	require.NoError(t, store.WriteVersion(configPath, []byte("old"), managedActiveTime(t)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 
 	client := &managed.ClientConfig{}
@@ -92,9 +92,9 @@ func TestWireManagedCommitRefusedDuringConfirmWindow(t *testing.T) {
 	dir := t.TempDir()
 	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
-	activeStamp := "20260524-090000.000"
+	activeStamp := managedActiveStamp
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
-	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
+	require.NoError(t, store.WriteVersion(configPath, []byte("old"), managedActiveTime(t)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 
 	window := confirm.NewWindow(func([]byte) error { return nil }, confirmNopRecorder{})
@@ -124,10 +124,13 @@ func TestWireManagedCommitRefusedDuringConfirmWindow(t *testing.T) {
 	assert.Equal(t, "old", string(activeData))
 }
 
-func mustParseManagedStamp(t *testing.T, stamp string) time.Time {
+// managedActiveStamp is the stamp of the active version every push test seeds.
+const managedActiveStamp = "20260524-090000.000"
+
+// managedActiveTime is the time of the active version the push tests seed.
+func managedActiveTime(t *testing.T) time.Time {
 	t.Helper()
-	parsed := mustParseReloadStamp(t, stamp)
-	return parsed
+	return mustParseReloadStamp(t, managedActiveStamp)
 }
 
 // managedPushStore is a device store whose configuration the boot record has
@@ -138,9 +141,9 @@ func managedPushStore(t *testing.T) (storage.Storage, string) {
 	dir := t.TempDir()
 	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
-	activeStamp := "20260524-090000.000"
+	activeStamp := managedActiveStamp
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
-	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
+	require.NoError(t, store.WriteVersion(configPath, []byte("old"), managedActiveTime(t)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 	return store, configPath
 }

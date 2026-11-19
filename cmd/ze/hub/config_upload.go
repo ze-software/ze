@@ -116,6 +116,11 @@ func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error 
 		return opererr.New("configuration upload could not read the accepted source", "No replacement was staged; check the device storage", "ze doctor")
 	}
 	if err := runtime.commit(ctx, expected, content); err != nil {
+		// A managed device refuses the change at staging. That refusal names
+		// the one fix that works, so it is answered as the freeze wrote it.
+		if refusal, frozen := storage.FreezeRefusal(err); frozen {
+			return refusal
+		}
 		return opererr.New("configuration upload was not accepted", "The daemon could not complete its configuration transaction; inspect the live configuration and daemon diagnostics before retrying", "show config running")
 	}
 	return nil

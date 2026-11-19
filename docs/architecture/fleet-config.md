@@ -508,16 +508,22 @@ fix: request fleet disable
 Every route answers the same problem, reason and fix, and the fix is always
 the last line. Some routes put the command or the step that failed in front
 of the first line, such as `write candidate:` or `restore config <name>:`.
-The import, restore and rollback commands do not wrap the refusal under a fix
-of their own, so their answer ends on `request fleet disable` too.
+The import, restore and rollback commands and the SSH configuration upload,
+which wrap every other failure under a fix of their own, answer the freeze's
+refusal as the freeze wrote it, so their answer ends on `request fleet
+disable` too. They recognise it by the mark the freeze puts on its own
+refusals, not by its type, so an operator error from another layer, a reload
+that refused the configuration, keeps the route's own first line.
+<!-- source: internal/component/config/storage/freeze.go -- FreezeRefusal -->
 <!-- source: internal/component/config/storage/cli/data_rpc_config.go -- daemonConfigImportRefusal -->
 <!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- configRollbackRefusal -->
-<!-- source: internal/component/config/cli/cmd_rollback.go -- rollbackStoredConfig -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- storedRollbackRefusal -->
+<!-- source: cmd/ze/hub/config_upload.go -- Upload -->
 
 **Where.** The refusal sits at the store's candidate staging step,
 `WriteCandidateVersionWithGuard`, before any version is written. Every
 versioned write an operator makes passes it: a session, console, web or API
-commit, `update data config`, `request data restore ... config`, the rollback
+commit, an SSH configuration upload, `update data config`, `request data restore ... config`, the rollback
 command, and with the daemon stopped `ze config import` of a configuration
 the store already holds, `ze data import` and `ze data restore ... config`. No
 route carries a check of its own. With the daemon stopped,

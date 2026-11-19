@@ -84,7 +84,7 @@ func TestDaemonImportWrapsOtherOperatorErrors(t *testing.T) {
 
 	require.NotNil(t, refusal)
 	assert.Equal(t, pathUpdateDataConfig+": ze.conf was not imported", firstLine(refusal.Error()))
-	assert.NotEqual(t, "fix: ze config validate ze.conf", lastLine(refusal.Error()))
+	assert.Equal(t, "fix: ze config validate <file>", lastLine(refusal.Error()))
 }
 
 // TestDaemonRollbackKeepsTheStoresFix proves the same for the rollback RPC.
