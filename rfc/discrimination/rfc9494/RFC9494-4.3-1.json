@@ -95,7 +95,7 @@
     "claim-sha": "6f67b0f761e571e0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand",
-    "producer-sha": "4a258f918fc9014c",
+    "producer-sha": "0aa66bc6e91368ad",
     "break": "body of attachCommunityCommand replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -106,7 +106,7 @@
     "claim-sha": "60265d9413b5bddd",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand",
-    "producer-sha": "4a258f918fc9014c",
+    "producer-sha": "0aa66bc6e91368ad",
     "break": "body of attachCommunityCommand replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
