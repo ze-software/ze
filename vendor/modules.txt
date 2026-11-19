@@ -556,7 +556,7 @@ github.com/go-xmlfmt/xmlfmt
 github.com/gobwas/glob
 github.com/gobwas/glob/internal/debug
 github.com/gobwas/glob/syntax
-# github.com/godbus/dbus/v5 v5.2.2
+# github.com/godbus/dbus/v5 v5.2.4
 ## explicit; go 1.20
 github.com/godbus/dbus/v5
 # github.com/godoc-lint/godoc-lint v0.11.4
