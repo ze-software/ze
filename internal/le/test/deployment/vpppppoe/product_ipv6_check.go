@@ -99,10 +99,7 @@ func checkProductIPv6(ctx context.Context, check *interoplab.CheckContext, mode 
 			return err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(check.Source.Directory, "product.conf"), []byte(productIPv6Config(access, namespace)), 0o600); err != nil {
-		return err
-	}
-	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", "exec /product/ze start /evidence/product.conf > /evidence/product-ze.log 2>&1"}, nil); err != nil {
+	if err := startProductDaemon(ctx, check, productIPv6Config(access, namespace)); err != nil {
 		return err
 	}
 	if err := waitProductInterfaces(ctx, lab, access); err != nil {

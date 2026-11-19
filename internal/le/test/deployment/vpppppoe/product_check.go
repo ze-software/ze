@@ -17,6 +17,34 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+const (
+	// productStoreDirectory is where the product daemon starts, inside the
+	// VPP peer's own filesystem. Ze opens its config store beside the config
+	// it starts on and refuses a store another user owns
+	// (storage.secureNode). /evidence is the host scratch bind-mounted
+	// through the docker-lab 9p share, whose security_model=none gives every
+	// file, even one root creates in the container, the host user's uid, so
+	// a daemon started on /evidence/product.conf refuses its own
+	// database.lock. The directory dies with the container.
+	productStoreDirectory = "/var/lib/ze-product"
+	// productStartCommand copies the configuration the host wrote to
+	// /evidence into productStoreDirectory and starts the daemon on the
+	// copy. Its log stays on /evidence, so the Suite collects it.
+	productStartCommand = "mkdir -p -m 0700 " + productStoreDirectory +
+		" && cp /evidence/product.conf " + productStoreDirectory + "/product.conf" +
+		" && exec /product/ze start " + productStoreDirectory + "/product.conf > /evidence/product-ze.log 2>&1"
+)
+
+// startProductDaemon writes config to the evidence directory, where a failed
+// run leaves it to read, and starts the staged daemon on a container-local
+// copy of it (productStartCommand).
+func startProductDaemon(ctx context.Context, check *interoplab.CheckContext, config string) error {
+	if err := os.WriteFile(filepath.Join(check.Source.Directory, "product.conf"), []byte(config), 0o600); err != nil {
+		return err
+	}
+	return check.Lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", productStartCommand}, nil)
+}
+
 func checkProduct(ctx context.Context, check *interoplab.CheckContext, mode mechanismMode, count int) error {
 	if check == nil || check.Lab == nil {
 		return errors.New("product checker has no peers")
@@ -38,10 +66,7 @@ func checkProduct(ctx context.Context, check *interoplab.CheckContext, mode mech
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(check.Source.Directory, "product.conf"), []byte(productConfig(access, namespace)), 0o600); err != nil {
-		return err
-	}
-	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", "exec /product/ze start /evidence/product.conf > /evidence/product-ze.log 2>&1"}, nil); err != nil {
+	if err := startProductDaemon(ctx, check, productConfig(access, namespace)); err != nil {
 		return err
 	}
 	if err := waitProductInterfaces(ctx, lab, access); err != nil {

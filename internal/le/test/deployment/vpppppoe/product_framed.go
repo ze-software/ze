@@ -136,10 +136,7 @@ func checkProductFramed(ctx context.Context, check *interoplab.CheckContext) err
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(check.Source.Directory, "product.conf"), []byte(productConfigWith(access, namespace, auth)), 0o600); err != nil {
-		return err
-	}
-	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", "exec /product/ze start /evidence/product.conf > /evidence/product-ze.log 2>&1"}, nil); err != nil {
+	if err := startProductDaemon(ctx, check, productConfigWith(access, namespace, auth)); err != nil {
 		return err
 	}
 	if err := waitProductInterfaces(ctx, lab, access); err != nil {

@@ -761,6 +761,18 @@ kernel. Both routes refuse an unsuitable Docker host before they build an
 image. Both routes also stage the daemon and le helper from current source.
 <!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- runProductSuite -->
 
+The checker writes the daemon's configuration to the scenario's evidence
+directory, `/evidence/product.conf` in the VPP peer, so a failed run leaves it
+to read. Ze opens its config store beside the configuration it starts on and
+refuses a store another uid owns. Under `test qemu docker-lab` the evidence
+directory reaches the container through the guest's 9p share, where every
+file carries the host user's uid, even one the container's root creates. Ze,
+running as root, would refuse its own `database.lock` there. So every product
+action (`product`, `product-ipv6`, `product-framed`) copies the configuration
+to `/var/lib/ze-product` in the VPP peer's own filesystem and starts Ze on
+that copy. Its log stays at `/evidence/product-ze.log`.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- startProductDaemon, productStartCommand -->
+
 The loopback REST observer is a registered, bounded le action. It uses the
 existing authenticated execute endpoint and shared renderer. Its command
 allowlist contains only the session and interface show commands. An error,
