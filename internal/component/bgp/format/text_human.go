@@ -352,6 +352,9 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = append(buf, " session-generation "...)
 		buf = strconv.AppendUint(buf, peer.SessionGeneration, 10)
 	}
+	if peer.UpdateSendDenied {
+		buf = append(buf, " update-send-denied true"...)
+	}
 	buf = append(buf, '\n')
 	return buf
 }

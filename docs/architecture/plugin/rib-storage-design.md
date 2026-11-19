@@ -570,7 +570,7 @@ update already went out. Every plugin that acts toward the peer on up records
 the peer up and skips that action on it: `bgp-adj-rib-in`, `bgp-rr`, `bgp-rs`
 and `bgp-rib` start no replay and report no ready, `bgp-watchdog` resends no
 announced route, and `redistribute-orchestrator` fires no redistribute replay.
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleAttachedUp -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleUpWithoutReplay -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState -->
 <!-- source: internal/component/bgp/plugins/watchdog/server.go -- handlePeerUp -->
 <!-- source: internal/plugins/redistribute/replay.go -- onStateUp -->

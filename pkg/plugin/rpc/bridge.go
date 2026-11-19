@@ -1126,6 +1126,10 @@ type StructuredEvent struct {
 	DestinationSession  uint64           // Captured connection identity on state, actual SENT UPDATE and refresh events.
 	SelectedDestination bool             // This recipient is the complete ordinary output owner.
 	OrdinaryReplayOwned bool             // Captured UP has ordinary output; auxiliary automatic replay stands down, without granting authority.
+	// UpdateSendDenied reports that the captured exact Peer grants this UP
+	// recipient no send-update permission. It suppresses destination work only;
+	// source identity remains live. False or absence grants no write authority.
+	UpdateSendDenied bool
 	// SessionGeneration is, for a down state event, the forward generation of
 	// the session the down ended. A forwarding plugin's departure for that
 	// down names it as recovery-generation meta, so the engine owes only
@@ -1183,6 +1187,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.DestinationSession = 0
 	se.SelectedDestination = false
 	se.OrdinaryReplayOwned = false
+	se.UpdateSendDenied = false
 	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.SourcePolicyEpoch = 0

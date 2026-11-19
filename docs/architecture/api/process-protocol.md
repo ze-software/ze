@@ -216,6 +216,14 @@ renders that recipient's exact event without growing the fixed cache.
 <!-- source: internal/component/bgp/server/events.go -- deliverPeerState, getStructuredStateEvent -->
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent, PutStructuredEvent -->
 
+An UP delivered to a peer-up replay claimant carries `update-send-denied: true`
+when the captured peer does not grant that process `send [ update ]`.
+`bgp-rs` keeps the peer as a route source and skips automatic replay and live
+output to it. The writer checks the process's send grant for each attempt.
+<!-- source: internal/component/bgp/reactor/peer_bound_info.go -- boundPeerInfo -->
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerState -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleState -->
+
 On UP, `ordinary-replay-owned: true` tells every state recipient that the
 captured connection has an ordinary selected-output owner. Auxiliary stores
 then skip automatic peer-up replay and still report readiness for that connection.

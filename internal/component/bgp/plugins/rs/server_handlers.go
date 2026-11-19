@@ -131,8 +131,8 @@ func (rs *routeServer) handleState(event *Event) {
 			rs.warnLifecycle("retention lifetime refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 			return
 		}
-		if event.Reason == rpc.ReasonAttached {
-			rs.handleAttachedUp(key, event.DestinationSession, event.SessionGeneration)
+		if event.Reason == rpc.ReasonAttached || event.UpdateSendDenied {
+			rs.handleUpWithoutReplay(key, event)
 			return
 		}
 		rs.handleStateUp(key, event.InitialReplay, event.DestinationSession, event.SessionGeneration)
@@ -529,6 +529,7 @@ func (rs *routeServer) handleStateUp(key workerKey, initialReplay, destinationSe
 	peer.SessionGeneration = generation
 	peer.DestinationSession = destinationSession
 	peer.Up = true
+	peer.updateSendDenied = false
 	peer.StateSeen = true
 	// THE CUT. Every UPDATE at or below it is the replay's to deliver, every
 	// UPDATE above it the live rail's (PeerState.ForwardFrom).
@@ -563,14 +564,10 @@ func (rs *routeServer) handleStateUp(key workerKey, initialReplay, destinationSe
 	go rs.replayForPeer(context.WithValue(replayCtx, replayTargetKey{}, target), key, gen, cut, initialReplay, done)
 }
 
-// handleAttachedUp records a peer up that a reload delivered when it attached
-// this plugin to a session already established (rpc.ReasonAttached). The
-// peer's initial routing update was sent without this plugin, so it is not this
-// plugin's to replay: no replay runs, no replay gate shuts, and no session ready
-// is signaled (an attached up carries no initial-replay receipt). The peer is
-// a forward source and target again from the current cut on, and the
-// generation increment stops any replay a previous up of this peer still runs.
-func (rs *routeServer) handleAttachedUp(key workerKey, destinationSession, generation uint64) {
+// handleUpWithoutReplay records a source actor even when it owes no initial
+// output. An attached peer with a send grant can receive live output from the
+// current cut. A receive-only peer contributes routes without becoming a target.
+func (rs *routeServer) handleUpWithoutReplay(key workerKey, event *Event) {
 	peerAddr := key.address.String()
 	rs.mu.Lock()
 	peer := rs.peers[key]
@@ -585,9 +582,10 @@ func (rs *routeServer) handleAttachedUp(key workerKey, destinationSession, gener
 	}
 	peer.downApplied = false
 	peer.adoptionOpen = true
-	peer.SessionGeneration = generation
-	peer.DestinationSession = destinationSession
+	peer.SessionGeneration = event.SessionGeneration
+	peer.DestinationSession = event.DestinationSession
 	peer.Up = true
+	peer.updateSendDenied = event.UpdateSendDenied
 	peer.StateSeen = true
 	peer.ForwardFrom = rs.seenMsgID
 	peer.InitialReplay = 0
@@ -596,7 +594,8 @@ func (rs *routeServer) handleAttachedUp(key workerKey, destinationSession, gener
 	cut := peer.ForwardFrom
 	rs.mu.Unlock()
 
-	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "reason", rpc.ReasonAttached, "cut", cut)
+	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "reason", event.Reason,
+		"update-send-denied", event.UpdateSendDenied, "cut", cut)
 }
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine
@@ -899,7 +898,7 @@ func (rs *routeServer) handleRefresh(event *Event) {
 		if key.owner == original.owner {
 			continue
 		}
-		if !peer.Up {
+		if !peer.updateTarget() {
 			continue
 		}
 		if !peer.hasCapability("route-refresh") {

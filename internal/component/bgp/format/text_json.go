@@ -550,6 +550,9 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = append(buf, '"')
 	}
 	buf = appendUnheldRolesJSON(buf, unheldRoles)
+	if peer.UpdateSendDenied {
+		buf = append(buf, `,"update-send-denied":true`...)
+	}
 	buf = append(buf, `}}`...)
 	buf = append(buf, '\n')
 	return buf

@@ -244,6 +244,14 @@ bgp-rs forwards it there when it is above the peer-up cut
 (`docs/architecture/bgp/structural-forwarding.md`).
 <!-- source: internal/component/bgp/reactor/peer.go -- takeInitialReplayReceipt, replayOwns -->
 
+For a peer-up replay claimant with no UPDATE send grant, native state UP
+includes the optional boolean `update-send-denied` with value `true`. Native
+text includes `update-send-denied true`. Only the receiving claimant sees the
+field.
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerState -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText -->
+
 For `"down"` events, a `reason` field is included:
 
 ```json

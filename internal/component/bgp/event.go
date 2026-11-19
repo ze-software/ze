@@ -33,6 +33,7 @@ var KnownFields = map[string]bool{
 	"peer-owner":            true,
 	"selected-destination":  true,
 	"ordinary-replay-owned": true,
+	"update-send-denied":    true,
 	"destination-session":   true,
 	"peer":                  true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
@@ -402,6 +403,9 @@ type Event struct {
 	DestinationSession  uint64 `json:"destination-session,string,omitempty"`
 	SelectedDestination bool   `json:"selected-destination,omitempty"`
 	OrdinaryReplayOwned bool   `json:"ordinary-replay-owned,omitempty"`
+	// UpdateSendDenied is a captured per-recipient UP denial advisory. Its
+	// absence grants no output authority; writers still enforce current grants.
+	UpdateSendDenied bool `json:"update-send-denied,omitempty"`
 	// SessionGeneration names, on a down state event, the session the down
 	// ended (reactor Peer.forwardGeneration); a departure echoes it as
 	// recovery-generation. Zero on every other event.

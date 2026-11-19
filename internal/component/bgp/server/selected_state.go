@@ -3,7 +3,10 @@
 package server
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -15,6 +18,7 @@ func selectedStatePeer(peer *plugin.PeerInfo, recipient string, state rpc.Sessio
 	projected := *peer
 	projected.SelectedDestination = false
 	projected.OrdinaryReplayOwned = false
+	projected.UpdateSendDenied = false
 	if state != rpc.SessionStateUp {
 		return projected
 	}
@@ -36,6 +40,29 @@ func selectedStatePeer(peer *plugin.PeerInfo, recipient string, state rpc.Sessio
 		// eligible ordinary owner instead needs its current selected snapshot.
 		projected.InitialReplay = peer.DestinationSession
 	}
+	return projected
+}
+
+// processStatePeer projects captured grants only to an actual replay claimant.
+// Other consumers and monitors retain their existing optional-field grammar.
+// An uncaptured synthetic observation says nothing about output permission.
+// The actual send guard remains authoritative after this advisory snapshot.
+func processStatePeer(peer *plugin.PeerInfo, proc *process.Process, state rpc.SessionState, reason string) plugin.PeerInfo {
+	projected := selectedStatePeer(peer, proc.Name(), state, reason)
+	if state != rpc.SessionStateUp {
+		return projected
+	}
+	if peer.UpdateSendGrants == nil {
+		return projected
+	}
+	registration := proc.Registration()
+	if registration == nil {
+		return projected
+	}
+	if !slices.Contains(registration.Claims, "bgp-peer-up-replay") {
+		return projected
+	}
+	projected.UpdateSendDenied = !slices.Contains(peer.UpdateSendGrants, proc.Name())
 	return projected
 }
 

@@ -28,7 +28,7 @@ func (rs *routeServer) selectForwardTargets(buf []rpc.ForwardTarget, source work
 		if key.owner == source.owner {
 			continue
 		}
-		if !peer.Up {
+		if !peer.updateTarget() {
 			continue
 		}
 		if msgID != 0 {
@@ -112,6 +112,8 @@ func (rs *routeServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 
 // A skip receipt already names the exact original UP. Its endpoint is display
 // data; only owner plus destination session selects the actor under mu.
+// This engine handback still needs its definitive response even if the
+// operator did not grant this process ordinary UPDATE output to that peer.
 func (rs *routeServer) fastPathOwedTarget(target rpc.ForwardTarget, source workerKey, msgID uint64, families map[family.Family]bool) bool {
 	if target.DestinationOwner == source.owner {
 		return false
@@ -163,6 +165,9 @@ func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 		}
 	}
 	for targetKey, peer := range rs.peers {
+		if !peer.updateTarget() {
+			continue
+		}
 		if msgID >= peer.InitialReplay {
 			continue
 		}

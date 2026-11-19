@@ -505,6 +505,14 @@ where it replays on its own and sends under its own name.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
 
+An attachment that grants `bgp-rs` only received updates and state keeps the
+peer as a route source. The route server skips its automatic replay and live
+output to that peer. Explicit send requests still pass through the engine's
+send-permission check.
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleState -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- selectForwardTargets -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
+
 ## Cache Commands
 
 Routes in transit can be managed via cache commands:

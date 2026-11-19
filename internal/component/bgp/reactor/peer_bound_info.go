@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"github.com/ze-software/ze/internal/component/plugin"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -13,6 +14,15 @@ import (
 // Nil explicitly means no physical connection and grants no selected output.
 func boundPeerInfo(peer *Peer, session *Session) plugin.PeerInfo {
 	settings := peer.settingsSnapshot()
+	// Own only the names, not the settings' mutable container. A known empty
+	// capture differs from a synthetic PeerInfo that supplied no binding facts.
+	updateSendGrants := make([]string, 0, len(settings.ProcessBindings))
+	for i := range settings.ProcessBindings {
+		binding := &settings.ProcessBindings[i]
+		if binding.MaySend(bgpevents.SendUpdate) {
+			updateSendGrants = append(updateSendGrants, binding.PluginName)
+		}
+	}
 	info := plugin.PeerInfo{
 		PeerOwner: peer.sourceOwner,
 		Address:   settings.Address, AddressStr: peer.addrString,
@@ -21,7 +31,8 @@ func boundPeerInfo(peer *Peer, session *Session) plugin.PeerInfo {
 		LocalAS:  settings.LocalAS,
 		RouterID: settings.RouterID,
 		Connect:  settings.Connection.Connect, Accept: settings.Connection.Accept,
-		State: plugin.PeerStateEstablished,
+		State:            plugin.PeerStateEstablished,
+		UpdateSendGrants: updateSendGrants,
 	}
 	if session == nil {
 		return info

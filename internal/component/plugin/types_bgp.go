@@ -228,6 +228,15 @@ type PeerInfo struct {
 	// OrdinaryReplayOwned is advisory: automatic auxiliary replay stands down.
 	// It grants no selected-output authority and is derived from captured UP facts.
 	OrdinaryReplayOwned bool
+	// UpdateSendGrants is an immutable capture from this exact Peer's settings,
+	// never an address-merged delivery graph. Nil means uncaptured (including
+	// legacy synthetic observations); a nonnil empty slice records no grants.
+	// It stays inside the engine and grants no output authority.
+	UpdateSendGrants []string `json:"-"`
+	// UpdateSendDenied is a per-recipient UP advisory: the captured settings
+	// grant this replay claimant no send-update permission. False or absence
+	// grants nothing; the actual writer MUST still enforce its current grant.
+	UpdateSendDenied bool `json:"-"`
 	// SessionGeneration is, on a session-down state change only, the forward
 	// generation of the session the down ended (reactor Peer.forwardGeneration),
 	// captured when it ended. Every event format carries it as

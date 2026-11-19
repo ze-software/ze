@@ -328,7 +328,7 @@ func (rs *routeServer) recordDeparture(key workerKey, entries map[withdrawalKey]
 		}
 		maps.Copy(actor.departure.routes, entries)
 		for targetKey, peer := range rs.peers {
-			if targetKey.owner == key.owner || !peer.Up {
+			if targetKey.owner == key.owner || !peer.updateTarget() {
 				continue
 			}
 			target, err := targetOf(targetKey, peer)

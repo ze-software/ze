@@ -919,9 +919,10 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 		Type:         eventState,
 		PeerAddr:     se.PeerAddress,
 		ConnectionID: se.ConnectionID, DestinationSession: se.DestinationSession,
-		State:         se.State.String(),
-		Reason:        se.Reason,
-		InitialReplay: se.InitialReplay,
+		State:            se.State.String(),
+		Reason:           se.Reason,
+		InitialReplay:    se.InitialReplay,
+		UpdateSendDenied: se.UpdateSendDenied,
 		// The session the down ended, which its departure names.
 		SessionGeneration: se.SessionGeneration,
 		PeerOwner:         se.PeerOwner,

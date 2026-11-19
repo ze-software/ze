@@ -141,6 +141,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.DestinationSession = peer.DestinationSession
 	se.SelectedDestination = peer.SelectedDestination
 	se.OrdinaryReplayOwned = peer.OrdinaryReplayOwned
+	se.UpdateSendDenied = peer.UpdateSendDenied
 	se.SessionGeneration = peer.SessionGeneration
 	se.Reason = reason
 	se.FSMEvent = peer.CloseFSMEvent
@@ -853,7 +854,10 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 			continue // DirectBridge — no text formatting needed
 		}
 		enc := proc.Encoding()
-		projected := selectedStatePeer(peer, proc.Name(), state, reason)
+		projected := processStatePeer(peer, proc, state, reason)
+		if projected.UpdateSendDenied {
+			continue // Denied variants are formatted per delivery below.
+		}
 		key := selectedStateFormatKey(enc, projected.SelectedDestination)
 		if _, ok := fmtCache.get(key); !ok {
 			scratch := format.AppendStateChange(scratch[:0], &projected, state, reason, unheldRoles, enc)
@@ -869,12 +873,17 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
-		projected := selectedStatePeer(peer, proc.Name(), state, reason)
+		projected := processStatePeer(peer, proc, state, reason)
 		if proc.HasStructuredHandler() {
 			se := getStructuredStateEvent(&projected, state, reason, unheldRoles)
 			delivery = process.EventDelivery{Event: se, Result: results}
 		} else {
 			output, _ := fmtCache.get(selectedStateFormatKey(proc.Encoding(), projected.SelectedDestination))
+			if projected.UpdateSendDenied {
+				// Keep denial out of the owner/observer cache: a sibling
+				// claimant with the same encoding may hold its own send grant.
+				output = string(format.AppendStateChange(scratch[:0], &projected, state, reason, unheldRoles, proc.Encoding()))
+			}
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {

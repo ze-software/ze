@@ -3846,7 +3846,7 @@ destination where `bgp-rib` is bound with the sent direction (`receive [ update
 state refresh ] send [ update ]`). A destination without that binding keeps the
 dead route, and nothing logs it (journal row 2026-10-10 in
 `plan/journal/silent-fall-through.md`).
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, handleAttachedUp, sendBatchedWithdrawals -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, handleUpWithoutReplay, sendBatchedWithdrawals -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes -->
 
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses, Peer.announceClosed -->

@@ -42,6 +42,7 @@ type PeerState struct {
 	Address            string // Peer IP address
 	ASN                uint32 // Peer AS number
 	Up                 bool   // Session is established
+	updateSendDenied   bool   // The current state event excluded this recipient from UPDATE output.
 	// StateSeen records that handleState has processed at least one state event
 	// for this peer, which is what makes Up == false READABLE.
 	//
@@ -117,6 +118,12 @@ type PeerState struct {
 	// then this plugin's live forward to make (batchForwardUpdateSkipped).
 	// Zero, for an attached up, owes nothing.
 	InitialReplay uint64
+}
+
+// updateTarget reports whether this established actor can be an UPDATE target.
+// The caller holds the route server's peer lock.
+func (p *PeerState) updateTarget() bool {
+	return p.Up && !p.updateSendDenied
 }
 
 // hasCapability returns true if peer supports the given capability.

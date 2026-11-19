@@ -43,8 +43,8 @@ func (rr *routeReflector) textState(fields []string) error {
 	seenReason := false
 	seenFlags := make(map[string]bool)
 	for index := 7; index < len(fields); {
-		if fields[index] == "selected-destination" || fields[index] == "ordinary-replay-owned" {
-			key := fields[index]
+		key := fields[index]
+		if key == "selected-destination" || key == "ordinary-replay-owned" || key == "update-send-denied" {
 			if seenFlags[key] {
 				return errors.New("bgp-rr: duplicate state flag " + key)
 			}
