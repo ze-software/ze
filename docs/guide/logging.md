@@ -89,7 +89,7 @@ Most specific wins, environment beats config:
 |---------|--------|-------------|
 | `stderr` | `backend stderr` | Standard error (default). Color auto-detected on TTY. |
 | `stdout` | `backend stdout` | Standard output. Color auto-detected on TTY. |
-| `syslog` | `backend syslog` | Remote syslog. Set address with `destination`. |
+| `syslog` | `backend syslog` | Syslog: the local daemon, a Unix socket or a UDP collector, set with `destination`. |
 
 Syslog example:
 
@@ -98,10 +98,66 @@ environment {
     log {
         level info
         backend syslog
-        destination 10.0.0.100:514
+        destination 192.0.2.100:514
     }
 }
 ```
+
+### Syslog facility and severity
+
+Each syslog record carries the severity of its level: `debug` is sent as
+debug, `info` as info, `warn` as warning and `err` as err. A collector can
+select records by facility and severity.
+<!-- source: internal/core/slogutil/syslog.go -- severityHandler -->
+
+Every subsystem goes out on the `daemon` facility unless the `syslog`
+container names another one. The `facility` leaf changes the facility for all
+subsystems. Any other name in the container is a subsystem, and its value is
+the facility that subsystem and its children go out on. Ze reads the longest
+matching name first, as it does for levels, so `bgp` covers `bgp.server` until
+`bgp.server` is named too. The name `facility` is reserved for the leaf, so a
+subsystem called `facility` cannot be mapped here. Facility names are `kern`, `user`, `mail`,
+`daemon`, `auth`, `syslog`, `lpr`, `news`, `uucp`, `cron`, `authpriv`, `ftp`
+and `local0` to `local7`.
+<!-- source: internal/core/slogutil/syslog.go -- syslogFacilities, facilityFor -->
+
+The level of a facility is the level of the subsystems it carries. To send
+everything at `info` on `daemon`, and the BGP subsystems at `debug` on
+`local7`:
+
+```
+environment {
+    log {
+        level info
+        bgp debug
+        backend syslog
+        destination 192.0.2.100:514
+        syslog {
+            bgp local7
+        }
+    }
+}
+```
+
+To send everything on one facility, set only the leaf:
+
+```
+environment {
+    log {
+        level info
+        backend syslog
+        syslog {
+            facility local7
+        }
+    }
+}
+```
+
+The environment variable `ze.log.syslog.facility` overrides the leaf, and
+`ze.log.syslog.<subsystem>` overrides a subsystem name (`ZE_LOG_SYSLOG_BGP=local7`).
+A word that names no facility is refused with a warning on stderr, and the
+subsystem keeps the facility of the next shorter name.
+<!-- source: internal/core/slogutil/slogutil.go -- syslogConfigEntries -->
 
 ## Plugin Stderr Relay
 

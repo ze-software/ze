@@ -115,6 +115,53 @@ module ze-hub-conf {
                 ze:help "Syslog address used when backend is syslog: empty, a socket path, or host:port";
             }
 
+            // Syslog facility per subsystem (any key allowed besides facility)
+            // Syntax: <subsystem-path> <facility>;
+            // Example: bgp local7;
+            // Maps to: ze.log.syslog.bgp=local7
+            container syslog {
+                description "Read only while backend is syslog. A name this container does not declare is a
+                    subsystem, and its value is the facility that subsystem and its children go out on:
+                    bgp local7 sends every bgp subsystem on local7. The name facility is the leaf, so a
+                    subsystem with that name cannot be mapped. Ze reads the longest matching name
+                    first, as it does for levels. Each record carries the severity of its level, so a
+                    collector can select by facility and severity. The level of a facility is the level
+                    of the subsystems it carries. The environment variable ze.log.syslog.<subsystem>
+                    overrides a name here.";
+                ze:help "Syslog facility of each subsystem: <subsystem> <facility>, such as bgp local7";
+
+                leaf facility {
+                    type enumeration {
+                        enum auth { ze:help "Security and authorization messages"; }
+                        enum authpriv { ze:help "Private security and authorization messages"; }
+                        enum cron { ze:help "Clock daemon"; }
+                        enum daemon { ze:help "System daemons"; }
+                        enum ftp { ze:help "FTP daemon"; }
+                        enum kern { ze:help "Kernel messages"; }
+                        enum local0 { ze:help "Local use 0"; }
+                        enum local1 { ze:help "Local use 1"; }
+                        enum local2 { ze:help "Local use 2"; }
+                        enum local3 { ze:help "Local use 3"; }
+                        enum local4 { ze:help "Local use 4"; }
+                        enum local5 { ze:help "Local use 5"; }
+                        enum local6 { ze:help "Local use 6"; }
+                        enum local7 { ze:help "Local use 7"; }
+                        enum lpr { ze:help "Line printer subsystem"; }
+                        enum mail { ze:help "Mail system"; }
+                        enum news { ze:help "Network news subsystem"; }
+                        enum syslog { ze:help "Messages the syslog daemon generates"; }
+                        enum user { ze:help "User-level messages"; }
+                        enum uucp { ze:help "UUCP subsystem"; }
+                    }
+                    description "Every subsystem that no name in this container maps goes out on this
+                        facility. daemon is the facility Ze uses while the leaf is absent. The environment
+                        variable ze.log.syslog.facility overrides it.";
+                    ze:help "Syslog facility of every subsystem not named in this container (default: daemon)";
+                }
+
+                ze:allow-unknown-fields;
+            }
+
             // Plugin stderr relay level
             leaf relay {
                 type string;

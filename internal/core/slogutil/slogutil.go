@@ -9,6 +9,8 @@
 //   - ze.log.bgp.fsm=<level> - level for specific subsystem
 //   - ze.log.backend=<backend> - log output (stderr/stdout/syslog/kmsg)
 //   - ze.log.destination=<addr> - syslog address (when backend=syslog)
+//   - ze.log.syslog.facility=<facility> - syslog facility (default daemon)
+//   - ze.log.syslog.<subsystem>=<facility> - syslog facility for one subsystem
 //   - ze.log.relay=<level> - plugin stderr relay level
 //   - ze.log.color=<bool> - force color on/off (overrides TTY detection)
 //
@@ -219,7 +221,7 @@ func Logger(subsystem string) *slog.Logger {
 	lv := &slog.LevelVar{}
 	lv.Set(lvl)
 	levelRegistry.Store(subsystem, lv)
-	handler := createHandler(lv)
+	handler := createHandler(lv, subsystem)
 	fh := newFilterHandler(handler)
 	filterRegistry.Store(subsystem, fh)
 	return slog.New(fh).With("subsystem", subsystem)
@@ -280,7 +282,8 @@ func RelayLevel() (slog.Level, bool) {
 // createHandler creates a slog.Handler based on ze.log.backend setting.
 // Accepts slog.Leveler so both slog.Level (fixed) and *slog.LevelVar (mutable) work.
 // Uses colorHandler for terminal output (auto-detected), plain TextHandler otherwise.
-func createHandler(level slog.Leveler) slog.Handler {
+// subsystem selects the syslog facility (facilityFor) when the backend is syslog.
+func createHandler(level slog.Leveler, subsystem string) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
 	backend := getSpecialEnv("backend")
 
@@ -289,7 +292,7 @@ func createHandler(level slog.Leveler) slog.Handler {
 
 	// Single syslog backend (not composable with io.Writer).
 	if len(parts) == 1 && strings.TrimSpace(parts[0]) == backendSyslog {
-		return newRingHandler(newSyslogHandler(opts), globalLogRing)
+		return newRingHandler(newSyslogHandler(opts, subsystem), globalLogRing)
 	}
 
 	writers := make([]io.Writer, 0, count)
@@ -448,6 +451,8 @@ func LazyLogger(subsystem string) func() *slog.Logger {
 //   - "backend" → ze.log.backend (output destination)
 //   - "destination" → ze.log.destination (syslog address)
 //   - "relay" → ze.log.relay (plugin stderr relay level)
+//   - section "log.syslog": "facility" → ze.log.syslog.facility, and any
+//     other key, a subsystem, → ze.log.syslog.<subsystem> (its facility)
 //
 // Priority: OS env var > config file > default (WARN).
 // If an OS env var is already set, it is NOT overwritten.
@@ -473,11 +478,11 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 
 // LogConfigEntries answers the env settings the `log` section of configValues
 // asks for, as "key=value" entries under the dotted ze.log key, sorted by
-// config key. They are the settings ApplyLogConfig gives this process, for a
-// caller that builds the environment of another one (env.WithDefaults holds
-// the same priority: an OS env var wins). A value ApplyLogConfig refuses is
-// absent, and the warning for it is ApplyLogConfig's to write: this answers
-// none.
+// config key, then those of its syslog container. They are the settings
+// ApplyLogConfig gives this process, for a caller that builds the environment
+// of another one (env.WithDefaults holds the same priority: an OS env var
+// wins). A value ApplyLogConfig refuses is absent, and the warning for it is
+// ApplyLogConfig's to write: this answers none.
 func LogConfigEntries(configValues map[string]map[string]string) []string {
 	return logConfigEntries(configValues, io.Discard)
 }
@@ -527,6 +532,23 @@ func logConfigEntries(configValues map[string]map[string]string, warnWriter io.W
 		}
 
 		entries = append(entries, envKey+"="+value)
+	}
+	return append(entries, syslogConfigEntries(configValues["log.syslog"], warnWriter)...)
+}
+
+// syslogConfigEntries answers the entries of the environment/log/syslog
+// container, sorted by config key: the facility leaf, and one facility per
+// subsystem name. A word that names no facility is warned about and absent.
+func syslogConfigEntries(syslogConfig map[string]string, warnWriter io.Writer) []string {
+	entries := make([]string, 0, len(syslogConfig))
+	for _, key := range slices.Sorted(maps.Keys(syslogConfig)) {
+		value := syslogConfig[key]
+		if err := validateFacility(value); err != nil {
+			writeWarn(warnWriter, "warning: %v for syslog %s\n", err, key)
+			continue
+		}
+		var tb textbuf.Buffer
+		entries = append(entries, tb.Str(envPrefixSyslog).Str(key).Str("=").Str(value).String())
 	}
 	return entries
 }

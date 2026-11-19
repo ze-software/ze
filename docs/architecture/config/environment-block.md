@@ -76,6 +76,8 @@ settings as they were.
 | `daemon` | `user` | `ze.user` | "zeuser" | User for privilege drop |
 | `log` | `level`, `backend`, `destination`, `relay` | `ze.log.*` | per-leaf | Owned by `slogutil.ApplyLogConfig` |
 | `log` | `<subsystem>` | `ze.log.<subsystem>` | per-subsystem | `log { bgp.routes debug; }` -> `ze.log.bgp.routes=debug` |
+| `log.syslog` | `facility` | `ze.log.syslog.facility` | daemon | Syslog facility of every subsystem the container does not name |
+| `log.syslog` | `<subsystem>` | `ze.log.syslog.<subsystem>` | -- | `syslog { bgp local7; }` -> `ze.log.syslog.bgp=local7`, longest name first |
 | `bgp` | `openwait` | `ze.bgp.openwait` | 120 | Seconds to wait for peer OPEN (1-3600) |
 | `bgp` | `announce-delay` | `ze.bgp.announce.delay` | 0s | Duration to delay first UPDATE after reactor Ready |
 | `pprof` | (top-level leaf) | `ze.pprof` | "" | pprof HTTP server address, e.g. `:6060` |

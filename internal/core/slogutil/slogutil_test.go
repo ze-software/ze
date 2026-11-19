@@ -252,7 +252,7 @@ func TestBackendStderr(t *testing.T) {
 	t.Setenv("ze.log.backend", "")
 
 	// Default should be stderr - verify by checking createHandler returns stderr handler
-	handler := createHandler(slog.LevelInfo)
+	handler := createHandler(slog.LevelInfo, "test.backend")
 	require.NotNil(t, handler)
 	// Can't easily verify it's stderr, but ensure it's not nil
 }
@@ -265,7 +265,7 @@ func TestBackendStdout(t *testing.T) {
 	resetEnvCache(t)
 	t.Setenv("ze.log.backend", "stdout")
 
-	handler := createHandler(slog.LevelInfo)
+	handler := createHandler(slog.LevelInfo, "test.backend")
 	require.NotNil(t, handler)
 }
 
@@ -278,7 +278,7 @@ func TestBackendSyslog(t *testing.T) {
 	t.Setenv("ze.log.backend", "syslog")
 	t.Setenv("ze.log.destination", "localhost:514")
 
-	handler := createHandler(slog.LevelInfo)
+	handler := createHandler(slog.LevelInfo, "test.backend")
 	require.NotNil(t, handler)
 }
 

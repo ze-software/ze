@@ -54,3 +54,23 @@ func TestLogBackendLeafMatchesSlogutil(t *testing.T) {
 			logBackendLeaf, model, offered, logBackendEnvOnly)
 	}
 }
+
+const logSyslogFacilityLeaf = "environment/log/syslog/facility"
+
+// TestLogSyslogFacilityLeafMatchesSlogutil holds the facility leaf to
+// slogutil's facility set in both directions, the same way the test above
+// holds the backend leaf: a word only the model offers is refused by
+// ApplyLogConfig, and a word only Go accepts is one no config file can write.
+func TestLogSyslogFacilityLeafMatchesSlogutil(t *testing.T) {
+	model, err := configyang.EnumValues(logSyslogFacilityLeaf)
+	if err != nil {
+		t.Fatalf("read the enumeration at %s: %v", logSyslogFacilityLeaf, err)
+	}
+	model = slices.Sorted(slices.Values(model))
+
+	accepted := slogutil.FacilityNames()
+	if !slices.Equal(model, accepted) {
+		t.Errorf("the syslog facilities disagree: the model at %s holds %v and slogutil accepts %v",
+			logSyslogFacilityLeaf, model, accepted)
+	}
+}
