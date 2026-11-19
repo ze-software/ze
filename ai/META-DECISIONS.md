@@ -92,13 +92,19 @@ in the spec or commit it applies to.
 - RFC 9463 (encrypted DNS resolver discovery, DNR) may be added later and is
   not in the first release. Work done before it shapes learned DNS resolvers
   so DNR can extend them without undoing anything.
-- DNS zone transfer (AXFR, IXFR) is wanted after the first release and is
-  not declined. Its requirements stay recorded as gaps owed after the
-  release, never annotated `{feature-declined}` or called out of scope.
-  The resolver Ze runs for customers is not an authoritative server; the
-  plugins that answer authoritatively (GeoDNS, AS112) answer queries only.
-  Because those plugins fill the authoritative name server role, the
-  zone-transfer rows are never annotated `{not-applicable}` either.
+- DNS zone transfer (AXFR, IXFR) is not required. The resolver Ze runs for
+  customers is not an authoritative server, and the plugins that answer
+  authoritatively (GeoDNS, AS112) answer queries only: none of them serves a
+  zone to a secondary. A zone-transfer requirement therefore binds the
+  primary or secondary server role no part of Ze fills, and its annotation
+  names that role.
+- Ze's DNS resolver serves a home connection. A DNS requirement that binds
+  only a role neither that resolver nor the answering plugins fill is out of
+  scope, and its annotation names that role.
+- Ze may build its own DNS library on top of miekg/dns that covers more of a
+  DNS RFC than the resolver and the answering plugins use today. That work is
+  in scope before anything calls it; a requirement the library meets counts
+  as met only once a shipped path uses it.
 - A question the RFC text answers is not asked. Where the RFC is silent or
   unclear, the goal is interoperability: Ze must work with BIRD and FRR, so read
   their source and do what lets Ze interoperate with both. freeRtr's source
