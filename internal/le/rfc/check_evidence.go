@@ -270,17 +270,18 @@ const neverClauseForm = "`ze never <condition>: <path>.go::<Symbol> <how>`"
 // by name.
 func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, held string) (string, bool) {
 	quote := req.Annotation.Quote
+	register := keywordRegisterOf(req.RFC)
 	var tb textbuf.Buffer
 	if !source.wholeSentence(held, quote) {
 		return tb.Str("its quote ").Str(pyRepr(quote)).
 			Str(" is not a whole sentence of section ").Str(held).
 			Str(": quote the sentence that makes the feature optional, or the conditional obligation, from its first word to its full stop").String(), true
 	}
-	advisory, mandatory := bcp14LevelsIn(quote)
+	advisory, mandatory := register.levelsIn(quote)
 	optional := len(advisory) > 0 || (len(mandatory) == 0 && optionalityMarked(quote))
 	own := req.Quote()
 	ownSentence := own != "" && strings.Contains(quoteNeedle(quote), quoteNeedle(own))
-	guard, conditional := conditionalGuard(quote)
+	guard, conditional := conditionalGuard(quote, register)
 	if optional && !ownSentence {
 		if conditional {
 			return neverClauseGap(req, code, conditionalScope(quote, guard))
@@ -331,23 +332,6 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 func conditionalScope(quote, guard string) neverScope {
 	return neverScope{opening: "its quote " + pyRepr(quote) + " is a conditional obligation",
 		evidence: guard, against: "the quote's guard clause"}
-}
-
-// bcp14LevelsIn answers the advisory and the mandatory BCP 14 levels quote
-// holds as whole words, each in rfc.go's sorted order.
-func bcp14LevelsIn(quote string) ([]string, []string) {
-	var advisory, mandatory []string
-	for _, level := range advisoryLevelNames() {
-		if containsWords(quote, level) {
-			advisory = append(advisory, level)
-		}
-	}
-	for _, level := range gatedLevelNames() {
-		if containsWords(quote, level) {
-			mandatory = append(mandatory, level)
-		}
-	}
-	return advisory, mandatory
 }
 
 // optionalityMarked answers whether quote states a feature optional in lower
@@ -791,9 +775,12 @@ func (reader *evidenceReader) notOwedGap(req *Requirement) (string, bool) {
 // sentence there (wholeSentence), and, when it holds a BCP 14 keyword, the
 // row's own obligation (ownObligationRefusal), so a row cannot borrow another
 // obligation's subject to exclude Ze from its own. The row side is the row's
-// quote, its text without the trailing (§N) (Requirement.Quote). A quote with
-// no keyword is a scoping sentence, judged for its marker and role by the
-// parser (scopingRefusal).
+// quote, its text without the trailing (§N) (Requirement.Quote). Keywords are
+// read in the register of the row's RFC (keywordRegisterOf), so a pre-RFC
+// 2119 row's lowercase "must" is its MUST, and the role sentence such a row
+// may name is held to its own section (roleSentenceGap). A quote with no
+// keyword is a scoping sentence, judged for its marker and role by the parser
+// (scopingRefusal).
 func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 	source := loadQuoteSource(reader.sources, reader.tree, req.RFC)
 	if missing, lacks := quoteGap(req, source, "role-condition quote"); lacks {
@@ -805,10 +792,47 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 		return tb.Str("its role-condition quote is not a whole sentence of section ").Str(section).
 			Str(": quote it from the word that opens the sentence to the full stop that ends it, so no condition of the sentence is cut away").String(), true
 	}
-	if at, _ := firstKeyword(req.Annotation.Quote); at < 0 {
+	register := keywordRegisterOf(req.RFC)
+	if at, _ := register.firstKeyword(req.Annotation.Quote); at < 0 {
 		return "", false
 	}
-	return ownObligationRefusal(req.Quote(), req.Level, req.Annotation.Quote)
+	if refusal, refused := ownObligationRefusal(req.Quote(), req.Level, req.Annotation.Quote, register); refused {
+		return refusal, true
+	}
+	return roleSentenceGap(req, source)
+}
+
+// roleSentenceGap judges the role sentence a pre-RFC 2119 {not-applicable}
+// row names its bound role from (Annotation.RoleSentence), answering false
+// for a row that names none. The section named must be a heading of the RFC
+// exactly (quoteSource.has), never an ancestor reached by resolve's fallback,
+// and the sentence must be a whole sentence of it or of a subsection, as
+// every quote an annotation carries is; the parser already held the bound
+// role to the sentence's words (roleSentenceRefusal).
+func roleSentenceGap(req *Requirement, source *quoteSource) (string, bool) {
+	named, sentence := req.Annotation.RoleSection, req.Annotation.RoleSentence
+	if sentence == "" {
+		return "", false
+	}
+	var tb textbuf.Buffer
+	if !source.has(named) {
+		return tb.Str("its role sentence names section ").Str(named).
+			Str(", which names no heading of the RFC, so no section holds ").Str(pyRepr(sentence)).
+			Str(". Name the exact heading the sentence is under").String(), true
+	}
+	if !source.inSection(named, sentence) {
+		tb.Str("its role sentence ").Str(pyRepr(sentence)).Str(" is not in section ").Str(named)
+		if found, elsewhere := source.sectionOf(sentence); elsewhere {
+			return tb.Str(": it is in section ").Str(found).Str(". Name section ").Str(found).String(), true
+		}
+		return tb.Str(" nor in any section of ").Str(fullRel).Byte('/').Str(req.RFC).
+			Str(".txt; quote the RFC's sentence verbatim").String(), true
+	}
+	if !source.wholeSentence(named, sentence) {
+		return tb.Str("its role sentence is not a whole sentence of section ").Str(named).
+			Str(": quote it from the word that opens the sentence to the full stop that ends it").String(), true
+	}
+	return "", false
 }
 
 // ownObligationRefusal judges a role-condition quote holding a BCP 14 keyword
@@ -822,7 +846,7 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 // bind its own obligation through another sentence's subject. Otherwise the
 // subject binds another obligation than the row's, and the refusal names
 // which of the four failed.
-func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
+func ownObligationRefusal(rowQuote, level, quote string, register keywordRegister) (string, bool) {
 	var tb textbuf.Buffer
 	row, held := quoteNeedle(strings.TrimSpace(rowQuote)), quoteNeedle(strings.TrimSpace(quote))
 	start, end := 0, len(held)
@@ -836,7 +860,7 @@ func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
 		}
 		end = start + len(row)
 	}
-	at, keyword := firstKeyword(held)
+	at, keyword := register.firstKeyword(held)
 	if at < start || at >= end {
 		return tb.Str("its role-condition quote's first BCP 14 keyword ").Str(keyword).
 			Str(" lies outside the row's clause ").Str(pyRepr(row)).
@@ -852,7 +876,7 @@ func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
 		return "", false
 	}
 	from := strings.Index(row, held)
-	if own := levelKeywordAt(row, level); own < from || own >= from+len(held) {
+	if own := levelKeywordAt(row, level, register); own < from || own >= from+len(held) {
 		return tb.Str("the row's first ").Str(level).Str(" lies outside its role-condition quote ").Str(pyRepr(held)).
 			Str(": the row's own obligation sits in another sentence than the one quoted, so the subject held to the bound role is not the row's. Quote the sentence of the row that holds its first ").Str(level).
 			Str(", or annotate the row {gap: ...}").String(), true
@@ -864,10 +888,10 @@ func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
 // that is spelled level, -1 when none is. Keywords are read in order as
 // firstKeyword reads them, so a MUST NOT is not taken for a MUST. The loop is
 // bounded by len(text): each pass moves offset past one keyword.
-func levelKeywordAt(text, level string) int {
+func levelKeywordAt(text, level string, register keywordRegister) int {
 	offset := 0
 	for {
-		at, keyword := firstKeyword(text[offset:])
+		at, keyword := register.firstKeyword(text[offset:])
 		if at < 0 {
 			return -1
 		}

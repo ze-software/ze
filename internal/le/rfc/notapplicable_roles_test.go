@@ -70,7 +70,7 @@ func TestNotApplicableQuoteIsOneOfTwoShapes(t *testing.T) {
 		{`"This section is limited relay agents of the widget."; binds relay agents; it relays nothing`, "scopes nothing"},
 	}
 	for _, one := range parses {
-		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture")
+		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture", registerUpperCase)
 		if one.says == "" {
 			if err != nil {
 				t.Errorf("%s: refused: %v", one.payload, err)
@@ -81,7 +81,7 @@ func TestNotApplicableQuoteIsOneOfTwoShapes(t *testing.T) {
 			t.Errorf("%s: answered %v, want a refusal saying %q", one.payload, err, one.says)
 		}
 	}
-	_, err := parseAnnotation(`not-applicable: "This document describes widgets and the frames that carry them."; binds widgets; why`, "fixture")
+	_, err := parseAnnotation(`not-applicable: "This document describes widgets and the frames that carry them."; binds widgets; why`, "fixture", registerUpperCase)
 	if err == nil || !strings.Contains(err.Error(), "one of two shapes") || !strings.Contains(err.Error(), "{gap: ...}") {
 		t.Errorf("a quote of neither shape answered %v, want both shapes and the {gap} outlet named", err)
 	}
@@ -153,7 +153,7 @@ func TestNotApplicableSubjectNamesOneRole(t *testing.T) {
 		{"All the route reflectors MUST reflect the widget to every client.", "route reflectors", ""},
 	}
 	for _, one := range cases {
-		_, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds `+one.bound+`; it relays nothing`, "fixture")
+		_, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds `+one.bound+`; it relays nothing`, "fixture", registerUpperCase)
 		if one.says == "" {
 			if err != nil {
 				t.Errorf("%q binds %q: refused: %v", one.quote, one.bound, err)
@@ -196,7 +196,7 @@ func TestNonRoleAdjectivesLeaveARoleGeneric(t *testing.T) {
 	if !strings.Contains(squashWhitespace(realRFCText(t, "rfc2784")), rfc2784Compliant) {
 		t.Fatalf("rfc/full/rfc2784.txt no longer carries %q", rfc2784Compliant)
 	}
-	_, err := parseAnnotation(`not-applicable: "`+rfc2784Compliant+`"; binds a compliant implementation; ze is not one`, "fixture")
+	_, err := parseAnnotation(`not-applicable: "`+rfc2784Compliant+`"; binds a compliant implementation; ze is not one`, "fixture", registerUpperCase)
 	if err == nil || !strings.Contains(err.Error(), "a word for any party to a protocol") {
 		t.Errorf("binds a compliant implementation answered %v, want the generic refusal", err)
 	}
@@ -213,7 +213,7 @@ func TestRoleKeyCutsPunctuationAsASubjectDoes(t *testing.T) {
 			t.Errorf("roleKey(%q) = %q, want %q", spelling, got, "route reflector rr")
 		}
 	}
-	_, err := parseAnnotation(`not-applicable: "A route reflector (RR) MUST reflect the widget to every client."; binds a route reflector (RR); it reflects nothing`, "fixture")
+	_, err := parseAnnotation(`not-applicable: "A route reflector (RR) MUST reflect the widget to every client."; binds a route reflector (RR); it reflects nothing`, "fixture", registerUpperCase)
 	if err != nil {
 		t.Errorf("binds a route reflector (RR) against its own subject was refused: %v", err)
 	}
@@ -395,7 +395,7 @@ func TestNotApplicableScopingSentenceIsNotNegated(t *testing.T) {
 		{"This section applies only to route reflectors and another widget.", ""},
 	}
 	for _, one := range cases {
-		_, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds route reflectors; ze reflects nothing`, "fixture")
+		_, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds route reflectors; ze reflects nothing`, "fixture", registerUpperCase)
 		if one.says == "" {
 			if err != nil {
 				t.Errorf("%q: refused: %v", one.quote, err)
@@ -482,7 +482,7 @@ func TestNotApplicableBoundRoleNamesAParty(t *testing.T) {
 		{"relay agents", "'not'"},
 	}
 	for _, one := range cases {
-		_, err := parseAnnotation(`not-applicable: "`+quote+`"; binds `+one.bound+`; ze relays nothing`, "fixture")
+		_, err := parseAnnotation(`not-applicable: "`+quote+`"; binds `+one.bound+`; ze relays nothing`, "fixture", registerUpperCase)
 		if err == nil || !strings.Contains(err.Error(), one.says) {
 			t.Errorf("binds %s: answered %v, want a refusal saying %q", one.bound, err, one.says)
 		}

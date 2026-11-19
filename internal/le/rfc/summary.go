@@ -115,7 +115,7 @@ func (r *Requirement) Quote() string {
 }
 
 // parseAnnotation reads one `{kind: reason}` body.
-func parseAnnotation(body, where string) (*Annotation, error) {
+func parseAnnotation(body, where string, register keywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	kind, rest, separated := strings.Cut(body, ":")
 	kind = strings.TrimSpace(kind)
@@ -144,7 +144,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	if declaration.parse == nil {
 		return &Annotation{Kind: kind, Reason: rest}, nil
 	}
-	annotation, err := declaration.parse(rest, where)
+	annotation, err := declaration.parse(rest, where, register)
 	if err != nil {
 		return nil, &ParseError{msg: err.Error()}
 	}
@@ -153,7 +153,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 
 // parseSinglePolarity reads the one required polarity and why the other has
 // no input to drive it.
-func parseSinglePolarity(rest, where string) (*Annotation, error) {
+func parseSinglePolarity(rest, where string, _ keywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	polarity, why, _ := strings.Cut(rest, ";")
 	polarity = strings.TrimSpace(polarity)
@@ -174,7 +174,7 @@ func parseSinglePolarity(rest, where string) (*Annotation, error) {
 var partialRE = regexp.MustCompile(`^tested\s+("(?:[^"\\]|\\.)*")\s*;\s*gap\s+("(?:[^"\\]|\\.)*")\s*;\s*(\S.*)$`)
 
 // parsePartial keeps the entire declaration for publication and audit binding.
-func parsePartial(rest, where string) (*Annotation, error) {
+func parsePartial(rest, where string, _ keywordRegister) (*Annotation, error) {
 	parts := partialRE.FindStringSubmatch(rest)
 	if parts == nil {
 		return nil, fmt.Errorf("%s: {partial} needs tested \"<span>\"; gap \"<span>\"; <reason with path.go::Symbol>", where)
@@ -290,7 +290,7 @@ const lowerLayerFormat = "Format: {lower-layer: <layer>; <path>.go::<Symbol> ins
 // than checkable, which is how {not-applicable} became a set of 915 judgements
 // no reader can check (owner ruling, 2026-08-31). checkLowerLayerProducer then
 // holds the producer against the tree, so the claim can go stale and be found.
-func parseLowerLayer(rest, where string) (*Annotation, error) {
+func parseLowerLayer(rest, where string, _ keywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	layer, why, found := strings.Cut(rest, ";")
 	layer = strings.TrimSpace(layer)
@@ -361,7 +361,12 @@ const notApplicableBoundPrefix = "binds "
 // it here would fail every summary that holds one; the evidence ratchet
 // (checkExclusionEvidence) owes it instead. A reason that opens with a quote
 // has chosen the evidence form and is held to it.
-func parseNotApplicable(body, where string) (*Annotation, error) {
+//
+// In an RFC published before RFC 2119 (registerPre2119) the quote's lowercase
+// "must" is its keyword, and the reason may open with the sentence of another
+// section that names the bound role, `§<section> "<sentence>"; <why>`, when
+// the obligation's own subject is no role (roleSentenceRefusal).
+func parseNotApplicable(body, where string, register keywordRegister) (*Annotation, error) {
 	if !strings.HasPrefix(body, `"`) {
 		return &Annotation{Kind: AnnotationNotApplicable, Reason: body}, nil
 	}
@@ -407,12 +412,17 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 			Str(", which names no party: its words are pronouns, determiners, scoping words or negations, so it stands for a party named elsewhere or for none. Name the specific role the quoted sentence names (a route reflector, a DHCP relay agent). ").
 			Str(notApplicableFormat))
 	}
-	// The bound role is the subject the quoted obligation binds, or the role
-	// a scoping sentence with no keyword names (boundRoleRefusal). Whether the
-	// obligation is the row's own sentence, and whether the quote is a whole
-	// sentence of the cited section, needs the row and the RFC text, and is
+	role, why, err := parseRoleSentence(why, where)
+	if err != nil {
+		return nil, err
+	}
+	// The bound role is the subject the quoted obligation binds, the role a
+	// scoping sentence with no keyword names, or in a pre-RFC 2119 RFC the
+	// role a sentence of another section names (boundRoleRefusal). Whether
+	// the obligation is the row's own sentence, and whether each quote is a
+	// whole sentence of its section, needs the row and the RFC text, and is
 	// judged by (*evidenceReader).gap.
-	if refusal, refused := boundRoleRefusal(quote, bound); refused {
+	if refusal, refused := boundRoleRefusal(quote, bound, role, register); refused {
 		return nil, parseErr(tb.Str(where).Str(refusal).Str(notApplicableFormat))
 	}
 	if why == "" {
@@ -423,7 +433,47 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 	// Reason keeps the WHOLE body, as {feature-declined}'s does, so every
 	// renderer that prints `{kind} reason` publishes the quote and the role.
 	return &Annotation{Kind: AnnotationNotApplicable, Quote: quote, BoundRole: bound,
-		Reason: strings.TrimSpace(body)}, nil
+		RoleSection: role.section, RoleSentence: role.sentence, Reason: strings.TrimSpace(body)}, nil
+}
+
+// parseRoleSentence reads the role sentence a {not-applicable} reason may
+// open with, `§<section> "<sentence>"; <why>`, answering it and the why after
+// it. A reason that does not open with `§` names none and is answered whole.
+// The section is held to featureSectionIDRE, as {feature-declined}'s is, and
+// the sentence to minFeatureQuote; whether the RFC may name a role this way,
+// and whether the sentence names the bound role, is boundRoleRefusal's.
+func parseRoleSentence(why, where string) (roleSentence, string, error) {
+	var tb textbuf.Buffer
+	found := featureSectionRE.FindStringSubmatch(why)
+	if found == nil {
+		if strings.HasPrefix(why, "§") {
+			return roleSentence{}, "", parseErr(tb.Str(where).
+				Str(": {not-applicable} opens its reason with a § but names no section before a quoted sentence. ").
+				Str(notApplicableFormat))
+		}
+		return roleSentence{}, why, nil
+	}
+	section := found[1]
+	if !featureSectionIDRE.MatchString(section) {
+		return roleSentence{}, "", parseErr(tb.Str(where).
+			Str(": {not-applicable} names its role sentence from §").Str(section).
+			Str(", which is no section id an RFC heading carries (2, 2.2, A.1). ").Str(notApplicableFormat))
+	}
+	parts := featureDeclinedRE.FindStringSubmatch(why[len(found[0]):])
+	if parts == nil {
+		return roleSentence{}, "", parseErr(tb.Str(where).
+			Str(": {not-applicable} names §").Str(section).
+			Str(" for its role sentence, but no double-quoted sentence closed by a `;` and a reason follows it. ").
+			Str(notApplicableFormat))
+	}
+	sentence := strings.TrimSpace(parts[1])
+	if len(sentence) < minFeatureQuote {
+		return roleSentence{}, "", parseErr(tb.Str(where).
+			Str(": {not-applicable} quotes the role sentence ").Str(pyRepr(sentence)).
+			Str(", which is under ").Int(int64(minFeatureQuote)).
+			Str(" characters and identifies no sentence. ").Str(notApplicableFormat))
+	}
+	return roleSentence{section: section, sentence: sentence}, strings.TrimSpace(parts[2]), nil
 }
 
 // featureDeclinedRE splits `"<quote>"; <why>`: a double-quoted span, then the
@@ -487,7 +537,7 @@ const minFeatureQuote = minCorrectionQuote
 // decoration: a kind that says "Ze does not do that" with nothing named is
 // assertable rather than checkable, which is how {not-applicable} became a set
 // of 915 judgements no reader can check (owner ruling, 2026-08-31).
-func parseFeatureDeclined(rest, where string) (*Annotation, error) {
+func parseFeatureDeclined(rest, where string, _ keywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	if keyword := featureHeadingRE.FindString(rest); keyword != "" {
 		return parseFeatureHeading(rest, rest[len(keyword):], where)
@@ -600,7 +650,7 @@ const rollupFormat = "Format: {rollup: <target>, <target>; why}, where a target 
 // {lower-layer} does: every renderer that prints `{kind} reason` publishes the
 // target list with no knowledge of this kind, so a reader of any page can check
 // the rows a rollup rests on.
-func parseRollup(rest, where string) (*Annotation, error) {
+func parseRollup(rest, where string, _ keywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	head, why, found := strings.Cut(rest, ";")
 	head = strings.TrimSpace(head)
@@ -790,7 +840,7 @@ type rowMarkers struct {
 // possible: the pattern anchors at end of line and matches ONE group, so a
 // single search would leave the second group inside the requirement TEXT,
 // unparsed and dragged into extractSection as if it were prose.
-func stripMarkers(rest, where string) (rowMarkers, string, error) {
+func stripMarkers(rest, where string, register keywordRegister) (rowMarkers, string, error) {
 	var markers rowMarkers
 	for {
 		loc := annotationRE.FindStringSubmatchIndex(rest)
@@ -802,7 +852,7 @@ func stripMarkers(rest, where string) (rowMarkers, string, error) {
 		}
 		body := strings.TrimSpace(rest[loc[2]:loc[3]])
 		kind := strings.TrimSpace(strings.SplitN(body, ":", 2)[0])
-		if err := markers.add(kind, body, where); err != nil {
+		if err := markers.add(kind, body, where, register); err != nil {
 			return rowMarkers{}, "", err
 		}
 		rest = strings.TrimSpace(rest[:loc[0]])
@@ -810,7 +860,7 @@ func stripMarkers(rest, where string) (rowMarkers, string, error) {
 }
 
 // add parses one marker body into its slot, refusing a second of a kind.
-func (m *rowMarkers) add(kind, body, where string) error {
+func (m *rowMarkers) add(kind, body, where string, register keywordRegister) error {
 	var tb textbuf.Buffer
 	if kind == SupersededKind {
 		if m.successor != nil {
@@ -836,7 +886,7 @@ func (m *rowMarkers) add(kind, body, where string) error {
 			return parseErr(tb.Str(where).Str(": two {").Str(IntentKind).
 				Str("} markers on one line. A row has one intent: ").Str(intentFormat))
 		}
-		parsed, err := parseIntent(body, where)
+		parsed, err := parseIntent(body, where, register)
 		m.intent = parsed
 		return err
 	}
@@ -846,7 +896,7 @@ func (m *rowMarkers) add(kind, body, where string) error {
 			Str("} and {").Str(kind).
 			Str("}). A requirement has one coverage disposition"))
 	}
-	parsed, err := parseAnnotation(body, where)
+	parsed, err := parseAnnotation(body, where, register)
 	m.annotation = parsed
 	return err
 }
@@ -943,7 +993,7 @@ func parseChecklistLine(line, stem, source string, lineno int32) (*Requirement, 
 	}
 
 	rest := strings.TrimSpace(found[4])
-	markers, rest, err := stripMarkers(rest, where)
+	markers, rest, err := stripMarkers(rest, where, keywordRegisterOf(stem))
 	if err != nil {
 		return nil, err
 	}

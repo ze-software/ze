@@ -74,37 +74,83 @@ var bcp14Keywords = append(gatedLevelNames(), advisoryLevelNames()...)
 // for every refusal of a quote of neither shape.
 const notApplicableShapes = "A {not-applicable} quote is one of two shapes: the row's own obligation sentence, whose subject is the bound role, or a sentence of the cited section with no BCP 14 keyword that scopes it to the role with apply, applies, applicable, only, solely, limited to or restricted to. "
 
-// firstKeyword answers the byte offset and spelling of the first BCP 14
-// keyword in quote as a whole word, -1 when it holds none. Where two keywords
-// start at one offset the longer wins, so "MUST NOT" is not read as "MUST".
-func firstKeyword(quote string) (int, string) {
-	at, keyword := -1, ""
-	for _, candidate := range bcp14Keywords {
-		found := wordIndex(quote, candidate)
-		if found < 0 {
-			continue
-		}
-		if at < 0 || found < at || (found == at && len(candidate) > len(keyword)) {
-			at, keyword = found, candidate
-		}
-	}
-	return at, keyword
-}
-
 // boundRoleRefusal judges the role a quoted {not-applicable} row binds against
 // its quote, answering the refusal sentence, which the caller ends with the
-// format. A quote holding a BCP 14 keyword is shape (a), the row's own
-// obligation sentence, and its subject must be the bound role
-// (subjectRefusal); the check that it is the row's own sentence needs the row
-// and runs in (*evidenceReader).gap. A quote with no keyword is shape (b), a
-// scoping sentence (scopingRefusal). Either way a role of generic words alone
-// is refused by the caller, and a role ze fills by checkNotApplicableRoles.
-func boundRoleRefusal(quote, bound string) (string, bool) {
-	at, keyword := firstKeyword(quote)
+// format. Keywords are read in the register of the row's RFC
+// (keywordRegisterOf), so a pre-RFC 2119 row's lowercase "must" is one. A
+// quote holding a BCP 14 keyword is shape (a), the row's own obligation
+// sentence, and its subject must be the bound role (subjectRefusal), unless a
+// pre-RFC 2119 row names the role from a sentence of another section
+// (roleSentenceRefusal); the check that it is the row's own sentence needs the
+// row and runs in (*evidenceReader).gap. A quote with no keyword is shape (b),
+// a scoping sentence (scopingRefusal). Either way a role of generic words
+// alone is refused by the caller, and a role ze fills by
+// checkNotApplicableRoles.
+func boundRoleRefusal(quote, bound string, role roleSentence, register keywordRegister) (string, bool) {
+	var tb textbuf.Buffer
+	at, keyword := register.firstKeyword(quote)
 	if at < 0 {
+		if role.sentence != "" {
+			return tb.Str(": {not-applicable} names its bound role from section ").Str(role.section).
+				Str(", but its quote ").Str(pyRepr(quote)).
+				Str(" holds no BCP 14 keyword: a scoping sentence names its own role, so drop the §").
+				Str(role.section).Str(" sentence. ").String(), true
+		}
 		return scopingRefusal(quote, bound)
 	}
-	return subjectRefusal(quote[:at], keyword, bound)
+	refusal, refused := subjectRefusal(quote[:at], keyword, bound)
+	if role.sentence == "" {
+		return refusal, refused
+	}
+	if !refused {
+		return tb.Str(": {not-applicable} names its bound role from section ").Str(role.section).
+			Str(", but the subject of its quoted obligation is already ").Str(pyRepr(bound)).
+			Str(", so naming a role sentence is redundant: drop the §").Str(role.section).
+			Str(" sentence. ").String(), true
+	}
+	return roleSentenceRefusal(role, bound, register)
+}
+
+// roleSentence is the sentence of another section a pre-RFC 2119
+// {not-applicable} row names its bound role from, and the section it is in
+// (`binds <role>; §<section> "<sentence>"; <why>`). Both are empty when the
+// row names none.
+type roleSentence struct {
+	section  string
+	sentence string
+}
+
+// roleSentenceRefusal judges the role sentence of a {not-applicable} row
+// whose quoted obligation, the row's own, has a subject that names no role.
+// A pre-RFC 2119 RFC states an obligation in indicative prose, often of an
+// activity ("Zone refresh activities must use virtual circuits"), and defines
+// the role that performs it in another section; only such an RFC may name the
+// role there, so a post-RFC 2119 row keeps the two shapes it always had. The
+// bound role must be in the sentence as whole words, which may hold no
+// scoping negation (scopingNegations), so it names the role rather than
+// carves it out. Where the sentence lies in the RFC is judged by
+// (*evidenceReader).roleSentenceGap, which reads the text.
+func roleSentenceRefusal(role roleSentence, bound string, register keywordRegister) (string, bool) {
+	var tb textbuf.Buffer
+	if register != registerPre2119 {
+		return tb.Str(": {not-applicable} names its bound role from section ").Str(role.section).
+			Str(", a form only an RFC published before RFC 2119 takes, because only such an RFC states an obligation with no role as its subject. ").
+			Str(notApplicableShapes).String(), true
+	}
+	lower := strings.ToLower(role.sentence)
+	for _, negation := range scopingNegations {
+		if containsWords(lower, negation) {
+			return tb.Str(": {not-applicable} names its bound role from the section ").Str(role.section).
+				Str(" sentence ").Str(pyRepr(role.sentence)).Str(", which holds ").Str(pyRepr(negation)).
+				Str(", so it may carve the role out rather than name it. Quote a sentence that names the role with no negation or exception. ").String(), true
+		}
+	}
+	if containsWords(roleKey(role.sentence), roleKey(bound)) {
+		return "", false
+	}
+	return tb.Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+		Str(", which is not in its section ").Str(role.section).Str(" sentence ").Str(pyRepr(role.sentence)).
+		Str("; name the role that sentence names, or quote the sentence that names this one. ").String(), true
 }
 
 // scopingRefusal judges a quote with no BCP 14 keyword: it must carry a

@@ -29,7 +29,7 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 		{AnnotationRollup, "RFC9999-2-2; the constituent owns the obligation", false, false, false, true, RollupUnproven, false, false},
 	} {
 		t.Run(one.kind, func(t *testing.T) {
-			annotation, err := parseAnnotation(one.kind+": "+one.body, "fixture")
+			annotation, err := parseAnnotation(one.kind+": "+one.body, "fixture", registerUpperCase)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -107,7 +107,7 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 // and gate callers cannot turn a missing declaration into proof or an exemption.
 func TestUnknownAnnotationFailsClosed(t *testing.T) {
 	const unknown = "not-a-declared-kind"
-	if _, err := parseAnnotation(unknown+": reason", "fixture"); err == nil {
+	if _, err := parseAnnotation(unknown+": reason", "fixture", registerUpperCase); err == nil {
 		t.Fatal("unknown kind parsed")
 	}
 	if _, known := AnnotationTraitsOf(unknown); known {

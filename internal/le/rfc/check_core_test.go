@@ -77,7 +77,7 @@ func TestUpdatedByMarkerRequiresUpdaterListed(t *testing.T) {
 // citing section, annotated by a checklist reason the real parser reads.
 func evidenceRow(t *testing.T, rid, section, annotation string) Requirement {
 	t.Helper()
-	parsed, err := parseAnnotation(annotation, "fixture")
+	parsed, err := parseAnnotation(annotation, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("the fixture annotation {%s} did not parse: %v", annotation, err)
 	}
@@ -86,7 +86,7 @@ func evidenceRow(t *testing.T, rid, section, annotation string) Requirement {
 	// obligation: a quoted obligation must be the row's own
 	// (ownObligationRefusal), judged on the row's Quote().
 	level := levelMust
-	if at, keyword := firstKeyword(parsed.Quote); at >= 0 {
+	if at, keyword := registerUpperCase.firstKeyword(parsed.Quote); at >= 0 {
 		level = keyword
 	}
 	return Requirement{RFC: selftestStem, RID: rid, Level: level, Text: parsed.Quote + " (§" + section + ")", Section: section,
@@ -189,7 +189,7 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 		{`"short"; binds a widget; why`, "under 24 characters"},
 	}
 	for _, one := range refusals {
-		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture")
+		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture", registerUpperCase)
 		if one.says == "" {
 			// A quantifier between the subject and its keyword is allowed.
 			if err != nil {

@@ -346,7 +346,7 @@ type AnnotationTraits struct {
 // A nil parser means the common non-empty reason is the entire payload.
 var annotationKinds = map[string]struct {
 	traits AnnotationTraits
-	parse  func(rest, where string) (*Annotation, error)
+	parse  func(rest, where string, register keywordRegister) (*Annotation, error)
 	format string
 }{
 	AnnotationNotApplicable: {
@@ -592,6 +592,16 @@ type Annotation struct {
 	// fills (parseNotApplicable, checkNotApplicableRoles). It is
 	// {not-applicable}'s alone.
 	BoundRole string `json:"bound-role,omitempty"`
+	// RoleSection and RoleSentence are the sentence of the RFC that names the
+	// BoundRole and the section it is in, when a {not-applicable} row of an
+	// RFC published before RFC 2119 quotes an obligation whose own subject is
+	// no role (`binds <role>; §<section> "<sentence>"; <why>`,
+	// roleSentenceRefusal). The sentence is held to that exact heading
+	// ((*evidenceReader).roleSentenceGap). Both are empty when the quote's
+	// own subject, or its scoping sentence, names the role. They are
+	// {not-applicable}'s alone.
+	RoleSection  string `json:"role-section,omitempty"`
+	RoleSentence string `json:"role-sentence,omitempty"`
 	// LayerPath is where a reader checks the component Layer names: a kernel
 	// CONFIG_ option Ze's kernel config enables (linux:CONFIG_IPV6), a Go
 	// standard library package (go:crypto/x509) or a vendored module directory

@@ -49,7 +49,7 @@ func conditionalFixtureTree(t *testing.T) string {
 // annotated {feature-declined} with payload.
 func conditionalRow(t *testing.T, stem, section, rowText, payload string) Requirement {
 	t.Helper()
-	parsed, err := parseAnnotation(payload, "fixture")
+	parsed, err := parseAnnotation(payload, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("the fixture annotation {%s} did not parse: %v", payload, err)
 	}
@@ -212,7 +212,7 @@ func TestAConditionalOpeningIsALeadingClauseOrARelativeSubject(t *testing.T) {
 		{"No keyword guards this sentence if it is read.", false},
 	}
 	for _, one := range cases {
-		if _, got := conditionalGuard(one.quote); got != one.want {
+		if _, got := conditionalGuard(one.quote, registerUpperCase); got != one.want {
 			t.Errorf("conditionalGuard(%q) answered %v, want %v", one.quote, got, one.want)
 		}
 	}

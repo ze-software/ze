@@ -95,7 +95,7 @@ type Intent struct {
 // (optionalityMarked), the shape a {feature-declined} quote's optionality
 // takes. A not-yet marker takes no reason, since it records only that the
 // work is owed.
-func parseIntent(body, where string) (*Intent, error) {
+func parseIntent(body, where string, register keywordRegister) (*Intent, error) {
 	var tb textbuf.Buffer
 	_, value, _ := strings.Cut(body, ":")
 	word, reason, reasoned := strings.Cut(value, ";")
@@ -111,7 +111,7 @@ func parseIntent(body, where string) (*Intent, error) {
 		}
 		return &Intent{State: IntentNotYet}, nil
 	case intentNotEverWord:
-		return parseNotEver(reason, where)
+		return parseNotEver(reason, where, register)
 	default:
 		return nil, parseErr(tb.Str(where).Str(": unknown intent state ").Str(pyRepr(word)).
 			Str(". Proven is computed from the discrimination records and never declared, ").
@@ -121,7 +121,7 @@ func parseIntent(body, where string) (*Intent, error) {
 
 // parseNotEver reads the reason of a not-ever marker: the quoted RFC sentence
 // making the row optional, then why.
-func parseNotEver(reason, where string) (*Intent, error) {
+func parseNotEver(reason, where string, register keywordRegister) (*Intent, error) {
 	var tb textbuf.Buffer
 	if reason == "" {
 		return nil, parseErr(tb.Str(where).Str(": {").Str(IntentKind).Str(": ").Str(intentNotEverWord).
@@ -138,7 +138,7 @@ func parseNotEver(reason, where string) (*Intent, error) {
 			Str("} gives no reason after the quote. Close the quote, then write `; <why>`. ").Str(intentFormat))
 	}
 	quote, why := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
-	advisory, mandatory := bcp14LevelsIn(quote)
+	advisory, mandatory := register.levelsIn(quote)
 	optional := len(advisory) > 0 || (len(mandatory) == 0 && optionalityMarked(quote))
 	if !optional {
 		return nil, parseErr(tb.Str(where).Str(": {").Str(IntentKind).Str(": ").Str(intentNotEverWord).

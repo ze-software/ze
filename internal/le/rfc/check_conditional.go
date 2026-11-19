@@ -49,8 +49,8 @@ var subjectPrepositions = []string{"for", "from", "in", "of", "on", "to", "with"
 // and, if it does, it MUST mark it" the MUST is read as guarded. The loop is
 // bounded by the commas of the text before the keyword: each pass moves start
 // past one.
-func conditionalGuard(quote string) (string, bool) {
-	at := firstMandatoryKeyword(quote)
+func conditionalGuard(quote string, register keywordRegister) (string, bool) {
+	at := register.firstMandatoryKeyword(quote)
 	if at < 0 {
 		return "", false
 	}
@@ -65,22 +65,6 @@ func conditionalGuard(quote string) (string, bool) {
 		}
 		start += comma + 1
 	}
-}
-
-// firstMandatoryKeyword answers the byte offset of the first mandatory BCP 14
-// keyword in quote as a whole word, -1 when it holds none.
-func firstMandatoryKeyword(quote string) int {
-	at := -1
-	for _, level := range gatedLevelNames() {
-		found := wordIndex(quote, level)
-		if found < 0 {
-			continue
-		}
-		if at < 0 || found < at {
-			at = found
-		}
-	}
-	return at
 }
 
 // conditionalClause answers the guard of one lower-case clause, and whether it

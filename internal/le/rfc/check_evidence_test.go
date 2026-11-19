@@ -178,7 +178,7 @@ func TestExclusionEvidenceRefusalsNameTheFix(t *testing.T) {
 // module); a checkout holding no kernel config refuses every linux: path.
 func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 	parsed, err := parseAnnotation("lower-layer: Linux IPv6 neighbor discovery, linux:CONFIG_IPV6; "+
-		"internal/x/nd.go::install installs the address, and the kernel answers", "fixture")
+		"internal/x/nd.go::install installs the address, and the kernel answers", "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("a lower-layer payload naming its layer path did not parse: %v", err)
 	}
@@ -896,7 +896,7 @@ func TestHistoricalBacklogSkipsRetiredKinds(t *testing.T) {
 // METHOD: the refusal text is read and each advised role is parsed as the
 // bound role of an obligation naming it, against Ze roles `BGP speaker`.
 func TestGenericRoleRefusalAdvisesARoleThatPasses(t *testing.T) {
-	_, err := parseAnnotation(`not-applicable: "A speaker MUST send the widget before any frame."; binds a speaker; it sends none`, "fixture")
+	_, err := parseAnnotation(`not-applicable: "A speaker MUST send the widget before any frame."; binds a speaker; it sends none`, "fixture", registerUpperCase)
 	if err == nil || !strings.Contains(err.Error(), "(a route reflector, a DHCP relay agent)") {
 		t.Fatalf("the generic refusal %v does not advise the roles this test checks", err)
 	}

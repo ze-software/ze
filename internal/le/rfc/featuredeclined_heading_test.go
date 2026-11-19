@@ -144,7 +144,7 @@ func TestAFeatureDeclinedHeadingIsRefusedAtParse(t *testing.T) {
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			_, err := parseAnnotation(one.payload, "fixture")
+			_, err := parseAnnotation(one.payload, "fixture", registerUpperCase)
 			if err == nil {
 				t.Fatalf("{%s} parsed", one.payload)
 			}

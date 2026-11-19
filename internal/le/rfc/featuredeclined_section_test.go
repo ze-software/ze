@@ -87,7 +87,7 @@ func featureFixtureTree(t *testing.T) string {
 
 func TestAFeatureDeclinedPayloadNamesItsQuotesSection(t *testing.T) {
 	const quote = fixtureOptionalSentence
-	ann, err := parseAnnotation(`feature-declined: §4 "`+quote+`"; `+sectionedProducer, "fixture")
+	ann, err := parseAnnotation(`feature-declined: §4 "`+quote+`"; `+sectionedProducer, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("a payload naming its quote's section was refused: %v", err)
 	}
@@ -100,14 +100,14 @@ func TestAFeatureDeclinedPayloadNamesItsQuotesSection(t *testing.T) {
 	if !strings.HasPrefix(ann.Reason, "§4 ") {
 		t.Errorf("reason %q does not keep the whole body, section included", ann.Reason)
 	}
-	appendix, err := parseAnnotation(`feature-declined: §A.1 "`+fixtureAppendixSentence+`"; `+sectionedProducer, "fixture")
+	appendix, err := parseAnnotation(`feature-declined: §A.1 "`+fixtureAppendixSentence+`"; `+sectionedProducer, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("a payload naming an appendix section was refused: %v", err)
 	}
 	if appendix.QuoteSection != "A.1" {
 		t.Errorf("appendix quote section: %q, want %q", appendix.QuoteSection, "A.1")
 	}
-	plain, err := parseAnnotation(`feature-declined: "`+quote+`"; `+sectionedProducer, "fixture")
+	plain, err := parseAnnotation(`feature-declined: "`+quote+`"; `+sectionedProducer, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("the form naming no section was refused: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestAFeatureDeclinedPayloadNamesItsQuotesSection(t *testing.T) {
 // holds the quote to the same section the parser read.
 // METHOD: one parsed annotation marshaled and read back.
 func TestAFeatureDeclinedQuoteSectionRoundTripsThroughJSON(t *testing.T) {
-	ann, err := parseAnnotation(`feature-declined: §A.1 "`+fixtureAppendixSentence+`"; `+sectionedProducer, "fixture")
+	ann, err := parseAnnotation(`feature-declined: §A.1 "`+fixtureAppendixSentence+`"; `+sectionedProducer, "fixture", registerUpperCase)
 	if err != nil {
 		t.Fatalf("the fixture annotation did not parse: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestAMalformedFeatureDeclinedSectionIsRefused(t *testing.T) {
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			_, err := parseAnnotation("feature-declined: "+one.payload, "fixture")
+			_, err := parseAnnotation("feature-declined: "+one.payload, "fixture", registerUpperCase)
 			if err == nil {
 				t.Fatalf("{feature-declined: %s} parsed, want a refusal", one.payload)
 			}
