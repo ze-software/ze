@@ -161,10 +161,18 @@ func bgpBestRouteExportPolicy(ctx context.Context, plugin *sdk.Plugin, address, 
 	return policyFinalSessions(ctx, plugin, 2)
 }
 
-// bgpBestRouteConnect returns two established sockets after both initial EORs
-// and real next-hop resolution. The caller MUST close both returned sockets;
-// this helper MUST close every socket it opens if setup fails.
+// bgpBestRouteConnect waits for both passive peers to start before opening
+// either socket. The shared listener's attribution changes while startup
+// replaces its configured peers. It returns both sockets after EOR and
+// next-hop resolution. The caller MUST close both returned sockets; this
+// helper MUST close every socket it opens if setup fails.
 func bgpBestRouteConnect(ctx context.Context, plugin *sdk.Plugin, address string, sourceASN, targetASN uint16) (net.Conn, net.Conn, error) {
+	peers := []p12Peer{{name: "source", addr: addrLoopbackSecond}, {name: "destination", addr: addrLoopbackThird}}
+	if err := p12WaitAllPeerFields(ctx, plugin, peers, "state", func(_ p12Peer, state any) bool {
+		return state == "active"
+	}, "both passive peers to start before opening TCP"); err != nil {
+		return nil, nil, err
+	}
 	source, err := atomicAggregatePolicyConnect(ctx, address, netip.MustParseAddr(addrLoopbackSecond), sourceASN)
 	if err != nil {
 		return nil, nil, err

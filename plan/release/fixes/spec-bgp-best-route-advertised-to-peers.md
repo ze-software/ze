@@ -107,10 +107,12 @@ Those commits do not close the spec or claim release readiness.
 | Scoped origin admission, election and settlement | Test companions committed in `6297ed3ef0` | All 18 roots passed with race detection. They cover preference, retained alternatives, exact removal, original receipts, cancellation and uncertain completion across the native and framed SDK transports. Existing redistribution rejection and rule-narrowing roots separately passed; the origin tests alone do not prove a complete system-route and learned-route TCP lifecycle |
 | Configured redistribution, AC-17 | Forked RIB config fix and transaction tests committed in `076b002dae`. The test passed 80 Linux draft stress executions and a fresh post-promotion Linux run | The per-route override beat learned BGP and the configured default lost. Removing the rule restored the learned path without another source UPDATE. The unadmitted system route stayed off the wire and both original sessions survived |
 | Explicit export rejection of a scoped origin, AC-15 | Fixed and verified on the original recipient sessions | The initial socket test showed a stale local route and zero withdrawals after rejection. The repaired path withdraws only the affected recipient's output. Rollback and later acceptance reoffer the retained selected origin. The direct one-shot route stays out until the API sends it again. The other recipient keeps its learned route |
+| Configured preference change, AC-16 | The draft passed 80 stress executions and the promoted test passed on a fresh daemon | The original recipient switched between the admitted local and learned routes across three distance reloads. Withdrawing the losing local route kept the learned route and the unrelated admitted origin |
 | Scoped origin replacement during reconnect, AC-18 | The final-writer overlap regression passed with race detection | The test holds the old replay inside its writer, admits a replacement on a new established session, then releases the old work. The new session keeps the replacement bytes and the other recipient keeps its route. The old receipt is released |
 | Role and policy diagnostics, AC-21 and AC-22 | Both diagnostic cases passed on a fresh daemon | The reflector handles owner-terminal startup removal in `c3adea4edb`. Exact send-grant projection keeps receive-only peers as sources without scheduling route-server replay to them. Both placements reach the useful ordinary and reflected routes, the local API survivor, and the external absence checks |
 | Existing route-server fast-path permission control | The updated case passed 80 stress invocations and a fresh post-promotion run | Both destinations prove they are established before the source sends. The granted recipient receives the original expected UPDATE. The engine records the exact cached handback refusal for the denied recipient |
 | Policy removal rollback, AC-23 | Socket regression committed in `2f127b0278` | The learned route returned after the failed apply. The API route remained installed without a duplicate announcement. Disabling the journal undo failed at the restored learned-route check |
+| Attachment isolation, AC-24 | The draft passed 80 stress executions and the promoted test passed on a fresh daemon | Both live peers received useful ordinary output. The unattached process saw no peer UPDATEs. The receive-only process saw source UPDATEs. The daemon refused each process's sends to both peers |
 | Attachment grants, AC-25 | Validate and candidate commit tests in `483ca1bc0a`. Three daemon startup refusals in `6f1b436d3e`. Completed-grant refresh case promoted | Each startup case passed 80 stress invocations and a fresh post-promotion run. The completed graph passed 80 stress invocations and a fresh post-promotion run. In both RIB placements, a late peer received the elected route, sent a real ROUTE-REFRESH, and received the same route on its original socket without a new source UPDATE |
 | Default AIGP without ordinary transit, AC-26 | The two-peer config passed validation and both editor commit paths. Its partial-RIB comparison was refused | `bgp-best-route-api-only.ci` observed both received routes in Adj-RIB-In and useful API announcements on both original sockets, with no learned route passed between them. The draft passed 80 stress invocations, and the promoted test passed on a fresh daemon |
 | Process-safe RPKI validation batches | Committed in `58a6160f69`; original codec companion committed in `743252a277` | Four scoped regression roots passed with race detection. Both SDK transports reach the registered receive-store command owner, preserving original identities, cancellation, publication debt and terminal-owner refusal. Actual forked purge and expiry then passed after a temporary concurrent build failure cleared |
@@ -1204,12 +1206,12 @@ design check before extending this public operation.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Proposed; unimplemented | RIB selects; registered operation reaches existing reconstruction, egress and final writer; final completion is explicit |
-| No unintended coupling (components stay isolated) | Proposed; unimplemented | Self-contained snapshot/source receipt and typed/external parity; no sibling-plugin import, no engine GR policy |
-| No duplicated functionality (extends existing, does not recreate) | Proposed; unimplemented | Existing selection, claims, sent ownership, revocation, session fencing and per-session writers are extended; no parallel RIB/claim registry |
-| Zero-copy preserved where applicable (refs, not copies) | Proposed; measurement owed | Own one retained selected snapshot across fanout; pool reconstruction remains shared; bounded batches and release-on-error/cancel require allocation/lifetime tests |
-| Registration over hardcoding, outbound | Proposed; unimplemented | Selected engine operation and the transit grant needs declared by owner, read only to report a missing grant; authenticated runtime role lookup |
-| Registration over hardcoding, inbound | Proposed; unimplemented | Existing delivery graph/Claims plus public fence declaration; genuine external registration tested without compiled alias |
+| No bypassed layers (data flows through the intended path) | Yes | `rib_advertise_capture.go::commitAdvertise` hands the selected revision to `rib_selected_dispatch.go::selectedDispatch.publish`. The registered `SelectRoutes` operation calls `reactor_api_selected.go::reactorAPIAdapter.stageSelected` and joins `selected_flush.go::reactorAPIAdapter.writeSelected` for the captured destination session |
+| No unintended coupling (components stay isolated) | Yes | `dispatch_registry.go::engineOps` routes the typed and framed calls through `dispatch_selected.go::Server.selectRoutes`. The server authenticates the process and validates the batch. The selecting plugin sends the stored route and source or origin receipt across that boundary |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `rib_advertise_capture.go::RIBManager.commitAdvertise` uses the existing election. `dissemination.go::ResolveDisseminationOwner` uses the peer grant graph. `reactor_api_selected.go::reactorAPIAdapter.stageSelected` reuses forward reconstruction before final egress |
+| Zero-copy preserved where applicable (refs, not copies) | Yes, with one retained copy at changed-winner capture | `rib_advertise_capture.go::RIBManager.prepareAdvertise` takes ownership of the changed winner's bytes once across destinations. `TestAdvertiseCaptureOwnsElectedRevision` and `TestAdvertiseCaptureUnchangedWinnerKeepsRevision` cover ownership and unchanged-winner reuse. The reactor reconstructs into its forwarding pool. No allocation or throughput result is claimed |
+| Registration over hardcoding, outbound | Yes | `rib_dissemination.go::disseminationDecls` supplies the role and grant sets. `dispatch_registry.go::engineOps` declares the selected operation, and `dissemination_snapshot.go::disseminationSnapshot.ExportKind` checks the live owner before selecting export policy |
+| Registration over hardcoding, inbound | Yes | `replay_fence.go::Server.declaresReplayFence` reads actual process registration. `replay_fence.go::validateReplayFenceDeclaration` rejects a fence declaration without session-ready signaling |
 
 ## Risks & Assumptions
 
@@ -1363,8 +1365,9 @@ product behavior or successful advertisement claim.
 
 ## Acceptance Criteria
 
-The initial ruling/RFC criteria and the proposed lifecycle, transport and
-resource-bound criteria below form one unapproved design for whole review.
+These criteria govern the implementation the owner authorized. The
+implementation progress table records the evidence checked so far and the
+checks still owed.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
@@ -1478,10 +1481,12 @@ negative observation follows useful output and joins the work it observes.
 |------|----------|-------------------|--------|
 | `bgp-best-route-transit-default` | `test/plugin/` | A node between two peers advertises the route elected by its explicitly attached RIB | Fresh scoped suite passed |
 | `bgp-best-route-needs-export-policy` | `test/plugin/` | An internal peer without an export policy receives its API announcement. An export-policy change enables or retires learned output | Fresh scoped suite passed |
+| `bgp-best-route-origin-distance` | `test/plugin/` | Distance reload changes the elected origin on the original recipient socket. Removing the retained loser preserves learned output | 80 draft stress executions and a fresh post-promotion run passed |
 | `bgp-best-route-redistribution-selected` | `test/plugin/` | Configured static preferences compete with learned BGP. Rule removal restores the learned route and keeps both sessions and the unrelated route | Both Linux placements passed 80 stress executions and a fresh post-promotion run |
 | `bgp-policy-diagnostics-internal` and `bgp-policy-diagnostics-forked` | `test/plugin/` | Validation, live warnings, and doctor name the affected peers. The reflector client receives its allowed routes and the eBGP peer without policy receives none | Both fresh daemon cases passed |
 | `bgp-best-route-refresh-selected` | `test/plugin/` | A late recipient receives the selected route and observes the same route after its own ROUTE-REFRESH | Both placements passed. Disabling the replay request fails at the expected socket assertion |
 | `bgp-best-route-api-only` | `test/plugin/` | Default AIGP and an export policy allow two API-only peers to start and receive local announcements | Fresh post-promotion suite passed. Blocking direct origination fails at the first authenticated API announcement after both peers establish |
+| `bgp-best-route-attach-isolation` | `test/plugin/` | Explicit ordinary transit carries useful output in both directions while two registered processes retain their configured event and send permissions | 80 draft stress executions and a fresh post-promotion run passed |
 
 ### Interop Tests (Scope: protocol)
 Owed against both FRR and BIRD. Before a check expects either to accept or
@@ -1530,50 +1535,50 @@ the design gate, including unchanged callers and non-Go clients.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes, proposed | Declare the distinct selected operation in `internal/core/ipc/yang/ze-plugin-engine.yang` with its authenticated-envelope semantics and extend Stage-1 fence/feed declaration. Register the same operation in `plugin/server/dispatch_registry.go`. No new operator config option; registered origin-intake request/receipt also needs declared plugin RPC and typed/external parity |
-| YANG validation constraints | Yes, proposed | Selected key/revision/announcement-or-absence consistency, origin-kind-appropriate receipt presence for announcements, size/framing limits; Stage-1 fence requires ready signaling. Validate at the registered operation and declaration boundary |
-| YANG custom validators | N-A | No new config leaf/path predicate. Use generic registration/declaration validation for feed requirements, eligible claimant conflict and fence/ready dependency |
-| CLI commands/flags | No in current proposal | Ordinary operation is default, with no new operator command; separate selected RPC, if chosen, is an SDK operation |
-| CLI grammar (keyword before value) | N-A in current proposal | No new CLI syntax; existing replay commands retain grammar |
-| Editor autocomplete | N-A in current proposal | No new editable leaf/command; reuse configured distance declarations |
-| Functional test for new RPC/API | Yes | Default transit test plus forked selected lifecycle and preserved legacy replay; typed/JSON dispatch tests in plugin server and reactor |
-| Pipe completeness | N-A in current proposal | No new presentation or CLI answer shape |
-| Env var registration | No in current proposal | No tunable justified; batching/failure policy is design work, not a new env knob |
-| Doctor check for runtime dependencies | Yes, proposed | `rib/rib_advertise_diagnostic.go` owns selected-output reconciliation health; SDK issue reporting reaches daemon doctor on both transports. Check reports an unsettled destination with native key/revision, cause and exact corrective action; clear only after acknowledged reconciliation or session retirement. Contracts/authority phase wires it before RIB dissemination |
-| Doctor code per problem class | Yes, proposed identifiers | `doctor-bgp-selected-output` in RIB diagnostic registration covers unresolved selected dispatch (permission, invalid receipt, resource/transport failure distinguished in cause); `doctor-plugin-peer-role` in generic plugin registration/delivery validation covers conflicting eligible role owners or insufficient mandatory grants. Declare code metadata at each owning registration, expose through existing doctor/report path, with tests for raise/clear and actionable fixes. These names are proposed, not existing codes |
-| Doctor check for a peer that withholds learned routes | Yes, proposed | The absent-policy value of `reactor/rfc8212_warning.go` gains the internal session's missing export policy, and one doctor check reads that value, so validate, the Established log line and `ze doctor` cannot word it differently. A config-phase check over the peer's settings, declared by the package that owns the value; it names the peer, what is withheld and the editor command, and covers the external RFC 8212 absences the same way (AC-21) |
-| Prometheus counters/metrics | No new metric proposed | Existing route/session metrics remain; owned actionable diagnostics cover reconciliation failures. Boundedness/progress are proven by state-and-wire tests, not a new counter. No metric is needed to implement the behavior |
-| BGP family surface (new SAFI / capability / attribute) | N-A | no new family |
+| YANG schema (new RPCs/config) | Yes | `internal/core/ipc/yang/ze-plugin-engine.yang` declares selected output, origin intake and the Stage 1 declarations. `dispatch_registry.go::engineOps` registers the selected operation. The BGP CLI YANG declares dry-run route kind and owner-excluding replay |
+| YANG validation constraints | Yes | The selected RPC schema bounds the destination-session token and relates route kind to stored wire data. `dispatch_selected.go::Server.selectRoutes` enforces the authenticated runtime checks. `replay_fence.go::validateReplayFenceDeclaration` validates the Stage 1 fence and readiness dependency |
+| YANG custom validators | N-A | The existing BGP configuration validator calls `config/dissemination.go::validateDissemination` for live grant and claimant validation |
+| CLI commands/flags | Yes | `show policy test peer` accepts export `route-kind learned` or `route-kind local`. `clear bgp rib out-excluding-owner` replays while excluding the specified owner. Their owning YANG and handlers are under `bgp/plugins/cmd/policy` and `bgp/plugins/cmd/rib` |
+| CLI grammar (keyword before value) | Yes | Use `route-kind <kind>`, `owner <id>` and optional `family <afi/safi>`, as declared in the owning CLI YANG |
+| Editor autocomplete | N-A | Ordinary transit uses the existing process attachment, policy and route preference fields |
+| Functional test for new RPC/API | Yes | `test/plugin/bgp-best-route-transit-default.ci` exercises ordinary transit with a forked RIB. `dispatch_selected_test.go` covers the selected boundary and `bgp-best-route-api-only.ci` covers direct output without ordinary transit |
+| Pipe completeness | Yes | The dry run adds `simulated-route-kind` to `plugin.PolicyDryRunResult`. `cmd/policy/handler.go::handleShowPolicyTest` returns it as structured response data through the existing command path. Owner-excluding replay uses the RIB command forwarder |
+| Env var registration | N-A | Ordinary transit is configured through explicit process attachments and policy |
+| Doctor check for runtime dependencies | N-A | Selected output uses the existing BGP sessions, process transport and writer. Its reconciliation health has a runtime doctor check |
+| Doctor code per problem class | Yes | `rib_advertise_diagnostic.go::advertiseDoctorDeclaration` registers runtime code `doctor-bgp-selected-output`. `config/policy_absence_doctor.go::doctorCheckBGPPolicyAbsences` reports configuration code `doctor-bgp-learned-export-no-policy` separately from the external RFC 8212 code. `dissemination_validate.go::DeliveryGraph.ValidateDisseminationBindings` rejects incomplete grants and conflicting eligible claimants with the peer and process context |
+| Doctor check for a peer that withholds learned routes | Yes | `reactor/policy_absence.go::PolicyAbsences` supplies the configuration warning, doctor result and Established warning. The learned-export check applies to an iBGP peer with an ordinary owner and no export policy |
+| Prometheus counters/metrics | Yes | `rib.go::SetMetricsRegistry` registers five selected-output gauges and `ze_rib_selected_batches_total`. `rib_selected_metrics.go::recordSelectedBatch` counts completed and failed batches by `outcome`. The names are listed in `docs/guide/monitoring.md` |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Selected output uses the registered family and native key for each route |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `docs/guide/route-reflection.md`, `docs/guide/plugins.md`; feature inventory level must follow demonstrated output, not this proposal |
-| 2 | Config syntax changed? | No new syntax proposed | Update default/role examples and document explicit-origin use of the existing static preference class |
-| 3 | CLI command added/changed? | No in current proposal | Existing replay command grammar preserved; SDK operation documentation handled separately |
-| 4 | API/RPC added/changed? | Yes, proposed selected operation | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/exabgp-bridge.md`; admitted-origin scope/results plus explicit source/selected receipts and completion semantics are specified above |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | Yes | `docs/guide/route-reflection.md`; `docs/guide/bgp-policy.md`, whose section on the default for an absent direction gains the internal session's export case and a before-and-after transit example |
-| 7 | Wire format changed? | Yes, proposed plugin contract | Distinct selected operation, source-event receipt and runtime Stage-1 fence/feed declaration; BGP wire encoding stays existing, route population changes |
-| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, process protocol and `docs/architecture/api/ipc_protocol.md`; same typed/external meaning |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md` (RFC4271-9.2-7), `rfc/short/rfc8212.md` |
-| 10 | Test infrastructure changed? | No advertiser harness change proposed | Existing native runners/fixtures suffice; related constant maintenance is separately recorded and proves no advertiser behavior |
-| 11 | Affects daemon comparison? | Yes | Check and qualify ordinary-transit claims in `docs/comparison.md` against actual FRR/BIRD results |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/rib-transition.md`, `docs/architecture/core-design.md` |
-| 13 | Route metadata keys added/changed? | No arbitrary metadata key proposed | Source receipt and selected authority are explicit typed/JSON event and operation fields, documented in process/API protocol pages; do not smuggle authority through the free-form route metadata map |
-| 14 | Prometheus counters added/changed? | No | Existing metrics unchanged; selected health is an owned doctor issue with reconciliation clear semantics |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Transit-grant-need, role and fence declarations and selected engine operation; `docs/architecture/plugin/plugin-system.md` and generated inventory. Recommended design extends existing RIB, adding no plugin |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Existing relay, best-change, replay and SDK anchors occur in the listed architecture/API pages; final exact anchor check belongs to main after file set is agreed |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the guides that attach `bgp-rs` for transit |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/bgp-protocol.md` records scoped functional and interop evidence. `docs/features/bgp-protocol.md` explains ordinary transit |
+| 2 | Config syntax changed? | No | The ordinary transit examples use the existing attachment, filter and preference syntax in `docs/guide/bgp-peering.md` and `docs/guide/route-reflection.md` |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` describes export dry-run route kind and owner-excluding RIB replay. `docs/guide/bgp-policy.md` gives the dry-run behavior |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md` documents selected final receipts, admitted origins and the route-kind dry run. `docs/architecture/api/architecture.md` covers source receipt authority |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` explains when to use the RIB, route server or reflector and how to grant ordinary transit |
+| 6 | Has a user guide page? | Yes | `docs/guide/route-reflection.md` documents the ordinary role. `docs/guide/bgp-policy.md` describes the missing export policy default. `docs/guide/netlab.md` describes its migrated topology |
+| 7 | Wire format changed? | Yes | `docs/architecture/api/process-protocol.md` documents the plugin wire contracts for selected output, source receipts and the Stage 1 fence. Ordinary UPDATEs use the existing BGP encoding |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md` covers the typed/framed selected operation. `docs/architecture/api/ipc_protocol.md` explains acknowledged cancellation |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md` tracks RFC4271-9.2-7. The ordinary discrimination record is owed. `rfc/short/rfc8212.md` tracks the existing external default preserved by this change |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md` names the two native test topologies and their observable checks. The tests use the existing interop runner |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` describes what the FRR and BIRD ordinary-transit checks assert. Passing interop is separate native evidence |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/rib-transition.md` documents ordinary selected output and the owner decisions on grants, policy and preference. `docs/architecture/plugin/plugin-system.md` describes registered roles and destination ownership |
+| 13 | Route metadata keys added/changed? | No | The process protocol carries source receipts and selected authority in typed and JSON fields. The free-form route metadata schema stays the same |
+| 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` lists the five selected-output gauges and the batch counter by outcome |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/architecture/plugin/plugin-system.md` describes `Dissemination`, exact grant resolution and the runtime replay fence. `docs/architecture/api/process-protocol.md` lists the selected operation |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | The selected operation, RIB and grant graph anchors are in the API, plugin and monitoring pages above. The final documentation gate remains owed |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/bgp-peering.md`, `docs/guide/route-reflection.md` and `docs/guide/plugins.md` show ordinary transit separately from RS and RR. `docs/guide/netlab.md` follows the regenerated ordinary lab config |
 
 ### Discovery and maintenance mapping
 
-| Discovery question | Existing surface and proposed action | Proof owed after implementation |
-|--------------------|--------------------------------------|---------------------------------|
-| Where does an agent look first? | `ai/INDEX.md` already maps RIB storage, route selection, sent-history replay, plugin SDK and DirectBridge. Extend the owning architecture pages those rows name; add a row only if a genuinely new subsystem is chosen | Source anchors and current index point to the implemented owner |
-| What prevents regression? | Existing permission, source-policy, replay-fence and selected-route tests plus proposed retirement/claim/drain regressions | Main runs useful-output controls and later negative assertions, forked parity and configured RS/RR preservation |
-| What registry prevents drift? | Existing plugin registration, `engineOps`, opaque Claims and generated composition/inventory; a plugin-owned declaration of the grants transit needs is proposed, read only by the missing-grant report | Declaration parity, boundary/import checks and destination-scope tests; no central plugin-name list |
-| What proves the user outcome? | Default functional transit and both pinned-daemon interop scenarios; seven existing real socket probes | Initial route, selected replacement, final withdrawal and export denial all reach the actual recipient wire with preserved survivors |
+| Discovery question | Current surface | Evidence |
+|--------------------|-----------------|----------|
+| Where does an agent look first? | `ai/INDEX.md` maps RIB selection, sent history, plugin SDK and DirectBridge. `docs/architecture/rib-transition.md` explains the ordinary producer | The selected process registration, role graph and writer have source anchors in the owning architecture pages |
+| What prevents regression? | Scoped RIB, reactor and plugin-server tests, the ordinary-transit fixtures and the explicit RS/RR role fixtures | The implementation progress and wiring tables record completed checks. The remaining checks stay open |
+| What registry prevents drift? | `engineOps`, `DisseminationDecl`, and runtime replay-fence registration | The typed and framed operations share `dispatch_selected.go::Server.selectRoutes`. `dissemination.go::ResolveDisseminationOwner` resolves the current destination |
+| What proves the user outcome? | The ordinary transit wire cases and pinned FRR/BIRD interop scenarios | The implementation progress and wiring tables record the exact results for winner advertisement, replacement, final withdrawal and export denial |
 
 ## Implementation Steps
 
@@ -1619,10 +1624,10 @@ the design gate, including unchanged callers and non-Go clients.
 
 ## Design Insights
 
-- The unapproved concrete proposal above replaces the earlier technical open
-  alternatives as the recommendation. Historical open rows record discovery,
-  not additional owner questions. Q-3 policy is resolved; whole-design approval
-  remains pending.
+- The owner authorized implementation of the selected design. Key Design
+  Decisions records the rulings on explicit grants, learned export policy and
+  route preference. The earlier dated research records the alternatives
+  considered during design.
 
 Research constraint: changing the initial send alone cannot satisfy AC-4 or
 export-denial correctness. The writer presently knows received-source owners,

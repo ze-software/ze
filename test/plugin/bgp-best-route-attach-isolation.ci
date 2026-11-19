@@ -1,0 +1,72 @@
+# Test: does useful ordinary transit preserve each process's peer permissions?
+# A unit cannot join the parsed attachments, authenticated forked processes,
+# applied event callbacks, and actual selected advertisements on both sockets.
+# Both observers subscribe to UPDATE. One has no peer, the other receives only
+# from source's attachment. Each attempts sends to both established peers.
+# Each export policy passes the other peer's two useful prefixes and the
+# unauthorized send probe, so it cannot hide a broken send grant.
+# The second pair of exact wire UPDATEs and event-settlement receipts catches
+# forbidden delivery or output after the refusals, without waiting on time.
+option=timeout:value=75s
+
+stdin=config:terminator=CONFIG
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal transit-rib { use bgp-rib; }
+ internal bgp-filter-prefix { use bgp-filter-prefix; }
+ external attach-isolation-driver {
+  run "le test fixture plugin/bgp-best-route-attach-isolation 127.0.0.1:$PORT";
+  encoder json;
+ }
+ external attach-isolation-unattached {
+  run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-unattached";
+  encoder json;
+ }
+ external attach-isolation-source {
+  run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-source";
+  encoder json;
+ }
+}
+policy {
+ prefix-list ATTACH-TO-SOURCE {
+  entry 10.251.1.0/24 { action accept; }
+  entry 10.251.2.0/24 { action accept; }
+  entry 203.0.113.0/24 { action accept; }
+ }
+ prefix-list ATTACH-TO-DESTINATION {
+  entry 10.252.1.0/24 { action accept; }
+  entry 10.252.2.0/24 { action accept; }
+  entry 203.0.113.0/24 { action accept; }
+ }
+ match attach-to-source { prefix-list ATTACH-TO-SOURCE; }
+ match attach-to-destination { prefix-list ATTACH-TO-DESTINATION; }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { filters [ attach-to-source ]; final accept; } }
+  attach process transit-rib { receive [ update-received state refresh update-sent ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process attach-isolation-source { receive [ update ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { filters [ attach-to-destination ]; final accept; } }
+  attach process transit-rib { receive [ update-received state refresh update-sent ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+ }
+}
+CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=65s
+expect=exit:code=0
+expect=stderr:contains=OK: attach-isolation-unattached kept its UPDATE scope and both sends were refused
+expect=stderr:contains=OK: attach-isolation-source kept its UPDATE scope and both sends were refused
+expect=stderr:contains=OK: attachment isolation kept both original selected-route sessions useful
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

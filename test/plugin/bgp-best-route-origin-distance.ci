@@ -1,0 +1,51 @@
+# Question: does changing configured static preference reselect between an
+# admitted local origin and learned BGP on the original recipient socket,
+# retaining the loser and leaving learned output intact when it is withdrawn?
+# A unit cannot prove the live SDK admission, normal parsed-config reload and
+# real recipient writer are connected. Both SDK/RIB transports have separate
+# component coverage; this scenario adds the missing exact TCP witness.
+# VALIDATES: spec-bgp-best-route-advertised-to-peers AC-16.
+# Learned P/K and unrelated admitted API U are useful first. Static10 selects
+# local P; static200 selects learned P. Returning to10 then200 without another
+# announcement proves both candidates survived. Removing local P must emit
+# nothing before U's withdrawal fence. Real source withdrawals prove P/K still
+# belong to the original session; a final API route proves useful output.
+option=timeout:value=120s
+
+stdin=config:terminator=CONFIG
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal transit-rib { use bgp-rib; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-origin-distance 127.0.0.1:$PORT ze-bgp.conf";
+  encoder json;
+ }
+}
+rib { distance { static 10; ebgp 20; } }
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process transit-rib { receive [ update-received state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process transit-rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=100s
+expect=exit:code=0
+expect=stderr:contains=OK: configured origin preference and losing withdrawal preserve original learned output
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=peer restart required
+reject=stderr:contains=panic recovered
