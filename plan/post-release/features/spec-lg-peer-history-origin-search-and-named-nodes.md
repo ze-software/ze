@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | config |
 | Priority | P3 |
 | Release reason | New looking glass capabilities for a route collector: session history, origin and exact AS path search, route age, and operator names on peers and next hops. None repairs shipped behavior; the repairs are in the companion fix spec |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 7/7 |
 | Handoff | verify |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -445,8 +445,8 @@ The evidence each goal of the Task section owes. The closure records each named 
 | `TestRouteRowsReadTheAge`, `TestRouteRowsKeepAZeroAge`, `TestRouteRowsLeaveAMissingAgeEmpty`, `TestFormatElapsed`, `TestTransformRoutesAgeAvailability` | `internal/component/lg/route_age_test.go` | The pages show the age, a known zero stays a zero, a missing age stays empty, and the API states `age_available` (AC-7, AC-41) | passing |
 | `TestNextHopNameMostSpecificWins` | `internal/component/lg/graph_nexthop_test.go` | Name lookup over nested ranges | passing |
 | `TestNewNextHopRangesBounds`, `TestUpdateNextHopRangesReplacesTheList`, `TestRouteTableShowsNextHopName`, `TestPeersPageShowsDescriptionAndGroup`, `TestNextHopRangeValidatorRefusesOneRangeTwice`, `TestNextHopRangeValidatorIsRegistered` | `internal/component/lg/nexthop_ranges_test.go` | The 256 bound, the swap on reload (AC-13), the name in the route table (AC-10), the description and group on the peers page (AC-14), and the refusal reaching the registered validator (AC-12) | passing |
-| `TestExtractLGNextHopRangesIgnoresEnabled`, `TestExtractLGNextHopRangesNoList`, `TestExtractLGNextHopRangesRefusesOneRangeTwice`, `TestExtractLGNextHopRangesAcceptsNestedRanges`, `TestExtractLGNextHopRangesCountBoundary`, `TestExtractLGNextHopRangesPrefixLengthBoundary`, `TestExtractLGNextHopRangesRefusesEntryWithoutName`, `TestLGNextHopRangeSchemaBoundaries` | `internal/component/config/lg_next_hop_ranges_test.go` | The reader ignores `enabled` (AC-15), refuses one range written twice and accepts nested ones (AC-12), and holds the boundaries of the table below | written, not yet run |
-| `TestUpdateLGNextHopRangesReplacesTheList`, `TestUpdateLGNextHopRangesWithoutLookingGlass`, `TestUpdateLGNextHopRangesReportsRefusal` | `cmd/ze/hub/listener_migrate_ranges_test.go` | The reload seam hands the list to the running server (AC-13, R-6) | written, not yet run |
+| `TestExtractLGNextHopRangesIgnoresEnabled`, `TestExtractLGNextHopRangesNoList`, `TestExtractLGNextHopRangesRefusesOneRangeTwice`, `TestExtractLGNextHopRangesAcceptsNestedRanges`, `TestExtractLGNextHopRangesCountBoundary`, `TestExtractLGNextHopRangesPrefixLengthBoundary`, `TestExtractLGNextHopRangesRefusesEntryWithoutName`, `TestLGNextHopRangeSchemaBoundaries` | `internal/component/config/lg_next_hop_ranges_test.go` | The reader ignores `enabled` (AC-15), refuses one range written twice and accepts nested ones (AC-12), and holds the boundaries of the table below | passing |
+| `TestUpdateLGNextHopRangesReplacesTheList`, `TestUpdateLGNextHopRangesWithoutLookingGlass`, `TestUpdateLGNextHopRangesReportsRefusal` | `cmd/ze/hub/listener_migrate_ranges_test.go` | The reload seam hands the list to the running server (AC-13, R-6) | passing |
 | `TestSummaryCarriesDescriptionAndGroup` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | The two keys and their sources | passing |
 | `TestParsePeerFromTreeDescriptionReachesPeerSettings` | `internal/component/bgp/reactor/config_test.go` | The `description` leaf reaches `PeerSettings`, and an absent leaf leaves it empty (AC-31) | passing |
 | `TestReloadDescriptionReachesRunningPeerWithoutRestart` | `internal/component/bgp/reactor/peer_settings_swap_test.go` | A changed label reaches the running peer and the peer snapshot with the session kept (AC-31) | passing |
@@ -463,9 +463,9 @@ The evidence each goal of the Task section owes. The closure records each named 
 | `TestSimulatorAnnouncesItsRouteSet`, `TestSimulatorRefusesRouteSetWithAnotherFamily` | `internal/chaos/peer/sender_routeset_test.go` | A simulated session sends exactly the set, then End-of-RIB, and a set beside another family is refused before any session | passing |
 | `TestGenerateFromTopologyProfiles`, `TestGenerateFromTopologyRefusesUnspecifiedSession` | `internal/chaos/scenario/generator_topology_test.go` | One profile per speaker, at the speaker's address, carrying its announcements | passing |
 | `TestConfigGenCollectorForTopology` | `internal/chaos/scenario/generator_topology_test.go` | The collector config holds one peer per speaker of the model, with its AS, its address and its listen port, and an import policy on each external neighbour and on no other peer | passing |
-| `TestLGSimulatedReadTableReadsByColumn`, `TestLGSimulatedPeersProblemNamesTheDifference`, `TestLGSimulatedHandCheckedRefusesAWrongNetwork` | `internal/test/fixture/lg_simulated_network_test.go` | The fixture's page reader and its comparisons refuse a page that differs from the model | written, not yet run |
-| `TestLGSimulatedTraceReadsTheFields`, `TestLGSimulatedTraceProblemNamesTheDifference`, `TestLGSimulatedTraceEndNames`, `TestLGSimulatedTraceRefusesWhatIsNotTheGraph` | `internal/test/fixture/lg_simulated_trace_test.go` | The fixture reads the trace graph's text form field by field, names every end of the model, and refuses an answer that is not the graph | written, not yet run |
-| `TestLGSimulatedReadGraphReadsBothModes`, `TestLGSimulatedReadGraphRefusesWhatIsNotTheGraph`, `TestLGSimulatedGraphWantFollowsTheModel`, `TestLGSimulatedGraphProblemNamesTheDifference`, `TestLGNextHopUnchangedHandCheckedAgreesWithTheModel`, `TestLGNextHopUnchangedTraceProblemRefusesTheRewrittenNextHop` | `internal/test/fixture/lg_simulated_graphs_test.go` | The fixture's comparison of the AS path and next-hop graphs with the model, and the hand-written network of A-10 against the model | written, not yet run |
+| `TestLGSimulatedReadTableReadsByColumn`, `TestLGSimulatedPeersProblemNamesTheDifference`, `TestLGSimulatedHandCheckedRefusesAWrongNetwork` | `internal/test/fixture/lg_simulated_network_test.go` | The fixture's page reader and its comparisons refuse a page that differs from the model | passing |
+| `TestLGSimulatedTraceReadsTheFields`, `TestLGSimulatedTraceProblemNamesTheDifference`, `TestLGSimulatedTraceEndNames`, `TestLGSimulatedTraceRefusesWhatIsNotTheGraph` | `internal/test/fixture/lg_simulated_trace_test.go` | The fixture reads the trace graph's text form field by field, names every end of the model, and refuses an answer that is not the graph | passing |
+| `TestLGSimulatedReadGraphReadsBothModes`, `TestLGSimulatedReadGraphRefusesWhatIsNotTheGraph`, `TestLGSimulatedGraphWantFollowsTheModel`, `TestLGSimulatedGraphProblemNamesTheDifference`, `TestLGNextHopUnchangedHandCheckedAgreesWithTheModel`, `TestLGNextHopUnchangedTraceProblemRefusesTheRewrittenNextHop` | `internal/test/fixture/lg_simulated_graphs_test.go` | The fixture's comparison of the AS path and next-hop graphs with the model, and the hand-written network of A-10 against the model | passing |
 | `TestTraceWalkGoesRouterToRouter` | `internal/component/lg/graph_trace_test.go` | From RIB rows in the shape the RIB query answers, a walk crosses two intermediate routers to the exit router | passing |
 | `TestTraceGraphLinksExitToFirstAS` | `internal/component/lg/graph_trace_test.go` | The join of the exit router and the first AS of the exit route's path | passing |
 | `TestTraceWalkExitsOnOwnAddress` | `internal/component/lg/graph_trace_test.go` | A next hop equal to the router's own address makes it the exit, never a loop (AC-26) | passing |
@@ -487,30 +487,52 @@ The evidence each goal of the Task section owes. The closure records each named 
 | `TestRecordingBytesAreStable` | `internal/le/site/lgreplay/recording_test.go` | The same recording encodes to the same bytes, and reads back equal (AC-36) | passing |
 | `TestRecordAsksTheTourAndDeclaresWhatVaries` | `internal/le/site/lgreplay/record_test.go` | Against a test HTTP server: the tour, the follow-up requests, the assets and the stream sample are recorded, and an answer that changes between the two passes is named in `varies` (AC-32, AC-36) | passing |
 | `TestRecordRefusesAnAnswerThatIsNotText` | `internal/le/site/lgreplay/record_test.go` | A binary answer is refused by name and nothing is written | passing |
-| `TestLGReplayFrameCarriesTheRecordingAndAllowsNoConnection` | `internal/le/site/lgreplay_test.go` | The frame document embeds the recording and the player, and its policy allows no connection (AC-35) | written, not yet run |
-| `TestLGReplayBlockListsTheTourAndTheTranscript` | `internal/le/site/lgreplay_test.go` | The block carries the mount, the tour list, the provenance and the transcript link (AC-37) | written, not yet run |
-| `TestLGReplayBlockWithoutARecording` | `internal/le/site/lgreplay_test.go` | The block states the looking glass is not recorded, and the producer writes nothing (AC-38) | written, not yet run |
-| `TestAuthoredPageExpandsARegisteredBlock` | `internal/le/site/lgreplay_test.go` | A `site-block` comment is replaced by its registered block, and an unknown block is refused by name | written, not yet run |
+| `TestLGReplayFrameCarriesTheRecordingAndAllowsNoConnection` | `internal/le/site/lgreplay_test.go` | The frame document embeds the recording and the player, and its policy allows no connection (AC-35) | passing |
+| `TestLGReplayBlockListsTheTourAndTheTranscript` | `internal/le/site/lgreplay_test.go` | The block carries the mount, the tour list, the provenance and the transcript link (AC-37) | passing |
+| `TestLGReplayBlockWithoutARecording` | `internal/le/site/lgreplay_test.go` | The block states the looking glass is not recorded, and the producer writes nothing (AC-38) | passing |
+| `TestAuthoredPageExpandsARegisteredBlock` | `internal/le/site/lgreplay_test.go` | A `site-block` comment is replaced by its registered block, and an unknown block is refused by name | passing |
 | `TestLGReplayAnswersTheTourFromTheRecording` | `internal/le/site/browsertest/lgreplay_test.go` | In a browser: the tour plays from the recording, an unrecorded search shows the notice, and the server sees no `/lg/` request (AC-33, AC-34, AC-35) | passing |
-| `TestExtractLGNextHopRangesRefusesMappedRange` | `internal/component/config/lg_next_hop_ranges_test.go` | An IPv4-mapped range is refused with the IPv4 range to write (AC-44). `TestNewNextHopRangesBounds` holds the same refusal at the looking glass, and `TestLGNextHopRangeSchemaBoundaries` gained the name's refused characters | written, not yet run |
-| `TestUpdateNextHopRangesRestoresTheReplacedList` | `internal/component/lg/nexthop_ranges_test.go` | The restore call puts back the list the update replaced (AC-45) | written, not yet run |
-| `TestUpdateLGNextHopRangesRestoresOnRollback` | `cmd/ze/hub/listener_migrate_ranges_test.go` | The reload seam hands the restore call to the reload's rollback (AC-45). No test drives a whole reload whose promotion fails | written, not yet run |
-| `TestTraceGraphBoundsTheWalksItLists` | `internal/component/lg/graph_trace_test.go` | 100 lines, then the count of the walks left out and its sentence (AC-46) | written, not yet run |
-| `TestBestWalkRowCarriesNoAge`, `TestBestJSONTerminalRowCarriesNoAge` | `internal/component/bgp/plugins/rib/rib_pipeline_best_age_test.go` | A best-path row has no `age` in either form (AC-49) | written, not yet run |
-| `TestTraceEndsOriginInsideOnAnEmptyASPath` | `internal/chaos/scenario/topology_trace_end_test.go` | The model ends a trace origin-inside on an empty AS path before it asks for the next hop, as the looking glass does (AC-30) | written, not yet run |
-| `TestUncommittedChangesAreRefusedUnlessTrial`, `TestRecordDeclaresTheTrialKeyword` | `internal/le/site/lgreplay/actions_test.go` | The recorder refuses uncommitted changes unless `trial` is given, and declares the keyword (AC-47) | written, not yet run |
-| `TestEachFailedStageNamesItsOwnFix`, `TestAStoppedRunSaysItWasStopped` | `internal/le/site/lgreplay/actions_test.go` | A failed stage of the recorder's network names the fix of that stage, and a stopped run says it was stopped | written, not yet run |
-| `TestTourStepsAreDistinctQuestions` | `internal/le/site/lgreplay/record_test.go` | No two steps of the tour ask the same question | written, not yet run |
-| `TestLGReplayRefusesARecordingOfADirtyTree`, `TestLGReplayProvenanceSaysTheNetworksAreNotReal` | `internal/le/site/lgreplay_test.go` | The site refuses to publish a recording made from an uncommitted tree (AC-47), and the page's provenance says the networks are simulated | written, not yet run |
-| `TestLGReplayFrameOpenedDirectlyRunsNothingRecorded`, `TestLGReplayKeepsABoundedListOfFrameErrors` | `internal/le/site/browsertest/lgreplay_test.go` | In a browser: the frame document opened directly runs nothing recorded (AC-48), and the page keeps the first 20 frame errors and counts the rest | written, not yet run |
-| `TestHeldInboundMovesToTheReplacedPeer`, `TestHeldInboundIsRejectedWhenThePeerIsRemoved`, `TestHeldInboundIsClosedWhenTheReactorStopsBeforeItsPeers` | `internal/component/bgp/reactor/peer_inbound_held_test.go` | A connection held before the peers start follows its replaced peer, is refused with Cease Connection Rejected when the peer is removed, and is closed silently when the reactor stops first (AC-50, AC-51, AC-52). The tests give the peer its connection with `setInboundConnection` and do not start the peer, so the hand-over is proven up to `takeInboundConnection` | written, not yet run |
-| `TestLGSimulatedKeepSurvivesTheWorkDirectory`, `TestLGSimulatedKeepSaysWhenItCannotWrite`, `TestLGSimulatedTailIsBounded` | `internal/test/fixture/lg_simulated_failure_test.go` | A failed run of the simulated network keeps its evidence outside the directory the runner removes, says when it cannot, and bounds the tail it prints | written, not yet run |
+| `TestExtractLGNextHopRangesRefusesMappedRange` | `internal/component/config/lg_next_hop_ranges_test.go` | An IPv4-mapped range is refused with the IPv4 range to write (AC-44). `TestNewNextHopRangesBounds` holds the same refusal at the looking glass, and `TestLGNextHopRangeSchemaBoundaries` gained the name's refused characters | passing |
+| `TestUpdateNextHopRangesRestoresTheReplacedList` | `internal/component/lg/nexthop_ranges_test.go` | The restore call puts back the list the update replaced (AC-45) | passing |
+| `TestUpdateLGNextHopRangesRestoresOnRollback` | `cmd/ze/hub/listener_migrate_ranges_test.go` | The reload seam hands the restore call to the reload's rollback (AC-45). No test drives a whole reload whose promotion fails | passing |
+| `TestTraceGraphBoundsTheWalksItLists` | `internal/component/lg/graph_trace_test.go` | 100 lines, then the count of the walks left out and its sentence (AC-46) | passing |
+| `TestBestWalkRowCarriesNoAge`, `TestBestJSONTerminalRowCarriesNoAge` | `internal/component/bgp/plugins/rib/rib_pipeline_best_age_test.go` | A best-path row has no `age` in either form (AC-49) | passing |
+| `TestTraceEndsOriginInsideOnAnEmptyASPath` | `internal/chaos/scenario/topology_trace_end_test.go` | The model ends a trace origin-inside on an empty AS path before it asks for the next hop, as the looking glass does (AC-30) | passing |
+| `TestUncommittedChangesAreRefusedUnlessTrial`, `TestRecordDeclaresTheTrialKeyword` | `internal/le/site/lgreplay/actions_test.go` | The recorder refuses uncommitted changes unless `trial` is given, and declares the keyword (AC-47) | passing |
+| `TestEachFailedStageNamesItsOwnFix`, `TestAStoppedRunSaysItWasStopped` | `internal/le/site/lgreplay/actions_test.go` | A failed stage of the recorder's network names the fix of that stage, and a stopped run says it was stopped | passing |
+| `TestTourStepsAreDistinctQuestions` | `internal/le/site/lgreplay/record_test.go` | No two steps of the tour ask the same question | passing |
+| `TestLGReplayRefusesARecordingOfADirtyTree`, `TestLGReplayProvenanceSaysTheNetworksAreNotReal` | `internal/le/site/lgreplay_test.go` | The site refuses to publish a recording made from an uncommitted tree (AC-47), and the page's provenance says the networks are simulated | passing |
+| `TestLGReplayFrameOpenedDirectlyRunsNothingRecorded`, `TestLGReplayKeepsABoundedListOfFrameErrors` | `internal/le/site/browsertest/lgreplay_test.go` | In a browser: the frame document opened directly runs nothing recorded (AC-48), and the page keeps the first 20 frame errors and counts the rest | passing |
+| `TestHeldInboundMovesToTheReplacedPeer`, `TestHeldInboundIsRejectedWhenThePeerIsRemoved`, `TestHeldInboundIsClosedWhenTheReactorStopsBeforeItsPeers` | `internal/component/bgp/reactor/peer_inbound_held_test.go` | A connection held before the peers start follows its replaced peer, is refused with Cease Connection Rejected when the peer is removed, and is closed silently when the reactor stops first (AC-50, AC-51, AC-52). The tests give the peer its connection with `setInboundConnection` and do not start the peer, so the hand-over is proven up to `takeInboundConnection` | passing |
+| `TestLGSimulatedKeepSurvivesTheWorkDirectory`, `TestLGSimulatedKeepSaysWhenItCannotWrite`, `TestLGSimulatedTailIsBounded` | `internal/test/fixture/lg_simulated_failure_test.go` | A failed run of the simulated network keeps its evidence outside the directory the runner removes, says when it cannot, and bounds the tail it prints | passing |
 
-Status as of 2026-11-18. `passing` means the main thread ran the test and it
-passed: the RIB packages whole, the chaos packages, the looking glass package,
-the three peer description tests, the recorder's package and the browser test.
-The BGP packages ran through the overlay of R-15. `written, not yet run` means
-no run of that test is recorded. Lint and the review rounds have not run.
+Status as of 2026-11-19. `passing` means the main thread ran the test and it
+passed: the RIB packages whole, the reactor package whole, the chaos packages,
+the looking glass package, the config package, the looking glass tests of the
+hub and fixture packages, the recorder's package, the replay's site tests and
+its three browser tests. The RIB, reactor and hub packages ran through the
+overlay of R-15. Every functional test of the table below passes from its
+promoted place: `lg-simulated-network`, `lg-peer-history`, `lg-origin-search`,
+`lg-route-age` and `lg-named-next-hop` after 80 stressed runs each with no
+failure, `lg-aspath-search` after 120, and `lg-simulated-unchanged-next-hop`
+after 160.
+
+One review round ran (an independent reader over the whole branch, then the
+fixes and a naming pass), and an independent judge ruled three times on the
+changed test expectations and captures, with no refusal. Lint reports no
+finding in a file this branch wrote, in the packages it can analyse; it cannot
+analyse the RIB, reactor and hub packages on this branch (R-15), where this
+branch's lines were read against the same rules.
+
+The recording `website/data/lg-replay.json` was made at commit `af2c9677aa`
+from a clean tree, and a second run at that commit wrote the same bytes
+(AC-36). The site page of AC-38 has not been built: a full site build refuses
+on this branch (R-16), so it renders once the branch is on `main` and the site
+is built there.
+
+What remains before closure: the Review Gate and the closure sections of
+`/ze-close`, in a session that did not write this work; the site build of
+AC-38 from `main`; and the open product window of R-17.
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
