@@ -257,11 +257,11 @@ func espPolAddr(t *testing.T, name, cidr string) {
 
 // espPolSPD loads the real XFRM backend in Ze's namespace and gives it the SPD a first
 // configuration apply builds before any IKE socket opens: the node-wide catch-all
-// `unmatched discard` through installUnmatched, then the IKE bypass through
-// installIKEBypass, in applyConfig's order (apply.go). The application override guard,
-// which applyConfig attaches between the two, is a cgroup program and changes nothing a
-// packet in this probe meets, so it is not attached. Cleanup removes both sets in the
-// order releaseSPD does, bypass first and catch-all last, before the backend closes.
+// `unmatched discard` through installUnmatched. The IKE bypass is no SPD entry: each IKE
+// socket the probe opens carries its own (transport.bypassIKESocket). The application
+// override guard, which applyConfig attaches after the catch-all, is a cgroup program
+// and changes nothing a packet in this probe meets, so it is not attached. Cleanup
+// removes the catch-all before the backend closes.
 func espPolSPD(t *testing.T) {
 	t.Helper()
 	if err := dataplane.Load("xfrm"); err != nil {
@@ -276,16 +276,13 @@ func espPolSPD(t *testing.T) {
 	if err := installUnmatched(dataplane.Get(), dataplane.SPActionDiscard, log); err != nil {
 		t.Fatalf("install the SPD catch-all unmatched discard: %v", err)
 	}
-	installIKEBypass(dataplane.Get(), log)
-	t.Cleanup(func() {
-		removeIKEBypass(dataplane.Get(), log)
-		removeUnmatched(dataplane.Get(), log)
-	})
+	t.Cleanup(func() { removeUnmatched(dataplane.Get(), log) })
 }
 
 // espPolWantSPD fails the test unless the dataplane's policy listing holds what the probe
-// relies on: the IPv4 catch-all as an inbound DISCARD, the IPv4 inbound IKE bypass on UDP
-// port 4500, and the ESP form reader's per-socket policy. It is read back through
+// relies on: the IPv4 catch-all as an inbound DISCARD, the inbound bypass an IKE socket
+// carries (the probe's NAT-T socket on UDP 4500), and the ESP form reader's per-socket
+// policy. It is read back through
 // ListPolicies, the kernel's SPD dump, so it judges what the kernel holds rather than what
 // the installers were asked for.
 func espPolWantSPD(t *testing.T) {
@@ -303,8 +300,7 @@ func espPolWantSPD(t *testing.T) {
 			reader = true
 		case p.Role == dataplane.PolicyRoleCatchAll && p.Dir == dataplane.SADirIn && ipv4:
 			catchAll = p.Action == dataplane.SPActionDiscard
-		case p.Role == dataplane.PolicyRoleIKEBypass && p.Dir == dataplane.SADirIn && ipv4 &&
-			p.DstPort == dataplane.ExactPortMatch(transport.NATTPort):
+		case p.PerSocket && p.Role == dataplane.PolicyRoleIKEBypass && p.Dir == dataplane.SADirIn:
 			bypass = p.Action == dataplane.SPActionBypass
 		}
 	}
@@ -312,7 +308,7 @@ func espPolWantSPD(t *testing.T) {
 		t.Errorf("the SPD listing holds no IPv4 inbound catch-all DISCARD (%d entries); the drop rows would not judge the production SPD", len(policies))
 	}
 	if !bypass {
-		t.Errorf("the SPD listing holds no IPv4 inbound IKE bypass on UDP port %d (%d entries)", transport.NATTPort, len(policies))
+		t.Errorf("the policy listing holds no inbound per-socket IKE bypass (%d entries); the probe's NAT-T socket carries none", len(policies))
 	}
 	if !reader {
 		t.Errorf("the SPD listing holds no esp-form-socket policy (%d entries); the catch-all would drop the refused copy before the reader reads it", len(policies))

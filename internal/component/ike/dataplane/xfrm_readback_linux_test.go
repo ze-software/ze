@@ -561,15 +561,34 @@ func TestSAInfoReadsDirectionOnlyFromKernel(t *testing.T) {
 	}
 }
 
-// TestPolicyInfoReadsICMPErrorReturnBack pins PolicyInfo.ICMPErrorReturn to the
-// XFRM_POLICY_ICMP flag of the dumped entry. Method: the same entry with and without
-// the flag through policyInfoFromKernel.
+// TestPolicyInfoReadsICMPErrorReturnBack pins PolicyInfo.ICMPErrorReturn and
+// PolicyInfo.ICMPErrorYield to the XFRM_POLICY_ICMP flag of the dumped entry, each
+// on the kind of policy the kernel reads it for: the return mapping on a protect
+// policy (one with a template, the only one Ze sets it on, xfrmPolicyFromParams),
+// the reverse check's pass on a BLOCK policy. Method: a protect entry and a block
+// entry, each with and without the flag, through policyInfoFromKernel; the flag on
+// one kind never shows as the other kind's field.
 func TestPolicyInfoReadsICMPErrorReturnBack(t *testing.T) {
 	b := &xfrmBackend{}
+	template := []netlink.XfrmPolicyTmpl{{Proto: netlink.XFRM_PROTO_ESP, Mode: netlink.XFRM_MODE_TUNNEL}}
 	for _, flag := range []bool{true, false} {
-		got := b.policyInfoFromKernel(&netlink.XfrmPolicy{Dir: netlink.XFRM_DIR_OUT, ICMP: flag})
-		if got.ICMPErrorReturn != flag {
-			t.Errorf("XFRM_POLICY_ICMP %t: ICMPErrorReturn = %t", flag, got.ICMPErrorReturn)
+		protect := b.policyInfoFromKernel(&netlink.XfrmPolicy{
+			Dir: netlink.XFRM_DIR_OUT, ICMP: flag, Tmpls: template,
+		})
+		if protect.ICMPErrorReturn != flag {
+			t.Errorf("protect, XFRM_POLICY_ICMP %t: ICMPErrorReturn = %t", flag, protect.ICMPErrorReturn)
+		}
+		if protect.ICMPErrorYield {
+			t.Errorf("protect, XFRM_POLICY_ICMP %t: ICMPErrorYield = true on a policy that is no discard", flag)
+		}
+		block := b.policyInfoFromKernel(&netlink.XfrmPolicy{
+			Dir: netlink.XFRM_DIR_IN, ICMP: flag, Action: netlink.XFRM_POLICY_BLOCK,
+		})
+		if block.ICMPErrorYield != flag {
+			t.Errorf("block, XFRM_POLICY_ICMP %t: ICMPErrorYield = %t", flag, block.ICMPErrorYield)
+		}
+		if block.ICMPErrorReturn {
+			t.Errorf("block, XFRM_POLICY_ICMP %t: ICMPErrorReturn = true on a policy with no template", flag)
 		}
 	}
 }

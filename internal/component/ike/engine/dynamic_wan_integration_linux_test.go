@@ -55,9 +55,8 @@ func TestRouteChosenSourceUnderCatchAllDiscard(t *testing.T) {
 		t.Fatalf("install the catch-all: %v", err)
 	}
 	t.Cleanup(func() { removeUnmatched(dp, log) })
-	installIKEBypass(dp, log)
 
-	// Positive control: the catch-all refuses a socket no bypass names, so the cycle
+	// Positive control: the catch-all refuses a socket that carries no IKE socket bypass, so the cycle
 	// below discriminates a lookup that crosses the SPD from one that does not.
 	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: peerIP, Port: transport.IKEPort})
 	if err == nil {

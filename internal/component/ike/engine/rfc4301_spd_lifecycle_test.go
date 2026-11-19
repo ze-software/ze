@@ -161,12 +161,12 @@ func catchAllKeys(t *testing.T) map[spKey]bool {
 // bypass entry on a backend that records every write, establish one peer's Child SA
 // (its PROTECT entries, in and out), then run the shutdown every exit of runEngine
 // runs, and replay the writes, checking the invariant after each one.
-// PREVENTS: the IKE bypass installed at engine start with no catch-all beneath it, and
-// a release that removed the catch-all while the bypass, an operator entry or a Child
-// SA's PROTECT entry was still in force: in each window a packet met Ze's entries but
-// not the final one.
+// PREVENTS: an SPD entry installed at engine start with no catch-all beneath it, and
+// a release that removed the catch-all while an operator entry or a Child SA's
+// PROTECT entry was still in force: in each window a packet met Ze's entries but not
+// the final one.
 //
-// RFC requirement: RFC4301-4.4.1-3 positive -- with the `unmatched` leaf absent, the discard catch-all is installed before any other Ze SPD entry (the IKE bypass, an operator entry, a Child SA's PROTECT entries) and removed after all of them, so every database state that holds a Ze entry also holds the final entry that discards what it does not match.
+// RFC requirement: RFC4301-4.4.1-3 positive -- with the `unmatched` leaf absent, the discard catch-all is installed before any other Ze SPD entry (an operator entry, a Child SA's PROTECT entries) and removed after all of them, so every database state that holds a Ze entry also holds the final entry that discards what it does not match.
 func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 	resetSPDLeft(t)
 	dp := &lifecycleDP{}
@@ -212,14 +212,15 @@ func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 			break
 		}
 	}
-	// The bypass (8 entries), the operator entry (in and out) and the Child SA's
-	// PROTECT entries must all have been written and released, or the replay above
-	// checked nothing but the catch-all.
+	// The operator entry (in and out) and the Child SA's PROTECT entries must all have
+	// been written and released, or the replay above checked nothing but the catch-all.
+	// Ze's own IKE traffic is exempt on its sockets (bypassIKESocket), never through an
+	// SPD entry, so no bypass write is counted here.
 	if protectWrites != 2*len(protect) {
 		t.Fatalf("replayed %d writes of the Child SA's %d PROTECT entries, want each installed and removed", protectWrites, len(protect))
 	}
-	if others < 2*(8+2+len(protect)) {
-		t.Fatalf("replayed %d writes of entries other than the catch-all, want at least %d", others, 2*(8+2+len(protect)))
+	if others < 2*(2+len(protect)) {
+		t.Fatalf("replayed %d writes of entries other than the catch-all, want at least %d", others, 2*(2+len(protect)))
 	}
 	if len(live) != 0 {
 		t.Fatalf("after the release Ze still holds %d SPD entries: %+v", len(live), live)
@@ -229,7 +230,7 @@ func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 // VALIDATES: a Ze SPD entry the exit could not remove keeps the catch-all beneath it,
 // and the daemon names that entry at Warn, whichever kind of entry it is.
 // METHOD: apply the lifecycle configuration with one Child SA, make the backend refuse
-// one removal (an operator entry, a Child SA PROTECT entry, an IKE bypass entry), run
+// one removal (an operator entry, a Child SA PROTECT entry), run
 // the shutdown, then read the database the backend holds and the log.
 // PREVENTS: the release removing the catch-all after a failed removal it logged at
 // Debug, which left a Ze entry in force with no final entry beneath it after exit.
@@ -244,9 +245,6 @@ func TestReleaseSPDKeepsTheCatchAllWhenARemovalFails(t *testing.T) {
 		}},
 		{"child sa protect entry", func(_ *ipsec.IPsecConfig, child *ChildSA) dataplane.SPParams {
 			return childPolicies(child, dataplane.SADirOut)[0]
-		}},
-		{"ike bypass entry", func(_ *ipsec.IPsecConfig, _ *ChildSA) dataplane.SPParams {
-			return ikeBypassPolicies(spdFamilies[0])[0]
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

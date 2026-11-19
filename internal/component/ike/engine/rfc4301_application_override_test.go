@@ -69,10 +69,14 @@ func TestRFC4301OverrideLeafSelectsTheGuard(t *testing.T) {
 }
 
 // TestApplyAttachesOverrideGuardUnderDeny is the wiring row: a first apply under deny
-// attaches the guard after the node catch-all is installed and before the IKE bypass.
+// attaches the guard once, after the node catch-all is installed, and the apply
+// writes no IKE bypass into the SPD: Ze's own IKE is exempt on its sockets
+// (bypassIKESocket), which open after the apply, so the guard is in force first.
 //
-// VALIDATES: the order in applyConfig (catch-all, guard, IKE bypass).
-// PREVENTS: an IKE socket or an SPD entry in force before the guard.
+// VALIDATES: the order in applyConfig (catch-all, then guard), and that no node-wide
+// IKE bypass entry is installed.
+// PREVENTS: an SPD entry in force before the guard, and a node-wide UDP 500/4500
+// bypass that would exempt a protected host's transit datagram (RFC 4301 Section 5.2).
 func TestApplyAttachesOverrideGuardUnderDeny(t *testing.T) {
 	dp := &orderedGuardDP{}
 	loadFailClosedBackend(t, dp)
@@ -84,15 +88,11 @@ func TestApplyAttachesOverrideGuardUnderDeny(t *testing.T) {
 		t.Fatalf("attached %d times, want once", len(dp.attachedAfter))
 	}
 	before := dp.installed[:dp.attachedAfter[0]]
-	after := dp.installed[dp.attachedAfter[0]:]
 	if !slices.ContainsFunc(before, func(p dataplane.SPParams) bool { return p.Role == dataplane.PolicyRoleCatchAll }) {
 		t.Fatalf("guard attached before the catch-all: installed before it %v", before)
 	}
-	if slices.ContainsFunc(before, func(p dataplane.SPParams) bool { return p.Role == dataplane.PolicyRoleIKEBypass }) {
-		t.Fatal("the IKE bypass went in before the guard")
-	}
-	if !slices.ContainsFunc(after, func(p dataplane.SPParams) bool { return p.Role == dataplane.PolicyRoleIKEBypass }) {
-		t.Fatal("no IKE bypass followed the guard")
+	if slices.ContainsFunc(dp.installed, func(p dataplane.SPParams) bool { return p.Role == dataplane.PolicyRoleIKEBypass }) {
+		t.Fatalf("the apply installed an IKE bypass SPD entry; Ze's IKE is exempt on its sockets only: %v", dp.installed)
 	}
 }
 

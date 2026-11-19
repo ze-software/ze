@@ -8,28 +8,17 @@
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
     "producer-sha": "02594c6a007f8840",
-    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
-  },
-  {
-    "rid": "RFC4301-7.4-2",
-    "polarity": "negative",
-    "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestIKEBypassIsPortScopedSoSection74Binds",
-    "unit-sha": "739b94c36fc2b394",
-    "claim-sha": "fd24264833885479",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
-    "producer-sha": "f9258fc6a6434a85",
-    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -> \"netlink.Dir(p.Dir)\""
   },
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
-    "unit-sha": "b8baa9ea3ca3dc02",
+    "unit-sha": "94df83f374593d73",
     "claim-sha": "1ec0d3daa6eb0788",
     "route": "revert",
-    "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
-    "producer-sha": "f9258fc6a6434a85",
-    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+    "producer-sha": "09525a3dcbb72c53",
+    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,6 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
-// Related: bypass.go -- ikeBypassPolicies, one of the two port-scoped BYPASS producers
-// Related: spd_policy.go -- spdPolicyParams, the other one
+// Related: spd_policy.go -- spdPolicyParams, the one port-scoped BYPASS producer
 // RFC: rfc/short/rfc4301.md -- stateful fragment checking (Section 7.4)
 package engine
 
@@ -77,12 +76,7 @@ func portScopedBypasses(policies []dataplane.SPParams) []dataplane.SPParams {
 func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 	var all []dataplane.SPParams
 
-	// Producer one: ze's own IKE control-plane exemption, on UDP 500 and 4500.
-	for _, family := range spdFamilies {
-		all = append(all, ikeBypassPolicies(family)...)
-	}
-
-	// Producer two: an operator entry that asks for every direction the grammar
+	// The producer: an operator entry that asks for every direction the grammar
 	// offers, with a port on each side, which is the widest port-scoped bypass a
 	// configuration can express.
 	_, local, err := net.ParseCIDR("192.0.2.0/24")
@@ -108,7 +102,7 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 	scoped := portScopedBypasses(all)
 	if len(scoped) == 0 {
 		t.Fatal("no port-scoped bypass was collected, so this test would pass against a producer that installs none; " +
-			"ikeBypassPolicies alone owes four per family")
+			"the operator entry above owes one per direction")
 	}
 
 	for _, p := range scoped {
@@ -121,33 +115,6 @@ func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 		if p.Dir != dataplane.SADirIn && p.Dir != dataplane.SADirOut {
 			t.Errorf("a port-scoped bypass carries direction %d, which is neither in nor out; "+
 				"the reassembly-before-check finding covers those two directions only", p.Dir)
-		}
-	}
-}
-
-// VALIDATES: RFC4301-7.4-2. The IKE control-plane bypass really is port-scoped, so
-// the requirement binds it and the test above is not vacuous.
-// PREVENTS: the population check passing because the population is empty. If
-// ikeBypassPolicies ever widened its ports to ANY, the entries would leave the
-// Section 7.4 population and the direction assertion would hold over nothing, while
-// the exemption itself became far wider than ze's own sockets.
-// RFC requirement: RFC4301-7.4-2 negative -- the IKE bypass is not any-port, so it is
-// inside the population this requirement binds.
-func TestIKEBypassIsPortScopedSoSection74Binds(t *testing.T) {
-	for _, family := range spdFamilies {
-		policies := ikeBypassPolicies(family)
-		if len(policies) != 4 {
-			t.Fatalf("family %v: %d bypass policies, want 4 (two ports, two directions)", family, len(policies))
-		}
-		for _, p := range policies {
-			if p.SrcPort.IsAny() && p.DstPort.IsAny() {
-				t.Errorf("family %v dir %d: the IKE bypass constrains no port, so it exempts every UDP flow "+
-					"between any two addresses rather than ze's own IKE sockets", family, p.Dir)
-			}
-			if p.UpperProto != protoUDP {
-				t.Errorf("family %v dir %d: upper protocol %d, want UDP (%d); a port selector under another "+
-					"protocol names a field that protocol may not carry", family, p.Dir, p.UpperProto, protoUDP)
-			}
 		}
 	}
 }

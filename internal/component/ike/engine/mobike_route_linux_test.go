@@ -94,9 +94,8 @@ func TestMOBIKERouteSourceUnderTheCatchAllDiscard(t *testing.T) {
 		t.Fatalf("install the catch-all: %v", err)
 	}
 	t.Cleanup(func() { removeUnmatched(dp, log) })
-	installIKEBypass(dp, log)
 
-	// Positive control: the catch-all is in force for a socket no bypass names, so
+	// Positive control: the catch-all is in force for a socket that carries no IKE socket bypass, so
 	// the assertion below discriminates a lookup that crosses the SPD from one that
 	// does not.
 	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: peer, Port: 4500})
